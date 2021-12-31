@@ -10,7 +10,7 @@ Leaves
 ## 对于服务器管理员
 此分支使用与Paper一致的paperclip分发
 
-你可以从 [此处](null) 下载最新的构建结果 (1.17.x)
+你可以从 [此处](null) 下载最新的构建结果 (1.18.x)
 
 也可以通过 [此处](https://github.com/LeavesMC/Leaves/blob/master/README_cn.md#自行构建) 的指南自行构建
 
@@ -24,7 +24,7 @@ Leaves-API:
 <dependency>
     <groupId>top.leavesmc.leaves</groupId>
     <artifactId>leaves-api</artifactId>
-    <version>1.17.1-R0.1-SNAPSHOT</version>
+    <version>1.18.1-R0.1-SNAPSHOT</version>
     <scope>provided</scope>
  </dependency>
  ```
@@ -34,12 +34,12 @@ Leaves-Server:
 <dependency>
     <groupId>top.leavesmc.leaves</groupId>
     <artifactId>leaves</artifactId>
-    <version>1.17.1-R0.1-SNAPSHOT</version>
+    <version>1.18.1-R0.1-SNAPSHOT</version>
     <scope>provided</scope>
 </dependency>
 ```
 ## 自行构建
-Java16+
+Java17+
 
 `./gradlew applyPatches`
 

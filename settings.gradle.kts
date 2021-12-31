@@ -7,4 +7,4 @@ pluginManagement {
 
 rootProject.name = "Leaves"
 
-include("Leaves-API", "Leaves-Server")
+include("leaves-api", "leaves-server")

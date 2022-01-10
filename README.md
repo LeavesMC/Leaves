@@ -43,6 +43,4 @@ Java17+
 
 `./gradlew applyPatches`
 
-`./gradlew build`
-
-`./gradlew paperclipJar` or `./gradlew reobfJar`
+`./gradlew createReobfBundlerJar`

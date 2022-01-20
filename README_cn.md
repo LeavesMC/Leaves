@@ -39,10 +39,8 @@ Leaves-Server:
 </dependency>
 ```
 ## 自行构建
-Java17+
+需要Java17或更高版本
 
 `./gradlew applyPatches`
 
-`./gradlew build`
-
-`./gradlew paperclipJar` or `./gradlew reobfJar`
+`./gradlew createReobfBundlerJar`

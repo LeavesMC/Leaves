@@ -5,6 +5,8 @@ Leaves
 
 > Fork of [Paper](https://github.com/PaperMC/Paper) aimed at repairing broken vanilla properties.
 
+> You can see what we modify and fix in [this](https://github.com/LeavesMC/Leaves/blob/master/docs/MODIFICATION.md)
+
 > Waring: This fork will have low mspt as Paper
 
 ## How To (Server Admins)

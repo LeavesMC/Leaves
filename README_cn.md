@@ -12,7 +12,7 @@ Leaves [![Leaves CI](https://github.com/LeavesMC/Leaves/actions/workflows/leaves
 ## 对于服务器管理员
 此分支使用与Paper一致的paperclip分发
 
-你可以从 [此处](null) 下载最新的构建结果 (1.18.x)
+你可以从 [此处](https://github.com/LeavesMC/Leaves/actions/workflows/leaves.yml) 下载最新的构建结果 (1.18.x)
 
 也可以通过 [此处](https://github.com/LeavesMC/Leaves/blob/master/README_cn.md#自行构建) 的指南自行构建
 

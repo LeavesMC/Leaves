@@ -12,7 +12,7 @@ Leaves [![Leaves CI](https://github.com/LeavesMC/Leaves/actions/workflows/leaves
 ## How To (Server Admins)
 Leaves use the same paperclip jar system that Paper uses.
 
-You can download the latest build (1.18.x) of Leaves by going [here](null)
+You can download the latest build (1.18.x) of Leaves by going [here](https://github.com/LeavesMC/Leaves/actions/workflows/leaves.yml)
 
 You can also [build it yourself](https://github.com/LeavesMC/Leaves#building).
 

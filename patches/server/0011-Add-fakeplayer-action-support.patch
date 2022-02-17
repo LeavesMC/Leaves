@@ -17,7 +17,7 @@ index 4a91817fabf87a9e3eff06a23a0e13fc26e5d41b..e10ca71184524feaed92232436c06b54
  
          LeavesConfig.load(config);
 diff --git a/src/main/java/top/leavesmc/leaves/bot/Bot.java b/src/main/java/top/leavesmc/leaves/bot/Bot.java
-index 97b8cb057c139af76684088bdde71d96e95ada81..37c50c501cde4d9869e3849b9c702e58867af13f 100644
+index 97b8cb057c139af76684088bdde71d96e95ada81..c2c4d592ae7991b94b5221255de22455df72b1b4 100644
 --- a/src/main/java/top/leavesmc/leaves/bot/Bot.java
 +++ b/src/main/java/top/leavesmc/leaves/bot/Bot.java
 @@ -1,9 +1,12 @@
@@ -175,7 +175,7 @@ index 97b8cb057c139af76684088bdde71d96e95ada81..37c50c501cde4d9869e3849b9c702e58
  
          if (checkGround()) {
              if (groundTicks < 5) groundTicks++;
-@@ -291,7 +324,74 @@ public class Bot extends ServerPlayer {
+@@ -291,7 +324,83 @@ public class Bot extends ServerPlayer {
  
          checkOutOfWorld();
  
@@ -231,7 +231,16 @@ index 97b8cb057c139af76684088bdde71d96e95ada81..37c50c501cde4d9869e3849b9c702e58
 +    @Override
 +    public void onItemPickup(ItemEntity item) {
 +        super.onItemPickup(item);
-+        this.setItem(this.getInventory().getSelected().asBukkitCopy(), EquipmentSlot.MAINHAND);
++        this.updateItemInMainHand();
++    }
++
++    private ItemStack lastItem = new ItemStack(Material.AIR);
++    public void updateItemInMainHand() {
++        ItemStack item = this.getInventory().getSelected().asBukkitCopy();
++        if (!lastItem.isSimilar(item)) {
++            this.setItem(item, EquipmentSlot.MAINHAND);
++            lastItem = item;
++        }
 +    }
 +
 +    @Override
@@ -250,7 +259,7 @@ index 97b8cb057c139af76684088bdde71d96e95ada81..37c50c501cde4d9869e3849b9c702e58
      }
  
      @Override
-@@ -324,21 +424,6 @@ public class Bot extends ServerPlayer {
+@@ -324,21 +433,6 @@ public class Bot extends ServerPlayer {
          }
      }
  
@@ -272,7 +281,7 @@ index 97b8cb057c139af76684088bdde71d96e95ada81..37c50c501cde4d9869e3849b9c702e58
      public Location getLocation() {
          return getBukkitPlayer().getLocation();
      }
-@@ -430,6 +515,66 @@ public class Bot extends ServerPlayer {
+@@ -430,6 +524,66 @@ public class Bot extends ServerPlayer {
          this.move(MoverType.SELF, new Vec3(velocity.getX(), y, velocity.getZ()));
      }
  
@@ -455,15 +464,16 @@ index 17c1db261165bfa22a7e91189f926e0adf8e43f9..7541a576c00c78cb702cdd280a5c877a
  }
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/Actions.java b/src/main/java/top/leavesmc/leaves/bot/agent/Actions.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..a88567db9812936a09517677bfe45aac181128b9
+index 0000000000000000000000000000000000000000..c2a5e344745a0966d57cebce893d80c26dce0f83
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/Actions.java
-@@ -0,0 +1,41 @@
+@@ -0,0 +1,43 @@
 +package top.leavesmc.leaves.bot.agent;
 +
 +import top.leavesmc.leaves.bot.agent.action.AttackAction;
 +import top.leavesmc.leaves.bot.agent.action.DropAction;
 +import top.leavesmc.leaves.bot.agent.action.RotateAction;
++import top.leavesmc.leaves.bot.agent.action.UseItemAction;
 +
 +import java.util.HashSet;
 +import java.util.Set;
@@ -476,6 +486,7 @@ index 0000000000000000000000000000000000000000..a88567db9812936a09517677bfe45aac
 +        register(new AttackAction());
 +        register(new DropAction());
 +        register(new RotateAction());
++        register(new UseItemAction());
 +    }
 +
 +    public static void register(BotAction action) {
@@ -705,6 +716,36 @@ index 0000000000000000000000000000000000000000..8f7263a97f56144e98794eae3e137a3a
 +    public void tick(Bot bot) {
 +        bot.faceLocation(player.getBukkitEntity().getLocation());
 +        this.setCancel(true);
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/action/UseItemAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/action/UseItemAction.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..8f39161ff8f84392ef57a1ecda3b098a791841e5
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/agent/action/UseItemAction.java
+@@ -0,0 +1,24 @@
++package top.leavesmc.leaves.bot.agent.action;
++
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.world.InteractionHand;
++import top.leavesmc.leaves.bot.Bot;
++import top.leavesmc.leaves.bot.agent.BotAction;
++
++public class UseItemAction extends BotAction {
++    public UseItemAction() {
++        super("use");
++    }
++
++    @Override
++    public BotAction getNew(int tickDelay, ServerPlayer player) {
++        return new UseItemAction().setTickDelay(tickDelay);
++    }
++
++    @Override
++    public void tick(Bot bot) {
++        bot.getInventory().getSelected().use(bot.getLevel(), bot, InteractionHand.MAIN_HAND);
++        bot.punch();
++        bot.updateItemInMainHand();
 +    }
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/util/MathUtils.java b/src/main/java/top/leavesmc/leaves/util/MathUtils.java

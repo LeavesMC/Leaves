@@ -561,22 +561,20 @@ index 0000000000000000000000000000000000000000..78f04e28afa856c900f84af42f22666b
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/action/AttackAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/action/AttackAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..4241b0b883fd62a576e8942ee428469cf9f0f817
+index 0000000000000000000000000000000000000000..18e986343cae449deb1633e3e3c853396a590c64
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/action/AttackAction.java
-@@ -0,0 +1,90 @@
+@@ -0,0 +1,34 @@
 +package top.leavesmc.leaves.bot.agent.action;
 +
 +import net.minecraft.server.level.ServerPlayer;
 +import org.bukkit.Location;
 +import org.bukkit.craftbukkit.entity.CraftEntity;
-+import org.bukkit.entity.Entity;
++import org.bukkit.util.RayTraceResult;
 +import org.bukkit.util.Vector;
 +import top.leavesmc.leaves.bot.Bot;
 +import top.leavesmc.leaves.bot.agent.BotAction;
-+
-+import java.util.ArrayList;
-+import java.util.List;
++import top.leavesmc.leaves.util.MathUtils;
 +
 +public class AttackAction extends BotAction {
 +
@@ -591,68 +589,14 @@ index 0000000000000000000000000000000000000000..4241b0b883fd62a576e8942ee428469c
 +
 +    @Override
 +    public void tick(Bot bot) {
-+        Entity entity = this.getTargetEntity(bot);
-+        if (entity != null) {
-+            bot.attack(((CraftEntity) entity).getHandle());
++        Vector vector = MathUtils.getDirection(bot.getYRot(), bot.getXRot()).normalize(); // can't handle Y axis
++        Location loc = bot.getBukkitPlayer().getEyeLocation().add(vector);
++
++        RayTraceResult result = loc.getWorld().rayTraceEntities(loc, vector, 10);
++
++        if (result != null && result.getHitEntity() != null) {
++            bot.attack(((CraftEntity) result.getHitEntity()).getHandle());
 +        }
-+    }
-+
-+    public Vector getDirection(double rotX, double rotY) {
-+        Vector vector = new Vector();
-+
-+        double xz = Math.cos(Math.toRadians(rotY));
-+
-+        vector.setX(-Math.sin(Math.toRadians(rotY)));
-+        vector.setZ(xz * Math.cos(Math.toRadians(rotX)));
-+        vector.setY(xz * Math.sin(Math.toRadians(rotX)));
-+
-+        return vector;
-+    }
-+
-+    public Entity getTargetEntity(Bot bot) {
-+
-+        Location loc = bot.getLocation();
-+
-+        Vector sight = this.getDirection(bot.getXRot(), bot.getYRot());
-+        List<Entity> entities = bot.getBukkitPlayer().getNearbyEntities(20, 20, 20);
-+        ArrayList<Entity> nearSightEntities = new ArrayList<>();
-+
-+        for (Entity e : entities) {
-+            if (!bot.getBukkitPlayer().hasLineOfSight(e)) {
-+                continue;
-+            }
-+            Vector dir = sight.normalize();
-+            Location eL = e.getLocation();
-+            Vector v = eL.subtract(loc).toVector();
-+            if (Math.toDegrees(v.angle(sight)) <= 90) {
-+
-+                Double[] F = new Double[]{dir.getX(), dir.getY(), dir.getZ(), -(dir.getX() * e.getLocation().getX() + dir.getY() * e.getLocation().getY() + dir.getZ() * e.getLocation().getZ())};
-+                double t = -(F[0] * loc.getX() + F[1] * loc.getY() + F[2] * loc.getZ() + F[3]) / (F[0] * dir.getX() + F[1] * dir.getY() + F[2] * dir.getZ());
-+
-+                Location P = new Location(e.getWorld(), dir.getX() * t + loc.getX(), dir.getY() * t + loc.getY(), dir.getZ() * t + loc.getZ());
-+                if (e.getLocation().distance(P) <= 0.4) {
-+                    nearSightEntities.add(e);
-+                }
-+            }
-+        }
-+
-+        if (nearSightEntities.size() < 1) {
-+            return null;
-+        }
-+
-+        Entity result = null;
-+        for (Entity e : nearSightEntities) {
-+            Location eL = e.getLocation();
-+            if (result == null) {
-+                result = e;
-+                continue;
-+            }
-+            if (eL.distanceSquared(loc) < result.getLocation().distanceSquared(loc) && eL.distanceSquared(loc) != 0) {
-+                result = e;
-+            }
-+
-+        }
-+        return result;
 +    }
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/action/DropAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/action/DropAction.java
@@ -749,7 +693,7 @@ index 0000000000000000000000000000000000000000..8f39161ff8f84392ef57a1ecda3b098a
 +    }
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/util/MathUtils.java b/src/main/java/top/leavesmc/leaves/util/MathUtils.java
-index acdef051d6d4eb4e0d957bfbd7f205827c2f23a9..c35cff9e99faa445246942f4d5a509352fd893eb 100644
+index acdef051d6d4eb4e0d957bfbd7f205827c2f23a9..fda41fcbfbca47288072abe787a263eef5eb587f 100644
 --- a/src/main/java/top/leavesmc/leaves/util/MathUtils.java
 +++ b/src/main/java/top/leavesmc/leaves/util/MathUtils.java
 @@ -3,6 +3,8 @@ package top.leavesmc.leaves.util;
@@ -761,7 +705,7 @@ index acdef051d6d4eb4e0d957bfbd7f205827c2f23a9..c35cff9e99faa445246942f4d5a50935
  public class MathUtils {
      // Lag ?
      public static void clean(Vector vector) {
-@@ -10,4 +12,52 @@ public class MathUtils {
+@@ -10,4 +12,67 @@ public class MathUtils {
          if (!NumberConversions.isFinite(vector.getY())) vector.setY(0);
          if (!NumberConversions.isFinite(vector.getZ())) vector.setZ(0);
      }
@@ -812,5 +756,20 @@ index acdef051d6d4eb4e0d957bfbd7f205827c2f23a9..c35cff9e99faa445246942f4d5a50935
 +        }
 +
 +        return result;
++    }
++
++    public static Vector getDirection(double rotX, double rotY) {
++        Vector vector = new Vector();
++
++        rotX = Math.toRadians(rotX);
++        rotY = Math.toRadians(rotY);
++
++        double xz = Math.abs(Math.cos(rotY));
++
++        vector.setX(-Math.sin(rotX) * xz);
++        vector.setZ(Math.cos(rotX) * xz);
++        vector.setY(Math.sin(rotY));
++
++        return vector;
 +    }
  }

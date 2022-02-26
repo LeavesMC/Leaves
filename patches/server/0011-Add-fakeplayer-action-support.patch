@@ -4,6 +4,19 @@ Date: Wed, 16 Feb 2022 12:42:14 +0800
 Subject: [PATCH] Add fakeplayer action support
 
 
+diff --git a/src/main/java/net/minecraft/world/entity/player/Player.java b/src/main/java/net/minecraft/world/entity/player/Player.java
+index d85da02be7f1d494af8f2cc840c49073774f5f9c..7d78549b3839e34e103d98e1048c24dc69083f37 100644
+--- a/src/main/java/net/minecraft/world/entity/player/Player.java
++++ b/src/main/java/net/minecraft/world/entity/player/Player.java
+@@ -1231,7 +1231,7 @@ public abstract class Player extends LivingEntity {
+                     boolean flag3 = false;
+                     double d0 = (double) (this.walkDist - this.walkDistO);
+ 
+-                    if (flag && !flag2 && !flag1 && this.onGround && d0 < (double) this.getSpeed()) {
++                    if (flag && !flag2 && !flag1 && this.isOnGround() && d0 < (double) this.getSpeed()) { // Leaves - use isOnGround method
+                         ItemStack itemstack = this.getItemInHand(InteractionHand.MAIN_HAND);
+ 
+                         if (itemstack.getItem() instanceof SwordItem) {
 diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
 index 4b8d05838bd70a2932a36a5919436861b8e41c0b..def8ab8bf0537e648751b200de01607191426d56 100644
 --- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
@@ -17,7 +30,7 @@ index 4b8d05838bd70a2932a36a5919436861b8e41c0b..def8ab8bf0537e648751b200de016071
      }
  
 diff --git a/src/main/java/top/leavesmc/leaves/bot/Bot.java b/src/main/java/top/leavesmc/leaves/bot/Bot.java
-index 97b8cb057c139af76684088bdde71d96e95ada81..c2c4d592ae7991b94b5221255de22455df72b1b4 100644
+index 97b8cb057c139af76684088bdde71d96e95ada81..e07c7e204044916de223edf62e3e88e7465b257d 100644
 --- a/src/main/java/top/leavesmc/leaves/bot/Bot.java
 +++ b/src/main/java/top/leavesmc/leaves/bot/Bot.java
 @@ -1,9 +1,12 @@
@@ -148,9 +161,11 @@ index 97b8cb057c139af76684088bdde71d96e95ada81..c2c4d592ae7991b94b5221255de22455
                  if (!chunk.loaded) {
                      chunk.loaded = true;
                  }
-@@ -259,11 +281,22 @@ public class Bot extends ServerPlayer {
+@@ -258,12 +280,24 @@ public class Bot extends ServerPlayer {
+     public void tick() {
          loadChunks(); // Load chunks
          super.tick();
++        this.doTick();
  
 -        if (!isAlive()) return;
 +        if (!isAlive()) {
@@ -175,7 +190,7 @@ index 97b8cb057c139af76684088bdde71d96e95ada81..c2c4d592ae7991b94b5221255de22455
  
          if (checkGround()) {
              if (groundTicks < 5) groundTicks++;
-@@ -291,7 +324,83 @@ public class Bot extends ServerPlayer {
+@@ -291,7 +325,83 @@ public class Bot extends ServerPlayer {
  
          checkOutOfWorld();
  
@@ -259,7 +274,7 @@ index 97b8cb057c139af76684088bdde71d96e95ada81..c2c4d592ae7991b94b5221255de22455
      }
  
      @Override
-@@ -324,21 +433,6 @@ public class Bot extends ServerPlayer {
+@@ -324,21 +434,6 @@ public class Bot extends ServerPlayer {
          }
      }
  
@@ -281,7 +296,7 @@ index 97b8cb057c139af76684088bdde71d96e95ada81..c2c4d592ae7991b94b5221255de22455
      public Location getLocation() {
          return getBukkitPlayer().getLocation();
      }
-@@ -430,6 +524,66 @@ public class Bot extends ServerPlayer {
+@@ -430,6 +525,68 @@ public class Bot extends ServerPlayer {
          this.move(MoverType.SELF, new Vec3(velocity.getX(), y, velocity.getZ()));
      }
  
@@ -325,8 +340,10 @@ index 97b8cb057c139af76684088bdde71d96e95ada81..c2c4d592ae7991b94b5221255de22455
 +        this.detectEquipmentUpdates();
 +        if (slot == EquipmentSlot.MAINHAND) {
 +            getBukkitPlayer().getInventory().setItemInMainHand(item);
++            setItemInHand(InteractionHand.MAIN_HAND, CraftItemStack.asNMSCopy(item));
 +        } else if (slot == EquipmentSlot.OFFHAND) {
 +            getBukkitPlayer().getInventory().setItemInOffHand(item);
++            setItemInHand(InteractionHand.OFF_HAND, CraftItemStack.asNMSCopy(item));
 +        }
 +
 +        sendPacket(new ClientboundSetEquipmentPacket(getId(), new ArrayList<>(Collections.singletonList(
@@ -561,7 +578,7 @@ index 0000000000000000000000000000000000000000..78f04e28afa856c900f84af42f22666b
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/action/AttackAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/action/AttackAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..18e986343cae449deb1633e3e3c853396a590c64
+index 0000000000000000000000000000000000000000..78cf21fc321d3d3d13b2db315897acdf386c696f
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/action/AttackAction.java
 @@ -0,0 +1,34 @@
@@ -589,10 +606,10 @@ index 0000000000000000000000000000000000000000..18e986343cae449deb1633e3e3c85339
 +
 +    @Override
 +    public void tick(Bot bot) {
-+        Vector vector = MathUtils.getDirection(bot.getYRot(), bot.getXRot()).normalize(); // can't handle Y axis
++        Vector vector = MathUtils.getDirection(bot.getYRot(), bot.getXRot()).normalize();
 +        Location loc = bot.getBukkitPlayer().getEyeLocation().add(vector);
 +
-+        RayTraceResult result = loc.getWorld().rayTraceEntities(loc, vector, 10);
++        RayTraceResult result = loc.getWorld().rayTraceEntities(loc, vector, 5);
 +
 +        if (result != null && result.getHitEntity() != null) {
 +            bot.attack(((CraftEntity) result.getHitEntity()).getHandle());
@@ -693,7 +710,7 @@ index 0000000000000000000000000000000000000000..8f39161ff8f84392ef57a1ecda3b098a
 +    }
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/util/MathUtils.java b/src/main/java/top/leavesmc/leaves/util/MathUtils.java
-index acdef051d6d4eb4e0d957bfbd7f205827c2f23a9..fda41fcbfbca47288072abe787a263eef5eb587f 100644
+index acdef051d6d4eb4e0d957bfbd7f205827c2f23a9..d6a809569455872d08aeab81b174024d2bc3b53a 100644
 --- a/src/main/java/top/leavesmc/leaves/util/MathUtils.java
 +++ b/src/main/java/top/leavesmc/leaves/util/MathUtils.java
 @@ -3,6 +3,8 @@ package top.leavesmc.leaves.util;
@@ -768,7 +785,7 @@ index acdef051d6d4eb4e0d957bfbd7f205827c2f23a9..fda41fcbfbca47288072abe787a263ee
 +
 +        vector.setX(-Math.sin(rotX) * xz);
 +        vector.setZ(Math.cos(rotX) * xz);
-+        vector.setY(Math.sin(rotY));
++        vector.setY(-Math.sin(rotY));
 +
 +        return vector;
 +    }

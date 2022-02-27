@@ -17,3 +17,4 @@ Leaves Modification
 - Player edit can sign
 - Snowball and egg can knockback player
 - Fakeplayer support (like carpet) (command: /bot)
+- Shears in dispenser can unlimited use

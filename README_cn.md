@@ -26,7 +26,7 @@ Leaves-API:
 <dependency>
     <groupId>top.leavesmc.leaves</groupId>
     <artifactId>leaves-api</artifactId>
-    <version>1.18.1-R0.1-SNAPSHOT</version>
+    <version>1.18.2-R0.1-SNAPSHOT</version>
     <scope>provided</scope>
  </dependency>
  ```
@@ -36,7 +36,7 @@ Leaves-Server:
 <dependency>
     <groupId>top.leavesmc.leaves</groupId>
     <artifactId>leaves</artifactId>
-    <version>1.18.1-R0.1-SNAPSHOT</version>
+    <version>1.18.2-R0.1-SNAPSHOT</version>
     <scope>provided</scope>
 </dependency>
 ```

@@ -1,5 +1,5 @@
 Leaves Modification
---------
+===========
 
 **English** | [中文](https://github.com/LeavesMC/Leaves/blob/master/docs/MODIFICATION_cn.md)
 
@@ -18,3 +18,4 @@ Leaves Modification
 - Snowball and egg can knockback player
 - Fakeplayer support (like carpet) (command: /bot)
 - Shears in dispenser can unlimited use
+- Shears can rotate redstone equipment (like debug-stick)

@@ -1,5 +1,5 @@
 Leaves Modification
---------
+===========
 
 [English](https://github.com/LeavesMC/Leaves/blob/master/docs/MODIFICATION.md) | **中文**
 
@@ -18,3 +18,4 @@ Leaves Modification
 - 雪球和鸡蛋可以击退玩家
 - 假人支持 (类似carpet) (指令为 /bot)
 - 发射器里的剪刀可以无限使用
+- 剪刀可以用来旋转红石原件 (类似调试棒)

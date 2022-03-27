@@ -1,5 +1,5 @@
 Leaves [![Leaves CI](https://github.com/LeavesMC/Leaves/actions/workflows/leaves.yml/badge.svg)](https://github.com/LeavesMC/Leaves/actions/workflows/leaves.yml)
---------
+===========
 
 **English** | [中文](https://github.com/LeavesMC/Leaves/blob/master/README_cn.md)
 

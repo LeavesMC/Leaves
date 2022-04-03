@@ -19,3 +19,4 @@ Leaves Modification
 - Fakeplayer support (like carpet) (command: /bot)
 - Shears in dispenser can unlimited use
 - Shears can rotate redstone equipment (like debug-stick)
+- Budding Amethyst can push by piston

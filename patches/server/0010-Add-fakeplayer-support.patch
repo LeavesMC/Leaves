@@ -29,7 +29,7 @@ index b16287a47870978706734b928b87f2357e91e3a1..407c71621769f91955f0b3d2d87b4014
          AdvancementProgress advancementprogress = this.getOrStartProgress(advancement);
          boolean flag1 = advancementprogress.isDone();
 diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
-index 02dc93c394d37c9a84aa4a58d80615c403c54fb9..d93311c3a60e54378b97286bbe7dc73ee6d5f119 100644
+index 188c68d4ae46bc05c6d9c901b5c6ab883fa05ea4..ec4616f6c7c4869e526dd214f0ed13c85f145e9e 100644
 --- a/src/main/java/net/minecraft/server/players/PlayerList.java
 +++ b/src/main/java/net/minecraft/server/players/PlayerList.java
 @@ -92,6 +92,7 @@ import net.minecraft.world.scores.Objective;
@@ -59,10 +59,10 @@ index 02dc93c394d37c9a84aa4a58d80615c403c54fb9..d93311c3a60e54378b97286bbe7dc73e
  
          if (jm != null && !jm.equals(net.kyori.adventure.text.Component.empty())) { // Paper - Adventure
 diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
-index a85a5de7d85cf6c5e19c0245c40e6106e6623007..1931114944847708ba9e82ce3b82675f1d477446 100644
+index a85a5de7d85cf6c5e19c0245c40e6106e6623007..898c61c25675232e203ee2c872ca25804c41358c 100644
 --- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
 +++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
-@@ -7,6 +7,7 @@ import org.bukkit.Bukkit;
+@@ -7,11 +7,13 @@ import org.bukkit.Bukkit;
  import org.bukkit.command.Command;
  import org.bukkit.configuration.ConfigurationSection;
  import org.bukkit.configuration.file.YamlConfiguration;
@@ -70,7 +70,13 @@ index a85a5de7d85cf6c5e19c0245c40e6106e6623007..1931114944847708ba9e82ce3b82675f
  
  import java.io.File;
  import java.lang.reflect.InvocationTargetException;
-@@ -63,6 +64,10 @@ public final class LeavesConfig {
+ import java.lang.reflect.Method;
+ import java.lang.reflect.Modifier;
++import java.util.Arrays;
+ import java.util.HashMap;
+ import java.util.List;
+ import java.util.Map;
+@@ -63,6 +65,10 @@ public final class LeavesConfig {
  	    LeavesConfig.load(config);
  
  	    commands = new HashMap<>();
@@ -81,13 +87,35 @@ index a85a5de7d85cf6c5e19c0245c40e6106e6623007..1931114944847708ba9e82ce3b82675f
      }
  
      public static void load(final YamlConfiguration config) {
-@@ -134,6 +139,11 @@ public final class LeavesConfig {
+@@ -124,6 +130,12 @@ public final class LeavesConfig {
+         return LeavesConfig.config.getString(path, dfl);
+     }
+ 
++
++    static <T> List<T> getList(final String path, final List<T> def) {
++        LeavesConfig.config.addDefault(path, def);
++        return (List<T>) LeavesConfig.config.getList(path, config.getList(path));
++    }
++
+     public static boolean playerCanEditSign = true;
+     private static void playerCanEditSign() {
+         playerCanEditSign = getBoolean("settings.player-can-edit-sign", playerCanEditSign);
+@@ -134,6 +146,20 @@ public final class LeavesConfig {
          snowballAndEggCanKnockback = getBoolean("settings.snowball-and-egg-can-knockback-player", snowballAndEggCanKnockback);
      }
  
 +    public static boolean fakeplayerSupport = true;
 +    private static void fakeplayerSupport() {
-+        fakeplayerSupport = getBoolean("settings.fakeplayer-support", fakeplayerSupport);
++        if (config.contains("settings.fakeplayer-support")) {
++            fakeplayerSupport = LeavesConfig.config.getBoolean("settings.fakeplayer-support", fakeplayerSupport);
++            LeavesConfig.config.set("settings.fakeplayer-support", null);
++        }
++        fakeplayerSupport = getBoolean("settings.fakeplayer.enable", fakeplayerSupport);
++    }
++
++    public static List<String> unableFakeplayerNames;
++    private static void unableFakeplayerNames() {
++        unableFakeplayerNames = getList("settings.fakeplayer.unable-fakeplayer-names", Arrays.asList("player-name"));
 +    }
 +
      public static final class WorldConfig {
@@ -574,10 +602,10 @@ index 0000000000000000000000000000000000000000..ebea5607956b1328f928d905e4f35424
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/BotCommand.java b/src/main/java/top/leavesmc/leaves/bot/BotCommand.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..17c1db261165bfa22a7e91189f926e0adf8e43f9
+index 0000000000000000000000000000000000000000..3b8d44fb61d504e521e73d3a34f6bd8ad9f13aee
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/BotCommand.java
-@@ -0,0 +1,96 @@
+@@ -0,0 +1,101 @@
 +package top.leavesmc.leaves.bot;
 +
 +import org.bukkit.Bukkit;
@@ -652,6 +680,11 @@ index 0000000000000000000000000000000000000000..17c1db261165bfa22a7e91189f926e0a
 +
 +        if (Bukkit.getPlayer(args[1]) != null || Bot.getBot(args[1]) != null) {
 +            sender.sendMessage(ChatColor.RED + "This player is in server");
++            return;
++        }
++
++        if (top.leavesmc.leaves.LeavesConfig.unableFakeplayerNames.contains(args[1])) {
++            sender.sendMessage(ChatColor.RED + "This name is unable");
 +            return;
 +        }
 +

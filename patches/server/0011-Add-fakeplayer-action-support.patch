@@ -30,7 +30,7 @@ index 898c61c25675232e203ee2c872ca25804c41358c..4d6d025c78086f186da710ae46f65eda
      }
  
 diff --git a/src/main/java/top/leavesmc/leaves/bot/Bot.java b/src/main/java/top/leavesmc/leaves/bot/Bot.java
-index e0b3865f4f464c65be91b8fc7316ecea34cea334..0d74cdc19865c5068cec67d65da1a9e104e9018d 100644
+index 48b10adcb7f86aed364c9286e37af260829e9308..5cf6e0b679222afe6b22b0096dbcc1d047ad6ae0 100644
 --- a/src/main/java/top/leavesmc/leaves/bot/Bot.java
 +++ b/src/main/java/top/leavesmc/leaves/bot/Bot.java
 @@ -1,9 +1,12 @@
@@ -54,7 +54,7 @@ index e0b3865f4f464c65be91b8fc7316ecea34cea334..0d74cdc19865c5068cec67d65da1a9e1
  import net.minecraft.network.syncher.EntityDataAccessor;
  import net.minecraft.network.syncher.EntityDataSerializers;
  import net.minecraft.server.MinecraftServer;
-@@ -22,9 +26,13 @@ import net.minecraft.server.level.TicketType;
+@@ -22,11 +26,14 @@ import net.minecraft.server.level.TicketType;
  import net.minecraft.server.network.ServerGamePacketListenerImpl;
  import net.minecraft.server.network.ServerPlayerConnection;
  import net.minecraft.util.Mth;
@@ -66,16 +66,12 @@ index e0b3865f4f464c65be91b8fc7316ecea34cea334..0d74cdc19865c5068cec67d65da1a9e1
  import net.minecraft.world.entity.MoverType;
 +import net.minecraft.world.entity.item.ItemEntity;
  import net.minecraft.world.level.ChunkPos;
- import net.minecraft.world.level.Level;
+-import net.minecraft.world.level.Level;
  import net.minecraft.world.level.chunk.LevelChunk;
-@@ -38,14 +46,20 @@ import org.bukkit.World;
- import org.bukkit.block.Block;
- import org.bukkit.craftbukkit.CraftWorld;
- import org.bukkit.craftbukkit.entity.CraftPlayer;
-+import org.bukkit.craftbukkit.inventory.CraftItemStack;
- import org.bukkit.entity.Player;
- import org.bukkit.event.entity.CreatureSpawnEvent;
-+import org.bukkit.inventory.ItemStack;
+ import net.minecraft.world.phys.AABB;
+ import net.minecraft.world.phys.Vec3;
+@@ -46,10 +53,14 @@ import org.bukkit.inventory.ItemStack;
+ import org.bukkit.plugin.Plugin;
  import org.bukkit.util.BoundingBox;
  import org.bukkit.util.Vector;
 +import top.leavesmc.leaves.bot.agent.BotAction;
@@ -89,7 +85,7 @@ index e0b3865f4f464c65be91b8fc7316ecea34cea334..0d74cdc19865c5068cec67d65da1a9e1
  import java.util.Objects;
  import java.util.Set;
  import java.util.UUID;
-@@ -54,12 +68,17 @@ public class Bot extends ServerPlayer {
+@@ -58,12 +69,17 @@ public class Bot extends ServerPlayer {
  
      private Vector velocity;
      private Vector oldVelocity;
@@ -110,8 +106,8 @@ index e0b3865f4f464c65be91b8fc7316ecea34cea334..0d74cdc19865c5068cec67d65da1a9e1
 +    private final ItemStack defaultItem;
  
      private static final Set<Bot> bots = new HashSet<>();
- 
-@@ -68,9 +87,12 @@ public class Bot extends ServerPlayer {
+     private static final Plugin MINECRAFT_PLUGIN = new MinecraftInternalPlugin();
+@@ -73,9 +89,12 @@ public class Bot extends ServerPlayer {
          this.entityData.set(new EntityDataAccessor<>(16, EntityDataSerializers.INT), 0xFF);
  
          this.velocity = new Vector(0, 0, 0);
@@ -124,7 +120,7 @@ index e0b3865f4f464c65be91b8fc7316ecea34cea334..0d74cdc19865c5068cec67d65da1a9e1
          this.removeOnDeath = true;
      }
  
-@@ -156,12 +178,17 @@ public class Bot extends ServerPlayer {
+@@ -164,12 +183,17 @@ public class Bot extends ServerPlayer {
          }
      }
  
@@ -142,7 +138,7 @@ index e0b3865f4f464c65be91b8fc7316ecea34cea334..0d74cdc19865c5068cec67d65da1a9e1
      // die check end
  
      @Override
-@@ -169,10 +196,6 @@ public class Bot extends ServerPlayer {
+@@ -177,10 +201,6 @@ public class Bot extends ServerPlayer {
          return groundTicks != 0;
      }
  
@@ -153,7 +149,7 @@ index e0b3865f4f464c65be91b8fc7316ecea34cea334..0d74cdc19865c5068cec67d65da1a9e1
      public static boolean solidAt(Location loc) {
          Block block = loc.getBlock();
          BoundingBox box = block.getBoundingBox();
-@@ -261,12 +284,24 @@ public class Bot extends ServerPlayer {
+@@ -269,12 +289,24 @@ public class Bot extends ServerPlayer {
      public void tick() {
          loadChunks(); // Load chunks
          super.tick();
@@ -182,7 +178,7 @@ index e0b3865f4f464c65be91b8fc7316ecea34cea334..0d74cdc19865c5068cec67d65da1a9e1
  
          if (checkGround()) {
              if (groundTicks < 5) groundTicks++;
-@@ -294,7 +329,88 @@ public class Bot extends ServerPlayer {
+@@ -302,7 +334,88 @@ public class Bot extends ServerPlayer {
  
          checkOutOfWorld();
  
@@ -271,7 +267,7 @@ index e0b3865f4f464c65be91b8fc7316ecea34cea334..0d74cdc19865c5068cec67d65da1a9e1
      }
  
      @Override
-@@ -327,21 +443,6 @@ public class Bot extends ServerPlayer {
+@@ -335,21 +448,6 @@ public class Bot extends ServerPlayer {
          }
      }
  
@@ -293,7 +289,7 @@ index e0b3865f4f464c65be91b8fc7316ecea34cea334..0d74cdc19865c5068cec67d65da1a9e1
      public Location getLocation() {
          return getBukkitPlayer().getLocation();
      }
-@@ -433,6 +534,68 @@ public class Bot extends ServerPlayer {
+@@ -441,6 +539,68 @@ public class Bot extends ServerPlayer {
          this.move(MoverType.SELF, new Vec3(velocity.getX(), y, velocity.getZ()));
      }
  

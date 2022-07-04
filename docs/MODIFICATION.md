@@ -14,9 +14,11 @@ Leaves Modification
 
 > All of it will have configuration
 
-- Player edit can sign
+- Player can edit sign
 - Snowball and egg can knockback player
 - Fakeplayer support (like carpet) (command: /bot)
 - Shears in dispenser can unlimited use
 - Shears can rotate redstone equipment (like debug-stick)
 - Budding Amethyst can push by piston
+- Spectator don't get Advancement
+- Use stick and shift to ArmorStand can modify ArmorStand's arm status

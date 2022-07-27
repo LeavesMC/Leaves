@@ -5,14 +5,14 @@ Subject: [PATCH] Add fakeplayer support
 
 
 diff --git a/src/main/java/net/minecraft/server/PlayerAdvancements.java b/src/main/java/net/minecraft/server/PlayerAdvancements.java
-index de0513b38e5fa0138f1cee6bb633561be12449fc..6de539d8819b9c25fbf96cd2ac8ef4a87c0fb231 100644
+index de0513b38e5fa0138f1cee6bb633561be12449fc..8548ef7f79e85aca593928b8e748d8b6d53e52bd 100644
 --- a/src/main/java/net/minecraft/server/PlayerAdvancements.java
 +++ b/src/main/java/net/minecraft/server/PlayerAdvancements.java
 @@ -50,6 +50,7 @@ import net.minecraft.server.players.PlayerList;
  import net.minecraft.util.datafix.DataFixTypes;
  import net.minecraft.world.level.GameRules;
  import org.slf4j.Logger;
-+import top.leavesmc.leaves.bot.Bot;
++import top.leavesmc.leaves.bot.ServerBot;
  
  public class PlayerAdvancements {
  
@@ -21,7 +21,7 @@ index de0513b38e5fa0138f1cee6bb633561be12449fc..6de539d8819b9c25fbf96cd2ac8ef4a8
  
      public boolean award(Advancement advancement, String criterionName) {
 +        // Leaves start - bot can't get advancement
-+        if (player instanceof Bot) {
++        if (player instanceof ServerBot) {
 +            return false;
 +        }
 +        // Leaves end - bot can't get advancement
@@ -29,35 +29,74 @@ index de0513b38e5fa0138f1cee6bb633561be12449fc..6de539d8819b9c25fbf96cd2ac8ef4a8
          AdvancementProgress advancementprogress = this.getOrStartProgress(advancement);
          boolean flag1 = advancementprogress.isDone();
 diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
-index 20cdfdb3b9351f74e89bc45b3ab972384165659a..e7fc2bd7241430354509158e1dceafb723d6f692 100644
+index 20cdfdb3b9351f74e89bc45b3ab972384165659a..fe38a9cd9724d0547e0d1689153a8c155c377d0c 100644
 --- a/src/main/java/net/minecraft/server/players/PlayerList.java
 +++ b/src/main/java/net/minecraft/server/players/PlayerList.java
-@@ -100,6 +100,7 @@ import net.minecraft.world.scores.Objective;
+@@ -100,10 +100,10 @@ import net.minecraft.world.scores.Objective;
  import net.minecraft.world.scores.PlayerTeam;
  import net.minecraft.world.scores.Scoreboard; // Paper
  import net.minecraft.world.scores.Team;
-+import top.leavesmc.leaves.bot.Bot;
++import top.leavesmc.leaves.bot.ServerBot;
  import org.slf4j.Logger;
  
  // CraftBukkit start
-@@ -368,6 +369,17 @@ public abstract class PlayerList {
+-import io.papermc.paper.adventure.PaperAdventure; // Paper
+ import com.google.common.base.Predicate;
+ import java.util.stream.Collectors;
+ import net.minecraft.server.dedicated.DedicatedServer;
+@@ -113,7 +113,6 @@ import org.bukkit.Location;
+ import org.bukkit.craftbukkit.CraftServer;
+ import org.bukkit.craftbukkit.CraftWorld;
+ import org.bukkit.craftbukkit.entity.CraftPlayer;
+-import org.bukkit.craftbukkit.util.CraftChatMessage;
+ import org.bukkit.entity.Player;
+ import org.bukkit.event.player.PlayerChangedWorldEvent;
+ import org.bukkit.event.player.PlayerJoinEvent;
+@@ -368,6 +367,17 @@ public abstract class PlayerList {
              return;
          }
  
 +        // Leaves start - bot support
 +        if (top.leavesmc.leaves.LeavesConfig.fakeplayerSupport) {
-+            Bot bot = Bot.getBot(player.getName().getString());
++            ServerBot bot = ServerBot.getBot(player.getName().getString());
 +            if (bot != null) {
 +                bot.kill(); // Leaves - remove bot with the same name
 +            }
 +
-+            Bot.getBots().forEach(bot1 -> bot1.render(playerconnection, true)); // Leaves - render bot
++            ServerBot.getBots().forEach(bot1 -> bot1.render(playerconnection, true)); // Leaves - render bot
 +        }
 +        // Leaves end - bot support
 +
          final net.kyori.adventure.text.Component jm = playerJoinEvent.joinMessage();
  
          if (jm != null && !jm.equals(net.kyori.adventure.text.Component.empty())) { // Paper - Adventure
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
+index 2a6c67634c31c332102d24bef293da1bacd0c000..877c9fa13c0ff1fbc90d957258bd0bc1f42c0fd4 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
+@@ -187,6 +187,8 @@ import org.bukkit.plugin.Plugin;
+ import org.bukkit.util.BoundingBox;
+ import org.bukkit.util.NumberConversions;
+ import org.bukkit.util.Vector;
++import top.leavesmc.leaves.bot.ServerBot;
++import top.leavesmc.leaves.entity.CraftBot;
+ 
+ public abstract class CraftEntity implements org.bukkit.entity.Entity {
+     private static PermissibleBase perm;
+@@ -211,7 +213,12 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
+         if (entity instanceof LivingEntity) {
+             // Players
+             if (entity instanceof Player) {
+-                if (entity instanceof ServerPlayer) { return new CraftPlayer(server, (ServerPlayer) entity); }
++                // Leaves start - add CraftBot
++                if (entity instanceof ServerPlayer) {
++                    if (entity instanceof ServerBot) { return new CraftBot(server, (ServerBot) entity); }
++                    else { return new CraftPlayer(server, (ServerPlayer) entity); }
++                }
++                // Leaves end - add CraftBot
+                 else { return new CraftHumanEntity(server, (Player) entity); }
+             }
+             // Water Animals
 diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
 index a85a5de7d85cf6c5e19c0245c40e6106e6623007..898c61c25675232e203ee2c872ca25804c41358c 100644
 --- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
@@ -121,12 +160,166 @@ index a85a5de7d85cf6c5e19c0245c40e6106e6623007..898c61c25675232e203ee2c872ca2580
      public static final class WorldConfig {
  
          public final String worldName;
-diff --git a/src/main/java/top/leavesmc/leaves/bot/Bot.java b/src/main/java/top/leavesmc/leaves/bot/Bot.java
+diff --git a/src/main/java/top/leavesmc/leaves/bot/BotCommand.java b/src/main/java/top/leavesmc/leaves/bot/BotCommand.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..7a81e5b8aa7aaa5c8a6718d0ad60379094e7b15f
+index 0000000000000000000000000000000000000000..292fede3bb850892e57640814440bdcebfd43aec
 --- /dev/null
-+++ b/src/main/java/top/leavesmc/leaves/bot/Bot.java
-@@ -0,0 +1,489 @@
++++ b/src/main/java/top/leavesmc/leaves/bot/BotCommand.java
+@@ -0,0 +1,101 @@
++package top.leavesmc.leaves.bot;
++
++import org.bukkit.Bukkit;
++import org.bukkit.ChatColor;
++import org.bukkit.Location;
++import org.bukkit.command.Command;
++import org.bukkit.command.CommandSender;
++import org.bukkit.entity.Player;
++
++import java.util.ArrayList;
++import java.util.List;
++
++public class BotCommand extends Command {
++
++    public BotCommand(String name) {
++        super(name);
++        this.description = "FakePlayer Command";
++        this.usageMessage = "/bot [create | remove]";
++        this.setPermission("bukkit.command.bot");
++    }
++
++    @Override
++    public List<String> tabComplete(CommandSender sender, String alias, String[] args, Location location) throws IllegalArgumentException {
++        var list = new ArrayList<String>();
++
++        if (args.length <= 1) {
++            list.add("create");
++            list.add("remove");
++        } else {
++            switch (args[0]) {
++                case "create" -> list.add("[BotName]");
++                case "remove" -> list.addAll(ServerBot.getBots().stream().map(e -> e.getName().getString()).toList());
++            }
++        }
++
++        return list;
++    }
++
++    @Override
++    public boolean execute(CommandSender sender, String commandLabel, String[] args) {
++        if (!testPermission(sender)) return true;
++
++        if (args.length == 0) {
++            sender.sendMessage(ChatColor.RED + "Usage: " + usageMessage);
++            return false;
++        }
++
++        switch (args[0]) {
++            case "create" -> this.onCreate(sender, args);
++
++            case "remove" -> this.onRemove(sender, args);
++
++            default -> {
++                sender.sendMessage(ChatColor.RED + "Usage: " + usageMessage);
++                return false;
++            }
++        }
++
++        return true;
++    }
++
++    private void onCreate(CommandSender sender, String[] args) {
++        if (args.length < 2) {
++            sender.sendMessage(ChatColor.RED + "Use /bot create [name] to create a fakeplayer");
++            return;
++        }
++
++        if (!(sender instanceof Player)) {
++            sender.sendMessage(ChatColor.RED + "This command only can use by player");
++            return;
++        }
++
++        if (Bukkit.getPlayer(args[1]) != null || ServerBot.getBot(args[1]) != null) {
++            sender.sendMessage(ChatColor.RED + "This player is in server");
++            return;
++        }
++
++        if (top.leavesmc.leaves.LeavesConfig.unableFakeplayerNames.contains(args[1])) {
++            sender.sendMessage(ChatColor.RED + "This name is unable");
++            return;
++        }
++
++        ServerBot.createBot(((Player) sender).getLocation(), args[1]);
++    }
++
++    private void onRemove(CommandSender sender, String[] args) {
++        if (args.length < 2) {
++            sender.sendMessage(ChatColor.RED + "Use /bot remove [name] to remove a fakeplayer");
++            return;
++        }
++
++        ServerBot bot = ServerBot.getBot(args[1]);
++
++        if (bot == null) {
++            sender.sendMessage(ChatColor.RED + "This fakeplayer is null");
++            return;
++        }
++
++        bot.kill();
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/bot/MojangAPI.java b/src/main/java/top/leavesmc/leaves/bot/MojangAPI.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..daaece30b2a3983f1cc9ee9a851e8f373974d5ec
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/MojangAPI.java
+@@ -0,0 +1,41 @@
++package top.leavesmc.leaves.bot;
++
++import com.google.gson.JsonObject;
++import com.google.gson.JsonParser;
++
++import java.io.IOException;
++import java.io.InputStreamReader;
++import java.net.URL;
++import java.util.HashMap;
++import java.util.Map;
++
++public class MojangAPI {
++
++    private static final boolean CACHE_ENABLED = false;
++
++    private static final Map<String, String[]> CACHE = new HashMap<>();
++
++    public static String[] getSkin(String name) {
++        if (CACHE_ENABLED && CACHE.containsKey(name)) {
++            return CACHE.get(name);
++        }
++
++        String[] values = pullFromAPI(name);
++        CACHE.put(name, values);
++        return values;
++    }
++
++    // Laggggggggggggggggggggggggggggggggggggggggg
++    public static String[] pullFromAPI(String name) {
++        try {
++            String uuid = new JsonParser().parse(new InputStreamReader(new URL("https://api.mojang.com/users/profiles/minecraft/" + name)
++                .openStream())).getAsJsonObject().get("id").getAsString();
++            JsonObject property = new JsonParser()
++                .parse(new InputStreamReader(new URL("https://sessionserver.mojang.com/session/minecraft/profile/" + uuid + "?unsigned=false")
++                    .openStream())).getAsJsonObject().get("properties").getAsJsonArray().get(0).getAsJsonObject();
++            return new String[] {property.get("value").getAsString(), property.get("signature").getAsString()};
++        } catch (IOException | IllegalStateException e) {
++            return null;
++        }
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/bot/ServerBot.java b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..b833653b671df660686134754c794d3e6686b112
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
+@@ -0,0 +1,510 @@
 +package top.leavesmc.leaves.bot;
 +
 +import com.mojang.authlib.GameProfile;
@@ -155,7 +348,6 @@ index 0000000000000000000000000000000000000000..7a81e5b8aa7aaa5c8a6718d0ad603790
 +import net.minecraft.world.entity.Entity;
 +import net.minecraft.world.entity.MoverType;
 +import net.minecraft.world.level.ChunkPos;
-+import net.minecraft.world.level.Level;
 +import net.minecraft.world.level.chunk.LevelChunk;
 +import net.minecraft.world.phys.AABB;
 +import net.minecraft.world.phys.Vec3;
@@ -167,15 +359,18 @@ index 0000000000000000000000000000000000000000..7a81e5b8aa7aaa5c8a6718d0ad603790
 +import org.bukkit.block.Block;
 +import org.bukkit.craftbukkit.CraftWorld;
 +import org.bukkit.craftbukkit.entity.CraftPlayer;
-+import org.bukkit.craftbukkit.inventory.CraftItemStack;
 +import org.bukkit.craftbukkit.scheduler.MinecraftInternalPlugin;
 +import org.bukkit.entity.Player;
 +import org.bukkit.event.entity.CreatureSpawnEvent;
 +import org.bukkit.event.player.PlayerJoinEvent;
-+import org.bukkit.inventory.ItemStack;
++import org.bukkit.event.player.PlayerTeleportEvent;
 +import org.bukkit.plugin.Plugin;
 +import org.bukkit.util.BoundingBox;
 +import org.bukkit.util.Vector;
++import org.jetbrains.annotations.NotNull;
++import top.leavesmc.leaves.entity.Bot;
++import top.leavesmc.leaves.entity.CraftBot;
++import top.leavesmc.leaves.event.bot.BotCreateEvent;
 +import top.leavesmc.leaves.util.MathUtils;
 +
 +import javax.annotation.Nullable;
@@ -184,7 +379,7 @@ index 0000000000000000000000000000000000000000..7a81e5b8aa7aaa5c8a6718d0ad603790
 +import java.util.Set;
 +import java.util.UUID;
 +
-+public class Bot extends ServerPlayer {
++public class ServerBot extends ServerPlayer {
 +
 +    private Vector velocity;
 +    private Vector oldVelocity;
@@ -195,10 +390,10 @@ index 0000000000000000000000000000000000000000..7a81e5b8aa7aaa5c8a6718d0ad603790
 +    private byte jumpTicks;
 +    private byte noFallTicks;
 +
-+    private static final Set<Bot> bots = new HashSet<>();
++    private static final Set<ServerBot> bots = new HashSet<>();
 +    private static final Plugin MINECRAFT_PLUGIN = new MinecraftInternalPlugin();
 +
-+    public Bot(MinecraftServer server, ServerLevel world, GameProfile profile) {
++    public ServerBot(MinecraftServer server, ServerLevel world, GameProfile profile) {
 +        super(server, world, profile, null);
 +        this.entityData.set(new EntityDataAccessor<>(16, EntityDataSerializers.INT), 0xFF);
 +
@@ -216,14 +411,15 @@ index 0000000000000000000000000000000000000000..7a81e5b8aa7aaa5c8a6718d0ad603790
 +        });
 +    }
 +
-+    public static Bot createBot(Location loc, String name, String[] skin) {
++    @Nullable
++    public static ServerBot createBot(@NotNull Location loc, @NotNull String name, String[] skin) {
 +        MinecraftServer server = MinecraftServer.getServer();
 +        ServerLevel world = ((CraftWorld) Objects.requireNonNull(loc.getWorld())).getHandle();
 +
 +        UUID uuid = UUID.randomUUID();
 +        CustomGameProfile profile = new CustomGameProfile(uuid, name.length() > 16 ? name.substring(0, 16) : name, skin);
 +
-+        Bot bot = new Bot(server, world, profile);
++        ServerBot bot = new ServerBot(server, world, profile);
 +
 +        bot.connection = new ServerGamePacketListenerImpl(server, new Connection(PacketFlow.CLIENTBOUND) {
 +            @Override
@@ -232,20 +428,32 @@ index 0000000000000000000000000000000000000000..7a81e5b8aa7aaa5c8a6718d0ad603790
 +        }, bot);
 +        bot.isRealPlayer = true;
 +
-+        bot.teleportTo(loc.getX(), loc.getY(), loc.getZ());
-+        bot.setRot(loc.getYaw(), loc.getPitch());
-+        world.addFreshEntity(bot, CreatureSpawnEvent.SpawnReason.COMMAND);
-+
-+        bot.renderAll();
-+        PlayerJoinEvent event = new PlayerJoinEvent(bot.getBukkitPlayer(), ChatColor.YELLOW + bot.getName().getString() + " joined the game");
++        BotCreateEvent event = new BotCreateEvent(bot.getBukkitPlayer(), loc, ChatColor.YELLOW + bot.getName().getString() + " joined the game");
 +        server.server.getPluginManager().callEvent(event);
-+        if (event.getJoinMessage() != null) {
-+            Bukkit.broadcastMessage(event.getJoinMessage());
++        if (!event.isCancelled()) {
++            if (event.getJoinMessage() != null) {
++                Bukkit.broadcastMessage(event.getJoinMessage());
++            }
++
++            loc = event.getCreateLocation();
++            ServerLevel world1 = ((CraftWorld) Objects.requireNonNull(loc.getWorld())).getHandle();
++
++            if (world1 != world) {
++                world = world1;
++                bot.changeDimension(world, PlayerTeleportEvent.TeleportCause.COMMAND);
++            }
++
++            bot.teleportTo(loc.getX(), loc.getY(), loc.getZ());
++            bot.setRot(loc.getYaw(), loc.getPitch());
++            world.addFreshEntity(bot, CreatureSpawnEvent.SpawnReason.COMMAND);
++
++            bot.renderAll();
++
++            bots.add(bot);
++            return bot;
 +        }
 +
-+        bots.add(bot);
-+
-+        return bot;
++        return null;
 +    }
 +
 +    private void renderAll() {
@@ -383,8 +591,14 @@ index 0000000000000000000000000000000000000000..7a81e5b8aa7aaa5c8a6718d0ad603790
 +        return false;
 +    }
 +
-+    public Player getBukkitPlayer() {
++    public Bot getBukkitPlayer() {
 +        return getBukkitEntity();
++    }
++
++    @Override
++    @NotNull
++    public CraftBot getBukkitEntity() {
++        return (CraftBot) super.getBukkitEntity();
 +    }
 +
 +    @Override
@@ -576,9 +790,9 @@ index 0000000000000000000000000000000000000000..7a81e5b8aa7aaa5c8a6718d0ad603790
 +        this.move(MoverType.SELF, new Vec3(velocity.getX(), y, velocity.getZ()));
 +    }
 +
-+    public static Bot getBot(ServerPlayer player) {
-+        Bot bot = null;
-+        for (Bot b : bots) {
++    public static ServerBot getBot(ServerPlayer player) {
++        ServerBot bot = null;
++        for (ServerBot b : bots) {
 +            if (b.getId() == player.getId()) {
 +                bot = b;
 +                break;
@@ -587,9 +801,9 @@ index 0000000000000000000000000000000000000000..7a81e5b8aa7aaa5c8a6718d0ad603790
 +        return bot;
 +    }
 +
-+    public static Bot getBot(String name) {
-+        Bot bot = null;
-+        for (Bot b : bots) {
++    public static ServerBot getBot(String name) {
++        ServerBot bot = null;
++        for (ServerBot b : bots) {
 +            if (b.getName().getString().equals(name)) {
 +                bot = b;
 +                break;
@@ -598,7 +812,7 @@ index 0000000000000000000000000000000000000000..7a81e5b8aa7aaa5c8a6718d0ad603790
 +        return bot;
 +    }
 +
-+    public static Set<Bot> getBots() { // It needs unmodifiable
++    public static Set<ServerBot> getBots() { // It needs unmodifiable
 +        return bots;
 +    }
 +
@@ -616,158 +830,36 @@ index 0000000000000000000000000000000000000000..7a81e5b8aa7aaa5c8a6718d0ad603790
 +        }
 +    }
 +}
-diff --git a/src/main/java/top/leavesmc/leaves/bot/BotCommand.java b/src/main/java/top/leavesmc/leaves/bot/BotCommand.java
+diff --git a/src/main/java/top/leavesmc/leaves/entity/CraftBot.java b/src/main/java/top/leavesmc/leaves/entity/CraftBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..3b8d44fb61d504e521e73d3a34f6bd8ad9f13aee
+index 0000000000000000000000000000000000000000..2d5044c4a09044364e818b7674908bf98932bf58
 --- /dev/null
-+++ b/src/main/java/top/leavesmc/leaves/bot/BotCommand.java
-@@ -0,0 +1,101 @@
-+package top.leavesmc.leaves.bot;
++++ b/src/main/java/top/leavesmc/leaves/entity/CraftBot.java
+@@ -0,0 +1,26 @@
++package top.leavesmc.leaves.entity;
 +
-+import org.bukkit.Bukkit;
-+import org.bukkit.ChatColor;
-+import org.bukkit.Location;
-+import org.bukkit.command.Command;
-+import org.bukkit.command.CommandSender;
-+import org.bukkit.entity.Player;
++import org.bukkit.craftbukkit.CraftServer;
++import org.bukkit.craftbukkit.entity.CraftPlayer;
++import top.leavesmc.leaves.bot.ServerBot;
 +
-+import java.util.ArrayList;
-+import java.util.List;
++public class CraftBot extends CraftPlayer implements Bot {
 +
-+public class BotCommand extends Command {
-+
-+    public BotCommand(String name) {
-+        super(name);
-+        this.description = "FakePlayer Command";
-+        this.usageMessage = "/bot [create | remove]";
-+        this.setPermission("bukkit.command.bot");
++    public CraftBot(CraftServer server, ServerBot entity) {
++        super(server, entity);
 +    }
 +
 +    @Override
-+    public List<String> tabComplete(CommandSender sender, String alias, String[] args, Location location) throws IllegalArgumentException {
-+        var list = new ArrayList<String>();
++    public ServerBot getHandle() {
++        return (ServerBot) entity;
++    }
 +
-+        if (args.length <= 1) {
-+            list.add("create");
-+            list.add("remove");
-+        } else {
-+            switch (args[0]) {
-+                case "create" -> list.add("[BotName]");
-+                case "remove" -> list.addAll(Bot.getBots().stream().map(e -> e.getName().getString()).toList());
-+            }
-+        }
-+
-+        return list;
++    public void setHandle(final ServerBot entity) {
++        super.setHandle(entity);
 +    }
 +
 +    @Override
-+    public boolean execute(CommandSender sender, String commandLabel, String[] args) {
-+        if (!testPermission(sender)) return true;
-+
-+        if (args.length == 0) {
-+            sender.sendMessage(ChatColor.RED + "Usage: " + usageMessage);
-+            return false;
-+        }
-+
-+        switch (args[0]) {
-+            case "create" -> this.onCreate(sender, args);
-+
-+            case "remove" -> this.onRemove(sender, args);
-+
-+            default -> {
-+                sender.sendMessage(ChatColor.RED + "Usage: " + usageMessage);
-+                return false;
-+            }
-+        }
-+
-+        return true;
-+    }
-+
-+    private void onCreate(CommandSender sender, String[] args) {
-+        if (args.length < 2) {
-+            sender.sendMessage(ChatColor.RED + "Use /bot create [name] to create a fakeplayer");
-+            return;
-+        }
-+
-+        if (!(sender instanceof Player)) {
-+            sender.sendMessage(ChatColor.RED + "This command only can use by player");
-+            return;
-+        }
-+
-+        if (Bukkit.getPlayer(args[1]) != null || Bot.getBot(args[1]) != null) {
-+            sender.sendMessage(ChatColor.RED + "This player is in server");
-+            return;
-+        }
-+
-+        if (top.leavesmc.leaves.LeavesConfig.unableFakeplayerNames.contains(args[1])) {
-+            sender.sendMessage(ChatColor.RED + "This name is unable");
-+            return;
-+        }
-+
-+        Bot.createBot(((Player) sender).getLocation(), args[1]);
-+    }
-+
-+    private void onRemove(CommandSender sender, String[] args) {
-+        if (args.length < 2) {
-+            sender.sendMessage(ChatColor.RED + "Use /bot remove [name] to remove a fakeplayer");
-+            return;
-+        }
-+
-+        Bot bot = Bot.getBot(args[1]);
-+
-+        if (bot == null) {
-+            sender.sendMessage(ChatColor.RED + "This fakeplayer is null");
-+            return;
-+        }
-+
-+        bot.kill();
-+    }
-+}
-diff --git a/src/main/java/top/leavesmc/leaves/bot/MojangAPI.java b/src/main/java/top/leavesmc/leaves/bot/MojangAPI.java
-new file mode 100644
-index 0000000000000000000000000000000000000000..daaece30b2a3983f1cc9ee9a851e8f373974d5ec
---- /dev/null
-+++ b/src/main/java/top/leavesmc/leaves/bot/MojangAPI.java
-@@ -0,0 +1,41 @@
-+package top.leavesmc.leaves.bot;
-+
-+import com.google.gson.JsonObject;
-+import com.google.gson.JsonParser;
-+
-+import java.io.IOException;
-+import java.io.InputStreamReader;
-+import java.net.URL;
-+import java.util.HashMap;
-+import java.util.Map;
-+
-+public class MojangAPI {
-+
-+    private static final boolean CACHE_ENABLED = false;
-+
-+    private static final Map<String, String[]> CACHE = new HashMap<>();
-+
-+    public static String[] getSkin(String name) {
-+        if (CACHE_ENABLED && CACHE.containsKey(name)) {
-+            return CACHE.get(name);
-+        }
-+
-+        String[] values = pullFromAPI(name);
-+        CACHE.put(name, values);
-+        return values;
-+    }
-+
-+    // Laggggggggggggggggggggggggggggggggggggggggg
-+    public static String[] pullFromAPI(String name) {
-+        try {
-+            String uuid = new JsonParser().parse(new InputStreamReader(new URL("https://api.mojang.com/users/profiles/minecraft/" + name)
-+                .openStream())).getAsJsonObject().get("id").getAsString();
-+            JsonObject property = new JsonParser()
-+                .parse(new InputStreamReader(new URL("https://sessionserver.mojang.com/session/minecraft/profile/" + uuid + "?unsigned=false")
-+                    .openStream())).getAsJsonObject().get("properties").getAsJsonArray().get(0).getAsJsonObject();
-+            return new String[] {property.get("value").getAsString(), property.get("signature").getAsString()};
-+        } catch (IOException | IllegalStateException e) {
-+            return null;
-+        }
++    public String toString() {
++        return "CraftBot{" + "name=" + getName() + '}';
 +    }
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/util/MathUtils.java b/src/main/java/top/leavesmc/leaves/util/MathUtils.java

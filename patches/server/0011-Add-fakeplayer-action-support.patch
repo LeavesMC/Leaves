@@ -30,16 +30,17 @@ index 898c61c25675232e203ee2c872ca25804c41358c..4d6d025c78086f186da710ae46f65eda
      }
  
 diff --git a/src/main/java/top/leavesmc/leaves/bot/BotCommand.java b/src/main/java/top/leavesmc/leaves/bot/BotCommand.java
-index 292fede3bb850892e57640814440bdcebfd43aec..7693118ee1bb06d9938b866dca8e6cc9d2f1dded 100644
+index 292fede3bb850892e57640814440bdcebfd43aec..348174882a6ccc64aeda3997d20e5c8f37234268 100644
 --- a/src/main/java/top/leavesmc/leaves/bot/BotCommand.java
 +++ b/src/main/java/top/leavesmc/leaves/bot/BotCommand.java
-@@ -6,6 +6,10 @@ import org.bukkit.Location;
+@@ -5,7 +5,11 @@ import org.bukkit.ChatColor;
+ import org.bukkit.Location;
  import org.bukkit.command.Command;
  import org.bukkit.command.CommandSender;
++import org.bukkit.craftbukkit.entity.CraftPlayer;
  import org.bukkit.entity.Player;
 +import top.leavesmc.leaves.bot.agent.Actions;
 +import top.leavesmc.leaves.bot.agent.BotAction;
-+import top.leavesmc.leaves.entity.CraftBot;
 +import top.leavesmc.leaves.util.MathUtils;
  
  import java.util.ArrayList;
@@ -140,12 +141,12 @@ index 292fede3bb850892e57640814440bdcebfd43aec..7693118ee1bb06d9938b866dca8e6cc9
 +            return;
 +        }
 +
-+        bot.setBotAction(action.getNew(tickDelay, ((CraftBot) sender).getHandle()));
++        bot.setBotAction(action.getNew(tickDelay, ((CraftPlayer) sender).getHandle()));
 +        sender.sendMessage("Action set");
 +    }
  }
 diff --git a/src/main/java/top/leavesmc/leaves/bot/ServerBot.java b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
-index b833653b671df660686134754c794d3e6686b112..d0b88733427d81aacb9699faf695c67988e83fe6 100644
+index 24d90f94da2d2ddea7e7134568b6bfcbe8c53ec3..b945cedb0c35418180415112dbccbca1c908a833 100644
 --- a/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
 +++ b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
 @@ -1,9 +1,12 @@
@@ -183,25 +184,21 @@ index b833653b671df660686134754c794d3e6686b112..d0b88733427d81aacb9699faf695c679
  import net.minecraft.world.level.ChunkPos;
  import net.minecraft.world.level.chunk.LevelChunk;
  import net.minecraft.world.phys.AABB;
-@@ -37,11 +45,13 @@ import org.bukkit.World;
+@@ -37,11 +45,10 @@ import org.bukkit.World;
  import org.bukkit.block.Block;
  import org.bukkit.craftbukkit.CraftWorld;
  import org.bukkit.craftbukkit.entity.CraftPlayer;
 +import org.bukkit.craftbukkit.inventory.CraftItemStack;
  import org.bukkit.craftbukkit.scheduler.MinecraftInternalPlugin;
- import org.bukkit.entity.Player;
+-import org.bukkit.entity.Player;
  import org.bukkit.event.entity.CreatureSpawnEvent;
- import org.bukkit.event.player.PlayerJoinEvent;
- import org.bukkit.event.player.PlayerTeleportEvent;
+-import org.bukkit.event.player.PlayerJoinEvent;
+-import org.bukkit.event.player.PlayerTeleportEvent;
 +import org.bukkit.inventory.ItemStack;
  import org.bukkit.plugin.Plugin;
  import org.bukkit.util.BoundingBox;
  import org.bukkit.util.Vector;
-@@ -49,10 +59,14 @@ import org.jetbrains.annotations.NotNull;
- import top.leavesmc.leaves.entity.Bot;
- import top.leavesmc.leaves.entity.CraftBot;
- import top.leavesmc.leaves.event.bot.BotCreateEvent;
-+import top.leavesmc.leaves.bot.agent.BotAction;
+@@ -54,7 +61,10 @@ import top.leavesmc.leaves.event.bot.BotJoinEvent;
  import top.leavesmc.leaves.util.MathUtils;
  
  import javax.annotation.Nullable;
@@ -212,7 +209,7 @@ index b833653b671df660686134754c794d3e6686b112..d0b88733427d81aacb9699faf695c679
  import java.util.Objects;
  import java.util.Set;
  import java.util.UUID;
-@@ -61,12 +75,17 @@ public class ServerBot extends ServerPlayer {
+@@ -63,12 +73,17 @@ public class ServerBot extends ServerPlayer {
  
      private Vector velocity;
      private Vector oldVelocity;
@@ -234,7 +231,7 @@ index b833653b671df660686134754c794d3e6686b112..d0b88733427d81aacb9699faf695c679
  
      private static final Set<ServerBot> bots = new HashSet<>();
      private static final Plugin MINECRAFT_PLUGIN = new MinecraftInternalPlugin();
-@@ -79,6 +98,8 @@ public class ServerBot extends ServerPlayer {
+@@ -81,6 +96,8 @@ public class ServerBot extends ServerPlayer {
          this.oldVelocity = velocity.clone();
          this.noFallTicks = 60;
          this.fireTicks = 0;
@@ -243,7 +240,7 @@ index b833653b671df660686134754c794d3e6686b112..d0b88733427d81aacb9699faf695c679
          this.removeOnDeath = true;
      }
  
-@@ -185,12 +206,17 @@ public class ServerBot extends ServerPlayer {
+@@ -186,12 +203,17 @@ public class ServerBot extends ServerPlayer {
          }
      }
  
@@ -260,8 +257,8 @@ index b833653b671df660686134754c794d3e6686b112..d0b88733427d81aacb9699faf695c679
 +
      // die check end
  
-     @Override
-@@ -198,10 +224,6 @@ public class ServerBot extends ServerPlayer {
+     @Nullable
+@@ -205,10 +227,6 @@ public class ServerBot extends ServerPlayer {
          return groundTicks != 0;
      }
  
@@ -272,7 +269,7 @@ index b833653b671df660686134754c794d3e6686b112..d0b88733427d81aacb9699faf695c679
      public static boolean solidAt(Location loc) {
          Block block = loc.getBlock();
          BoundingBox box = block.getBoundingBox();
-@@ -296,12 +318,24 @@ public class ServerBot extends ServerPlayer {
+@@ -303,12 +321,24 @@ public class ServerBot extends ServerPlayer {
      public void tick() {
          // loadChunks(); // Load chunks
          super.tick();
@@ -301,7 +298,7 @@ index b833653b671df660686134754c794d3e6686b112..d0b88733427d81aacb9699faf695c679
  
          if (checkGround()) {
              if (groundTicks < 5) groundTicks++;
-@@ -329,7 +363,88 @@ public class ServerBot extends ServerPlayer {
+@@ -336,7 +366,88 @@ public class ServerBot extends ServerPlayer {
  
          checkOutOfWorld();
  
@@ -390,7 +387,7 @@ index b833653b671df660686134754c794d3e6686b112..d0b88733427d81aacb9699faf695c679
      }
  
      @Override
-@@ -362,21 +477,6 @@ public class ServerBot extends ServerPlayer {
+@@ -369,21 +480,6 @@ public class ServerBot extends ServerPlayer {
          }
      }
  
@@ -412,7 +409,7 @@ index b833653b671df660686134754c794d3e6686b112..d0b88733427d81aacb9699faf695c679
      public Location getLocation() {
          return getBukkitPlayer().getLocation();
      }
-@@ -468,6 +568,68 @@ public class ServerBot extends ServerPlayer {
+@@ -475,6 +571,68 @@ public class ServerBot extends ServerPlayer {
          this.move(MoverType.SELF, new Vec3(velocity.getX(), y, velocity.getZ()));
      }
  

@@ -28,8 +28,34 @@ index de0513b38e5fa0138f1cee6bb633561be12449fc..8548ef7f79e85aca593928b8e748d8b6
          boolean flag = false;
          AdvancementProgress advancementprogress = this.getOrStartProgress(advancement);
          boolean flag1 = advancementprogress.isDone();
+diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+index 5f0d934399991ae94795ad0a94da689c242ffeba..17daf0e9ef3b3ea79f49388113b87052a2ef87e1 100644
+--- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
++++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+@@ -173,6 +173,7 @@ import org.bukkit.event.player.PlayerPortalEvent;
+ import org.bukkit.event.player.PlayerTeleportEvent;
+ import org.bukkit.event.player.PlayerTeleportEvent.TeleportCause;
+ import org.bukkit.inventory.MainHand;
++import top.leavesmc.leaves.bot.ServerBot;
+ // CraftBukkit end
+ 
+ public class ServerPlayer extends Player {
+@@ -1179,6 +1180,13 @@ public class ServerPlayer extends Player {
+                 this.lastSentHealth = -1.0F;
+                 this.lastSentFood = -1;
+ 
++                // Leaves start - bot support
++                if (top.leavesmc.leaves.LeavesConfig.fakeplayerSupport) {
++                    ServerBot.getBots().forEach(bot1 ->
++                        bot1.render(this.connection, true,this.getBukkitEntity().getWorld() == bot1.getBukkitEntity().getWorld())); // Leaves - render bot
++                }
++                // Leaves end - bot support
++
+                 // CraftBukkit start
+                 PlayerChangedWorldEvent changeEvent = new PlayerChangedWorldEvent(this.getBukkitEntity(), worldserver1.getWorld());
+                 this.level.getCraftServer().getPluginManager().callEvent(changeEvent);
 diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
-index 20cdfdb3b9351f74e89bc45b3ab972384165659a..fe38a9cd9724d0547e0d1689153a8c155c377d0c 100644
+index 20cdfdb3b9351f74e89bc45b3ab972384165659a..e7d425fc7187dad45416827260804c6b93117032 100644
 --- a/src/main/java/net/minecraft/server/players/PlayerList.java
 +++ b/src/main/java/net/minecraft/server/players/PlayerList.java
 @@ -100,10 +100,10 @@ import net.minecraft.world.scores.Objective;
@@ -52,7 +78,7 @@ index 20cdfdb3b9351f74e89bc45b3ab972384165659a..fe38a9cd9724d0547e0d1689153a8c15
  import org.bukkit.entity.Player;
  import org.bukkit.event.player.PlayerChangedWorldEvent;
  import org.bukkit.event.player.PlayerJoinEvent;
-@@ -368,6 +367,17 @@ public abstract class PlayerList {
+@@ -368,6 +367,18 @@ public abstract class PlayerList {
              return;
          }
  
@@ -63,7 +89,8 @@ index 20cdfdb3b9351f74e89bc45b3ab972384165659a..fe38a9cd9724d0547e0d1689153a8c15
 +                bot.kill(); // Leaves - remove bot with the same name
 +            }
 +
-+            ServerBot.getBots().forEach(bot1 -> bot1.render(playerconnection, true)); // Leaves - render bot
++            ServerBot.getBots().forEach(bot1 ->
++                bot1.render(playerconnection, true,player.getBukkitEntity().getWorld() == bot1.getBukkitEntity().getWorld())); // Leaves - render bot
 +        }
 +        // Leaves end - bot support
 +
@@ -71,7 +98,7 @@ index 20cdfdb3b9351f74e89bc45b3ab972384165659a..fe38a9cd9724d0547e0d1689153a8c15
  
          if (jm != null && !jm.equals(net.kyori.adventure.text.Component.empty())) { // Paper - Adventure
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
-index 2a6c67634c31c332102d24bef293da1bacd0c000..877c9fa13c0ff1fbc90d957258bd0bc1f42c0fd4 100644
+index b80cc0938b2b3928f4450f1314a9fbd7ea9c116b..8624cfb27246c1e39994d14a3cef48e68a3a3488 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
 @@ -187,6 +187,8 @@ import org.bukkit.plugin.Plugin;
@@ -316,10 +343,10 @@ index 0000000000000000000000000000000000000000..daaece30b2a3983f1cc9ee9a851e8f37
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/ServerBot.java b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..b833653b671df660686134754c794d3e6686b112
+index 0000000000000000000000000000000000000000..24d90f94da2d2ddea7e7134568b6bfcbe8c53ec3
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
-@@ -0,0 +1,510 @@
+@@ -0,0 +1,517 @@
 +package top.leavesmc.leaves.bot;
 +
 +import com.mojang.authlib.GameProfile;
@@ -371,6 +398,8 @@ index 0000000000000000000000000000000000000000..b833653b671df660686134754c794d3e
 +import top.leavesmc.leaves.entity.Bot;
 +import top.leavesmc.leaves.entity.CraftBot;
 +import top.leavesmc.leaves.event.bot.BotCreateEvent;
++import top.leavesmc.leaves.bot.agent.BotAction;
++import top.leavesmc.leaves.event.bot.BotJoinEvent;
 +import top.leavesmc.leaves.util.MathUtils;
 +
 +import javax.annotation.Nullable;
@@ -414,33 +443,27 @@ index 0000000000000000000000000000000000000000..b833653b671df660686134754c794d3e
 +    @Nullable
 +    public static ServerBot createBot(@NotNull Location loc, @NotNull String name, String[] skin) {
 +        MinecraftServer server = MinecraftServer.getServer();
-+        ServerLevel world = ((CraftWorld) Objects.requireNonNull(loc.getWorld())).getHandle();
 +
-+        UUID uuid = UUID.randomUUID();
-+        CustomGameProfile profile = new CustomGameProfile(uuid, name.length() > 16 ? name.substring(0, 16) : name, skin);
-+
-+        ServerBot bot = new ServerBot(server, world, profile);
-+
-+        bot.connection = new ServerGamePacketListenerImpl(server, new Connection(PacketFlow.CLIENTBOUND) {
-+            @Override
-+            public void send(Packet<?> packet, @Nullable GenericFutureListener<? extends Future<? super Void>> callback) {
-+            }
-+        }, bot);
-+        bot.isRealPlayer = true;
-+
-+        BotCreateEvent event = new BotCreateEvent(bot.getBukkitPlayer(), loc, ChatColor.YELLOW + bot.getName().getString() + " joined the game");
++        BotCreateEvent event = new BotCreateEvent(name, loc, ChatColor.YELLOW + name + " joined the game");
 +        server.server.getPluginManager().callEvent(event);
 +        if (!event.isCancelled()) {
++            loc = event.getCreateLocation();
++
++            ServerLevel world = ((CraftWorld) Objects.requireNonNull(loc.getWorld())).getHandle();
++            UUID uuid = UUID.randomUUID();
++            CustomGameProfile profile = new CustomGameProfile(uuid, name.length() > 16 ? name.substring(0, 16) : name, skin);
++
++            ServerBot bot = new ServerBot(server, world, profile);
++
++            bot.connection = new ServerGamePacketListenerImpl(server, new Connection(PacketFlow.CLIENTBOUND) {
++                @Override
++                public void send(@NotNull Packet<?> packet, @Nullable GenericFutureListener<? extends Future<? super Void>> callback) {
++                }
++            }, bot);
++            bot.isRealPlayer = true;
++
 +            if (event.getJoinMessage() != null) {
 +                Bukkit.broadcastMessage(event.getJoinMessage());
-+            }
-+
-+            loc = event.getCreateLocation();
-+            ServerLevel world1 = ((CraftWorld) Objects.requireNonNull(loc.getWorld())).getHandle();
-+
-+            if (world1 != world) {
-+                world = world1;
-+                bot.changeDimension(world, PlayerTeleportEvent.TeleportCause.COMMAND);
 +            }
 +
 +            bot.teleportTo(loc.getX(), loc.getY(), loc.getZ());
@@ -448,8 +471,11 @@ index 0000000000000000000000000000000000000000..b833653b671df660686134754c794d3e
 +            world.addFreshEntity(bot, CreatureSpawnEvent.SpawnReason.COMMAND);
 +
 +            bot.renderAll();
-+
 +            bots.add(bot);
++
++            BotJoinEvent event1 = new BotJoinEvent(bot.getBukkitPlayer());
++            server.server.getPluginManager().callEvent(event1);
++
 +            return bot;
 +        }
 +
@@ -458,22 +484,24 @@ index 0000000000000000000000000000000000000000..b833653b671df660686134754c794d3e
 +
 +    private void renderAll() {
 +        Packet<?>[] packets = getRenderPackets();
-+        Bukkit.getOnlinePlayers().forEach(p -> render(((CraftPlayer) p).getHandle().connection, packets, false));
++        Bukkit.getOnlinePlayers().forEach(p ->
++            render(((CraftPlayer) p).getHandle().connection, packets, false, p.getWorld() == getBukkitPlayer().getWorld()));
 +    }
 +
-+    public void render(ServerPlayerConnection connection, boolean login) {
-+        render(connection, getRenderPackets(), login);
++    public void render(ServerPlayerConnection connection, boolean login, boolean all) {
++        render(connection, getRenderPackets(), login, all);
 +    }
 +
-+    private void render(ServerPlayerConnection connection, Packet<?>[] packets, boolean login) { // always use getRenderPackets() to get packets. replace it soon
++    private void render(ServerPlayerConnection connection, Packet<?>[] packets, boolean login, boolean all) { // always use getRenderPackets() to get packets. replace it soon
 +        connection.send(packets[0]);
-+        connection.send(packets[1]);
-+        connection.send(packets[2]);
-+
-+        if (login) {
-+            connection.send(packets[3]); // This need delay 10 tick ? real ?
-+        } else {
-+            connection.send(packets[3]);
++        if (all) {
++            connection.send(packets[1]);
++            connection.send(packets[2]);
++            if (login) {
++                connection.send(packets[3]); // This need delay 10 tick ? real ?
++            } else {
++                connection.send(packets[3]);
++            }
 +        }
 +    }
 +
@@ -514,6 +542,12 @@ index 0000000000000000000000000000000000000000..b833653b671df660686134754c794d3e
 +        this.containerMenu.removed(this);
 +    }
 +    // die check end
++
++    @Nullable
++    @Override
++    public Entity changeDimension(ServerLevel destination) {
++        return null; // disable dimension change
++    }
 +
 +    @Override
 +    public boolean isOnGround() {

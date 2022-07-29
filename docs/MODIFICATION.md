@@ -9,6 +9,7 @@ Leaves Modification
 
 - Gravity block duper
 - Trading with the void
+- Tripwire update when it being removed and not disarmed
 
 ## Modify
 

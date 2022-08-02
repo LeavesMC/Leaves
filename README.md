@@ -25,7 +25,7 @@ Leaves-API maven dependency:
 <dependency>
     <groupId>top.leavesmc.leaves</groupId>
     <artifactId>leaves-api</artifactId>
-    <version>1.19-R0.1-SNAPSHOT</version>
+    <version>1.19.1-R0.1-SNAPSHOT</version>
     <scope>provided</scope>
  </dependency>
  ```
@@ -35,7 +35,7 @@ Leaves-Server maven dependency:
 <dependency>
     <groupId>top.leavesmc.leaves</groupId>
     <artifactId>leaves</artifactId>
-    <version>1.19-R0.1-SNAPSHOT</version>
+    <version>1.19.1-R0.1-SNAPSHOT</version>
     <scope>provided</scope>
 </dependency>
 ```

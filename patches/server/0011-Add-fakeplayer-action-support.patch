@@ -146,23 +146,25 @@ index 28744e9065493c7764d0b7a8c5ec0883c21d8156..30cd739eef5e6314c692272e60a5af0b
 +    }
  }
 diff --git a/src/main/java/top/leavesmc/leaves/bot/ServerBot.java b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
-index 24d90f94da2d2ddea7e7134568b6bfcbe8c53ec3..b945cedb0c35418180415112dbccbca1c908a833 100644
+index 1451e0679bd305b429b6727b7e06257a0aadc102..8c97913bccbf80a32d1b3d76b94adf93e7dd1911 100644
 --- a/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
 +++ b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
-@@ -1,9 +1,12 @@
+@@ -1,11 +1,14 @@
  package top.leavesmc.leaves.bot;
  
 +import com.google.common.collect.Lists;
  import com.mojang.authlib.GameProfile;
  import com.mojang.authlib.properties.Property;
+ import com.mojang.datafixers.util.Pair;
+ import net.minecraft.Util;
 +import com.mojang.datafixers.util.Pair;
  import io.netty.util.concurrent.Future;
  import io.netty.util.concurrent.GenericFutureListener;
 +import net.minecraft.Util;
  import net.minecraft.network.Connection;
+ import net.minecraft.network.PacketSendListener;
  import net.minecraft.network.protocol.Packet;
- import net.minecraft.network.protocol.PacketFlow;
-@@ -12,6 +15,7 @@ import net.minecraft.network.protocol.game.ClientboundPlayerInfoPacket;
+@@ -15,6 +18,7 @@ import net.minecraft.network.protocol.game.ClientboundPlayerInfoPacket;
  import net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket;
  import net.minecraft.network.protocol.game.ClientboundRotateHeadPacket;
  import net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket;
@@ -170,7 +172,7 @@ index 24d90f94da2d2ddea7e7134568b6bfcbe8c53ec3..b945cedb0c35418180415112dbccbca1
  import net.minecraft.network.syncher.EntityDataAccessor;
  import net.minecraft.network.syncher.EntityDataSerializers;
  import net.minecraft.server.MinecraftServer;
-@@ -22,9 +26,13 @@ import net.minecraft.server.level.TicketType;
+@@ -25,9 +29,13 @@ import net.minecraft.server.level.TicketType;
  import net.minecraft.server.network.ServerGamePacketListenerImpl;
  import net.minecraft.server.network.ServerPlayerConnection;
  import net.minecraft.util.Mth;
@@ -184,21 +186,23 @@ index 24d90f94da2d2ddea7e7134568b6bfcbe8c53ec3..b945cedb0c35418180415112dbccbca1
  import net.minecraft.world.level.ChunkPos;
  import net.minecraft.world.level.chunk.LevelChunk;
  import net.minecraft.world.phys.AABB;
-@@ -37,11 +45,10 @@ import org.bukkit.World;
+@@ -40,8 +48,10 @@ import org.bukkit.World;
  import org.bukkit.block.Block;
  import org.bukkit.craftbukkit.CraftWorld;
  import org.bukkit.craftbukkit.entity.CraftPlayer;
 +import org.bukkit.craftbukkit.inventory.CraftItemStack;
  import org.bukkit.craftbukkit.scheduler.MinecraftInternalPlugin;
--import org.bukkit.entity.Player;
  import org.bukkit.event.entity.CreatureSpawnEvent;
--import org.bukkit.event.player.PlayerJoinEvent;
--import org.bukkit.event.player.PlayerTeleportEvent;
 +import org.bukkit.inventory.ItemStack;
  import org.bukkit.plugin.Plugin;
  import org.bukkit.util.BoundingBox;
  import org.bukkit.util.Vector;
-@@ -54,7 +61,10 @@ import top.leavesmc.leaves.event.bot.BotJoinEvent;
+@@ -49,11 +59,15 @@ import org.jetbrains.annotations.NotNull;
+ import top.leavesmc.leaves.entity.Bot;
+ import top.leavesmc.leaves.entity.CraftBot;
+ import top.leavesmc.leaves.event.bot.BotCreateEvent;
++import top.leavesmc.leaves.bot.agent.BotAction;
+ import top.leavesmc.leaves.event.bot.BotJoinEvent;
  import top.leavesmc.leaves.util.MathUtils;
  
  import javax.annotation.Nullable;
@@ -209,7 +213,7 @@ index 24d90f94da2d2ddea7e7134568b6bfcbe8c53ec3..b945cedb0c35418180415112dbccbca1
  import java.util.Objects;
  import java.util.Set;
  import java.util.UUID;
-@@ -63,12 +73,17 @@ public class ServerBot extends ServerPlayer {
+@@ -62,12 +76,17 @@ public class ServerBot extends ServerPlayer {
  
      private Vector velocity;
      private Vector oldVelocity;
@@ -231,7 +235,7 @@ index 24d90f94da2d2ddea7e7134568b6bfcbe8c53ec3..b945cedb0c35418180415112dbccbca1
  
      private static final Set<ServerBot> bots = new HashSet<>();
      private static final Plugin MINECRAFT_PLUGIN = new MinecraftInternalPlugin();
-@@ -81,6 +96,8 @@ public class ServerBot extends ServerPlayer {
+@@ -80,6 +99,8 @@ public class ServerBot extends ServerPlayer {
          this.oldVelocity = velocity.clone();
          this.noFallTicks = 60;
          this.fireTicks = 0;
@@ -240,7 +244,7 @@ index 24d90f94da2d2ddea7e7134568b6bfcbe8c53ec3..b945cedb0c35418180415112dbccbca1
          this.removeOnDeath = true;
      }
  
-@@ -186,12 +203,17 @@ public class ServerBot extends ServerPlayer {
+@@ -185,12 +206,17 @@ public class ServerBot extends ServerPlayer {
          }
      }
  
@@ -258,7 +262,7 @@ index 24d90f94da2d2ddea7e7134568b6bfcbe8c53ec3..b945cedb0c35418180415112dbccbca1
      // die check end
  
      @Nullable
-@@ -205,10 +227,6 @@ public class ServerBot extends ServerPlayer {
+@@ -204,10 +230,6 @@ public class ServerBot extends ServerPlayer {
          return groundTicks != 0;
      }
  
@@ -269,7 +273,7 @@ index 24d90f94da2d2ddea7e7134568b6bfcbe8c53ec3..b945cedb0c35418180415112dbccbca1
      public static boolean solidAt(Location loc) {
          Block block = loc.getBlock();
          BoundingBox box = block.getBoundingBox();
-@@ -303,12 +321,24 @@ public class ServerBot extends ServerPlayer {
+@@ -302,12 +324,24 @@ public class ServerBot extends ServerPlayer {
      public void tick() {
          // loadChunks(); // Load chunks
          super.tick();
@@ -298,7 +302,7 @@ index 24d90f94da2d2ddea7e7134568b6bfcbe8c53ec3..b945cedb0c35418180415112dbccbca1
  
          if (checkGround()) {
              if (groundTicks < 5) groundTicks++;
-@@ -336,7 +366,88 @@ public class ServerBot extends ServerPlayer {
+@@ -335,7 +369,88 @@ public class ServerBot extends ServerPlayer {
  
          checkOutOfWorld();
  
@@ -387,7 +391,7 @@ index 24d90f94da2d2ddea7e7134568b6bfcbe8c53ec3..b945cedb0c35418180415112dbccbca1
      }
  
      @Override
-@@ -369,21 +480,6 @@ public class ServerBot extends ServerPlayer {
+@@ -368,21 +483,6 @@ public class ServerBot extends ServerPlayer {
          }
      }
  
@@ -409,7 +413,7 @@ index 24d90f94da2d2ddea7e7134568b6bfcbe8c53ec3..b945cedb0c35418180415112dbccbca1
      public Location getLocation() {
          return getBukkitPlayer().getLocation();
      }
-@@ -475,6 +571,68 @@ public class ServerBot extends ServerPlayer {
+@@ -474,6 +574,68 @@ public class ServerBot extends ServerPlayer {
          this.move(MoverType.SELF, new Vec3(velocity.getX(), y, velocity.getZ()));
      }
  

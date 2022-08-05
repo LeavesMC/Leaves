@@ -484,13 +484,14 @@ index 1451e0679bd305b429b6727b7e06257a0aadc102..8c97913bccbf80a32d1b3d76b94adf93
          for (ServerBot b : bots) {
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/Actions.java b/src/main/java/top/leavesmc/leaves/bot/agent/Actions.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..ccedc7b77bef852b66dfa8c4ee3d69b3c71717a0
+index 0000000000000000000000000000000000000000..2e0fd0a6366cab8dc84c8aa1845f017c41666d6d
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/Actions.java
-@@ -0,0 +1,47 @@
+@@ -0,0 +1,49 @@
 +package top.leavesmc.leaves.bot.agent;
 +
 +import top.leavesmc.leaves.bot.agent.action.AttackAction;
++import top.leavesmc.leaves.bot.agent.action.BreakBlockAction;
 +import top.leavesmc.leaves.bot.agent.action.DropAction;
 +import top.leavesmc.leaves.bot.agent.action.RotateAction;
 +import top.leavesmc.leaves.bot.agent.action.StopAction;
@@ -511,6 +512,7 @@ index 0000000000000000000000000000000000000000..ccedc7b77bef852b66dfa8c4ee3d69b3
 +        register(new UseItemAction());
 +        register(new UseItemOnAction());
 +        register(new StopAction());
++        register(new BreakBlockAction());
 +    }
 +
 +    public static void register(BotAction action) {
@@ -615,9 +617,69 @@ index 0000000000000000000000000000000000000000..b69de7c67d39a84310f6105ae0619eb9
 +         }
 +    }
 +}
+diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/action/BreakBlockAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/action/BreakBlockAction.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..110a96777968c7cda7f56bead5bc5f759ea1474f
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/agent/action/BreakBlockAction.java
+@@ -0,0 +1,54 @@
++package top.leavesmc.leaves.bot.agent.action;
++
++import net.minecraft.core.BlockPos;
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.world.level.block.state.BlockState;
++import net.minecraft.world.phys.HitResult;
++import top.leavesmc.leaves.bot.ServerBot;
++import top.leavesmc.leaves.bot.agent.BotAction;
++
++public class BreakBlockAction extends BotAction {
++    public BreakBlockAction() {
++        super("break");
++    }
++
++    @Override
++    public BotAction getNew(int tickDelay, ServerPlayer player) {
++        return new BreakBlockAction().setTickDelay(0);
++    }
++
++    private BlockPos lastPos = null;
++
++    private float damage = 0.0F;
++
++    @Override
++    public void tick(ServerBot bot) {
++        HitResult result = bot.getRayTrace(4);
++        if (result != null && result.getType() == HitResult.Type.BLOCK) {
++            if (lastPos == null) {
++                lastPos = new BlockPos(result.getLocation());
++                damage = 0.0F;
++            }
++
++            if (Math.floor(result.getLocation().x) != lastPos.getX() || Math.floor(result.getLocation().y) != lastPos.getY() || Math.floor(result.getLocation().z) != lastPos.getZ()) {
++                lastPos = new BlockPos(result.getLocation());
++                damage = 0.0F;
++            }
++
++            BlockState iblockdata = bot.level.getBlockState(lastPos);
++            if (!iblockdata.isAir()) {
++                bot.punch();
++                damage += iblockdata.getDestroyProgress(bot, bot.level, lastPos) * 5.0F;
++
++                int k = (int) (damage * 10.0F);
++                bot.level.destroyBlockProgress(bot.getId(), lastPos, k);
++
++                if (damage >= 1.0F) {
++                    bot.gameMode.destroyAndAck(lastPos, 0, "destroyed");
++                    bot.level.destroyBlockProgress(bot.getId(), lastPos, -1);
++                    damage = 0.0F;
++                }
++            }
++        }
++    }
++}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/action/DropAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/action/DropAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..4a072e9b2b6c33e5c3d5b2230b66484bb2dfc191
+index 0000000000000000000000000000000000000000..28cdf84e0e0dddbb796a088915f912f5224994f6
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/action/DropAction.java
 @@ -0,0 +1,22 @@
@@ -634,7 +696,7 @@ index 0000000000000000000000000000000000000000..4a072e9b2b6c33e5c3d5b2230b66484b
 +
 +    @Override
 +    public BotAction getNew(int tickDelay, ServerPlayer player) {
-+        return new DropAction().setTickDelay(tickDelay);
++        return new DropAction().setTickDelay(0);
 +    }
 +
 +    @Override
@@ -645,7 +707,7 @@ index 0000000000000000000000000000000000000000..4a072e9b2b6c33e5c3d5b2230b66484b
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/action/RotateAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/action/RotateAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..450d74eddb7667b2c720cca76a397eaf7daa14d1
+index 0000000000000000000000000000000000000000..0ecc3a1dabb3af41b55278f94a5eba2c76585c15
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/action/RotateAction.java
 @@ -0,0 +1,29 @@
@@ -669,7 +731,7 @@ index 0000000000000000000000000000000000000000..450d74eddb7667b2c720cca76a397eaf
 +
 +    @Override
 +    public BotAction getNew(int tickDelay, ServerPlayer player) {
-+        return new RotateAction().setPlayer(player).setTickDelay(tickDelay);
++        return new RotateAction().setPlayer(player).setTickDelay(0);
 +    }
 +
 +    @Override

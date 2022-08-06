@@ -4,6 +4,34 @@ Date: Thu, 3 Feb 2022 12:28:15 +0800
 Subject: [PATCH] Add fakeplayer support
 
 
+diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
+index 35fef03d2825d9e7f5ee324384ea8270bfde8f6f..053aec75d61e00b0827559b6fcb37db596435c63 100644
+--- a/src/main/java/net/minecraft/server/MinecraftServer.java
++++ b/src/main/java/net/minecraft/server/MinecraftServer.java
+@@ -120,6 +120,7 @@ import net.minecraft.util.profiling.metrics.profiling.ServerMetricsSamplersProvi
+ import net.minecraft.util.profiling.metrics.storage.MetricsPersister;
+ import net.minecraft.util.thread.ReentrantBlockableEventLoop;
+ import net.minecraft.world.Difficulty;
++import net.minecraft.world.damagesource.DamageSource;
+ import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.entity.ai.village.VillageSiege;
+ import net.minecraft.world.entity.npc.CatSpawner;
+@@ -181,6 +182,7 @@ import org.bukkit.event.server.ServerLoadEvent;
+ // CraftBukkit end
+ 
+ import co.aikar.timings.MinecraftTimings; // Paper
++import top.leavesmc.leaves.bot.ServerBot;
+ 
+ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTask> implements CommandSource, AutoCloseable {
+ 
+@@ -927,6 +929,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+ 
+         MinecraftServer.LOGGER.info("Stopping server");
+         MinecraftTimings.stopServer(); // Paper
++        ServerBot.getBots().forEach(serverBot -> serverBot.die(DamageSource.OUT_OF_WORLD)); // Leaves - remove all bot
+         // CraftBukkit start
+         if (this.server != null) {
+             this.server.disablePlugins();
 diff --git a/src/main/java/net/minecraft/server/PlayerAdvancements.java b/src/main/java/net/minecraft/server/PlayerAdvancements.java
 index a0c19503aabab5378d672a30163d35a5ba05b6c1..8873e12cbd3d6f9071efedb35ea3c69c78033d78 100644
 --- a/src/main/java/net/minecraft/server/PlayerAdvancements.java
@@ -93,6 +121,19 @@ index d63bfd9d3194a2972a984ec3a817767a683a940d..f3c3c530d9ae974c9b35e1a12f60e5ba
          final net.kyori.adventure.text.Component jm = playerJoinEvent.joinMessage();
  
          if (jm != null && !jm.equals(net.kyori.adventure.text.Component.empty())) { // Paper - Adventure
+diff --git a/src/main/java/net/minecraft/world/entity/player/Player.java b/src/main/java/net/minecraft/world/entity/player/Player.java
+index 9b131f0a827413e9f5d6d0f7491c5481576cb8b1..e2305caf0b3ce21810a31e05c943a6d859870bd5 100644
+--- a/src/main/java/net/minecraft/world/entity/player/Player.java
++++ b/src/main/java/net/minecraft/world/entity/player/Player.java
+@@ -1291,7 +1291,7 @@ public abstract class Player extends LivingEntity {
+                     boolean flag3 = false;
+                     double d0 = (double) (this.walkDist - this.walkDistO);
+ 
+-                    if (flag && !flag2 && !flag1 && this.onGround && d0 < (double) this.getSpeed()) {
++                    if (flag && !flag2 && !flag1 && this.isOnGround() && d0 < (double) this.getSpeed()) { // Leaves - use isOnGround method
+                         ItemStack itemstack = this.getItemInHand(InteractionHand.MAIN_HAND);
+ 
+                         if (itemstack.getItem() instanceof SwordItem) {
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
 index 6549ade8e19807c523e5a1dc68b66585aad438b1..b58a4fb6563554c8a5a10eada110125fb1e979b3 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
@@ -121,7 +162,7 @@ index 6549ade8e19807c523e5a1dc68b66585aad438b1..b58a4fb6563554c8a5a10eada110125f
              }
              // Water Animals
 diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
-index a85a5de7d85cf6c5e19c0245c40e6106e6623007..898c61c25675232e203ee2c872ca25804c41358c 100644
+index a85a5de7d85cf6c5e19c0245c40e6106e6623007..4d6d025c78086f186da710ae46f65eda5426464d 100644
 --- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
 +++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
 @@ -7,11 +7,13 @@ import org.bukkit.Bukkit;
@@ -138,18 +179,19 @@ index a85a5de7d85cf6c5e19c0245c40e6106e6623007..898c61c25675232e203ee2c872ca2580
  import java.util.HashMap;
  import java.util.List;
  import java.util.Map;
-@@ -63,6 +65,10 @@ public final class LeavesConfig {
+@@ -63,6 +65,11 @@ public final class LeavesConfig {
  	    LeavesConfig.load(config);
  
  	    commands = new HashMap<>();
 +
 +        if (top.leavesmc.leaves.LeavesConfig.fakeplayerSupport) {
 +            commands.put("bot", new BotCommand("bot"));
++            top.leavesmc.leaves.bot.agent.Actions.registerAll();
 +        }
      }
  
      public static void load(final YamlConfiguration config) {
-@@ -124,6 +130,12 @@ public final class LeavesConfig {
+@@ -124,6 +131,12 @@ public final class LeavesConfig {
          return LeavesConfig.config.getString(path, dfl);
      }
  
@@ -162,7 +204,7 @@ index a85a5de7d85cf6c5e19c0245c40e6106e6623007..898c61c25675232e203ee2c872ca2580
      public static boolean playerCanEditSign = true;
      private static void playerCanEditSign() {
          playerCanEditSign = getBoolean("settings.player-can-edit-sign", playerCanEditSign);
-@@ -134,6 +146,20 @@ public final class LeavesConfig {
+@@ -134,6 +147,20 @@ public final class LeavesConfig {
          snowballAndEggCanKnockback = getBoolean("settings.snowball-and-egg-can-knockback-player", snowballAndEggCanKnockback);
      }
  
@@ -185,10 +227,10 @@ index a85a5de7d85cf6c5e19c0245c40e6106e6623007..898c61c25675232e203ee2c872ca2580
          public final String worldName;
 diff --git a/src/main/java/top/leavesmc/leaves/bot/BotCommand.java b/src/main/java/top/leavesmc/leaves/bot/BotCommand.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..28744e9065493c7764d0b7a8c5ec0883c21d8156
+index 0000000000000000000000000000000000000000..b2502458c26346a93b152d723be3d0c681cc3e92
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/BotCommand.java
-@@ -0,0 +1,106 @@
+@@ -0,0 +1,193 @@
 +package top.leavesmc.leaves.bot;
 +
 +import net.minecraft.world.damagesource.DamageSource;
@@ -197,7 +239,11 @@ index 0000000000000000000000000000000000000000..28744e9065493c7764d0b7a8c5ec0883
 +import org.bukkit.Location;
 +import org.bukkit.command.Command;
 +import org.bukkit.command.CommandSender;
++import org.bukkit.craftbukkit.entity.CraftPlayer;
 +import org.bukkit.entity.Player;
++import top.leavesmc.leaves.bot.agent.Actions;
++import top.leavesmc.leaves.bot.agent.BotAction;
++import top.leavesmc.leaves.util.MathUtils;
 +
 +import java.util.ArrayList;
 +import java.util.List;
@@ -207,7 +253,7 @@ index 0000000000000000000000000000000000000000..28744e9065493c7764d0b7a8c5ec0883
 +    public BotCommand(String name) {
 +        super(name);
 +        this.description = "FakePlayer Command";
-+        this.usageMessage = "/bot [create | remove]";
++        this.usageMessage = "/bot [create | remove | action]";
 +        this.setPermission("bukkit.command.bot");
 +    }
 +
@@ -218,13 +264,49 @@ index 0000000000000000000000000000000000000000..28744e9065493c7764d0b7a8c5ec0883
 +        if (args.length <= 1) {
 +            list.add("create");
 +            list.add("remove");
-+        } else {
++            list.add("action");
++        }
++
++        if (args.length == 2) {
 +            switch (args[0]) {
-+                case "create" -> list.add("[BotName]");
-+                case "remove" -> list.addAll(ServerBot.getBots().stream().map(e -> e.getName().getString()).toList());
++                case "create" -> list.add("<BotName>");
++                case "remove", "action" -> list.addAll(ServerBot.getBots().stream().map(e -> e.getName().getString()).toList());
 +            }
 +        }
 +
++        if (args.length == 3) {
++            switch (args[0]) {
++                case "action" -> list.addAll(Actions.getAll().stream().map(BotAction::getName).toList());
++            }
++        }
++
++        if (args.length == 4) {
++            switch (args[0]) {
++                case "action" -> {
++                    BotAction action = Actions.getForName(args[2]);
++                    if (action != null) {
++                        if (action.hasDelay()) {
++                            list.add("[tickDelay]");
++                        } else if (action.hasNumber()) {
++                            list.add("[doNumber]");
++                        }
++                    }
++                }
++            }
++        }
++
++        if (args.length == 5) {
++            switch (args[0]) {
++                case "action" -> {
++                    BotAction action = Actions.getForName(args[2]);
++                    if (action != null) {
++                        if (action.hasNumber()) {
++                            list.add("[doNumber]");
++                        }
++                    }
++                }
++            }
++        }
 +        return list;
 +    }
 +
@@ -242,6 +324,8 @@ index 0000000000000000000000000000000000000000..28744e9065493c7764d0b7a8c5ec0883
 +
 +            case "remove" -> this.onRemove(sender, args);
 +
++            case "action" -> this.onAction(sender, args);
++
 +            default -> {
 +                sender.sendMessage(ChatColor.RED + "Usage: " + usageMessage);
 +                return false;
@@ -253,7 +337,7 @@ index 0000000000000000000000000000000000000000..28744e9065493c7764d0b7a8c5ec0883
 +
 +    private void onCreate(CommandSender sender, String[] args) {
 +        if (args.length < 2) {
-+            sender.sendMessage(ChatColor.RED + "Use /bot create [name] to create a fakeplayer");
++            sender.sendMessage(ChatColor.RED + "Use /bot create <name> to create a fakeplayer");
 +            return;
 +        }
 +
@@ -281,7 +365,7 @@ index 0000000000000000000000000000000000000000..28744e9065493c7764d0b7a8c5ec0883
 +
 +    private void onRemove(CommandSender sender, String[] args) {
 +        if (args.length < 2) {
-+            sender.sendMessage(ChatColor.RED + "Use /bot remove [name] to remove a fakeplayer");
++            sender.sendMessage(ChatColor.RED + "Use /bot remove <name> to remove a fakeplayer");
 +            return;
 +        }
 +
@@ -293,6 +377,51 @@ index 0000000000000000000000000000000000000000..28744e9065493c7764d0b7a8c5ec0883
 +        }
 +
 +        bot.die(DamageSource.OUT_OF_WORLD);
++    }
++
++    private void onAction(CommandSender sender, String[] args) {
++        if (args.length < 3) {
++            sender.sendMessage(ChatColor.RED + "Use /bot action <name> <action> to make fakeplayer do action");
++	    return;
++        }
++
++        BotAction action = Actions.getForName(args[2]);
++
++        if (action == null) {
++            sender.sendMessage(ChatColor.RED + "This action is null");
++            return;
++        }
++
++        int tickDelay = 20;
++        int number = -1;
++
++        if (action.hasDelay()) {
++            if (args.length > 3 && MathUtils.isNumeric(args[3])) {
++                tickDelay = Integer.parseInt(args[3]);
++            }
++
++            if (action.hasNumber()) {
++                if (args.length > 4 && MathUtils.isNumeric(args[4])) {
++                    number = Integer.parseInt(args[4]);
++                }
++            }
++        } else {
++            if (action.hasNumber()) {
++                if (args.length > 3 && MathUtils.isNumeric(args[3])) {
++                    number = Integer.parseInt(args[3]);
++                }
++            }
++        }
++
++        ServerBot bot = ServerBot.getBot(args[1]);
++
++        if (bot == null) {
++            sender.sendMessage(ChatColor.RED + "This fakeplayer is null");
++            return;
++        }
++
++        bot.setBotAction(action.getNew(tickDelay, number, ((CraftPlayer) sender).getHandle()));
++        sender.sendMessage(action.getName() + " set");
 +    }
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/MojangAPI.java b/src/main/java/top/leavesmc/leaves/bot/MojangAPI.java
@@ -344,18 +473,21 @@ index 0000000000000000000000000000000000000000..daaece30b2a3983f1cc9ee9a851e8f37
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/ServerBot.java b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..1451e0679bd305b429b6727b7e06257a0aadc102
+index 0000000000000000000000000000000000000000..52cbc24c12183f1758def211187755face376095
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
-@@ -0,0 +1,516 @@
+@@ -0,0 +1,686 @@
 +package top.leavesmc.leaves.bot;
 +
++import com.google.common.collect.Lists;
 +import com.mojang.authlib.GameProfile;
 +import com.mojang.authlib.properties.Property;
 +import com.mojang.datafixers.util.Pair;
 +import net.minecraft.Util;
++import com.mojang.datafixers.util.Pair;
 +import io.netty.util.concurrent.Future;
 +import io.netty.util.concurrent.GenericFutureListener;
++import net.minecraft.Util;
 +import net.minecraft.network.Connection;
 +import net.minecraft.network.PacketSendListener;
 +import net.minecraft.network.protocol.Packet;
@@ -365,6 +497,7 @@ index 0000000000000000000000000000000000000000..1451e0679bd305b429b6727b7e06257a
 +import net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket;
 +import net.minecraft.network.protocol.game.ClientboundRotateHeadPacket;
 +import net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket;
++import net.minecraft.network.protocol.game.ClientboundSetEquipmentPacket;
 +import net.minecraft.network.syncher.EntityDataAccessor;
 +import net.minecraft.network.syncher.EntityDataSerializers;
 +import net.minecraft.server.MinecraftServer;
@@ -375,9 +508,13 @@ index 0000000000000000000000000000000000000000..1451e0679bd305b429b6727b7e06257a
 +import net.minecraft.server.network.ServerGamePacketListenerImpl;
 +import net.minecraft.server.network.ServerPlayerConnection;
 +import net.minecraft.util.Mth;
++import net.minecraft.world.InteractionHand;
 +import net.minecraft.world.damagesource.DamageSource;
 +import net.minecraft.world.entity.Entity;
++import net.minecraft.world.entity.EntityType;
++import net.minecraft.world.entity.EquipmentSlot;
 +import net.minecraft.world.entity.MoverType;
++import net.minecraft.world.entity.item.ItemEntity;
 +import net.minecraft.world.level.ChunkPos;
 +import net.minecraft.world.level.chunk.LevelChunk;
 +import net.minecraft.world.phys.AABB;
@@ -390,8 +527,10 @@ index 0000000000000000000000000000000000000000..1451e0679bd305b429b6727b7e06257a
 +import org.bukkit.block.Block;
 +import org.bukkit.craftbukkit.CraftWorld;
 +import org.bukkit.craftbukkit.entity.CraftPlayer;
++import org.bukkit.craftbukkit.inventory.CraftItemStack;
 +import org.bukkit.craftbukkit.scheduler.MinecraftInternalPlugin;
 +import org.bukkit.event.entity.CreatureSpawnEvent;
++import org.bukkit.inventory.ItemStack;
 +import org.bukkit.plugin.Plugin;
 +import org.bukkit.util.BoundingBox;
 +import org.bukkit.util.Vector;
@@ -399,11 +538,15 @@ index 0000000000000000000000000000000000000000..1451e0679bd305b429b6727b7e06257a
 +import top.leavesmc.leaves.entity.Bot;
 +import top.leavesmc.leaves.entity.CraftBot;
 +import top.leavesmc.leaves.event.bot.BotCreateEvent;
++import top.leavesmc.leaves.bot.agent.BotAction;
 +import top.leavesmc.leaves.event.bot.BotJoinEvent;
 +import top.leavesmc.leaves.util.MathUtils;
 +
 +import javax.annotation.Nullable;
++import java.util.ArrayList;
++import java.util.Collections;
 +import java.util.HashSet;
++import java.util.List;
 +import java.util.Objects;
 +import java.util.Set;
 +import java.util.UUID;
@@ -412,12 +555,18 @@ index 0000000000000000000000000000000000000000..1451e0679bd305b429b6727b7e06257a
 +
 +    private Vector velocity;
 +    private Vector oldVelocity;
++    private BotAction action;
++    private BotAction newAction;
 +
 +    private boolean removeOnDeath;
-+    private byte fireTicks;
-+    private byte groundTicks;
-+    private byte jumpTicks;
-+    private byte noFallTicks;
++    private int fireTicks;
++    private int groundTicks;
++    private int jumpTicks;
++    private int noFallTicks;
++    private int noActionTicks;
++    private int doActionNumber;
++
++    private final ItemStack defaultItem;
 +
 +    private static final Set<ServerBot> bots = new HashSet<>();
 +    private static final Plugin MINECRAFT_PLUGIN = new MinecraftInternalPlugin();
@@ -430,6 +579,9 @@ index 0000000000000000000000000000000000000000..1451e0679bd305b429b6727b7e06257a
 +        this.oldVelocity = velocity.clone();
 +        this.noFallTicks = 60;
 +        this.fireTicks = 0;
++        this.noActionTicks = 0;
++        this.doActionNumber = -1;
++        this.defaultItem = new ItemStack(Material.AIR);
 +        this.removeOnDeath = true;
 +    }
 +
@@ -468,6 +620,7 @@ index 0000000000000000000000000000000000000000..1451e0679bd305b429b6727b7e06257a
 +
 +            bot.teleportTo(loc.getX(), loc.getY(), loc.getZ());
 +            bot.setRot(loc.getYaw(), loc.getPitch());
++            bot.getBukkitEntity().setRotation(loc.getYaw(), loc.getPitch());
 +            world.addFreshEntity(bot, CreatureSpawnEvent.SpawnReason.COMMAND);
 +
 +            bot.renderAll();
@@ -535,12 +688,17 @@ index 0000000000000000000000000000000000000000..1451e0679bd305b429b6727b7e06257a
 +        }
 +    }
 +
++    private void removeTab() {
++        sendPacket(new ClientboundPlayerInfoPacket(ClientboundPlayerInfoPacket.Action.REMOVE_PLAYER, this));
++    }
++
 +    private void setDead() {
 +        sendPacket(new ClientboundRemoveEntitiesPacket(getId()));
 +        this.dead = true;
 +        this.inventoryMenu.removed(this);
 +        this.containerMenu.removed(this);
 +    }
++
 +    // die check end
 +
 +    @Nullable
@@ -552,10 +710,6 @@ index 0000000000000000000000000000000000000000..1451e0679bd305b429b6727b7e06257a
 +    @Override
 +    public boolean isOnGround() {
 +        return groundTicks != 0;
-+    }
-+
-+    private void removeTab() {
-+        sendPacket(new ClientboundPlayerInfoPacket(ClientboundPlayerInfoPacket.Action.REMOVE_PLAYER, this));
 +    }
 +
 +    public static boolean solidAt(Location loc) {
@@ -652,12 +806,24 @@ index 0000000000000000000000000000000000000000..1451e0679bd305b429b6727b7e06257a
 +    public void tick() {
 +        // loadChunks(); // Load chunks
 +        super.tick();
++        this.doTick();
 +
-+        if (!isAlive()) return;
++        if (!isAlive()) {
++            return;
++        }
 +
-+        if (fireTicks > 0) --fireTicks;
-+        if (jumpTicks > 0) --jumpTicks;
-+        if (noFallTicks > 0) --noFallTicks;
++        if (fireTicks > 0) {
++            --fireTicks;
++        }
++        if (jumpTicks > 0) {
++            --jumpTicks;
++        }
++        if (noFallTicks > 0) {
++            --noFallTicks;
++        }
++        if (noActionTicks > 0) {
++            --noActionTicks;
++        }
 +
 +        if (checkGround()) {
 +            if (groundTicks < 5) groundTicks++;
@@ -685,7 +851,94 @@ index 0000000000000000000000000000000000000000..1451e0679bd305b429b6727b7e06257a
 +
 +        checkOutOfWorld();
 +
++        ++this.attackStrengthTicker;
++
++        if (this.getHealth() > 0.0F) {
++            AABB axisalignedbb;
++
++            if (this.isPassenger() && !this.getVehicle().isRemoved()) {
++                axisalignedbb = this.getBoundingBox().minmax(this.getVehicle().getBoundingBox()).inflate(1.0D, 0.0D, 1.0D);
++            } else {
++                axisalignedbb = this.getBoundingBox().inflate(1.0D, 0.5D, 1.0D);
++            }
++
++            List<Entity> list = this.level.getEntities(this, axisalignedbb);
++            List<Entity> list1 = Lists.newArrayList();
++
++            for (Entity entity : list) {
++                if (entity.getType() == EntityType.EXPERIENCE_ORB) {
++                    list1.add(entity);
++                } else if (!entity.isRemoved()) {
++                    this.touch(entity);
++                }
++            }
++
++            if (!list1.isEmpty()) {
++                this.touch((Entity) Util.getRandom((List) list1, this.random));
++            }
++        }
++
 +        oldVelocity = velocity.clone();
++
++        if (newAction != null) {
++            action = newAction;
++            newAction = null;
++            noActionTicks = 0;
++            doActionNumber = action.getNumber();
++        }
++
++        if (action != null && noActionTicks <= 0) {
++            if (action.isCancel()) {
++                action = null;
++            } else {
++                if (doActionNumber != 0) {
++                    action.tick(this);
++                    noActionTicks = action.getTickDelay();
++                    doActionNumber--;
++                } else {
++                    action = null;
++                }
++            }
++        }
++    }
++
++    private void touch(Entity entity) {
++        entity.playerTouch(this);
++    }
++
++    @Override
++    public void onItemPickup(ItemEntity item) {
++        super.onItemPickup(item);
++        this.updateItemInMainHand();
++    }
++
++    private ItemStack lastItem = new ItemStack(Material.AIR);
++    public void updateItemInMainHand() {
++        ItemStack item = this.getInventory().getSelected().asBukkitCopy();
++        if (!lastItem.isSimilar(item)) {
++            this.setItem(item, EquipmentSlot.MAINHAND);
++            lastItem = item;
++        }
++
++        if (item.getAmount() == 0) {
++            this.setItem(defaultItem, EquipmentSlot.MAINHAND);
++            lastItem = defaultItem;
++        }
++    }
++
++    @Override
++    public void doTick() {
++        if (this.hurtTime > 0) {
++            this.hurtTime -= 1;
++        }
++
++        baseTick();
++        tickEffects();
++
++        this.lerpSteps = (int) this.zza;
++        this.animStep = this.run;
++        this.yRotO = this.getYRot();
++        this.xRotO = this.getXRot();
 +    }
 +
 +    @Override
@@ -716,21 +969,6 @@ index 0000000000000000000000000000000000000000..1451e0679bd305b429b6727b7e06257a
 +                }
 +            }
 +        }
-+    }
-+
-+    @Override
-+    public void doTick() {
-+        if (this.hurtTime > 0) {
-+            this.hurtTime -= 1;
-+        }
-+
-+        baseTick();
-+        tickEffects();
-+
-+        this.lerpSteps = (int) this.zza;
-+        this.animStep = this.run;
-+        this.yRotO = this.getYRot();
-+        this.xRotO = this.getXRot();
 +    }
 +
 +    public Location getLocation() {
@@ -824,6 +1062,67 @@ index 0000000000000000000000000000000000000000..1451e0679bd305b429b6727b7e06257a
 +        this.move(MoverType.SELF, new Vec3(velocity.getX(), y, velocity.getZ()));
 +    }
 +
++    public void faceLocation(Location loc) {
++        look(loc.toVector().subtract(getLocation().toVector()), false);
++    }
++
++    private void look(Vector dir, boolean keepYaw) {
++        float yaw, pitch;
++
++        if (keepYaw) {
++            yaw = this.getYHeadRot();
++            pitch = MathUtils.fetchPitch(dir);
++        } else {
++            float[] vals = MathUtils.fetchYawPitch(dir);
++            yaw = vals[0];
++            pitch = vals[1];
++
++            sendPacket(new ClientboundRotateHeadPacket(this, (byte) (yaw * 256 / 360f)));
++        }
++
++        setRot(yaw, pitch);
++        this.getBukkitEntity().setRotation(yaw, pitch);
++    }
++
++    public void punch() {
++        swing(InteractionHand.MAIN_HAND);
++    }
++
++    public void attack(Entity target) {
++        super.attack(target);
++        punch();
++    }
++
++    public void setItem(org.bukkit.inventory.ItemStack item, EquipmentSlot slot) {
++        if (item == null) {
++            item = defaultItem;
++        }
++
++        this.detectEquipmentUpdates();
++        if (slot == EquipmentSlot.MAINHAND) {
++            getBukkitPlayer().getInventory().setItemInMainHand(item);
++            setItemInHand(InteractionHand.MAIN_HAND, CraftItemStack.asNMSCopy(item));
++        } else if (slot == EquipmentSlot.OFFHAND) {
++            getBukkitPlayer().getInventory().setItemInOffHand(item);
++            setItemInHand(InteractionHand.OFF_HAND, CraftItemStack.asNMSCopy(item));
++        }
++
++        sendPacket(new ClientboundSetEquipmentPacket(getId(), new ArrayList<>(Collections.singletonList(
++            new Pair<>(slot, CraftItemStack.asNMSCopy(item))
++        ))));
++    }
++
++    public void dropAll() {
++        getInventory().dropAll();
++        for (EquipmentSlot slot : EquipmentSlot.values()) {
++            setItem(null, slot);
++        }
++    }
++
++    public void setBotAction(BotAction botAction) {
++        this.newAction = botAction;
++    }
++
 +    public static ServerBot getBot(ServerPlayer player) {
 +        ServerBot bot = null;
 +        for (ServerBot b : bots) {
@@ -864,6 +1163,394 @@ index 0000000000000000000000000000000000000000..1451e0679bd305b429b6727b7e06257a
 +        }
 +    }
 +}
+diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/Actions.java b/src/main/java/top/leavesmc/leaves/bot/agent/Actions.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..2e0fd0a6366cab8dc84c8aa1845f017c41666d6d
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/agent/Actions.java
+@@ -0,0 +1,49 @@
++package top.leavesmc.leaves.bot.agent;
++
++import top.leavesmc.leaves.bot.agent.action.AttackAction;
++import top.leavesmc.leaves.bot.agent.action.BreakBlockAction;
++import top.leavesmc.leaves.bot.agent.action.DropAction;
++import top.leavesmc.leaves.bot.agent.action.RotateAction;
++import top.leavesmc.leaves.bot.agent.action.StopAction;
++import top.leavesmc.leaves.bot.agent.action.UseItemAction;
++import top.leavesmc.leaves.bot.agent.action.UseItemOnAction;
++
++import java.util.HashSet;
++import java.util.Set;
++
++public class Actions {
++
++    private static final Set<BotAction> actions = new HashSet<>();
++
++    public static void registerAll() {
++        register(new AttackAction());
++        register(new DropAction());
++        register(new RotateAction());
++        register(new UseItemAction());
++        register(new UseItemOnAction());
++        register(new StopAction());
++        register(new BreakBlockAction());
++    }
++
++    public static void register(BotAction action) {
++        for (BotAction a : actions) {
++            if (a.getName().equals(action.getName())) {
++                return;
++            }
++        }
++        actions.add(action);
++    }
++
++    public static Set<BotAction> getAll() {
++        return actions;
++    }
++
++    public static BotAction getForName(String name) {
++        for (BotAction a : actions) {
++            if (a.getName().equals(name)) {
++                return a;
++            }
++        }
++        return null;
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/BotAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/BotAction.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..af51ac0d8554cbfd1c2128e297e8362f421b6a33
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/agent/BotAction.java
+@@ -0,0 +1,66 @@
++package top.leavesmc.leaves.bot.agent;
++
++import net.minecraft.server.level.ServerPlayer;
++import top.leavesmc.leaves.bot.ServerBot;
++
++public abstract class BotAction {
++
++    private final String name;
++    private final boolean hasDelay;
++    private final boolean hasNumber;
++
++    private boolean cancel;
++    private int tickDelay;
++    private int number;
++
++    public BotAction(String name, boolean hasDelay, boolean hasNumber) {
++        this.name = name;
++        this.hasDelay = hasDelay;
++        this.hasNumber = hasNumber;
++
++        this.cancel = false;
++        this.tickDelay = 20;
++    }
++
++    public String getName() {
++        return name;
++    }
++
++    public int getTickDelay() {
++        return tickDelay;
++    }
++
++    public int getNumber() {
++        return number;
++    }
++
++    public BotAction setTickDelay(int tickDelay) {
++        this.tickDelay = tickDelay;
++        return this;
++    }
++
++    public BotAction setNumber(int number) {
++        this.number = number;
++        return this;
++    }
++
++    public boolean isCancel() {
++        return cancel;
++    }
++
++    public void setCancel(boolean cancel) {
++        this.cancel = cancel;
++    }
++
++    public boolean hasDelay() {
++        return hasDelay;
++    }
++
++    public boolean hasNumber() {
++        return hasNumber;
++    }
++
++    public abstract BotAction getNew(int tickDelay, int number, ServerPlayer player);
++
++    public abstract boolean tick(ServerBot bot);
++}
+diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/action/AttackAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/action/AttackAction.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..99adb14b0a687f1120cb88bb4b3c1c5c33f56ec9
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/agent/action/AttackAction.java
+@@ -0,0 +1,28 @@
++package top.leavesmc.leaves.bot.agent.action;
++
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.world.phys.EntityHitResult;
++import top.leavesmc.leaves.bot.ServerBot;
++import top.leavesmc.leaves.bot.agent.BotAction;
++
++public class AttackAction extends BotAction {
++
++    public AttackAction() {
++        super("attack", true, true);
++    }
++
++    @Override
++    public BotAction getNew(int tickDelay, int number, ServerPlayer player) {
++        return new AttackAction().setTickDelay(tickDelay).setNumber(number);
++    }
++
++    @Override
++    public boolean tick(ServerBot bot) {
++        EntityHitResult result = bot.getTargetEntity(3);
++         if (result != null) {
++             bot.attack(result.getEntity());
++             return true;
++         }
++         return false;
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/action/BreakBlockAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/action/BreakBlockAction.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..fab0a46082568cbb6be2f555dc55e19c56488044
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/agent/action/BreakBlockAction.java
+@@ -0,0 +1,60 @@
++package top.leavesmc.leaves.bot.agent.action;
++
++import net.minecraft.core.BlockPos;
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.world.level.block.state.BlockState;
++import org.bukkit.block.Block;
++import org.bukkit.craftbukkit.block.CraftBlock;
++import top.leavesmc.leaves.bot.ServerBot;
++import top.leavesmc.leaves.bot.agent.BotAction;
++
++public class BreakBlockAction extends BotAction {
++
++    public BreakBlockAction() {
++        super("break", false, true);
++    }
++
++    @Override
++    public BotAction getNew(int tickDelay, int number, ServerPlayer player) {
++        return new BreakBlockAction().setTickDelay(0).setNumber(number);
++    }
++
++    private BlockPos lastPos = null;
++
++    private float damage = 0.0F;
++
++    @Override
++    public boolean tick(ServerBot bot) {
++        Block block = bot.getBukkitEntity().getTargetBlock(5);
++        if (block != null) {
++            BlockPos pos = ((CraftBlock) block).getPosition();
++
++            if (lastPos == null) {
++                lastPos = pos;
++                damage = 0.0F;
++            }
++
++            if (!lastPos.equals(pos)) {
++                lastPos = pos;
++                damage = 0.0F;
++            }
++
++            BlockState iblockdata = bot.level.getBlockState(lastPos);
++            if (!iblockdata.isAir()) {
++                bot.punch();
++                damage += iblockdata.getDestroyProgress(bot, bot.level, lastPos) * 5.0F;
++
++                int k = (int) (damage * 10.0F);
++                bot.level.destroyBlockProgress(bot.getId(), lastPos, k);
++
++                if (damage >= 1.0F) {
++                    bot.gameMode.destroyAndAck(lastPos, 0, "destroyed");
++                    bot.level.destroyBlockProgress(bot.getId(), lastPos, -1);
++                    damage = 0.0F;
++                    return true;
++                }
++            }
++        }
++        return false;
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/action/DropAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/action/DropAction.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..99de88af478925b5aaedccb5898c317dcff8b6e1
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/agent/action/DropAction.java
+@@ -0,0 +1,23 @@
++package top.leavesmc.leaves.bot.agent.action;
++
++import net.minecraft.server.level.ServerPlayer;
++import top.leavesmc.leaves.bot.ServerBot;
++import top.leavesmc.leaves.bot.agent.BotAction;
++
++public class DropAction extends BotAction {
++    public DropAction() {
++        super("drop", false, false);
++    }
++
++    @Override
++    public BotAction getNew(int tickDelay, int number, ServerPlayer player) {
++        return new DropAction().setTickDelay(0).setNumber(1);
++    }
++
++    @Override
++    public boolean tick(ServerBot bot) {
++        bot.dropAll();
++        this.setCancel(true);
++        return true;
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/action/RotateAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/action/RotateAction.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..a67120103117baa421e7e78082d2ab425e8e0548
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/agent/action/RotateAction.java
+@@ -0,0 +1,30 @@
++package top.leavesmc.leaves.bot.agent.action;
++
++import net.minecraft.server.level.ServerPlayer;
++import top.leavesmc.leaves.bot.ServerBot;
++import top.leavesmc.leaves.bot.agent.BotAction;
++
++public class RotateAction extends BotAction {
++    public RotateAction() {
++        super("rotate", false, false);
++    }
++
++    private ServerPlayer player;
++
++    public RotateAction setPlayer(ServerPlayer player) {
++        this.player = player;
++        return this;
++    }
++
++    @Override
++    public BotAction getNew(int tickDelay, int number, ServerPlayer player) {
++        return new RotateAction().setPlayer(player).setTickDelay(0).setNumber(1);
++    }
++
++    @Override
++    public boolean tick(ServerBot bot) {
++        bot.faceLocation(player.getBukkitEntity().getLocation());
++        this.setCancel(true);
++        return true;
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/action/StopAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/action/StopAction.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..7f02970f3e9422ef65f879f8c155993f7b12d79e
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/agent/action/StopAction.java
+@@ -0,0 +1,22 @@
++package top.leavesmc.leaves.bot.agent.action;
++
++import net.minecraft.server.level.ServerPlayer;
++import top.leavesmc.leaves.bot.ServerBot;
++import top.leavesmc.leaves.bot.agent.BotAction;
++
++public class StopAction extends BotAction {
++    public StopAction() {
++        super("stop", false, false);
++    }
++
++    @Override
++    public BotAction getNew(int tickDelay, int number, ServerPlayer player) {
++        return new StopAction().setTickDelay(0).setNumber(0);
++    }
++
++    @Override
++    public boolean tick(ServerBot bot) {
++        this.setCancel(true);
++        return true;
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/action/UseItemAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/action/UseItemAction.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..269ec002acd01f4840d4462970253eee5b1ffe16
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/agent/action/UseItemAction.java
+@@ -0,0 +1,25 @@
++package top.leavesmc.leaves.bot.agent.action;
++
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.world.InteractionHand;
++import net.minecraft.world.InteractionResult;
++import top.leavesmc.leaves.bot.ServerBot;
++import top.leavesmc.leaves.bot.agent.BotAction;
++
++public class UseItemAction extends BotAction {
++    public UseItemAction() {
++        super("use", true, true);
++    }
++
++    @Override
++    public BotAction getNew(int tickDelay, int number, ServerPlayer player) {
++        return new UseItemAction().setTickDelay(tickDelay).setNumber(number);
++    }
++
++    @Override
++    public boolean tick(ServerBot bot) {
++        bot.punch();
++        bot.updateItemInMainHand();
++        return bot.getInventory().getSelected().use(bot.getLevel(), bot, InteractionHand.MAIN_HAND).getResult() == InteractionResult.SUCCESS;
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/action/UseItemOnAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/action/UseItemOnAction.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..227c69d00ec63829e1b264cde00ad1222027243e
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/agent/action/UseItemOnAction.java
+@@ -0,0 +1,31 @@
++package top.leavesmc.leaves.bot.agent.action;
++
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.world.InteractionHand;
++import net.minecraft.world.InteractionResult;
++import net.minecraft.world.phys.BlockHitResult;
++import net.minecraft.world.phys.HitResult;
++import top.leavesmc.leaves.bot.ServerBot;
++import top.leavesmc.leaves.bot.agent.BotAction;
++
++public class UseItemOnAction extends BotAction {
++    public UseItemOnAction() {
++        super("use_on", true, true);
++    }
++
++    @Override
++    public BotAction getNew(int tickDelay, int number, ServerPlayer player) {
++        return new UseItemOnAction().setTickDelay(tickDelay).setNumber(number);
++    }
++
++    @Override
++    public boolean tick(ServerBot bot) {
++        HitResult result = bot.getRayTrace(4);
++        if (result != null && result.getType() == HitResult.Type.BLOCK) {
++            bot.punch();
++            bot.updateItemInMainHand();
++            return bot.gameMode.useItemOn(bot, bot.getLevel(), bot.getItemInHand(InteractionHand.MAIN_HAND), InteractionHand.MAIN_HAND, (BlockHitResult) result) == InteractionResult.SUCCESS;
++        }
++        return false;
++    }
++}
 diff --git a/src/main/java/top/leavesmc/leaves/entity/CraftBot.java b/src/main/java/top/leavesmc/leaves/entity/CraftBot.java
 new file mode 100644
 index 0000000000000000000000000000000000000000..2d5044c4a09044364e818b7674908bf98932bf58
@@ -898,14 +1585,16 @@ index 0000000000000000000000000000000000000000..2d5044c4a09044364e818b7674908bf9
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/util/MathUtils.java b/src/main/java/top/leavesmc/leaves/util/MathUtils.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..acdef051d6d4eb4e0d957bfbd7f205827c2f23a9
+index 0000000000000000000000000000000000000000..d6a809569455872d08aeab81b174024d2bc3b53a
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/util/MathUtils.java
-@@ -0,0 +1,13 @@
+@@ -0,0 +1,78 @@
 +package top.leavesmc.leaves.util;
 +
 +import org.bukkit.util.NumberConversions;
 +import org.bukkit.util.Vector;
++
++import java.util.regex.Pattern;
 +
 +public class MathUtils {
 +    // Lag ?
@@ -913,5 +1602,68 @@ index 0000000000000000000000000000000000000000..acdef051d6d4eb4e0d957bfbd7f20582
 +        if (!NumberConversions.isFinite(vector.getX())) vector.setX(0);
 +        if (!NumberConversions.isFinite(vector.getY())) vector.setY(0);
 +        if (!NumberConversions.isFinite(vector.getZ())) vector.setZ(0);
++    }
++
++    private static final Pattern numericPattern = Pattern.compile("[0-9]*");
++    public static boolean isNumeric(String str){
++        return numericPattern.matcher(str).matches();
++    }
++
++    public static float[] fetchYawPitch(Vector dir) {
++        double x = dir.getX();
++        double z = dir.getZ();
++
++        float[] out = new float[2];
++
++        if (x == 0.0D && z == 0.0D) {
++            out[1] = (float) (dir.getY() > 0.0D ? -90 : 90);
++        }
++
++        else {
++            double theta = Math.atan2(-x, z);
++            out[0] = (float) Math.toDegrees((theta + 6.283185307179586D) % 6.283185307179586D);
++
++            double x2 = NumberConversions.square(x);
++            double z2 = NumberConversions.square(z);
++            double xz = Math.sqrt(x2 + z2);
++            out[1] = (float) Math.toDegrees(Math.atan(-dir.getY() / xz));
++        }
++
++        return out;
++    }
++
++    public static float fetchPitch(Vector dir) {
++        double x = dir.getX();
++        double z = dir.getZ();
++
++        float result;
++
++        if (x == 0.0D && z == 0.0D) {
++            result = (float) (dir.getY() > 0.0D ? -90 : 90);
++        }
++
++        else {
++            double x2 = NumberConversions.square(x);
++            double z2 = NumberConversions.square(z);
++            double xz = Math.sqrt(x2 + z2);
++            result = (float) Math.toDegrees(Math.atan(-dir.getY() / xz));
++        }
++
++        return result;
++    }
++
++    public static Vector getDirection(double rotX, double rotY) {
++        Vector vector = new Vector();
++
++        rotX = Math.toRadians(rotX);
++        rotY = Math.toRadians(rotY);
++
++        double xz = Math.abs(Math.cos(rotY));
++
++        vector.setX(-Math.sin(rotX) * xz);
++        vector.setZ(Math.cos(rotX) * xz);
++        vector.setY(-Math.sin(rotY));
++
++        return vector;
 +    }
 +}

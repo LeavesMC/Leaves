@@ -23,3 +23,4 @@ Leaves Modification
 - Budding Amethyst can push by piston
 - Spectator don't get Advancement
 - Use stick and shift to ArmorStand can modify ArmorStand's arm status
+- Remove Player Chat sign

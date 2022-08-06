@@ -146,7 +146,7 @@ index 28744e9065493c7764d0b7a8c5ec0883c21d8156..30cd739eef5e6314c692272e60a5af0b
 +    }
  }
 diff --git a/src/main/java/top/leavesmc/leaves/bot/ServerBot.java b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
-index 1451e0679bd305b429b6727b7e06257a0aadc102..8c97913bccbf80a32d1b3d76b94adf93e7dd1911 100644
+index 1451e0679bd305b429b6727b7e06257a0aadc102..49dea36ff835ea42d4475db9515f87bf134751bb 100644
 --- a/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
 +++ b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
 @@ -1,11 +1,14 @@
@@ -244,7 +244,15 @@ index 1451e0679bd305b429b6727b7e06257a0aadc102..8c97913bccbf80a32d1b3d76b94adf93
          this.removeOnDeath = true;
      }
  
-@@ -185,12 +206,17 @@ public class ServerBot extends ServerPlayer {
+@@ -118,6 +139,7 @@ public class ServerBot extends ServerPlayer {
+ 
+             bot.teleportTo(loc.getX(), loc.getY(), loc.getZ());
+             bot.setRot(loc.getYaw(), loc.getPitch());
++            bot.getBukkitEntity().setRotation(loc.getYaw(), loc.getPitch());
+             world.addFreshEntity(bot, CreatureSpawnEvent.SpawnReason.COMMAND);
+ 
+             bot.renderAll();
+@@ -185,12 +207,17 @@ public class ServerBot extends ServerPlayer {
          }
      }
  
@@ -262,7 +270,7 @@ index 1451e0679bd305b429b6727b7e06257a0aadc102..8c97913bccbf80a32d1b3d76b94adf93
      // die check end
  
      @Nullable
-@@ -204,10 +230,6 @@ public class ServerBot extends ServerPlayer {
+@@ -204,10 +231,6 @@ public class ServerBot extends ServerPlayer {
          return groundTicks != 0;
      }
  
@@ -273,7 +281,7 @@ index 1451e0679bd305b429b6727b7e06257a0aadc102..8c97913bccbf80a32d1b3d76b94adf93
      public static boolean solidAt(Location loc) {
          Block block = loc.getBlock();
          BoundingBox box = block.getBoundingBox();
-@@ -302,12 +324,24 @@ public class ServerBot extends ServerPlayer {
+@@ -302,12 +325,24 @@ public class ServerBot extends ServerPlayer {
      public void tick() {
          // loadChunks(); // Load chunks
          super.tick();
@@ -302,7 +310,7 @@ index 1451e0679bd305b429b6727b7e06257a0aadc102..8c97913bccbf80a32d1b3d76b94adf93
  
          if (checkGround()) {
              if (groundTicks < 5) groundTicks++;
-@@ -335,7 +369,88 @@ public class ServerBot extends ServerPlayer {
+@@ -335,7 +370,88 @@ public class ServerBot extends ServerPlayer {
  
          checkOutOfWorld();
  
@@ -391,7 +399,7 @@ index 1451e0679bd305b429b6727b7e06257a0aadc102..8c97913bccbf80a32d1b3d76b94adf93
      }
  
      @Override
-@@ -368,21 +483,6 @@ public class ServerBot extends ServerPlayer {
+@@ -368,21 +484,6 @@ public class ServerBot extends ServerPlayer {
          }
      }
  
@@ -413,7 +421,7 @@ index 1451e0679bd305b429b6727b7e06257a0aadc102..8c97913bccbf80a32d1b3d76b94adf93
      public Location getLocation() {
          return getBukkitPlayer().getLocation();
      }
-@@ -474,6 +574,68 @@ public class ServerBot extends ServerPlayer {
+@@ -474,6 +575,67 @@ public class ServerBot extends ServerPlayer {
          this.move(MoverType.SELF, new Vec3(velocity.getX(), y, velocity.getZ()));
      }
  
@@ -436,8 +444,7 @@ index 1451e0679bd305b429b6727b7e06257a0aadc102..8c97913bccbf80a32d1b3d76b94adf93
 +        }
 +
 +        setRot(yaw, pitch);
-+        this.getBukkitPlayer().getLocation().setYaw(yaw);
-+        this.getBukkitPlayer().getLocation().setPitch(pitch);
++        this.getBukkitEntity().setRotation(yaw, pitch);
 +    }
 +
 +    public void punch() {
@@ -619,16 +626,17 @@ index 0000000000000000000000000000000000000000..b69de7c67d39a84310f6105ae0619eb9
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/action/BreakBlockAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/action/BreakBlockAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..110a96777968c7cda7f56bead5bc5f759ea1474f
+index 0000000000000000000000000000000000000000..0f274eb3225581f9b870d7c519cd3159215f6de3
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/action/BreakBlockAction.java
-@@ -0,0 +1,54 @@
+@@ -0,0 +1,57 @@
 +package top.leavesmc.leaves.bot.agent.action;
 +
 +import net.minecraft.core.BlockPos;
 +import net.minecraft.server.level.ServerPlayer;
 +import net.minecraft.world.level.block.state.BlockState;
-+import net.minecraft.world.phys.HitResult;
++import org.bukkit.block.Block;
++import org.bukkit.craftbukkit.block.CraftBlock;
 +import top.leavesmc.leaves.bot.ServerBot;
 +import top.leavesmc.leaves.bot.agent.BotAction;
 +
@@ -648,15 +656,17 @@ index 0000000000000000000000000000000000000000..110a96777968c7cda7f56bead5bc5f75
 +
 +    @Override
 +    public void tick(ServerBot bot) {
-+        HitResult result = bot.getRayTrace(4);
-+        if (result != null && result.getType() == HitResult.Type.BLOCK) {
++        Block block = bot.getBukkitEntity().getTargetBlock(4);
++        if (block != null) {
++            BlockPos pos = ((CraftBlock) block).getPosition();
++
 +            if (lastPos == null) {
-+                lastPos = new BlockPos(result.getLocation());
++                lastPos = pos;
 +                damage = 0.0F;
 +            }
 +
-+            if (Math.floor(result.getLocation().x) != lastPos.getX() || Math.floor(result.getLocation().y) != lastPos.getY() || Math.floor(result.getLocation().z) != lastPos.getZ()) {
-+                lastPos = new BlockPos(result.getLocation());
++            if (!lastPos.equals(pos)) {
++                lastPos = pos;
 +                damage = 0.0F;
 +            }
 +

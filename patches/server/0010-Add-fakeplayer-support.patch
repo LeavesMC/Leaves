@@ -474,20 +474,16 @@ index 0000000000000000000000000000000000000000..daaece30b2a3983f1cc9ee9a851e8f37
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/ServerBot.java b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..491394f15e2a88e1a1ae75e80e6429169578b35a
+index 0000000000000000000000000000000000000000..33449a8a53ac0ff5f6df6a50edf5120b3009b390
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
-@@ -0,0 +1,688 @@
+@@ -0,0 +1,697 @@
 +package top.leavesmc.leaves.bot;
 +
 +import com.google.common.collect.Lists;
 +import com.mojang.authlib.GameProfile;
 +import com.mojang.authlib.properties.Property;
 +import com.mojang.datafixers.util.Pair;
-+import net.minecraft.Util;
-+import com.mojang.datafixers.util.Pair;
-+import io.netty.util.concurrent.Future;
-+import io.netty.util.concurrent.GenericFutureListener;
 +import net.minecraft.Util;
 +import net.minecraft.network.Connection;
 +import net.minecraft.network.PacketSendListener;
@@ -502,10 +498,8 @@ index 0000000000000000000000000000000000000000..491394f15e2a88e1a1ae75e80e642916
 +import net.minecraft.network.syncher.EntityDataAccessor;
 +import net.minecraft.network.syncher.EntityDataSerializers;
 +import net.minecraft.server.MinecraftServer;
-+import net.minecraft.server.dedicated.DedicatedServer;
 +import net.minecraft.server.level.ServerLevel;
 +import net.minecraft.server.level.ServerPlayer;
-+import net.minecraft.server.level.TicketType;
 +import net.minecraft.server.network.ServerGamePacketListenerImpl;
 +import net.minecraft.server.network.ServerPlayerConnection;
 +import net.minecraft.util.Mth;
@@ -516,8 +510,6 @@ index 0000000000000000000000000000000000000000..491394f15e2a88e1a1ae75e80e642916
 +import net.minecraft.world.entity.EquipmentSlot;
 +import net.minecraft.world.entity.MoverType;
 +import net.minecraft.world.entity.item.ItemEntity;
-+import net.minecraft.world.level.ChunkPos;
-+import net.minecraft.world.level.chunk.LevelChunk;
 +import net.minecraft.world.phys.AABB;
 +import net.minecraft.world.phys.Vec3;
 +import org.bukkit.Bukkit;
@@ -884,7 +876,7 @@ index 0000000000000000000000000000000000000000..491394f15e2a88e1a1ae75e80e642916
 +                action = null;
 +            } else {
 +                if (doActionNumber != 0) {
-+                    if (action.tick(this)) {
++                    if (action.doTick(this)) {
 +                        doActionNumber--;
 +                    }
 +                    noActionTicks = action.getTickDelay();
@@ -914,9 +906,26 @@ index 0000000000000000000000000000000000000000..491394f15e2a88e1a1ae75e80e642916
 +        }
 +
 +        if (item.getAmount() == 0) {
-+            this.setItem(defaultItem, EquipmentSlot.MAINHAND);
-+            lastItem = defaultItem;
++            if (!tryReplenishInMainHand()) {
++                this.setItem(defaultItem, EquipmentSlot.MAINHAND);
++                lastItem = defaultItem;
++            } else {
++                this.setItem(item, EquipmentSlot.MAINHAND);
++                lastItem = item;
++            }
 +        }
++    }
++
++    public boolean tryReplenishInMainHand() {
++        ItemStack item = getInventory().getSelected().asBukkitCopy();
++        for (net.minecraft.world.item.ItemStack item1 : getInventory().items) {
++            if (item.getType() == item1.asBukkitCopy().getType()) {
++                getInventory().removeItem(item1);
++                getInventory().setItem(getInventory().selected, item1);
++                return true;
++            }
++        }
++        return false;
 +    }
 +
 +    @Override
@@ -1168,16 +1177,17 @@ index 0000000000000000000000000000000000000000..491394f15e2a88e1a1ae75e80e642916
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/Actions.java b/src/main/java/top/leavesmc/leaves/bot/agent/Actions.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..2e0fd0a6366cab8dc84c8aa1845f017c41666d6d
+index 0000000000000000000000000000000000000000..899079c1bd323bc8d18b2cee1589bf094937996a
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/Actions.java
-@@ -0,0 +1,49 @@
+@@ -0,0 +1,51 @@
 +package top.leavesmc.leaves.bot.agent;
 +
 +import top.leavesmc.leaves.bot.agent.action.AttackAction;
 +import top.leavesmc.leaves.bot.agent.action.BreakBlockAction;
 +import top.leavesmc.leaves.bot.agent.action.DropAction;
 +import top.leavesmc.leaves.bot.agent.action.RotateAction;
++import top.leavesmc.leaves.bot.agent.action.SneakAction;
 +import top.leavesmc.leaves.bot.agent.action.StopAction;
 +import top.leavesmc.leaves.bot.agent.action.UseItemAction;
 +import top.leavesmc.leaves.bot.agent.action.UseItemOnAction;
@@ -1197,6 +1207,7 @@ index 0000000000000000000000000000000000000000..2e0fd0a6366cab8dc84c8aa1845f017c
 +        register(new UseItemOnAction());
 +        register(new StopAction());
 +        register(new BreakBlockAction());
++        register(new SneakAction());
 +    }
 +
 +    public static void register(BotAction action) {
@@ -1223,13 +1234,14 @@ index 0000000000000000000000000000000000000000..2e0fd0a6366cab8dc84c8aa1845f017c
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/BotAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/BotAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..af51ac0d8554cbfd1c2128e297e8362f421b6a33
+index 0000000000000000000000000000000000000000..b7a19fd84f406c52ce368c3124c99a956e614fdf
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/BotAction.java
-@@ -0,0 +1,66 @@
+@@ -0,0 +1,67 @@
 +package top.leavesmc.leaves.bot.agent;
 +
 +import net.minecraft.server.level.ServerPlayer;
++import org.jetbrains.annotations.NotNull;
 +import top.leavesmc.leaves.bot.ServerBot;
 +
 +public abstract class BotAction {
@@ -1289,20 +1301,21 @@ index 0000000000000000000000000000000000000000..af51ac0d8554cbfd1c2128e297e8362f
 +        return hasNumber;
 +    }
 +
-+    public abstract BotAction getNew(int tickDelay, int number, ServerPlayer player);
++    public abstract BotAction getNew(int tickDelay, int number, @NotNull ServerPlayer player);
 +
-+    public abstract boolean tick(ServerBot bot);
++    public abstract boolean doTick(@NotNull ServerBot bot);
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/action/AttackAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/action/AttackAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..99adb14b0a687f1120cb88bb4b3c1c5c33f56ec9
+index 0000000000000000000000000000000000000000..100feffef0f97229875cc6f7002cc3c9ee18b689
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/action/AttackAction.java
-@@ -0,0 +1,28 @@
+@@ -0,0 +1,29 @@
 +package top.leavesmc.leaves.bot.agent.action;
 +
 +import net.minecraft.server.level.ServerPlayer;
 +import net.minecraft.world.phys.EntityHitResult;
++import org.jetbrains.annotations.NotNull;
 +import top.leavesmc.leaves.bot.ServerBot;
 +import top.leavesmc.leaves.bot.agent.BotAction;
 +
@@ -1313,12 +1326,12 @@ index 0000000000000000000000000000000000000000..99adb14b0a687f1120cb88bb4b3c1c5c
 +    }
 +
 +    @Override
-+    public BotAction getNew(int tickDelay, int number, ServerPlayer player) {
++    public BotAction getNew(int tickDelay, int number, @NotNull ServerPlayer player) {
 +        return new AttackAction().setTickDelay(tickDelay).setNumber(number);
 +    }
 +
 +    @Override
-+    public boolean tick(ServerBot bot) {
++    public boolean doTick(@NotNull ServerBot bot) {
 +        EntityHitResult result = bot.getTargetEntity(3);
 +         if (result != null) {
 +             bot.attack(result.getEntity());
@@ -1329,10 +1342,10 @@ index 0000000000000000000000000000000000000000..99adb14b0a687f1120cb88bb4b3c1c5c
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/action/BreakBlockAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/action/BreakBlockAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..fab0a46082568cbb6be2f555dc55e19c56488044
+index 0000000000000000000000000000000000000000..780cfb4f1216b265db9d63458590d090b90c32cf
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/action/BreakBlockAction.java
-@@ -0,0 +1,60 @@
+@@ -0,0 +1,61 @@
 +package top.leavesmc.leaves.bot.agent.action;
 +
 +import net.minecraft.core.BlockPos;
@@ -1340,6 +1353,7 @@ index 0000000000000000000000000000000000000000..fab0a46082568cbb6be2f555dc55e19c
 +import net.minecraft.world.level.block.state.BlockState;
 +import org.bukkit.block.Block;
 +import org.bukkit.craftbukkit.block.CraftBlock;
++import org.jetbrains.annotations.NotNull;
 +import top.leavesmc.leaves.bot.ServerBot;
 +import top.leavesmc.leaves.bot.agent.BotAction;
 +
@@ -1350,7 +1364,7 @@ index 0000000000000000000000000000000000000000..fab0a46082568cbb6be2f555dc55e19c
 +    }
 +
 +    @Override
-+    public BotAction getNew(int tickDelay, int number, ServerPlayer player) {
++    public BotAction getNew(int tickDelay, int number, @NotNull ServerPlayer player) {
 +        return new BreakBlockAction().setTickDelay(0).setNumber(number);
 +    }
 +
@@ -1359,7 +1373,7 @@ index 0000000000000000000000000000000000000000..fab0a46082568cbb6be2f555dc55e19c
 +    private float damage = 0.0F;
 +
 +    @Override
-+    public boolean tick(ServerBot bot) {
++    public boolean doTick(@NotNull ServerBot bot) {
 +        Block block = bot.getBukkitEntity().getTargetBlock(5);
 +        if (block != null) {
 +            BlockPos pos = ((CraftBlock) block).getPosition();
@@ -1395,13 +1409,14 @@ index 0000000000000000000000000000000000000000..fab0a46082568cbb6be2f555dc55e19c
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/action/DropAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/action/DropAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..99de88af478925b5aaedccb5898c317dcff8b6e1
+index 0000000000000000000000000000000000000000..87c6f7e3a51bb0d78d6e059f2d70074575890085
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/action/DropAction.java
-@@ -0,0 +1,23 @@
+@@ -0,0 +1,24 @@
 +package top.leavesmc.leaves.bot.agent.action;
 +
 +import net.minecraft.server.level.ServerPlayer;
++import org.jetbrains.annotations.NotNull;
 +import top.leavesmc.leaves.bot.ServerBot;
 +import top.leavesmc.leaves.bot.agent.BotAction;
 +
@@ -1411,12 +1426,12 @@ index 0000000000000000000000000000000000000000..99de88af478925b5aaedccb5898c317d
 +    }
 +
 +    @Override
-+    public BotAction getNew(int tickDelay, int number, ServerPlayer player) {
++    public BotAction getNew(int tickDelay, int number, @NotNull ServerPlayer player) {
 +        return new DropAction().setTickDelay(0).setNumber(1);
 +    }
 +
 +    @Override
-+    public boolean tick(ServerBot bot) {
++    public boolean doTick(@NotNull ServerBot bot) {
 +        bot.dropAll();
 +        this.setCancel(true);
 +        return true;
@@ -1424,13 +1439,14 @@ index 0000000000000000000000000000000000000000..99de88af478925b5aaedccb5898c317d
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/action/RotateAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/action/RotateAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..a67120103117baa421e7e78082d2ab425e8e0548
+index 0000000000000000000000000000000000000000..d5076de8a59798d17b51857149d8402aa31d3e40
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/action/RotateAction.java
-@@ -0,0 +1,30 @@
+@@ -0,0 +1,31 @@
 +package top.leavesmc.leaves.bot.agent.action;
 +
 +import net.minecraft.server.level.ServerPlayer;
++import org.jetbrains.annotations.NotNull;
 +import top.leavesmc.leaves.bot.ServerBot;
 +import top.leavesmc.leaves.bot.agent.BotAction;
 +
@@ -1447,26 +1463,57 @@ index 0000000000000000000000000000000000000000..a67120103117baa421e7e78082d2ab42
 +    }
 +
 +    @Override
-+    public BotAction getNew(int tickDelay, int number, ServerPlayer player) {
++    public BotAction getNew(int tickDelay, int number, @NotNull ServerPlayer player) {
 +        return new RotateAction().setPlayer(player).setTickDelay(0).setNumber(1);
 +    }
 +
 +    @Override
-+    public boolean tick(ServerBot bot) {
++    public boolean doTick(@NotNull ServerBot bot) {
 +        bot.faceLocation(player.getBukkitEntity().getLocation());
 +        this.setCancel(true);
 +        return true;
 +    }
 +}
-diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/action/StopAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/action/StopAction.java
+diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/action/SneakAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/action/SneakAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..7f02970f3e9422ef65f879f8c155993f7b12d79e
+index 0000000000000000000000000000000000000000..51aac9ed1ace8ce4f07a08266ed2be73cce169e0
 --- /dev/null
-+++ b/src/main/java/top/leavesmc/leaves/bot/agent/action/StopAction.java
-@@ -0,0 +1,22 @@
++++ b/src/main/java/top/leavesmc/leaves/bot/agent/action/SneakAction.java
+@@ -0,0 +1,24 @@
 +package top.leavesmc.leaves.bot.agent.action;
 +
 +import net.minecraft.server.level.ServerPlayer;
++import org.jetbrains.annotations.NotNull;
++import top.leavesmc.leaves.bot.ServerBot;
++import top.leavesmc.leaves.bot.agent.BotAction;
++
++public class SneakAction extends BotAction {
++
++    public SneakAction() {
++        super("sneak", false, false);
++    }
++
++    @Override
++    public BotAction getNew(int tickDelay, int number, @NotNull ServerPlayer player) {
++        return new SneakAction().setTickDelay(0).setNumber(1);
++    }
++
++    @Override
++    public boolean doTick(@NotNull ServerBot bot) {
++        bot.setShiftKeyDown(!bot.isShiftKeyDown());
++        return true;
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/action/StopAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/action/StopAction.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..f7f5ca5e738934da02033f86929ca076416da141
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/agent/action/StopAction.java
+@@ -0,0 +1,23 @@
++package top.leavesmc.leaves.bot.agent.action;
++
++import net.minecraft.server.level.ServerPlayer;
++import org.jetbrains.annotations.NotNull;
 +import top.leavesmc.leaves.bot.ServerBot;
 +import top.leavesmc.leaves.bot.agent.BotAction;
 +
@@ -1476,27 +1523,28 @@ index 0000000000000000000000000000000000000000..7f02970f3e9422ef65f879f8c155993f
 +    }
 +
 +    @Override
-+    public BotAction getNew(int tickDelay, int number, ServerPlayer player) {
++    public BotAction getNew(int tickDelay, int number, @NotNull ServerPlayer player) {
 +        return new StopAction().setTickDelay(0).setNumber(0);
 +    }
 +
 +    @Override
-+    public boolean tick(ServerBot bot) {
++    public boolean doTick(@NotNull ServerBot bot) {
 +        this.setCancel(true);
 +        return true;
 +    }
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/action/UseItemAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/action/UseItemAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..ea41f640c6c9a4b4ef50235bdac1ca0db9411099
+index 0000000000000000000000000000000000000000..768d505ccfaf94befd39d607fec691459cb81de7
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/action/UseItemAction.java
-@@ -0,0 +1,25 @@
+@@ -0,0 +1,26 @@
 +package top.leavesmc.leaves.bot.agent.action;
 +
 +import net.minecraft.server.level.ServerPlayer;
 +import net.minecraft.world.InteractionHand;
 +import net.minecraft.world.InteractionResult;
++import org.jetbrains.annotations.NotNull;
 +import top.leavesmc.leaves.bot.ServerBot;
 +import top.leavesmc.leaves.bot.agent.BotAction;
 +
@@ -1506,12 +1554,12 @@ index 0000000000000000000000000000000000000000..ea41f640c6c9a4b4ef50235bdac1ca0d
 +    }
 +
 +    @Override
-+    public BotAction getNew(int tickDelay, int number, ServerPlayer player) {
++    public BotAction getNew(int tickDelay, int number, @NotNull ServerPlayer player) {
 +        return new UseItemAction().setTickDelay(tickDelay).setNumber(number);
 +    }
 +
 +    @Override
-+    public boolean tick(ServerBot bot) {
++    public boolean doTick(@NotNull ServerBot bot) {
 +        bot.punch();
 +        bot.updateItemInMainHand();
 +        return bot.getInventory().getSelected().use(bot.getLevel(), bot, InteractionHand.MAIN_HAND).getResult().consumesAction();
@@ -1519,10 +1567,10 @@ index 0000000000000000000000000000000000000000..ea41f640c6c9a4b4ef50235bdac1ca0d
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/action/UseItemOnAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/action/UseItemOnAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..4fd0e2b121037f5a29a92bf9c567f33c9d7dd756
+index 0000000000000000000000000000000000000000..770165e44a422c6a6d5d5f357bb978e71a38307a
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/action/UseItemOnAction.java
-@@ -0,0 +1,31 @@
+@@ -0,0 +1,32 @@
 +package top.leavesmc.leaves.bot.agent.action;
 +
 +import net.minecraft.server.level.ServerPlayer;
@@ -1530,6 +1578,7 @@ index 0000000000000000000000000000000000000000..4fd0e2b121037f5a29a92bf9c567f33c
 +import net.minecraft.world.InteractionResult;
 +import net.minecraft.world.phys.BlockHitResult;
 +import net.minecraft.world.phys.HitResult;
++import org.jetbrains.annotations.NotNull;
 +import top.leavesmc.leaves.bot.ServerBot;
 +import top.leavesmc.leaves.bot.agent.BotAction;
 +
@@ -1539,12 +1588,12 @@ index 0000000000000000000000000000000000000000..4fd0e2b121037f5a29a92bf9c567f33c
 +    }
 +
 +    @Override
-+    public BotAction getNew(int tickDelay, int number, ServerPlayer player) {
++    public BotAction getNew(int tickDelay, int number, @NotNull ServerPlayer player) {
 +        return new UseItemOnAction().setTickDelay(tickDelay).setNumber(number);
 +    }
 +
 +    @Override
-+    public boolean tick(ServerBot bot) {
++    public boolean doTick(@NotNull ServerBot bot) {
 +        HitResult result = bot.getRayTrace(4);
 +        if (result != null && result.getType() == HitResult.Type.BLOCK) {
 +            bot.punch();

@@ -474,10 +474,10 @@ index 0000000000000000000000000000000000000000..daaece30b2a3983f1cc9ee9a851e8f37
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/ServerBot.java b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..33449a8a53ac0ff5f6df6a50edf5120b3009b390
+index 0000000000000000000000000000000000000000..548ffd470aff81ca430e1c01fef0fc52e7d0de43
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
-@@ -0,0 +1,697 @@
+@@ -0,0 +1,702 @@
 +package top.leavesmc.leaves.bot;
 +
 +import com.google.common.collect.Lists;
@@ -900,7 +900,14 @@ index 0000000000000000000000000000000000000000..33449a8a53ac0ff5f6df6a50edf5120b
 +    private ItemStack lastItem = new ItemStack(Material.AIR);
 +    public void updateItemInMainHand() {
 +        ItemStack item = this.getInventory().getSelected().asBukkitCopy();
++
 +        if (!lastItem.isSimilar(item)) {
++            if (!lastItem.isSimilar(defaultItem)) {
++                if (tryReplenishInMainHand()) {
++                    return;
++                }
++            }
++
 +            this.setItem(item, EquipmentSlot.MAINHAND);
 +            lastItem = item;
 +        }
@@ -909,19 +916,17 @@ index 0000000000000000000000000000000000000000..33449a8a53ac0ff5f6df6a50edf5120b
 +            if (!tryReplenishInMainHand()) {
 +                this.setItem(defaultItem, EquipmentSlot.MAINHAND);
 +                lastItem = defaultItem;
-+            } else {
-+                this.setItem(item, EquipmentSlot.MAINHAND);
-+                lastItem = item;
 +            }
 +        }
 +    }
 +
 +    public boolean tryReplenishInMainHand() {
-+        ItemStack item = getInventory().getSelected().asBukkitCopy();
-+        for (net.minecraft.world.item.ItemStack item1 : getInventory().items) {
-+            if (item.getType() == item1.asBukkitCopy().getType()) {
-+                getInventory().removeItem(item1);
-+                getInventory().setItem(getInventory().selected, item1);
++        for (net.minecraft.world.item.ItemStack item : getInventory().items) {
++            ItemStack bukkitCopy = item.asBukkitCopy();
++            if (lastItem.getType() == bukkitCopy.getType() && bukkitCopy.getAmount() != 0) {
++                getInventory().removeItem(item);
++                getInventory().setItem(getInventory().selected, item);
++                lastItem = bukkitCopy;
 +                return true;
 +            }
 +        }
@@ -1342,10 +1347,10 @@ index 0000000000000000000000000000000000000000..100feffef0f97229875cc6f7002cc3c9
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/action/BreakBlockAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/action/BreakBlockAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..780cfb4f1216b265db9d63458590d090b90c32cf
+index 0000000000000000000000000000000000000000..ad0c0ee60688f00cc717d79080723cf27d78bd25
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/action/BreakBlockAction.java
-@@ -0,0 +1,61 @@
+@@ -0,0 +1,62 @@
 +package top.leavesmc.leaves.bot.agent.action;
 +
 +import net.minecraft.core.BlockPos;
@@ -1399,6 +1404,7 @@ index 0000000000000000000000000000000000000000..780cfb4f1216b265db9d63458590d090
 +                if (damage >= 1.0F) {
 +                    bot.gameMode.destroyAndAck(lastPos, 0, "destroyed");
 +                    bot.level.destroyBlockProgress(bot.getId(), lastPos, -1);
++                    bot.updateItemInMainHand();
 +                    damage = 0.0F;
 +                    return true;
 +                }
@@ -1409,10 +1415,10 @@ index 0000000000000000000000000000000000000000..780cfb4f1216b265db9d63458590d090
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/action/DropAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/action/DropAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..87c6f7e3a51bb0d78d6e059f2d70074575890085
+index 0000000000000000000000000000000000000000..bd63a99edf4213093e8f4b2b66a75a2e315781ea
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/action/DropAction.java
-@@ -0,0 +1,24 @@
+@@ -0,0 +1,23 @@
 +package top.leavesmc.leaves.bot.agent.action;
 +
 +import net.minecraft.server.level.ServerPlayer;
@@ -1433,16 +1439,15 @@ index 0000000000000000000000000000000000000000..87c6f7e3a51bb0d78d6e059f2d700745
 +    @Override
 +    public boolean doTick(@NotNull ServerBot bot) {
 +        bot.dropAll();
-+        this.setCancel(true);
 +        return true;
 +    }
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/action/RotateAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/action/RotateAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..d5076de8a59798d17b51857149d8402aa31d3e40
+index 0000000000000000000000000000000000000000..e03dcdef264679be603bea6eca4a1129f258e037
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/action/RotateAction.java
-@@ -0,0 +1,31 @@
+@@ -0,0 +1,30 @@
 +package top.leavesmc.leaves.bot.agent.action;
 +
 +import net.minecraft.server.level.ServerPlayer;
@@ -1470,7 +1475,6 @@ index 0000000000000000000000000000000000000000..d5076de8a59798d17b51857149d8402a
 +    @Override
 +    public boolean doTick(@NotNull ServerBot bot) {
 +        bot.faceLocation(player.getBukkitEntity().getLocation());
-+        this.setCancel(true);
 +        return true;
 +    }
 +}

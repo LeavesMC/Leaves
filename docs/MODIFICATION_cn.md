@@ -27,6 +27,11 @@ Leaves Modification
 
 ## 性能
 
-> 所有的性能内容都会存在配置项
+> 所有的性能内容都会存在配置项  
+> Powered by [Pufferfish](https://github.com/pufferfish-gg/Pufferfish)  
+> Powered by [Purpur](https://github.com/PurpurMC/Purpur)
 
-- 生物生成优化 (Powered by [Pufferfish](https://github.com/pufferfish-gg/Pufferfish))
+- 生物生成优化 (Powered by Pufferfish)
+- 减少不必要的包发送 (Powered by Purpur)
+- 异步实体追踪 (Powered by Pufferfish)
+- 修复Paper#6045 (Powered by Pufferfish)

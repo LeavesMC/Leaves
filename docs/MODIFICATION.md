@@ -27,6 +27,11 @@ Leaves Modification
 
 ## Performance
 
-> All of it will have configuration
+> All of it will have configuration  
+> Powered by [Pufferfish](https://github.com/pufferfish-gg/Pufferfish)  
+> Powered by [Purpur](https://github.com/PurpurMC/Purpur)
 
-- Optimize mob spawning (Powered by [Pufferfish](https://github.com/pufferfish-gg/Pufferfish))
+- Optimize mob spawning (Powered by Pufferfish)
+- Don't send useless entity packets (Powered by Purpur)
+- Multithreaded Tracker (Powered by Pufferfish)
+- Fix Paper#6045 (Powered by Pufferfish)

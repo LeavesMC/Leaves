@@ -24,3 +24,9 @@ Leaves Modification
 - 观察者不会获得进度
 - 对盔甲架下蹲使用木棍可以修改盔甲架的手臂状态
 - 删除玩家聊天内的签名
+
+## 性能
+
+> 所有的性能内容都会存在配置项
+
+- 生物生成优化 (Powered by [Pufferfish](https://github.com/pufferfish-gg/Pufferfish))

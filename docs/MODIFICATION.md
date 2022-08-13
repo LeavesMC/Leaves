@@ -24,3 +24,9 @@ Leaves Modification
 - Spectator don't get Advancement
 - Use stick and shift to ArmorStand can modify ArmorStand's arm status
 - Remove Player Chat sign
+
+## Performance
+
+> All of it will have configuration
+
+- Optimize mob spawning (Powered by [Pufferfish](https://github.com/pufferfish-gg/Pufferfish))

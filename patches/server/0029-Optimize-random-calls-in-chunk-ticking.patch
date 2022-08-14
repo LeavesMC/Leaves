@@ -1,0 +1,110 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Sun, 14 Aug 2022 11:01:17 +0800
+Subject: [PATCH] Optimize random calls in chunk ticking
+
+This patch is Powered by Pufferfish(https://github.com/pufferfish-gg/Pufferfish)
+
+diff --git a/src/main/java/net/minecraft/server/level/ServerChunkCache.java b/src/main/java/net/minecraft/server/level/ServerChunkCache.java
+index bcc24c563cc8d35bffb594b11954e916711ce971..b653393ff465f5b0448f62e57697ae8c5d920425 100644
+--- a/src/main/java/net/minecraft/server/level/ServerChunkCache.java
++++ b/src/main/java/net/minecraft/server/level/ServerChunkCache.java
+@@ -967,6 +967,11 @@ public class ServerChunkCache extends ChunkSource {
+             ProfilerFiller gameprofilerfiller = this.level.getProfiler();
+ 
+             gameprofilerfiller.push("pollingChunks");
++            // Leaves start - reset ice & snow tick random
++            if (top.leavesmc.leaves.LeavesConfig.optimizeChunkTicking) {
++                this.level.resetIceAndSnowTick();
++            }
++            // Leaves end - reset ice & snow tick random
+             int k = this.level.getGameRules().getInt(GameRules.RULE_RANDOMTICKING);
+             boolean flag1 = level.ticksPerSpawnCategory.getLong(org.bukkit.entity.SpawnCategory.ANIMAL) != 0L && worlddata.getGameTime() % level.ticksPerSpawnCategory.getLong(org.bukkit.entity.SpawnCategory.ANIMAL) == 0L; // CraftBukkit
+ 
+diff --git a/src/main/java/net/minecraft/server/level/ServerLevel.java b/src/main/java/net/minecraft/server/level/ServerLevel.java
+index bc185f733d7543bb12c8f1f277197810154f739a..bb360a8a54fa4efe1cc6b672df09d4c0d6816d16 100644
+--- a/src/main/java/net/minecraft/server/level/ServerLevel.java
++++ b/src/main/java/net/minecraft/server/level/ServerLevel.java
+@@ -760,6 +760,13 @@ public class ServerLevel extends Level implements WorldGenLevel {
+     // private final io.papermc.paper.util.math.ThreadUnsafeRandom randomTickRandom = new io.papermc.paper.util.math.ThreadUnsafeRandom(this.random.nextLong()); // Leaves - moved to super
+     // Paper end
+ 
++    // Leaves start - reset ice & snow tick random
++    private int currentIceAndSnowTick = 0;
++    protected void resetIceAndSnowTick() {
++        this.currentIceAndSnowTick = this.randomTickRandom.nextInt(16);
++    }
++    // Leaves end - reset ice & snow tick random
++
+     public void tickChunk(LevelChunk chunk, int randomTickSpeed) {
+         ChunkPos chunkcoordintpair = chunk.getPos();
+         boolean flag = this.isRaining();
+@@ -770,7 +777,7 @@ public class ServerLevel extends Level implements WorldGenLevel {
+         gameprofilerfiller.push("thunder");
+         final BlockPos.MutableBlockPos blockposition = this.chunkTickMutablePosition; // Paper - use mutable to reduce allocation rate, final to force compile fail on change
+ 
+-        if (!this.paperConfig().environment.disableThunder && flag && this.isThundering() && this.spigotConfig.thunderChance > 0 && this.random.nextInt(this.spigotConfig.thunderChance) == 0) { // Spigot // Paper - disable thunder
++        if (!this.paperConfig().environment.disableThunder && flag && this.isThundering() && this.spigotConfig.thunderChance > 0 && top.leavesmc.leaves.LeavesConfig.optimizeChunkTicking ? chunk.shouldDoLightning(this.random) : this.random.nextInt(this.spigotConfig.thunderChance) == 0) { // Spigot // Paper - disable thunder // Leaves - replace random with shouldDoLightning
+             blockposition.set(this.findLightningTargetAround(this.getBlockRandomPos(j, 0, k, 15))); // Paper
+             if (this.isRainingAt(blockposition)) {
+                 DifficultyInstance difficultydamagescaler = this.getCurrentDifficultyAt(blockposition);
+@@ -794,7 +801,7 @@ public class ServerLevel extends Level implements WorldGenLevel {
+         }
+ 
+         gameprofilerfiller.popPush("iceandsnow");
+-        if (!this.paperConfig().environment.disableIceAndSnow && this.random.nextInt(16) == 0) { // Paper - Disable ice and snow
++        if (!this.paperConfig().environment.disableIceAndSnow && top.leavesmc.leaves.LeavesConfig.optimizeChunkTicking ? (this.currentIceAndSnowTick++ & 15) == 0 : this.random.nextInt(16) == 0) { // Paper - Disable ice and snow // Paper - optimise random ticking  // Leaves - optimize further random ticking
+             // Paper start - optimise chunk ticking
+             this.getRandomBlockPosition(j, 0, k, 15, blockposition);
+             int normalY = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING, blockposition.getX() & 15, blockposition.getZ() & 15) + 1;
+diff --git a/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java b/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java
+index 2292cb0e0c1a3e0ed34b941f028136bfb0bff13e..a6ea5fd73cb1f6b3c6c35d0cde331b6c37c1c770 100644
+--- a/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java
++++ b/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java
+@@ -94,6 +94,18 @@ public class LevelChunk extends ChunkAccess {
+     }
+     // Paper end
+ 
++    // Leaves start - instead of using a random every time the chunk is ticked, define when lightning strikes preemptively
++    private int lightningTick;
++    // shouldDoLightning compiles down to 29 bytes, which with the default of 35 byte inlining should guarantee an inline
++    public final boolean shouldDoLightning(net.minecraft.util.RandomSource random) {
++        if (this.lightningTick-- <= 0) {
++            this.lightningTick = random.nextInt(this.level.spigotConfig.thunderChance) << 1;
++            return true;
++        }
++        return false;
++    }
++    // Leaves end - instead of using a random every time the chunk is ticked, define when lightning strikes preemptively
++
+     public LevelChunk(Level world, ChunkPos pos) {
+         this(world, pos, UpgradeData.EMPTY, new LevelChunkTicks<>(), new LevelChunkTicks<>(), 0L, (LevelChunkSection[]) null, (LevelChunk.PostLoadProcessor) null, (BlendingData) null);
+     }
+@@ -124,6 +136,11 @@ public class LevelChunk extends ChunkAccess {
+         this.fluidTicks = fluidTickScheduler;
+         // CraftBukkit start
+         this.bukkitChunk = new org.bukkit.craftbukkit.CraftChunk(this);
++        // Leaves start - initialize lightning tick
++        if (top.leavesmc.leaves.LeavesConfig.optimizeChunkTicking) {
++            this.lightningTick = this.level.getThreadUnsafeRandom().nextInt(100000) << 1;
++        }
++        // Leaves end - initialize lightning tick
+     }
+ 
+     public org.bukkit.Chunk bukkitChunk;
+diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+index 89623a5cd22b57733342a5b03cc4a21dca4eac33..15d78e6fcc58a06f5d89c06ed1b87772f8b59eed 100644
+--- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
++++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+@@ -253,6 +253,11 @@ public final class LeavesConfig {
+         checkSpookySeasonOnceAnHour = getBoolean("settings.performance.check-spooky-season-once-an-hour", checkSpookySeasonOnceAnHour);
+     }
+ 
++    public static boolean optimizeChunkTicking = true;
++    private static void optimizeChunkTicking() {
++        optimizeChunkTicking = getBoolean("settings.performance.optimize-chunk-ticking", optimizeChunkTicking);
++    }
++
+     public static final class WorldConfig {
+ 
+         public final String worldName;

@@ -1,0 +1,52 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Sun, 14 Aug 2022 08:25:24 +0800
+Subject: [PATCH] Optimize suffocation
+
+This patch is Powered by Pufferfish(https://github.com/pufferfish-gg/Pufferfish)
+
+diff --git a/src/main/java/net/minecraft/world/entity/LivingEntity.java b/src/main/java/net/minecraft/world/entity/LivingEntity.java
+index 2dee51917888e20768f434b8232430094028b516..8f9bbe88827b6697762f4d43dce1da3986a72abb 100644
+--- a/src/main/java/net/minecraft/world/entity/LivingEntity.java
++++ b/src/main/java/net/minecraft/world/entity/LivingEntity.java
+@@ -399,7 +399,7 @@ public abstract class LivingEntity extends Entity {
+         if (this.isAlive()) {
+             boolean flag = this instanceof net.minecraft.world.entity.player.Player;
+ 
+-            if (this.isInWall()) {
++            if ((!top.leavesmc.leaves.LeavesConfig.enableSuffocationOptimization || (tickCount % 10 == 0 && couldPossiblyBeHurt(1.0F))) && this.isInWall()) { // Leaves - optimize suffocation
+                 this.hurt(DamageSource.IN_WALL, 1.0F);
+             } else if (flag && !this.level.getWorldBorder().isWithinBounds(this.getBoundingBox())) {
+                 double d0 = this.level.getWorldBorder().getDistanceToBorder(this) + this.level.getWorldBorder().getDamageSafeZone();
+@@ -1313,6 +1313,15 @@ public abstract class LivingEntity extends Entity {
+         return this.getHealth() <= 0.0F;
+     }
+ 
++    // Leaves start - optimize suffocation
++    public boolean couldPossiblyBeHurt(float amount) {
++        if ((float) this.invulnerableTime > (float) this.invulnerableDuration / 2.0F && amount <= this.lastHurt) {
++            return false;
++        }
++        return true;
++    }
++    // Leaves end - optimize suffocation
++
+     @Override
+     public boolean hurt(DamageSource source, float amount) {
+         if (this.isInvulnerableTo(source)) {
+diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+index a3c400bc3ba55e286d05ad543d5bcb24008d5346..aa598fdf938889eb55c00bcbd733858890788d76 100644
+--- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
++++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+@@ -238,6 +238,11 @@ public final class LeavesConfig {
+         optimizeEntityCoordinateKey = getBoolean("settings.performance.optimize-entity-coordinate-key", optimizeEntityCoordinateKey);
+     }
+ 
++    public static boolean enableSuffocationOptimization = true;
++    private static void enableSuffocationOptimization() {
++        enableSuffocationOptimization = getBoolean("settings.performance.enable-suffocation-optimization", enableSuffocationOptimization);
++    }
++
+     public static final class WorldConfig {
+ 
+         public final String worldName;

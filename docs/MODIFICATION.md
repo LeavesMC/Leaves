@@ -27,11 +27,19 @@ Leaves Modification
 
 ## Performance
 
-> All of it will have configuration  
-> Powered by [Pufferfish](https://github.com/pufferfish-gg/Pufferfish)  
-> Powered by [Purpur](https://github.com/PurpurMC/Purpur)
+> All of it will have configuration
 
-- Optimize mob spawning (Powered by Pufferfish)
-- Don't send useless entity packets (Powered by Purpur)
-- Multithreaded Tracker (Powered by Pufferfish)
-- Fix Paper#6045 (Powered by Pufferfish)
+> Powered by [Pufferfish](https://github.com/pufferfish-gg/Pufferfish)
+- Optimize mob spawning
+- Multithreaded Tracker
+- Fix Paper#6045
+- Optimize entity coordinate key
+- Optimize suffocation
+- Strip raytracing for entity
+- Optimize Spooky Season check
+- Optimize Chunk ticking
+- Skip POI finding in vehicle
+- Optimize entity target finding
+
+> Powered by [Purpur](https://github.com/PurpurMC/Purpur)
+- Don't send useless entity packets

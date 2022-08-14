@@ -1,0 +1,62 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Sun, 14 Aug 2022 10:35:42 +0800
+Subject: [PATCH] Only check for spooky season once an hour
+
+This patch is Powered by Pufferfish(https://github.com/pufferfish-gg/Pufferfish)
+
+diff --git a/src/main/java/net/minecraft/world/entity/ambient/Bat.java b/src/main/java/net/minecraft/world/entity/ambient/Bat.java
+index 50d4595b81f24949011c7565c5e3fc8c26c86019..8de1653e3fbf29e9de550a1976344bd8967485e3 100644
+--- a/src/main/java/net/minecraft/world/entity/ambient/Bat.java
++++ b/src/main/java/net/minecraft/world/entity/ambient/Bat.java
+@@ -253,13 +253,30 @@ public class Bat extends AmbientCreature {
+         }
+     }
+ 
++    // Leaves start - only check for spooky season once an hour
++    private static boolean isSpookySeason = false;
++    private static final int ONE_HOUR = 20 * 60 * 60;
++    private static int lastSpookyCheck = -ONE_HOUR;
+     private static boolean isHalloween() {
+-        LocalDate localdate = LocalDate.now();
+-        int i = localdate.get(ChronoField.DAY_OF_MONTH);
+-        int j = localdate.get(ChronoField.MONTH_OF_YEAR);
++        if (top.leavesmc.leaves.LeavesConfig.checkSpookySeasonOnceAnHour) {
++            if (net.minecraft.server.MinecraftServer.currentTick - lastSpookyCheck > ONE_HOUR) {
++                LocalDate localdate = LocalDate.now();
++                int i = localdate.get(ChronoField.DAY_OF_MONTH);
++                int j = localdate.get(ChronoField.MONTH_OF_YEAR);
++
++                isSpookySeason = j == 10 && i >= 20 || j == 11 && i <= 3;
++                lastSpookyCheck = net.minecraft.server.MinecraftServer.currentTick;
++            }
++            return isSpookySeason;
++        } else {
++            LocalDate localdate = LocalDate.now();
++            int i = localdate.get(ChronoField.DAY_OF_MONTH);
++            int j = localdate.get(ChronoField.MONTH_OF_YEAR);
+ 
+-        return j == 10 && i >= 20 || j == 11 && i <= 3;
++            return j == 10 && i >= 20 || j == 11 && i <= 3;
++        }
+     }
++    // Leaves end - only check for spooky season once an hour
+ 
+     @Override
+     protected float getStandingEyeHeight(Pose pose, EntityDimensions dimensions) {
+diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+index c37308f2973b09f0efc3d4ccb012c2792e63f939..89623a5cd22b57733342a5b03cc4a21dca4eac33 100644
+--- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
++++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+@@ -248,6 +248,11 @@ public final class LeavesConfig {
+         entityStripRaytracing = getBoolean("settings.performance.strip-raytracing-for-entity", entityStripRaytracing);
+     }
+ 
++    public static boolean checkSpookySeasonOnceAnHour = true;
++    private static void checkSpookySeasonOnceAnHour() {
++        checkSpookySeasonOnceAnHour = getBoolean("settings.performance.check-spooky-season-once-an-hour", checkSpookySeasonOnceAnHour);
++    }
++
+     public static final class WorldConfig {
+ 
+         public final String worldName;

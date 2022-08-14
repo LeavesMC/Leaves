@@ -27,11 +27,19 @@ Leaves Modification
 
 ## 性能
 
-> 所有的性能内容都会存在配置项  
-> Powered by [Pufferfish](https://github.com/pufferfish-gg/Pufferfish)  
-> Powered by [Purpur](https://github.com/PurpurMC/Purpur)
+> 所有的性能内容都会存在配置项
 
-- 生物生成优化 (Powered by Pufferfish)
-- 减少不必要的包发送 (Powered by Purpur)
-- 异步实体追踪 (Powered by Pufferfish)
-- 修复Paper#6045 (Powered by Pufferfish)
+> Powered by [Pufferfish](https://github.com/pufferfish-gg/Pufferfish)
+- 生物生成优化
+- 异步实体追踪
+- 修复Paper#6045
+- 实体坐标键优化
+- 窒息检测优化
+- 实体射线优化
+- 万圣节检测优化
+- 区块刻优化
+- 跳过矿车中实体的路径搜索
+- 实体目标检测优化
+
+> Powered by [Purpur](https://github.com/PurpurMC/Purpur)
+- 减少不必要的包发送

@@ -1,0 +1,55 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Sun, 14 Aug 2022 08:17:28 +0800
+Subject: [PATCH] Optimize entity coordinate key
+
+This patch is Powered by Pufferfish(https://github.com/pufferfish-gg/Pufferfish)
+
+diff --git a/src/main/java/net/minecraft/server/MCUtil.java b/src/main/java/net/minecraft/server/MCUtil.java
+index 7034af8ad42940c5af6b9032b9873ce36c55a2a7..6f28c6283f094cb72fec7f42b599b0c1f4963fbf 100644
+--- a/src/main/java/net/minecraft/server/MCUtil.java
++++ b/src/main/java/net/minecraft/server/MCUtil.java
+@@ -209,7 +209,13 @@ public final class MCUtil {
+     }
+ 
+     public static long getCoordinateKey(final Entity entity) {
+-        return ((long)(MCUtil.fastFloor(entity.getZ()) >> 4) << 32) | ((MCUtil.fastFloor(entity.getX()) >> 4) & 0xFFFFFFFFL);
++        // Leaves start - eliminate double -> long cast in hotpath
++        if (top.leavesmc.leaves.LeavesConfig.optimizeEntityCoordinateKey) {
++            return ((long)(entity.blockPosition.getZ() >> 4) << 32) | ((entity.blockPosition.getX() >> 4) & 0xFFFFFFFFL);
++        } else {
++            return ((long)(MCUtil.fastFloor(entity.getZ()) >> 4) << 32) | ((MCUtil.fastFloor(entity.getX()) >> 4) & 0xFFFFFFFFL);
++        }
++        // Leaves end - eliminate double -> long cast in hotpath
+     }
+ 
+     public static long getCoordinateKey(final ChunkPos pair) {
+diff --git a/src/main/java/net/minecraft/world/entity/Entity.java b/src/main/java/net/minecraft/world/entity/Entity.java
+index eda98b85fb00fe7787d2f7a643c3854aa4b02fbf..1f1bed78e8d003cfd85bc5cf38014c3ddb3078d1 100644
+--- a/src/main/java/net/minecraft/world/entity/Entity.java
++++ b/src/main/java/net/minecraft/world/entity/Entity.java
+@@ -292,7 +292,7 @@ public abstract class Entity implements Nameable, EntityAccess, CommandSource {
+     public double yo;
+     public double zo;
+     private Vec3 position;
+-    private BlockPos blockPosition;
++    public BlockPos blockPosition; // Leaves - private -> public
+     private ChunkPos chunkPosition;
+     private Vec3 deltaMovement;
+     public float yRot; // Paper - private->public
+diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+index c7dff544ec7fa3d4737c731efba70de170ef7d68..a3c400bc3ba55e286d05ad543d5bcb24008d5346 100644
+--- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
++++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+@@ -233,6 +233,11 @@ public final class LeavesConfig {
+         fixPaper6045 = getBoolean("settings.performance.fix.fix-paper-6045", fixPaper6045);
+     }
+ 
++    public static boolean optimizeEntityCoordinateKey = true;
++    private static void optimizeEntityCoordinateKey() {
++        optimizeEntityCoordinateKey = getBoolean("settings.performance.optimize-entity-coordinate-key", optimizeEntityCoordinateKey);
++    }
++
+     public static final class WorldConfig {
+ 
+         public final String worldName;

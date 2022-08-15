@@ -1,0 +1,42 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Mon, 15 Aug 2022 10:45:13 +0800
+Subject: [PATCH] Throttle goal selector during inactive ticking
+
+This patch is Powered by Pufferfish(https://github.com/pufferfish-gg/Pufferfish)
+
+diff --git a/src/main/java/net/minecraft/world/entity/Mob.java b/src/main/java/net/minecraft/world/entity/Mob.java
+index 3646b969fa51b9683ab4137e530c3a6f6fc6c465..ed06eaa8bcd8246483115d2dfcb1de2313978428 100644
+--- a/src/main/java/net/minecraft/world/entity/Mob.java
++++ b/src/main/java/net/minecraft/world/entity/Mob.java
+@@ -210,11 +210,13 @@ public abstract class Mob extends LivingEntity {
+         return this.lookControl;
+     }
+ 
++    int inactiveTickDisableCounter = 0; // Leaves - throttle inactive goal selector ticking
+     // Paper start
+     @Override
+     public void inactiveTick() {
+         super.inactiveTick();
+-        if (this.goalSelector.inactiveTick()) {
++        boolean isThrottled = top.leavesmc.leaves.LeavesConfig.throttleInactiveGoalSelectorTick && inactiveTickDisableCounter++ % 20 != 0; // Leaves - throttle inactive goal selector ticking
++        if (this.goalSelector.inactiveTick() && !isThrottled) { // Leaves - throttle inactive goal selector ticking
+             this.goalSelector.tick();
+         }
+         if (this.targetSelector.inactiveTick()) {
+diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+index 4018421f7569c600b8762a7af0bb453619b8e682..4196247c08a9694e92e1ff1d364445f9e67710f8 100644
+--- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
++++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+@@ -278,6 +278,11 @@ public final class LeavesConfig {
+         disableMethodProfiler = getBoolean("settings.misc.disable-method-profiler", disableMethodProfiler);
+     }
+ 
++    public static boolean throttleInactiveGoalSelectorTick = false;
++    private static void throttleInactiveGoalSelectorTick() {
++        throttleInactiveGoalSelectorTick = getBoolean("settings.performance.inactive-goal-selector-disable", throttleInactiveGoalSelectorTick);
++    }
++
+     public static final class WorldConfig {
+ 
+         public final String worldName;

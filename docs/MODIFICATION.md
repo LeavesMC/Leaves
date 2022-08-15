@@ -40,6 +40,10 @@ Leaves Modification
 - Optimize Chunk ticking
 - Skip POI finding in vehicle
 - Optimize entity target finding
+- Use more thread Unsafe random
+- Disable method profiler
+- Disable inactive goal selector
+- Skip clone loot parameters
 
 > Powered by [Purpur](https://github.com/PurpurMC/Purpur)
 - Don't send useless entity packets

@@ -83,10 +83,18 @@ index 6cbd839cc7529eb0095485c4ef4a0d81a3cd9b19..0a4edeed3e6c4813e7ef3cf847ccbbe1
                  PlayerChangedWorldEvent changeEvent = new PlayerChangedWorldEvent(this.getBukkitEntity(), worldserver1.getWorld());
                  this.level.getCraftServer().getPluginManager().callEvent(changeEvent);
 diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
-index d63bfd9d3194a2972a984ec3a817767a683a940d..f3c3c530d9ae974c9b35e1a12f60e5bad014b42a 100644
+index d63bfd9d3194a2972a984ec3a817767a683a940d..e9da6bc1f553d0d1fdebff9e58204c7a9563bc17 100644
 --- a/src/main/java/net/minecraft/server/players/PlayerList.java
 +++ b/src/main/java/net/minecraft/server/players/PlayerList.java
-@@ -96,6 +96,7 @@ import net.minecraft.world.scores.Objective;
+@@ -76,6 +76,7 @@ import net.minecraft.server.ServerScoreboard;
+ import net.minecraft.tags.BlockTags;
+ import net.minecraft.tags.TagNetworkSerialization;
+ import net.minecraft.util.Mth;
++import net.minecraft.world.damagesource.DamageSource;
+ import net.minecraft.world.effect.MobEffectInstance;
+ import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.entity.EntityType;
+@@ -96,6 +97,7 @@ import net.minecraft.world.scores.Objective;
  import net.minecraft.world.scores.PlayerTeam;
  import net.minecraft.world.scores.Scoreboard; // Paper
  import net.minecraft.world.scores.Team;
@@ -94,7 +102,7 @@ index d63bfd9d3194a2972a984ec3a817767a683a940d..f3c3c530d9ae974c9b35e1a12f60e5ba
  import org.slf4j.Logger;
  
  // CraftBukkit start
-@@ -113,7 +114,6 @@ import org.bukkit.Location;
+@@ -113,7 +115,6 @@ import org.bukkit.Location;
  import org.bukkit.craftbukkit.CraftServer;
  import org.bukkit.craftbukkit.CraftWorld;
  import org.bukkit.craftbukkit.entity.CraftPlayer;
@@ -102,7 +110,7 @@ index d63bfd9d3194a2972a984ec3a817767a683a940d..f3c3c530d9ae974c9b35e1a12f60e5ba
  import org.bukkit.entity.Player;
  import org.bukkit.event.player.PlayerChangedWorldEvent;
  import org.bukkit.event.player.PlayerJoinEvent;
-@@ -369,6 +369,18 @@ public abstract class PlayerList {
+@@ -369,6 +370,18 @@ public abstract class PlayerList {
              return;
          }
  
@@ -110,7 +118,7 @@ index d63bfd9d3194a2972a984ec3a817767a683a940d..f3c3c530d9ae974c9b35e1a12f60e5ba
 +        if (top.leavesmc.leaves.LeavesConfig.fakeplayerSupport) {
 +            ServerBot bot = ServerBot.getBot(player.getName().getString());
 +            if (bot != null) {
-+                bot.kill(); // Leaves - remove bot with the same name
++                bot.die(DamageSource.OUT_OF_WORLD); // Leaves - remove bot with the same name
 +            }
 +
 +            ServerBot.getBots().forEach(bot1 ->
@@ -162,7 +170,7 @@ index 6549ade8e19807c523e5a1dc68b66585aad438b1..b58a4fb6563554c8a5a10eada110125f
              }
              // Water Animals
 diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
-index a85a5de7d85cf6c5e19c0245c40e6106e6623007..4d6d025c78086f186da710ae46f65eda5426464d 100644
+index 1fb25e8a21b568864974cc81b452ba062890d593..73d11bfb7e602909e283458e6cc5b545874305a1 100644
 --- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
 +++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
 @@ -7,11 +7,13 @@ import org.bukkit.Bukkit;
@@ -179,8 +187,8 @@ index a85a5de7d85cf6c5e19c0245c40e6106e6623007..4d6d025c78086f186da710ae46f65eda
  import java.util.HashMap;
  import java.util.List;
  import java.util.Map;
-@@ -63,6 +65,11 @@ public final class LeavesConfig {
- 	    LeavesConfig.load(config);
+@@ -65,6 +67,11 @@ public final class LeavesConfig {
+         LeavesConfig.load(config);
  
  	    commands = new HashMap<>();
 +
@@ -191,7 +199,20 @@ index a85a5de7d85cf6c5e19c0245c40e6106e6623007..4d6d025c78086f186da710ae46f65eda
      }
  
      public static void load(final YamlConfiguration config) {
-@@ -124,6 +131,12 @@ public final class LeavesConfig {
+@@ -95,9 +102,12 @@ public final class LeavesConfig {
+         if (configVersion < CURRENT_CONFIG_VERSION) {
+             playerCanEditSign = config.getBoolean("settings.player-can-edit-sign", playerCanEditSign);
+             snowballAndEggCanKnockback = config.getBoolean("settings.snowball-and-egg-can-knockback-player", snowballAndEggCanKnockback);
++            fakeplayerSupport = config.getBoolean("settings.fakeplayer.enable", fakeplayerSupport);
++            unableFakeplayerNames = (List<String>) config.getList("settings.fakeplayer.unable-fakeplayer-names", unableFakeplayerNames);
+ 
+             config.set("settings.snowball-and-egg-can-knockback-player", null);
+             config.set("settings.player-can-edit-sign", null);
++            config.set("settings.fakeplayer", null);
+         }
+     }
+ 
+@@ -136,6 +146,12 @@ public final class LeavesConfig {
          return LeavesConfig.config.getString(path, dfl);
      }
  
@@ -203,23 +224,19 @@ index a85a5de7d85cf6c5e19c0245c40e6106e6623007..4d6d025c78086f186da710ae46f65eda
 +
      public static boolean playerCanEditSign = true;
      private static void playerCanEditSign() {
-         playerCanEditSign = getBoolean("settings.player-can-edit-sign", playerCanEditSign);
-@@ -134,6 +147,20 @@ public final class LeavesConfig {
-         snowballAndEggCanKnockback = getBoolean("settings.snowball-and-egg-can-knockback-player", snowballAndEggCanKnockback);
+         playerCanEditSign = getBoolean("settings.modify.player-can-edit-sign", playerCanEditSign);
+@@ -146,6 +162,16 @@ public final class LeavesConfig {
+         snowballAndEggCanKnockback = getBoolean("settings.modify.snowball-and-egg-can-knockback-player", snowballAndEggCanKnockback);
      }
  
 +    public static boolean fakeplayerSupport = true;
 +    private static void fakeplayerSupport() {
-+        if (config.contains("settings.fakeplayer-support")) {
-+            fakeplayerSupport = LeavesConfig.config.getBoolean("settings.fakeplayer-support", fakeplayerSupport);
-+            LeavesConfig.config.set("settings.fakeplayer-support", null);
-+        }
-+        fakeplayerSupport = getBoolean("settings.fakeplayer.enable", fakeplayerSupport);
++        fakeplayerSupport = getBoolean("settings.modify.fakeplayer.enable", fakeplayerSupport);
 +    }
 +
-+    public static List<String> unableFakeplayerNames;
++    public static List<String> unableFakeplayerNames = List.of("player-name");
 +    private static void unableFakeplayerNames() {
-+        unableFakeplayerNames = getList("settings.fakeplayer.unable-fakeplayer-names", Arrays.asList("player-name"));
++        unableFakeplayerNames = getList("settings.modify.fakeplayer.unable-fakeplayer-names", unableFakeplayerNames);
 +    }
 +
      public static final class WorldConfig {
@@ -227,50 +244,58 @@ index a85a5de7d85cf6c5e19c0245c40e6106e6623007..4d6d025c78086f186da710ae46f65eda
          public final String worldName;
 diff --git a/src/main/java/top/leavesmc/leaves/bot/BotCommand.java b/src/main/java/top/leavesmc/leaves/bot/BotCommand.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..1055994d1d211294a5a0044a292b614821aad194
+index 0000000000000000000000000000000000000000..970b109b150b9909edac217f54cddfcbd1a4d5da
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/BotCommand.java
-@@ -0,0 +1,194 @@
+@@ -0,0 +1,253 @@
 +package top.leavesmc.leaves.bot;
 +
 +import net.minecraft.world.damagesource.DamageSource;
 +import org.bukkit.Bukkit;
 +import org.bukkit.ChatColor;
 +import org.bukkit.Location;
++import org.bukkit.World;
 +import org.bukkit.command.Command;
 +import org.bukkit.command.CommandSender;
 +import org.bukkit.craftbukkit.entity.CraftPlayer;
 +import org.bukkit.entity.Player;
++import org.jetbrains.annotations.NotNull;
 +import top.leavesmc.leaves.bot.agent.Actions;
 +import top.leavesmc.leaves.bot.agent.BotAction;
++import top.leavesmc.leaves.entity.Bot;
 +import top.leavesmc.leaves.util.MathUtils;
 +
 +import java.util.ArrayList;
++import java.util.HashMap;
 +import java.util.List;
++import java.util.Map;
 +
 +public class BotCommand extends Command {
 +
 +    public BotCommand(String name) {
 +        super(name);
 +        this.description = "FakePlayer Command";
-+        this.usageMessage = "/bot [create | remove | action]";
++        this.usageMessage = "/bot [create | remove | action | list]";
 +        this.setPermission("bukkit.command.bot");
 +    }
 +
 +    @Override
-+    public List<String> tabComplete(CommandSender sender, String alias, String[] args, Location location) throws IllegalArgumentException {
++    public List<String> tabComplete(@NotNull CommandSender sender, @NotNull String alias, String @NotNull [] args, Location location) throws IllegalArgumentException {
 +        var list = new ArrayList<String>();
 +
 +        if (args.length <= 1) {
 +            list.add("create");
 +            list.add("remove");
 +            list.add("action");
++            list.add("list");
 +        }
 +
 +        if (args.length == 2) {
 +            switch (args[0]) {
 +                case "create" -> list.add("<BotName>");
-+                case "remove", "action" -> list.addAll(ServerBot.getBots().stream().map(e -> e.getName().getString()).toList());
++                case "remove", "action" ->
++                    list.addAll(ServerBot.getBots().stream().map(e -> e.getName().getString()).toList());
++                case "list" -> list.addAll(Bukkit.getWorlds().stream().map(e -> e.getName()).toList());
 +            }
 +        }
 +
@@ -311,7 +336,7 @@ index 0000000000000000000000000000000000000000..1055994d1d211294a5a0044a292b6148
 +    }
 +
 +    @Override
-+    public boolean execute(CommandSender sender, String commandLabel, String[] args) {
++    public boolean execute(@NotNull CommandSender sender, @NotNull String commandLabel, String[] args) {
 +        if (!testPermission(sender)) return true;
 +
 +        if (args.length == 0) {
@@ -326,6 +351,8 @@ index 0000000000000000000000000000000000000000..1055994d1d211294a5a0044a292b6148
 +
 +            case "action" -> this.onAction(sender, args);
 +
++            case "list" -> this.onList(sender, args);
++
 +            default -> {
 +                sender.sendMessage(ChatColor.RED + "Usage: " + usageMessage);
 +                return false;
@@ -335,7 +362,7 @@ index 0000000000000000000000000000000000000000..1055994d1d211294a5a0044a292b6148
 +        return true;
 +    }
 +
-+    private void onCreate(CommandSender sender, String[] args) {
++    private void onCreate(CommandSender sender, String @NotNull [] args) {
 +        if (args.length < 2) {
 +            sender.sendMessage(ChatColor.RED + "Use /bot create <name> to create a fakeplayer");
 +            return;
@@ -361,10 +388,14 @@ index 0000000000000000000000000000000000000000..1055994d1d211294a5a0044a292b6148
 +            return;
 +        }
 +
++        if (ServerBot.getBots().size() >= top.leavesmc.leaves.LeavesConfig.fakeplayerLimit) {
++            sender.sendMessage(ChatColor.RED + "Fakeplayer limit is full");
++        }
++
 +        ServerBot.createBot(((Player) sender).getLocation(), args[1]);
 +    }
 +
-+    private void onRemove(CommandSender sender, String[] args) {
++    private void onRemove(CommandSender sender, String @NotNull [] args) {
 +        if (args.length < 2) {
 +            sender.sendMessage(ChatColor.RED + "Use /bot remove <name> to remove a fakeplayer");
 +            return;
@@ -380,10 +411,10 @@ index 0000000000000000000000000000000000000000..1055994d1d211294a5a0044a292b6148
 +        bot.die(DamageSource.OUT_OF_WORLD);
 +    }
 +
-+    private void onAction(CommandSender sender, String[] args) {
++    private void onAction(CommandSender sender, String @NotNull [] args) {
 +        if (args.length < 3) {
 +            sender.sendMessage(ChatColor.RED + "Use /bot action <name> <action> to make fakeplayer do action");
-+	    return;
++            return;
 +        }
 +
 +        BotAction action = Actions.getForName(args[2]);
@@ -423,6 +454,51 @@ index 0000000000000000000000000000000000000000..1055994d1d211294a5a0044a292b6148
 +
 +        bot.setBotAction(action.getNew(tickDelay, number, ((CraftPlayer) sender).getHandle()));
 +        sender.sendMessage(action.getName() + " set");
++    }
++
++    private void onList(CommandSender sender, String @NotNull [] args) {
++        if (args.length < 2) {
++            Map<World, List<String>> botMap = new HashMap<>();
++            for (World world : Bukkit.getWorlds()) {
++                botMap.put(world, new ArrayList<>());
++            }
++
++            for (ServerBot bot : ServerBot.getBots()) {
++                Bot bukkitBot = bot.getBukkitPlayer();
++                botMap.get(bukkitBot.getWorld()).add(bukkitBot.getName());
++            }
++
++            sender.sendMessage("Total number: (" + ServerBot.getBots().size() + "/" + top.leavesmc.leaves.LeavesConfig.fakeplayerLimit + ")");
++            for (World world : botMap.keySet()) {
++                sender.sendMessage(world.getName() + "(" + botMap.get(world).size() + "): " + formatPlayerNameList(botMap.get(world)));
++            }
++        } else {
++            World world = Bukkit.getWorld(args[2]);
++
++            if (world == null) {
++                sender.sendMessage(ChatColor.RED + "Unknown world");
++                return;
++            }
++
++            List<String> botList = new ArrayList<>();
++            for (ServerBot bot : ServerBot.getBots()) {
++                Bot bukkitBot = bot.getBukkitPlayer();
++                if (bukkitBot.getWorld() == world) {
++                    botList.add(bukkitBot.getName());
++                }
++            }
++
++            sender.sendMessage(world.getName() + "(" + botList.size() + "): " + formatPlayerNameList(botList));
++        }
++    }
++
++    @NotNull
++    private static String formatPlayerNameList(@NotNull List<String> list) {
++        if (list.isEmpty()) {
++            return "";
++        }
++        String string = list.toString();
++        return string.substring(1, string.length() - 2);
 +    }
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/MojangAPI.java b/src/main/java/top/leavesmc/leaves/bot/MojangAPI.java
@@ -474,10 +550,10 @@ index 0000000000000000000000000000000000000000..daaece30b2a3983f1cc9ee9a851e8f37
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/ServerBot.java b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..548ffd470aff81ca430e1c01fef0fc52e7d0de43
+index 0000000000000000000000000000000000000000..821d456d11b6f49ea8eba59e79d09980b494fa66
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
-@@ -0,0 +1,702 @@
+@@ -0,0 +1,727 @@
 +package top.leavesmc.leaves.bot;
 +
 +import com.google.common.collect.Lists;
@@ -566,7 +642,7 @@ index 0000000000000000000000000000000000000000..548ffd470aff81ca430e1c01fef0fc52
 +    private static final Set<ServerBot> bots = new HashSet<>();
 +    private static final Plugin MINECRAFT_PLUGIN = new MinecraftInternalPlugin();
 +
-+    public ServerBot(MinecraftServer server, ServerLevel world, GameProfile profile) {
++    private ServerBot(MinecraftServer server, ServerLevel world, GameProfile profile) {
 +        super(server, world, profile, null);
 +        this.entityData.set(new EntityDataAccessor<>(16, EntityDataSerializers.INT), 0xFF);
 +
@@ -581,6 +657,10 @@ index 0000000000000000000000000000000000000000..548ffd470aff81ca430e1c01fef0fc52
 +    }
 +
 +    public static void createBot(Location loc, String name) {
++        if (!checkCreateLegal(name)) {
++            return;
++        }
++
 +        Bukkit.getScheduler().runTaskAsynchronously(MINECRAFT_PLUGIN, () -> {
 +            String[] skin = MojangAPI.getSkin(name);
 +            Bukkit.getScheduler().runTask(MINECRAFT_PLUGIN, () -> createBot(loc, name, skin));
@@ -589,6 +669,10 @@ index 0000000000000000000000000000000000000000..548ffd470aff81ca430e1c01fef0fc52
 +
 +    @Nullable
 +    public static ServerBot createBot(@NotNull Location loc, @NotNull String name, String[] skin) {
++        if (!checkCreateLegal(name)) {
++            return null;
++        }
++
 +        MinecraftServer server = MinecraftServer.getServer();
 +
 +        BotCreateEvent event = new BotCreateEvent(name, loc, ChatColor.YELLOW + name + " joined the game");
@@ -628,6 +712,22 @@ index 0000000000000000000000000000000000000000..548ffd470aff81ca430e1c01fef0fc52
 +        }
 +
 +        return null;
++    }
++
++    public static boolean checkCreateLegal(@NotNull String name) {
++        if (!name.matches("^[a-zA-Z0-9_]{4,16}$")) {
++            return false;
++        }
++
++        if (Bukkit.getPlayer(name) != null || ServerBot.getBot(name) != null) {
++            return false;
++        }
++
++        if (top.leavesmc.leaves.LeavesConfig.unableFakeplayerNames.contains(name)) {
++            return false;
++        }
++
++        return ServerBot.getBots().size() < top.leavesmc.leaves.LeavesConfig.fakeplayerLimit;
 +    }
 +
 +    private void renderAll() {
@@ -819,7 +919,7 @@ index 0000000000000000000000000000000000000000..548ffd470aff81ca430e1c01fef0fc52
 +
 +        float health = getHealth();
 +        float maxHealth = getMaxHealth();
-+        float regenAmount = 0.025f;
++        float regenAmount = 0.010f;
 +        float amount;
 +
 +        if (health < maxHealth - regenAmount) {
@@ -898,6 +998,7 @@ index 0000000000000000000000000000000000000000..548ffd470aff81ca430e1c01fef0fc52
 +    }
 +
 +    private ItemStack lastItem = new ItemStack(Material.AIR);
++
 +    public void updateItemInMainHand() {
 +        ItemStack item = this.getInventory().getSelected().asBukkitCopy();
 +

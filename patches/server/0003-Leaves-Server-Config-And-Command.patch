@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: violetc <58360096+s-yh-china@users.noreply.github.com>
 Date: Fri, 29 Oct 2021 16:52:57 +0800
-Subject: [PATCH] Leaves Server Config
+Subject: [PATCH] Leaves Server Config And Command
 
 
 diff --git a/src/main/java/co/aikar/timings/TimingsExport.java b/src/main/java/co/aikar/timings/TimingsExport.java
@@ -31,15 +31,16 @@ index 7301c552ab695b81560eeefa44b2f29d4f4ac258..35fef03d2825d9e7f5ee324384ea8270
              org.spigotmc.WatchdogThread.hasStarted = true; // Paper
              Arrays.fill( recentTps, 20 );
 diff --git a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
-index bdd6560fe85950b0a857a949cb38c044da44ca6b..7ad3569628fd6c6ac0038394e7d88979b29935a0 100644
+index bdd6560fe85950b0a857a949cb38c044da44ca6b..d27f115b74fe00623985255d1027656166c1c459 100644
 --- a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
 +++ b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
-@@ -226,6 +226,8 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
+@@ -226,6 +226,9 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
          com.destroystokyo.paper.VersionHistoryManager.INSTANCE.getClass(); // load version history now
          io.papermc.paper.brigadier.PaperBrigadierProviderImpl.INSTANCE.getClass(); // init PaperBrigadierProvider
          // Paper end
 +		
 +		top.leavesmc.leaves.LeavesConfig.init((java.io.File) options.valueOf("leaves-settings")); // Leaves - Server Config
++        top.leavesmc.leaves.LeavesConfig.registerCommands(); // Leaves - Server Command
  
          this.setPvpAllowed(dedicatedserverproperties.pvp);
          this.setFlightAllowed(dedicatedserverproperties.allowFlight);
@@ -64,7 +65,7 @@ index 5a2a1d394852d39ea576624586f7fa736dec807c..fd18fb454263893d404979a9c9af860e
          this.world = new CraftWorld((ServerLevel) this, gen, biomeProvider, env);
  
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index b64c470234c8f50f1cfb83bf6d2efb5038eae45b..599ad9516e9642f774c4f8b1d60b453a775b172a 100644
+index b64c470234c8f50f1cfb83bf6d2efb5038eae45b..9e21aa4d6464b86923f4ccc4cdec9e3b663dd268 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 @@ -959,6 +959,7 @@ public final class CraftServer implements Server {
@@ -83,7 +84,15 @@ index b64c470234c8f50f1cfb83bf6d2efb5038eae45b..599ad9516e9642f774c4f8b1d60b453a
          }
  
          Plugin[] pluginClone = pluginManager.getPlugins().clone(); // Paper
-@@ -2723,6 +2725,14 @@ public final class CraftServer implements Server {
+@@ -989,6 +991,7 @@ public final class CraftServer implements Server {
+         this.reloadData();
+         org.spigotmc.SpigotConfig.registerCommands(); // Spigot
+         io.papermc.paper.command.PaperCommands.registerCommands(this.console); // Paper
++        top.leavesmc.leaves.LeavesConfig.registerCommands(); // Leaves - Server Command
+         this.overrideAllCommandBlockCommands = this.commandsConfiguration.getStringList("command-block-overrides").contains("*");
+         this.ignoreVanillaPermissions = this.commandsConfiguration.getBoolean("ignore-vanilla-permissions");
+ 
+@@ -2723,6 +2726,14 @@ public final class CraftServer implements Server {
          {
              return CraftServer.this.console.paperConfigurations.createLegacyObject(CraftServer.this.console);
          }
@@ -119,16 +128,17 @@ index 95f296ef42cb9f1d486962a0a31da9aa436967c7..e40978698bd76132b56d5a1bc9791f05
                          .withRequiredArg()
 diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..ec35e33ecbba6f2cb1dcc2e739841b7e6612c9ea
+index 0000000000000000000000000000000000000000..4c290eb2d4abf9e9b923b8d0878f319328b7cf8c
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
-@@ -0,0 +1,289 @@
+@@ -0,0 +1,309 @@
 +package top.leavesmc.leaves;
 +
 +import com.destroystokyo.paper.util.SneakyThrow;
 +import com.google.common.base.Throwables;
 +import net.minecraft.server.MinecraftServer;
 +import org.bukkit.Bukkit;
++import org.bukkit.command.Command;
 +import org.bukkit.configuration.ConfigurationSection;
 +import org.bukkit.configuration.file.YamlConfiguration;
 +
@@ -136,7 +146,9 @@ index 0000000000000000000000000000000000000000..ec35e33ecbba6f2cb1dcc2e739841b7e
 +import java.lang.reflect.InvocationTargetException;
 +import java.lang.reflect.Method;
 +import java.lang.reflect.Modifier;
++import java.util.HashMap;
 +import java.util.List;
++import java.util.Map;
 +import java.util.logging.Level;
 +
 +// Powered by Tuinity(https://github.com/Tuinity/Tuinity)
@@ -144,7 +156,7 @@ index 0000000000000000000000000000000000000000..ec35e33ecbba6f2cb1dcc2e739841b7e
 +public final class LeavesConfig {
 +
 +    public static final String CONFIG_HEADER = "Configuration file for Leaves.";
-+    public static final int CURRENT_CONFIG_VERSION = 1;
++    public static final int CURRENT_CONFIG_VERSION = 2;
 +
 +    private static final Object[] EMPTY = new Object[0];
 +
@@ -152,6 +164,7 @@ index 0000000000000000000000000000000000000000..ec35e33ecbba6f2cb1dcc2e739841b7e
 +    public static YamlConfiguration config;
 +    private static int configVersion;
 +    public static boolean createWorldSections = true;
++    static Map<String, Command> commands;
 +
 +    public static void init(final File file) {
 +        LeavesConfig.configFile = file;
@@ -178,27 +191,31 @@ index 0000000000000000000000000000000000000000..ec35e33ecbba6f2cb1dcc2e739841b7e
 +        if (config.contains("config-version-please-do-not-modify-me")) {
 +            LeavesConfig.set("config-version-please-do-not-modify-me", null);
 +        }
-+	    LeavesConfig.configVersion = LeavesConfig.getInt("config-version", CURRENT_CONFIG_VERSION);
++        LeavesConfig.configVersion = LeavesConfig.getInt("config-version", CURRENT_CONFIG_VERSION);
 +        LeavesConfig.set("config-version", CURRENT_CONFIG_VERSION);
 +
-+	    LeavesConfig.load(config);
++        updateConfigVersion(config);
++
++        LeavesConfig.load(config);
++
++	    commands = new HashMap<>();
 +    }
 +
 +    public static void load(final YamlConfiguration config) {
-+	    for (Method method : LeavesConfig.class.getDeclaredMethods()) {
-+	        if (Modifier.isPrivate(method.getModifiers())) {
-+		        if (method.getParameterTypes().length == 0 && method.getReturnType() == Void.TYPE) {
-+		            try {
-+		                method.setAccessible(true);
-+			            method.invoke(null);
-+		            } catch (InvocationTargetException ex) {
-+			            throw Throwables.propagate(ex.getCause());
-+		            } catch (Exception ex) {
-+			            Bukkit.getLogger().log(Level.SEVERE, "Error invoking " + method, ex);
-+		            }
-+		        }
-+	        }
-+	    }
++        for (Method method : LeavesConfig.class.getDeclaredMethods()) {
++            if (Modifier.isPrivate(method.getModifiers())) {
++                if (method.getParameterTypes().length == 0 && method.getReturnType() == Void.TYPE) {
++                    try {
++                        method.setAccessible(true);
++                        method.invoke(null);
++                    } catch (InvocationTargetException ex) {
++                        throw Throwables.propagate(ex.getCause());
++                    } catch (Exception ex) {
++                        Bukkit.getLogger().log(Level.SEVERE, "Error invoking " + method, ex);
++                    }
++                }
++            }
++        }
 +
 +        /* We re-save to add new options */
 +        try {
@@ -208,8 +225,20 @@ index 0000000000000000000000000000000000000000..ec35e33ecbba6f2cb1dcc2e739841b7e
 +        }
 +    }
 +
++    private static void updateConfigVersion(final YamlConfiguration config) {
++        if (configVersion < CURRENT_CONFIG_VERSION) {
++
++        }
++    }
++
 +    static void set(final String path, final Object value) {
 +        LeavesConfig.config.set(path, value);
++    }
++
++    public static void registerCommands() {
++        for (Map.Entry<String, Command> entry : commands.entrySet()) {
++            MinecraftServer.getServer().server.getCommandMap().register(entry.getKey(), "Leaves", entry.getValue());
++        }
 +    }
 +
 +    static boolean getBoolean(final String path, final boolean dfl) {
@@ -254,7 +283,7 @@ index 0000000000000000000000000000000000000000..ec35e33ecbba6f2cb1dcc2e739841b7e
 +                this.worldDefaults = LeavesConfig.config.createSection("world-settings.default");
 +            }
 +
-+            String worldSectionPath = LeavesConfig.configVersion < 0 ? this.worldName : "world-settings.".concat(this.worldName);
++            String worldSectionPath = LeavesConfig.configVersion < CURRENT_CONFIG_VERSION ? this.worldName : "world-settings.".concat(this.worldName);
 +            ConfigurationSection section = LeavesConfig.config.getConfigurationSection(worldSectionPath);
 +            this.configPath = worldSectionPath;
 +            if (LeavesConfig.createWorldSections) {
@@ -270,7 +299,7 @@ index 0000000000000000000000000000000000000000..ec35e33ecbba6f2cb1dcc2e739841b7e
 +        public void load() {
 +            for (final Method method : LeavesConfig.WorldConfig.class.getDeclaredMethods()) {
 +                if (method.getReturnType() != void.class || method.getParameterCount() != 0 ||
-+                        !Modifier.isPrivate(method.getModifiers()) || Modifier.isStatic(method.getModifiers())) {
++                    !Modifier.isPrivate(method.getModifiers()) || Modifier.isStatic(method.getModifiers())) {
 +                    continue;
 +                }
 +
@@ -283,7 +312,7 @@ index 0000000000000000000000000000000000000000..ec35e33ecbba6f2cb1dcc2e739841b7e
 +                }
 +            }
 +
-+            if (LeavesConfig.configVersion < 1) {
++            if (LeavesConfig.configVersion < CURRENT_CONFIG_VERSION) {
 +                ConfigurationSection oldSection = LeavesConfig.config.getConfigurationSection(this.worldName);
 +                LeavesConfig.config.set("world-settings.".concat(this.worldName), oldSection);
 +                LeavesConfig.config.set(this.worldName, null);
@@ -308,7 +337,7 @@ index 0000000000000000000000000000000000000000..ec35e33ecbba6f2cb1dcc2e739841b7e
 +        boolean getBoolean(final String path, final boolean dfl) {
 +            final ConfigurationSection config = LeavesConfig.config.getConfigurationSection(this.configPath);
 +            this.worldDefaults.addDefault(path, Boolean.valueOf(dfl));
-+            if (LeavesConfig.configVersion < 1) {
++            if (LeavesConfig.configVersion < CURRENT_CONFIG_VERSION) {
 +                if (config != null && config.getBoolean(path) == dfl) {
 +                    config.set(path, null);
 +                }
@@ -318,7 +347,7 @@ index 0000000000000000000000000000000000000000..ec35e33ecbba6f2cb1dcc2e739841b7e
 +
 +        boolean getBooleanRaw(final String path, final boolean dfl) {
 +            final ConfigurationSection config = LeavesConfig.config.getConfigurationSection(this.configPath);
-+            if (LeavesConfig.configVersion < 1) {
++            if (LeavesConfig.configVersion < CURRENT_CONFIG_VERSION) {
 +                if (config != null && config.getBoolean(path) == dfl) {
 +                    config.set(path, null);
 +                }
@@ -329,7 +358,7 @@ index 0000000000000000000000000000000000000000..ec35e33ecbba6f2cb1dcc2e739841b7e
 +        int getInt(final String path, final int dfl) {
 +            final ConfigurationSection config = LeavesConfig.config.getConfigurationSection(this.configPath);
 +            this.worldDefaults.addDefault(path, Integer.valueOf(dfl));
-+            if (LeavesConfig.configVersion < 1) {
++            if (LeavesConfig.configVersion < CURRENT_CONFIG_VERSION) {
 +                if (config != null && config.getInt(path) == dfl) {
 +                    config.set(path, null);
 +                }
@@ -339,7 +368,7 @@ index 0000000000000000000000000000000000000000..ec35e33ecbba6f2cb1dcc2e739841b7e
 +
 +        int getIntRaw(final String path, final int dfl) {
 +            final ConfigurationSection config = LeavesConfig.config.getConfigurationSection(this.configPath);
-+            if (LeavesConfig.configVersion < 1) {
++            if (LeavesConfig.configVersion < CURRENT_CONFIG_VERSION) {
 +                if (config != null && config.getInt(path) == dfl) {
 +                    config.set(path, null);
 +                }
@@ -350,7 +379,7 @@ index 0000000000000000000000000000000000000000..ec35e33ecbba6f2cb1dcc2e739841b7e
 +        long getLong(final String path, final long dfl) {
 +            final ConfigurationSection config = LeavesConfig.config.getConfigurationSection(this.configPath);
 +            this.worldDefaults.addDefault(path, Long.valueOf(dfl));
-+            if (LeavesConfig.configVersion < 1) {
++            if (LeavesConfig.configVersion < CURRENT_CONFIG_VERSION) {
 +                if (config != null && config.getLong(path) == dfl) {
 +                    config.set(path, null);
 +                }
@@ -360,7 +389,7 @@ index 0000000000000000000000000000000000000000..ec35e33ecbba6f2cb1dcc2e739841b7e
 +
 +        long getLongRaw(final String path, final long dfl) {
 +            final ConfigurationSection config = LeavesConfig.config.getConfigurationSection(this.configPath);
-+            if (LeavesConfig.configVersion < 1) {
++            if (LeavesConfig.configVersion < CURRENT_CONFIG_VERSION) {
 +                if (config != null && config.getLong(path) == dfl) {
 +                    config.set(path, null);
 +                }
@@ -371,7 +400,7 @@ index 0000000000000000000000000000000000000000..ec35e33ecbba6f2cb1dcc2e739841b7e
 +        double getDouble(final String path, final double dfl) {
 +            final ConfigurationSection config = LeavesConfig.config.getConfigurationSection(this.configPath);
 +            this.worldDefaults.addDefault(path, Double.valueOf(dfl));
-+            if (LeavesConfig.configVersion < 1) {
++            if (LeavesConfig.configVersion < CURRENT_CONFIG_VERSION) {
 +                if (config != null && config.getDouble(path) == dfl) {
 +                    config.set(path, null);
 +                }
@@ -381,7 +410,7 @@ index 0000000000000000000000000000000000000000..ec35e33ecbba6f2cb1dcc2e739841b7e
 +
 +        double getDoubleRaw(final String path, final double dfl) {
 +            final ConfigurationSection config = LeavesConfig.config.getConfigurationSection(this.configPath);
-+            if (LeavesConfig.configVersion < 1) {
++            if (LeavesConfig.configVersion < CURRENT_CONFIG_VERSION) {
 +                if (config != null && config.getDouble(path) == dfl) {
 +                    config.set(path, null);
 +                }

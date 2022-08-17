@@ -44,6 +44,12 @@ Leaves Modification
 - 关闭方法分析器
 - 禁用非活跃实体的目标选择器
 - 跳过战利品表参数复制
+- 减少实体分配
+- 删除部分lambda表达式
+- 删除容器检查中的iterators
+- 删除玩家检测中的流
+- 删除范围检查中的流和iterators
+- 异步实体寻路
 
 > Powered by [Purpur](https://github.com/PurpurMC/Purpur)
 - 减少不必要包的发送

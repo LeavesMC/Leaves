@@ -44,6 +44,12 @@ Leaves Modification
 - Disable method profiler
 - Disable inactive goal selector
 - Skip clone loot parameters
+- Reduce entity allocations
+- Remove lambda from ticking guard
+- Remove iterators from inventory contains
+- Remove streams from getting nearby players
+- Remove streams and iterators from range check
+- Async Pathfinding
 
 > Powered by [Purpur](https://github.com/PurpurMC/Purpur)
 - Don't send useless entity packets

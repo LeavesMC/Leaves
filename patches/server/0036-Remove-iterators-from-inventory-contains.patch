@@ -1,0 +1,72 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Wed, 17 Aug 2022 11:04:12 +0800
+Subject: [PATCH] Remove iterators from inventory contains
+
+This patch is Powered by Pufferfish(https://github.com/pufferfish-gg/Pufferfish)
+
+diff --git a/src/main/java/net/minecraft/world/entity/player/Inventory.java b/src/main/java/net/minecraft/world/entity/player/Inventory.java
+index a1a625a8dacf4d2bbf75ddd90dce1b1be663c919..038c5fae763c5d387a23aaacc3264ab340588ab4 100644
+--- a/src/main/java/net/minecraft/world/entity/player/Inventory.java
++++ b/src/main/java/net/minecraft/world/entity/player/Inventory.java
+@@ -681,21 +681,35 @@ public class Inventory implements Container, Nameable {
+     }
+ 
+     public boolean contains(ItemStack stack) {
+-        Iterator iterator = this.compartments.iterator();
++        // Leaves start - don't allocate iterators
++        if (top.leavesmc.leaves.LeavesConfig.removeInventoryContainsIterators) {
++            for (int i = 0; i < this.compartments.size(); i++) {
++                List<ItemStack> list = this.compartments.get(i);
++                for (int j = 0; j < list.size(); j++) {
++                    ItemStack itemstack1 = list.get(j);
++
++                    if (!itemstack1.isEmpty() && itemstack1.sameItem(stack)) {
++                        return true;
++                    }
++                }
++            }
++        } else {
++            Iterator iterator = this.compartments.iterator();
+ 
+-        while (iterator.hasNext()) {
+-            List<ItemStack> list = (List) iterator.next();
+-            Iterator iterator1 = list.iterator();
++            while (iterator.hasNext()) {
++                List<ItemStack> list = (List) iterator.next();
++                Iterator iterator1 = list.iterator();
+ 
+-            while (iterator1.hasNext()) {
+-                ItemStack itemstack1 = (ItemStack) iterator1.next();
++                while (iterator1.hasNext()) {
++                    ItemStack itemstack1 = (ItemStack) iterator1.next();
+ 
+-                if (!itemstack1.isEmpty() && itemstack1.sameItem(stack)) {
+-                    return true;
++                    if (!itemstack1.isEmpty() && itemstack1.sameItem(stack)) {
++                        return true;
++                    }
+                 }
+             }
+         }
+-
++        // Leaves end - don't allocate iterators
+         return false;
+     }
+ 
+diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+index 5c35fe757b7dfffb7570a36e49f13fa2e4680a3a..8b4095c0e8797482bca3800ad9dfc4f894e63f85 100644
+--- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
++++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+@@ -308,6 +308,11 @@ public final class LeavesConfig {
+         removeTickGuardLambda = getBoolean("settings.performance.remove.tick-guard-lambda", removeTickGuardLambda);
+     }
+ 
++    public static boolean removeInventoryContainsIterators = true;
++    private static void removeInventoryContainsIterators() {
++        removeInventoryContainsIterators = getBoolean("settings.performance.remove.inventory-contains-iterators", removeInventoryContainsIterators);
++    }
++
+     public static final class WorldConfig {
+ 
+         public final String worldName;

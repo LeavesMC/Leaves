@@ -1,0 +1,71 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Wed, 17 Aug 2022 10:48:18 +0800
+Subject: [PATCH] Reduce entity allocations
+
+This patch is Powered by Pufferfish(https://github.com/pufferfish-gg/Pufferfish)
+
+diff --git a/src/main/java/net/minecraft/world/entity/Entity.java b/src/main/java/net/minecraft/world/entity/Entity.java
+index 1f1bed78e8d003cfd85bc5cf38014c3ddb3078d1..66cecf64fac0b72590e1a4ea7147ea2ac78dd30a 100644
+--- a/src/main/java/net/minecraft/world/entity/Entity.java
++++ b/src/main/java/net/minecraft/world/entity/Entity.java
+@@ -414,6 +414,8 @@ public abstract class Entity implements Nameable, EntityAccess, CommandSource {
+         return this.originWorld;
+     }
+     // Paper end
++    // public final BlockPos.MutableBlockPos cachedBlockPos = new BlockPos.MutableBlockPos(); // Leaves - used where needed ?
++
+     public float getBukkitYaw() {
+         return this.yRot;
+     }
+diff --git a/src/main/java/net/minecraft/world/entity/ai/attributes/AttributeMap.java b/src/main/java/net/minecraft/world/entity/ai/attributes/AttributeMap.java
+index c770ee21b7b699522941f6a1584d532001c04082..a0672f21797ff90e8bb6b16d3aaa671b317d6912 100644
+--- a/src/main/java/net/minecraft/world/entity/ai/attributes/AttributeMap.java
++++ b/src/main/java/net/minecraft/world/entity/ai/attributes/AttributeMap.java
+@@ -22,9 +22,11 @@ public class AttributeMap {
+     private final Map<Attribute, AttributeInstance> attributes = Maps.newHashMap();
+     private final Set<AttributeInstance> dirtyAttributes = Sets.newHashSet();
+     private final AttributeSupplier supplier;
++    private final java.util.function.Function<Attribute, AttributeInstance> createInstance; // Leaves - reduce entity allocations
+ 
+     public AttributeMap(AttributeSupplier defaultAttributes) {
+         this.supplier = defaultAttributes;
++        this.createInstance = attribute -> this.supplier.createInstance(this::onAttributeModified, attribute);
+     }
+ 
+     private void onAttributeModified(AttributeInstance instance) {
+@@ -46,9 +48,15 @@ public class AttributeMap {
+ 
+     @Nullable
+     public AttributeInstance getInstance(Attribute attribute) {
+-        return this.attributes.computeIfAbsent(attribute, (attributex) -> {
+-            return this.supplier.createInstance(this::onAttributeModified, attributex);
+-        });
++        // Leaves start - cache lambda, as for some reason java allocates it anyways
++        if (top.leavesmc.leaves.LeavesConfig.reduceEntityAllocations) {
++            return this.attributes.computeIfAbsent(attribute, this.createInstance);
++        } else {
++            return this.attributes.computeIfAbsent(attribute, (attributex) -> {
++                return this.supplier.createInstance(this::onAttributeModified, attributex);
++            });
++        }
++        // Leaves end - cache lambda, as for some reason java allocates it anyways
+     }
+ 
+     public boolean hasAttribute(Attribute attribute) {
+diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+index 1e7b428f4e8fef77bdc8eae43216fe113484fdcc..afdb9c047d9f06c6dee5cec24393d5dd5bc9546b 100644
+--- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
++++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+@@ -298,6 +298,11 @@ public final class LeavesConfig {
+         skipCloneLootParameters = getBoolean("settings.performance.skip-clone-loot-parameters", skipCloneLootParameters);
+     }
+ 
++    public static boolean reduceEntityAllocations = true;
++    private static void reduceEntityAllocations() {
++        reduceEntityAllocations = getBoolean("settings.performance.reduce-entity-allocations", reduceEntityAllocations);
++    }
++
+     public static final class WorldConfig {
+ 
+         public final String worldName;

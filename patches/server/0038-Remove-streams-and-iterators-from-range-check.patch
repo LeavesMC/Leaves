@@ -1,0 +1,80 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Wed, 17 Aug 2022 11:19:33 +0800
+Subject: [PATCH] Remove streams and iterators from range check
+
+This patch is Powered by Pufferfish(https://github.com/pufferfish-gg/Pufferfish)
+
+diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
+index 6c95663869b9d7a545393df0416332a509306bb5..b5ac10207ef5d500b36547322459f19e4d32f5fc 100644
+--- a/src/main/java/net/minecraft/server/level/ChunkMap.java
++++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
+@@ -2430,19 +2430,45 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+             return ChunkMap.this.level.getServer().getScaledTrackingDistance(initialDistance);
+         }
+ 
++        // Leaves start
++        private static int getHighestRange(Entity parent, int highest) {
++            List<Entity> passengers = parent.getPassengers();
++
++            for (int i = 0, size = passengers.size(); i < size; i++) {
++                Entity entity = passengers.get(i);
++                int range = entity.getType().clientTrackingRange() * 16;
++                range = org.spigotmc.TrackingRange.getEntityTrackingRange(entity, range); // Paper
++
++                if (range > highest) { // Paper - we need the lowest range thanks to the fact that our tracker doesn't account for passenger logic // Tuinity - not anymore!
++                    highest = range;
++                }
++
++                highest = getHighestRange(entity, highest);
++            }
++
++            return highest;
++        }
++        // Leaves end
++
+         private int getEffectiveRange() {
+             int i = this.range;
+-            Iterator iterator = this.entity.getIndirectPassengers().iterator();
++            // Leaves start - remove iterators and streams
++            if (top.leavesmc.leaves.LeavesConfig.removeRangeCheckStreams) {
++                i = getHighestRange(this.entity, i);
++            } else {
++                Iterator iterator = this.entity.getIndirectPassengers().iterator();
+ 
+-            while (iterator.hasNext()) {
+-                Entity entity = (Entity) iterator.next();
+-                int j = entity.getType().clientTrackingRange() * 16;
+-                j = org.spigotmc.TrackingRange.getEntityTrackingRange(entity, j); // Paper
++                while (iterator.hasNext()) {
++                    Entity entity = (Entity) iterator.next();
++                    int j = entity.getType().clientTrackingRange() * 16;
++                    j = org.spigotmc.TrackingRange.getEntityTrackingRange(entity, j); // Paper
+ 
+-                if (j > i) {
+-                    i = j;
++                    if (j > i) {
++                        i = j;
++                    }
+                 }
+             }
++            // Leaves end - remove iterators and streams
+ 
+             return this.scaledRange(i);
+         }
+diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+index d797792d4c26ba70c08e0b96f0a611c379b07105..1c36dd6bdaa0bc11b0a7e082fdcd2061c19a333b 100644
+--- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
++++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+@@ -318,6 +318,11 @@ public final class LeavesConfig {
+         removeGetNearPlayerStreams = getBoolean("settings.performance.remove.get-nearby-players-streams", removeGetNearPlayerStreams);
+     }
+ 
++    public static boolean removeRangeCheckStreams = true;
++    private static void removeRangeCheckStreams() {
++        removeRangeCheckStreams = getBoolean("settings.performance.remove.range-check-streams-and-iterators", removeRangeCheckStreams);
++    }
++
+     public static final class WorldConfig {
+ 
+         public final String worldName;

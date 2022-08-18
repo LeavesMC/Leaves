@@ -50,6 +50,8 @@ Leaves Modification
 - Remove streams from getting nearby players
 - Remove streams and iterators from range check
 - Async Pathfinding
+- Cache climbing check for activation
+- Use aging cache for biome temperatures
 
 > Powered by [Purpur](https://github.com/PurpurMC/Purpur)
 - Don't send useless entity packets

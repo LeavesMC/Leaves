@@ -50,6 +50,8 @@ Leaves Modification
 - 删除玩家检测中的流
 - 删除范围检查中的流和iterators
 - 异步实体寻路
+- 缓存实体攀爬检测
+- 使用更好的生物群系温度缓存
 
 > Powered by [Purpur](https://github.com/PurpurMC/Purpur)
 - 减少不必要包的发送

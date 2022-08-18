@@ -249,10 +249,10 @@ index 1fb25e8a21b568864974cc81b452ba062890d593..c32825a237a539035828a9c85673ea0e
          public final String worldName;
 diff --git a/src/main/java/top/leavesmc/leaves/bot/BotCommand.java b/src/main/java/top/leavesmc/leaves/bot/BotCommand.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..970b109b150b9909edac217f54cddfcbd1a4d5da
+index 0000000000000000000000000000000000000000..f25caf7a67d6f19bbbf2c4be0e630e16586a7db2
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/BotCommand.java
-@@ -0,0 +1,253 @@
+@@ -0,0 +1,268 @@
 +package top.leavesmc.leaves.bot;
 +
 +import net.minecraft.world.damagesource.DamageSource;
@@ -264,6 +264,7 @@ index 0000000000000000000000000000000000000000..970b109b150b9909edac217f54cddfcb
 +import org.bukkit.command.CommandSender;
 +import org.bukkit.craftbukkit.entity.CraftPlayer;
 +import org.bukkit.entity.Player;
++import org.bukkit.generator.WorldInfo;
 +import org.jetbrains.annotations.NotNull;
 +import top.leavesmc.leaves.bot.agent.Actions;
 +import top.leavesmc.leaves.bot.agent.BotAction;
@@ -300,7 +301,7 @@ index 0000000000000000000000000000000000000000..970b109b150b9909edac217f54cddfcb
 +                case "create" -> list.add("<BotName>");
 +                case "remove", "action" ->
 +                    list.addAll(ServerBot.getBots().stream().map(e -> e.getName().getString()).toList());
-+                case "list" -> list.addAll(Bukkit.getWorlds().stream().map(e -> e.getName()).toList());
++                case "list" -> list.addAll(Bukkit.getWorlds().stream().map(WorldInfo::getName).toList());
 +            }
 +        }
 +
@@ -432,19 +433,33 @@ index 0000000000000000000000000000000000000000..970b109b150b9909edac217f54cddfcb
 +        int tickDelay = 20;
 +        int number = -1;
 +
-+        if (action.hasDelay()) {
-+            if (args.length > 3 && MathUtils.isNumeric(args[3])) {
-+                tickDelay = Integer.parseInt(args[3]);
-+            }
++        if (args.length > 3 && (action.hasDelay() || action.hasNumber())) {
++            if (action.hasDelay() && action.hasNumber()) {
++                if (args.length > 4) {
++                    if (!MathUtils.isNumeric(args[3]) || !MathUtils.isNumeric(args[4])) {
++                        sender.sendMessage(ChatColor.RED + "Need int value");
++                        return;
++                    }
 +
-+            if (action.hasNumber()) {
-+                if (args.length > 4 && MathUtils.isNumeric(args[4])) {
++                    tickDelay = Integer.parseInt(args[3]);
 +                    number = Integer.parseInt(args[4]);
++                } else {
++                    if (!MathUtils.isNumeric(args[3])) {
++                        sender.sendMessage(ChatColor.RED + "Need int value");
++                        return;
++                    }
++
++                    tickDelay = Integer.parseInt(args[3]);
 +                }
-+            }
-+        } else {
-+            if (action.hasNumber()) {
-+                if (args.length > 3 && MathUtils.isNumeric(args[3])) {
++            } else {
++                if (!MathUtils.isNumeric(args[3])) {
++                    sender.sendMessage(ChatColor.RED + "Need int value");
++                    return;
++                }
++
++                if (action.hasDelay()) {
++                    tickDelay = Integer.parseInt(args[3]);
++                } else if (action.hasNumber()) {
 +                    number = Integer.parseInt(args[3]);
 +                }
 +            }
@@ -503,7 +518,7 @@ index 0000000000000000000000000000000000000000..970b109b150b9909edac217f54cddfcb
 +            return "";
 +        }
 +        String string = list.toString();
-+        return string.substring(1, string.length() - 2);
++        return string.substring(1, string.length() - 1);
 +    }
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/MojangAPI.java b/src/main/java/top/leavesmc/leaves/bot/MojangAPI.java

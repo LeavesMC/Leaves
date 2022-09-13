@@ -5,10 +5,10 @@ Subject: [PATCH] No chat sign
 
 
 diff --git a/src/main/java/io/papermc/paper/adventure/ChatProcessor.java b/src/main/java/io/papermc/paper/adventure/ChatProcessor.java
-index 46d1ed7e617abc7096f5d7a391b138238f42aaa4..d8cfdfe46b26dd787e8e736b272889f573617b52 100644
+index 28ddab1121e314e82bf764fd89f36714bd7445f8..786f89f9d75cf8ad6a6b097556a8d8b115e72abf 100644
 --- a/src/main/java/io/papermc/paper/adventure/ChatProcessor.java
 +++ b/src/main/java/io/papermc/paper/adventure/ChatProcessor.java
-@@ -310,7 +310,7 @@ public final class ChatProcessor {
+@@ -313,7 +313,7 @@ public final class ChatProcessor {
  
          private void sendToServer(final ChatType.Bound chatType, final @Nullable Function<Audience, net.minecraft.network.chat.Component> msgFunction) {
              final PlayerChatMessage toConsoleMessage = msgFunction == null ? ChatProcessor.this.message : ChatProcessor.this.message.withUnsignedContent(msgFunction.apply(ChatProcessor.this.server.console));
@@ -44,7 +44,7 @@ index d27f115b74fe00623985255d1027656166c1c459..b5d5c2346cad59dabffc0c378b4f9fda
  
      protected boolean convertOldUsers() {
 diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index 2fab929b6775238d031ca3305b61af3cbe920a06..ccd8fd62a824566ffd44083177280701de2cd3e1 100644
+index 9eb921fec32afa360f3a402e978411fcf3ec618c..fb0931654a6f34d0ef2722bd6a599d5a8fb37464 100644
 --- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 @@ -75,6 +75,8 @@ import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket;
@@ -56,7 +56,7 @@ index 2fab929b6775238d031ca3305b61af3cbe920a06..ccd8fd62a824566ffd44083177280701
  import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
  import net.minecraft.network.protocol.game.ClientboundSetCarriedItemPacket;
  import net.minecraft.network.protocol.game.ClientboundSetDefaultSpawnPositionPacket;
-@@ -2149,10 +2151,30 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
+@@ -2147,10 +2149,30 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
  
      @Override
      public void send(Packet<?> packet) {
@@ -73,12 +73,12 @@ index 2fab929b6775238d031ca3305b61af3cbe920a06..ccd8fd62a824566ffd44083177280701
          this.send(packet, (PacketSendListener) null);
      }
  
-     public void send(Packet<?> packet, @Nullable PacketSendListener packetsendlistener) {
+     public void send(Packet<?> packet, @Nullable PacketSendListener callbacks) {
 +        // Leaves start - no ClientboundPlayerChatHeaderPacket and rebuild ClientboundPlayerChatPacket
 +        if (top.leavesmc.leaves.LeavesConfig.noChatSign) {
 +            if (packet instanceof ClientboundPlayerChatHeaderPacket) {
 +                return;
-+            } else if (packet instanceof ClientboundPlayerChatPacket chat && packetsendlistener != null) {
++            } else if (packet instanceof ClientboundPlayerChatPacket chat && callbacks != null) {
 +                this.send(chat);
 +                return;
 +            }
@@ -87,30 +87,30 @@ index 2fab929b6775238d031ca3305b61af3cbe920a06..ccd8fd62a824566ffd44083177280701
          // CraftBukkit start
          if (packet == null || this.processedDisconnect) { // Spigot
              return;
-@@ -2574,6 +2596,11 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
+@@ -2565,6 +2587,11 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
      }
  
-     private void broadcastChatMessage(PlayerChatMessage playerchatmessage) {
+     private void broadcastChatMessage(PlayerChatMessage message) {
 +        // Leaves start - no sign
 +        if (top.leavesmc.leaves.LeavesConfig.noChatSign) {
-+            playerchatmessage = PlayerChatMessage.unsigned(playerchatmessage.signer(), playerchatmessage.signedContent());
++            message = PlayerChatMessage.unsigned(message.signer(), message.signedContent());
 +        }
 +        // Leaves end - no sign
          // CraftBukkit start
-         String s = playerchatmessage.signedContent().plain();
+         String s = message.signedContent().plain();
          if (s.isEmpty()) {
 diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
-index e9da6bc1f553d0d1fdebff9e58204c7a9563bc17..8c040cf1f4a5e063e796d0decf6bdeb5ddd272b4 100644
+index 66350e6d0b2deed7bd510d87d13b47a474ea8a52..f1ecb814970206df9ad26bdd5af81d2c96bf3d5c 100644
 --- a/src/main/java/net/minecraft/server/players/PlayerList.java
 +++ b/src/main/java/net/minecraft/server/players/PlayerList.java
-@@ -1446,7 +1446,7 @@ public abstract class PlayerList {
+@@ -1452,7 +1452,7 @@ public abstract class PlayerList {
          // Paper end
-         boolean flag = this.verifyChatTrusted(playerchatmessage, chatsender);
+         boolean flag = this.verifyChatTrusted(message, sourceProfile);
  
--        this.server.logChatMessage((unsignedFunction == null ? playerchatmessage : playerchatmessage.withUnsignedContent(unsignedFunction.apply(this.server.console))).serverContent(), chatmessagetype_a, flag ? null : "Not Secure"); // Paper
-+        this.server.logChatMessage((unsignedFunction == null ? playerchatmessage : playerchatmessage.withUnsignedContent(unsignedFunction.apply(this.server.console))).serverContent(), chatmessagetype_a, flag || top.leavesmc.leaves.LeavesConfig.noChatSign ? null : "Not Secure"); // Paper -> Leaves - No Not Secure
-         OutgoingPlayerChatMessage outgoingplayerchatmessage = OutgoingPlayerChatMessage.create(playerchatmessage);
-         boolean flag1 = playerchatmessage.isFullyFiltered();
+-        this.server.logChatMessage((unsignedFunction == null ? message : message.withUnsignedContent(unsignedFunction.apply(this.server.console))).serverContent(), params, flag ? null : "Not Secure"); // Paper
++        this.server.logChatMessage((unsignedFunction == null ? message : message.withUnsignedContent(unsignedFunction.apply(this.server.console))).serverContent(), params, flag || top.leavesmc.leaves.LeavesConfig.noChatSign ? null : "Not Secure"); // Paper // Leaves - No Not Secure
+         OutgoingPlayerChatMessage outgoingplayerchatmessage = OutgoingPlayerChatMessage.create(message);
+         boolean flag1 = message.isFullyFiltered();
          boolean flag2 = false;
 diff --git a/src/main/java/net/minecraft/world/entity/player/Player.java b/src/main/java/net/minecraft/world/entity/player/Player.java
 index e2305caf0b3ce21810a31e05c943a6d859870bd5..ee8bc19a049a9f0235d959d41e4124865d5dabb1 100644

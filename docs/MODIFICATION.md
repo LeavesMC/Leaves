@@ -52,6 +52,8 @@ Leaves Modification
 - Async Pathfinding
 - Cache climbing check for activation
 - Use aging cache for biome temperatures
+- Reduce entity fluid lookups if no fluids
+- Reduce chunk loading & lookups
 
 > Powered by [Purpur](https://github.com/PurpurMC/Purpur)
 - Don't send useless entity packets

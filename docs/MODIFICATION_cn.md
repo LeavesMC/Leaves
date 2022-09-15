@@ -52,6 +52,8 @@ Leaves Modification
 - 异步实体寻路
 - 缓存实体攀爬检测
 - 使用更好的生物群系温度缓存
+- 优化实体流体检查
+- 优化末影人传送时的区块寻找
 
 > Powered by [Purpur](https://github.com/PurpurMC/Purpur)
 - 减少不必要包的发送

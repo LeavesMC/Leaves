@@ -1,0 +1,89 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Fri, 16 Sep 2022 16:34:11 +0800
+Subject: [PATCH] Simpler ShapelessRecipes comparison for Vanilla
+
+This patch is Powered by Pufferfish(https://github.com/pufferfish-gg/Pufferfish)
+
+diff --git a/src/main/java/net/minecraft/world/item/crafting/ShapelessRecipe.java b/src/main/java/net/minecraft/world/item/crafting/ShapelessRecipe.java
+index ffe5476d8ed15ee4384b679c341688787205ce59..d83377d264130893d13f9c323489858164bafe20 100644
+--- a/src/main/java/net/minecraft/world/item/crafting/ShapelessRecipe.java
++++ b/src/main/java/net/minecraft/world/item/crafting/ShapelessRecipe.java
+@@ -25,12 +25,20 @@ public class ShapelessRecipe implements CraftingRecipe {
+     final String group;
+     final ItemStack result;
+     final NonNullList<Ingredient> ingredients;
++    private final boolean isBukkit; // Leaves
+ 
+     public ShapelessRecipe(ResourceLocation id, String group, ItemStack output, NonNullList<Ingredient> input) {
++        // Leaves start
++        this(id, group, output, input, false);
++    }
++
++    public ShapelessRecipe(ResourceLocation id, String group, ItemStack output, NonNullList<Ingredient> input, boolean isBukkit) {
++        // Leaves end
+         this.id = id;
+         this.group = group;
+         this.result = output;
+         this.ingredients = input;
++        this.isBukkit = isBukkit; // Leaves
+     }
+ 
+     // CraftBukkit start
+@@ -73,6 +81,28 @@ public class ShapelessRecipe implements CraftingRecipe {
+     }
+ 
+     public boolean matches(CraftingContainer inventory, Level world) {
++        // Leaves start - easy match
++        if (top.leavesmc.leaves.LeavesConfig.simplerVanillaShapelessRecipes && !this.isBukkit) {
++            java.util.List<Ingredient> ingredients = com.google.common.collect.Lists.newArrayList(this.ingredients.toArray(new Ingredient[0]));
++
++            inventory: for (int index = 0; index < inventory.getContainerSize(); index++) {
++                ItemStack itemStack = inventory.getItem(index);
++
++                if (!itemStack.isEmpty()) {
++                    for (int i = 0; i < ingredients.size(); i++) {
++                        if (ingredients.get(i).test(itemStack)) {
++                            ingredients.remove(i);
++                            continue inventory;
++                        }
++                    }
++                    return false;
++                }
++            }
++
++            return ingredients.isEmpty();
++        }
++        // Leaves end - easy match
++
+         StackedContents autorecipestackmanager = new StackedContents();
+         int i = 0;
+ 
+diff --git a/src/main/java/org/bukkit/craftbukkit/inventory/CraftShapelessRecipe.java b/src/main/java/org/bukkit/craftbukkit/inventory/CraftShapelessRecipe.java
+index 0b3b46348ac9195bff1492ffc11fcbff7d3f5c6f..5d4a0081a69f9917aae15a9f2d3d239186e45611 100644
+--- a/src/main/java/org/bukkit/craftbukkit/inventory/CraftShapelessRecipe.java
++++ b/src/main/java/org/bukkit/craftbukkit/inventory/CraftShapelessRecipe.java
+@@ -43,6 +43,6 @@ public class CraftShapelessRecipe extends ShapelessRecipe implements CraftRecipe
+             data.set(i, toNMS(ingred.get(i), true));
+         }
+ 
+-        MinecraftServer.getServer().getRecipeManager().addRecipe(new net.minecraft.world.item.crafting.ShapelessRecipe(CraftNamespacedKey.toMinecraft(this.getKey()), this.getGroup(), CraftItemStack.asNMSCopy(this.getResult()), data));
++        MinecraftServer.getServer().getRecipeManager().addRecipe(new net.minecraft.world.item.crafting.ShapelessRecipe(CraftNamespacedKey.toMinecraft(this.getKey()), this.getGroup(), CraftItemStack.asNMSCopy(this.getResult()), data, true)); // Leaves - is bukkit recipe
+     }
+ }
+diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+index 66bbc262a6b272eedd1fae2d0e33e31e8fbcf3bb..9db26677be70717604d040f2174b10a05ea00624 100644
+--- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
++++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+@@ -368,6 +368,11 @@ public final class LeavesConfig {
+         reduceChuckLoadAndLookup = getBoolean("settings.performance.reduce-chuck-load-and-lookup", reduceChuckLoadAndLookup);
+     }
+ 
++    public static boolean simplerVanillaShapelessRecipes = true;
++    private static void simplerVanillaShapelessRecipes() {
++        simplerVanillaShapelessRecipes = getBoolean("settings.performance.simpler-vanilla-shapeless-recipes", simplerVanillaShapelessRecipes);
++    }
++
+     public static final class WorldConfig {
+ 
+         public final String worldName;

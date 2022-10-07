@@ -358,7 +358,7 @@ index 27cd393e81f6ef9b5690c051624d8d2af50acd34..87f5fd2c616fbb4e0a3c2f9af49f8c0a
                  Vec3 vec3 = this.path.getNextEntityPos(this.mob);
                  if (this.mob.getBlockX() == Mth.floor(vec3.x) && this.mob.getBlockY() == Mth.floor(vec3.y) && this.mob.getBlockZ() == Mth.floor(vec3.z)) {
 diff --git a/src/main/java/net/minecraft/world/entity/ai/navigation/GroundPathNavigation.java b/src/main/java/net/minecraft/world/entity/ai/navigation/GroundPathNavigation.java
-index f610c06d7bb51ec2c63863dd46711712986a106a..87002da4077978362731a460c0df3a6818ebb9c7 100644
+index f0248d839255763005ba333b0bfcf691407fb69b..9b1ef3c365d1523ec5dafa6f57b56d7d0f0a0e8a 100644
 --- a/src/main/java/net/minecraft/world/entity/ai/navigation/GroundPathNavigation.java
 +++ b/src/main/java/net/minecraft/world/entity/ai/navigation/GroundPathNavigation.java
 @@ -15,6 +15,15 @@ import net.minecraft.world.level.pathfinder.WalkNodeEvaluator;
@@ -393,10 +393,10 @@ index f610c06d7bb51ec2c63863dd46711712986a106a..87002da4077978362731a460c0df3a68
  
      @Override
 diff --git a/src/main/java/net/minecraft/world/entity/ai/navigation/PathNavigation.java b/src/main/java/net/minecraft/world/entity/ai/navigation/PathNavigation.java
-index 3f672d7c2377fca16a6d8d31cf7aaae4f009fdce..5e47587778ab3e91abaeee896a1c1f3217090202 100644
+index c1781c92ff59f0c9eb47cbbef01e3252c5e1a1bf..e90d9e189f8543cb8f3fb9e338625ad0cbf7365e 100644
 --- a/src/main/java/net/minecraft/world/entity/ai/navigation/PathNavigation.java
 +++ b/src/main/java/net/minecraft/world/entity/ai/navigation/PathNavigation.java
-@@ -151,6 +151,9 @@ public abstract class PathNavigation {
+@@ -150,6 +150,9 @@ public abstract class PathNavigation {
              return null;
          } else if (!this.canUpdatePath()) {
              return null;
@@ -406,12 +406,12 @@ index 3f672d7c2377fca16a6d8d31cf7aaae4f009fdce..5e47587778ab3e91abaeee896a1c1f32
          } else if (this.path != null && !this.path.isDone() && positions.contains(this.targetPos)) {
              return this.path;
          } else {
-@@ -177,11 +180,28 @@ public abstract class PathNavigation {
+@@ -176,11 +179,28 @@ public abstract class PathNavigation {
              PathNavigationRegion pathNavigationRegion = new PathNavigationRegion(this.level, blockPos.offset(-i, -i, -i), blockPos.offset(i, i, i));
              Path path = this.pathFinder.findPath(pathNavigationRegion, this.mob, positions, followRange, distance, this.maxVisitedNodesMultiplier);
              this.level.getProfiler().pop();
 -            if (path != null && path.getTarget() != null) {
-+            
++
 +            // Leaves start
 +            if (!top.leavesmc.leaves.LeavesConfig.asyncPathfinding) {
 +                if (path != null && path.getTarget() != null) {
@@ -421,10 +421,10 @@ index 3f672d7c2377fca16a6d8d31cf7aaae4f009fdce..5e47587778ab3e91abaeee896a1c1f32
 +                }
 +            } else {
 +                if (!positions.isEmpty()) this.targetPos = positions.iterator().next(); // Leaves - assign early a target position. most calls will only have 1 position
-+    
++
 +                top.leavesmc.leaves.path.AsyncPathProcessor.awaitProcessing(path, processedPath -> {
 +                    if (processedPath != this.path) return; // Leaves - check that processing didn't take so long that we calculated a new path
-+        
++
 +                    if (processedPath != null && processedPath.getTarget() != null) {
 +                        this.targetPos = processedPath.getTarget();
 +                        this.reachRange = distance;
@@ -436,7 +436,7 @@ index 3f672d7c2377fca16a6d8d31cf7aaae4f009fdce..5e47587778ab3e91abaeee896a1c1f32
  
              return path;
          }
-@@ -228,8 +248,8 @@ public abstract class PathNavigation {
+@@ -227,8 +247,8 @@ public abstract class PathNavigation {
              if (this.isDone()) {
                  return false;
              } else {
@@ -447,7 +447,7 @@ index 3f672d7c2377fca16a6d8d31cf7aaae4f009fdce..5e47587778ab3e91abaeee896a1c1f32
                      return false;
                  } else {
                      this.speedModifier = speed;
-@@ -253,9 +273,11 @@ public abstract class PathNavigation {
+@@ -252,9 +272,11 @@ public abstract class PathNavigation {
              this.recomputePath();
          }
  
@@ -461,27 +461,30 @@ index 3f672d7c2377fca16a6d8d31cf7aaae4f009fdce..5e47587778ab3e91abaeee896a1c1f32
                  Vec3 vec3 = this.getTempMobPos();
                  Vec3 vec32 = this.path.getNextEntityPos(this.mob);
 @@ -276,6 +298,13 @@ public abstract class PathNavigation {
-         BlockPos blockPos = new BlockPos(pos);
          return this.level.getBlockState(blockPos.below()).isAir() ? pos.y : WalkNodeEvaluator.getFloorLevel(this.level, blockPos);
      }
-+    
+ 
 +    // Leaves start - this fixes plugin compat by ensuring the isProcessed check is completed properly.
 +    protected final void followThePathSuper() {
 +        if (top.leavesmc.leaves.LeavesConfig.asyncPathfinding && !this.path.isProcessed()) return; // Leaves
 +        followThePath();
 +    }
 +    // Leaves end - this fixes plugin compat by ensuring the isProcessed check is completed properly.
- 
++
      protected void followThePath() {
          Vec3 vec3 = this.getTempMobPos();
-@@ -440,7 +469,7 @@ public abstract class PathNavigation {
-     // Paper start
-     public boolean isViableForPathRecalculationChecking() {
-         return !this.needsPathRecalculation() &&
--            (this.path != null && !this.path.isDone() && this.path.getNodeCount() != 0);
-+            (this.path != null && (!top.leavesmc.leaves.LeavesConfig.asyncPathfinding || this.path.isProcessed()) && !this.path.isDone() && this.path.getNodeCount() != 0); // Leaves
+         this.maxDistanceToWaypoint = this.mob.getBbWidth() > 0.75F ? this.mob.getBbWidth() / 2.0F : 0.75F - this.mob.getBbWidth() / 2.0F;
+@@ -435,4 +464,11 @@ public abstract class PathNavigation {
+     public boolean isStuck() {
+         return this.isStuck;
      }
-     // Paper end
++
++    // Paper start
++    public boolean isViableForPathRecalculationChecking() {
++        return !this.needsPathRecalculation() &&
++            (this.path != null && (!top.leavesmc.leaves.LeavesConfig.asyncPathfinding || this.path.isProcessed()) && !this.path.isDone() && this.path.getNodeCount() != 0); // Leaves
++    }
++    // Paper end
  }
 diff --git a/src/main/java/net/minecraft/world/entity/ai/sensing/NearestBedSensor.java b/src/main/java/net/minecraft/world/entity/ai/sensing/NearestBedSensor.java
 index 8db20db72cd51046213625fac46c35854c59ec5d..28040c76ec4216a425e2c6c7216f96a006f10085 100644
@@ -756,10 +759,10 @@ index d23481453717f715124156b5d83f6448f720d049..6cc6140f44827ccc055aafdd6bfb3a09
      protected float distance(Node a, Node b) {
          return a.distanceTo(b);
 diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
-index 4a886963a439fee06d6a846947186f8a86dab398..746fabb5839357f7506430096768c621d97da6fc 100644
+index 51671e26df1d041e88484d9ab48e447ed227055d..12b9b7af94e2b1f2fdc936235a3a596ca18dc465 100644
 --- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
 +++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
-@@ -335,6 +335,15 @@ public final class LeavesConfig {
+@@ -339,6 +339,19 @@ public final class LeavesConfig {
          removeRangeCheckStreams = getBoolean("settings.performance.remove.range-check-streams-and-iterators", removeRangeCheckStreams);
      }
  
@@ -769,6 +772,10 @@ index 4a886963a439fee06d6a846947186f8a86dab398..746fabb5839357f7506430096768c621
 +        if (!asyncPathfindingLock) {
 +            asyncPathfinding = getBoolean("settings.performance.async-pathfinding", asyncPathfinding);
 +            asyncPathfindingLock = true;
++        }
++
++        if (asyncPathfinding) {
++            LeavesLogger.LOGGER.severe("Async Pathfinding is updating, it may not work normally");
 +        }
 +    }
 +

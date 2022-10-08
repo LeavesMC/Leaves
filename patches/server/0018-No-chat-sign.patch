@@ -18,10 +18,18 @@ index 28ddab1121e314e82bf764fd89f36714bd7445f8..786f89f9d75cf8ad6a6b097556a8d8b1
  
          record ConstantFunction(net.minecraft.network.chat.Component component) implements Function<Audience, net.minecraft.network.chat.Component> {
 diff --git a/src/main/java/net/minecraft/network/protocol/status/ServerStatus.java b/src/main/java/net/minecraft/network/protocol/status/ServerStatus.java
-index 11183b4a39b9897e1b1067eb2a3556d2b1d90f52..73009fdcc695f41f8953b85bef5d728cc93a5709 100644
+index 11183b4a39b9897e1b1067eb2a3556d2b1d90f52..a335bcf8fd9330e2e275d78671c6e2647cb0bac5 100644
 --- a/src/main/java/net/minecraft/network/protocol/status/ServerStatus.java
 +++ b/src/main/java/net/minecraft/network/protocol/status/ServerStatus.java
-@@ -78,7 +78,7 @@ public class ServerStatus {
+@@ -28,6 +28,7 @@ public class ServerStatus {
+     private String favicon;
+     private boolean previewsChat;
+     private boolean enforcesSecureChat;
++    private boolean preventsChatReports; // Leaves - preventsChatReports
+ 
+     @Nullable
+     public Component getDescription() {
+@@ -78,9 +79,19 @@ public class ServerStatus {
      }
  
      public boolean enforcesSecureChat() {
@@ -29,7 +37,55 @@ index 11183b4a39b9897e1b1067eb2a3556d2b1d90f52..73009fdcc695f41f8953b85bef5d728c
 +        return this.enforcesSecureChat && !top.leavesmc.leaves.LeavesConfig.noChatSign; // Leaves - no enforcesSecureChat
      }
  
++    // Leaves start - add preventsChatReports
++    public boolean isPreventsChatReports() {
++        return preventsChatReports;
++    }
++
++    public void setPreventsChatReports(boolean preventsChatReports) {
++        this.preventsChatReports = preventsChatReports;
++    }
++    // Leaves end - add preventsChatReports
++
      public static class Players {
+         private final int maxPlayers;
+         private final int numPlayers;
+@@ -186,6 +197,10 @@ public class ServerStatus {
+                 serverStatus.setEnforcesSecureChat(GsonHelper.getAsBoolean(jsonObject, "enforcesSecureChat"));
+             }
+ 
++            if (top.leavesmc.leaves.LeavesConfig.noChatSign && jsonObject.has("preventsChatReports")) {
++                serverStatus.setPreventsChatReports(GsonHelper.getAsBoolean(jsonObject, "preventsChatReports"));
++            }
++
+             return serverStatus;
+         }
+ 
+@@ -210,6 +225,12 @@ public class ServerStatus {
+                 jsonObject.addProperty("favicon", serverStatus.getFavicon());
+             }
+ 
++            // Leaves start - add preventsChatReports
++            if (top.leavesmc.leaves.LeavesConfig.noChatSign) {
++                jsonObject.addProperty("preventsChatReports", true);
++            }
++            // Leaves end - add preventsChatReports
++
+             return jsonObject;
+         }
+     }
+diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
+index 3775a75a54807e50eded612f26fec5ad0229fbca..5dd308320b2e2049a8827cfd9bea3cd0621f03c8 100644
+--- a/src/main/java/net/minecraft/server/MinecraftServer.java
++++ b/src/main/java/net/minecraft/server/MinecraftServer.java
+@@ -1109,6 +1109,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+             this.status.setVersion(new ServerStatus.Version(SharedConstants.getCurrentVersion().getName(), SharedConstants.getCurrentVersion().getProtocolVersion()));
+             this.status.setPreviewsChat(this.previewsChat());
+             this.status.setEnforcesSecureChat(this.enforceSecureProfile());
++            this.status.setPreventsChatReports(top.leavesmc.leaves.LeavesConfig.noChatSign); // Leaves - add preventsChatReports
+             this.updateStatusIcon(this.status);
+ 
+             // Spigot start
 diff --git a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
 index 18d568093aeb8be69fa76c5f2e3ac6dd61d5479b..bfcaadc4bd70384d5cea975b18874cfc31d8909e 100644
 --- a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java

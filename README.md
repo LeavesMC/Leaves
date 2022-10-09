@@ -7,8 +7,6 @@ Leaves [![Leaves CI](https://github.com/LeavesMC/Leaves/actions/workflows/leaves
 
 > You can see what we modify and fix in [this](https://github.com/LeavesMC/Leaves/blob/master/docs/MODIFICATION.md)
 
-> Waring: This fork will have low mspt as Paper
-
 ## How To (Server Admins)
 Leaves use the same paperclip jar system that Paper uses.
 
@@ -25,7 +23,7 @@ Leaves-API maven dependency:
 <dependency>
     <groupId>top.leavesmc.leaves</groupId>
     <artifactId>leaves-api</artifactId>
-    <version>1.19.1-R0.1-SNAPSHOT</version>
+    <version>1.19.2-R0.1-SNAPSHOT</version>
     <scope>provided</scope>
  </dependency>
  ```
@@ -35,7 +33,7 @@ Leaves-Server maven dependency:
 <dependency>
     <groupId>top.leavesmc.leaves</groupId>
     <artifactId>leaves</artifactId>
-    <version>1.19.1-R0.1-SNAPSHOT</version>
+    <version>1.19.2-R0.1-SNAPSHOT</version>
     <scope>provided</scope>
 </dependency>
 ```

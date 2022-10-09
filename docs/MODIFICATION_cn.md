@@ -23,7 +23,7 @@ Leaves Modification
 - 紫水晶母岩可以被活塞推动
 - 观察者不会获得进度
 - 对盔甲架下蹲使用木棍可以修改盔甲架的手臂状态
-- 删除玩家聊天内的签名
+- 删除玩家聊天内的签名 (可以替代NoChatReportMod的服务器侧)
 
 ## 性能
 
@@ -31,7 +31,7 @@ Leaves Modification
 
 > Powered by [Pufferfish](https://github.com/pufferfish-gg/Pufferfish)
 - 生物生成优化
-- 异步实体追踪
+- 异步实体追踪 (正在升级 暂不可用)
 - 修复Paper#6045
 - 实体坐标键优化
 - 窒息检测优化
@@ -49,11 +49,12 @@ Leaves Modification
 - 删除容器检查中的iterators
 - 删除玩家检测中的流
 - 删除范围检查中的流和iterators
-- 异步实体寻路
+- 异步实体寻路 (正在升级 暂不可用)
 - 缓存实体攀爬检测
 - 使用更好的生物群系温度缓存
 - 优化实体流体检查
 - 优化末影人传送时的区块寻找
+- 更好的原版无序配方
 
 > Powered by [Purpur](https://github.com/PurpurMC/Purpur)
 - 减少不必要包的发送

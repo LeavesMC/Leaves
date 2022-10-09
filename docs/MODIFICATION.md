@@ -23,7 +23,7 @@ Leaves Modification
 - Budding Amethyst can push by piston
 - Spectator don't get Advancement
 - Use stick and shift to ArmorStand can modify ArmorStand's arm status
-- Remove Player Chat sign
+- Remove Player Chat sign (can instead of NoChatReport Mod server side)
 
 ## Performance
 
@@ -31,7 +31,7 @@ Leaves Modification
 
 > Powered by [Pufferfish](https://github.com/pufferfish-gg/Pufferfish)
 - Optimize mob spawning
-- Multithreaded Tracker
+- Multithreaded Tracker (updating)
 - Fix Paper#6045
 - Optimize entity coordinate key
 - Optimize suffocation
@@ -49,11 +49,12 @@ Leaves Modification
 - Remove iterators from inventory contains
 - Remove streams from getting nearby players
 - Remove streams and iterators from range check
-- Async Pathfinding
+- Async Pathfinding (updating)
 - Cache climbing check for activation
 - Use aging cache for biome temperatures
 - Reduce entity fluid lookups if no fluids
 - Reduce chunk loading & lookups
+- Simpler Vanilla ShapelessRecipes comparison
 
 > Powered by [Purpur](https://github.com/PurpurMC/Purpur)
 - Don't send useless entity packets

@@ -7,8 +7,6 @@ Leaves [![Leaves CI](https://github.com/LeavesMC/Leaves/actions/workflows/leaves
 
 > 你可以在 [这里](https://github.com/LeavesMC/Leaves/blob/master/docs/MODIFICATION_cn.md) 查看所有的修改和修复内容
 
-> 此服务端的性能可能会略低于Paper原版 并不适合所有服务器使用
-
 ## 对于服务器管理员
 此分支使用与Paper一致的paperclip分发
 
@@ -24,7 +22,7 @@ Leaves-API:
 <dependency>
     <groupId>top.leavesmc.leaves</groupId>
     <artifactId>leaves-api</artifactId>
-    <version>1.19.1-R0.1-SNAPSHOT</version>
+    <version>1.19.2-R0.1-SNAPSHOT</version>
     <scope>provided</scope>
  </dependency>
  ```
@@ -34,7 +32,7 @@ Leaves-Server:
 <dependency>
     <groupId>top.leavesmc.leaves</groupId>
     <artifactId>leaves</artifactId>
-    <version>1.19.1-R0.1-SNAPSHOT</version>
+    <version>1.19.2-R0.1-SNAPSHOT</version>
     <scope>provided</scope>
 </dependency>
 ```

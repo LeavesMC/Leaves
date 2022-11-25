@@ -5,7 +5,7 @@ Subject: [PATCH] Leaves Server Utils
 
 
 diff --git a/src/main/java/com/destroystokyo/paper/util/misc/AreaMap.java b/src/main/java/com/destroystokyo/paper/util/misc/AreaMap.java
-index c89f6986eda5a132a948732ea1b6923370685317..5a0655dabc032a29062dfdd9f9d3fc9e8d25f6b7 100644
+index 41b9405d6759d865e0d14dd4f95163e9690e967d..67008112e1d1c059938838c544f093fa1f0a4fee 100644
 --- a/src/main/java/com/destroystokyo/paper/util/misc/AreaMap.java
 +++ b/src/main/java/com/destroystokyo/paper/util/misc/AreaMap.java
 @@ -26,7 +26,7 @@ public abstract class AreaMap<E> {
@@ -54,31 +54,32 @@ index 0000000000000000000000000000000000000000..890b91a95719f18a75bc2c2176ef5cb9
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/util/AsyncExecutor.java b/src/main/java/top/leavesmc/leaves/util/AsyncExecutor.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..1c5449426b69dc711ca935f57cd8180f56219879
+index 0000000000000000000000000000000000000000..0c03f3f051eff7abaacfaa8adb992811f934b9c8
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/util/AsyncExecutor.java
-@@ -0,0 +1,52 @@
+@@ -0,0 +1,76 @@
 +package top.leavesmc.leaves.util;
 +
 +import com.google.common.collect.Queues;
 +import top.leavesmc.leaves.LeavesLogger;
 +
 +import java.util.Queue;
-+import java.util.concurrent.locks.LockSupport;
-+import java.util.function.BooleanSupplier;
++import java.util.concurrent.locks.Condition;
++import java.util.concurrent.locks.Lock;
++import java.util.concurrent.locks.ReentrantLock;
 +import java.util.logging.Level;
 +
 +// Powered by Pufferfish(https://github.com/pufferfish-gg/Pufferfish)
 +public class AsyncExecutor implements Runnable {
 +
-+    private Queue<Runnable> jobs = Queues.newConcurrentLinkedQueue();
++    private final Queue<Runnable> jobs = Queues.newArrayDeque();
++    private final Lock mutex = new ReentrantLock();
++    private final Condition cond = mutex.newCondition();
 +    private final Thread thread;
-+    private final BooleanSupplier shouldRun;
 +    private volatile boolean killswitch = false;
 +
-+    public AsyncExecutor(String threadName, BooleanSupplier shouldRun) {
++    public AsyncExecutor(String threadName) {
 +        this.thread = new Thread(this, threadName);
-+        this.shouldRun = shouldRun;
 +    }
 +
 +    public void start() {
@@ -87,26 +88,49 @@ index 0000000000000000000000000000000000000000..1c5449426b69dc711ca935f57cd8180f
 +
 +    public void kill() {
 +        killswitch = true;
++        cond.signalAll();
 +    }
 +
 +    public void submit(Runnable runnable) {
-+        jobs.offer(runnable);
++        mutex.lock();
++        try {
++            jobs.offer(runnable);
++            cond.signalAll();
++        } finally {
++            mutex.unlock();
++        }
 +    }
 +
 +    @Override
 +    public void run() {
 +        while (!killswitch) {
-+            if (shouldRun.getAsBoolean()) {
-+                try {
-+                    Runnable runnable;
-+                    while ((runnable = jobs.poll()) != null) {
-+                        runnable.run();
-+                    }
-+                } catch (Exception e) {
-+                    LeavesLogger.LOGGER.log(Level.SEVERE, e,  () -> "Failed to execute async job for thread " + thread.getName());
++            try {
++                Runnable runnable = takeRunnable();
++                if (runnable != null) {
++                    runnable.run();
 +                }
++            } catch (InterruptedException e) {
++                Thread.currentThread().interrupt();
++            } catch (Exception e) {
++                LeavesLogger.LOGGER.log(Level.SEVERE, e, () -> "Failed to execute async job for thread " + thread.getName());
 +            }
-+            LockSupport.parkNanos("executing tasks", 1000L);
++        }
++    }
++
++    private Runnable takeRunnable() throws InterruptedException {
++        mutex.lock();
++        try {
++            while (jobs.isEmpty() && !killswitch) {
++                cond.await();
++            }
++
++            if (jobs.isEmpty()) {
++                return null;
++            }
++
++            return jobs.remove();
++        } finally {
++            mutex.unlock();
 +        }
 +    }
 +}

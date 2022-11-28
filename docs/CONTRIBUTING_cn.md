@@ -4,7 +4,7 @@ Contributing to Leaves
 [English](https://github.com/LeavesMC/Leaves/blob/master/docs/CONTRIBUTING.md) | **中文**
 
 
-我们很开心您愿意为我们的项目做出共享。一般来说，我们对PR的审核是十分宽松的，
+我们很开心您想为我们的项目做出共享。一般来说，我们对PR的审核是十分宽松的，
 但是如果您可以遵守下列的规则，我们可以更快地完成审核。
 
 ## 使用个人账户进行fork
@@ -62,4 +62,11 @@ Leaves使用和Paper一样的补丁系统，并为了针对不同部分的修改
 
 ## 修改补丁
 
+你可以使用以下方法来修改一个补丁的内容
 
+1. 在HEAD上直接进行修改
+2. 使用`git commit -a --fixup <hash>`来进行一个更正提交
+   - 如果你想要更改提交信息，你也可以用`--squash`来代替`--fixup`
+3. 使用`git rebase -i --autosquash base`来进行自动变基 你只需要输入`:q`来关闭确认页面即可
+4. 运行gradle任务`rebuildPatches`来修改已被修改的补丁
+5. 将修改后的补丁PR会次出储存库

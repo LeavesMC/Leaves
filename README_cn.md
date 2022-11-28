@@ -18,27 +18,35 @@ Leaves [![Leaves CI](https://github.com/LeavesMC/Leaves/actions/workflows/leaves
 如果你要将Leaves作为依赖,那么你必须进行 [自行构建](https://github.com/LeavesMC/Leaves/blob/master/README_cn.md#自行构建)
 
 Leaves-API:
-```xml
-<dependency>
-    <groupId>top.leavesmc.leaves</groupId>
-    <artifactId>leaves-api</artifactId>
-    <version>1.19.2-R0.1-SNAPSHOT</version>
-    <scope>provided</scope>
- </dependency>
+```kotlin
+dependencies {
+    compileOnly("top.leavesmc.leaves:leaves-api:1.19.2-R0.1-SNAPSHOT")
+}
  ```
 
 Leaves-Server:
-```xml
-<dependency>
-    <groupId>top.leavesmc.leaves</groupId>
-    <artifactId>leaves</artifactId>
-    <version>1.19.2-R0.1-SNAPSHOT</version>
-    <scope>provided</scope>
-</dependency>
-```
+```kotlin
+dependencies {
+    compileOnly("top.leavesmc.leaves:leaves:1.19.2-R0.1-SNAPSHOT")
+}
+ ```
+
 ## 自行构建
-需要Java17或更高版本
 
-`./gradlew applyPatches`
+你需要最低JDK17和一个可以正常访问各种git/maven库的网络
 
-`./gradlew createReobfBundlerJar`
+首先克隆此储存库，然后在你的终端里依次执行 `./gradlew applyPatches` 和 `./gradlew createReobfBundlerJar`
+
+最后 你可以在 `build/libs` 文件夹里找到对应的jar文件
+
+## 对于想要出一份力的开发者
+
+可查看 [Contributing](https://github.com/LeavesMC/Leaves/blob/master/docs/CONTRIBUTING_cn.md)
+
+## 特别感谢
+
+[<img src="https://user-images.githubusercontent.com/21148213/121807008-8ffc6700-cc52-11eb-96a7-2f6f260f8fda.png" alt="" width="150">](https://www.jetbrains.com)
+
+[JetBrains](https://www.jetbrains.com/)，IntelliJ IDEA的创造者，为Leaves提供了 [开源许可证](https://www.jetbrains.com/opensource/)。我们极力推荐使用IntelliJ IDEA作为你的IDE。
+
+

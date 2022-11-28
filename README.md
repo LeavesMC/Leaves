@@ -19,28 +19,35 @@ In order to use Leaves as a dependency you must [build it yourself](https://gith
 Each time you want to update your dependency you must re-build Leaves.
 
 Leaves-API maven dependency:
-```xml
-<dependency>
-    <groupId>top.leavesmc.leaves</groupId>
-    <artifactId>leaves-api</artifactId>
-    <version>1.19.2-R0.1-SNAPSHOT</version>
-    <scope>provided</scope>
- </dependency>
+```kotlin
+dependencies {
+    compileOnly("top.leavesmc.leaves:leaves-api:1.19.2-R0.1-SNAPSHOT")
+}
  ```
 
 Leaves-Server maven dependency:
-```xml
-<dependency>
-    <groupId>top.leavesmc.leaves</groupId>
-    <artifactId>leaves</artifactId>
-    <version>1.19.2-R0.1-SNAPSHOT</version>
-    <scope>provided</scope>
-</dependency>
-```
+```kotlin
+dependencies {
+    compileOnly("top.leavesmc.leaves:leaves:1.19.2-R0.1-SNAPSHOT")
+}
+ ```
 
 ## Building
-Java17+
 
-`./gradlew applyPatches`
+You need JDK 17 and good internet connection
 
-`./gradlew createReobfBundlerJar`
+Clone this repo, run `./gradlew applyPatches`, then `./gradlew createReobfBundlerJar` form your terminal.  
+
+You can find jar in `build/libs` directory.
+
+## Pull Request
+
+See [Contributing](https://github.com/LeavesMC/Leaves/blob/master/docs/CONTRIBUTING.md)
+
+## Special Thanks To:
+
+[<img src="https://user-images.githubusercontent.com/21148213/121807008-8ffc6700-cc52-11eb-96a7-2f6f260f8fda.png" alt="" width="150">](https://www.jetbrains.com)
+
+[JetBrains](https://www.jetbrains.com/), creators of the IntelliJ IDEA, supports We with one of their [Open Source Licenses](https://www.jetbrains.com/opensource/). We recommend using IntelliJ IDEA as your IDE.
+
+

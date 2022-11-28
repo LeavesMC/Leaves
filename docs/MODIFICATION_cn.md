@@ -58,3 +58,9 @@ Leaves Modification
 
 > Powered by [Purpur](https://github.com/PurpurMC/Purpur)
 - 减少不必要包的发送
+
+## 额外协议支持
+
+> 所有的协议内容都会存在配置项
+
+- PCA同步协议

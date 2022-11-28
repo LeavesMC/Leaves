@@ -58,3 +58,9 @@ Leaves Modification
 
 > Powered by [Purpur](https://github.com/PurpurMC/Purpur)
 - Don't send useless entity packets
+
+## Extra Protocol Support
+
+> All of it will have configuration
+
+- PCA sync protocol

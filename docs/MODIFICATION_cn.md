@@ -64,3 +64,4 @@ Leaves Modification
 > 所有的协议内容都会存在配置项
 
 - PCA同步协议
+- BBOR结构显示协议

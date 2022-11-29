@@ -64,3 +64,4 @@ Leaves Modification
 > All of it will have configuration
 
 - PCA sync protocol
+- BBOR protocol

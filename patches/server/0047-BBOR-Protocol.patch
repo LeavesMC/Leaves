@@ -1,0 +1,301 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Tue, 29 Nov 2022 09:51:16 +0800
+Subject: [PATCH] BBOR Protocol
+
+
+diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
+index c95d1fb9854ed303200d9800d5c230a8b8c0a177..fd71694e3c21926851d91b2f1a5a9be577add443 100644
+--- a/src/main/java/net/minecraft/server/MinecraftServer.java
++++ b/src/main/java/net/minecraft/server/MinecraftServer.java
+@@ -1581,6 +1581,8 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+ 
+         this.profiler.popPush("server gui refresh");
+ 
++        top.leavesmc.leaves.protocol.BBORProtocol.tick(); // Leaves - bbor
++
+         MinecraftTimings.tickablesTimer.startTiming(); // Spigot // Paper
+         for (int i = 0; i < this.tickables.size(); ++i) {
+             ((Runnable) this.tickables.get(i)).run();
+diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index 6c6032bbf09a47319e9bc2dcccbb9a4b54598f12..4bb6153345dd87b86fc226779e3e1b2cb0de0a09 100644
+--- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -3704,6 +3704,9 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
+                 if (top.leavesmc.leaves.LeavesConfig.pcaSyncProtocol && ProtocolUtils.isNamespacePacket(packet, top.leavesmc.leaves.protocol.PcaSyncProtocol.PROTOCOL_ID)) {
+                     top.leavesmc.leaves.protocol.PcaSyncProtocol.handlePacket(server, player, packet);
+                 }
++                if (top.leavesmc.leaves.LeavesConfig.bborProtocol && packet.identifier.equals(top.leavesmc.leaves.protocol.BBORProtocol.SUBSCRIBE)) {
++                    top.leavesmc.leaves.protocol.BBORProtocol.onPlayerSubscribed(player);
++                }
+             } catch (Exception ex) {
+                 ServerGamePacketListenerImpl.LOGGER.error("Couldn\'t dispatch custom payload", ex);
+                 this.disconnect("Invalid custom payload!", org.bukkit.event.player.PlayerKickEvent.Cause.INVALID_PAYLOAD);
+diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
+index 4e3e0f7bfe54616fb6733ef2f8f05959eee0f47e..0ddde154bf753e1fa483df8dd58c71b7a17e4779 100644
+--- a/src/main/java/net/minecraft/server/players/PlayerList.java
++++ b/src/main/java/net/minecraft/server/players/PlayerList.java
+@@ -388,6 +388,7 @@ public abstract class PlayerList {
+         }
+         // Leaves end - bot support
+         top.leavesmc.leaves.protocol.PcaSyncProtocol.onJoin(player); // Leaves - pca
++        top.leavesmc.leaves.protocol.BBORProtocol.onPlayerLoggedIn(player); // Leaves - bbor
+ 
+         final net.kyori.adventure.text.Component jm = playerJoinEvent.joinMessage();
+ 
+@@ -626,6 +627,7 @@ public abstract class PlayerList {
+         return this.remove(entityplayer, net.kyori.adventure.text.Component.translatable("multiplayer.player.left", net.kyori.adventure.text.format.NamedTextColor.YELLOW, io.papermc.paper.configuration.GlobalConfiguration.get().messages.useDisplayNameInQuitMessage ? entityplayer.getBukkitEntity().displayName() : net.kyori.adventure.text.Component.text(entityplayer.getScoreboardName())));
+     }
+     public net.kyori.adventure.text.Component remove(ServerPlayer entityplayer, net.kyori.adventure.text.Component leaveMessage) {
++        top.leavesmc.leaves.protocol.BBORProtocol.onPlayerLoggedOut(entityplayer); // Leaves - bbor
+         // Paper end
+         ServerLevel worldserver = entityplayer.getLevel();
+ 
+diff --git a/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java b/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java
+index c75ddded71d32bc8e9d219a8acc52482f776c526..c7c7b2eb30ffa5d9ed1c76ae9c6d13afea9cb60c 100644
+--- a/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java
++++ b/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java
+@@ -1050,6 +1050,11 @@ public class LevelChunk extends ChunkAccess {
+ 
+     public void setLoaded(boolean loadedToWorld) {
+         this.loaded = loadedToWorld;
++        // Leaves start - bbor
++        if (loaded) {
++            top.leavesmc.leaves.protocol.BBORProtocol.onChunkLoaded(this);
++        }
++        // Leaves end - bbor
+     }
+ 
+     public Level getLevel() {
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index 23be24cfc89abb7474464be3bb56e47f1d2e971b..03740189a2dbe7985e16ebf3facaeec4cf7ff57f 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -975,6 +975,13 @@ public final class CraftServer implements Server {
+             top.leavesmc.leaves.protocol.PcaSyncProtocol.disablePcaSyncProtocolGlobal();
+         }
+         // Leaves end - pca
++        // Leaves start - bbor
++        if (top.leavesmc.leaves.LeavesConfig.bborProtocol) {
++            top.leavesmc.leaves.protocol.BBORProtocol.initAllPlayer();
++        } else {
++            top.leavesmc.leaves.protocol.BBORProtocol.loggedOutAllPlayer();
++        }
++        // Leaves end - bbor
+         for (ServerLevel world : this.console.getAllLevels()) {
+             // world.serverLevelData.setDifficulty(config.difficulty); // Paper - per level difficulty
+             world.setSpawnSettings(world.serverLevelData.getDifficulty() != Difficulty.PEACEFUL && config.spawnMonsters, config.spawnAnimals); // Paper - per level difficulty (from MinecraftServer#setDifficulty(ServerLevel, Difficulty, boolean))
+diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+index 51a576f75c065a896f4f2a223c3e87241c925720..3e5855c5eef8038c5af69ef447fe0c2b90c33acb 100644
+--- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
++++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+@@ -398,6 +398,11 @@ public final class LeavesConfig {
+         }
+     }
+ 
++    public static boolean bborProtocol = false;
++    private static void bborProtocol() {
++        bborProtocol = getBoolean("settings.protocol.bbor-protocol", bborProtocol);
++    }
++
+     public static final class WorldConfig {
+ 
+         public final String worldName;
+diff --git a/src/main/java/top/leavesmc/leaves/protocol/BBORProtocol.java b/src/main/java/top/leavesmc/leaves/protocol/BBORProtocol.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..20124e87f4f76e72d158853125dac43b2c1bb0ed
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/protocol/BBORProtocol.java
+@@ -0,0 +1,192 @@
++package top.leavesmc.leaves.protocol;
++
++import io.netty.buffer.Unpooled;
++import net.minecraft.core.BlockPos;
++import net.minecraft.core.Registry;
++import net.minecraft.network.FriendlyByteBuf;
++import net.minecraft.resources.ResourceLocation;
++import net.minecraft.server.MinecraftServer;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.world.level.chunk.LevelChunk;
++import net.minecraft.world.level.levelgen.structure.BoundingBox;
++import net.minecraft.world.level.levelgen.structure.Structure;
++import net.minecraft.world.level.levelgen.structure.StructurePiece;
++import net.minecraft.world.level.levelgen.structure.StructureStart;
++import org.jetbrains.annotations.Contract;
++import org.jetbrains.annotations.NotNull;
++import top.leavesmc.leaves.LeavesConfig;
++import top.leavesmc.leaves.util.ProtocolUtils;
++
++import java.util.HashMap;
++import java.util.HashSet;
++import java.util.Map;
++import java.util.Set;
++import java.util.concurrent.ConcurrentHashMap;
++
++public class BBORProtocol {
++
++    public static final String PROTOCOL_ID = "bbor";
++
++    // send
++    private static final ResourceLocation INITIALIZE_CLIENT = id("initialize");
++    private static final ResourceLocation ADD_BOUNDING_BOX = id("add_bounding_box_v2");
++    // call
++    public static final ResourceLocation SUBSCRIBE = id("subscribe");
++    private static final Map<Integer, ServerPlayer> players = new ConcurrentHashMap<>();
++    private static final Map<Integer, Set<BBoundingBox>> playerBoundingBoxesCache = new HashMap<>();
++    private static final Map<ResourceLocation, Map<BBoundingBox, Set<BBoundingBox>>> dimensionCache = new ConcurrentHashMap<>();
++
++    private static final ServerLevel OVERWORLD = MinecraftServer.getServer().overworld();
++
++    @Contract("_ -> new")
++    public static @NotNull ResourceLocation id(String path) {
++        return new ResourceLocation(PROTOCOL_ID, path);
++    }
++
++    public static void onPlayerLoggedIn(@NotNull ServerPlayer player) {
++        if (LeavesConfig.bborProtocol) {
++            FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
++            buf.writeLong(OVERWORLD.getSeed());
++            buf.writeInt(OVERWORLD.levelData.getXSpawn());
++            buf.writeInt(OVERWORLD.levelData.getZSpawn());
++            ProtocolUtils.sendPayloadPacket(player, INITIALIZE_CLIENT, buf);
++        }
++    }
++
++    public static void onPlayerSubscribed(@NotNull ServerPlayer player) {
++        if (LeavesConfig.bborProtocol) {
++            players.put(player.getId(), player);
++        }
++    }
++
++    public static void onPlayerLoggedOut(@NotNull ServerPlayer player) {
++        if (LeavesConfig.bborProtocol) {
++            players.remove(player.getId());
++            playerBoundingBoxesCache.remove(player.getId());
++        }
++    }
++
++    public static void onChunkLoaded(@NotNull LevelChunk chunk) {
++        if (LeavesConfig.bborProtocol) {
++            Map<String, StructureStart> structures = new HashMap<>();
++            final Registry<Structure> structureFeatureRegistry = chunk.getLevel().registryAccess().registryOrThrow(Registry.STRUCTURE_REGISTRY);
++            for (var es : chunk.getAllStarts().entrySet()) {
++                final var optional = structureFeatureRegistry.getResourceKey(es.getKey());
++                optional.ifPresent(key -> structures.put(key.location().toString(), es.getValue()));
++            }
++            if (structures.size() > 0) {
++                onStructuresLoaded(chunk.getLevel().dimension().location(), structures);
++            }
++        }
++    }
++
++    public static void onStructuresLoaded(@NotNull ResourceLocation dimensionID, @NotNull Map<String, StructureStart> structures) {
++        Map<BBoundingBox, Set<BBoundingBox>> cache = getOrCreateCache(dimensionID);
++        for (var entry : structures.entrySet()) {
++            StructureStart structureStart = entry.getValue();
++            if (structureStart == null) {
++                return;
++            }
++
++            String type = "structure:x" + entry.getKey();
++            BoundingBox bb = structureStart.getBoundingBox();
++            BBoundingBox boundingBox = buildStructure(bb, type);
++            if (cache.containsKey(boundingBox)) {
++                return;
++            }
++
++            Set<BBoundingBox> structureBoundingBoxes = new HashSet<>();
++            for (StructurePiece structureComponent : structureStart.getPieces()) {
++                structureBoundingBoxes.add(buildStructure(structureComponent.getBoundingBox(), type));
++            }
++            cache.put(boundingBox, structureBoundingBoxes);
++        }
++    }
++
++    private static @NotNull BBoundingBox buildStructure(@NotNull BoundingBox bb, String type) {
++        BlockPos min = new BlockPos(bb.minX(), bb.minY(), bb.minZ());
++        BlockPos max = new BlockPos(bb.maxX(), bb.maxY(), bb.maxZ());
++        return new BBoundingBox(type, min, max);
++    }
++
++    private static void sendBoundingToPlayer(int id, ServerPlayer player) {
++        for (var entry : dimensionCache.entrySet()) {
++            if (entry.getValue() == null) {
++                return;
++            }
++
++            Set<BBoundingBox> playerBoundingBoxes = playerBoundingBoxesCache.computeIfAbsent(id, k -> new HashSet<>());
++            Map<BBoundingBox, Set<BBoundingBox>> boundingBoxMap = entry.getValue();
++            for (BBoundingBox key : boundingBoxMap.keySet()) {
++                if (playerBoundingBoxes.contains(key)) {
++                    continue;
++                }
++
++                Set<BBoundingBox> boundingBoxes = boundingBoxMap.get(key);
++
++                FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
++                buf.writeResourceLocation(entry.getKey());
++                key.serialize(buf);
++                if (boundingBoxes != null && boundingBoxes.size() > 1) {
++                    for (BBoundingBox box : boundingBoxes) {
++                        box.serialize(buf);
++                    }
++                }
++                ProtocolUtils.sendPayloadPacket(player, ADD_BOUNDING_BOX, buf);
++                playerBoundingBoxes.add(key);
++            }
++        }
++    }
++
++    public static void tick() {
++        if (LeavesConfig.bborProtocol) {
++            for (var playerEntry : players.entrySet()) {
++                sendBoundingToPlayer(playerEntry.getKey(), playerEntry.getValue());
++            }
++        }
++    }
++
++    public static void initAllPlayer() {
++        for (ServerPlayer player : MinecraftServer.getServer().getPlayerList().getPlayers()) {
++            onPlayerLoggedIn(player);
++        }
++    }
++
++    public static void loggedOutAllPlayer() {
++        players.clear();
++        playerBoundingBoxesCache.clear();
++        for (var cache : dimensionCache.values()) {
++            cache.clear();
++        }
++        dimensionCache.clear();
++    }
++
++    private static Map<BBoundingBox, Set<BBoundingBox>> getOrCreateCache(ResourceLocation dimensionId) {
++        return dimensionCache.computeIfAbsent(dimensionId, dt -> new ConcurrentHashMap<>());
++    }
++
++    private record BBoundingBox(String type, BlockPos min, BlockPos max) {
++
++        public void serialize(@NotNull FriendlyByteBuf buf) {
++            buf.writeChar('S');
++            buf.writeInt(type.hashCode());
++            buf.writeVarInt(min.getX()).writeVarInt(min.getY()).writeVarInt(min.getZ());
++            buf.writeVarInt(max.getX()).writeVarInt(max.getY()).writeVarInt(max.getZ());
++        }
++
++        @Override
++        public int hashCode() {
++            return combineHashCodes(min.hashCode(), max.hashCode());
++        }
++
++        private static int combineHashCodes(int @NotNull ... hashCodes) {
++            final int prime = 31;
++            int result = 0;
++            for (int hashCode : hashCodes) {
++                result = prime * result + hashCode;
++            }
++            return result;
++        }
++    }
++}

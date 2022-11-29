@@ -24,6 +24,8 @@ Leaves Modification
 - 观察者不会获得进度
 - 对盔甲架下蹲使用木棍可以修改盔甲架的手臂状态
 - 删除玩家聊天内的签名 (可以替代NoChatReportMod的服务器侧)
+- 重新引入更新抑制机制
+- 扁平化随机数三角分布 (类似Carpet-TIS-Addition)
 
 ## 性能
 

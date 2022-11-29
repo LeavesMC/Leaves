@@ -24,6 +24,8 @@ Leaves Modification
 - Spectator don't get Advancement
 - Use stick and shift to ArmorStand can modify ArmorStand's arm status
 - Remove Player Chat sign (can instead of NoChatReport Mod server side)
+- Instant BlockUpdater reintroduced
+- Random flatten triangular distribution (like Carpet-TIS-Addition)
 
 ## Performance
 

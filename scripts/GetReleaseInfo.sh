@@ -44,5 +44,4 @@ echo "| ---- | ---- |" >> $releaseinfo
 echo "| MD5 | `md5 $jarName` |" >> $releaseinfo
 echo "| SHA1 | `sha1 $jarName` |" >> $releaseinfo
 
-echo "{\"embeds\":[{\"title\":\"$leavesid\",\"url\":\"https://github.com/LeavesMC/Leaves/releases/tag/$tagid\",\"fields\":[{\"name\":\"Changelog\",\"value\":" >> $discordmes
-echo "\"$(git log --pretty='> [%h] %s' -$number)\",\"inline\":true}]}]}" >> $discordmes
+echo "{\"embeds\":[{\"title\":\"$leavesid\",\"url\":\"https://github.com/LeavesMC/Leaves/releases/tag/$tagid\",\"fields\":[{\"name\":\"Changelog\",\"value\":\"$(git log --pretty='> [%h] %s' -$number)\",\"inline\":true}]}]}" >> $discordmes

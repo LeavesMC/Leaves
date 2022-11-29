@@ -24,6 +24,7 @@ echo "name=Leaves-$commitid" >> $GITHUB_ENV
 echo "tag=$tagid" >> $GITHUB_ENV
 echo "jar=$jarName" >> $GITHUB_ENV
 echo "info=$releaseinfo" >> $GITHUB_ENV
+echo "url=https://github.com/LeavesMC/Leaves/releases/tag/$tagid" >> $GITHUB_ENV
 
 echo "Leaves-$commitid [![download](https://img.shields.io/github/downloads/LeavesMC/Leaves/$tagid/total?color=0)](https://github.com/Leaves/LeavesMC/releases/download/$tagid/$jarName)" >> $releaseinfo
 echo "=====" >> $releaseinfo
@@ -32,6 +33,7 @@ echo "### Commit Message" >> $releaseinfo
 
 number=$(git log --oneline master ^`git describe --tags --abbrev=0` | wc -l)
 echo "$(git log --pretty='> [%h] %s' -$number)" >> $releaseinfo
+echo "changelog=$(git log --pretty='> [%h] %s' -$number)" >> $GITHUB_ENV
 
 echo "" >> $releaseinfo
 echo "### Checksum" >> $releaseinfo

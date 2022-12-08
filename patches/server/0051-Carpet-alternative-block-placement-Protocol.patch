@@ -4,6 +4,19 @@ Date: Thu, 8 Dec 2022 19:40:00 +0800
 Subject: [PATCH] Carpet alternative block placement Protocol
 
 
+diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index f6f9ae994c06fea9e0382d69726e4bbc944784af..b2d5218bd97be400cd18185e9a5305df76635d6e 100644
+--- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -1960,7 +1960,7 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
+             Vec3 vec3d2 = vec3d.subtract(vec3d1);
+             double d0 = 1.0000001D;
+ 
+-            if (Math.abs(vec3d2.x()) < 1.0000001D && Math.abs(vec3d2.y()) < 1.0000001D && Math.abs(vec3d2.z()) < 1.0000001D) {
++            if (top.leavesmc.leaves.LeavesConfig.carpetAlternativeBlockPlacement || (Math.abs(vec3d2.x()) < 1.0000001D && Math.abs(vec3d2.y()) < 1.0000001D && Math.abs(vec3d2.z()) < 1.0000001D)) { // Leaves - carpetAlternativeBlockPlacement
+                 Direction enumdirection = movingobjectpositionblock.getDirection();
+ 
+                 this.player.resetLastActionTime();
 diff --git a/src/main/java/net/minecraft/world/item/BlockItem.java b/src/main/java/net/minecraft/world/item/BlockItem.java
 index 62d6c5b7590ff4faef5d8c7a8be03155b7338480..753d81a8daabfc424af323f9ebf52415b2fb618f 100644
 --- a/src/main/java/net/minecraft/world/item/BlockItem.java
@@ -64,16 +77,20 @@ index 2e65b44f10aeb44fd524a58e7eb815a566c1ad61..138e7c233f087da4c7f0c7adb58648b9
      public BlockState getStateForPlacement(BlockPlaceContext ctx) {
          return this.defaultBlockState();
 diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
-index 88544d0972e0f1d4339b8a5da8085c0643b799d5..63c493186334a18d531e9319d79b81304d1c47c7 100644
+index 88544d0972e0f1d4339b8a5da8085c0643b799d5..ae6fa6d4dbd350841ed1924477d02a2c974f5aed 100644
 --- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
 +++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
-@@ -422,6 +422,11 @@ public final class LeavesConfig {
+@@ -422,6 +422,15 @@ public final class LeavesConfig {
          jadeProtocol = getBoolean("settings.protocol.jade-protocol", jadeProtocol);
      }
  
 +    public static boolean carpetAlternativeBlockPlacement = false;
 +    private static void carpetAlternativeBlockPlacement() {
 +        carpetAlternativeBlockPlacement = getBoolean("settings.protocol.carpet-alternative-block-placement", carpetAlternativeBlockPlacement);
++        if (carpetAlternativeBlockPlacement) {
++            LeavesLogger.LOGGER.warning("If use carpet-alternative-block-placement, too far away form hit block check of UseItemOnPacket will be broken.");
++            LeavesLogger.LOGGER.warning("If you do not use it, you need to set it to false");
++        }
 +    }
 +
      public static final class WorldConfig {
@@ -81,7 +98,7 @@ index 88544d0972e0f1d4339b8a5da8085c0643b799d5..63c493186334a18d531e9319d79b8130
          public final String worldName;
 diff --git a/src/main/java/top/leavesmc/leaves/protocol/CarpetAlternativeBlockPlacement.java b/src/main/java/top/leavesmc/leaves/protocol/CarpetAlternativeBlockPlacement.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..0acf11f841a938aabb933c82b5e1bdf52a64d30c
+index 0000000000000000000000000000000000000000..848c380ed3d9755bab680b1e244a6024110bc383
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/protocol/CarpetAlternativeBlockPlacement.java
 @@ -0,0 +1,101 @@
@@ -134,12 +151,12 @@ index 0000000000000000000000000000000000000000..0acf11f841a938aabb933c82b5e1bdf5
 +            }
 +
 +            if (!directionProp.getPossibleValues().contains(facing)) {
-+                facing = context.getPlayer().getDirection().getOpposite(); // may
++                facing = context.getPlayer().getDirection().getOpposite();
 +            }
 +
 +            if (facing != origFacing && directionProp.getPossibleValues().contains(facing)) {
 +                if (state.getBlock() instanceof BedBlock) {
-+                    BlockPos headPos = blockPos.offset(facing.getNormal()); // really?
++                    BlockPos headPos = blockPos.relative(facing);
 +
 +                    if (!context.getLevel().getBlockState(headPos).canBeReplaced(context)) {
 +                        return null;

@@ -1,0 +1,148 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Thu, 8 Dec 2022 19:40:00 +0800
+Subject: [PATCH] Carpet alternative block placement Protocol
+
+
+diff --git a/src/main/java/net/minecraft/world/level/block/Block.java b/src/main/java/net/minecraft/world/level/block/Block.java
+index 2e65b44f10aeb44fd524a58e7eb815a566c1ad61..297362092ea445f885036b716aca2962c13ec12d 100644
+--- a/src/main/java/net/minecraft/world/level/block/Block.java
++++ b/src/main/java/net/minecraft/world/level/block/Block.java
+@@ -431,6 +431,14 @@ public class Block extends BlockBehaviour implements ItemLike {
+ 
+     @Nullable
+     public BlockState getStateForPlacement(BlockPlaceContext ctx) {
++        // Leaves start - carpetAlternativeBlockPlacement
++        if (top.leavesmc.leaves.LeavesConfig.carpetAlternativeBlockPlacement) {
++            BlockState tryState = top.leavesmc.leaves.protocol.CarpetAlternativeBlockPlacement.alternativeBlockPlacement(this, ctx);
++            if (tryState != null) {
++                return tryState;
++            }
++        }
++        // Leaves end - carpetAlternativeBlockPlacement
+         return this.defaultBlockState();
+     }
+ 
+diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+index 88544d0972e0f1d4339b8a5da8085c0643b799d5..63c493186334a18d531e9319d79b81304d1c47c7 100644
+--- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
++++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+@@ -422,6 +422,11 @@ public final class LeavesConfig {
+         jadeProtocol = getBoolean("settings.protocol.jade-protocol", jadeProtocol);
+     }
+ 
++    public static boolean carpetAlternativeBlockPlacement = false;
++    private static void carpetAlternativeBlockPlacement() {
++        carpetAlternativeBlockPlacement = getBoolean("settings.protocol.carpet-alternative-block-placement", carpetAlternativeBlockPlacement);
++    }
++
+     public static final class WorldConfig {
+ 
+         public final String worldName;
+diff --git a/src/main/java/top/leavesmc/leaves/protocol/CarpetAlternativeBlockPlacement.java b/src/main/java/top/leavesmc/leaves/protocol/CarpetAlternativeBlockPlacement.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..0acf11f841a938aabb933c82b5e1bdf52a64d30c
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/protocol/CarpetAlternativeBlockPlacement.java
+@@ -0,0 +1,101 @@
++package top.leavesmc.leaves.protocol;
++
++import net.minecraft.core.BlockPos;
++import net.minecraft.core.Direction;
++import net.minecraft.world.item.context.BlockPlaceContext;
++import net.minecraft.world.level.block.BedBlock;
++import net.minecraft.world.level.block.Block;
++import net.minecraft.world.level.block.ComparatorBlock;
++import net.minecraft.world.level.block.RepeaterBlock;
++import net.minecraft.world.level.block.state.BlockState;
++import net.minecraft.world.level.block.state.properties.BlockStateProperties;
++import net.minecraft.world.level.block.state.properties.ComparatorMode;
++import net.minecraft.world.level.block.state.properties.DirectionProperty;
++import net.minecraft.world.level.block.state.properties.Half;
++import net.minecraft.world.level.block.state.properties.Property;
++import net.minecraft.world.level.block.state.properties.SlabType;
++import net.minecraft.world.phys.Vec3;
++import org.jetbrains.annotations.NotNull;
++
++import javax.annotation.Nullable;
++
++public class CarpetAlternativeBlockPlacement {
++
++    @Nullable
++    public static BlockState alternativeBlockPlacement(@NotNull Block block, @NotNull BlockPlaceContext context) {
++        Vec3 hitPos = context.getClickLocation();
++        BlockPos blockPos = context.getClickedPos();
++        double relativeHitX = hitPos.x - blockPos.getX();
++        BlockState state = block.getStateForPlacement(context);
++
++        if (relativeHitX < 2 || state == null) {
++            return null;
++        }
++
++        DirectionProperty directionProp = getFirstDirectionProperty(state);
++        int protocolValue = ((int) relativeHitX - 2) / 2;
++
++        if (directionProp != null) {
++            Direction origFacing = state.getValue(directionProp);
++            Direction facing = origFacing;
++            int facingIndex = protocolValue & 0xF;
++
++            if (facingIndex == 6) {
++                facing = facing.getOpposite();
++            } else if (facingIndex <= 5) {
++                facing = Direction.from3DDataValue(facingIndex);
++            }
++
++            if (!directionProp.getPossibleValues().contains(facing)) {
++                facing = context.getPlayer().getDirection().getOpposite(); // may
++            }
++
++            if (facing != origFacing && directionProp.getPossibleValues().contains(facing)) {
++                if (state.getBlock() instanceof BedBlock) {
++                    BlockPos headPos = blockPos.offset(facing.getNormal()); // really?
++
++                    if (!context.getLevel().getBlockState(headPos).canBeReplaced(context)) {
++                        return null;
++                    }
++                }
++
++                state = state.setValue(directionProp, facing);
++            }
++        } else if (state.hasProperty(BlockStateProperties.AXIS)) {
++            Direction.Axis axis = Direction.Axis.VALUES[protocolValue % 3];
++            state = state.setValue(BlockStateProperties.AXIS, axis);
++        }
++
++        protocolValue &= 0xFFFFFFF0;
++
++        if (protocolValue >= 16) {
++            if (block instanceof RepeaterBlock) {
++                Integer delay = (protocolValue / 16);
++
++                if (RepeaterBlock.DELAY.getPossibleValues().contains(delay)) {
++                    state = state.setValue(RepeaterBlock.DELAY, delay);
++                }
++            } else if (protocolValue == 16) {
++                if (block instanceof ComparatorBlock) {
++                    state = state.setValue(ComparatorBlock.MODE, ComparatorMode.SUBTRACT);
++                } else if (state.hasProperty(BlockStateProperties.HALF) && state.getValue(BlockStateProperties.HALF) == Half.BOTTOM) {
++                    state = state.setValue(BlockStateProperties.HALF, Half.TOP);
++                } else if (state.hasProperty(BlockStateProperties.SLAB_TYPE) && state.getValue(BlockStateProperties.SLAB_TYPE) == SlabType.BOTTOM) {
++                    state = state.setValue(BlockStateProperties.SLAB_TYPE, SlabType.TOP);
++                }
++            }
++        }
++
++        return state;
++    }
++
++    @Nullable
++    public static DirectionProperty getFirstDirectionProperty(@NotNull BlockState state) {
++        for (Property<?> prop : state.getProperties()) {
++            if (prop instanceof DirectionProperty) {
++                return (DirectionProperty) prop;
++            }
++        }
++        return null;
++    }
++}

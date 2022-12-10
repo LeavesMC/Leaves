@@ -67,3 +67,5 @@ Leaves Modification
 
 - PCA sync protocol
 - BBOR protocol
+- Jade protocol
+- Carpet alternative block placement (carpet-extra)

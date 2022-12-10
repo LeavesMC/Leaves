@@ -67,3 +67,5 @@ Leaves Modification
 
 - PCA同步协议
 - BBOR结构显示协议
+- Jade数据同步协议
+- Carpet精确放置协议 (carpet-extra)

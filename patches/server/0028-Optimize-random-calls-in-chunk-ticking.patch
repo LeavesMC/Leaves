@@ -6,10 +6,10 @@ Subject: [PATCH] Optimize random calls in chunk ticking
 This patch is Powered by Pufferfish(https://github.com/pufferfish-gg/Pufferfish)
 
 diff --git a/src/main/java/net/minecraft/server/level/ServerChunkCache.java b/src/main/java/net/minecraft/server/level/ServerChunkCache.java
-index b9c1d62b13465db6d435d1cda72ca759d8f0d22d..70b7ef1309db9e61cab5cf9601fc9fc374265b11 100644
+index b4e780f5b050b01ecb6b485b509235f735d71141..1f1a9af7375bdadce325f8e755a64041320db055 100644
 --- a/src/main/java/net/minecraft/server/level/ServerChunkCache.java
 +++ b/src/main/java/net/minecraft/server/level/ServerChunkCache.java
-@@ -707,6 +707,11 @@ public class ServerChunkCache extends ChunkSource {
+@@ -708,6 +708,11 @@ public class ServerChunkCache extends ChunkSource {
              ProfilerFiller gameprofilerfiller = this.level.getProfiler();
  
              gameprofilerfiller.push("pollingChunks");
@@ -22,7 +22,7 @@ index b9c1d62b13465db6d435d1cda72ca759d8f0d22d..70b7ef1309db9e61cab5cf9601fc9fc3
              boolean flag1 = level.ticksPerSpawnCategory.getLong(org.bukkit.entity.SpawnCategory.ANIMAL) != 0L && worlddata.getGameTime() % level.ticksPerSpawnCategory.getLong(org.bukkit.entity.SpawnCategory.ANIMAL) == 0L; // CraftBukkit
  
 diff --git a/src/main/java/net/minecraft/server/level/ServerLevel.java b/src/main/java/net/minecraft/server/level/ServerLevel.java
-index a8c7ecbd7191fcdb2e012cafcf7a0ac63db75055..d59cab4f6a243d9f2448cc7b396d7a4cf9378684 100644
+index fcb0488725618382394096d61cc83d6afc099044..1f3d26bdcd4c949d2cb57ac6313b3936fdcfb1e6 100644
 --- a/src/main/java/net/minecraft/server/level/ServerLevel.java
 +++ b/src/main/java/net/minecraft/server/level/ServerLevel.java
 @@ -798,6 +798,13 @@ public class ServerLevel extends Level implements WorldGenLevel {
@@ -48,17 +48,17 @@ index a8c7ecbd7191fcdb2e012cafcf7a0ac63db75055..d59cab4f6a243d9f2448cc7b396d7a4c
              blockposition.set(this.findLightningTargetAround(this.getBlockRandomPos(j, 0, k, 15))); // Paper
              if (this.isRainingAt(blockposition)) {
                  DifficultyInstance difficultydamagescaler = this.getCurrentDifficultyAt(blockposition);
-@@ -832,7 +839,7 @@ public class ServerLevel extends Level implements WorldGenLevel {
-         }
- 
+@@ -838,7 +845,7 @@ public class ServerLevel extends Level implements WorldGenLevel {
          gameprofilerfiller.popPush("iceandsnow");
+         int l;
+ 
 -        if (!this.paperConfig().environment.disableIceAndSnow && this.random.nextInt(16) == 0) { // Paper - Disable ice and snow
 +        if (!this.paperConfig().environment.disableIceAndSnow && (top.leavesmc.leaves.LeavesConfig.optimizeChunkTicking ? (this.currentIceAndSnowTick++ & 15) == 0 : this.random.nextInt(16) == 0)) { // Paper - Disable ice and snow // Paper - optimise random ticking  // Leaves - optimize further random ticking
              // Paper start - optimise chunk ticking
              this.getRandomBlockPosition(j, 0, k, 15, blockposition);
              int normalY = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING, blockposition.getX() & 15, blockposition.getZ() & 15) + 1;
 diff --git a/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java b/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java
-index 5e54cf312160e537d2fe6e6fedc618160359330e..c75ddded71d32bc8e9d219a8acc52482f776c526 100644
+index 28e4b302284f955a73e75d0f4276d55fb51826f5..1bf1af06fbd6501e98def7997c487c425d6a1623 100644
 --- a/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java
 +++ b/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java
 @@ -88,6 +88,18 @@ public class LevelChunk extends ChunkAccess {

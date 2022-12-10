@@ -32,7 +32,7 @@ index ca4ff892bf647f9ee7c05e6afb1d88c5c8b46eaf..cd8a6f64064786ff46a8330d95b3aa7e
                  ServerGamePacketListenerImpl.LOGGER.error("Couldn\'t dispatch custom payload", ex);
                  this.disconnect("Invalid custom payload!", org.bukkit.event.player.PlayerKickEvent.Cause.INVALID_PAYLOAD);
 diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
-index 0f5c3159ed9d15024b35d32d282994f67568b2eb..ec3b537819dc741b53be679f353b647895d2bd2d 100644
+index 0f5c3159ed9d15024b35d32d282994f67568b2eb..2c8fe092ea662f4716376b55158af6882544c8f6 100644
 --- a/src/main/java/net/minecraft/server/players/PlayerList.java
 +++ b/src/main/java/net/minecraft/server/players/PlayerList.java
 @@ -397,6 +397,7 @@ public abstract class PlayerList {
@@ -51,6 +51,15 @@ index 0f5c3159ed9d15024b35d32d282994f67568b2eb..ec3b537819dc741b53be679f353b6478
          // Paper end
          ServerLevel worldserver = entityplayer.getLevel();
  
+@@ -1601,7 +1603,7 @@ public abstract class PlayerList {
+             entityplayer.connection.send(packetplayoutrecipeupdate);
+             entityplayer.getRecipeBook().sendInitialRecipeBook(entityplayer);
+         }
+-
++        top.leavesmc.leaves.protocol.BBORProtocol.onDataPackReload(); // Leaves - bbor
+     }
+ 
+     public boolean isAllowCheatsForAllPlayers() {
 diff --git a/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java b/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java
 index 1bf1af06fbd6501e98def7997c487c425d6a1623..15f9978e9c1ccb7f64a5f43c564842f93836b1d7 100644
 --- a/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java
@@ -103,16 +112,15 @@ index cb09cbb64bfe8de91a78b2dd1dc135f5d5688477..25a86927e6616a9b2105c06d789bc74c
          public final String worldName;
 diff --git a/src/main/java/top/leavesmc/leaves/protocol/BBORProtocol.java b/src/main/java/top/leavesmc/leaves/protocol/BBORProtocol.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..9e0b0ab11cf83c49fbb6680dc848515dd23d495a
+index 0000000000000000000000000000000000000000..95469919589b48e1c672b6b9dc884118d33d86de
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/protocol/BBORProtocol.java
-@@ -0,0 +1,195 @@
+@@ -0,0 +1,216 @@
 +package top.leavesmc.leaves.protocol;
 +
 +import io.netty.buffer.Unpooled;
 +import net.minecraft.core.BlockPos;
 +import net.minecraft.core.Registry;
-+import net.minecraft.core.registries.BuiltInRegistries;
 +import net.minecraft.core.registries.Registries;
 +import net.minecraft.network.FriendlyByteBuf;
 +import net.minecraft.resources.ResourceLocation;
@@ -134,6 +142,7 @@ index 0000000000000000000000000000000000000000..9e0b0ab11cf83c49fbb6680dc848515d
 +import java.util.Map;
 +import java.util.Set;
 +import java.util.concurrent.ConcurrentHashMap;
++import java.util.stream.Collectors;
 +
 +public class BBORProtocol {
 +
@@ -142,6 +151,7 @@ index 0000000000000000000000000000000000000000..9e0b0ab11cf83c49fbb6680dc848515d
 +    // send
 +    private static final ResourceLocation INITIALIZE_CLIENT = id("initialize");
 +    private static final ResourceLocation ADD_BOUNDING_BOX = id("add_bounding_box_v2");
++    private static final ResourceLocation STRUCTURE_LIST_SYNC = id("structure_list_sync_v1");
 +    // call
 +    public static final ResourceLocation SUBSCRIBE = id("subscribe");
 +    private static final Map<Integer, ServerPlayer> players = new ConcurrentHashMap<>();
@@ -162,6 +172,13 @@ index 0000000000000000000000000000000000000000..9e0b0ab11cf83c49fbb6680dc848515d
 +            buf.writeInt(OVERWORLD.levelData.getXSpawn());
 +            buf.writeInt(OVERWORLD.levelData.getZSpawn());
 +            ProtocolUtils.sendPayloadPacket(player, INITIALIZE_CLIENT, buf);
++
++            final Registry<Structure> structureRegistry = player.server.registryAccess().registryOrThrow(Registries.STRUCTURE);
++            final Set<String> structureIds = structureRegistry.entrySet().stream().map(e -> e.getKey().location().toString()).collect(Collectors.toSet());
++            FriendlyByteBuf buf1 = new FriendlyByteBuf(Unpooled.buffer());
++            buf1.writeVarInt(structureIds.size());
++            structureIds.forEach(buf1::writeUtf);
++            ProtocolUtils.sendPayloadPacket(player, STRUCTURE_LIST_SYNC, buf1);
 +        }
 +    }
 +
@@ -169,6 +186,19 @@ index 0000000000000000000000000000000000000000..9e0b0ab11cf83c49fbb6680dc848515d
 +        if (LeavesConfig.bborProtocol) {
 +            players.put(player.getId(), player);
 +            sendBoundingToPlayer(player.getId(), player);
++        }
++    }
++
++    public static void onDataPackReload() {
++        if (LeavesConfig.bborProtocol) {
++            for (var playerEntry : players.entrySet()) {
++                final Registry<Structure> structureRegistry = MinecraftServer.getServer().registryAccess().registryOrThrow(Registries.STRUCTURE);
++                final Set<String> structureIds = structureRegistry.entrySet().stream().map(e -> e.getKey().location().toString()).collect(Collectors.toSet());
++                FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
++                buf.writeVarInt(structureIds.size());
++                structureIds.forEach(buf::writeUtf);
++                ProtocolUtils.sendPayloadPacket(playerEntry.getValue(), STRUCTURE_LIST_SYNC, buf);
++            }
 +        }
 +    }
 +

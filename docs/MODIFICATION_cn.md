@@ -26,6 +26,7 @@ Leaves Modification
 - 删除玩家聊天内的签名 (可以替代NoChatReportMod的服务器侧)
 - 重新引入更新抑制机制
 - 扁平化随机数三角分布 (类似Carpet-TIS-Addition)
+- 玩家操作限制器 (可禁止自动破基岩mod)
 
 ## 性能
 

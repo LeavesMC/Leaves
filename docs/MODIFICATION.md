@@ -27,6 +27,8 @@ Leaves Modification
 - Instant BlockUpdater reintroduced
 - Random flatten triangular distribution (like Carpet-TIS-Addition)
 - Player operation limiter (can disable auto break bedrock mod)
+- Renewable Elytra (on shulker kill phantom)
+- Stackable ShulkerBox (empty)
 
 ## Performance
 
@@ -58,6 +60,7 @@ Leaves Modification
 - Reduce entity fluid lookups if no fluids
 - Reduce chunk loading & lookups
 - Simpler Vanilla ShapelessRecipes comparison
+- Improve fluid direction caching
 
 > Powered by [Purpur](https://github.com/PurpurMC/Purpur)
 - Don't send useless entity packets

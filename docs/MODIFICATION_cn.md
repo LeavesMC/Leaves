@@ -27,6 +27,8 @@ Leaves Modification
 - 重新引入更新抑制机制
 - 扁平化随机数三角分布 (类似Carpet-TIS-Addition)
 - 玩家操作限制器 (可禁止自动破基岩mod)
+- 可再生鞘翅 (当潜影贝杀死幻翼时)
+- 可堆叠空潜影箱
 
 ## 性能
 
@@ -58,6 +60,7 @@ Leaves Modification
 - 优化实体流体检查
 - 优化末影人传送时的区块寻找
 - 更好的原版无序配方
+- 优化流体距离计算缓存
 
 > Powered by [Purpur](https://github.com/PurpurMC/Purpur)
 - 减少不必要包的发送

@@ -17,35 +17,26 @@ index fd5cbb45e9894b7895ea488e2b9876c0391f6f11..ceb9f13a171ec3e115ef9037f211ca7c
          }
  
          record ConstantFunction(net.minecraft.network.chat.Component component) implements Function<Audience, net.minecraft.network.chat.Component> {
-diff --git a/src/main/java/net/minecraft/network/protocol/game/ServerboundChatPacket.java b/src/main/java/net/minecraft/network/protocol/game/ServerboundChatPacket.java
-index d1d2fc0c57523c1abf1e8bfec913c78927c3dafc..7e0d49edb49a290b9e3ff4465b5e3c49f1aec9da 100644
---- a/src/main/java/net/minecraft/network/protocol/game/ServerboundChatPacket.java
-+++ b/src/main/java/net/minecraft/network/protocol/game/ServerboundChatPacket.java
-@@ -2,6 +2,8 @@ package net.minecraft.network.protocol.game;
+diff --git a/src/main/java/net/minecraft/network/chat/MessageSignature.java b/src/main/java/net/minecraft/network/chat/MessageSignature.java
+index df9997873c4bbec184379ec14dca1bf4566eb89d..de4b9b0d928541857cc73461a948d71605e821b1 100644
+--- a/src/main/java/net/minecraft/network/chat/MessageSignature.java
++++ b/src/main/java/net/minecraft/network/chat/MessageSignature.java
+@@ -17,13 +17,13 @@ public record MessageSignature(byte[] bytes) {
+     public static final int BYTES = 256;
  
- import java.time.Instant;
- import javax.annotation.Nullable;
-+
-+import io.netty.buffer.ByteBuf;
- import net.minecraft.network.FriendlyByteBuf;
- import net.minecraft.network.chat.LastSeenMessages;
- import net.minecraft.network.chat.MessageSignature;
-@@ -9,8 +11,14 @@ import net.minecraft.network.protocol.Packet;
- 
- public record ServerboundChatPacket(String message, Instant timeStamp, long salt, @Nullable MessageSignature signature, LastSeenMessages.Update lastSeenMessages) implements Packet<ServerGamePacketListener> {
-     public ServerboundChatPacket(FriendlyByteBuf buf) {
--        this(buf.readUtf(256), buf.readInstant(), buf.readLong(), buf.readNullable(MessageSignature::read), new LastSeenMessages.Update(buf));
-+        // Leaves start - EMPTY
-+        this(buf.readUtf(256), buf.readInstant(), buf.readLong(), buf.readBytes(new byte[256]), new LastSeenMessages.Update(buf));
-+    }
-+
-+    private ServerboundChatPacket(String message, Instant timeStamp, long salt, ByteBuf byteBuf, LastSeenMessages.Update lastSeenMessages) {
-+        this(message, timeStamp, salt, (MessageSignature) null, lastSeenMessages);
+     public MessageSignature {
+-        Preconditions.checkState(bs.length == 256, "Invalid message signature size");
++        Preconditions.checkState(bytes.length == 256, "Invalid message signature size");
      }
-+    // Leaves end - EMPTY
  
-     @Override
-     public void write(FriendlyByteBuf buf) {
+     public static MessageSignature read(FriendlyByteBuf buf) {
+         byte[] bs = new byte[256];
+         buf.readBytes(bs);
+-        return new MessageSignature(bs);
++        return top.leavesmc.leaves.LeavesConfig.noChatSign ? null : new MessageSignature(bs); // Leaves - no chat sign
+     }
+ 
+     public static void write(FriendlyByteBuf buf, MessageSignature signature) {
 diff --git a/src/main/java/net/minecraft/network/protocol/status/ServerStatus.java b/src/main/java/net/minecraft/network/protocol/status/ServerStatus.java
 index 6e0a3086da142f1c42007a16bbec7edbab17da04..776be7f58746f96fe9bf7daf11053d3958690df2 100644
 --- a/src/main/java/net/minecraft/network/protocol/status/ServerStatus.java
@@ -129,7 +120,7 @@ index deafca06331e19105a1e19ae11f271b05af7b982..41d9f243c0b56c81b70e64cfd3ca05b9
  
      protected boolean convertOldUsers() {
 diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index 0c2255b6e2fb7752f85b0f83d4f84732758bd14d..f7870d551bf6045b649c9c8768b5ad5c8d3488ae 100644
+index 57a62a5d6e05b6e05214b5aef96c5f2411e9f424..4dfb634a0d73620e799ffdb106febff1db47a87a 100644
 --- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 @@ -2144,10 +2144,27 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic

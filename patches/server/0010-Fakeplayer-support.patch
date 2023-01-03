@@ -249,7 +249,7 @@ index 1fb25e8a21b568864974cc81b452ba062890d593..c32825a237a539035828a9c85673ea0e
          public final String worldName;
 diff --git a/src/main/java/top/leavesmc/leaves/bot/BotCommand.java b/src/main/java/top/leavesmc/leaves/bot/BotCommand.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..6d08dd6dfdbf97e9de7457602f58458fa4239bf3
+index 0000000000000000000000000000000000000000..52162b88fee007773312060e89102e4532b49b87
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/BotCommand.java
 @@ -0,0 +1,272 @@
@@ -399,7 +399,7 @@ index 0000000000000000000000000000000000000000..6d08dd6dfdbf97e9de7457602f58458f
 +            sender.sendMessage(ChatColor.RED + "Fakeplayer limit is full");
 +        }
 +
-+        ServerBot.createBot(((Player) sender).getLocation(), args[1], args[2]);
++        ServerBot.createBot(((Player) sender).getLocation(), args[1], args.length > 2 ? args[2] : null);
 +    }
 +
 +    private void onRemove(CommandSender sender, String @NotNull [] args) {
@@ -477,7 +477,7 @@ index 0000000000000000000000000000000000000000..6d08dd6dfdbf97e9de7457602f58458f
 +        }
 +
 +        bot.setBotAction(action.getNew(tickDelay, number, ((CraftPlayer) sender).getHandle()));
-+        sender.sendMessage("Action has been issued to " + bot.getName());
++        sender.sendMessage("Action has been issued to " + bot.getName().getString());
 +    }
 +
 +    private void onList(CommandSender sender, String @NotNull [] args) {
@@ -574,10 +574,10 @@ index 0000000000000000000000000000000000000000..d6466ee4db637106e1394bb462d875e5
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/ServerBot.java b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..bd2ac62805cf673a052a45a1c4930fc49c5b5c53
+index 0000000000000000000000000000000000000000..f305b51cb13899786b8e927600fc7fa104dad3f8
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
-@@ -0,0 +1,731 @@
+@@ -0,0 +1,737 @@
 +package top.leavesmc.leaves.bot;
 +
 +import com.google.common.collect.Lists;
@@ -1229,6 +1229,12 @@ index 0000000000000000000000000000000000000000..bd2ac62805cf673a052a45a1c4930fc4
 +        punch();
 +    }
 +
++    public void jumpFromGround() {
++        double jumpPower = (double) this.getJumpPower() + this.getJumpBoostPower();
++        Vec3 vec3d = this.getDeltaMovement();
++        this.setDeltaMovement(vec3d.x, jumpPower, vec3d.z);
++    }
++
 +    public void setItem(org.bukkit.inventory.ItemStack item, EquipmentSlot slot) {
 +        if (item == null) {
 +            item = defaultItem;
@@ -1443,7 +1449,7 @@ index 0000000000000000000000000000000000000000..b7a19fd84f406c52ce368c3124c99a95
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/action/AttackAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/action/AttackAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..100feffef0f97229875cc6f7002cc3c9ee18b689
+index 0000000000000000000000000000000000000000..485f3587b5caa6671499306fdf982b1f6c9da5c5
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/action/AttackAction.java
 @@ -0,0 +1,29 @@
@@ -1463,7 +1469,7 @@ index 0000000000000000000000000000000000000000..100feffef0f97229875cc6f7002cc3c9
 +
 +    @Override
 +    public BotAction getNew(int tickDelay, int number, @NotNull ServerPlayer player) {
-+        return new AttackAction().setTickDelay(tickDelay).setNumber(number);
++        return this.setTickDelay(tickDelay).setNumber(number);
 +    }
 +
 +    @Override
@@ -1478,7 +1484,7 @@ index 0000000000000000000000000000000000000000..100feffef0f97229875cc6f7002cc3c9
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/action/BreakBlockAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/action/BreakBlockAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..ad0c0ee60688f00cc717d79080723cf27d78bd25
+index 0000000000000000000000000000000000000000..b6ef645306ebce128b3680c34b513a982fa636fa
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/action/BreakBlockAction.java
 @@ -0,0 +1,62 @@
@@ -1510,7 +1516,7 @@ index 0000000000000000000000000000000000000000..ad0c0ee60688f00cc717d79080723cf2
 +
 +    @Override
 +    public boolean doTick(@NotNull ServerBot bot) {
-+        Block block = bot.getBukkitEntity().getTargetBlock(5);
++        Block block = bot.getBukkitEntity().getTargetBlockExact(5);
 +        if (block != null) {
 +            BlockPos pos = ((CraftBlock) block).getPosition();
 +
@@ -1546,7 +1552,7 @@ index 0000000000000000000000000000000000000000..ad0c0ee60688f00cc717d79080723cf2
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/action/DropAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/action/DropAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..bd63a99edf4213093e8f4b2b66a75a2e315781ea
+index 0000000000000000000000000000000000000000..bf2997d79930afca765e487c63f94a6dc0b3cb1b
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/action/DropAction.java
 @@ -0,0 +1,23 @@
@@ -1564,7 +1570,7 @@ index 0000000000000000000000000000000000000000..bd63a99edf4213093e8f4b2b66a75a2e
 +
 +    @Override
 +    public BotAction getNew(int tickDelay, int number, @NotNull ServerPlayer player) {
-+        return new DropAction().setTickDelay(0).setNumber(1);
++        return this.setTickDelay(0).setNumber(1);
 +    }
 +
 +    @Override
@@ -1573,12 +1579,46 @@ index 0000000000000000000000000000000000000000..bd63a99edf4213093e8f4b2b66a75a2e
 +        return true;
 +    }
 +}
+diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/action/JumpAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/action/JumpAction.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..b65b6a8ddb1e3dbddd078a3edfdefb7cd21733ed
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/agent/action/JumpAction.java
+@@ -0,0 +1,28 @@
++package top.leavesmc.leaves.bot.agent.action;
++
++import net.minecraft.server.level.ServerPlayer;
++import org.jetbrains.annotations.NotNull;
++import top.leavesmc.leaves.bot.ServerBot;
++import top.leavesmc.leaves.bot.agent.BotAction;
++
++public class JumpAction extends BotAction {
++
++    public JumpAction() {
++        super("jump", false, false);
++    }
++
++    @Override
++    public BotAction getNew(int tickDelay, int number, @NotNull ServerPlayer player) {
++        return this.setTickDelay(0).setNumber(1);
++    }
++
++    @Override
++    public boolean doTick(@NotNull ServerBot bot) {
++        if (bot.isOnGround()) {
++            bot.jumpFromGround();
++            return true;
++        } else {
++            return false;
++        }
++    }
++}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/action/RotateAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/action/RotateAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..e03dcdef264679be603bea6eca4a1129f258e037
+index 0000000000000000000000000000000000000000..824501ba7339c177827ce8592e1e5c78c6a7f114
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/action/RotateAction.java
-@@ -0,0 +1,30 @@
+@@ -0,0 +1,31 @@
 +package top.leavesmc.leaves.bot.agent.action;
 +
 +import net.minecraft.server.level.ServerPlayer;
@@ -1587,6 +1627,7 @@ index 0000000000000000000000000000000000000000..e03dcdef264679be603bea6eca4a1129
 +import top.leavesmc.leaves.bot.agent.BotAction;
 +
 +public class RotateAction extends BotAction {
++
 +    public RotateAction() {
 +        super("rotate", false, false);
 +    }
@@ -1600,7 +1641,7 @@ index 0000000000000000000000000000000000000000..e03dcdef264679be603bea6eca4a1129
 +
 +    @Override
 +    public BotAction getNew(int tickDelay, int number, @NotNull ServerPlayer player) {
-+        return new RotateAction().setPlayer(player).setTickDelay(0).setNumber(1);
++        return this.setPlayer(player).setTickDelay(0).setNumber(1);
 +    }
 +
 +    @Override
@@ -1611,7 +1652,7 @@ index 0000000000000000000000000000000000000000..e03dcdef264679be603bea6eca4a1129
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/action/SneakAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/action/SneakAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..048b0017a5270ce43b2f2bed2aa9f98cc2cec42a
+index 0000000000000000000000000000000000000000..ba1a69c6d66fba3563b3e042614db916acb3970c
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/action/SneakAction.java
 @@ -0,0 +1,26 @@
@@ -1637,16 +1678,16 @@ index 0000000000000000000000000000000000000000..048b0017a5270ce43b2f2bed2aa9f98c
 +    @Override
 +    public boolean doTick(@NotNull ServerBot bot) {
 +        bot.setShiftKeyDown(!bot.isShiftKeyDown());
-+        bot.setPose(bot.isShiftKeyDown() ? Pose.SNIFFING : Pose.STANDING);
++        bot.setPose(bot.isShiftKeyDown() ? Pose.CROUCHING : Pose.STANDING);
 +        return true;
 +    }
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/action/StopAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/action/StopAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..f7f5ca5e738934da02033f86929ca076416da141
+index 0000000000000000000000000000000000000000..cc71460396f5049aeb1fa3c5ed14835d798aa772
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/action/StopAction.java
-@@ -0,0 +1,23 @@
+@@ -0,0 +1,24 @@
 +package top.leavesmc.leaves.bot.agent.action;
 +
 +import net.minecraft.server.level.ServerPlayer;
@@ -1655,13 +1696,14 @@ index 0000000000000000000000000000000000000000..f7f5ca5e738934da02033f86929ca076
 +import top.leavesmc.leaves.bot.agent.BotAction;
 +
 +public class StopAction extends BotAction {
++
 +    public StopAction() {
 +        super("stop", false, false);
 +    }
 +
 +    @Override
 +    public BotAction getNew(int tickDelay, int number, @NotNull ServerPlayer player) {
-+        return new StopAction().setTickDelay(0).setNumber(0);
++        return this.setTickDelay(0).setNumber(0);
 +    }
 +
 +    @Override
@@ -1672,10 +1714,10 @@ index 0000000000000000000000000000000000000000..f7f5ca5e738934da02033f86929ca076
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/action/UseItemAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/action/UseItemAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..768d505ccfaf94befd39d607fec691459cb81de7
+index 0000000000000000000000000000000000000000..8f8e57551a5a3dec19679cb2cd318a18fcd5a4ed
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/action/UseItemAction.java
-@@ -0,0 +1,26 @@
+@@ -0,0 +1,27 @@
 +package top.leavesmc.leaves.bot.agent.action;
 +
 +import net.minecraft.server.level.ServerPlayer;
@@ -1686,13 +1728,14 @@ index 0000000000000000000000000000000000000000..768d505ccfaf94befd39d607fec69145
 +import top.leavesmc.leaves.bot.agent.BotAction;
 +
 +public class UseItemAction extends BotAction {
++
 +    public UseItemAction() {
 +        super("use", true, true);
 +    }
 +
 +    @Override
 +    public BotAction getNew(int tickDelay, int number, @NotNull ServerPlayer player) {
-+        return new UseItemAction().setTickDelay(tickDelay).setNumber(number);
++        return this.setTickDelay(tickDelay).setNumber(number);
 +    }
 +
 +    @Override
@@ -1704,10 +1747,10 @@ index 0000000000000000000000000000000000000000..768d505ccfaf94befd39d607fec69145
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/action/UseItemOnAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/action/UseItemOnAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..eaf38ebbd40677311323c646d34cb5cb9a366845
+index 0000000000000000000000000000000000000000..a749b221570edcd795d5d3e410e5e41dd55941db
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/action/UseItemOnAction.java
-@@ -0,0 +1,32 @@
+@@ -0,0 +1,33 @@
 +package top.leavesmc.leaves.bot.agent.action;
 +
 +import net.minecraft.server.level.ServerPlayer;
@@ -1720,13 +1763,14 @@ index 0000000000000000000000000000000000000000..eaf38ebbd40677311323c646d34cb5cb
 +import top.leavesmc.leaves.bot.agent.BotAction;
 +
 +public class UseItemOnAction extends BotAction {
++
 +    public UseItemOnAction() {
 +        super("use_on", true, true);
 +    }
 +
 +    @Override
 +    public BotAction getNew(int tickDelay, int number, @NotNull ServerPlayer player) {
-+        return new UseItemOnAction().setTickDelay(tickDelay).setNumber(number);
++        return this.setTickDelay(tickDelay).setNumber(number);
 +    }
 +
 +    @Override
@@ -1742,7 +1786,7 @@ index 0000000000000000000000000000000000000000..eaf38ebbd40677311323c646d34cb5cb
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/action/UseItemToAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/action/UseItemToAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..4f9274dc9355983b29a645b553147703d7a4e4d7
+index 0000000000000000000000000000000000000000..98b70e8fe1b96c8efe6055eb23682a70a0e7244a
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/action/UseItemToAction.java
 @@ -0,0 +1,33 @@
@@ -1765,7 +1809,7 @@ index 0000000000000000000000000000000000000000..4f9274dc9355983b29a645b553147703
 +
 +    @Override
 +    public BotAction getNew(int tickDelay, int number, @NotNull ServerPlayer player) {
-+        return new UseItemToAction().setNumber(number).setTickDelay(tickDelay);
++        return this.setNumber(number).setTickDelay(tickDelay);
 +    }
 +
 +    @Override

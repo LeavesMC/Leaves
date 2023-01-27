@@ -17,19 +17,53 @@ index 309fe1162db195c7c3c94d785d6aa2700e42b08a..7f00a44fdba7ba63ea9e06ff959ff51d
          }
      }
  
-diff --git a/src/main/java/net/minecraft/network/chat/MessageSignature.java b/src/main/java/net/minecraft/network/chat/MessageSignature.java
-index e2812cdce3b1170b7b7d0f52209e8b4fd2b64c61..8faeff877187761d58da1f9a2d95e0d4d53f9cc0 100644
---- a/src/main/java/net/minecraft/network/chat/MessageSignature.java
-+++ b/src/main/java/net/minecraft/network/chat/MessageSignature.java
-@@ -24,7 +24,7 @@ public record MessageSignature(byte[] bytes) {
-     public static MessageSignature read(FriendlyByteBuf buf) {
-         byte[] bs = new byte[256];
-         buf.readBytes(bs);
--        return new MessageSignature(bs);
-+        return top.leavesmc.leaves.LeavesConfig.noChatSign ? null : new MessageSignature(bs); // Leaves - no chat sign
+diff --git a/src/main/java/net/minecraft/commands/arguments/ArgumentSignatures.java b/src/main/java/net/minecraft/commands/arguments/ArgumentSignatures.java
+index 72a8aa676836fcb3b4578689d16af65e18f55bbe..47a06936a4727c6209a7ad0fb8fb10995d36513c 100644
+--- a/src/main/java/net/minecraft/commands/arguments/ArgumentSignatures.java
++++ b/src/main/java/net/minecraft/commands/arguments/ArgumentSignatures.java
+@@ -13,10 +13,17 @@ public record ArgumentSignatures(List<ArgumentSignatures.Entry> entries) {
+     private static final int MAX_ARGUMENT_COUNT = 8;
+     private static final int MAX_ARGUMENT_NAME_LENGTH = 16;
+ 
++    // Leaves start - no chat sign
+     public ArgumentSignatures(FriendlyByteBuf buf) {
+-        this(buf.readCollection(FriendlyByteBuf.limitValue(ArrayList::new, 8), ArgumentSignatures.Entry::new));
++        this(readSign(buf));
      }
  
-     public static void write(FriendlyByteBuf buf, MessageSignature signature) {
++    private static List<ArgumentSignatures.Entry> readSign(FriendlyByteBuf buf) {
++        var entries = buf.readCollection(FriendlyByteBuf.limitValue(ArrayList::new, 8), Entry::new);
++        return top.leavesmc.leaves.LeavesConfig.noChatSign ? List.of() : entries;
++    }
++    // Leaves end - no chat sign
++
+     @Nullable
+     public MessageSignature get(String argumentName) {
+         for(ArgumentSignatures.Entry entry : this.entries) {
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ServerboundChatPacket.java b/src/main/java/net/minecraft/network/protocol/game/ServerboundChatPacket.java
+index d1d2fc0c57523c1abf1e8bfec913c78927c3dafc..50c1b722231c2add72663c475ae9068a35bfd524 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ServerboundChatPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ServerboundChatPacket.java
+@@ -8,10 +8,18 @@ import net.minecraft.network.chat.MessageSignature;
+ import net.minecraft.network.protocol.Packet;
+ 
+ public record ServerboundChatPacket(String message, Instant timeStamp, long salt, @Nullable MessageSignature signature, LastSeenMessages.Update lastSeenMessages) implements Packet<ServerGamePacketListener> {
++    // Leaves start - no chat sign
+     public ServerboundChatPacket(FriendlyByteBuf buf) {
+-        this(buf.readUtf(256), buf.readInstant(), buf.readLong(), buf.readNullable(MessageSignature::read), new LastSeenMessages.Update(buf));
++        this(buf.readUtf(256), buf.readInstant(), buf.readLong(), buf.readNullable(ServerboundChatPacket::readSign), new LastSeenMessages.Update(buf));
+     }
+ 
++    private static MessageSignature readSign(FriendlyByteBuf buf) {
++        byte[] bs = new byte[256];
++        buf.readBytes(bs);
++        return top.leavesmc.leaves.LeavesConfig.noChatSign ? null : new MessageSignature(bs);
++    }
++    // Leaves end - no chat sign
++
+     @Override
+     public void write(FriendlyByteBuf buf) {
+         buf.writeUtf(this.message, 256);
 diff --git a/src/main/java/net/minecraft/network/protocol/game/ServerboundChatSessionUpdatePacket.java b/src/main/java/net/minecraft/network/protocol/game/ServerboundChatSessionUpdatePacket.java
 index 9d6db4a378036559efab91c8b7dcf2a6b0c2cce6..2c349dc502ce275a8215766933f4855f1c7bd726 100644
 --- a/src/main/java/net/minecraft/network/protocol/game/ServerboundChatSessionUpdatePacket.java

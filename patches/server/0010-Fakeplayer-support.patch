@@ -83,7 +83,7 @@ index 7d6d3c8556033d289fdadc489e73fba478fce41a..2bdd75f4e48a232d2cc7c24475caafa2
                  PlayerChangedWorldEvent changeEvent = new PlayerChangedWorldEvent(this.getBukkitEntity(), worldserver1.getWorld());
                  this.level.getCraftServer().getPluginManager().callEvent(changeEvent);
 diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
-index 4b754f6eae683248d7fe11d6d6cb168d5dd696a2..9ecc6e12cea85e96f55705ff5ee831732c614c91 100644
+index 4b754f6eae683248d7fe11d6d6cb168d5dd696a2..5a5a3f84138b2f9a55f0a7c17004194dd324ebb4 100644
 --- a/src/main/java/net/minecraft/server/players/PlayerList.java
 +++ b/src/main/java/net/minecraft/server/players/PlayerList.java
 @@ -80,6 +80,7 @@ import net.minecraft.server.ServerScoreboard;
@@ -129,6 +129,41 @@ index 4b754f6eae683248d7fe11d6d6cb168d5dd696a2..9ecc6e12cea85e96f55705ff5ee83173
          final net.kyori.adventure.text.Component jm = playerJoinEvent.joinMessage();
  
          if (jm != null && !jm.equals(net.kyori.adventure.text.Component.empty())) { // Paper - Adventure
+@@ -1063,11 +1076,16 @@ public abstract class PlayerList {
+     }
+ 
+     public String[] getPlayerNamesArray() {
+-        String[] astring = new String[this.players.size()];
++        String[] astring = new String[this.players.size() + ServerBot.getBots().size()]; // Leaves - fakeplayer support
+ 
+         for (int i = 0; i < this.players.size(); ++i) {
+             astring[i] = ((ServerPlayer) this.players.get(i)).getGameProfile().getName();
+         }
++        // Leaves start - fakeplayer support
++        for (int i = 0; i < ServerBot.getBots().size(); ++i) {
++            astring[i] = ((ServerPlayer) ServerBot.getBots().get(i)).getGameProfile().getName();
++        }
++        // Leaves end - fakeplayer support
+ 
+         return astring;
+     }
+@@ -1532,4 +1550,16 @@ public abstract class PlayerList {
+     public boolean isAllowCheatsForAllPlayers() {
+         return this.allowCheatsForAllPlayers;
+     }
++
++    // Leaves start - fakeplayer support
++    public void addNewBot(ServerBot bot) {
++        playersByName.put(bot.getScoreboardName().toLowerCase(java.util.Locale.ROOT), bot);
++        playersByUUID.put(bot.getUUID(), bot);
++    }
++
++    public void removeBot(ServerBot bot) {
++        playersByName.remove(bot.getScoreboardName().toLowerCase(java.util.Locale.ROOT));
++        playersByUUID.remove(bot.getUUID());
++    }
++    // Leaves end - fakeplayer support
+ }
 diff --git a/src/main/java/net/minecraft/world/entity/player/Player.java b/src/main/java/net/minecraft/world/entity/player/Player.java
 index 61597ebe2f9faff43994c475074b87d11905e582..179d49336ec6ff0ac345a9df1c1236afa096af4c 100644
 --- a/src/main/java/net/minecraft/world/entity/player/Player.java
@@ -572,10 +607,10 @@ index 0000000000000000000000000000000000000000..d6466ee4db637106e1394bb462d875e5
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/ServerBot.java b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..2ea8875e702dbec3df1019d2c789b6864d955ef9
+index 0000000000000000000000000000000000000000..4cd3b2ff3e0d1f0ba8358e8ba9b11cc0ac1e1a7f
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
-@@ -0,0 +1,739 @@
+@@ -0,0 +1,749 @@
 +package top.leavesmc.leaves.bot;
 +
 +import com.google.common.collect.Lists;
@@ -601,6 +636,7 @@ index 0000000000000000000000000000000000000000..2ea8875e702dbec3df1019d2c789b686
 +import net.minecraft.server.level.ServerPlayer;
 +import net.minecraft.server.network.ServerGamePacketListenerImpl;
 +import net.minecraft.server.network.ServerPlayerConnection;
++import net.minecraft.stats.ServerStatsCounter;
 +import net.minecraft.util.Mth;
 +import net.minecraft.world.InteractionHand;
 +import net.minecraft.world.damagesource.DamageSource;
@@ -663,8 +699,9 @@ index 0000000000000000000000000000000000000000..2ea8875e702dbec3df1019d2c789b686
 +    private int doActionNumber;
 +
 +    private final ItemStack defaultItem;
++    private final ServerStatsCounter stats;
 +
-+    private static final Set<ServerBot> bots = new HashSet<>();
++    private static final List<ServerBot> bots = new ArrayList<>();
 +    private static final Plugin MINECRAFT_PLUGIN = new MinecraftInternalPlugin();
 +
 +    private ServerBot(MinecraftServer server, ServerLevel world, GameProfile profile) {
@@ -679,6 +716,8 @@ index 0000000000000000000000000000000000000000..2ea8875e702dbec3df1019d2c789b686
 +        this.doActionNumber = -1;
 +        this.defaultItem = new ItemStack(Material.AIR);
 +        this.removeOnDeath = true;
++        this.stats = new ServerStatsCounter(server, null);
++        server.getPlayerList().addNewBot(this);
 +    }
 +
 +    public static void createBot(Location loc, String name , String skinName) {
@@ -805,6 +844,7 @@ index 0000000000000000000000000000000000000000..2ea8875e702dbec3df1019d2c789b686
 +    private void dieCheck() {
 +        if (removeOnDeath) {
 +            bots.remove(this);
++            server.getPlayerList().removeBot(this);
 +            remove(RemovalReason.KILLED);
 +            this.setDead();
 +            this.removeTab();
@@ -1265,6 +1305,11 @@ index 0000000000000000000000000000000000000000..2ea8875e702dbec3df1019d2c789b686
 +        this.newAction = botAction;
 +    }
 +
++    @Override
++    public ServerStatsCounter getStats() {
++        return stats;
++    }
++
 +    public static ServerBot getBot(ServerPlayer player) {
 +        ServerBot bot = null;
 +        for (ServerBot b : bots) {
@@ -1297,7 +1342,7 @@ index 0000000000000000000000000000000000000000..2ea8875e702dbec3df1019d2c789b686
 +        return true;
 +    }
 +
-+    public static Set<ServerBot> getBots() { // It needs unmodifiable
++    public static List<ServerBot> getBots() { // It needs unmodifiable
 +        return bots;
 +    }
 +

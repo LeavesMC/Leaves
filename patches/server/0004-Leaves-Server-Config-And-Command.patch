@@ -65,7 +65,7 @@ index 3cbf801b2e5420c0e870f73788deb550e49ad54d..856055eeac058290b9b2146a11f5facc
          this.world = new CraftWorld((ServerLevel) this, gen, biomeProvider, env);
  
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 710d5c2e651882259ac45d634177e5278d5c1aad..1b307fe1172857d18c7ab5791ad5fdd4ea976ade 100644
+index a2ac8a05f8767697a50fe87c9f9e5dadb0eb8fcb..a4f500464de6ee6e29cff84109357364e53de233 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 @@ -979,6 +979,7 @@ public final class CraftServer implements Server {
@@ -108,7 +108,7 @@ index 710d5c2e651882259ac45d634177e5278d5c1aad..1b307fe1172857d18c7ab5791ad5fdd4
          @Override
          public void restart() {
 diff --git a/src/main/java/org/bukkit/craftbukkit/Main.java b/src/main/java/org/bukkit/craftbukkit/Main.java
-index 3c0414ded3ed74b11ac8ace447f09f4b85834c31..81710d33904448a14c9e34502f4892b7b3e5da89 100644
+index 13faf8a5ea85f4c94dba814e39a9e74b9c2e86c4..16581a015993cb555868115c356c3b5c2232396e 100644
 --- a/src/main/java/org/bukkit/craftbukkit/Main.java
 +++ b/src/main/java/org/bukkit/craftbukkit/Main.java
 @@ -158,6 +158,14 @@ public class Main {
@@ -440,4 +440,164 @@ index 0000000000000000000000000000000000000000..4c290eb2d4abf9e9b923b8d0878f3193
 +            return config == null ? this.worldDefaults.getList(path, dfl) : config.getList(path, this.worldDefaults.getList(path, dfl));
 +        }
 +    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/command/CommandArgument.java b/src/main/java/top/leavesmc/leaves/command/CommandArgument.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..4d645b317fc6f0803b9288e629bae64bcf2474ce
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/command/CommandArgument.java
+@@ -0,0 +1,43 @@
++package top.leavesmc.leaves.command;
++
++import org.jetbrains.annotations.NotNull;
++
++import java.util.ArrayList;
++import java.util.Arrays;
++import java.util.List;
++
++public class CommandArgument {
++
++    private final List<CommandArgumentType<?>> argumentTypes;
++    private final List<List<String>> tabComplete;
++
++    public CommandArgument(CommandArgumentType<?>... argumentTypes) {
++        this.argumentTypes = List.of(argumentTypes);
++        this.tabComplete = new ArrayList<>();
++        for (int i = 0; i < argumentTypes.length; i++) {
++            tabComplete.add(new ArrayList<>());
++        }
++    }
++
++    public List<String> tabComplete(int n) {
++        if (tabComplete.size() > n) {
++            return tabComplete.get(n);
++        } else {
++            return List.of();
++        }
++    }
++
++    public CommandArgument setTabComplete(int index, List<String> list) {
++        tabComplete.set(index, list);
++        return this;
++    }
++
++    public CommandArgumentResult parse(int index, String @NotNull [] args) {
++        Object[] result = new String[argumentTypes.size()];
++        Arrays.fill(result, null);
++        for (int i = index, j = 0; i < args.length && j < result.length; i++, j++) {
++            result[j] = argumentTypes.get(i).pasre(args[i]);
++        }
++        return new CommandArgumentResult(new ArrayList<>(List.of(result)));
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/command/CommandArgumentResult.java b/src/main/java/top/leavesmc/leaves/command/CommandArgumentResult.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..340eaca64c96180b895a075ce9e44402cd104eed
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/command/CommandArgumentResult.java
+@@ -0,0 +1,62 @@
++package top.leavesmc.leaves.command;
++
++import net.minecraft.core.BlockPos;
++import org.bukkit.util.Vector;
++
++import java.util.List;
++import java.util.Objects;
++
++public class CommandArgumentResult {
++
++    private final List<Object> result;
++
++    public CommandArgumentResult(List<Object> result) {
++        this.result = result;
++    }
++
++    public Integer readInt(int def) {
++        return Objects.requireNonNullElse(read(Integer.class), def);
++    }
++
++    public Double readDouble(double def) {
++        return Objects.requireNonNullElse(read(Double.class), def);
++    }
++
++    public String readString(String def) {
++        return Objects.requireNonNullElse(read(String.class), def);
++    }
++
++    public BlockPos readPos() {
++        Integer[] pos = {read(Integer.class), read(Integer.class), read(Integer.class)};
++        for (Integer po : pos) {
++            if (po == null) {
++                return null;
++            }
++        }
++        return new BlockPos(pos[0], pos[1], pos[2]);
++    }
++
++    public Vector readVector() {
++        Double[] pos = {read(Double.class), read(Double.class), read(Double.class)};
++        for (Double po : pos) {
++            if (po == null) {
++                return null;
++            }
++        }
++        return new Vector(pos[0], pos[1], pos[2]);
++    }
++
++    public <T> T read(Class<T> tClass) {
++        if (result.isEmpty()) {
++            return null;
++        }
++
++        Object obj = result.remove(0);
++        if (tClass.isInstance(obj)) {
++            return tClass.cast(obj);
++        } else {
++            return null;
++        }
++    }
++
++}
+diff --git a/src/main/java/top/leavesmc/leaves/command/CommandArgumentType.java b/src/main/java/top/leavesmc/leaves/command/CommandArgumentType.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..edf12195c7224ca2fb5d3c2ac3fcf485d3049d07
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/command/CommandArgumentType.java
+@@ -0,0 +1,37 @@
++package top.leavesmc.leaves.command;
++
++import org.jetbrains.annotations.NotNull;
++
++public abstract class CommandArgumentType<E> {
++
++    public static final CommandArgumentType<Integer> INTEGER = new CommandArgumentType<>() {
++        @Override
++        public Integer pasre(@NotNull String arg) {
++            try {
++                return Integer.parseInt(arg);
++            } catch (NumberFormatException e) {
++                return null;
++            }
++        }
++    };
++
++    public static final CommandArgumentType<Double> DOUBLE = new CommandArgumentType<>() {
++        @Override
++        public Double pasre(@NotNull String arg) {
++            try {
++                return Double.parseDouble(arg);
++            } catch (NumberFormatException e) {
++                return null;
++            }
++        }
++    };
++
++    public static final CommandArgumentType<String> STRING = new CommandArgumentType<>() {
++        @Override
++        public String pasre(@NotNull String arg) {
++            return arg;
++        }
++    };
++
++    public abstract E pasre(@NotNull String arg);
 +}

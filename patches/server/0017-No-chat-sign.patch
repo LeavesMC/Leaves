@@ -1,0 +1,245 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Wed, 3 Aug 2022 11:20:51 +0800
+Subject: [PATCH] No chat sign
+
+
+diff --git a/src/main/java/io/papermc/paper/adventure/ChatProcessor.java b/src/main/java/io/papermc/paper/adventure/ChatProcessor.java
+index 309fe1162db195c7c3c94d785d6aa2700e42b08a..7f00a44fdba7ba63ea9e06ff959ff51ddfdfebf9 100644
+--- a/src/main/java/io/papermc/paper/adventure/ChatProcessor.java
++++ b/src/main/java/io/papermc/paper/adventure/ChatProcessor.java
+@@ -352,7 +352,7 @@ public final class ChatProcessor {
+ 
+         private void sendToServer(final ChatType.Bound chatType, final @Nullable Function<Audience, net.minecraft.network.chat.Component> msgFunction) {
+             final PlayerChatMessage toConsoleMessage = msgFunction == null ? ChatProcessor.this.message : ChatProcessor.this.message.withUnsignedContent(msgFunction.apply(ChatProcessor.this.server.console));
+-            ChatProcessor.this.server.logChatMessage(toConsoleMessage.decoratedContent(), chatType, ChatProcessor.this.server.getPlayerList().verifyChatTrusted(toConsoleMessage) ? null : "Not Secure");
++            ChatProcessor.this.server.logChatMessage(toConsoleMessage.decoratedContent(), chatType, ChatProcessor.this.server.getPlayerList().verifyChatTrusted(toConsoleMessage) || top.leavesmc.leaves.LeavesConfig.noChatSign ? null : "Not Secure"); // Leaves - No Not Secure
+         }
+     }
+ 
+diff --git a/src/main/java/net/minecraft/commands/arguments/ArgumentSignatures.java b/src/main/java/net/minecraft/commands/arguments/ArgumentSignatures.java
+index 72a8aa676836fcb3b4578689d16af65e18f55bbe..47a06936a4727c6209a7ad0fb8fb10995d36513c 100644
+--- a/src/main/java/net/minecraft/commands/arguments/ArgumentSignatures.java
++++ b/src/main/java/net/minecraft/commands/arguments/ArgumentSignatures.java
+@@ -13,10 +13,17 @@ public record ArgumentSignatures(List<ArgumentSignatures.Entry> entries) {
+     private static final int MAX_ARGUMENT_COUNT = 8;
+     private static final int MAX_ARGUMENT_NAME_LENGTH = 16;
+ 
++    // Leaves start - no chat sign
+     public ArgumentSignatures(FriendlyByteBuf buf) {
+-        this(buf.readCollection(FriendlyByteBuf.limitValue(ArrayList::new, 8), ArgumentSignatures.Entry::new));
++        this(readSign(buf));
+     }
+ 
++    private static List<ArgumentSignatures.Entry> readSign(FriendlyByteBuf buf) {
++        var entries = buf.readCollection(FriendlyByteBuf.limitValue(ArrayList::new, 8), Entry::new);
++        return top.leavesmc.leaves.LeavesConfig.noChatSign ? List.of() : entries;
++    }
++    // Leaves end - no chat sign
++
+     @Nullable
+     public MessageSignature get(String argumentName) {
+         for(ArgumentSignatures.Entry entry : this.entries) {
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ServerboundChatPacket.java b/src/main/java/net/minecraft/network/protocol/game/ServerboundChatPacket.java
+index d1d2fc0c57523c1abf1e8bfec913c78927c3dafc..50c1b722231c2add72663c475ae9068a35bfd524 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ServerboundChatPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ServerboundChatPacket.java
+@@ -8,10 +8,18 @@ import net.minecraft.network.chat.MessageSignature;
+ import net.minecraft.network.protocol.Packet;
+ 
+ public record ServerboundChatPacket(String message, Instant timeStamp, long salt, @Nullable MessageSignature signature, LastSeenMessages.Update lastSeenMessages) implements Packet<ServerGamePacketListener> {
++    // Leaves start - no chat sign
+     public ServerboundChatPacket(FriendlyByteBuf buf) {
+-        this(buf.readUtf(256), buf.readInstant(), buf.readLong(), buf.readNullable(MessageSignature::read), new LastSeenMessages.Update(buf));
++        this(buf.readUtf(256), buf.readInstant(), buf.readLong(), buf.readNullable(ServerboundChatPacket::readSign), new LastSeenMessages.Update(buf));
+     }
+ 
++    private static MessageSignature readSign(FriendlyByteBuf buf) {
++        byte[] bs = new byte[256];
++        buf.readBytes(bs);
++        return top.leavesmc.leaves.LeavesConfig.noChatSign ? null : new MessageSignature(bs);
++    }
++    // Leaves end - no chat sign
++
+     @Override
+     public void write(FriendlyByteBuf buf) {
+         buf.writeUtf(this.message, 256);
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ServerboundChatSessionUpdatePacket.java b/src/main/java/net/minecraft/network/protocol/game/ServerboundChatSessionUpdatePacket.java
+index 9d6db4a378036559efab91c8b7dcf2a6b0c2cce6..2c349dc502ce275a8215766933f4855f1c7bd726 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ServerboundChatSessionUpdatePacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ServerboundChatSessionUpdatePacket.java
+@@ -16,6 +16,11 @@ public record ServerboundChatSessionUpdatePacket(RemoteChatSession.Data chatSess
+ 
+     @Override
+     public void handle(ServerGamePacketListener listener) {
++        // Leaves start - no chat report
++        if (top.leavesmc.leaves.LeavesConfig.noChatSign) {
++            return;
++        }
++        // Leaves end - no chat report
+         listener.handleChatSessionUpdate(this);
+     }
+ }
+diff --git a/src/main/java/net/minecraft/network/protocol/status/ServerStatus.java b/src/main/java/net/minecraft/network/protocol/status/ServerStatus.java
+index 6e0a3086da142f1c42007a16bbec7edbab17da04..776be7f58746f96fe9bf7daf11053d3958690df2 100644
+--- a/src/main/java/net/minecraft/network/protocol/status/ServerStatus.java
++++ b/src/main/java/net/minecraft/network/protocol/status/ServerStatus.java
+@@ -27,6 +27,7 @@ public class ServerStatus {
+     @Nullable
+     private String favicon;
+     private boolean enforcesSecureChat;
++    private boolean preventsChatReports; // Leaves - preventsChatReports
+ 
+     @Nullable
+     public Component getDescription() {
+@@ -69,9 +70,19 @@ public class ServerStatus {
+     }
+ 
+     public boolean enforcesSecureChat() {
+-        return this.enforcesSecureChat;
++        return this.enforcesSecureChat && !top.leavesmc.leaves.LeavesConfig.noChatSign; // Leaves - no enforcesSecureChat
+     }
+ 
++    // Leaves start - add preventsChatReports
++    public boolean isPreventsChatReports() {
++        return preventsChatReports;
++    }
++
++    public void setPreventsChatReports(boolean preventsChatReports) {
++        this.preventsChatReports = preventsChatReports;
++    }
++    // Leaves end - add preventsChatReports
++
+     public static class Players {
+         private final int maxPlayers;
+         private final int numPlayers;
+@@ -173,6 +184,10 @@ public class ServerStatus {
+                 serverStatus.setEnforcesSecureChat(GsonHelper.getAsBoolean(jsonObject, "enforcesSecureChat"));
+             }
+ 
++            if (top.leavesmc.leaves.LeavesConfig.noChatSign && jsonObject.has("preventsChatReports")) {
++                serverStatus.setPreventsChatReports(GsonHelper.getAsBoolean(jsonObject, "preventsChatReports"));
++            }
++
+             return serverStatus;
+         }
+ 
+@@ -196,6 +211,12 @@ public class ServerStatus {
+                 jsonObject.addProperty("favicon", serverStatus.getFavicon());
+             }
+ 
++            // Leaves start - add preventsChatReports
++            if (top.leavesmc.leaves.LeavesConfig.noChatSign) {
++                jsonObject.addProperty("preventsChatReports", true);
++            }
++            // Leaves end - add preventsChatReports
++
+             return jsonObject;
+         }
+     }
+diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
+index 9904aa8178bf64768a646dbc886cb774cb013af9..7347cb4daf40996a559c2a4dec9b22b04d07ae53 100644
+--- a/src/main/java/net/minecraft/server/MinecraftServer.java
++++ b/src/main/java/net/minecraft/server/MinecraftServer.java
+@@ -1109,6 +1109,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+             this.status.setDescription(Component.literal(this.motd));
+             this.status.setVersion(new ServerStatus.Version(SharedConstants.getCurrentVersion().getName(), SharedConstants.getCurrentVersion().getProtocolVersion()));
+             this.status.setEnforcesSecureChat(this.enforceSecureProfile());
++            this.status.setPreventsChatReports(top.leavesmc.leaves.LeavesConfig.noChatSign); // Leaves - add preventsChatReports
+             this.updateStatusIcon(this.status);
+ 
+             // Spigot start
+diff --git a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
+index deafca06331e19105a1e19ae11f271b05af7b982..41d9f243c0b56c81b70e64cfd3ca05b90d45343c 100644
+--- a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
++++ b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
+@@ -633,7 +633,7 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
+ 
+     @Override
+     public boolean enforceSecureProfile() {
+-        return this.getProperties().enforceSecureProfile && this.getProperties().onlineMode;
++        return this.getProperties().enforceSecureProfile && this.getProperties().onlineMode && !top.leavesmc.leaves.LeavesConfig.noChatSign; // Leaves - No Secure profile
+     }
+ 
+     protected boolean convertOldUsers() {
+diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index 3472f7f9b98d6d9c9f6465872803ef17fa67486d..af8d49e22ee3447ea6acc4b64fcb5713734c8fd3 100644
+--- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -2140,10 +2140,27 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
+ 
+     @Override
+     public void send(Packet<?> packet) {
++        // Leaves start - no ClientboundPlayerChatHeaderPacket and rebuild ClientboundPlayerChatPacket
++        if (top.leavesmc.leaves.LeavesConfig.noChatSign) {
++            if (packet instanceof ClientboundPlayerChatPacket chat) {
++                packet = new ClientboundSystemChatPacket(chat.chatType().resolve(this.player.level.registryAccess())
++                    .get().decorate(chat.unsignedContent() != null ? chat.unsignedContent()
++                        : Component.literal(chat.body().content())), false);
++            }
++        }
++        // Leaves end - no ClientboundPlayerChatHeaderPacket and rebuild ClientboundPlayerChatPacket
+         this.send(packet, (PacketSendListener) null);
+     }
+ 
+     public void send(Packet<?> packet, @Nullable PacketSendListener callbacks) {
++        // Leaves start - no ClientboundPlayerChatHeaderPacket and rebuild ClientboundPlayerChatPacket
++        if (top.leavesmc.leaves.LeavesConfig.noChatSign) {
++            if (packet instanceof ClientboundPlayerChatPacket chat && callbacks != null) {
++                this.send(chat);
++                return;
++            }
++        }
++        // Leaves end - no ClientboundPlayerChatHeaderPacket and rebuild ClientboundPlayerChatPacket
+         // CraftBukkit start
+         if (packet == null || this.processedDisconnect) { // Spigot
+             return;
+diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
+index 5a5a3f84138b2f9a55f0a7c17004194dd324ebb4..04885ae3016559e2f1cb6359ad8b558e19c3595a 100644
+--- a/src/main/java/net/minecraft/server/players/PlayerList.java
++++ b/src/main/java/net/minecraft/server/players/PlayerList.java
+@@ -1425,7 +1425,7 @@ public abstract class PlayerList {
+     }
+ 
+     public boolean verifyChatTrusted(PlayerChatMessage message) { // Paper - private -> public
+-        return message.hasSignature() && !message.hasExpiredServer(Instant.now());
++        return top.leavesmc.leaves.LeavesConfig.noChatSign || (message.hasSignature() && !message.hasExpiredServer(Instant.now())); // Leaves - No Not Secure
+     }
+ 
+     // CraftBukkit start
+diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+index 4d1d7acfacc569ea376c2c519b57e368680b1656..a3c797fd88880dd649cb0e80f472ce51614ba219 100644
+--- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
++++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+@@ -109,6 +109,7 @@ public final class LeavesConfig {
+             buddingAmethystCanPushByPiston = config.getBoolean("settings.budding-amethyst-can-push-by-piston", buddingAmethystCanPushByPiston);
+             spectatorDontGetAdvancement = config.getBoolean("settings.spectator-dont-get-advancement", spectatorDontGetAdvancement);
+             stickChangeArmorStandArmStatus = config.getBoolean("settings.stick-change-armorstand-arm-status", stickChangeArmorStandArmStatus);
++            noChatSign = config.getBoolean("settings.no-chat-sign", noChatSign);
+ 
+             config.set("settings.snowball-and-egg-can-knockback-player", null);
+             config.set("settings.player-can-edit-sign", null);
+@@ -118,6 +119,7 @@ public final class LeavesConfig {
+             config.set("settings.budding-amethyst-can-push-by-piston", null);
+             config.set("settings.spectator-dont-get-advancement", null);
+             config.set("settings.stick-change-armorstand-arm-status", null);
++            config.set("settings.no-chat-sign", null);
+         }
+     }
+ 
+@@ -209,6 +211,15 @@ public final class LeavesConfig {
+     private static void stickChangeArmorStandHasArm() {
+         stickChangeArmorStandArmStatus = getBoolean("settings.modify.stick-change-armorstand-arm-status", stickChangeArmorStandArmStatus);
+     }
++
++    public static boolean noChatSign = true;
++    private static void noChatSign() {
++        if (LeavesConfig.config.contains("settings.modify.no-chat-sign")) {
++            noChatSign = LeavesConfig.config.getBoolean("settings.modify.no-chat-sign");
++            LeavesConfig.config.set("settings.modify.no-chat-sign", null);
++        }
++        noChatSign = getBoolean("settings.misc.no-chat-sign", noChatSign);
++    }
+     
+     public static final class WorldConfig {
+ 

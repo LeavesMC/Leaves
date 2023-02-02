@@ -1,0 +1,174 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Sat, 13 Aug 2022 17:27:18 +0800
+Subject: [PATCH] Optimize mob spawning
+
+This patch is Powered by Pufferfish(https://github.com/pufferfish-gg/Pufferfish)
+
+diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
+index 7347cb4daf40996a559c2a4dec9b22b04d07ae53..81699351c4f9aa3a66270bcee060a504263cbed4 100644
+--- a/src/main/java/net/minecraft/server/MinecraftServer.java
++++ b/src/main/java/net/minecraft/server/MinecraftServer.java
+@@ -312,6 +312,8 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+     public volatile boolean abnormalExit = false; // Paper
+     public boolean isIteratingOverLevels = false; // Paper
+ 
++    public top.leavesmc.leaves.util.AsyncExecutor mobSpawnExecutor = new top.leavesmc.leaves.util.AsyncExecutor("MobSpawning"); // Leaves - optimize mob spawning
++
+     public static <S extends MinecraftServer> S spin(Function<Thread, S> serverFactory) {
+         AtomicReference<S> atomicreference = new AtomicReference();
+         Thread thread = new io.papermc.paper.util.TickThread(() -> { // Paper - rewrite chunk system
+diff --git a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
+index 41d9f243c0b56c81b70e64cfd3ca05b90d45343c..34df346cd337683a8f479f49a53319bae4f3fd07 100644
+--- a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
++++ b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
+@@ -335,6 +335,11 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
+                 DedicatedServer.LOGGER.info("JMX monitoring enabled");
+             }
+ 
++            // Leaves start - optimize mob spawning
++            if (top.leavesmc.leaves.LeavesConfig.asyncMobSpawning) {
++                mobSpawnExecutor.start();
++            }
++            // Leaves end - optimize mob spawning
+             return true;
+         }
+     }
+diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
+index 2212f9f48636357265d8e44aba415ea4f09f1fe7..b592f5fa1d235c2c3906dd893d079cd4211794ac 100644
+--- a/src/main/java/net/minecraft/server/level/ChunkMap.java
++++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
+@@ -342,7 +342,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+         this.dataRegionManager = new io.papermc.paper.chunk.SingleThreadChunkRegionManager(this.level, 2, (1.0 / 3.0), 1, 6, "Data", DataRegionData::new, DataRegionSectionData::new);
+         this.regionManagers.add(this.dataRegionManager);
+         // Paper end
+-        this.playerMobDistanceMap = this.level.paperConfig().entities.spawning.perPlayerMobSpawns ? new com.destroystokyo.paper.util.misc.PlayerAreaMap(this.pooledLinkedPlayerHashSets) : null; // Paper
++        this.playerMobDistanceMap = this.level.paperConfig().entities.spawning.perPlayerMobSpawns ? new top.leavesmc.leaves.util.AsyncPlayerAreaMap(this.pooledLinkedPlayerHashSets) : null; // Paper // Leaves - optimize mob spawning(actually not use)
+         // Paper start - use distance map to optimise entity tracker
+         this.playerEntityTrackerTrackMaps = new com.destroystokyo.paper.util.misc.PlayerAreaMap[TRACKING_RANGE_TYPES.length];
+         this.entityTrackerTrackRanges = new int[TRACKING_RANGE_TYPES.length];
+diff --git a/src/main/java/net/minecraft/server/level/ServerChunkCache.java b/src/main/java/net/minecraft/server/level/ServerChunkCache.java
+index ca84eddbdb1e198b899750e5f6b3eafd25ce970f..b4e780f5b050b01ecb6b485b509235f735d71141 100644
+--- a/src/main/java/net/minecraft/server/level/ServerChunkCache.java
++++ b/src/main/java/net/minecraft/server/level/ServerChunkCache.java
+@@ -77,6 +77,11 @@ public class ServerChunkCache extends ChunkSource {
+ 
+     private final LevelChunk[] lastLoadedChunks = new LevelChunk[4 * 4];
+ 
++    // Leaves start - optimize countmobs
++    public boolean firstRunSpawnCounts = true;
++    public final java.util.concurrent.atomic.AtomicBoolean spawnCountsReady = new java.util.concurrent.atomic.AtomicBoolean(false);
++    // Leaves end - optimize countmobs
++
+     private static int getChunkCacheKey(int x, int z) {
+         return x & 3 | ((z & 3) << 2);
+     }
+@@ -712,18 +717,25 @@ public class ServerChunkCache extends ChunkSource {
+             // Paper start - per player mob spawning
+             NaturalSpawner.SpawnState spawnercreature_d; // moved down
+             if ((this.spawnFriendlies || this.spawnEnemies) && this.chunkMap.playerMobDistanceMap != null) { // don't count mobs when animals and monsters are disabled
+-                // re-set mob counts
+-                for (ServerPlayer player : this.level.players) {
+-                    Arrays.fill(player.mobCounts, 0);
++                // Leaves start - moved down when async processing
++                if (!top.leavesmc.leaves.LeavesConfig.asyncMobSpawning) {
++                    // re-set mob counts
++                    for (ServerPlayer player : this.level.players) {
++                        Arrays.fill(player.mobCounts, 0);
++                    }
++                    lastSpawnState = NaturalSpawner.createState(l, this.level.getAllEntities(), this::getFullChunk, null, true);
+                 }
+-                spawnercreature_d = NaturalSpawner.createState(l, this.level.getAllEntities(), this::getFullChunk, null, true);
++                // Leaves end - moved down when async processing
+             } else {
+-                spawnercreature_d = NaturalSpawner.createState(l, this.level.getAllEntities(), this::getFullChunk, this.chunkMap.playerMobDistanceMap == null ? new LocalMobCapCalculator(this.chunkMap) : null, false);
++                // Leaves start - this is only implemented for per-player mob spawning so this makes everything work if this setting is disabled (actually not use)
++                lastSpawnState = NaturalSpawner.createState(l, this.level.getAllEntities(), this::getFullChunk, this.chunkMap.playerMobDistanceMap == null ? new LocalMobCapCalculator(this.chunkMap) : null, false);
++                spawnCountsReady.set(true);
++                // Leaves end - this is only implemented for per-player mob spawning so this makes everything work if this setting is disabled (actually not use)
+             }
+             // Paper end
+             this.level.timings.countNaturalMobs.stopTiming(); // Paper - timings
+ 
+-            this.lastSpawnState = spawnercreature_d;
++            // this.lastSpawnState = spawnercreature_d; // Leaves - asynchronously
+             gameprofilerfiller.popPush("filteringLoadedChunks");
+             // Paper - moved down
+             this.level.timings.chunkTicks.startTiming(); // Paper
+@@ -761,8 +773,8 @@ public class ServerChunkCache extends ChunkSource {
+ 
+                 if ((true || this.level.isNaturalSpawningAllowed(chunkcoordintpair)) && this.chunkMap.anyPlayerCloseEnoughForSpawning(holder, chunkcoordintpair, false)) { // Paper - optimise anyPlayerCloseEnoughForSpawning // Paper - the chunk is known ticking
+                     chunk1.incrementInhabitedTime(j);
+-                    if (flag2 && (this.spawnEnemies || this.spawnFriendlies) && this.level.getWorldBorder().isWithinBounds(chunkcoordintpair) && this.chunkMap.anyPlayerCloseEnoughForSpawning(holder, chunkcoordintpair, true)) { // Spigot // Paper - optimise anyPlayerCloseEnoughForSpawning & optimise chunk tick iteration
+-                        NaturalSpawner.spawnForChunk(this.level, chunk1, spawnercreature_d, this.spawnFriendlies, this.spawnEnemies, flag1);
++                    if (flag2 && (!top.leavesmc.leaves.LeavesConfig.asyncMobSpawning || spawnCountsReady.get()) && (this.spawnEnemies || this.spawnFriendlies) && this.level.getWorldBorder().isWithinBounds(chunkcoordintpair) && this.chunkMap.anyPlayerCloseEnoughForSpawning(holder, chunkcoordintpair, true)) { // Spigot // Paper - optimise anyPlayerCloseEnoughForSpawning & optimise chunk tick iteration // Leaves - optimize mob spawning
++                        NaturalSpawner.spawnForChunk(this.level, chunk1, lastSpawnState, this.spawnFriendlies, this.spawnEnemies, flag1); // Leaves - optimize mob spawning
+                     }
+ 
+                     if (true || this.level.shouldTickBlocksAt(chunkcoordintpair.toLong())) { // Paper - the chunk is known ticking
+@@ -823,6 +835,30 @@ public class ServerChunkCache extends ChunkSource {
+                 }
+             }
+             // Paper end - controlled flush for entity tracker packets
++
++            // Leaves start - optimize mob spawning
++            if (top.leavesmc.leaves.LeavesConfig.asyncMobSpawning) {
++                for (ServerPlayer player : this.level.players) {
++                    Arrays.fill(player.mobCounts, 0);
++                }
++                if (firstRunSpawnCounts) {
++                    firstRunSpawnCounts = false;
++                    spawnCountsReady.set(true);
++                }
++                if (chunkMap.playerMobDistanceMap != null && spawnCountsReady.getAndSet(false)) {
++                    net.minecraft.server.MinecraftServer.getServer().mobSpawnExecutor.submit(() -> {
++                        int mapped = distanceManager.getNaturalSpawnChunkCount();
++                        io.papermc.paper.util.maplist.IteratorSafeOrderedReferenceSet.Iterator<Entity> objectiterator =
++                            level.entityTickList.entities.iterator(io.papermc.paper.util.maplist.IteratorSafeOrderedReferenceSet.ITERATOR_FLAG_SEE_ADDITIONS);
++                        top.leavesmc.leaves.util.IterableWrapper<Entity> wrappedIterator =
++                            new top.leavesmc.leaves.util.IterableWrapper<Entity>(objectiterator);
++                        lastSpawnState = NaturalSpawner.createState(mapped, wrappedIterator, this::getFullChunk, null, true);
++                        objectiterator.finishedIterating();
++                        spawnCountsReady.set(true);
++                    });
++                }
++            }
++            // Leaves end - optimize mob spawning
+         }
+     }
+ 
+diff --git a/src/main/java/net/minecraft/world/level/entity/EntityTickList.java b/src/main/java/net/minecraft/world/level/entity/EntityTickList.java
+index 4cdfc433df67afcd455422e9baf56f167dd712ae..a6e0f5dab21d806e0c7744b2a337cded2739d870 100644
+--- a/src/main/java/net/minecraft/world/level/entity/EntityTickList.java
++++ b/src/main/java/net/minecraft/world/level/entity/EntityTickList.java
+@@ -8,7 +8,7 @@ import javax.annotation.Nullable;
+ import net.minecraft.world.entity.Entity;
+ 
+ public class EntityTickList {
+-    private final io.papermc.paper.util.maplist.IteratorSafeOrderedReferenceSet<Entity> entities = new io.papermc.paper.util.maplist.IteratorSafeOrderedReferenceSet<>(true); // Paper - rewrite this, always keep this updated - why would we EVER tick an entity that's not ticking?
++    public final io.papermc.paper.util.maplist.IteratorSafeOrderedReferenceSet<Entity> entities = new io.papermc.paper.util.maplist.IteratorSafeOrderedReferenceSet<>(true); // Paper - rewrite this, always keep this updated - why would we EVER tick an entity that's not ticking? // Leaves - private -> public
+ 
+     private void ensureActiveIsNotIterated() {
+         // Paper - replace with better logic, do not delay removals
+diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+index a3c797fd88880dd649cb0e80f472ce51614ba219..c48c2cbe2d3fcbed78c273c36802b27dbaa2da38 100644
+--- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
++++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+@@ -220,7 +220,16 @@ public final class LeavesConfig {
+         }
+         noChatSign = getBoolean("settings.misc.no-chat-sign", noChatSign);
+     }
+-    
++
++    public static boolean asyncMobSpawning = false;
++    private static boolean asyncMobSpawningLock = false;
++    private static void asyncMobSpawning() {
++        if (!asyncMobSpawningLock) {
++            asyncMobSpawning = getBoolean("settings.performance.async-mob-spawning", asyncMobSpawning);
++            asyncMobSpawningLock = true;
++        }
++    }
++
+     public static final class WorldConfig {
+ 
+         public final String worldName;

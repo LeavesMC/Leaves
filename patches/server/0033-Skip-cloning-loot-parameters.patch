@@ -1,0 +1,45 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Mon, 15 Aug 2022 17:17:24 +0800
+Subject: [PATCH] Skip cloning loot parameters
+
+This patch is Powered by Pufferfish(https://github.com/pufferfish-gg/Pufferfish)
+
+diff --git a/src/main/java/net/minecraft/world/level/storage/loot/LootContext.java b/src/main/java/net/minecraft/world/level/storage/loot/LootContext.java
+index 35f9b11a3a61976c952a2c1c64bb2a932538f54f..5d678cfca0a39aeed0881c3a38828fdc4bf2d524 100644
+--- a/src/main/java/net/minecraft/world/level/storage/loot/LootContext.java
++++ b/src/main/java/net/minecraft/world/level/storage/loot/LootContext.java
+@@ -41,8 +41,15 @@ public class LootContext {
+         this.level = world;
+         this.lootTables = tableGetter;
+         this.conditions = conditionGetter;
+-        this.params = ImmutableMap.copyOf(parameters);
+-        this.dynamicDrops = ImmutableMap.copyOf(drops);
++        // Leaves start - use unmodifiable maps instead of immutable ones to skip the copy
++        if (top.leavesmc.leaves.LeavesConfig.skipCloneLootParameters) {
++            this.params = java.util.Collections.unmodifiableMap(parameters);
++            this.dynamicDrops = java.util.Collections.unmodifiableMap(drops);
++        } else {
++            this.params = ImmutableMap.copyOf(parameters);
++            this.dynamicDrops = ImmutableMap.copyOf(drops);
++        }
++        // Leaves end - use unmodifiable maps instead of immutable ones to skip the copy
+     }
+ 
+     public boolean hasParam(LootContextParam<?> parameter) {
+diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+index d804f1a818582caa6237bb2c582899e4d15e2bd4..2054ccc423cff890033f8d80cb9ee28e437927cc 100644
+--- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
++++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+@@ -308,6 +308,11 @@ public final class LeavesConfig {
+         throttleInactiveGoalSelectorTick = getBoolean("settings.performance.inactive-goal-selector-disable", throttleInactiveGoalSelectorTick);
+     }
+ 
++    public static boolean skipCloneLootParameters = true;
++    private static void skipCloneLootParameters() {
++        skipCloneLootParameters = getBoolean("settings.performance.skip-clone-loot-parameters", skipCloneLootParameters);
++    }
++
+     public static final class WorldConfig {
+ 
+         public final String worldName;

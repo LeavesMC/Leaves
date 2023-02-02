@@ -1,0 +1,89 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Fri, 27 Jan 2023 09:42:57 +0800
+Subject: [PATCH] Xaero Map Protocol
+
+
+diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
+index ebf9894e216b8f30ded5134c683ad68efd9c4ccd..e485b48158d65b4d47da83226f3a4ebe66dd78c3 100644
+--- a/src/main/java/net/minecraft/server/players/PlayerList.java
++++ b/src/main/java/net/minecraft/server/players/PlayerList.java
+@@ -1269,6 +1269,7 @@ public abstract class PlayerList {
+         player.connection.send(new ClientboundInitializeBorderPacket(worldborder));
+         player.connection.send(new ClientboundSetTimePacket(world.getGameTime(), world.getDayTime(), world.getGameRules().getBoolean(GameRules.RULE_DAYLIGHT)));
+         player.connection.send(new ClientboundSetDefaultSpawnPositionPacket(world.getSharedSpawnPos(), world.getSharedSpawnAngle()));
++        top.leavesmc.leaves.protocol.XaeroMapProtocol.onSendWorldInfo(player); // Leaves - xaero map protocol
+         if (world.isRaining()) {
+             // CraftBukkit start - handle player weather
+             // entityplayer.connection.send(new PacketPlayOutGameStateChange(PacketPlayOutGameStateChange.START_RAINING, 0.0F));
+diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+index 8b242374ac5189835bfb86e61bd5c252d45353b5..16cd3bbb3c99c87286e580440c17173183b408fa 100644
+--- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
++++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+@@ -20,6 +20,7 @@ import java.lang.reflect.Modifier;
+ import java.util.HashMap;
+ import java.util.List;
+ import java.util.Map;
++import java.util.Random;
+ import java.util.logging.Level;
+ 
+ // Powered by Tuinity(https://github.com/Tuinity/Tuinity)
+@@ -487,6 +488,13 @@ public final class LeavesConfig {
+         appleskinProtocol = getBoolean("settings.protocol.appleskin-protocol", appleskinProtocol);
+     }
+ 
++    public static boolean xaeroMapProtocol = false;
++    public static int xaeroMapServerID = new Random().nextInt();
++    private static void xaeroMapProtocol() {
++        xaeroMapProtocol = getBoolean("settings.protocol.xaero-map-protocol", xaeroMapProtocol);
++        xaeroMapServerID = getInt("settings.protocol.xaero-map-server-id", xaeroMapServerID);
++    }
++
+     public static final class WorldConfig {
+ 
+         public final String worldName;
+diff --git a/src/main/java/top/leavesmc/leaves/protocol/XaeroMapProtocol.java b/src/main/java/top/leavesmc/leaves/protocol/XaeroMapProtocol.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..01c370ec64835fdd038256560f89ed251b3d3d6d
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/protocol/XaeroMapProtocol.java
+@@ -0,0 +1,39 @@
++package top.leavesmc.leaves.protocol;
++
++import io.netty.buffer.Unpooled;
++import net.minecraft.network.FriendlyByteBuf;
++import net.minecraft.resources.ResourceLocation;
++import net.minecraft.server.level.ServerPlayer;
++import org.jetbrains.annotations.Contract;
++import org.jetbrains.annotations.NotNull;
++import top.leavesmc.leaves.LeavesConfig;
++import top.leavesmc.leaves.util.ProtocolUtils;
++
++public class XaeroMapProtocol {
++
++    public static final String PROTOCOL_ID_MINI = "xaerominimap";
++    public static final String PROTOCOL_ID_WORLD = "xaeroworldmap";
++
++    private static final ResourceLocation MINIMAP_KEY = idMini("main");
++    private static final ResourceLocation WORLDMAP_KEY = idWorld("main");
++
++    @Contract("_ -> new")
++    public static @NotNull ResourceLocation idMini(String path) {
++        return new ResourceLocation(PROTOCOL_ID_MINI, path);
++    }
++
++    @Contract("_ -> new")
++    public static @NotNull ResourceLocation idWorld(String path) {
++        return new ResourceLocation(PROTOCOL_ID_WORLD, path);
++    }
++
++    public static void onSendWorldInfo(@NotNull ServerPlayer player) {
++        if (LeavesConfig.xaeroMapProtocol) {
++            FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
++            buf.writeByte(0);
++            buf.writeInt(LeavesConfig.xaeroMapServerID);
++            ProtocolUtils.sendPayloadPacket(player, MINIMAP_KEY, buf);
++            ProtocolUtils.sendPayloadPacket(player, WORLDMAP_KEY, buf);
++        }
++    }
++}

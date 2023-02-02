@@ -1,0 +1,129 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Sun, 27 Mar 2022 12:48:40 +0800
+Subject: [PATCH] Redstone Shears Wrench
+
+
+diff --git a/src/main/java/net/minecraft/world/item/ShearsItem.java b/src/main/java/net/minecraft/world/item/ShearsItem.java
+index e77af779c77de6d5580c13699df3e7d890fe7aba..c9310e88b3a967cb9cacb80288e74757fffca647 100644
+--- a/src/main/java/net/minecraft/world/item/ShearsItem.java
++++ b/src/main/java/net/minecraft/world/item/ShearsItem.java
+@@ -1,7 +1,9 @@
+ package net.minecraft.world.item;
+ 
++import net.minecraft.Util;
+ import net.minecraft.advancements.CriteriaTriggers;
+ import net.minecraft.core.BlockPos;
++import net.minecraft.network.chat.Component;
+ import net.minecraft.server.level.ServerPlayer;
+ import net.minecraft.sounds.SoundEvents;
+ import net.minecraft.sounds.SoundSource;
+@@ -14,8 +16,18 @@ import net.minecraft.world.item.context.UseOnContext;
+ import net.minecraft.world.level.Level;
+ import net.minecraft.world.level.block.Block;
+ import net.minecraft.world.level.block.Blocks;
++import net.minecraft.world.level.block.ComparatorBlock;
++import net.minecraft.world.level.block.DispenserBlock;
+ import net.minecraft.world.level.block.GrowingPlantHeadBlock;
++import net.minecraft.world.level.block.HopperBlock;
++import net.minecraft.world.level.block.ObserverBlock;
++import net.minecraft.world.level.block.RepeaterBlock;
++import net.minecraft.world.level.block.piston.PistonBaseBlock;
+ import net.minecraft.world.level.block.state.BlockState;
++import net.minecraft.world.level.block.state.StateDefinition;
++import net.minecraft.world.level.block.state.properties.Property;
++
++import javax.annotation.Nullable;
+ 
+ public class ShearsItem extends Item {
+     public ShearsItem(Item.Properties settings) {
+@@ -77,6 +89,59 @@ public class ShearsItem extends Item {
+             }
+         }
+ 
++        // Leaves start - shears wrench
++        if (top.leavesmc.leaves.LeavesConfig.redstoneShearsWrench && block instanceof ObserverBlock || block instanceof DispenserBlock ||
++            block instanceof PistonBaseBlock || block instanceof HopperBlock || block instanceof RepeaterBlock || block instanceof ComparatorBlock) {
++            StateDefinition<Block, BlockState> blockstatelist = block.getStateDefinition();
++            Property<?> iblockstate = blockstatelist.getProperty("facing");
++            Player player = context.getPlayer();
++
++            if (iblockstate == null || player == null) {
++                return InteractionResult.FAIL;
++            }
++
++            if (block instanceof PistonBaseBlock) {
++                if (getNameHelper(blockState, blockstatelist.getProperty("extended")).equals("true")) {
++                    return InteractionResult.FAIL;
++                }
++            }
++
++            if (block instanceof RepeaterBlock || block instanceof ComparatorBlock) {
++                if (getNameHelper(blockState, blockstatelist.getProperty("powered")).equals("true")) {
++                    return InteractionResult.FAIL;
++                }
++                if (block instanceof RepeaterBlock) {
++                    if (getNameHelper(blockState, blockstatelist.getProperty("locked")).equals("true")) {
++                        return InteractionResult.FAIL;
++                    }
++                }
++            }
++
++            BlockState iblockdata1 = ShearsItem.cycleState(blockState, iblockstate, player.isSecondaryUseActive());
++            level.setBlock(blockPos, iblockdata1, 18);
++            ShearsItem.message(player, Component.translatable("item.minecraft.debug_stick.update", iblockstate.getName(), ShearsItem.getNameHelper(iblockdata1, iblockstate)));
++            return InteractionResult.CONSUME_PARTIAL;
++        }
++        // Leaves end - shears wrench
++
+         return super.useOn(context);
+     }
++
++    // Leaves start - shears wrench
++    private static <T extends Comparable<T>> BlockState cycleState(BlockState state, Property<T> property, boolean inverse) {
++        return (BlockState) state.setValue(property, ShearsItem.getRelative(property.getPossibleValues(), state.getValue(property), inverse)); // CraftBukkit - decompile error
++    }
++
++    private static <T> T getRelative(Iterable<T> elements, @Nullable T current, boolean inverse) {
++        return inverse ? Util.findPreviousInIterable(elements, current) : Util.findNextInIterable(elements, current);
++    }
++
++    private static void message(Player player, Component message) {
++        ((ServerPlayer) player).sendSystemMessage(message, true);
++    }
++
++    private static <T extends Comparable<T>> String getNameHelper(BlockState state, Property<T> property) {
++        return property.getName(state.getValue(property));
++    }
++    // Leaves end - shears wrench
+ }
+diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+index 7e1f17807860847792c8a599301cc942768e0931..9517e2afa18256f6f1c7e8b670ee9012fa55ecf6 100644
+--- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
++++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+@@ -105,11 +105,13 @@ public final class LeavesConfig {
+             fakeplayerSupport = config.getBoolean("settings.fakeplayer.enable", fakeplayerSupport);
+             unableFakeplayerNames = (List<String>) config.getList("settings.fakeplayer.unable-fakeplayer-names", unableFakeplayerNames);
+             shearsInDispenserCanZeroAmount = config.getBoolean("settings.shears-in-dispenser-can-zero-amount", shearsInDispenserCanZeroAmount);
++            redstoneShearsWrench = config.getBoolean("settings.redstone-shears-wrench", redstoneShearsWrench);
+ 
+             config.set("settings.snowball-and-egg-can-knockback-player", null);
+             config.set("settings.player-can-edit-sign", null);
+             config.set("settings.fakeplayer", null);
+             config.set("settings.shears-in-dispenser-can-zero-amount", null);
++            config.set("settings.redstone-shears-wrench", null);
+         }
+     }
+ 
+@@ -182,6 +184,11 @@ public final class LeavesConfig {
+         shearsInDispenserCanZeroAmount = getBoolean("settings.modify.shears-in-dispenser-can-zero-amount", shearsInDispenserCanZeroAmount);
+     }
+ 
++    public static boolean redstoneShearsWrench = true;
++    private static void redstoneShearsWrench() {
++        redstoneShearsWrench = getBoolean("settings.modify.redstone-shears-wrench", redstoneShearsWrench);
++    }
++
+     public static final class WorldConfig {
+ 
+         public final String worldName;

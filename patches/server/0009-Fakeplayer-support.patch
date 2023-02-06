@@ -177,6 +177,19 @@ index 61597ebe2f9faff43994c475074b87d11905e582..179d49336ec6ff0ac345a9df1c1236af
                          ItemStack itemstack = this.getItemInHand(InteractionHand.MAIN_HAND);
  
                          if (itemstack.getItem() instanceof SwordItem) {
+diff --git a/src/main/java/net/minecraft/world/entity/projectile/FishingHook.java b/src/main/java/net/minecraft/world/entity/projectile/FishingHook.java
+index 7f3a7a769afec8449547c26453112064b9bcb04a..a31426368ec089baba958f998973cadb409bce3a 100644
+--- a/src/main/java/net/minecraft/world/entity/projectile/FishingHook.java
++++ b/src/main/java/net/minecraft/world/entity/projectile/FishingHook.java
+@@ -61,7 +61,7 @@ public class FishingHook extends Projectile {
+     public static final EntityDataAccessor<Integer> DATA_HOOKED_ENTITY = SynchedEntityData.defineId(FishingHook.class, EntityDataSerializers.INT);
+     private static final EntityDataAccessor<Boolean> DATA_BITING = SynchedEntityData.defineId(FishingHook.class, EntityDataSerializers.BOOLEAN);
+     private int life;
+-    private int nibble;
++    public int nibble; // Leaves - private -> public
+     public int timeUntilLured;
+     private int timeUntilHooked;
+     private float fishAngle;
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
 index 78f53ee557276de85f0431ebcb146445b1f4fb92..42a2e411fd769bf0bf034141297e890c20d39b51 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
@@ -542,6 +555,73 @@ index 0000000000000000000000000000000000000000..07b688d376a4af88305e57519a5ae983
 +
 +    }
 +}
+diff --git a/src/main/java/top/leavesmc/leaves/bot/BotUtil.java b/src/main/java/top/leavesmc/leaves/bot/BotUtil.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..5a66ebb4c3c15162fab7be4fd0a160443341dfe4
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/BotUtil.java
+@@ -0,0 +1,61 @@
++package top.leavesmc.leaves.bot;
++
++import net.minecraft.core.NonNullList;
++import net.minecraft.world.entity.EquipmentSlot;
++import net.minecraft.world.item.ItemStack;
++import org.jetbrains.annotations.NotNull;
++
++public class BotUtil {
++
++    public static void replenishment(@NotNull ItemStack itemStack, NonNullList<ItemStack> itemStackList) {
++        int count = itemStack.getMaxStackSize() / 2;
++        if (itemStack.getCount() <= 8 && count > 8) {
++            for (ItemStack itemStack1 : itemStackList) {
++                if (itemStack1 == ItemStack.EMPTY || itemStack1 == itemStack) {
++                    continue;
++                }
++
++                if (ItemStack.isSameItemSameTags(itemStack1, itemStack)) {
++                    if (itemStack1.getCount() > count) {
++                        itemStack.setCount(itemStack.getCount() + count);
++                        itemStack1.setCount(itemStack1.getCount() - count);
++                    } else {
++                        itemStack.setCount(itemStack.getCount() + itemStack1.getCount());
++                        itemStack1.setCount(0);
++                    }
++                    break;
++                }
++            }
++        }
++    }
++
++    public static void replaceTool(@NotNull EquipmentSlot slot, @NotNull ServerBot bot) {
++        ItemStack itemStack = bot.getItemBySlot(slot);
++        for (int i = 0; i < 36; i++) {
++            ItemStack itemStack1 = bot.getInventory().getItem(i);
++            if (itemStack1 == ItemStack.EMPTY || itemStack1 == itemStack) {
++                continue;
++            }
++
++            if (itemStack1.getItem().getClass() == itemStack.getItem().getClass() && isDamage(itemStack1, 10)) {
++                ItemStack itemStack2 = itemStack1.copy();
++                bot.getInventory().setItem(i, itemStack);
++                bot.setItemSlot(slot, itemStack2);
++                return;
++            }
++        }
++
++        for (int i = 0; i < 36; i++) {
++            ItemStack itemStack1 = bot.getInventory().getItem(i);
++            if (itemStack1 == ItemStack.EMPTY && itemStack1 != itemStack) {
++                bot.getInventory().setItem(i, itemStack);
++                bot.setItemSlot(slot, ItemStack.EMPTY);
++                return;
++            }
++        }
++    }
++
++    public static boolean isDamage(@NotNull ItemStack item, int minDamage) {
++        return item.isDamageableItem() && (item.getMaxDamage() - item.getDamageValue()) <= minDamage;
++    }
++}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/MojangAPI.java b/src/main/java/top/leavesmc/leaves/bot/MojangAPI.java
 new file mode 100644
 index 0000000000000000000000000000000000000000..d6466ee4db637106e1394bb462d875e541e9731d
@@ -591,10 +671,10 @@ index 0000000000000000000000000000000000000000..d6466ee4db637106e1394bb462d875e5
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/ServerBot.java b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..f5837b3f5fb57b77e237fa59bb53cc4caddb876a
+index 0000000000000000000000000000000000000000..9045c87582aa71970ca4b30cb777debe858c1e83
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
-@@ -0,0 +1,750 @@
+@@ -0,0 +1,700 @@
 +package top.leavesmc.leaves.bot;
 +
 +import com.google.common.collect.Lists;
@@ -646,6 +726,7 @@ index 0000000000000000000000000000000000000000..f5837b3f5fb57b77e237fa59bb53cc4c
 +import org.bukkit.plugin.Plugin;
 +import org.bukkit.util.BoundingBox;
 +import org.bukkit.util.Vector;
++import org.jetbrains.annotations.Contract;
 +import org.jetbrains.annotations.NotNull;
 +import top.leavesmc.leaves.LeavesConfig;
 +import top.leavesmc.leaves.bot.agent.BotAction;
@@ -672,7 +753,7 @@ index 0000000000000000000000000000000000000000..f5837b3f5fb57b77e237fa59bb53cc4c
 +    private BotAction action;
 +    private BotAction newAction;
 +
-+    private boolean removeOnDeath;
++    private final boolean removeOnDeath;
 +    private int fireTicks;
 +    private int groundTicks;
 +    private int jumpTicks;
@@ -702,9 +783,9 @@ index 0000000000000000000000000000000000000000..f5837b3f5fb57b77e237fa59bb53cc4c
 +        server.getPlayerList().addNewBot(this);
 +    }
 +
-+    public static void createBot(Location loc, String name , String skinName) {
++    public static void createBot(Location loc, String name, String skinName) {
 +        String realName = LeavesConfig.fakeplayerPrefix + name + LeavesConfig.fakeplayerSuffix;
-+        if (!checkCreateLegal(realName)) {
++        if (!isCreateLegal(realName)) {
 +            return;
 +        }
 +        if (skinName != null) {
@@ -719,7 +800,7 @@ index 0000000000000000000000000000000000000000..f5837b3f5fb57b77e237fa59bb53cc4c
 +
 +    @Nullable
 +    public static ServerBot createBot(@NotNull Location loc, @NotNull String name, String[] skin) {
-+        if (!checkCreateLegal(name)) {
++        if (!isCreateLegal(name)) {
 +            return null;
 +        }
 +
@@ -764,7 +845,7 @@ index 0000000000000000000000000000000000000000..f5837b3f5fb57b77e237fa59bb53cc4c
 +        return null;
 +    }
 +
-+    public static boolean checkCreateLegal(@NotNull String name) {
++    public static boolean isCreateLegal(@NotNull String name) {
 +        if (!name.matches("^[a-zA-Z0-9_]{4,16}$")) {
 +            return false;
 +        }
@@ -790,7 +871,7 @@ index 0000000000000000000000000000000000000000..f5837b3f5fb57b77e237fa59bb53cc4c
 +        render(connection, getRenderPackets(), login, all);
 +    }
 +
-+    private void render(ServerPlayerConnection connection, Packet<?>[] packets, boolean login, boolean all) { // always use getRenderPackets() to get packets. replace it soon
++    private void render(@NotNull ServerPlayerConnection connection, Packet<?> @NotNull [] packets, boolean login, boolean all) { // always use getRenderPackets() to get packets. replace it soon
 +        connection.send(packets[0]);
 +        if (all) {
 +            connection.send(packets[1]);
@@ -803,7 +884,8 @@ index 0000000000000000000000000000000000000000..f5837b3f5fb57b77e237fa59bb53cc4c
 +        }
 +    }
 +
-+    private Packet<?>[] getRenderPackets() {
++    @Contract(" -> new")
++    private Packet<?> @NotNull [] getRenderPackets() {
 +        return new Packet[]{
 +            new ClientboundPlayerInfoUpdatePacket(EnumSet.of(ClientboundPlayerInfoUpdatePacket.Action.ADD_PLAYER, ClientboundPlayerInfoUpdatePacket.Action.UPDATE_LISTED, ClientboundPlayerInfoUpdatePacket.Action.UPDATE_DISPLAY_NAME), List.of(this)),
 +            new ClientboundAddPlayerPacket(this),
@@ -818,7 +900,7 @@ index 0000000000000000000000000000000000000000..f5837b3f5fb57b77e237fa59bb53cc4c
 +
 +    // die check start
 +    @Override
-+    public void die(DamageSource damageSource) {
++    public void die(@NotNull DamageSource damageSource) {
 +        super.die(damageSource);
 +        this.dieCheck();
 +    }
@@ -858,7 +940,7 @@ index 0000000000000000000000000000000000000000..f5837b3f5fb57b77e237fa59bb53cc4c
 +        return groundTicks != 0;
 +    }
 +
-+    public static boolean solidAt(Location loc) {
++    public static boolean solidAt(@NotNull Location loc) {
 +        Block block = loc.getBlock();
 +        BoundingBox box = block.getBoundingBox();
 +        Vector position = loc.toVector();
@@ -1038,12 +1120,12 @@ index 0000000000000000000000000000000000000000..f5837b3f5fb57b77e237fa59bb53cc4c
 +        }
 +    }
 +
-+    private void touch(Entity entity) {
++    private void touch(@NotNull Entity entity) {
 +        entity.playerTouch(this);
 +    }
 +
 +    @Override
-+    public void onItemPickup(ItemEntity item) {
++    public void onItemPickup(@NotNull ItemEntity item) {
 +        super.onItemPickup(item);
 +        this.updateItemInMainHand();
 +    }
@@ -1052,37 +1134,28 @@ index 0000000000000000000000000000000000000000..f5837b3f5fb57b77e237fa59bb53cc4c
 +
 +    public void updateItemInMainHand() {
 +        ItemStack item = this.getInventory().getSelected().asBukkitCopy();
++        tryReplenishOrReplaceInMainHand();
 +
 +        if (!lastItem.isSimilar(item)) {
-+            if (!lastItem.isSimilar(defaultItem)) {
-+                if (tryReplenishInMainHand()) {
-+                    return;
-+                }
-+            }
-+
 +            this.setItem(item, EquipmentSlot.MAINHAND);
 +            lastItem = item;
 +        }
 +
 +        if (item.getAmount() == 0) {
-+            if (!tryReplenishInMainHand()) {
-+                this.setItem(defaultItem, EquipmentSlot.MAINHAND);
-+                lastItem = defaultItem;
-+            }
++            this.setItem(defaultItem, EquipmentSlot.MAINHAND);
++            lastItem = defaultItem;
 +        }
 +    }
 +
-+    public boolean tryReplenishInMainHand() {
-+        for (net.minecraft.world.item.ItemStack item : getInventory().items) {
-+            ItemStack bukkitCopy = item.asBukkitCopy();
-+            if (lastItem.getType() == bukkitCopy.getType() && bukkitCopy.getAmount() != 0) {
-+                getInventory().removeItem(item);
-+                getInventory().setItem(getInventory().selected, item);
-+                lastItem = bukkitCopy;
-+                return true;
++    public void tryReplenishOrReplaceInMainHand() {
++        net.minecraft.world.item.ItemStack mainHand = getMainHandItem();
++
++        if (!mainHand.isEmpty()) {
++            BotUtil.replenishment(mainHand, getInventory().items);
++            if (BotUtil.isDamage(mainHand, 10)) {
++                BotUtil.replaceTool(EquipmentSlot.MAINHAND, this);
 +            }
 +        }
-+        return false;
 +    }
 +
 +    @Override
@@ -1100,7 +1173,7 @@ index 0000000000000000000000000000000000000000..f5837b3f5fb57b77e237fa59bb53cc4c
 +    }
 +
 +    @Override
-+    public void push(Entity entity) {
++    public void push(@NotNull Entity entity) {
 +        if (!this.isPassengerOfSameVehicle(entity) && !entity.noPhysics && !this.noPhysics) {
 +            double d0 = entity.getX() - this.getX();
 +            double d1 = entity.getZ() - this.getZ();
@@ -1147,49 +1220,6 @@ index 0000000000000000000000000000000000000000..f5837b3f5fb57b77e237fa59bb53cc4c
 +        }
 +    }
 +
-+    private void fireDamageCheck() {
-+        Material type = getLocation().getBlock().getType();
-+
-+        final boolean lava = type == Material.LAVA;
-+        final boolean fire = type == Material.FIRE || type == Material.SOUL_FIRE;
-+
-+        if (!isAlive()) {
-+            return;
-+        }
-+
-+        if (type == Material.WATER && fireTicks > 0) {
-+            setOnFirePackets(false);
-+            fireTicks = 0;
-+            return;
-+        }
-+
-+        if (lava || fire) {
-+            ignite();
-+        }
-+
-+        if (invulnerableTime == 0) {
-+            if (lava) {
-+                hurt(DamageSource.LAVA, 4);
-+                invulnerableTime = 12;
-+            } else if (fire) {
-+                hurt(DamageSource.IN_FIRE, 2);
-+                invulnerableTime = 12;
-+            } else if (fireTicks > 1) {
-+                hurt(DamageSource.ON_FIRE, 1);
-+                invulnerableTime = 20;
-+            }
-+        }
-+
-+        if (fireTicks == 1) {
-+            setOnFirePackets(false);
-+        }
-+    }
-+
-+    public void ignite() {
-+        if (fireTicks <= 1) setOnFirePackets(true);
-+        this.fireTicks = 100;
-+    }
-+
 +    public void addFriction(double factor) {
 +
 +        double frictionMin = 0.01;
@@ -1223,7 +1253,7 @@ index 0000000000000000000000000000000000000000..f5837b3f5fb57b77e237fa59bb53cc4c
 +        this.move(MoverType.SELF, new Vec3(velocity.getX(), y, velocity.getZ()));
 +    }
 +
-+    public void faceLocation(Location loc) {
++    public void faceLocation(@NotNull Location loc) {
 +        look(loc.toVector().subtract(getLocation().toVector()), false);
 +    }
 +
@@ -1249,7 +1279,7 @@ index 0000000000000000000000000000000000000000..f5837b3f5fb57b77e237fa59bb53cc4c
 +        swing(InteractionHand.MAIN_HAND);
 +    }
 +
-+    public void attack(Entity target) {
++    public void attack(@NotNull Entity target) {
 +        super.attack(target);
 +        punch();
 +    }
@@ -1291,7 +1321,7 @@ index 0000000000000000000000000000000000000000..f5837b3f5fb57b77e237fa59bb53cc4c
 +    }
 +
 +    @Override
-+    public ServerStatsCounter getStats() {
++    public @NotNull ServerStatsCounter getStats() {
 +        return stats;
 +    }
 +
@@ -1347,10 +1377,10 @@ index 0000000000000000000000000000000000000000..f5837b3f5fb57b77e237fa59bb53cc4c
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/Actions.java b/src/main/java/top/leavesmc/leaves/bot/agent/Actions.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..3c1dff4308fde24ec60380ca290d5fa086f3606a
+index 0000000000000000000000000000000000000000..4e019c1fd77078cf8deae93948b7bf94f4c29fd4
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/Actions.java
-@@ -0,0 +1,50 @@
+@@ -0,0 +1,51 @@
 +package top.leavesmc.leaves.bot.agent;
 +
 +import org.jetbrains.annotations.Contract;
@@ -1378,6 +1408,7 @@ index 0000000000000000000000000000000000000000..3c1dff4308fde24ec60380ca290d5fa0
 +        register(new UseItemOnAction());
 +        register(new UseItemToAction());
 +        register(new LookAction());
++        register(new FishAction());
 +    }
 +
 +    public static void register(@NotNull BotAction action) {
@@ -1641,6 +1672,82 @@ index 0000000000000000000000000000000000000000..cc72960b8490a72aca5db3e834c71f97
 +    public boolean doTick(@NotNull ServerBot bot) {
 +        bot.dropAll();
 +        return true;
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/FishAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/FishAction.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..7f1a0d242fdc5803270d288a8185ad0b7220bf7b
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/agent/actions/FishAction.java
+@@ -0,0 +1,70 @@
++package top.leavesmc.leaves.bot.agent.actions;
++
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.world.InteractionHand;
++import net.minecraft.world.entity.projectile.FishingHook;
++import net.minecraft.world.item.FishingRodItem;
++import net.minecraft.world.item.ItemStack;
++import org.jetbrains.annotations.NotNull;
++import top.leavesmc.leaves.bot.ServerBot;
++import top.leavesmc.leaves.bot.agent.BotAction;
++import top.leavesmc.leaves.command.CommandArgument;
++import top.leavesmc.leaves.command.CommandArgumentResult;
++import top.leavesmc.leaves.command.CommandArgumentType;
++
++import java.util.List;
++
++public class FishAction extends BotAction {
++
++    public FishAction() {
++        super("fish", new CommandArgument(CommandArgumentType.INTEGER, CommandArgumentType.INTEGER));
++        setTabComplete(0, List.of("[TickDelay]"));
++        setTabComplete(1, List.of("[DoNumber]"));
++    }
++
++    @Override
++    public BotAction getNew(@NotNull ServerPlayer player, @NotNull CommandArgumentResult result) {
++        return new FishAction().setTickDelay(result.readInt(20)).setNumber(result.readInt(-1));
++    }
++
++    @Override
++    public BotAction setTickDelay(int tickDelay) {
++        super.setTickDelay(0);
++        this.delay = tickDelay;
++        return this;
++    }
++
++    private int delay = 0;
++    private int nowDelay = 0;
++
++    @Override
++    public boolean doTick(@NotNull ServerBot bot) {
++        if (nowDelay > 0) {
++            nowDelay--;
++            return false;
++        }
++
++        ItemStack mainHand = bot.getMainHandItem();
++        if (mainHand == ItemStack.EMPTY || mainHand.getItem().getClass() != FishingRodItem.class) {
++            return false;
++        }
++
++        FishingHook fishingHook = bot.fishing;
++        if (fishingHook != null) {
++            if (fishingHook.currentState == FishingHook.FishHookState.HOOKED_IN_ENTITY) {
++                mainHand.use(bot.getLevel(), bot, InteractionHand.MAIN_HAND);
++                nowDelay = 20;
++                return false;
++            }
++            if (fishingHook.nibble > 0) {
++                mainHand.use(bot.getLevel(), bot, InteractionHand.MAIN_HAND);
++                nowDelay = delay;
++                return true;
++            }
++        } else {
++            mainHand.use(bot.getLevel(), bot, InteractionHand.MAIN_HAND);
++        }
++
++        return false;
 +    }
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/JumpAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/JumpAction.java

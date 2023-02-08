@@ -48,7 +48,7 @@ index 2212f9f48636357265d8e44aba415ea4f09f1fe7..b592f5fa1d235c2c3906dd893d079cd4
          this.playerEntityTrackerTrackMaps = new com.destroystokyo.paper.util.misc.PlayerAreaMap[TRACKING_RANGE_TYPES.length];
          this.entityTrackerTrackRanges = new int[TRACKING_RANGE_TYPES.length];
 diff --git a/src/main/java/net/minecraft/server/level/ServerChunkCache.java b/src/main/java/net/minecraft/server/level/ServerChunkCache.java
-index ca84eddbdb1e198b899750e5f6b3eafd25ce970f..172e87e07f2a544c5a195ed548cd4316fcc3cf2f 100644
+index ca84eddbdb1e198b899750e5f6b3eafd25ce970f..9aa8f02adf366dc532f40a376c1cefd36a60ed5c 100644
 --- a/src/main/java/net/minecraft/server/level/ServerChunkCache.java
 +++ b/src/main/java/net/minecraft/server/level/ServerChunkCache.java
 @@ -77,6 +77,11 @@ public class ServerChunkCache extends ChunkSource {
@@ -63,9 +63,12 @@ index ca84eddbdb1e198b899750e5f6b3eafd25ce970f..172e87e07f2a544c5a195ed548cd4316
      private static int getChunkCacheKey(int x, int z) {
          return x & 3 | ((z & 3) << 2);
      }
-@@ -712,18 +717,25 @@ public class ServerChunkCache extends ChunkSource {
+@@ -710,20 +715,27 @@ public class ServerChunkCache extends ChunkSource {
+             this.level.timings.countNaturalMobs.startTiming(); // Paper - timings
+             int l = this.distanceManager.getNaturalSpawnChunkCount();
              // Paper start - per player mob spawning
-             NaturalSpawner.SpawnState spawnercreature_d; // moved down
+-            NaturalSpawner.SpawnState spawnercreature_d; // moved down
++            // NaturalSpawner.SpawnState spawnercreature_d; // moved down // Leaves - asynchronously
              if ((this.spawnFriendlies || this.spawnEnemies) && this.chunkMap.playerMobDistanceMap != null) { // don't count mobs when animals and monsters are disabled
 -                // re-set mob counts
 -                for (ServerPlayer player : this.level.players) {
@@ -76,7 +79,7 @@ index ca84eddbdb1e198b899750e5f6b3eafd25ce970f..172e87e07f2a544c5a195ed548cd4316
 +                    for (ServerPlayer player : this.level.players) {
 +                        Arrays.fill(player.mobCounts, 0);
 +                    }
-+                    lastSpawnState = NaturalSpawner.createState(l, this.level.getAllEntities(), this::getFullChunk, this.chunkMap.playerMobDistanceMap == null ? new LocalMobCapCalculator(this.chunkMap) : null, true); // Leaves - be vanilla
++                    lastSpawnState = NaturalSpawner.createState(l, this.level.getAllEntities(), this::getFullChunk, null, true);
                  }
 -                spawnercreature_d = NaturalSpawner.createState(l, this.level.getAllEntities(), this::getFullChunk, null, true);
 +                // Leaves end - moved down when async processing
@@ -138,7 +141,7 @@ index ca84eddbdb1e198b899750e5f6b3eafd25ce970f..172e87e07f2a544c5a195ed548cd4316
      }
  
 diff --git a/src/main/java/net/minecraft/world/level/NaturalSpawner.java b/src/main/java/net/minecraft/world/level/NaturalSpawner.java
-index 01b21f520ef1c834b9bafc3de85c1fa4fcf539d6..d2c27fca6b83da0af504e15d3b72aac370581d03 100644
+index 01b21f520ef1c834b9bafc3de85c1fa4fcf539d6..ef908773238a353e2d003284c158607051d1eadf 100644
 --- a/src/main/java/net/minecraft/world/level/NaturalSpawner.java
 +++ b/src/main/java/net/minecraft/world/level/NaturalSpawner.java
 @@ -173,7 +173,7 @@ public final class NaturalSpawner {
@@ -146,7 +149,7 @@ index 01b21f520ef1c834b9bafc3de85c1fa4fcf539d6..d2c27fca6b83da0af504e15d3b72aac3
                  difference = (minDiff == Integer.MAX_VALUE) ? 0 : minDiff;
              }
 -            if ((spawnAnimals || !enumcreaturetype.isFriendly()) && (spawnMonsters || enumcreaturetype.isFriendly()) && (rareSpawn || !enumcreaturetype.isPersistent()) && difference > 0) {
-+            if ((spawnAnimals || !enumcreaturetype.isFriendly()) && (spawnMonsters || enumcreaturetype.isFriendly()) && (rareSpawn || !enumcreaturetype.isPersistent()) && difference > 0 && info.canSpawnForCategory(enumcreaturetype, chunk.getPos(), limit)) { // Leaves - be vanilla
++            if ((spawnAnimals || !enumcreaturetype.isFriendly()) && (spawnMonsters || enumcreaturetype.isFriendly()) && (rareSpawn || !enumcreaturetype.isPersistent()) && difference > 0 && (world.paperConfig().entities.spawning.perPlayerMobSpawns || info.canSpawnForCategory(enumcreaturetype, chunk.getPos(), limit))) { // Leaves - be vanilla
                  // Paper end
                  // CraftBukkit end
                  Objects.requireNonNull(info);

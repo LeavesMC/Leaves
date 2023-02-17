@@ -5,7 +5,7 @@ Subject: [PATCH] Fakeplayer support
 
 
 diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
-index cab8412d5183427b02c5f5d7b76aded8e9fbc491..9904aa8178bf64768a646dbc886cb774cb013af9 100644
+index cab8412d5183427b02c5f5d7b76aded8e9fbc491..811e52d1dada0858348c162e80aec630da3283a7 100644
 --- a/src/main/java/net/minecraft/server/MinecraftServer.java
 +++ b/src/main/java/net/minecraft/server/MinecraftServer.java
 @@ -125,6 +125,7 @@ import net.minecraft.util.profiling.metrics.profiling.ServerMetricsSamplersProvi
@@ -16,19 +16,23 @@ index cab8412d5183427b02c5f5d7b76aded8e9fbc491..9904aa8178bf64768a646dbc886cb774
  import net.minecraft.world.entity.Entity;
  import net.minecraft.world.entity.ai.village.VillageSiege;
  import net.minecraft.world.entity.npc.CatSpawner;
-@@ -193,6 +194,7 @@ import org.bukkit.event.server.ServerLoadEvent;
- // CraftBukkit end
+@@ -632,6 +633,8 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+         }
+         // Paper end
  
- import co.aikar.timings.MinecraftTimings; // Paper
-+import top.leavesmc.leaves.bot.ServerBot;
- 
- public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTask> implements CommandSource, AutoCloseable {
- 
-@@ -939,6 +941,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
++        top.leavesmc.leaves.bot.ServerBot.loadAllBot(); // Leaves - load resident bot
++
+         this.server.enablePlugins(org.bukkit.plugin.PluginLoadOrder.POSTWORLD);
+         this.server.getPluginManager().callEvent(new ServerLoadEvent(ServerLoadEvent.LoadType.STARTUP));
+         this.connection.acceptConnections();
+@@ -939,6 +942,10 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
          MinecraftServer.LOGGER.info("Stopping server");
          Commands.COMMAND_SENDING_POOL.shutdownNow(); // Paper - Shutdown and don't bother finishing
          MinecraftTimings.stopServer(); // Paper
-+        ServerBot.removeAllBot(); // Leaves - remove all bot
++        // Leaves start - bot
++        top.leavesmc.leaves.bot.ServerBot.saveAllBot(); // Leaves - save
++        top.leavesmc.leaves.bot.ServerBot.removeAllBot(); // Leaves - remove all bot
++        // Leaves end - bot
          // CraftBukkit start
          if (this.server != null) {
              this.server.disablePlugins();
@@ -218,7 +222,7 @@ index 78f53ee557276de85f0431ebcb146445b1f4fb92..42a2e411fd769bf0bf034141297e890c
              }
              // Water Animals
 diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
-index 1fb25e8a21b568864974cc81b452ba062890d593..746b3873782d3ee13a30b8b65b4970b140b6f0fc 100644
+index 1fb25e8a21b568864974cc81b452ba062890d593..a3aceccc7f2d1e8a525ac849c3818d8de4047ed1 100644
 --- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
 +++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
 @@ -7,6 +7,8 @@ import org.bukkit.Bukkit;
@@ -268,7 +272,7 @@ index 1fb25e8a21b568864974cc81b452ba062890d593..746b3873782d3ee13a30b8b65b4970b1
      public static boolean playerCanEditSign = true;
      private static void playerCanEditSign() {
          playerCanEditSign = getBoolean("settings.modify.player-can-edit-sign", playerCanEditSign);
-@@ -146,6 +162,21 @@ public final class LeavesConfig {
+@@ -146,6 +162,23 @@ public final class LeavesConfig {
          snowballAndEggCanKnockback = getBoolean("settings.modify.snowball-and-egg-can-knockback-player", snowballAndEggCanKnockback);
      }
  
@@ -278,6 +282,7 @@ index 1fb25e8a21b568864974cc81b452ba062890d593..746b3873782d3ee13a30b8b65b4970b1
 +    public static String fakeplayerPrefix = "";
 +    public static String fakeplayerSuffix = "";
 +    public static boolean alwaysSendFakeplayerData = true;
++    public static boolean fakeplayerResident = false;
 +    public static void fakeplayer() {
 +        fakeplayerSupport = getBoolean("settings.modify.fakeplayer.enable", fakeplayerSupport);
 +        unableFakeplayerNames = getList("settings.modify.fakeplayer.unable-fakeplayer-names", unableFakeplayerNames);
@@ -285,6 +290,7 @@ index 1fb25e8a21b568864974cc81b452ba062890d593..746b3873782d3ee13a30b8b65b4970b1
 +        fakeplayerPrefix = getString("settings.modify.fakeplayer.prefix", fakeplayerPrefix);
 +        fakeplayerSuffix = getString("settings.modify.fakeplayer.suffix", fakeplayerSuffix);
 +        alwaysSendFakeplayerData = getBoolean("settings.modify.fakeplayer.always-send-data", alwaysSendFakeplayerData);
++        fakeplayerResident = getBoolean("settings.modify.fakeplayer.resident-fakeplayer", fakeplayerResident);
 +    }
 +
      public static final class WorldConfig {
@@ -559,16 +565,22 @@ index 0000000000000000000000000000000000000000..07b688d376a4af88305e57519a5ae983
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/BotUtil.java b/src/main/java/top/leavesmc/leaves/bot/BotUtil.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..5a66ebb4c3c15162fab7be4fd0a160443341dfe4
+index 0000000000000000000000000000000000000000..e5379b8a7494bc24f010cd7c52a2be52b7909ad2
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/BotUtil.java
-@@ -0,0 +1,61 @@
+@@ -0,0 +1,102 @@
 +package top.leavesmc.leaves.bot;
 +
++import com.google.gson.JsonElement;
++import com.google.gson.JsonObject;
 +import net.minecraft.core.NonNullList;
 +import net.minecraft.world.entity.EquipmentSlot;
 +import net.minecraft.world.item.ItemStack;
++import org.bukkit.Bukkit;
++import org.bukkit.Location;
 +import org.jetbrains.annotations.NotNull;
++
++import java.util.Map;
 +
 +public class BotUtil {
 +
@@ -623,6 +635,41 @@ index 0000000000000000000000000000000000000000..5a66ebb4c3c15162fab7be4fd0a16044
 +    public static boolean isDamage(@NotNull ItemStack item, int minDamage) {
 +        return item.isDamageableItem() && (item.getMaxDamage() - item.getDamageValue()) <= minDamage;
 +    }
++
++    @NotNull
++    public static JsonObject saveBot(@NotNull ServerBot bot) {
++        double pos_x = bot.getX();
++        double pos_y = bot.getY();
++        double pos_z = bot.getZ();
++        float yaw = bot.getYRot();
++        float pitch = bot.getXRot();
++        String dimension = bot.level.dimension().location().getPath();
++        String skin = bot.skinName == null ? "null" : bot.skinName;
++        JsonObject fakePlayer = new JsonObject();
++        fakePlayer.addProperty("pos_x", pos_x);
++        fakePlayer.addProperty("pos_y", pos_y);
++        fakePlayer.addProperty("pos_z", pos_z);
++        fakePlayer.addProperty("yaw", yaw);
++        fakePlayer.addProperty("pitch", pitch);
++        fakePlayer.addProperty("dimension", dimension);
++        fakePlayer.addProperty("skin", skin);
++        return fakePlayer;
++    }
++
++    public static void loadBot(Map.@NotNull Entry<String, JsonElement> entry) {
++        String username = entry.getKey();
++        JsonObject fakePlayer = entry.getValue().getAsJsonObject();
++        double pos_x = fakePlayer.get("pos_x").getAsDouble();
++        double pos_y = fakePlayer.get("pos_y").getAsDouble();
++        double pos_z = fakePlayer.get("pos_z").getAsDouble();
++        float yaw = fakePlayer.get("yaw").getAsFloat();
++        float pitch = fakePlayer.get("pitch").getAsFloat();
++        String dimension = fakePlayer.get("dimension").getAsString();
++        String skin = fakePlayer.get("skin").getAsString();
++        skin = skin.equals("null") ? null : skin;
++        ServerBot.createBot(new Location(Bukkit.getWorld(dimension), pos_x, pos_y, pos_z, yaw, pitch),
++            username, skin);
++    }
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/MojangAPI.java b/src/main/java/top/leavesmc/leaves/bot/MojangAPI.java
 new file mode 100644
@@ -673,13 +720,16 @@ index 0000000000000000000000000000000000000000..d6466ee4db637106e1394bb462d875e5
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/ServerBot.java b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..4f3c5ab80f721b6cb40ea005dab47c8a60fa5416
+index 0000000000000000000000000000000000000000..0dbaf5f409a616e20286cdba93846268d60f1e4a
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
-@@ -0,0 +1,700 @@
+@@ -0,0 +1,759 @@
 +package top.leavesmc.leaves.bot;
 +
 +import com.google.common.collect.Lists;
++import com.google.gson.Gson;
++import com.google.gson.JsonElement;
++import com.google.gson.JsonObject;
 +import com.mojang.authlib.GameProfile;
 +import com.mojang.authlib.properties.Property;
 +import com.mojang.datafixers.util.Pair;
@@ -711,6 +761,7 @@ index 0000000000000000000000000000000000000000..4f3c5ab80f721b6cb40ea005dab47c8a
 +import net.minecraft.world.entity.EquipmentSlot;
 +import net.minecraft.world.entity.MoverType;
 +import net.minecraft.world.entity.item.ItemEntity;
++import net.minecraft.world.level.storage.LevelResource;
 +import net.minecraft.world.phys.AABB;
 +import net.minecraft.world.phys.Vec3;
 +import org.bukkit.Bukkit;
@@ -739,11 +790,18 @@ index 0000000000000000000000000000000000000000..4f3c5ab80f721b6cb40ea005dab47c8a
 +import top.leavesmc.leaves.util.MathUtils;
 +
 +import javax.annotation.Nullable;
++import java.io.BufferedReader;
++import java.io.BufferedWriter;
++import java.io.File;
++import java.io.IOException;
++import java.nio.charset.StandardCharsets;
++import java.nio.file.Files;
 +import java.util.ArrayList;
 +import java.util.Collections;
 +import java.util.EnumSet;
 +import java.util.Iterator;
 +import java.util.List;
++import java.util.Map;
 +import java.util.Objects;
 +import java.util.UUID;
 +
@@ -765,11 +823,16 @@ index 0000000000000000000000000000000000000000..4f3c5ab80f721b6cb40ea005dab47c8a
 +
 +    private final ItemStack defaultItem;
 +    private final ServerStatsCounter stats;
++    public final String skinName;
 +
 +    private static final List<ServerBot> bots = new ArrayList<>();
 +    private static final Plugin MINECRAFT_PLUGIN = new MinecraftInternalPlugin();
 +
 +    private ServerBot(MinecraftServer server, ServerLevel world, GameProfile profile) {
++        this(server, world, profile, null);
++    }
++
++    private ServerBot(MinecraftServer server, ServerLevel world, GameProfile profile, String skinName) {
 +        super(server, world, profile);
 +        this.entityData.set(new EntityDataAccessor<>(16, EntityDataSerializers.INT), 0xFF);
 +
@@ -782,6 +845,7 @@ index 0000000000000000000000000000000000000000..4f3c5ab80f721b6cb40ea005dab47c8a
 +        this.defaultItem = new ItemStack(Material.AIR);
 +        this.removeOnDeath = true;
 +        this.stats = new BotStatsCounter(server);
++        this.skinName = skinName;
 +        server.getPlayerList().addNewBot(this);
 +    }
 +
@@ -793,15 +857,15 @@ index 0000000000000000000000000000000000000000..4f3c5ab80f721b6cb40ea005dab47c8a
 +        if (skinName != null) {
 +            Bukkit.getScheduler().runTaskAsynchronously(MINECRAFT_PLUGIN, () -> {
 +                String[] skin = MojangAPI.getSkin(skinName);
-+                Bukkit.getScheduler().runTask(MINECRAFT_PLUGIN, () -> createBot(loc, realName, skin));
++                Bukkit.getScheduler().runTask(MINECRAFT_PLUGIN, () -> createBot(loc, realName, skin, skinName));
 +            });
 +        } else {
-+            createBot(loc, realName, (String[]) null);
++            createBot(loc, realName, null, null);
 +        }
 +    }
 +
 +    @Nullable
-+    public static ServerBot createBot(@NotNull Location loc, @NotNull String name, String[] skin) {
++    public static ServerBot createBot(@NotNull Location loc, @NotNull String name, String[] skin, String skinName) {
 +        if (!isCreateLegal(name)) {
 +            return null;
 +        }
@@ -817,7 +881,7 @@ index 0000000000000000000000000000000000000000..4f3c5ab80f721b6cb40ea005dab47c8a
 +            UUID uuid = UUID.randomUUID();
 +            CustomGameProfile profile = new CustomGameProfile(uuid, name.length() > 16 ? name.substring(0, 16) : name, skin);
 +
-+            ServerBot bot = new ServerBot(server, world, profile);
++            ServerBot bot = new ServerBot(server, world, profile, skinName);
 +
 +            bot.connection = new ServerGamePacketListenerImpl(server, new Connection(PacketFlow.CLIENTBOUND) {
 +                @Override
@@ -1347,6 +1411,48 @@ index 0000000000000000000000000000000000000000..4f3c5ab80f721b6cb40ea005dab47c8a
 +            }
 +        }
 +        return bot;
++    }
++
++    public static void saveAllBot() {
++        if (LeavesConfig.fakeplayerSupport && LeavesConfig.fakeplayerResident) {
++            JsonObject fakePlayerList = new JsonObject();
++            bots.forEach((bot -> {
++                String name = bot.getName().getString();
++                fakePlayerList.add(name, BotUtil.saveBot(bot));
++            }));
++            File file = MinecraftServer.getServer().getWorldPath(LevelResource.ROOT).resolve("fake_player.leaves.json").toFile();
++            if (!file.isFile()) {
++                try {
++                    file.createNewFile();
++                } catch (IOException e) {
++                    e.printStackTrace();
++                }
++            }
++            try (BufferedWriter bfw = Files.newBufferedWriter(file.toPath(), StandardCharsets.UTF_8)) {
++                bfw.write(new Gson().toJson(fakePlayerList));
++            } catch (IOException e) {
++                e.printStackTrace();
++            }
++        }
++    }
++
++    public static void loadAllBot() {
++        if (LeavesConfig.fakeplayerSupport && LeavesConfig.fakeplayerResident) {
++            JsonObject fakePlayerList = new JsonObject();
++            File file = MinecraftServer.getServer().getWorldPath(LevelResource.ROOT).resolve("fake_player.leaves.json").toFile();
++            if (!file.isFile()) {
++                return;
++            }
++            try (BufferedReader bfr = Files.newBufferedReader(file.toPath(), StandardCharsets.UTF_8)) {
++                fakePlayerList = new Gson().fromJson(bfr, JsonObject.class);
++            } catch (IOException e) {
++                e.printStackTrace();
++            }
++            for (Map.Entry<String, JsonElement> entry : fakePlayerList.entrySet()) {
++                BotUtil.loadBot(entry);
++            }
++            file.delete();
++        }
 +    }
 +
 +    public static boolean removeAllBot() {

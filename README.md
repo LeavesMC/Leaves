@@ -17,6 +17,8 @@ You can download the latest build (1.19.x) of Leaves by going [here](https://git
 
 You can also [build it yourself](https://github.com/LeavesMC/Leaves#building).
 
+You can visit our [documentation](https://docs.leavesmc.top/leaves) for more information.
+
 ## How To (Plugin developers)
 In order to use Leaves as a dependency you must [build it yourself](https://github.com/LeavesMC/Leaves#building).
 Each time you want to update your dependency you must re-build Leaves.

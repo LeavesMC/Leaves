@@ -17,6 +17,8 @@ Leaves
 
 也可以通过 [此处](https://github.com/LeavesMC/Leaves/blob/master/README_cn.md#自行构建) 的指南自行构建
 
+如果你想要获得更多信息，那么你可以访问我们的 [文档](https://docs.leavesmc.top/zh/leaves)
+
 ## 对于插件开发者
 如果你要将Leaves作为依赖,那么你必须进行 [自行构建](https://github.com/LeavesMC/Leaves/blob/master/README_cn.md#自行构建)
 

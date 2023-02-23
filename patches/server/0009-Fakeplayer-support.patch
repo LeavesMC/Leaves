@@ -298,7 +298,7 @@ index 1fb25e8a21b568864974cc81b452ba062890d593..3ca5c504cd8c85f300e1df747a9a3740
          public final String worldName;
 diff --git a/src/main/java/top/leavesmc/leaves/bot/BotCommand.java b/src/main/java/top/leavesmc/leaves/bot/BotCommand.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..2a058856b4cf7d2d28f601843e41c6bd4e9be143
+index 0000000000000000000000000000000000000000..6b7fb541d4d1fb6d4f3239ec59da26e30af76234
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/BotCommand.java
 @@ -0,0 +1,222 @@
@@ -361,7 +361,7 @@ index 0000000000000000000000000000000000000000..2a058856b4cf7d2d28f601843e41c6bd
 +            }
 +        }
 +
-+        if (args.length >= 4 && args[3].equals("action")) {
++        if (args.length >= 4 && args[0].equals("action")) {
 +            BotAction action = Actions.getForName(args[2]);
 +            if (action != null) {
 +                list.addAll(action.getArgument().tabComplete(args.length - 4));
@@ -1661,13 +1661,14 @@ index 0000000000000000000000000000000000000000..609605b21cfe5af8876f76ea4922e379
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/BreakBlockAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/BreakBlockAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..b6f9612a734c93878ef1098d9109cc3756eb6942
+index 0000000000000000000000000000000000000000..c09217624ca88d338b505d94a8426f3703036188
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/actions/BreakBlockAction.java
-@@ -0,0 +1,85 @@
+@@ -0,0 +1,92 @@
 +package top.leavesmc.leaves.bot.agent.actions;
 +
 +import net.minecraft.core.BlockPos;
++import net.minecraft.server.MinecraftServer;
 +import net.minecraft.server.level.ServerPlayer;
 +import net.minecraft.world.level.block.state.BlockState;
 +import org.bukkit.block.Block;
@@ -1705,7 +1706,8 @@ index 0000000000000000000000000000000000000000..b6f9612a734c93878ef1098d9109cc37
 +    private int nowDelay = 0;
 +
 +    private BlockPos lastPos = null;
-+    private float damage = 0.0F;
++    private int destroyProgressTime = -1;
++    private int lastSentState = -1;
 +
 +    @Override
 +    public boolean doTick(@NotNull ServerBot bot) {
@@ -1718,36 +1720,41 @@ index 0000000000000000000000000000000000000000..b6f9612a734c93878ef1098d9109cc37
 +        if (block != null) {
 +            BlockPos pos = ((CraftBlock) block).getPosition();
 +
-+            if (lastPos == null) {
++            if (lastPos == null || !lastPos.equals(pos)) {
 +                lastPos = pos;
-+                damage = 0.0F;
++                destroyProgressTime = 0;
++                lastSentState = -1;
 +            }
 +
-+            if (!lastPos.equals(pos)) {
-+                lastPos = pos;
-+                damage = 0.0F;
-+                nowDelay = delay;
-+                return false;
-+            }
-+
-+            BlockState iblockdata = bot.level.getBlockState(lastPos);
++            BlockState iblockdata = bot.level.getBlockState(pos);
 +            if (!iblockdata.isAir()) {
 +                bot.punch();
-+                damage += iblockdata.getDestroyProgress(bot, bot.level, lastPos) * 5.0F;
 +
-+                int k = (int) (damage * 10.0F);
-+                bot.level.destroyBlockProgress(bot.getId(), lastPos, k);
-+
++                float damage = this.incrementDestroyProgress(bot, iblockdata, pos);
 +                if (damage >= 1.0F) {
 +                    bot.gameMode.destroyAndAck(lastPos, 0, "destroyed");
 +                    bot.level.destroyBlockProgress(bot.getId(), lastPos, -1);
 +                    bot.updateItemInMainHand();
-+                    damage = 0.0F;
++                    destroyProgressTime = 0;
++                    lastSentState = -1;
++                    nowDelay = delay;
 +                    return true;
 +                }
 +            }
 +        }
 +        return false;
++    }
++
++    private float incrementDestroyProgress(ServerBot bot, @NotNull BlockState state, BlockPos pos) {
++        float f = state.getDestroyProgress(bot, bot.level, pos) * (float) (destroyProgressTime++);
++        int k = (int) (f * 10.0F);
++
++        if (k != lastSentState) {
++            bot.level.destroyBlockProgress(bot.getId(), pos, k);
++            lastSentState = k;
++        }
++
++        return f;
 +    }
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/DropAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/DropAction.java

@@ -1,0 +1,76 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Fri, 17 Mar 2023 15:57:08 +0800
+Subject: [PATCH] Fix update suppression crash
+
+
+diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
+index 9c435373df254daecba83f4bde34dfab1cbf7a38..f0a3a574c6e53115c69b1faab78ef823ea7e5f58 100644
+--- a/src/main/java/net/minecraft/server/MinecraftServer.java
++++ b/src/main/java/net/minecraft/server/MinecraftServer.java
+@@ -1543,7 +1543,13 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+ 
+             try {
+                 worldserver.timings.doTick.startTiming(); // Spigot
+-                worldserver.tick(shouldKeepTicking);
++                // Leaves start
++                try {
++                    worldserver.tick(shouldKeepTicking);
++                } catch (top.leavesmc.leaves.util.UpdateSuppressionException e) {
++                    top.leavesmc.leaves.LeavesLogger.LOGGER.info("An update suppression processed");
++                }
++                // Leaves end
+                 // Paper start
+                 for (final io.papermc.paper.chunk.SingleThreadChunkRegionManager regionManager : worldserver.getChunkSource().chunkMap.regionManagers) {
+                     regionManager.recalculateRegions();
+diff --git a/src/main/java/net/minecraft/world/level/redstone/NeighborUpdater.java b/src/main/java/net/minecraft/world/level/redstone/NeighborUpdater.java
+index 19faa8f5f891c1ffbed0af8391dee8202433c447..0f8d5495f9f7306f3267a0741cb6a1a6d106c38e 100644
+--- a/src/main/java/net/minecraft/world/level/redstone/NeighborUpdater.java
++++ b/src/main/java/net/minecraft/world/level/redstone/NeighborUpdater.java
+@@ -66,9 +66,17 @@ public interface NeighborUpdater {
+             state.neighborChanged(world, pos, sourceBlock, sourcePos, notify);
+             // Spigot Start
+         } catch (StackOverflowError ex) {
++            // Leaves start - fix update suppression crash
++            if (top.leavesmc.leaves.LeavesConfig.updateSuppressionCrashFix) {
++                throw new top.leavesmc.leaves.util.UpdateSuppressionException();
++            }
+             world.lastPhysicsProblem = new BlockPos(pos);
+             // Spigot End
+         } catch (Throwable throwable) {
++            if (top.leavesmc.leaves.LeavesConfig.updateSuppressionCrashFix) {
++                throw new top.leavesmc.leaves.util.UpdateSuppressionException();
++            }
++            // Leaves end - fix update suppression crash
+             CrashReport crashreport = CrashReport.forThrowable(throwable, "Exception while updating neighbours");
+             CrashReportCategory crashreportsystemdetails = crashreport.addCategory("Block being updated");
+ 
+diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+index 2c75585014ffecf3d07d5a9a507e4d7d55b7bf6c..7619428fbc95484f6251b34dd4bd1ab82cf2e341 100644
+--- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
++++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+@@ -524,6 +524,11 @@ public final class LeavesConfig {
+         }
+     }
+ 
++    public static boolean updateSuppressionCrashFix = true;
++    private static void updateSuppressionCrashFix() {
++        updateSuppressionCrashFix = getBoolean("settings.modify.fix-update-suppression-crash", updateSuppressionCrashFix);
++    }
++
+     public static final class WorldConfig {
+ 
+         public final String worldName;
+diff --git a/src/main/java/top/leavesmc/leaves/util/UpdateSuppressionException.java b/src/main/java/top/leavesmc/leaves/util/UpdateSuppressionException.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..fa4c91f4ba9a8eab4fdea97737ed778af46518dc
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/util/UpdateSuppressionException.java
+@@ -0,0 +1,7 @@
++package top.leavesmc.leaves.util;
++
++public class UpdateSuppressionException extends RuntimeException {
++    public UpdateSuppressionException() {
++        super("Update suppression");
++    }
++}

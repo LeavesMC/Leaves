@@ -35,7 +35,7 @@ echo "$leavesid [![download](https://img.shields.io/github/downloads/LeavesMC/Le
 echo "=====" >> $releaseinfo
 echo "" >> $releaseinfo
 if [ $preVersion = "true" ]; then
-  echo "> This is early, experimental build. They are only recommended for usage on test servers and should be used with caution." >> $releaseinfo
+  echo "> This is early, experimental build. It is only recommended for usage on test servers and should be used with caution." >> $releaseinfo
   echo "> **Backups are mandatory!**" >> $releaseinfo
   echo "" >> $releaseinfo
 fi

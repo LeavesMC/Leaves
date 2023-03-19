@@ -13,6 +13,7 @@ prop() {
 commitid=$(git log --pretty='%h' -1)
 mcversion=$(prop mcVersion)
 gradleVersion=$(prop version)
+preVersion=$(prop preVersion)
 tagid="$mcversion-$commitid"
 jarName="leaves-$mcversion.jar"
 leavesid="Leaves-$commitid"
@@ -28,10 +29,16 @@ echo "tag=$tagid" >> $GITHUB_ENV
 echo "jar=$jarName" >> $GITHUB_ENV
 echo "info=$releaseinfo" >> $GITHUB_ENV
 echo "discordmes=$discordmes" >> $GITHUB_ENV
+echo "pre=$preVersion" >> $GITHUB_ENV
 
 echo "$leavesid [![download](https://img.shields.io/github/downloads/LeavesMC/Leaves/$tagid/total?color=0)](https://github.com/Leaves/LeavesMC/releases/download/$tagid/$jarName)" >> $releaseinfo
 echo "=====" >> $releaseinfo
 echo "" >> $releaseinfo
+if [ $preVersion = "true" ]; then
+  echo "> This is early, experimental build. They are only recommended for usage on test servers and should be used with caution." >> $releaseinfo
+  echo "> **Backups are mandatory!**" >> $releaseinfo
+  echo "" >> $releaseinfo
+fi
 echo "### Commit Message" >> $releaseinfo
 
 number=$(git log --oneline master ^`git describe --tags --abbrev=0` | wc -l)

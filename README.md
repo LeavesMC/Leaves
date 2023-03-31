@@ -26,14 +26,14 @@ Each time you want to update your dependency you must re-build Leaves.
 Leaves-API maven dependency:
 ```kotlin
 dependencies {
-    compileOnly("top.leavesmc.leaves:leaves-api:1.19.3-R0.1-SNAPSHOT")
+    compileOnly("top.leavesmc.leaves:leaves-api:1.19.4-R0.1-SNAPSHOT")
 }
  ```
 
 Leaves-Server maven dependency:
 ```kotlin
 dependencies {
-    compileOnly("top.leavesmc.leaves:leaves:1.19.3-R0.1-SNAPSHOT")
+    compileOnly("top.leavesmc.leaves:leaves:1.19.4-R0.1-SNAPSHOT")
 }
  ```
 

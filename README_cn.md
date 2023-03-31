@@ -25,14 +25,14 @@ Leaves
 Leaves-API:
 ```kotlin
 dependencies {
-    compileOnly("top.leavesmc.leaves:leaves-api:1.19.3-R0.1-SNAPSHOT")
+    compileOnly("top.leavesmc.leaves:leaves-api:1.19.4-R0.1-SNAPSHOT")
 }
  ```
 
 Leaves-Server:
 ```kotlin
 dependencies {
-    compileOnly("top.leavesmc.leaves:leaves:1.19.3-R0.1-SNAPSHOT")
+    compileOnly("top.leavesmc.leaves:leaves:1.19.4-R0.1-SNAPSHOT")
 }
  ```
 

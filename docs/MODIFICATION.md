@@ -29,6 +29,12 @@ Leaves Modification
 - Player operation limiter (can disable auto break bedrock mod)
 - Renewable Elytra (on shulker kill phantom)
 - Stackable ShulkerBox (empty)
+- MC Technical Survival Mode
+- Return nether portal fix
+- Extra Yggdrasil support
+- Vanilla random
+- Update suppression crash fixed
+- Bedrock break list
 
 ## Performance
 
@@ -73,3 +79,5 @@ Leaves Modification
 - BBOR protocol
 - Jade protocol
 - Carpet alternative block placement (carpet-extra)
+- Appleskin protocol
+- Xaero Map protocol

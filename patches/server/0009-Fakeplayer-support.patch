@@ -84,7 +84,7 @@ index 5fad40fa88f697108e42461c41012d5964ed7d75..420175039254f780bf4415b4118bec8f
                  PlayerChangedWorldEvent changeEvent = new PlayerChangedWorldEvent(this.getBukkitEntity(), worldserver1.getWorld());
                  this.level().getCraftServer().getPluginManager().callEvent(changeEvent);
 diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
-index 683b5d78f9e3dc34e40c54683f64be32317797ac..254171bacd48142cc7bd0c8b79c6526984cd0033 100644
+index 683b5d78f9e3dc34e40c54683f64be32317797ac..4eaf7ae37557075ebe735827861507bee6b61eed 100644
 --- a/src/main/java/net/minecraft/server/players/PlayerList.java
 +++ b/src/main/java/net/minecraft/server/players/PlayerList.java
 @@ -81,6 +81,7 @@ import net.minecraft.server.ServerScoreboard;
@@ -111,7 +111,7 @@ index 683b5d78f9e3dc34e40c54683f64be32317797ac..254171bacd48142cc7bd0c8b79c65269
 +        if (top.leavesmc.leaves.LeavesConfig.fakeplayerSupport) {
 +            ServerBot bot = ServerBot.getBot(player.getScoreboardName().toLowerCase(java.util.Locale.ROOT));
 +            if (bot != null) {
-+                bot.die(bot.damageSources().outOfWorld()); // Leaves - remove bot with the same name
++                bot.die(bot.damageSources().fellOutOfWorld()); // Leaves - remove bot with the same name
 +                this.playersByName.put(player.getScoreboardName().toLowerCase(java.util.Locale.ROOT), player);
 +                this.playersByUUID.put(player.getUUID(), player);
 +            }
@@ -316,7 +316,7 @@ index 1fb25e8a21b568864974cc81b452ba062890d593..816d78268db3d0be0a70ff3c78e74b52
          public final String worldName;
 diff --git a/src/main/java/top/leavesmc/leaves/bot/BotCommand.java b/src/main/java/top/leavesmc/leaves/bot/BotCommand.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..0507d8bfa1100863b5a448d7d36671b658804d21
+index 0000000000000000000000000000000000000000..9227559cd0aefe82d7f53a79b464be1d064b3ae1
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/BotCommand.java
 @@ -0,0 +1,222 @@
@@ -461,7 +461,7 @@ index 0000000000000000000000000000000000000000..0507d8bfa1100863b5a448d7d36671b6
 +            return;
 +        }
 +
-+        bot.die(bot.damageSources().outOfWorld());
++        bot.die(bot.damageSources().fellOutOfWorld());
 +    }
 +
 +    private void onAction(CommandSender sender, String @NotNull [] args) {
@@ -969,10 +969,10 @@ index 0000000000000000000000000000000000000000..d6466ee4db637106e1394bb462d875e5
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/ServerBot.java b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..fbdd0f051d933571c65ed032c679255fb31bb7a2
+index 0000000000000000000000000000000000000000..09307d8381bb5ad241f73d0c399226abe2b59f6b
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
-@@ -0,0 +1,789 @@
+@@ -0,0 +1,787 @@
 +package top.leavesmc.leaves.bot;
 +
 +import com.google.common.collect.Lists;
@@ -1264,7 +1264,7 @@ index 0000000000000000000000000000000000000000..fbdd0f051d933571c65ed032c679255f
 +    }
 +
 +    @Override
-+    public boolean isOnGround() {
++    public boolean onGround() {
 +        return groundTicks != 0;
 +    }
 +
@@ -1394,8 +1394,6 @@ index 0000000000000000000000000000000000000000..fbdd0f051d933571c65ed032c679255f
 +        // fireDamageCheck();
 +        fallDamageCheck();
 +
-+        checkOutOfWorld();
-+
 +        ++this.attackStrengthTicker;
 +
 +        if (this.getHealth() > 0.0F) {
@@ -1407,7 +1405,7 @@ index 0000000000000000000000000000000000000000..fbdd0f051d933571c65ed032c679255f
 +                axisalignedbb = this.getBoundingBox().inflate(1.0D, 0.5D, 1.0D);
 +            }
 +
-+            List<Entity> list = this.level.getEntities(this, axisalignedbb);
++            List<Entity> list = this.level().getEntities(this, axisalignedbb);
 +            List<Entity> list1 = Lists.newArrayList();
 +
 +            for (Entity entity : list) {
@@ -1739,7 +1737,7 @@ index 0000000000000000000000000000000000000000..fbdd0f051d933571c65ed032c679255f
 +        while (iterator.hasNext()) {
 +            ServerBot bot = iterator.next();
 +            iterator.remove();
-+            bot.die(bot.damageSources().outOfWorld());
++            bot.die(bot.damageSources().fellOutOfWorld());
 +        }
 +        return true;
 +    }
@@ -1940,7 +1938,7 @@ index 0000000000000000000000000000000000000000..609605b21cfe5af8876f76ea4922e379
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/BreakBlockAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/BreakBlockAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..c09217624ca88d338b505d94a8426f3703036188
+index 0000000000000000000000000000000000000000..20f8b87ef5c63daef317aae37fc189a983c15086
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/actions/BreakBlockAction.java
 @@ -0,0 +1,92 @@
@@ -2005,14 +2003,14 @@ index 0000000000000000000000000000000000000000..c09217624ca88d338b505d94a8426f37
 +                lastSentState = -1;
 +            }
 +
-+            BlockState iblockdata = bot.level.getBlockState(pos);
++            BlockState iblockdata = bot.level().getBlockState(pos);
 +            if (!iblockdata.isAir()) {
 +                bot.punch();
 +
 +                float damage = this.incrementDestroyProgress(bot, iblockdata, pos);
 +                if (damage >= 1.0F) {
 +                    bot.gameMode.destroyAndAck(lastPos, 0, "destroyed");
-+                    bot.level.destroyBlockProgress(bot.getId(), lastPos, -1);
++                    bot.level().destroyBlockProgress(bot.getId(), lastPos, -1);
 +                    bot.updateItemInMainHand();
 +                    destroyProgressTime = 0;
 +                    lastSentState = -1;
@@ -2025,11 +2023,11 @@ index 0000000000000000000000000000000000000000..c09217624ca88d338b505d94a8426f37
 +    }
 +
 +    private float incrementDestroyProgress(ServerBot bot, @NotNull BlockState state, BlockPos pos) {
-+        float f = state.getDestroyProgress(bot, bot.level, pos) * (float) (destroyProgressTime++);
++        float f = state.getDestroyProgress(bot, bot.level(), pos) * (float) (destroyProgressTime++);
 +        int k = (int) (f * 10.0F);
 +
 +        if (k != lastSentState) {
-+            bot.level.destroyBlockProgress(bot.getId(), pos, k);
++            bot.level().destroyBlockProgress(bot.getId(), pos, k);
 +            lastSentState = k;
 +        }
 +
@@ -2070,7 +2068,7 @@ index 0000000000000000000000000000000000000000..cc72960b8490a72aca5db3e834c71f97
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/FishAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/FishAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..7f1a0d242fdc5803270d288a8185ad0b7220bf7b
+index 0000000000000000000000000000000000000000..d92ea54770bce73c2f10f1ebcb0dff5b9532e0e9
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/actions/FishAction.java
 @@ -0,0 +1,70 @@
@@ -2128,17 +2126,17 @@ index 0000000000000000000000000000000000000000..7f1a0d242fdc5803270d288a8185ad0b
 +        FishingHook fishingHook = bot.fishing;
 +        if (fishingHook != null) {
 +            if (fishingHook.currentState == FishingHook.FishHookState.HOOKED_IN_ENTITY) {
-+                mainHand.use(bot.getLevel(), bot, InteractionHand.MAIN_HAND);
++                mainHand.use(bot.level(), bot, InteractionHand.MAIN_HAND);
 +                nowDelay = 20;
 +                return false;
 +            }
 +            if (fishingHook.nibble > 0) {
-+                mainHand.use(bot.getLevel(), bot, InteractionHand.MAIN_HAND);
++                mainHand.use(bot.level(), bot, InteractionHand.MAIN_HAND);
 +                nowDelay = delay;
 +                return true;
 +            }
 +        } else {
-+            mainHand.use(bot.getLevel(), bot, InteractionHand.MAIN_HAND);
++            mainHand.use(bot.level(), bot, InteractionHand.MAIN_HAND);
 +        }
 +
 +        return false;
@@ -2347,7 +2345,7 @@ index 0000000000000000000000000000000000000000..36d199269afc46783b0815e3887842cd
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..d2a79c882c160e5d7259f40c6bd54c05467707e8
+index 0000000000000000000000000000000000000000..5dc3fbf8e62ccffc8291962c835a568efd65d7af
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemAction.java
 @@ -0,0 +1,33 @@
@@ -2381,12 +2379,12 @@ index 0000000000000000000000000000000000000000..d2a79c882c160e5d7259f40c6bd54c05
 +    public boolean doTick(@NotNull ServerBot bot) {
 +        bot.punch();
 +        bot.updateItemInMainHand();
-+        return bot.getInventory().getSelected().use(bot.getLevel(), bot, InteractionHand.MAIN_HAND).getResult().consumesAction();
++        return bot.getInventory().getSelected().use(bot.level(), bot, InteractionHand.MAIN_HAND).getResult().consumesAction();
 +    }
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemOnAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemOnAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..9d5d0bd068669abc5de2181cd8dabe5bedf28ef6
+index 0000000000000000000000000000000000000000..75488ee2cb25190f9c16898759c57f233d240c4c
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemOnAction.java
 @@ -0,0 +1,40 @@
@@ -2425,7 +2423,7 @@ index 0000000000000000000000000000000000000000..9d5d0bd068669abc5de2181cd8dabe5b
 +        if (result.getType() == HitResult.Type.BLOCK) {
 +            bot.punch();
 +            bot.updateItemInMainHand();
-+            return bot.gameMode.useItemOn(bot, bot.getLevel(), bot.getItemInHand(InteractionHand.MAIN_HAND), InteractionHand.MAIN_HAND, (BlockHitResult) result).consumesAction();
++            return bot.gameMode.useItemOn(bot, bot.level(), bot.getItemInHand(InteractionHand.MAIN_HAND), InteractionHand.MAIN_HAND, (BlockHitResult) result).consumesAction();
 +        }
 +        return false;
 +    }

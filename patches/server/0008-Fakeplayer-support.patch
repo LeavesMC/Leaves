@@ -1,0 +1,2542 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Thu, 3 Feb 2022 12:28:15 +0800
+Subject: [PATCH] Fakeplayer support
+
+
+diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
+index 2c78ab8c70212926ecfd05cc1dea13794c259c27..badc618da91f554d11331e43524ac9ce59267175 100644
+--- a/src/main/java/net/minecraft/server/MinecraftServer.java
++++ b/src/main/java/net/minecraft/server/MinecraftServer.java
+@@ -127,6 +127,7 @@ import net.minecraft.util.profiling.metrics.storage.MetricsPersister;
+ import net.minecraft.util.thread.ReentrantBlockableEventLoop;
+ import net.minecraft.world.Difficulty;
+ import net.minecraft.world.RandomSequences;
++import net.minecraft.world.damagesource.DamageSource;
+ import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.entity.ai.village.VillageSiege;
+ import net.minecraft.world.entity.npc.CatSpawner;
+@@ -635,6 +636,8 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+         }
+         // Paper end
+ 
++        top.leavesmc.leaves.bot.ServerBot.loadAllBot(); // Leaves - load resident bot
++
+         this.server.enablePlugins(org.bukkit.plugin.PluginLoadOrder.POSTWORLD);
+         this.server.getPluginManager().callEvent(new ServerLoadEvent(ServerLoadEvent.LoadType.STARTUP));
+         this.connection.acceptConnections();
+@@ -940,6 +943,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+         MinecraftServer.LOGGER.info("Stopping server");
+         Commands.COMMAND_SENDING_POOL.shutdownNow(); // Paper - Shutdown and don't bother finishing
+         MinecraftTimings.stopServer(); // Paper
++        top.leavesmc.leaves.bot.ServerBot.saveOrRemoveAllBot(); // Leaves - save or remove bot
+         // CraftBukkit start
+         if (this.server != null) {
+             this.server.disablePlugins();
+diff --git a/src/main/java/net/minecraft/server/PlayerAdvancements.java b/src/main/java/net/minecraft/server/PlayerAdvancements.java
+index acc49f66bf34e2507d0ee6fec0a56b11bfc68f46..7fc87841fd72fc9b5bca4fbdffd378c7b75920e1 100644
+--- a/src/main/java/net/minecraft/server/PlayerAdvancements.java
++++ b/src/main/java/net/minecraft/server/PlayerAdvancements.java
+@@ -44,6 +44,7 @@ import net.minecraft.server.players.PlayerList;
+ import net.minecraft.util.datafix.DataFixTypes;
+ import net.minecraft.world.level.GameRules;
+ import org.slf4j.Logger;
++import top.leavesmc.leaves.bot.ServerBot;
+ 
+ public class PlayerAdvancements {
+ 
+@@ -224,6 +225,11 @@ public class PlayerAdvancements {
+     }
+ 
+     public boolean award(Advancement advancement, String criterionName) {
++        // Leaves start - bot can't get advancement
++        if (player instanceof ServerBot) {
++            return false;
++        }
++        // Leaves end - bot can't get advancement
+         boolean flag = false;
+         AdvancementProgress advancementprogress = this.getOrStartProgress(advancement);
+         boolean flag1 = advancementprogress.isDone();
+diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+index 5fad40fa88f697108e42461c41012d5964ed7d75..420175039254f780bf4415b4118bec8f6d3351e1 100644
+--- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
++++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+@@ -185,6 +185,7 @@ import org.bukkit.event.player.PlayerTeleportEvent;
+ import org.bukkit.event.player.PlayerTeleportEvent.TeleportCause;
+ import org.bukkit.event.player.PlayerToggleSneakEvent;
+ import org.bukkit.inventory.MainHand;
++import top.leavesmc.leaves.bot.ServerBot;
+ // CraftBukkit end
+ 
+ public class ServerPlayer extends Player {
+@@ -1264,6 +1265,13 @@ public class ServerPlayer extends Player {
+                 this.lastSentHealth = -1.0F;
+                 this.lastSentFood = -1;
+ 
++                // Leaves start - bot support
++                if (top.leavesmc.leaves.LeavesConfig.fakeplayerSupport) {
++                    ServerBot.getBots().forEach(bot1 ->
++                        bot1.render(this.connection, true,this.getBukkitEntity().getWorld() == bot1.getBukkitEntity().getWorld())); // Leaves - render bot
++                }
++                // Leaves end - bot support
++
+                 // CraftBukkit start
+                 PlayerChangedWorldEvent changeEvent = new PlayerChangedWorldEvent(this.getBukkitEntity(), worldserver1.getWorld());
+                 this.level().getCraftServer().getPluginManager().callEvent(changeEvent);
+diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
+index 683b5d78f9e3dc34e40c54683f64be32317797ac..4eaf7ae37557075ebe735827861507bee6b61eed 100644
+--- a/src/main/java/net/minecraft/server/players/PlayerList.java
++++ b/src/main/java/net/minecraft/server/players/PlayerList.java
+@@ -81,6 +81,7 @@ import net.minecraft.server.ServerScoreboard;
+ import net.minecraft.tags.BlockTags;
+ import net.minecraft.tags.TagNetworkSerialization;
+ import net.minecraft.util.Mth;
++import net.minecraft.world.damagesource.DamageSource;
+ import net.minecraft.world.effect.MobEffectInstance;
+ import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.entity.EntityType;
+@@ -101,6 +102,7 @@ import net.minecraft.world.scores.Objective;
+ import net.minecraft.world.scores.PlayerTeam;
+ import net.minecraft.world.scores.Scoreboard; // Paper
+ import net.minecraft.world.scores.Team;
++import top.leavesmc.leaves.bot.ServerBot;
+ import org.slf4j.Logger;
+ 
+ // CraftBukkit start
+@@ -342,6 +344,19 @@ public abstract class PlayerList {
+             return;
+         }
+ 
++        // Leaves start - bot support
++        if (top.leavesmc.leaves.LeavesConfig.fakeplayerSupport) {
++            ServerBot bot = ServerBot.getBot(player.getScoreboardName().toLowerCase(java.util.Locale.ROOT));
++            if (bot != null) {
++                bot.die(bot.damageSources().fellOutOfWorld()); // Leaves - remove bot with the same name
++                this.playersByName.put(player.getScoreboardName().toLowerCase(java.util.Locale.ROOT), player);
++                this.playersByUUID.put(player.getUUID(), player);
++            }
++            ServerBot.getBots().forEach(bot1 ->
++                bot1.render(playerconnection, true,player.getBukkitEntity().getWorld() == bot1.getBukkitEntity().getWorld())); // Leaves - render bot
++        }
++        // Leaves end - bot support
++
+         final net.kyori.adventure.text.Component jm = playerJoinEvent.joinMessage();
+ 
+         if (jm != null && !jm.equals(net.kyori.adventure.text.Component.empty())) { // Paper - Adventure
+@@ -1086,11 +1101,16 @@ public abstract class PlayerList {
+     }
+ 
+     public String[] getPlayerNamesArray() {
+-        String[] astring = new String[this.players.size()];
++        String[] astring = new String[this.players.size() + ServerBot.getBots().size()]; // Leaves - fakeplayer support
+ 
+         for (int i = 0; i < this.players.size(); ++i) {
+             astring[i] = ((ServerPlayer) this.players.get(i)).getGameProfile().getName();
+         }
++        // Leaves start - fakeplayer support
++        for (int i = this.players.size(); i < astring.length; ++i) {
++            astring[i] = ((ServerPlayer) ServerBot.getBots().get(i - this.players.size())).getGameProfile().getName();
++        }
++        // Leaves end - fakeplayer support
+ 
+         return astring;
+     }
+@@ -1554,4 +1574,16 @@ public abstract class PlayerList {
+     public boolean isAllowCheatsForAllPlayers() {
+         return this.allowCheatsForAllPlayers;
+     }
++
++    // Leaves start - fakeplayer support
++    public void addNewBot(ServerBot bot) {
++        playersByName.put(bot.getScoreboardName().toLowerCase(java.util.Locale.ROOT), bot);
++        playersByUUID.put(bot.getUUID(), bot);
++    }
++
++    public void removeBot(ServerBot bot) {
++        playersByName.remove(bot.getScoreboardName().toLowerCase(java.util.Locale.ROOT));
++        playersByUUID.remove(bot.getUUID());
++    }
++    // Leaves end - fakeplayer support
+ }
+diff --git a/src/main/java/net/minecraft/world/entity/projectile/FishingHook.java b/src/main/java/net/minecraft/world/entity/projectile/FishingHook.java
+index b8c238287e0639b578170c6fec0d4db5a1a59fe7..d57e6c88524482b4d37930d0fd2e9f7911c6d3a0 100644
+--- a/src/main/java/net/minecraft/world/entity/projectile/FishingHook.java
++++ b/src/main/java/net/minecraft/world/entity/projectile/FishingHook.java
+@@ -61,7 +61,7 @@ public class FishingHook extends Projectile {
+     public static final EntityDataAccessor<Integer> DATA_HOOKED_ENTITY = SynchedEntityData.defineId(FishingHook.class, EntityDataSerializers.INT);
+     private static final EntityDataAccessor<Boolean> DATA_BITING = SynchedEntityData.defineId(FishingHook.class, EntityDataSerializers.BOOLEAN);
+     private int life;
+-    private int nibble;
++    public int nibble; // Leaves - private -> public
+     public int timeUntilLured;
+     private int timeUntilHooked;
+     private float fishAngle;
+diff --git a/src/main/java/net/minecraft/world/inventory/AbstractContainerMenu.java b/src/main/java/net/minecraft/world/inventory/AbstractContainerMenu.java
+index 706b354ac9a1a6a4a1e61b2a109180d1dd22bbbd..f13f21dbd50f63a71276837abbcf82e0a72ff52c 100644
+--- a/src/main/java/net/minecraft/world/inventory/AbstractContainerMenu.java
++++ b/src/main/java/net/minecraft/world/inventory/AbstractContainerMenu.java
+@@ -406,6 +406,8 @@ public abstract class AbstractContainerMenu {
+         ItemStack itemstack1;
+         int l;
+ 
++        if (!doClickCheck(slotIndex, button, actionType, player)) return; // Leaves - doClick check
++
+         if (actionType == ClickType.QUICK_CRAFT) {
+             int i1 = this.quickcraftStatus;
+ 
+@@ -674,6 +676,23 @@ public abstract class AbstractContainerMenu {
+ 
+     }
+ 
++    // Leaves start - doClick check
++    private boolean doClickCheck(int slotIndex, int button, ClickType actionType, Player player) {
++        if (slotIndex < 0) {
++            return true;
++        }
++
++        Slot slot = getSlot(slotIndex);
++        ItemStack itemStack = slot.getItem();
++        if (itemStack.getTag() != null) {
++            if (itemStack.getTag().get("Leaves.Gui.Placeholder") != null) {
++                return !itemStack.getTag().getBoolean("Leaves.Gui.Placeholder");
++            }
++        }
++        return true;
++    }
++    // Leaves end - doClick check
++
+     private boolean tryItemClickBehaviourOverride(Player player, ClickAction clickType, Slot slot, ItemStack stack, ItemStack cursorStack) {
+         FeatureFlagSet featureflagset = player.level().enabledFeatures();
+ 
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
+index ea056babe2f8123f20dc608d8a636da1de634b8c..7856337718f62b1bf4df52264e67740521d864ed 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
+@@ -191,6 +191,8 @@ import org.bukkit.plugin.Plugin;
+ import org.bukkit.util.BoundingBox;
+ import org.bukkit.util.NumberConversions;
+ import org.bukkit.util.Vector;
++import top.leavesmc.leaves.bot.ServerBot;
++import top.leavesmc.leaves.entity.CraftBot;
+ 
+ import net.md_5.bungee.api.chat.BaseComponent; // Spigot
+ 
+@@ -217,7 +219,12 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
+         if (entity instanceof LivingEntity) {
+             // Players
+             if (entity instanceof net.minecraft.world.entity.player.Player) {
+-                if (entity instanceof ServerPlayer) { return new CraftPlayer(server, (ServerPlayer) entity); }
++                // Leaves start - add CraftBot
++                if (entity instanceof ServerPlayer) {
++                    if (entity instanceof ServerBot) { return new CraftBot(server, (ServerBot) entity); }
++                    else { return new CraftPlayer(server, (ServerPlayer) entity); }
++                }
++                // Leaves end - add CraftBot
+                 else { return new CraftHumanEntity(server, (net.minecraft.world.entity.player.Player) entity); }
+             }
+             // Water Animals
+diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+index 62d8bbd0b2638c725b4c5644a2d5063460fa25c9..b71496a3c0d9f9d69dadb652e2f35c09cf906bc0 100644
+--- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
++++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+@@ -7,6 +7,9 @@ import org.bukkit.Bukkit;
+ import org.bukkit.command.Command;
+ import org.bukkit.configuration.ConfigurationSection;
+ import org.bukkit.configuration.file.YamlConfiguration;
++import top.leavesmc.leaves.bot.BotCommand;
++import top.leavesmc.leaves.bot.agent.Actions;
++import top.leavesmc.leaves.util.MathUtils;
+ 
+ import java.io.File;
+ import java.lang.reflect.InvocationTargetException;
+@@ -66,6 +69,11 @@ public final class LeavesConfig {
+         LeavesConfig.load(config);
+ 
+ 	    commands = new HashMap<>();
++
++        if (top.leavesmc.leaves.LeavesConfig.fakeplayerSupport) {
++            commands.put("bot", new BotCommand("bot"));
++            Actions.registerAll();
++        }
+     }
+ 
+     public static void load(final YamlConfiguration config) {
+diff --git a/src/main/java/top/leavesmc/leaves/bot/BotCommand.java b/src/main/java/top/leavesmc/leaves/bot/BotCommand.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..9227559cd0aefe82d7f53a79b464be1d064b3ae1
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/BotCommand.java
+@@ -0,0 +1,222 @@
++package top.leavesmc.leaves.bot;
++
++import net.minecraft.world.damagesource.DamageSource;
++import org.bukkit.Bukkit;
++import org.bukkit.ChatColor;
++import org.bukkit.Location;
++import org.bukkit.World;
++import org.bukkit.command.Command;
++import org.bukkit.command.CommandSender;
++import org.bukkit.craftbukkit.entity.CraftPlayer;
++import org.bukkit.entity.Player;
++import org.bukkit.generator.WorldInfo;
++import org.jetbrains.annotations.NotNull;
++import top.leavesmc.leaves.bot.agent.Actions;
++import top.leavesmc.leaves.bot.agent.BotAction;
++import top.leavesmc.leaves.entity.Bot;
++import top.leavesmc.leaves.util.MathUtils;
++
++import java.util.ArrayList;
++import java.util.HashMap;
++import java.util.List;
++import java.util.Map;
++
++public class BotCommand extends Command {
++
++    public BotCommand(String name) {
++        super(name);
++        this.description = "FakePlayer Command";
++        this.usageMessage = "/bot [create | remove | action | list]";
++        this.setPermission("bukkit.command.bot");
++    }
++
++    @Override
++    public @NotNull List<String> tabComplete(@NotNull CommandSender sender, @NotNull String alias, String @NotNull [] args, Location location) throws IllegalArgumentException {
++        var list = new ArrayList<String>();
++
++        if (args.length <= 1) {
++            list.add("create");
++            list.add("remove");
++            list.add("action");
++            list.add("list");
++        }
++
++        if (args.length == 2) {
++            switch (args[0]) {
++                case "create" -> list.add("<BotName>");
++                case "remove", "action" ->
++                    list.addAll(ServerBot.getBots().stream().map(e -> e.getName().getString()).toList());
++                case "list" -> list.addAll(Bukkit.getWorlds().stream().map(WorldInfo::getName).toList());
++            }
++        }
++
++        if (args.length == 3) {
++            switch (args[0]) {
++                case "action" -> list.addAll(Actions.getNames());
++                case "create" -> list.add("<BotSkinName>");
++            }
++        }
++
++        if (args.length >= 4 && args[0].equals("action")) {
++            BotAction action = Actions.getForName(args[2]);
++            if (action != null) {
++                list.addAll(action.getArgument().tabComplete(args.length - 4));
++            }
++        }
++        return list;
++    }
++
++    @Override
++    public boolean execute(@NotNull CommandSender sender, @NotNull String commandLabel, String[] args) {
++        if (!testPermission(sender)) return true;
++
++        if (args.length == 0) {
++            sender.sendMessage(ChatColor.RED + "Usage: " + usageMessage);
++            return false;
++        }
++
++        switch (args[0]) {
++            case "create" -> this.onCreate(sender, args);
++
++            case "remove" -> this.onRemove(sender, args);
++
++            case "action" -> this.onAction(sender, args);
++
++            case "list" -> this.onList(sender, args);
++
++            default -> {
++                sender.sendMessage(ChatColor.RED + "Usage: " + usageMessage);
++                return false;
++            }
++        }
++
++        return true;
++    }
++
++    private void onCreate(CommandSender sender, String @NotNull [] args) {
++        if (args.length < 2) {
++            sender.sendMessage(ChatColor.RED + "Use /bot create <name> to create a fakeplayer");
++            return;
++        }
++
++        if (!(sender instanceof Player)) {
++            sender.sendMessage(ChatColor.RED + "This command only can use by player");
++            return;
++        }
++
++        if (!args[1].matches("^[a-zA-Z0-9_]{4,16}$")) {
++            sender.sendMessage(ChatColor.RED + "This name is unable");
++            return;
++        }
++
++        if (Bukkit.getPlayer(args[1]) != null || ServerBot.getBot(args[1]) != null) {
++            sender.sendMessage(ChatColor.RED + "This player is in server");
++            return;
++        }
++
++        if (top.leavesmc.leaves.LeavesConfig.unableFakeplayerNames.contains(args[1])) {
++            sender.sendMessage(ChatColor.RED + "This name is unable");
++            return;
++        }
++
++        if (ServerBot.getBots().size() >= top.leavesmc.leaves.LeavesConfig.fakeplayerLimit) {
++            sender.sendMessage(ChatColor.RED + "Fakeplayer limit is full");
++        }
++
++        ServerBot.createBot(((Player) sender).getLocation(), args[1], args.length > 2 ? args[2] : null, null);
++    }
++
++    private void onRemove(CommandSender sender, String @NotNull [] args) {
++        if (args.length < 2) {
++            sender.sendMessage(ChatColor.RED + "Use /bot remove <name> to remove a fakeplayer");
++            return;
++        }
++
++        ServerBot bot = ServerBot.getBot(args[1]);
++
++        if (bot == null) {
++            sender.sendMessage(ChatColor.RED + "This fakeplayer is null");
++            return;
++        }
++
++        bot.die(bot.damageSources().fellOutOfWorld());
++    }
++
++    private void onAction(CommandSender sender, String @NotNull [] args) {
++        if (args.length < 3) {
++            sender.sendMessage(ChatColor.RED + "Use /bot action <name> <action> to make fakeplayer do action");
++            return;
++        }
++
++        if (!(sender instanceof Player)) {
++            sender.sendMessage(ChatColor.RED + "This command only can use by player");
++            return;
++        }
++
++        BotAction action = Actions.getForName(args[2]);
++        if (action == null) {
++            sender.sendMessage(ChatColor.RED + "This action is null");
++            return;
++        }
++
++        ServerBot bot = ServerBot.getBot(args[1]);
++        if (bot == null) {
++            sender.sendMessage(ChatColor.RED + "This fakeplayer is null");
++            return;
++        }
++
++        BotAction newAction = action.getNew(((CraftPlayer) sender).getHandle(), action.getArgument().parse(3, args));
++        if (newAction == null) {
++            sender.sendMessage(ChatColor.RED + "Action create error, check your arguments");
++            return;
++        }
++
++        bot.setBotAction(newAction);
++        sender.sendMessage("Action " + action.getName() + " has been issued to " + bot.getName().getString());
++    }
++
++    private void onList(CommandSender sender, String @NotNull [] args) {
++        if (args.length < 2) {
++            Map<World, List<String>> botMap = new HashMap<>();
++            for (World world : Bukkit.getWorlds()) {
++                botMap.put(world, new ArrayList<>());
++            }
++
++            for (ServerBot bot : ServerBot.getBots()) {
++                Bot bukkitBot = bot.getBukkitPlayer();
++                botMap.get(bukkitBot.getWorld()).add(bukkitBot.getName());
++            }
++
++            sender.sendMessage("Total number: (" + ServerBot.getBots().size() + "/" + top.leavesmc.leaves.LeavesConfig.fakeplayerLimit + ")");
++            for (World world : botMap.keySet()) {
++                sender.sendMessage(world.getName() + "(" + botMap.get(world).size() + "): " + formatPlayerNameList(botMap.get(world)));
++            }
++        } else {
++            World world = Bukkit.getWorld(args[2]);
++
++            if (world == null) {
++                sender.sendMessage(ChatColor.RED + "Unknown world");
++                return;
++            }
++
++            List<String> botList = new ArrayList<>();
++            for (ServerBot bot : ServerBot.getBots()) {
++                Bot bukkitBot = bot.getBukkitPlayer();
++                if (bukkitBot.getWorld() == world) {
++                    botList.add(bukkitBot.getName());
++                }
++            }
++
++            sender.sendMessage(world.getName() + "(" + botList.size() + "): " + formatPlayerNameList(botList));
++        }
++    }
++
++    @NotNull
++    private static String formatPlayerNameList(@NotNull List<String> list) {
++        if (list.isEmpty()) {
++            return "";
++        }
++        String string = list.toString();
++        return string.substring(1, string.length() - 1);
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/bot/BotInventoryContainer.java b/src/main/java/top/leavesmc/leaves/bot/BotInventoryContainer.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..9fce8c91bf0c211c2d87993cc0e2d4e8f5fe3d19
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/BotInventoryContainer.java
+@@ -0,0 +1,180 @@
++package top.leavesmc.leaves.bot;
++
++import com.google.common.collect.ImmutableList;
++import com.mojang.datafixers.util.Pair;
++import net.minecraft.core.NonNullList;
++import net.minecraft.network.chat.Component;
++import net.minecraft.world.ContainerHelper;
++import net.minecraft.world.SimpleContainer;
++import net.minecraft.world.entity.player.Player;
++import net.minecraft.world.item.ItemStack;
++import net.minecraft.world.item.Items;
++
++import javax.annotation.Nonnull;
++import java.util.List;
++
++// Power by gugle-carpet-addition(https://github.com/Gu-ZT/gugle-carpet-addition)
++public class BotInventoryContainer extends SimpleContainer {
++
++    public final NonNullList<ItemStack> items;
++    public final NonNullList<ItemStack> armor;
++    public final NonNullList<ItemStack> offhand;
++    private final List<NonNullList<ItemStack>> compartments;
++    private final NonNullList<ItemStack> buttons = NonNullList.withSize(13, ItemStack.EMPTY);
++    private final ServerBot player;
++
++    public BotInventoryContainer(ServerBot player) {
++        this.player = player;
++        this.items = this.player.getInventory().items;
++        this.armor = this.player.getInventory().armor;
++        this.offhand = this.player.getInventory().offhand;
++        this.compartments = ImmutableList.of(this.items, this.armor, this.offhand, this.buttons);
++        createButton();
++    }
++
++    @Override
++    public int getContainerSize() {
++        return this.items.size() + this.armor.size() + this.offhand.size() + this.buttons.size();
++    }
++
++    @Override
++    public boolean isEmpty() {
++        for (ItemStack itemStack : this.items) {
++            if (itemStack.isEmpty()) {
++                continue;
++            }
++            return false;
++        }
++        for (ItemStack itemStack : this.armor) {
++            if (itemStack.isEmpty()) {
++                continue;
++            }
++            return false;
++        }
++        for (ItemStack itemStack : this.offhand) {
++            if (itemStack.isEmpty()) {
++                continue;
++            }
++            return false;
++        }
++        return true;
++    }
++
++    @Override
++    @Nonnull
++    public ItemStack getItem(int slot) {
++        Pair<NonNullList<ItemStack>, Integer> pair = getItemSlot(slot);
++        if (pair != null) {
++            return pair.getFirst().get(pair.getSecond());
++        } else {
++            return ItemStack.EMPTY;
++        }
++    }
++
++    public Pair<NonNullList<ItemStack>, Integer> getItemSlot(int slot) {
++        switch (slot) {
++            case 0 -> {
++                return new Pair<>(buttons, 0);
++            }
++            case 1, 2, 3, 4 -> {
++                return new Pair<>(armor, 4 - slot);
++            }
++            case 5, 6 -> {
++                return new Pair<>(buttons, slot - 4);
++            }
++            case 7 -> {
++                return new Pair<>(offhand, 0);
++            }
++            case 8, 9, 10, 11, 12, 13, 14, 15, 16, 17 -> {
++                return new Pair<>(buttons, slot - 5);
++            }
++            case 18, 19, 20, 21, 22, 23, 24, 25, 26,
++                27, 28, 29, 30, 31, 32, 33, 34, 35,
++                36, 37, 38, 39, 40, 41, 42, 43, 44 -> {
++                return new Pair<>(items, slot - 9);
++            }
++            case 45, 46, 47, 48, 49, 50, 51, 52, 53 -> {
++                return new Pair<>(items, slot - 45);
++            }
++            default -> {
++                return null;
++            }
++        }
++    }
++
++    @Override
++    @Nonnull
++    public ItemStack removeItem(int slot, int amount) {
++        Pair<NonNullList<ItemStack>, Integer> pair = getItemSlot(slot);
++        NonNullList<ItemStack> list = null;
++        ItemStack itemStack = ItemStack.EMPTY;
++        if (pair != null) {
++            list = pair.getFirst();
++            slot = pair.getSecond();
++        }
++        if (list != null && !list.get(slot).isEmpty()) {
++            itemStack = ContainerHelper.removeItem(list, slot, amount);
++            player.detectEquipmentUpdates();
++        }
++        return itemStack;
++    }
++
++    @Override
++    @Nonnull
++    public ItemStack removeItemNoUpdate(int slot) {
++        Pair<NonNullList<ItemStack>, Integer> pair = getItemSlot(slot);
++        NonNullList<ItemStack> list = null;
++        if (pair != null) {
++            list = pair.getFirst();
++            slot = pair.getSecond();
++        }
++        if (list != null && !list.get(slot).isEmpty()) {
++            ItemStack itemStack = list.get(slot);
++            list.set(slot, ItemStack.EMPTY);
++            return itemStack;
++        }
++        return ItemStack.EMPTY;
++    }
++
++    @Override
++    public void setItem(int slot, @Nonnull ItemStack stack) {
++        Pair<NonNullList<ItemStack>, Integer> pair = getItemSlot(slot);
++        NonNullList<ItemStack> list = null;
++        if (pair != null) {
++            list = pair.getFirst();
++            slot = pair.getSecond();
++        }
++        if (list != null) {
++            list.set(slot, stack);
++            player.detectEquipmentUpdates();
++        }
++    }
++
++    @Override
++    public void setChanged() {
++    }
++
++    @Override
++    public boolean stillValid(@Nonnull Player player) {
++        if (this.player.isRemoved()) {
++            return false;
++        }
++        return !(player.distanceToSqr(this.player) > 64.0);
++    }
++
++    @Override
++    public void clearContent() {
++        for (List<ItemStack> list : this.compartments) {
++            list.clear();
++        }
++    }
++
++    private void createButton() {
++        for (int i = 0; i < 13; i++) {
++            ItemStack button = new ItemStack(Items.STRUCTURE_VOID);
++            button.setHoverName(Component.empty());
++            button.getOrCreateTag().putBoolean("Leaves.Gui.Placeholder", true);
++            buttons.set(i, button);
++        }
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/bot/BotStatsCounter.java b/src/main/java/top/leavesmc/leaves/bot/BotStatsCounter.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..07b688d376a4af88305e57519a5ae983ed7d91d3
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/BotStatsCounter.java
+@@ -0,0 +1,33 @@
++package top.leavesmc.leaves.bot;
++
++import com.mojang.datafixers.DataFixer;
++import net.minecraft.server.MinecraftServer;
++import net.minecraft.stats.ServerStatsCounter;
++import net.minecraft.stats.Stat;
++import net.minecraft.world.entity.player.Player;
++
++import java.io.File;
++
++public class BotStatsCounter extends ServerStatsCounter {
++
++    private static final File UNKOWN_FILE = new File("BOT_STATS_REMOVE_THIS");
++
++    public BotStatsCounter(MinecraftServer server) {
++        super(server, UNKOWN_FILE);
++    }
++
++    @Override
++    public void save() {
++
++    }
++
++    @Override
++    public void setValue(Player player, Stat<?> stat, int value) {
++
++    }
++
++    @Override
++    public void parseLocal(DataFixer dataFixer, String json) {
++
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/bot/BotUtil.java b/src/main/java/top/leavesmc/leaves/bot/BotUtil.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..a609b0ff323ea4bc8a23a2b8be0d01c9e9d54d92
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/BotUtil.java
+@@ -0,0 +1,147 @@
++package top.leavesmc.leaves.bot;
++
++import com.google.gson.JsonElement;
++import com.google.gson.JsonObject;
++import net.minecraft.core.NonNullList;
++import net.minecraft.nbt.CompoundTag;
++import net.minecraft.nbt.ListTag;
++import net.minecraft.nbt.NbtIo;
++import net.minecraft.server.MinecraftServer;
++import net.minecraft.world.entity.EquipmentSlot;
++import net.minecraft.world.item.ItemStack;
++import net.minecraft.world.level.storage.LevelResource;
++import org.bukkit.Bukkit;
++import org.bukkit.Location;
++import org.jetbrains.annotations.NotNull;
++
++import java.io.File;
++import java.io.IOException;
++import java.util.Map;
++
++public class BotUtil {
++
++    public static void replenishment(@NotNull ItemStack itemStack, NonNullList<ItemStack> itemStackList) {
++        int count = itemStack.getMaxStackSize() / 2;
++        if (itemStack.getCount() <= 8 && count > 8) {
++            for (ItemStack itemStack1 : itemStackList) {
++                if (itemStack1 == ItemStack.EMPTY || itemStack1 == itemStack) {
++                    continue;
++                }
++
++                if (ItemStack.isSameItemSameTags(itemStack1, itemStack)) {
++                    if (itemStack1.getCount() > count) {
++                        itemStack.setCount(itemStack.getCount() + count);
++                        itemStack1.setCount(itemStack1.getCount() - count);
++                    } else {
++                        itemStack.setCount(itemStack.getCount() + itemStack1.getCount());
++                        itemStack1.setCount(0);
++                    }
++                    break;
++                }
++            }
++        }
++    }
++
++    public static void replaceTool(@NotNull EquipmentSlot slot, @NotNull ServerBot bot) {
++        ItemStack itemStack = bot.getItemBySlot(slot);
++        for (int i = 0; i < 36; i++) {
++            ItemStack itemStack1 = bot.getInventory().getItem(i);
++            if (itemStack1 == ItemStack.EMPTY || itemStack1 == itemStack) {
++                continue;
++            }
++
++            if (itemStack1.getItem().getClass() == itemStack.getItem().getClass() && isDamage(itemStack1, 10)) {
++                ItemStack itemStack2 = itemStack1.copy();
++                bot.getInventory().setItem(i, itemStack);
++                bot.setItemSlot(slot, itemStack2);
++                return;
++            }
++        }
++
++        for (int i = 0; i < 36; i++) {
++            ItemStack itemStack1 = bot.getInventory().getItem(i);
++            if (itemStack1 == ItemStack.EMPTY && itemStack1 != itemStack) {
++                bot.getInventory().setItem(i, itemStack);
++                bot.setItemSlot(slot, ItemStack.EMPTY);
++                return;
++            }
++        }
++    }
++
++    public static boolean isDamage(@NotNull ItemStack item, int minDamage) {
++        return item.isDamageableItem() && (item.getMaxDamage() - item.getDamageValue()) <= minDamage;
++    }
++
++    @NotNull
++    public static JsonObject saveBot(@NotNull ServerBot bot) {
++        double pos_x = bot.getX();
++        double pos_y = bot.getY();
++        double pos_z = bot.getZ();
++        float yaw = bot.getYRot();
++        float pitch = bot.getXRot();
++        String dimension = bot.getLocation().getWorld().getName();
++        String skin = bot.skinName == null ? "null" : bot.skinName;
++        String uuid = bot.getStringUUID();
++
++        JsonObject fakePlayer = new JsonObject();
++        fakePlayer.addProperty("pos_x", pos_x);
++        fakePlayer.addProperty("pos_y", pos_y);
++        fakePlayer.addProperty("pos_z", pos_z);
++        fakePlayer.addProperty("yaw", yaw);
++        fakePlayer.addProperty("pitch", pitch);
++        fakePlayer.addProperty("dimension", dimension);
++        fakePlayer.addProperty("skin", skin);
++        fakePlayer.addProperty("invuuid", uuid);
++
++        CompoundTag invnbt = new CompoundTag();
++        invnbt.put("Inventory", bot.getInventory().save(new ListTag()));
++
++        File file = MinecraftServer.getServer().getWorldPath(LevelResource.ROOT).resolve("fakeplayer/" + uuid + ".dat").toFile();
++        File parent = file.getParentFile();
++        try {
++            if (!parent.exists() || !parent.isDirectory()) {
++                parent.mkdirs();
++            }
++            if (file.exists() && file.isFile()) {
++                file.delete();
++            }
++            file.createNewFile();
++            NbtIo.writeCompressed(invnbt, file);
++        } catch (IOException e) {
++            e.printStackTrace();
++        }
++
++        return fakePlayer;
++    }
++
++    public static void loadBot(Map.@NotNull Entry<String, JsonElement> entry) {
++        String username = entry.getKey();
++        JsonObject fakePlayer = entry.getValue().getAsJsonObject();
++        double pos_x = fakePlayer.get("pos_x").getAsDouble();
++        double pos_y = fakePlayer.get("pos_y").getAsDouble();
++        double pos_z = fakePlayer.get("pos_z").getAsDouble();
++        float yaw = fakePlayer.get("yaw").getAsFloat();
++        float pitch = fakePlayer.get("pitch").getAsFloat();
++        String dimension = fakePlayer.get("dimension").getAsString();
++        String skin = fakePlayer.get("skin").getAsString();
++        skin = skin.equals("null") ? null : skin;
++        ListTag inv = null;
++
++        if (fakePlayer.has("invuuid")) {
++            String uuid = fakePlayer.get("invuuid").getAsString();
++            File file = MinecraftServer.getServer().getWorldPath(LevelResource.ROOT).resolve("fakeplayer/" + uuid + ".dat").toFile();
++            if (file.exists()) {
++                try {
++                    CompoundTag nbt = NbtIo.readCompressed(file);
++                    inv = nbt.getList("Inventory", 10);
++                } catch (IOException e) {
++                    e.printStackTrace();
++                }
++                file.delete();
++            }
++        }
++
++        ServerBot.createBot(new Location(Bukkit.getWorld(dimension), pos_x, pos_y, pos_z, yaw, pitch),
++            username, skin, inv);
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/bot/MojangAPI.java b/src/main/java/top/leavesmc/leaves/bot/MojangAPI.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..d6466ee4db637106e1394bb462d875e541e9731d
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/MojangAPI.java
+@@ -0,0 +1,41 @@
++package top.leavesmc.leaves.bot;
++
++import com.google.gson.JsonObject;
++import com.google.gson.JsonParser;
++
++import java.io.IOException;
++import java.io.InputStreamReader;
++import java.net.URL;
++import java.util.HashMap;
++import java.util.Map;
++
++public class MojangAPI {
++
++    private static final boolean CACHE_ENABLED = true;
++
++    private static final Map<String, String[]> CACHE = new HashMap<>();
++
++    public static String[] getSkin(String name) {
++        if (CACHE_ENABLED && CACHE.containsKey(name)) {
++            return CACHE.get(name);
++        }
++
++        String[] values = pullFromAPI(name);
++        CACHE.put(name, values);
++        return values;
++    }
++
++    // Laggggggggggggggggggggggggggggggggggggggggg
++    public static String[] pullFromAPI(String name) {
++        try {
++            String uuid = new JsonParser().parse(new InputStreamReader(new URL("https://api.mojang.com/users/profiles/minecraft/" + name)
++                .openStream())).getAsJsonObject().get("id").getAsString();
++            JsonObject property = new JsonParser()
++                .parse(new InputStreamReader(new URL("https://sessionserver.mojang.com/session/minecraft/profile/" + uuid + "?unsigned=false")
++                    .openStream())).getAsJsonObject().get("properties").getAsJsonArray().get(0).getAsJsonObject();
++            return new String[] {property.get("value").getAsString(), property.get("signature").getAsString()};
++        } catch (IOException | IllegalStateException e) {
++            return null;
++        }
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/bot/ServerBot.java b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..09307d8381bb5ad241f73d0c399226abe2b59f6b
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
+@@ -0,0 +1,787 @@
++package top.leavesmc.leaves.bot;
++
++import com.google.common.collect.Lists;
++import com.google.gson.Gson;
++import com.google.gson.JsonElement;
++import com.google.gson.JsonObject;
++import com.mojang.authlib.GameProfile;
++import com.mojang.authlib.properties.Property;
++import com.mojang.datafixers.util.Pair;
++import net.minecraft.Util;
++import net.minecraft.nbt.ListTag;
++import net.minecraft.network.Connection;
++import net.minecraft.network.PacketSendListener;
++import net.minecraft.network.protocol.Packet;
++import net.minecraft.network.protocol.PacketFlow;
++import net.minecraft.network.protocol.game.ClientboundAddPlayerPacket;
++import net.minecraft.network.protocol.game.ClientboundPlayerInfoRemovePacket;
++import net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket;
++import net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket;
++import net.minecraft.network.protocol.game.ClientboundRotateHeadPacket;
++import net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket;
++import net.minecraft.network.protocol.game.ClientboundSetEquipmentPacket;
++import net.minecraft.network.syncher.EntityDataAccessor;
++import net.minecraft.network.syncher.EntityDataSerializers;
++import net.minecraft.server.MinecraftServer;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.server.network.ServerGamePacketListenerImpl;
++import net.minecraft.server.network.ServerPlayerConnection;
++import net.minecraft.stats.ServerStatsCounter;
++import net.minecraft.util.Mth;
++import net.minecraft.world.InteractionHand;
++import net.minecraft.world.InteractionResult;
++import net.minecraft.world.SimpleMenuProvider;
++import net.minecraft.world.damagesource.DamageSource;
++import net.minecraft.world.entity.Entity;
++import net.minecraft.world.entity.EntityType;
++import net.minecraft.world.entity.EquipmentSlot;
++import net.minecraft.world.entity.MoverType;
++import net.minecraft.world.entity.item.ItemEntity;
++import net.minecraft.world.entity.player.Player;
++import net.minecraft.world.inventory.ChestMenu;
++import net.minecraft.world.level.storage.LevelResource;
++import net.minecraft.world.phys.AABB;
++import net.minecraft.world.phys.Vec3;
++import org.bukkit.Bukkit;
++import org.bukkit.ChatColor;
++import org.bukkit.Location;
++import org.bukkit.Material;
++import org.bukkit.World;
++import org.bukkit.block.Block;
++import org.bukkit.craftbukkit.CraftWorld;
++import org.bukkit.craftbukkit.entity.CraftPlayer;
++import org.bukkit.craftbukkit.inventory.CraftItemStack;
++import org.bukkit.craftbukkit.scheduler.MinecraftInternalPlugin;
++import org.bukkit.event.entity.CreatureSpawnEvent;
++import org.bukkit.inventory.ItemStack;
++import org.bukkit.plugin.Plugin;
++import org.bukkit.util.BoundingBox;
++import org.bukkit.util.Vector;
++import org.jetbrains.annotations.Contract;
++import org.jetbrains.annotations.NotNull;
++import top.leavesmc.leaves.LeavesConfig;
++import top.leavesmc.leaves.bot.agent.BotAction;
++import top.leavesmc.leaves.entity.Bot;
++import top.leavesmc.leaves.entity.CraftBot;
++import top.leavesmc.leaves.event.bot.BotCreateEvent;
++import top.leavesmc.leaves.event.bot.BotJoinEvent;
++import top.leavesmc.leaves.util.MathUtils;
++
++import javax.annotation.Nullable;
++import java.io.BufferedReader;
++import java.io.BufferedWriter;
++import java.io.File;
++import java.io.IOException;
++import java.nio.charset.StandardCharsets;
++import java.nio.file.Files;
++import java.util.ArrayList;
++import java.util.Collections;
++import java.util.EnumSet;
++import java.util.Iterator;
++import java.util.List;
++import java.util.Map;
++import java.util.Objects;
++import java.util.UUID;
++
++// TODO remake all
++public class ServerBot extends ServerPlayer {
++
++    private Vector velocity;
++    private Vector oldVelocity;
++    private BotAction action;
++    private BotAction newAction;
++
++    private final boolean removeOnDeath;
++    private int fireTicks;
++    private int groundTicks;
++    private int jumpTicks;
++    private int noFallTicks;
++    private int noActionTicks;
++    private int doActionNumber;
++
++    private final ItemStack defaultItem;
++    private final ServerStatsCounter stats;
++    public final String skinName;
++
++    private final BotInventoryContainer container;
++
++    private static final List<ServerBot> bots = new ArrayList<>();
++    private static final Plugin MINECRAFT_PLUGIN = new MinecraftInternalPlugin();
++
++    private ServerBot(MinecraftServer server, ServerLevel world, GameProfile profile) {
++        this(server, world, profile, null);
++    }
++
++    private ServerBot(MinecraftServer server, ServerLevel world, GameProfile profile, String skinName) {
++        super(server, world, profile);
++        this.entityData.set(new EntityDataAccessor<>(16, EntityDataSerializers.INT), 0xFF);
++
++        this.velocity = new Vector(0, 0, 0);
++        this.oldVelocity = velocity.clone();
++        this.noFallTicks = 60;
++        this.fireTicks = 0;
++        this.noActionTicks = 0;
++        this.doActionNumber = -1;
++        this.defaultItem = new ItemStack(Material.AIR);
++        this.removeOnDeath = true;
++        this.stats = new BotStatsCounter(server);
++        this.skinName = skinName;
++        this.container = new BotInventoryContainer(this);
++        server.getPlayerList().addNewBot(this);
++        this.fauxSleeping = LeavesConfig.fakeplayerSkipSleep;
++    }
++
++    public static void createBot(Location loc, String name, String skinName, ListTag inv) {
++        String realName = LeavesConfig.fakeplayerPrefix + name + LeavesConfig.fakeplayerSuffix;
++        if (!isCreateLegal(realName)) {
++            return;
++        }
++        if (skinName != null) {
++            Bukkit.getScheduler().runTaskAsynchronously(MINECRAFT_PLUGIN, () -> {
++                String[] skin = MojangAPI.getSkin(skinName);
++                Bukkit.getScheduler().runTask(MINECRAFT_PLUGIN, () -> createBot(loc, realName, skin, skinName, inv));
++            });
++        } else {
++            createBot(loc, realName, null, null, inv);
++        }
++    }
++
++    @Nullable
++    public static ServerBot createBot(@NotNull Location loc, @NotNull String name, String[] skin, String skinName, ListTag inv) {
++        if (!isCreateLegal(name)) {
++            return null;
++        }
++
++        MinecraftServer server = MinecraftServer.getServer();
++
++        BotCreateEvent event = new BotCreateEvent(name, skinName, loc, ChatColor.YELLOW + name + " joined the game");
++        server.server.getPluginManager().callEvent(event);
++        if (!event.isCancelled()) {
++            loc = event.getCreateLocation();
++
++            ServerLevel world = ((CraftWorld) Objects.requireNonNull(loc.getWorld())).getHandle();
++            UUID uuid = UUID.randomUUID();
++            CustomGameProfile profile = new CustomGameProfile(uuid, name.length() > 16 ? name.substring(0, 16) : name, skin);
++
++            ServerBot bot = new ServerBot(server, world, profile, skinName);
++
++            bot.connection = new ServerGamePacketListenerImpl(server, new Connection(PacketFlow.CLIENTBOUND) {
++                @Override
++                public void send(@NotNull Packet<?> packet, @Nullable PacketSendListener packetsendlistener) {
++                }
++            }, bot);
++            bot.isRealPlayer = true;
++
++            if (event.getJoinMessage() != null) {
++                Bukkit.broadcastMessage(event.getJoinMessage());
++            }
++
++            if (inv != null) {
++                bot.getInventory().load(inv);
++            }
++
++            bot.teleportTo(loc.getX(), loc.getY(), loc.getZ());
++            bot.setRot(loc.getYaw(), loc.getPitch());
++            bot.getBukkitEntity().setRotation(loc.getYaw(), loc.getPitch());
++            world.addFreshEntity(bot, CreatureSpawnEvent.SpawnReason.COMMAND);
++
++            bot.renderAll();
++            bots.add(bot);
++
++            BotJoinEvent event1 = new BotJoinEvent(bot.getBukkitPlayer());
++            server.server.getPluginManager().callEvent(event1);
++
++            return bot;
++        }
++
++        return null;
++    }
++
++    public static boolean isCreateLegal(@NotNull String name) {
++        if (!name.matches("^[a-zA-Z0-9_]{4,16}$")) {
++            return false;
++        }
++
++        if (Bukkit.getPlayer(name) != null || ServerBot.getBot(name) != null) {
++            return false;
++        }
++
++        if (top.leavesmc.leaves.LeavesConfig.unableFakeplayerNames.contains(name)) {
++            return false;
++        }
++
++        return ServerBot.getBots().size() < top.leavesmc.leaves.LeavesConfig.fakeplayerLimit;
++    }
++
++    private void renderAll() {
++        Packet<?>[] packets = getRenderPackets();
++        Bukkit.getOnlinePlayers().forEach(p ->
++            render(((CraftPlayer) p).getHandle().connection, packets, false, p.getWorld() == getBukkitPlayer().getWorld()));
++    }
++
++    public void render(ServerPlayerConnection connection, boolean login, boolean all) {
++        render(connection, getRenderPackets(), login, all && LeavesConfig.alwaysSendFakeplayerData);
++    }
++
++    private void render(@NotNull ServerPlayerConnection connection, Packet<?> @NotNull [] packets, boolean login, boolean all) { // always use getRenderPackets() to get packets. replace it soon
++        connection.send(packets[0]);
++        if (all) {
++            connection.send(packets[1]);
++            // connection.send(packets[2]);
++            if (login) {
++                connection.send(packets[2]); // This need delay 10 tick ? real ?
++            } else {
++                connection.send(packets[2]);
++            }
++        }
++    }
++
++    @Contract(" -> new")
++    private Packet<?> @NotNull [] getRenderPackets() {
++        return new Packet[]{
++            new ClientboundPlayerInfoUpdatePacket(EnumSet.of(ClientboundPlayerInfoUpdatePacket.Action.ADD_PLAYER, ClientboundPlayerInfoUpdatePacket.Action.UPDATE_LISTED, ClientboundPlayerInfoUpdatePacket.Action.UPDATE_DISPLAY_NAME), List.of(this)),
++            new ClientboundAddPlayerPacket(this),
++            // new ClientboundSetEntityDataPacket(this.getId(), ),
++            new ClientboundRotateHeadPacket(this, (byte) ((getYRot() * 256f) / 360f))
++        };
++    }
++
++    private void sendPacket(Packet<?> packet) {
++        Bukkit.getOnlinePlayers().forEach(p -> ((CraftPlayer) p).getHandle().connection.send(packet));
++    }
++
++    // die check start
++    @Override
++    public void die(@NotNull DamageSource damageSource) {
++        super.die(damageSource);
++        this.dieCheck();
++    }
++
++    private void dieCheck() {
++        if (removeOnDeath) {
++            bots.remove(this);
++            server.getPlayerList().removeBot(this);
++            remove(RemovalReason.KILLED);
++            this.setDead();
++            this.removeTab();
++            Bukkit.broadcastMessage(ChatColor.YELLOW + this.getName().getString() + " leaved the game"); // TODO i18n
++        }
++    }
++
++    private void removeTab() {
++        sendPacket(new ClientboundPlayerInfoRemovePacket(List.of(this.getUUID())));
++    }
++
++    private void setDead() {
++        sendPacket(new ClientboundRemoveEntitiesPacket(getId()));
++        this.dead = true;
++        this.inventoryMenu.removed(this);
++        this.containerMenu.removed(this);
++    }
++
++    // die check end
++
++    @Nullable
++    @Override
++    public Entity changeDimension(ServerLevel destination) {
++        return null; // disable dimension change
++    }
++
++    @Override
++    public boolean onGround() {
++        return groundTicks != 0;
++    }
++
++    public static boolean solidAt(@NotNull Location loc) {
++        Block block = loc.getBlock();
++        BoundingBox box = block.getBoundingBox();
++        Vector position = loc.toVector();
++
++        double x = position.getX();
++        double y = position.getY();
++        double z = position.getZ();
++
++        double minX = box.getMinX();
++        double minY = box.getMinY();
++        double minZ = box.getMinZ();
++
++        double maxX = box.getMaxX();
++        double maxY = box.getMaxY();
++        double maxZ = box.getMaxZ();
++
++        return x > minX && x < maxX && y > minY && y < maxY && z > minZ && z < maxZ;
++    }
++
++    public boolean checkGround() {
++        double vy = velocity.getY();
++
++        if (vy > 0) {
++            return false;
++        }
++
++        World world = getBukkitPlayer().getWorld();
++        AABB box = getBoundingBox();
++
++        double[] xVals = new double[]{
++            box.minX,
++            box.maxX
++        };
++
++        double[] zVals = new double[]{
++            box.minZ,
++            box.maxZ
++        };
++
++        for (double x : xVals) {
++            for (double z : zVals) {
++                Location loc = new Location(world, x, getY() - 0.01, z);
++                Block block = world.getBlockAt(loc);
++
++                if (block.getType().isSolid() && solidAt(loc)) {
++                    return true;
++                }
++            }
++        }
++
++        return false;
++    }
++
++    public Bot getBukkitPlayer() {
++        return getBukkitEntity();
++    }
++
++    @Override
++    @NotNull
++    public CraftBot getBukkitEntity() {
++        return (CraftBot) super.getBukkitEntity();
++    }
++
++    @Override
++    public boolean isInWater() {
++        Location loc = getLocation();
++        for (int i = 0; i <= 2; i++) {
++            Material type = loc.getBlock().getType();
++            if (type == Material.WATER || type == Material.LAVA) {
++                return true;
++            }
++            loc.add(0, 0.9, 0);
++        }
++        return false;
++    }
++
++    @Override
++    public void tick() {
++        super.tick();
++        this.doTick();
++
++        if (!isAlive()) {
++            return;
++        }
++
++        if (fireTicks > 0) {
++            --fireTicks;
++        }
++        if (jumpTicks > 0) {
++            --jumpTicks;
++        }
++        if (noFallTicks > 0) {
++            --noFallTicks;
++        }
++        if (noActionTicks > 0) {
++            --noActionTicks;
++        }
++        if (takeXpDelay > 0) {
++            --takeXpDelay;
++        }
++
++        if (checkGround()) {
++            if (groundTicks < 5) groundTicks++;
++        } else {
++            groundTicks = 0;
++        }
++
++        updateLocation();
++
++        float health = getHealth();
++        float maxHealth = getMaxHealth();
++        float regenAmount = 0.010f;
++        float amount;
++
++        if (health < maxHealth - regenAmount) {
++            amount = health + regenAmount;
++        } else {
++            amount = maxHealth;
++        }
++
++        this.setHealth(amount);
++
++        // fireDamageCheck();
++        fallDamageCheck();
++
++        ++this.attackStrengthTicker;
++
++        if (this.getHealth() > 0.0F) {
++            AABB axisalignedbb;
++
++            if (this.isPassenger() && !this.getVehicle().isRemoved()) {
++                axisalignedbb = this.getBoundingBox().minmax(this.getVehicle().getBoundingBox()).inflate(1.0D, 0.0D, 1.0D);
++            } else {
++                axisalignedbb = this.getBoundingBox().inflate(1.0D, 0.5D, 1.0D);
++            }
++
++            List<Entity> list = this.level().getEntities(this, axisalignedbb);
++            List<Entity> list1 = Lists.newArrayList();
++
++            for (Entity entity : list) {
++                if (entity.getType() == EntityType.EXPERIENCE_ORB) {
++                    list1.add(entity);
++                } else if (!entity.isRemoved()) {
++                    this.touch(entity);
++                }
++            }
++
++            if (!list1.isEmpty()) {
++                this.touch(Util.getRandom(list1, this.random));
++            }
++        }
++
++        oldVelocity = velocity.clone();
++
++        if (newAction != null) {
++            action = newAction;
++            newAction = null;
++            noActionTicks = 0;
++            doActionNumber = action.getNumber();
++        }
++
++        if (action != null && noActionTicks <= 0) {
++            if (action.isCancel()) {
++                action = null;
++            } else {
++                if (doActionNumber != 0) {
++                    if (action.doTick(this)) {
++                        doActionNumber--;
++                    }
++                    noActionTicks = action.getTickDelay();
++                } else {
++                    action = null;
++                }
++            }
++        }
++    }
++
++    private void touch(@NotNull Entity entity) {
++        entity.playerTouch(this);
++    }
++
++    @Override
++    public void onItemPickup(@NotNull ItemEntity item) {
++        super.onItemPickup(item);
++        this.updateItemInMainHand();
++    }
++
++    private ItemStack lastItem = new ItemStack(Material.AIR);
++
++    public void updateItemInMainHand() {
++        ItemStack item = this.getInventory().getSelected().asBukkitCopy();
++        tryReplenishOrReplaceInMainHand();
++
++        if (!lastItem.isSimilar(item)) {
++            this.setItem(item, EquipmentSlot.MAINHAND);
++            lastItem = item;
++        }
++
++        if (item.getAmount() == 0) {
++            this.setItem(defaultItem, EquipmentSlot.MAINHAND);
++            lastItem = defaultItem;
++        }
++    }
++
++    public void tryReplenishOrReplaceInMainHand() {
++        net.minecraft.world.item.ItemStack mainHand = getMainHandItem();
++
++        if (!mainHand.isEmpty()) {
++            BotUtil.replenishment(mainHand, getInventory().items);
++            if (BotUtil.isDamage(mainHand, 10)) {
++                BotUtil.replaceTool(EquipmentSlot.MAINHAND, this);
++            }
++        }
++    }
++
++    @Override
++    public void doTick() {
++        if (this.hurtTime > 0) {
++            this.hurtTime -= 1;
++        }
++
++        baseTick();
++
++        this.lerpSteps = (int) this.zza;
++        this.animStep = this.run;
++        this.yRotO = this.getYRot();
++        this.xRotO = this.getXRot();
++    }
++
++    @Override
++    public void push(@NotNull Entity entity) {
++        if (!this.isPassengerOfSameVehicle(entity) && !entity.noPhysics && !this.noPhysics) {
++            double d0 = entity.getX() - this.getX();
++            double d1 = entity.getZ() - this.getZ();
++            double d2 = Mth.absMax(d0, d1);
++            if (d2 >= 0.009999999776482582D) {
++                d2 = Math.sqrt(d2);
++                d0 /= d2;
++                d1 /= d2;
++                double d3 = 1.0D / d2;
++                if (d3 > 1.0D) {
++                    d3 = 1.0D;
++                }
++
++                d0 *= d3;
++                d1 *= d3;
++                d0 *= 0.05000000074505806D;
++                d1 *= 0.05000000074505806D;
++                if (!this.isVehicle()) {
++                    velocity.add(new Vector(-d0 * 3, 0.0D, -d1 * 3));
++                }
++
++                if (!entity.isVehicle()) {
++                    entity.push(d0, 0.0D, d1);
++                }
++            }
++        }
++    }
++
++    public Location getLocation() {
++        return getBukkitPlayer().getLocation();
++    }
++
++    public void setOnFirePackets(boolean onFire) {
++        entityData.set(new EntityDataAccessor<>(0, EntityDataSerializers.BYTE), onFire ? (byte) 1 : (byte) 0);
++        var list = entityData.packDirty();
++        if (list != null) {
++            sendPacket(new ClientboundSetEntityDataPacket(getId(), list));
++        }
++    }
++
++    private void fallDamageCheck() {
++        if (groundTicks != 0 && noFallTicks == 0 && !(oldVelocity.getY() >= -0.8)) {
++            hurt(this.damageSources().fall(), (float) Math.pow(3.6, -oldVelocity.getY()));
++        }
++    }
++
++    public void addFriction(double factor) {
++
++        double frictionMin = 0.01;
++        double x = velocity.getX();
++        double z = velocity.getZ();
++
++        velocity.setX(Math.abs(x) < frictionMin ? 0 : x * factor);
++        velocity.setZ(Math.abs(z) < frictionMin ? 0 : z * factor);
++    }
++
++    private void updateLocation() {
++        double y;
++
++        MathUtils.clean(velocity); // TODO lag
++
++        if (isInWater()) {
++            y = Math.min(velocity.getY() + 0.1, 0.1);
++            addFriction(0.8);
++            velocity.setY(y);
++        } else {
++            if (groundTicks != 0) {
++                velocity.setY(0);
++                addFriction(0.5);
++                y = 0;
++            } else {
++                y = velocity.getY();
++                velocity.setY(Math.max(y - 0.1, -3.5));
++            }
++        }
++
++        this.move(MoverType.SELF, new Vec3(velocity.getX(), y, velocity.getZ()));
++    }
++
++    public void faceLocation(@NotNull Location loc) {
++        look(loc.toVector().subtract(getLocation().toVector()), false);
++    }
++
++    public void look(Vector dir, boolean keepYaw) {
++        float yaw, pitch;
++
++        if (keepYaw) {
++            yaw = this.getYHeadRot();
++            pitch = MathUtils.fetchPitch(dir);
++        } else {
++            float[] vals = MathUtils.fetchYawPitch(dir);
++            yaw = vals[0];
++            pitch = vals[1];
++
++            sendPacket(new ClientboundRotateHeadPacket(this, (byte) (yaw * 256 / 360f)));
++        }
++
++        setRot(yaw, pitch);
++        this.getBukkitEntity().setRotation(yaw, pitch);
++    }
++
++    public void punch() {
++        swing(InteractionHand.MAIN_HAND);
++    }
++
++    public void attack(@NotNull Entity target) {
++        super.attack(target);
++        punch();
++    }
++
++    public void jumpFromGround() {
++        double jumpPower = (double) this.getJumpPower() + this.getJumpBoostPower();
++        Vec3 vec3d = this.getDeltaMovement();
++        this.setDeltaMovement(vec3d.x, jumpPower, vec3d.z);
++    }
++
++    public void setItem(org.bukkit.inventory.ItemStack item, EquipmentSlot slot) {
++        if (item == null) {
++            item = defaultItem;
++        }
++
++        this.detectEquipmentUpdates();
++        if (slot == EquipmentSlot.MAINHAND) {
++            getBukkitPlayer().getInventory().setItemInMainHand(item);
++            setItemInHand(InteractionHand.MAIN_HAND, CraftItemStack.asNMSCopy(item));
++        } else if (slot == EquipmentSlot.OFFHAND) {
++            getBukkitPlayer().getInventory().setItemInOffHand(item);
++            setItemInHand(InteractionHand.OFF_HAND, CraftItemStack.asNMSCopy(item));
++        }
++
++        sendPacket(new ClientboundSetEquipmentPacket(getId(), new ArrayList<>(Collections.singletonList(
++            new Pair<>(slot, CraftItemStack.asNMSCopy(item))
++        ))));
++    }
++
++    public void dropAll() {
++        getInventory().dropAll();
++        for (EquipmentSlot slot : EquipmentSlot.values()) {
++            setItem(null, slot);
++        }
++    }
++
++    public void setBotAction(BotAction botAction) {
++        this.newAction = botAction;
++    }
++
++    @Override
++    public @NotNull ServerStatsCounter getStats() {
++        return stats;
++    }
++
++    public BotInventoryContainer getContainer() {
++        return container;
++    }
++
++    @Override
++    public @NotNull InteractionResult interact(@NotNull Player player, @NotNull InteractionHand hand) {
++        if (LeavesConfig.openFakeplayerInventory) {
++            if (player.getMainHandItem().isEmpty()) {
++                player.openMenu(new SimpleMenuProvider((i, inventory, p) -> ChestMenu.sixRows(i, inventory, container), getDisplayName()));
++                return InteractionResult.SUCCESS;
++            }
++        }
++        return super.interact(player, hand);
++    }
++
++    public static ServerBot getBot(ServerPlayer player) {
++        ServerBot bot = null;
++        for (ServerBot b : bots) {
++            if (b.getId() == player.getId()) {
++                bot = b;
++                break;
++            }
++        }
++        return bot;
++    }
++
++    public static ServerBot getBot(String name) {
++        ServerBot bot = null;
++        for (ServerBot b : bots) {
++            if (b.getName().getString().equals(name)) {
++                bot = b;
++                break;
++            }
++        }
++        return bot;
++    }
++
++    public static void saveOrRemoveAllBot() {
++        if (LeavesConfig.fakeplayerSupport && LeavesConfig.fakeplayerResident) {
++            JsonObject fakePlayerList = new JsonObject();
++            bots.forEach((bot -> {
++                String name = bot.getName().getString();
++                fakePlayerList.add(name, BotUtil.saveBot(bot));
++            }));
++            File file = MinecraftServer.getServer().getWorldPath(LevelResource.ROOT).resolve("fake_player.leaves.json").toFile();
++            if (!file.isFile()) {
++                try {
++                    file.createNewFile();
++                } catch (IOException e) {
++                    e.printStackTrace();
++                }
++            }
++            try (BufferedWriter bfw = Files.newBufferedWriter(file.toPath(), StandardCharsets.UTF_8)) {
++                bfw.write(new Gson().toJson(fakePlayerList));
++            } catch (IOException e) {
++                e.printStackTrace();
++            }
++        } else {
++            removeAllBot();
++        }
++    }
++
++    public static void loadAllBot() {
++        if (LeavesConfig.fakeplayerSupport && LeavesConfig.fakeplayerResident) {
++            JsonObject fakePlayerList = new JsonObject();
++            File file = MinecraftServer.getServer().getWorldPath(LevelResource.ROOT).resolve("fake_player.leaves.json").toFile();
++            if (!file.isFile()) {
++                return;
++            }
++            try (BufferedReader bfr = Files.newBufferedReader(file.toPath(), StandardCharsets.UTF_8)) {
++                fakePlayerList = new Gson().fromJson(bfr, JsonObject.class);
++            } catch (IOException e) {
++                e.printStackTrace();
++            }
++            for (Map.Entry<String, JsonElement> entry : fakePlayerList.entrySet()) {
++                BotUtil.loadBot(entry);
++            }
++            file.delete();
++        }
++    }
++
++    public static boolean removeAllBot() {
++        Iterator<ServerBot> iterator = bots.iterator();
++        while (iterator.hasNext()) {
++            ServerBot bot = iterator.next();
++            iterator.remove();
++            bot.die(bot.damageSources().fellOutOfWorld());
++        }
++        return true;
++    }
++
++    public static List<ServerBot> getBots() { // It needs unmodifiable
++        return bots;
++    }
++
++    public static class CustomGameProfile extends GameProfile {
++
++        public CustomGameProfile(UUID uuid, String name, String[] skin) {
++            super(uuid, name);
++            setSkin(skin);
++        }
++
++        public void setSkin(String[] skin) {
++            if (skin != null) {
++                getProperties().put("textures", new Property("textures", skin[0], skin[1]));
++            }
++        }
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/Actions.java b/src/main/java/top/leavesmc/leaves/bot/agent/Actions.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..4e019c1fd77078cf8deae93948b7bf94f4c29fd4
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/agent/Actions.java
+@@ -0,0 +1,51 @@
++package top.leavesmc.leaves.bot.agent;
++
++import org.jetbrains.annotations.Contract;
++import org.jetbrains.annotations.NotNull;
++import top.leavesmc.leaves.bot.agent.actions.*;
++
++import java.util.Collection;
++import java.util.HashMap;
++import java.util.Map;
++import java.util.Set;
++
++public class Actions {
++
++    private static final Map<String, BotAction> actions = new HashMap<>();
++
++    public static void registerAll() {
++        register(new AttackAction());
++        register(new BreakBlockAction());
++        register(new DropAction());
++        register(new JumpAction());
++        register(new RotateAction());
++        register(new SneakAction());
++        register(new StopAction());
++        register(new UseItemAction());
++        register(new UseItemOnAction());
++        register(new UseItemToAction());
++        register(new LookAction());
++        register(new FishAction());
++    }
++
++    public static void register(@NotNull BotAction action) {
++        if (!actions.containsKey(action.getName())) {
++            actions.put(action.getName(), action);
++        }
++    }
++
++    @NotNull
++    @Contract(pure = true)
++    public static Collection<BotAction> getAll() {
++        return actions.values();
++    }
++
++    @NotNull
++    public static Set<String> getNames() {
++        return actions.keySet();
++    }
++
++    public static BotAction getForName(String name) {
++        return actions.get(name);
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/BotAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/BotAction.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..9d01944805cfbffbd08343121b8ff27e06e504fb
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/agent/BotAction.java
+@@ -0,0 +1,71 @@
++package top.leavesmc.leaves.bot.agent;
++
++import net.minecraft.server.level.ServerPlayer;
++import org.jetbrains.annotations.NotNull;
++import top.leavesmc.leaves.bot.ServerBot;
++import top.leavesmc.leaves.command.CommandArgument;
++import top.leavesmc.leaves.command.CommandArgumentResult;
++
++import java.util.List;
++
++public abstract class BotAction {
++
++    private final String name;
++    private final CommandArgument argument;
++
++    private boolean cancel;
++    private int tickDelay;
++    private int number;
++
++    public BotAction(String name, CommandArgument argument) {
++        this.name = name;
++        this.argument = argument;
++
++        this.cancel = false;
++        this.tickDelay = 20;
++        this.number = -1;
++    }
++
++    public String getName() {
++        return name;
++    }
++
++    public int getTickDelay() {
++        return tickDelay;
++    }
++
++    public int getNumber() {
++        return number;
++    }
++
++    public boolean isCancel() {
++        return cancel;
++    }
++
++    public BotAction setTickDelay(int tickDelay) {
++        this.tickDelay = Math.max(0, tickDelay);
++        return this;
++    }
++
++    public BotAction setTabComplete(int index, List<String> list) {
++        argument.setTabComplete(index, list);
++        return this;
++    }
++
++    public BotAction setNumber(int number) {
++        this.number = Math.max(-1, number);
++        return this;
++    }
++
++    public void setCancel(boolean cancel) {
++        this.cancel = cancel;
++    }
++
++    public CommandArgument getArgument() {
++        return argument;
++    }
++
++    public abstract BotAction getNew(@NotNull ServerPlayer player, @NotNull CommandArgumentResult result);
++
++    public abstract boolean doTick(@NotNull ServerBot bot);
++}
+diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/AttackAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/AttackAction.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..609605b21cfe5af8876f76ea4922e379c5dd166e
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/agent/actions/AttackAction.java
+@@ -0,0 +1,36 @@
++package top.leavesmc.leaves.bot.agent.actions;
++
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.world.phys.EntityHitResult;
++import org.jetbrains.annotations.NotNull;
++import top.leavesmc.leaves.bot.ServerBot;
++import top.leavesmc.leaves.bot.agent.BotAction;
++import top.leavesmc.leaves.command.CommandArgument;
++import top.leavesmc.leaves.command.CommandArgumentResult;
++import top.leavesmc.leaves.command.CommandArgumentType;
++
++import java.util.List;
++
++public class AttackAction extends BotAction {
++
++    public AttackAction() {
++        super("attack", new CommandArgument(CommandArgumentType.INTEGER, CommandArgumentType.INTEGER));
++        setTabComplete(0, List.of("[TickDelay]"));
++        setTabComplete(1, List.of("[DoNumber]"));
++    }
++
++    @Override
++    public BotAction getNew(@NotNull ServerPlayer player, @NotNull CommandArgumentResult result) {
++        return new AttackAction().setTickDelay(result.readInt(20)).setNumber(result.readInt(-1));
++    }
++
++    @Override
++    public boolean doTick(@NotNull ServerBot bot) {
++        EntityHitResult result = bot.getTargetEntity(3);
++        if (result != null) {
++            bot.attack(result.getEntity());
++            return true;
++        }
++        return false;
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/BreakBlockAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/BreakBlockAction.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..20f8b87ef5c63daef317aae37fc189a983c15086
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/agent/actions/BreakBlockAction.java
+@@ -0,0 +1,92 @@
++package top.leavesmc.leaves.bot.agent.actions;
++
++import net.minecraft.core.BlockPos;
++import net.minecraft.server.MinecraftServer;
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.world.level.block.state.BlockState;
++import org.bukkit.block.Block;
++import org.bukkit.craftbukkit.block.CraftBlock;
++import org.jetbrains.annotations.NotNull;
++import top.leavesmc.leaves.bot.ServerBot;
++import top.leavesmc.leaves.bot.agent.BotAction;
++import top.leavesmc.leaves.command.CommandArgument;
++import top.leavesmc.leaves.command.CommandArgumentResult;
++import top.leavesmc.leaves.command.CommandArgumentType;
++
++import java.util.List;
++
++public class BreakBlockAction extends BotAction {
++
++    public BreakBlockAction() {
++        super("break", new CommandArgument(CommandArgumentType.INTEGER, CommandArgumentType.INTEGER));
++        setTabComplete(0, List.of("[TickDelay]"));
++        setTabComplete(1, List.of("[DoNumber]"));
++    }
++
++    @Override
++    public BotAction getNew(@NotNull ServerPlayer player, @NotNull CommandArgumentResult result) {
++        return new BreakBlockAction().setTickDelay(result.readInt(20)).setNumber(result.readInt(-1));
++    }
++
++    @Override
++    public BotAction setTickDelay(int tickDelay) {
++        super.setTickDelay(0);
++        this.delay = tickDelay;
++        return this;
++    }
++
++    private int delay = 0;
++    private int nowDelay = 0;
++
++    private BlockPos lastPos = null;
++    private int destroyProgressTime = -1;
++    private int lastSentState = -1;
++
++    @Override
++    public boolean doTick(@NotNull ServerBot bot) {
++        if (nowDelay > 0) {
++            nowDelay--;
++            return false;
++        }
++
++        Block block = bot.getBukkitEntity().getTargetBlockExact(5);
++        if (block != null) {
++            BlockPos pos = ((CraftBlock) block).getPosition();
++
++            if (lastPos == null || !lastPos.equals(pos)) {
++                lastPos = pos;
++                destroyProgressTime = 0;
++                lastSentState = -1;
++            }
++
++            BlockState iblockdata = bot.level().getBlockState(pos);
++            if (!iblockdata.isAir()) {
++                bot.punch();
++
++                float damage = this.incrementDestroyProgress(bot, iblockdata, pos);
++                if (damage >= 1.0F) {
++                    bot.gameMode.destroyAndAck(lastPos, 0, "destroyed");
++                    bot.level().destroyBlockProgress(bot.getId(), lastPos, -1);
++                    bot.updateItemInMainHand();
++                    destroyProgressTime = 0;
++                    lastSentState = -1;
++                    nowDelay = delay;
++                    return true;
++                }
++            }
++        }
++        return false;
++    }
++
++    private float incrementDestroyProgress(ServerBot bot, @NotNull BlockState state, BlockPos pos) {
++        float f = state.getDestroyProgress(bot, bot.level(), pos) * (float) (destroyProgressTime++);
++        int k = (int) (f * 10.0F);
++
++        if (k != lastSentState) {
++            bot.level().destroyBlockProgress(bot.getId(), pos, k);
++            lastSentState = k;
++        }
++
++        return f;
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/DropAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/DropAction.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..cc72960b8490a72aca5db3e834c71f97e3742f7d
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/agent/actions/DropAction.java
+@@ -0,0 +1,26 @@
++package top.leavesmc.leaves.bot.agent.actions;
++
++import net.minecraft.server.level.ServerPlayer;
++import org.jetbrains.annotations.NotNull;
++import top.leavesmc.leaves.bot.ServerBot;
++import top.leavesmc.leaves.bot.agent.BotAction;
++import top.leavesmc.leaves.command.CommandArgument;
++import top.leavesmc.leaves.command.CommandArgumentResult;
++
++public class DropAction extends BotAction {
++
++    public DropAction() {
++        super("drop", new CommandArgument());
++    }
++
++    @Override
++    public BotAction getNew(@NotNull ServerPlayer player, @NotNull CommandArgumentResult result) {
++        return this.setTickDelay(0).setNumber(1);
++    }
++
++    @Override
++    public boolean doTick(@NotNull ServerBot bot) {
++        bot.dropAll();
++        return true;
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/FishAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/FishAction.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..d92ea54770bce73c2f10f1ebcb0dff5b9532e0e9
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/agent/actions/FishAction.java
+@@ -0,0 +1,70 @@
++package top.leavesmc.leaves.bot.agent.actions;
++
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.world.InteractionHand;
++import net.minecraft.world.entity.projectile.FishingHook;
++import net.minecraft.world.item.FishingRodItem;
++import net.minecraft.world.item.ItemStack;
++import org.jetbrains.annotations.NotNull;
++import top.leavesmc.leaves.bot.ServerBot;
++import top.leavesmc.leaves.bot.agent.BotAction;
++import top.leavesmc.leaves.command.CommandArgument;
++import top.leavesmc.leaves.command.CommandArgumentResult;
++import top.leavesmc.leaves.command.CommandArgumentType;
++
++import java.util.List;
++
++public class FishAction extends BotAction {
++
++    public FishAction() {
++        super("fish", new CommandArgument(CommandArgumentType.INTEGER, CommandArgumentType.INTEGER));
++        setTabComplete(0, List.of("[TickDelay]"));
++        setTabComplete(1, List.of("[DoNumber]"));
++    }
++
++    @Override
++    public BotAction getNew(@NotNull ServerPlayer player, @NotNull CommandArgumentResult result) {
++        return new FishAction().setTickDelay(result.readInt(20)).setNumber(result.readInt(-1));
++    }
++
++    @Override
++    public BotAction setTickDelay(int tickDelay) {
++        super.setTickDelay(0);
++        this.delay = tickDelay;
++        return this;
++    }
++
++    private int delay = 0;
++    private int nowDelay = 0;
++
++    @Override
++    public boolean doTick(@NotNull ServerBot bot) {
++        if (nowDelay > 0) {
++            nowDelay--;
++            return false;
++        }
++
++        ItemStack mainHand = bot.getMainHandItem();
++        if (mainHand == ItemStack.EMPTY || mainHand.getItem().getClass() != FishingRodItem.class) {
++            return false;
++        }
++
++        FishingHook fishingHook = bot.fishing;
++        if (fishingHook != null) {
++            if (fishingHook.currentState == FishingHook.FishHookState.HOOKED_IN_ENTITY) {
++                mainHand.use(bot.level(), bot, InteractionHand.MAIN_HAND);
++                nowDelay = 20;
++                return false;
++            }
++            if (fishingHook.nibble > 0) {
++                mainHand.use(bot.level(), bot, InteractionHand.MAIN_HAND);
++                nowDelay = delay;
++                return true;
++            }
++        } else {
++            mainHand.use(bot.level(), bot, InteractionHand.MAIN_HAND);
++        }
++
++        return false;
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/JumpAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/JumpAction.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..d99f667992e45e85c0fe0bd74682d563fe1315eb
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/agent/actions/JumpAction.java
+@@ -0,0 +1,35 @@
++package top.leavesmc.leaves.bot.agent.actions;
++
++import net.minecraft.server.level.ServerPlayer;
++import org.jetbrains.annotations.NotNull;
++import top.leavesmc.leaves.bot.ServerBot;
++import top.leavesmc.leaves.bot.agent.BotAction;
++import top.leavesmc.leaves.command.CommandArgument;
++import top.leavesmc.leaves.command.CommandArgumentResult;
++import top.leavesmc.leaves.command.CommandArgumentType;
++
++import java.util.List;
++
++public class JumpAction extends BotAction {
++
++    public JumpAction() {
++        super("jump", new CommandArgument(CommandArgumentType.INTEGER, CommandArgumentType.INTEGER));
++        setTabComplete(0, List.of("[TickDelay]"));
++        setTabComplete(1, List.of("[DoNumber]"));
++    }
++
++    @Override
++    public BotAction getNew(@NotNull ServerPlayer player, @NotNull CommandArgumentResult result) {
++        return new JumpAction().setTickDelay(result.readInt(20)).setNumber(result.readInt(-1));
++    }
++
++    @Override
++    public boolean doTick(@NotNull ServerBot bot) {
++        if (bot.onGround()) {
++            bot.jumpFromGround();
++            return true;
++        } else {
++            return false;
++        }
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/LookAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/LookAction.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..5432e61c156a1a6d49dcf4b24e3bcfcc6c1aa7bb
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/agent/actions/LookAction.java
+@@ -0,0 +1,49 @@
++package top.leavesmc.leaves.bot.agent.actions;
++
++import net.minecraft.server.level.ServerPlayer;
++import org.bukkit.util.Vector;
++import org.jetbrains.annotations.NotNull;
++import top.leavesmc.leaves.bot.ServerBot;
++import top.leavesmc.leaves.bot.agent.BotAction;
++import top.leavesmc.leaves.command.CommandArgument;
++import top.leavesmc.leaves.command.CommandArgumentResult;
++import top.leavesmc.leaves.command.CommandArgumentType;
++
++import java.util.List;
++
++public class LookAction extends BotAction {
++
++    public LookAction() {
++        super("look", new CommandArgument(CommandArgumentType.DOUBLE, CommandArgumentType.DOUBLE, CommandArgumentType.DOUBLE));
++        setTabComplete(0, List.of("<X>"));
++        setTabComplete(1, List.of("<Y>"));
++        setTabComplete(2, List.of("<Z>"));
++    }
++
++    @Override
++    public BotAction getNew(@NotNull ServerPlayer player, @NotNull CommandArgumentResult result) {
++        Vector pos = result.readVector();
++        if (pos != null) {
++            return new LookAction().setPos(pos).setTickDelay(0).setNumber(1);
++        } else {
++            return null;
++        }
++    }
++
++    private Vector pos;
++
++    public LookAction setPos(Vector pos) {
++        if (pos != null) {
++            this.pos = pos;
++            return this;
++        } else {
++            return null;
++        }
++    }
++
++    @Override
++    public boolean doTick(@NotNull ServerBot bot) {
++        bot.look(pos.subtract(bot.getLocation().toVector()), false);
++        return true;
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/RotateAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/RotateAction.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..1e5be54b33467591924cb2400639fb593dc50ec6
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/agent/actions/RotateAction.java
+@@ -0,0 +1,33 @@
++package top.leavesmc.leaves.bot.agent.actions;
++
++import net.minecraft.server.level.ServerPlayer;
++import org.jetbrains.annotations.NotNull;
++import top.leavesmc.leaves.bot.ServerBot;
++import top.leavesmc.leaves.bot.agent.BotAction;
++import top.leavesmc.leaves.command.CommandArgument;
++import top.leavesmc.leaves.command.CommandArgumentResult;
++
++public class RotateAction extends BotAction {
++
++    public RotateAction() {
++        super("rotate", new CommandArgument());
++    }
++
++    @Override
++    public BotAction getNew(@NotNull ServerPlayer player, @NotNull CommandArgumentResult result) {
++        return new RotateAction().setPlayer(player).setTickDelay(0).setNumber(1);
++    }
++
++    private ServerPlayer player;
++
++    public RotateAction setPlayer(ServerPlayer player) {
++        this.player = player;
++        return this;
++    }
++
++    @Override
++    public boolean doTick(@NotNull ServerBot bot) {
++        bot.faceLocation(player.getBukkitEntity().getLocation());
++        return true;
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/SneakAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/SneakAction.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..250416464daae6f824f02b4fd339a4c1b7a2fb67
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/agent/actions/SneakAction.java
+@@ -0,0 +1,28 @@
++package top.leavesmc.leaves.bot.agent.actions;
++
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.world.entity.Pose;
++import org.jetbrains.annotations.NotNull;
++import top.leavesmc.leaves.bot.ServerBot;
++import top.leavesmc.leaves.bot.agent.BotAction;
++import top.leavesmc.leaves.command.CommandArgument;
++import top.leavesmc.leaves.command.CommandArgumentResult;
++
++public class SneakAction extends BotAction {
++
++    public SneakAction() {
++        super("sneak", new CommandArgument());
++    }
++
++    @Override
++    public BotAction getNew(@NotNull ServerPlayer player, @NotNull CommandArgumentResult result) {
++        return this.setTickDelay(0).setNumber(1);
++    }
++
++    @Override
++    public boolean doTick(@NotNull ServerBot bot) {
++        bot.setShiftKeyDown(!bot.isShiftKeyDown());
++        bot.setPose(bot.isShiftKeyDown() ? Pose.CROUCHING : Pose.STANDING);
++        return true;
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/StopAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/StopAction.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..36d199269afc46783b0815e3887842cd82b6e813
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/agent/actions/StopAction.java
+@@ -0,0 +1,26 @@
++package top.leavesmc.leaves.bot.agent.actions;
++
++import net.minecraft.server.level.ServerPlayer;
++import org.jetbrains.annotations.NotNull;
++import top.leavesmc.leaves.bot.ServerBot;
++import top.leavesmc.leaves.bot.agent.BotAction;
++import top.leavesmc.leaves.command.CommandArgument;
++import top.leavesmc.leaves.command.CommandArgumentResult;
++
++public class StopAction extends BotAction {
++
++    public StopAction() {
++        super("stop", new CommandArgument());
++    }
++
++    @Override
++    public BotAction getNew(@NotNull ServerPlayer player, @NotNull CommandArgumentResult result) {
++        return this.setTickDelay(0).setNumber(0);
++    }
++
++    @Override
++    public boolean doTick(@NotNull ServerBot bot) {
++        this.setCancel(true);
++        return true;
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemAction.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..5dc3fbf8e62ccffc8291962c835a568efd65d7af
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemAction.java
+@@ -0,0 +1,33 @@
++package top.leavesmc.leaves.bot.agent.actions;
++
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.world.InteractionHand;
++import org.jetbrains.annotations.NotNull;
++import top.leavesmc.leaves.bot.ServerBot;
++import top.leavesmc.leaves.bot.agent.BotAction;
++import top.leavesmc.leaves.command.CommandArgument;
++import top.leavesmc.leaves.command.CommandArgumentResult;
++import top.leavesmc.leaves.command.CommandArgumentType;
++
++import java.util.List;
++
++public class UseItemAction extends BotAction {
++
++    public UseItemAction() {
++        super("use", new CommandArgument(CommandArgumentType.INTEGER, CommandArgumentType.INTEGER));
++        setTabComplete(0, List.of("[TickDelay]"));
++        setTabComplete(1, List.of("[DoNumber]"));
++    }
++
++    @Override
++    public BotAction getNew(@NotNull ServerPlayer player, @NotNull CommandArgumentResult result) {
++        return new UseItemAction().setTickDelay(result.readInt(20)).setNumber(result.readInt(-1));
++    }
++
++    @Override
++    public boolean doTick(@NotNull ServerBot bot) {
++        bot.punch();
++        bot.updateItemInMainHand();
++        return bot.getInventory().getSelected().use(bot.level(), bot, InteractionHand.MAIN_HAND).getResult().consumesAction();
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemOnAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemOnAction.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..75488ee2cb25190f9c16898759c57f233d240c4c
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemOnAction.java
+@@ -0,0 +1,40 @@
++package top.leavesmc.leaves.bot.agent.actions;
++
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.world.InteractionHand;
++import net.minecraft.world.level.ClipContext;
++import net.minecraft.world.phys.BlockHitResult;
++import net.minecraft.world.phys.HitResult;
++import org.jetbrains.annotations.NotNull;
++import top.leavesmc.leaves.bot.ServerBot;
++import top.leavesmc.leaves.bot.agent.BotAction;
++import top.leavesmc.leaves.command.CommandArgument;
++import top.leavesmc.leaves.command.CommandArgumentResult;
++import top.leavesmc.leaves.command.CommandArgumentType;
++
++import java.util.List;
++
++public class UseItemOnAction extends BotAction {
++
++    public UseItemOnAction() {
++        super("use_on", new CommandArgument(CommandArgumentType.INTEGER, CommandArgumentType.INTEGER));
++        setTabComplete(0, List.of("[TickDelay]"));
++        setTabComplete(1, List.of("[DoNumber]"));
++    }
++
++    @Override
++    public BotAction getNew(@NotNull ServerPlayer player, @NotNull CommandArgumentResult result) {
++        return new UseItemOnAction().setTickDelay(result.readInt(20)).setNumber(result.readInt(-1));
++    }
++
++    @Override
++    public boolean doTick(@NotNull ServerBot bot) {
++        HitResult result = bot.getRayTrace(4, ClipContext.Fluid.NONE);
++        if (result.getType() == HitResult.Type.BLOCK) {
++            bot.punch();
++            bot.updateItemInMainHand();
++            return bot.gameMode.useItemOn(bot, bot.level(), bot.getItemInHand(InteractionHand.MAIN_HAND), InteractionHand.MAIN_HAND, (BlockHitResult) result).consumesAction();
++        }
++        return false;
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemToAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemToAction.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..cc8689ee726144f220e4ccc5cd418b79a29b79ab
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemToAction.java
+@@ -0,0 +1,38 @@
++package top.leavesmc.leaves.bot.agent.actions;
++
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.world.InteractionHand;
++import net.minecraft.world.phys.EntityHitResult;
++import org.jetbrains.annotations.NotNull;
++import top.leavesmc.leaves.bot.ServerBot;
++import top.leavesmc.leaves.bot.agent.BotAction;
++import top.leavesmc.leaves.command.CommandArgument;
++import top.leavesmc.leaves.command.CommandArgumentResult;
++import top.leavesmc.leaves.command.CommandArgumentType;
++
++import java.util.List;
++
++public class UseItemToAction extends BotAction {
++
++    public UseItemToAction() {
++        super("use_to", new CommandArgument(CommandArgumentType.INTEGER, CommandArgumentType.INTEGER));
++        setTabComplete(0, List.of("[TickDelay]"));
++        setTabComplete(1, List.of("[DoNumber]"));
++    }
++
++    @Override
++    public BotAction getNew(@NotNull ServerPlayer player, @NotNull CommandArgumentResult result) {
++        return new UseItemToAction().setTickDelay(result.readInt(20)).setNumber(result.readInt(-1));
++    }
++
++    @Override
++    public boolean doTick(@NotNull ServerBot bot) {
++        EntityHitResult result = bot.getTargetEntity(3);
++        if (result != null) {
++            bot.punch();
++            bot.updateItemInMainHand();
++            return result.getEntity().interact(bot, InteractionHand.MAIN_HAND).consumesAction();
++        }
++        return false;
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/entity/CraftBot.java b/src/main/java/top/leavesmc/leaves/entity/CraftBot.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..b9a2916debde350bc69c42a3aa839c016aa37df2
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/entity/CraftBot.java
+@@ -0,0 +1,31 @@
++package top.leavesmc.leaves.entity;
++
++import org.bukkit.craftbukkit.CraftServer;
++import org.bukkit.craftbukkit.entity.CraftPlayer;
++import top.leavesmc.leaves.bot.ServerBot;
++
++public class CraftBot extends CraftPlayer implements Bot {
++
++    public CraftBot(CraftServer server, ServerBot entity) {
++        super(server, entity);
++    }
++
++    @Override
++    public String getSkinName() {
++        return getHandle().skinName;
++    }
++
++    @Override
++    public ServerBot getHandle() {
++        return (ServerBot) entity;
++    }
++
++    public void setHandle(final ServerBot entity) {
++        super.setHandle(entity);
++    }
++
++    @Override
++    public String toString() {
++        return "CraftBot{" + "name=" + getName() + '}';
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/util/MathUtils.java b/src/main/java/top/leavesmc/leaves/util/MathUtils.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..349cd0c0d2d9dc2c9c745ef3469e548a798931ba
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/util/MathUtils.java
+@@ -0,0 +1,78 @@
++package top.leavesmc.leaves.util;
++
++import org.bukkit.util.NumberConversions;
++import org.bukkit.util.Vector;
++
++import java.util.regex.Pattern;
++
++public class MathUtils {
++    // Lag ?
++    public static void clean(Vector vector) {
++        if (!NumberConversions.isFinite(vector.getX())) vector.setX(0);
++        if (!NumberConversions.isFinite(vector.getY())) vector.setY(0);
++        if (!NumberConversions.isFinite(vector.getZ())) vector.setZ(0);
++    }
++
++    private static final Pattern numericPattern = Pattern.compile("^-?[1-9]\\d*$|^0$");
++    public static boolean isNumeric(String str){
++        return numericPattern.matcher(str).matches();
++    }
++
++    public static float[] fetchYawPitch(Vector dir) {
++        double x = dir.getX();
++        double z = dir.getZ();
++
++        float[] out = new float[2];
++
++        if (x == 0.0D && z == 0.0D) {
++            out[1] = (float) (dir.getY() > 0.0D ? -90 : 90);
++        }
++
++        else {
++            double theta = Math.atan2(-x, z);
++            out[0] = (float) Math.toDegrees((theta + 6.283185307179586D) % 6.283185307179586D);
++
++            double x2 = NumberConversions.square(x);
++            double z2 = NumberConversions.square(z);
++            double xz = Math.sqrt(x2 + z2);
++            out[1] = (float) Math.toDegrees(Math.atan(-dir.getY() / xz));
++        }
++
++        return out;
++    }
++
++    public static float fetchPitch(Vector dir) {
++        double x = dir.getX();
++        double z = dir.getZ();
++
++        float result;
++
++        if (x == 0.0D && z == 0.0D) {
++            result = (float) (dir.getY() > 0.0D ? -90 : 90);
++        }
++
++        else {
++            double x2 = NumberConversions.square(x);
++            double z2 = NumberConversions.square(z);
++            double xz = Math.sqrt(x2 + z2);
++            result = (float) Math.toDegrees(Math.atan(-dir.getY() / xz));
++        }
++
++        return result;
++    }
++
++    public static Vector getDirection(double rotX, double rotY) {
++        Vector vector = new Vector();
++
++        rotX = Math.toRadians(rotX);
++        rotY = Math.toRadians(rotY);
++
++        double xz = Math.abs(Math.cos(rotY));
++
++        vector.setX(-Math.sin(rotX) * xz);
++        vector.setZ(Math.cos(rotX) * xz);
++        vector.setY(-Math.sin(rotY));
++
++        return vector;
++    }
++}

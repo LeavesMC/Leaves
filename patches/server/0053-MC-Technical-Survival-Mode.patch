@@ -1,0 +1,103 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Thu, 19 Jan 2023 23:38:50 +0800
+Subject: [PATCH] MC Technical Survival Mode
+
+Will automatically overwrite some configuration after startup
+
+diff --git a/src/main/java/io/papermc/paper/configuration/PaperConfigurations.java b/src/main/java/io/papermc/paper/configuration/PaperConfigurations.java
+index f6b9d216c24d8858802f85209fe1a869e5a9be31..fc8b373df2a8c9e54e1e80b88f87e3411f4cdb5f 100644
+--- a/src/main/java/io/papermc/paper/configuration/PaperConfigurations.java
++++ b/src/main/java/io/papermc/paper/configuration/PaperConfigurations.java
+@@ -292,6 +292,7 @@ public class PaperConfigurations extends Configurations<GlobalConfiguration, Wor
+             for (ServerLevel level : server.getAllLevels()) {
+                 this.createWorldConfig(createWorldContextMap(level), reloader(this.worldConfigClass, level.paperConfig()));
+             }
++            top.leavesmc.leaves.LeavesConfig.doMcTechnicalMode(); // Leaves - mc technical survival mode
+         } catch (Exception ex) {
+             throw new RuntimeException("Could not reload paper configuration files", ex);
+         }
+diff --git a/src/main/java/net/minecraft/world/entity/boss/enderdragon/EndCrystal.java b/src/main/java/net/minecraft/world/entity/boss/enderdragon/EndCrystal.java
+index 5465711d486e5f265a26042031e895fb09e30608..4d1d5977e84ea8e2143c58c45e87d80f7bf2bbe1 100644
+--- a/src/main/java/net/minecraft/world/entity/boss/enderdragon/EndCrystal.java
++++ b/src/main/java/net/minecraft/world/entity/boss/enderdragon/EndCrystal.java
+@@ -67,7 +67,7 @@ public class EndCrystal extends Entity {
+                 // CraftBukkit end
+             }
+             // Paper start - Fix invulnerable end crystals
+-            if (this.level().paperConfig().unsupportedSettings.fixInvulnerableEndCrystalExploit && this.generatedByDragonFight && this.isInvulnerable()) {
++            if (!top.leavesmc.leaves.LeavesConfig.mcTechnicalMode && this.level().paperConfig().unsupportedSettings.fixInvulnerableEndCrystalExploit && this.generatedByDragonFight && this.isInvulnerable()) { // Leaves - mc technical survival mode
+                 if (!java.util.Objects.equals(((ServerLevel) this.level()).uuid, this.getOriginWorld())
+                     || ((ServerLevel) this.level()).getDragonFight() == null
+                     || ((ServerLevel) this.level()).getDragonFight().respawnStage == null
+diff --git a/src/main/java/net/minecraft/world/entity/item/PrimedTnt.java b/src/main/java/net/minecraft/world/entity/item/PrimedTnt.java
+index bf3301eb1341ba9d482e10873447c42bd670f5ed..bbb322df340cd0b188603a427f58f8c1c3474bda 100644
+--- a/src/main/java/net/minecraft/world/entity/item/PrimedTnt.java
++++ b/src/main/java/net/minecraft/world/entity/item/PrimedTnt.java
+@@ -60,7 +60,7 @@ public class PrimedTnt extends Entity implements TraceableEntity {
+ 
+     @Override
+     public void tick() {
+-        if (this.level().spigotConfig.maxTntTicksPerTick > 0 && ++this.level().spigotConfig.currentPrimedTnt > this.level().spigotConfig.maxTntTicksPerTick) { return; } // Spigot
++        if (this.level().spigotConfig.maxTntTicksPerTick > 0 && ++this.level().spigotConfig.currentPrimedTnt > (top.leavesmc.leaves.LeavesConfig.mcTechnicalMode ? 2000 : this.level().spigotConfig.maxTntTicksPerTick)) { return; } // Spigot // Leaves - mc technical survival mode
+         if (!this.isNoGravity()) {
+             this.setDeltaMovement(this.getDeltaMovement().add(0.0D, -0.04D, 0.0D));
+         }
+diff --git a/src/main/java/net/minecraft/world/entity/npc/Villager.java b/src/main/java/net/minecraft/world/entity/npc/Villager.java
+index e30d5ae3e2900f43d7cafde71b8196f26e872841..79bfd7b5da13197c2d3f7dbf9c3154dd783d1ba8 100644
+--- a/src/main/java/net/minecraft/world/entity/npc/Villager.java
++++ b/src/main/java/net/minecraft/world/entity/npc/Villager.java
+@@ -1009,7 +1009,7 @@ public class Villager extends AbstractVillager implements ReputationEventHandler
+     public void onReputationEventFrom(ReputationEventType interaction, Entity entity) {
+         if (interaction == ReputationEventType.ZOMBIE_VILLAGER_CURED) {
+             // Paper start - fix MC-181190
+-            if (this.level().paperConfig().fixes.fixCuringZombieVillagerDiscountExploit) {
++            if (!top.leavesmc.leaves.LeavesConfig.mcTechnicalMode && this.level().paperConfig().fixes.fixCuringZombieVillagerDiscountExploit) { // Leaves - mc technical survival mode
+                 final GossipContainer.EntityGossips playerReputation = this.getGossips().gossips.get(entity.getUUID());
+                 if (playerReputation != null) {
+                     playerReputation.remove(GossipType.MAJOR_POSITIVE);
+diff --git a/src/main/java/net/minecraft/world/level/NaturalSpawner.java b/src/main/java/net/minecraft/world/level/NaturalSpawner.java
+index c767257b56acbe2cde391f405c010f5b2f62a17c..4327ec0948fb82939272f2dc1bbde8b1e090c5b7 100644
+--- a/src/main/java/net/minecraft/world/level/NaturalSpawner.java
++++ b/src/main/java/net/minecraft/world/level/NaturalSpawner.java
+@@ -95,7 +95,7 @@ public final class NaturalSpawner {
+ 
+             if (enumcreaturetype != MobCategory.MISC) {
+                 // Paper start - Only count natural spawns
+-                if (!entity.level().paperConfig().entities.spawning.countAllMobsForSpawning &&
++                if (!top.leavesmc.leaves.LeavesConfig.mcTechnicalMode && !entity.level().paperConfig().entities.spawning.countAllMobsForSpawning && // Leaves - mc technical survival mode
+                     !(entity.spawnReason == org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.NATURAL ||
+                         entity.spawnReason == org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.CHUNK_GEN)) {
+                     continue;
+diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+index 5a75b8331c2ca804fa61002d9a2e0a8fcf786d3c..3c80c9f96f79ce3313053cdfabaa958bc2d2a2fb 100644
+--- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
++++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+@@ -2,11 +2,13 @@ package top.leavesmc.leaves;
+ 
+ import com.destroystokyo.paper.util.SneakyThrow;
+ import com.google.common.base.Throwables;
++import io.papermc.paper.configuration.GlobalConfiguration;
+ import net.minecraft.server.MinecraftServer;
+ import org.bukkit.Bukkit;
+ import org.bukkit.command.Command;
+ import org.bukkit.configuration.ConfigurationSection;
+ import org.bukkit.configuration.file.YamlConfiguration;
++import org.spigotmc.SpigotConfig;
+ import top.leavesmc.leaves.bot.BotCommand;
+ import top.leavesmc.leaves.bot.agent.Actions;
+ import top.leavesmc.leaves.util.MathUtils;
+@@ -446,6 +448,13 @@ public final class LeavesConfig {
+ 
+     public static void doMcTechnicalMode() {
+         if (mcTechnicalMode) {
++            GlobalConfiguration.get().unsupportedSettings.allowPistonDuplication = true;
++            GlobalConfiguration.get().unsupportedSettings.allowHeadlessPistons = true;
++            GlobalConfiguration.get().unsupportedSettings.allowPermanentBlockBreakExploits = true;
++            GlobalConfiguration.get().packetLimiter.allPackets = new GlobalConfiguration.PacketLimiter.PacketLimit(GlobalConfiguration.get().packetLimiter.allPackets.interval(),
++                5000.0, GlobalConfiguration.get().packetLimiter.allPackets.action());
++            GlobalConfiguration.get().packetLimiter.overrides = Map.of();
++            GlobalConfiguration.get().unsupportedSettings.allowGrindstoneOverstacking = true;
+         }
+     }
+ 

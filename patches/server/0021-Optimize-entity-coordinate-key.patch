@@ -1,0 +1,39 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Sun, 14 Aug 2022 08:17:28 +0800
+Subject: [PATCH] Optimize entity coordinate key
+
+This patch is Powered by Pufferfish(https://github.com/pufferfish-gg/Pufferfish)
+
+diff --git a/src/main/java/io/papermc/paper/util/MCUtil.java b/src/main/java/io/papermc/paper/util/MCUtil.java
+index 2d11a67bdc82088abf0b3ca134f352f155c8eb1f..e664a86efd456ca1a2165940df7a984b7387916b 100644
+--- a/src/main/java/io/papermc/paper/util/MCUtil.java
++++ b/src/main/java/io/papermc/paper/util/MCUtil.java
+@@ -210,7 +210,13 @@ public final class MCUtil {
+     }
+ 
+     public static long getCoordinateKey(final Entity entity) {
+-        return ((long)(MCUtil.fastFloor(entity.getZ()) >> 4) << 32) | ((MCUtil.fastFloor(entity.getX()) >> 4) & 0xFFFFFFFFL);
++        // Leaves start - eliminate double -> long cast in hotpath
++        if (top.leavesmc.leaves.LeavesConfig.optimizeEntityCoordinateKey) {
++            return ((long)(entity.blockPosition.getZ() >> 4) << 32) | ((entity.blockPosition.getX() >> 4) & 0xFFFFFFFFL);
++        } else {
++            return ((long)(MCUtil.fastFloor(entity.getZ()) >> 4) << 32) | ((MCUtil.fastFloor(entity.getX()) >> 4) & 0xFFFFFFFFL);
++        }
++        // Leaves end - eliminate double -> long cast in hotpath
+     }
+ 
+     public static long getCoordinateKey(final ChunkPos pair) {
+diff --git a/src/main/java/net/minecraft/world/entity/Entity.java b/src/main/java/net/minecraft/world/entity/Entity.java
+index 39a65a784c9051d183a62291c01240034c86dd70..72b35cbd1840141c7654357c3c3bf446d4fb01d4 100644
+--- a/src/main/java/net/minecraft/world/entity/Entity.java
++++ b/src/main/java/net/minecraft/world/entity/Entity.java
+@@ -294,7 +294,7 @@ public abstract class Entity implements Nameable, EntityAccess, CommandSource {
+     public double yo;
+     public double zo;
+     private Vec3 position;
+-    private BlockPos blockPosition;
++    public BlockPos blockPosition; // Leaves - private -> public
+     private ChunkPos chunkPosition;
+     private Vec3 deltaMovement;
+     private float yRot;

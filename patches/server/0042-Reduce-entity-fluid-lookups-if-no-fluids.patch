@@ -6,10 +6,10 @@ Subject: [PATCH] Reduce entity fluid lookups if no fluids
 This patch is Powered by Pufferfish(https://github.com/pufferfish-gg/Pufferfish)
 
 diff --git a/src/main/java/net/minecraft/world/entity/Entity.java b/src/main/java/net/minecraft/world/entity/Entity.java
-index 57f32de8f536eedda907ab352ca3f2b29f4db6c3..0f5ad5a35bc47a46da0f0b5a0ca3350b7992000c 100644
+index 9f11a60c1856e474227624118d0362aa22af6c2d..185b7686643a5c26c517e16135ead0124ff4ee37 100644
 --- a/src/main/java/net/minecraft/world/entity/Entity.java
 +++ b/src/main/java/net/minecraft/world/entity/Entity.java
-@@ -4169,16 +4169,18 @@ public abstract class Entity implements Nameable, EntityAccess, CommandSource {
+@@ -4299,16 +4299,18 @@ public abstract class Entity implements Nameable, EntityAccess, CommandSource {
      }
  
      public boolean updateFluidHeightAndDoFluidPushing(TagKey<Fluid> tag, double speed) {
@@ -35,7 +35,7 @@ index 57f32de8f536eedda907ab352ca3f2b29f4db6c3..0f5ad5a35bc47a46da0f0b5a0ca3350b
              double d1 = 0.0D;
              boolean flag = this.isPushedByFluid();
              boolean flag1 = false;
-@@ -4186,38 +4188,123 @@ public abstract class Entity implements Nameable, EntityAccess, CommandSource {
+@@ -4316,38 +4318,123 @@ public abstract class Entity implements Nameable, EntityAccess, CommandSource {
              int k1 = 0;
              BlockPos.MutableBlockPos blockposition_mutableblockposition = new BlockPos.MutableBlockPos();
  
@@ -43,7 +43,7 @@ index 57f32de8f536eedda907ab352ca3f2b29f4db6c3..0f5ad5a35bc47a46da0f0b5a0ca3350b
 -                for (int i2 = k; i2 < l; ++i2) {
 -                    for (int j2 = i1; j2 < j1; ++j2) {
 -                        blockposition_mutableblockposition.set(l1, i2, j2);
--                        FluidState fluid = this.level.getFluidState(blockposition_mutableblockposition);
+-                        FluidState fluid = this.level().getFluidState(blockposition_mutableblockposition);
 +            // Leaves start - based off CollisionUtil.getCollisionsForBlocksOrWorldBorder
 +            if (top.leavesmc.leaves.LeavesConfig.reduceEntityFluidLookup) {
 +                final int minSection = io.papermc.paper.util.WorldUtil.getMinSection(this.level);
@@ -52,7 +52,7 @@ index 57f32de8f536eedda907ab352ca3f2b29f4db6c3..0f5ad5a35bc47a46da0f0b5a0ca3350b
 +                final int maxBlock = (maxSection << 4) | 15;
  
 -                        if (fluid.is(tag)) {
--                            double d2 = (double) ((float) i2 + fluid.getHeight(this.level, blockposition_mutableblockposition));
+-                            double d2 = (double) ((float) i2 + fluid.getHeight(this.level(), blockposition_mutableblockposition));
 +                // special cases:
 +                if (minBlockY > maxBlock || maxBlockY < minBlock) {
 +                    // no point in checking
@@ -63,7 +63,7 @@ index 57f32de8f536eedda907ab352ca3f2b29f4db6c3..0f5ad5a35bc47a46da0f0b5a0ca3350b
 -                                flag1 = true;
 -                                d1 = Math.max(d2 - axisalignedbb.minY, d1);
 -                                if (flag) {
--                                    Vec3 vec3d1 = fluid.getFlow(this.level, blockposition_mutableblockposition);
+-                                    Vec3 vec3d1 = fluid.getFlow(this.level(), blockposition_mutableblockposition);
 +                int minYIterate = Math.max(minBlock, minBlockY);
 +                int maxYIterate = Math.min(maxBlock, maxBlockY);
  
@@ -146,16 +146,16 @@ index 57f32de8f536eedda907ab352ca3f2b29f4db6c3..0f5ad5a35bc47a46da0f0b5a0ca3350b
 +                    for (int i2 = minBlockY; i2 < maxBlockY; ++i2) {
 +                        for (int j2 = minBlockZ; j2 < maxBlockZ; ++j2) {
 +                            blockposition_mutableblockposition.set(l1, i2, j2);
-+                            FluidState fluid = this.level.getFluidState(blockposition_mutableblockposition);
++                            FluidState fluid = this.level().getFluidState(blockposition_mutableblockposition);
 +
 +                            if (fluid.is(tag)) {
-+                                double d2 = (double) ((float) i2 + fluid.getHeight(this.level, blockposition_mutableblockposition));
++                                double d2 = (double) ((float) i2 + fluid.getHeight(this.level(), blockposition_mutableblockposition));
 +
 +                                if (d2 >= axisalignedbb.minY) {
 +                                    flag1 = true;
 +                                    d1 = Math.max(d2 - axisalignedbb.minY, d1);
 +                                    if (flag) {
-+                                        Vec3 vec3d1 = fluid.getFlow(this.level, blockposition_mutableblockposition);
++                                        Vec3 vec3d1 = fluid.getFlow(this.level(), blockposition_mutableblockposition);
 +
 +                                        if (d1 < 0.4D) {
 +                                            vec3d1 = vec3d1.scale(d1);
@@ -181,18 +181,18 @@ index 57f32de8f536eedda907ab352ca3f2b29f4db6c3..0f5ad5a35bc47a46da0f0b5a0ca3350b
              if (vec3d.length() > 0.0D) {
                  if (k1 > 0) {
 diff --git a/src/main/java/net/minecraft/world/level/chunk/LevelChunkSection.java b/src/main/java/net/minecraft/world/level/chunk/LevelChunkSection.java
-index 1b80a91fa36c59a31b57ef7ef4a68eacbb0f17f5..62f4e7a2dcd93a5b11fb9f847c70da1bced71015 100644
+index d4477b0dda6a1ef7bd8323c0d11b636bd071d18e..3b7fcf532761362d2f657f58962d7bd2a6f35e94 100644
 --- a/src/main/java/net/minecraft/world/level/chunk/LevelChunkSection.java
 +++ b/src/main/java/net/minecraft/world/level/chunk/LevelChunkSection.java
-@@ -27,6 +27,7 @@ public class LevelChunkSection {
+@@ -25,6 +25,7 @@ public class LevelChunkSection {
      public final PalettedContainer<BlockState> states;
      // CraftBukkit start - read/write
      private PalettedContainer<Holder<Biome>> biomes;
 +    public short fluidStateCount; // Leaves
      public final com.destroystokyo.paper.util.maplist.IBlockDataList tickingList = new com.destroystokyo.paper.util.maplist.IBlockDataList(); // Paper
  
-     public LevelChunkSection(int i, PalettedContainer<BlockState> datapaletteblock, PalettedContainer<Holder<Biome>> palettedcontainerro) {
-@@ -198,6 +199,7 @@ public class LevelChunkSection {
+     public LevelChunkSection(PalettedContainer<BlockState> datapaletteblock, PalettedContainer<Holder<Biome>> palettedcontainerro) {
+@@ -190,6 +191,7 @@ public class LevelChunkSection {
  
          if (!fluid.isEmpty()) {
              --this.tickingFluidCount;
@@ -200,7 +200,7 @@ index 1b80a91fa36c59a31b57ef7ef4a68eacbb0f17f5..62f4e7a2dcd93a5b11fb9f847c70da1b
          }
  
          if (!state.isAir()) {
-@@ -212,6 +214,7 @@ public class LevelChunkSection {
+@@ -204,6 +206,7 @@ public class LevelChunkSection {
  
          if (!fluid1.isEmpty()) {
              ++this.tickingFluidCount;
@@ -208,7 +208,7 @@ index 1b80a91fa36c59a31b57ef7ef4a68eacbb0f17f5..62f4e7a2dcd93a5b11fb9f847c70da1b
          }
  
          this.updateKnownBlockInfo(x | (z << 4) | (y << 8), iblockdata1, state); // Paper
-@@ -260,6 +263,7 @@ public class LevelChunkSection {
+@@ -249,6 +252,7 @@ public class LevelChunkSection {
                  if (fluid.isRandomlyTicking()) {
                      this.tickingFluidCount = (short) (this.tickingFluidCount + 1);
                  }

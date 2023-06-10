@@ -5,10 +5,10 @@ Subject: [PATCH] BBOR Protocol
 
 
 diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
-index 1e68576474d613d0d8da91098a18b384fcace44f..0d51123a5a2c9f72937481bc42e22ca4258bb00e 100644
+index 100ea32bc60e5c052007bb75b35eba16564eadff..a932f1096fb9a89644d649edc2ef70491d187786 100644
 --- a/src/main/java/net/minecraft/server/MinecraftServer.java
 +++ b/src/main/java/net/minecraft/server/MinecraftServer.java
-@@ -1590,6 +1590,8 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+@@ -1589,6 +1589,8 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
  
          this.profiler.popPush("server gui refresh");
  
@@ -18,10 +18,10 @@ index 1e68576474d613d0d8da91098a18b384fcace44f..0d51123a5a2c9f72937481bc42e22ca4
          for (int i = 0; i < this.tickables.size(); ++i) {
              ((Runnable) this.tickables.get(i)).run();
 diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index d0e06dd6097d8983fed7aac1b1c839d480981c89..01e524b5c4f810028f85549fe16c57fdac20cd6c 100644
+index ba990b85172a44333d619f82f4ad7f2b67c8765c..5f2bbaa1d06e081b0cb9a638a9dfa5b33159bfeb 100644
 --- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-@@ -3588,6 +3588,9 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
+@@ -3550,6 +3550,9 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
                  if (top.leavesmc.leaves.LeavesConfig.pcaSyncProtocol && ProtocolUtils.isNamespacePacket(packet, top.leavesmc.leaves.protocol.PcaSyncProtocol.PROTOCOL_ID)) {
                      top.leavesmc.leaves.protocol.PcaSyncProtocol.handlePacket(server, player, packet);
                  }
@@ -32,10 +32,10 @@ index d0e06dd6097d8983fed7aac1b1c839d480981c89..01e524b5c4f810028f85549fe16c57fd
                  ServerGamePacketListenerImpl.LOGGER.error("Couldn\'t dispatch custom payload", ex);
                  this.disconnect("Invalid custom payload!", org.bukkit.event.player.PlayerKickEvent.Cause.INVALID_PAYLOAD);
 diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
-index 4e63c4b9f873dc392646f758e1dff8bf72a7bf06..378333c7ebf2b9c7400e3cf7efc7d02bad23b8db 100644
+index 151ecdb16a331c59287095b497516e99a894db61..3419f931f1e6d3ea9e0de91d18ae415e2df87117 100644
 --- a/src/main/java/net/minecraft/server/players/PlayerList.java
 +++ b/src/main/java/net/minecraft/server/players/PlayerList.java
-@@ -350,6 +350,7 @@ public abstract class PlayerList {
+@@ -357,6 +357,7 @@ public abstract class PlayerList {
          }
          // Leaves end - bot support
          top.leavesmc.leaves.protocol.PcaSyncProtocol.onJoin(player); // Leaves - pca
@@ -43,15 +43,15 @@ index 4e63c4b9f873dc392646f758e1dff8bf72a7bf06..378333c7ebf2b9c7400e3cf7efc7d02b
  
          final net.kyori.adventure.text.Component jm = playerJoinEvent.joinMessage();
  
-@@ -593,6 +594,7 @@ public abstract class PlayerList {
+@@ -600,6 +601,7 @@ public abstract class PlayerList {
          return this.remove(entityplayer, net.kyori.adventure.text.Component.translatable("multiplayer.player.left", net.kyori.adventure.text.format.NamedTextColor.YELLOW, io.papermc.paper.configuration.GlobalConfiguration.get().messages.useDisplayNameInQuitMessage ? entityplayer.getBukkitEntity().displayName() : PaperAdventure.asAdventure(entityplayer.getDisplayName())));
      }
      public net.kyori.adventure.text.Component remove(ServerPlayer entityplayer, net.kyori.adventure.text.Component leaveMessage) {
 +        top.leavesmc.leaves.protocol.BBORProtocol.onPlayerLoggedOut(entityplayer); // Leaves - bbor
          // Paper end
-         ServerLevel worldserver = entityplayer.getLevel();
+         ServerLevel worldserver = entityplayer.serverLevel();
  
-@@ -1562,7 +1564,7 @@ public abstract class PlayerList {
+@@ -1569,7 +1571,7 @@ public abstract class PlayerList {
              entityplayer.connection.send(packetplayoutrecipeupdate);
              entityplayer.getRecipeBook().sendInitialRecipeBook(entityplayer);
          }
@@ -61,10 +61,10 @@ index 4e63c4b9f873dc392646f758e1dff8bf72a7bf06..378333c7ebf2b9c7400e3cf7efc7d02b
  
      public boolean isAllowCheatsForAllPlayers() {
 diff --git a/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java b/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java
-index 19012c60ea6f725248f7e4a18d78eb1025f4b3a4..3a093befff648b394afd51d44b85f93503926561 100644
+index cc224af0139a6e3adefd22cbfa0cd519735b7191..2c3ca05644bc97d505e8ca92e7a5f48670fd8b66 100644
 --- a/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java
 +++ b/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java
-@@ -1058,6 +1058,11 @@ public class LevelChunk extends ChunkAccess {
+@@ -1029,6 +1029,11 @@ public class LevelChunk extends ChunkAccess {
  
      public void setLoaded(boolean loadedToWorld) {
          this.loaded = loadedToWorld;
@@ -77,10 +77,10 @@ index 19012c60ea6f725248f7e4a18d78eb1025f4b3a4..3a093befff648b394afd51d44b85f935
  
      public Level getLevel() {
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 5821d377f54dddbdf4766311f76ccacb35b262e4..56411422eff8fe741fe15e278293dddb69654c6a 100644
+index 87301f69c72b8ed98cc894dfaf285aa72a947894..c172324b4902f4005be5407274525bf1d0b16021 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -966,6 +966,13 @@ public final class CraftServer implements Server {
+@@ -988,6 +988,13 @@ public final class CraftServer implements Server {
              top.leavesmc.leaves.protocol.PcaSyncProtocol.disablePcaSyncProtocolGlobal();
          }
          // Leaves end - pca

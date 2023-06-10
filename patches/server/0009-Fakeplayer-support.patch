@@ -5,13 +5,13 @@ Subject: [PATCH] Fakeplayer support
 
 
 diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
-index 3095f4ef8aea1d47d0a8880fcfdaf9d124d83773..d2087c9b06fac0c40a1eee3b5f4dfa167f9073fd 100644
+index 2c78ab8c70212926ecfd05cc1dea13794c259c27..badc618da91f554d11331e43524ac9ce59267175 100644
 --- a/src/main/java/net/minecraft/server/MinecraftServer.java
 +++ b/src/main/java/net/minecraft/server/MinecraftServer.java
-@@ -126,6 +126,7 @@ import net.minecraft.util.profiling.metrics.profiling.ServerMetricsSamplersProvi
- import net.minecraft.util.profiling.metrics.storage.MetricsPersister;
+@@ -127,6 +127,7 @@ import net.minecraft.util.profiling.metrics.storage.MetricsPersister;
  import net.minecraft.util.thread.ReentrantBlockableEventLoop;
  import net.minecraft.world.Difficulty;
+ import net.minecraft.world.RandomSequences;
 +import net.minecraft.world.damagesource.DamageSource;
  import net.minecraft.world.entity.Entity;
  import net.minecraft.world.entity.ai.village.VillageSiege;
@@ -25,7 +25,7 @@ index 3095f4ef8aea1d47d0a8880fcfdaf9d124d83773..d2087c9b06fac0c40a1eee3b5f4dfa16
          this.server.enablePlugins(org.bukkit.plugin.PluginLoadOrder.POSTWORLD);
          this.server.getPluginManager().callEvent(new ServerLoadEvent(ServerLoadEvent.LoadType.STARTUP));
          this.connection.acceptConnections();
-@@ -942,6 +945,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+@@ -940,6 +943,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
          MinecraftServer.LOGGER.info("Stopping server");
          Commands.COMMAND_SENDING_POOL.shutdownNow(); // Paper - Shutdown and don't bother finishing
          MinecraftTimings.stopServer(); // Paper
@@ -34,7 +34,7 @@ index 3095f4ef8aea1d47d0a8880fcfdaf9d124d83773..d2087c9b06fac0c40a1eee3b5f4dfa16
          if (this.server != null) {
              this.server.disablePlugins();
 diff --git a/src/main/java/net/minecraft/server/PlayerAdvancements.java b/src/main/java/net/minecraft/server/PlayerAdvancements.java
-index 26888ebd38280de92e41dd8006d2b24e874afe26..a1ce0cce055ad5c92b0f20760471795f08f0c886 100644
+index acc49f66bf34e2507d0ee6fec0a56b11bfc68f46..7fc87841fd72fc9b5bca4fbdffd378c7b75920e1 100644
 --- a/src/main/java/net/minecraft/server/PlayerAdvancements.java
 +++ b/src/main/java/net/minecraft/server/PlayerAdvancements.java
 @@ -44,6 +44,7 @@ import net.minecraft.server.players.PlayerList;
@@ -58,7 +58,7 @@ index 26888ebd38280de92e41dd8006d2b24e874afe26..a1ce0cce055ad5c92b0f20760471795f
          AdvancementProgress advancementprogress = this.getOrStartProgress(advancement);
          boolean flag1 = advancementprogress.isDone();
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-index 98df2463bf41fc736aa6a2b6ddf89e5abde6eb39..efd4c9882338559f8fba3b17919270f06ee5d8b6 100644
+index 5fad40fa88f697108e42461c41012d5964ed7d75..420175039254f780bf4415b4118bec8f6d3351e1 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
 @@ -185,6 +185,7 @@ import org.bukkit.event.player.PlayerTeleportEvent;
@@ -69,7 +69,7 @@ index 98df2463bf41fc736aa6a2b6ddf89e5abde6eb39..efd4c9882338559f8fba3b17919270f0
  // CraftBukkit end
  
  public class ServerPlayer extends Player {
-@@ -1224,6 +1225,13 @@ public class ServerPlayer extends Player {
+@@ -1264,6 +1265,13 @@ public class ServerPlayer extends Player {
                  this.lastSentHealth = -1.0F;
                  this.lastSentFood = -1;
  
@@ -82,9 +82,9 @@ index 98df2463bf41fc736aa6a2b6ddf89e5abde6eb39..efd4c9882338559f8fba3b17919270f0
 +
                  // CraftBukkit start
                  PlayerChangedWorldEvent changeEvent = new PlayerChangedWorldEvent(this.getBukkitEntity(), worldserver1.getWorld());
-                 this.level.getCraftServer().getPluginManager().callEvent(changeEvent);
+                 this.level().getCraftServer().getPluginManager().callEvent(changeEvent);
 diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
-index 5c21de0d48fba88c3164b72e0eb624706b683fab..1b62288cd4d4cd4bb9e44795dcb08fea850051dc 100644
+index 683b5d78f9e3dc34e40c54683f64be32317797ac..254171bacd48142cc7bd0c8b79c6526984cd0033 100644
 --- a/src/main/java/net/minecraft/server/players/PlayerList.java
 +++ b/src/main/java/net/minecraft/server/players/PlayerList.java
 @@ -81,6 +81,7 @@ import net.minecraft.server.ServerScoreboard;
@@ -103,7 +103,7 @@ index 5c21de0d48fba88c3164b72e0eb624706b683fab..1b62288cd4d4cd4bb9e44795dcb08fea
  import org.slf4j.Logger;
  
  // CraftBukkit start
-@@ -335,6 +337,19 @@ public abstract class PlayerList {
+@@ -342,6 +344,19 @@ public abstract class PlayerList {
              return;
          }
  
@@ -123,7 +123,7 @@ index 5c21de0d48fba88c3164b72e0eb624706b683fab..1b62288cd4d4cd4bb9e44795dcb08fea
          final net.kyori.adventure.text.Component jm = playerJoinEvent.joinMessage();
  
          if (jm != null && !jm.equals(net.kyori.adventure.text.Component.empty())) { // Paper - Adventure
-@@ -1079,11 +1094,16 @@ public abstract class PlayerList {
+@@ -1086,11 +1101,16 @@ public abstract class PlayerList {
      }
  
      public String[] getPlayerNamesArray() {
@@ -141,7 +141,7 @@ index 5c21de0d48fba88c3164b72e0eb624706b683fab..1b62288cd4d4cd4bb9e44795dcb08fea
  
          return astring;
      }
-@@ -1547,4 +1567,16 @@ public abstract class PlayerList {
+@@ -1554,4 +1574,16 @@ public abstract class PlayerList {
      public boolean isAllowCheatsForAllPlayers() {
          return this.allowCheatsForAllPlayers;
      }
@@ -158,21 +158,8 @@ index 5c21de0d48fba88c3164b72e0eb624706b683fab..1b62288cd4d4cd4bb9e44795dcb08fea
 +    }
 +    // Leaves end - fakeplayer support
  }
-diff --git a/src/main/java/net/minecraft/world/entity/player/Player.java b/src/main/java/net/minecraft/world/entity/player/Player.java
-index 0629c471d38a77c44fc1c86ccdfcb0690f61ca17..3476b51ded6488ef54dc5c10bdb4b48a37a2431a 100644
---- a/src/main/java/net/minecraft/world/entity/player/Player.java
-+++ b/src/main/java/net/minecraft/world/entity/player/Player.java
-@@ -1288,7 +1288,7 @@ public abstract class Player extends LivingEntity {
-                     boolean flag3 = false;
-                     double d0 = (double) (this.walkDist - this.walkDistO);
- 
--                    if (flag && !flag2 && !flag1 && this.onGround && d0 < (double) this.getSpeed()) {
-+                    if (flag && !flag2 && !flag1 && this.isOnGround() && d0 < (double) this.getSpeed()) { // Leaves - use isOnGround method
-                         ItemStack itemstack = this.getItemInHand(InteractionHand.MAIN_HAND);
- 
-                         if (itemstack.getItem() instanceof SwordItem) {
 diff --git a/src/main/java/net/minecraft/world/entity/projectile/FishingHook.java b/src/main/java/net/minecraft/world/entity/projectile/FishingHook.java
-index bcb0f3fd09ed064b64dc6495302b40828d906837..fbc09a6c84d6d16c7825a9a210ebe79bfdbaaabd 100644
+index b8c238287e0639b578170c6fec0d4db5a1a59fe7..d57e6c88524482b4d37930d0fd2e9f7911c6d3a0 100644
 --- a/src/main/java/net/minecraft/world/entity/projectile/FishingHook.java
 +++ b/src/main/java/net/minecraft/world/entity/projectile/FishingHook.java
 @@ -61,7 +61,7 @@ public class FishingHook extends Projectile {
@@ -185,7 +172,7 @@ index bcb0f3fd09ed064b64dc6495302b40828d906837..fbc09a6c84d6d16c7825a9a210ebe79b
      private int timeUntilHooked;
      private float fishAngle;
 diff --git a/src/main/java/net/minecraft/world/inventory/AbstractContainerMenu.java b/src/main/java/net/minecraft/world/inventory/AbstractContainerMenu.java
-index c84908095a93d42826b21bf5f3490410fb0a5708..4b0bdf8705eadd2ca6c0fd5a3494fd8742330ef6 100644
+index 706b354ac9a1a6a4a1e61b2a109180d1dd22bbbd..f13f21dbd50f63a71276837abbcf82e0a72ff52c 100644
 --- a/src/main/java/net/minecraft/world/inventory/AbstractContainerMenu.java
 +++ b/src/main/java/net/minecraft/world/inventory/AbstractContainerMenu.java
 @@ -406,6 +406,8 @@ public abstract class AbstractContainerMenu {
@@ -197,7 +184,7 @@ index c84908095a93d42826b21bf5f3490410fb0a5708..4b0bdf8705eadd2ca6c0fd5a3494fd87
          if (actionType == ClickType.QUICK_CRAFT) {
              int i1 = this.quickcraftStatus;
  
-@@ -676,6 +678,23 @@ public abstract class AbstractContainerMenu {
+@@ -674,6 +676,23 @@ public abstract class AbstractContainerMenu {
  
      }
  
@@ -219,10 +206,10 @@ index c84908095a93d42826b21bf5f3490410fb0a5708..4b0bdf8705eadd2ca6c0fd5a3494fd87
 +    // Leaves end - doClick check
 +
      private boolean tryItemClickBehaviourOverride(Player player, ClickAction clickType, Slot slot, ItemStack stack, ItemStack cursorStack) {
-         FeatureFlagSet featureflagset = player.getLevel().enabledFeatures();
+         FeatureFlagSet featureflagset = player.level().enabledFeatures();
  
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
-index 56c75029a94e8812c9e0ce5375aaa7cbcda90b87..bd3ef5cf7f13a24be86cbeecf264bc76b16124ef 100644
+index ea056babe2f8123f20dc608d8a636da1de634b8c..7856337718f62b1bf4df52264e67740521d864ed 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
 @@ -191,6 +191,8 @@ import org.bukkit.plugin.Plugin;

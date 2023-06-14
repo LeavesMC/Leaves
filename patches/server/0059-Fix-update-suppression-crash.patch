@@ -5,7 +5,7 @@ Subject: [PATCH] Fix update suppression crash
 
 
 diff --git a/src/main/java/net/minecraft/network/protocol/PacketUtils.java b/src/main/java/net/minecraft/network/protocol/PacketUtils.java
-index d2f0a0755317f5fa9a1ccf7db346aa77fd287d80..f013fb11379822c4ea307e233e30e1c293924fe1 100644
+index d2f0a0755317f5fa9a1ccf7db346aa77fd287d80..9c7fb1b7c2ff458e72bdcfa80c49252cd78e7d14 100644
 --- a/src/main/java/net/minecraft/network/protocol/PacketUtils.java
 +++ b/src/main/java/net/minecraft/network/protocol/PacketUtils.java
 @@ -49,6 +49,10 @@ public class PacketUtils {
@@ -14,13 +14,13 @@ index d2f0a0755317f5fa9a1ccf7db346aa77fd287d80..f013fb11379822c4ea307e233e30e1c2
                          packet.handle(listener);
 +                    // Leaves start - update suppression crash fix
 +                    } catch (top.leavesmc.leaves.util.UpdateSuppressionException exception) {
-+                        top.leavesmc.leaves.LeavesLogger.LOGGER.info("An update suppression processed");
++                        top.leavesmc.leaves.LeavesLogger.LOGGER.info(exception.getMessage());
 +                    // Leaves start - update suppression crash fix
                      } catch (Exception exception) {
                          if (listener.shouldPropagateHandlingExceptions()) {
                              throw exception;
 diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
-index 3b6b2a380b6083b24481812a90fb58becf8d5a1d..e5ac1560a06a80d502b1a39ff75c6fbb9cf5e3f8 100644
+index 3b6b2a380b6083b24481812a90fb58becf8d5a1d..d8ba7dfca4eda1d0445c9e297d00a692f4c4ddf3 100644
 --- a/src/main/java/net/minecraft/server/MinecraftServer.java
 +++ b/src/main/java/net/minecraft/server/MinecraftServer.java
 @@ -1545,7 +1545,13 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
@@ -32,31 +32,52 @@ index 3b6b2a380b6083b24481812a90fb58becf8d5a1d..e5ac1560a06a80d502b1a39ff75c6fbb
 +                try {
 +                    worldserver.tick(shouldKeepTicking);
 +                } catch (top.leavesmc.leaves.util.UpdateSuppressionException e) {
-+                    top.leavesmc.leaves.LeavesLogger.LOGGER.info("An update suppression processed");
++                    top.leavesmc.leaves.LeavesLogger.LOGGER.info(e.getMessage());
 +                }
 +                // Leaves end
                  // Paper start
                  for (final io.papermc.paper.chunk.SingleThreadChunkRegionManager regionManager : worldserver.getChunkSource().chunkMap.regionManagers) {
                      regionManager.recalculateRegions();
+diff --git a/src/main/java/net/minecraft/world/level/block/ShulkerBoxBlock.java b/src/main/java/net/minecraft/world/level/block/ShulkerBoxBlock.java
+index b51155ad12515b2d0dd0f202580b9f455c114d9a..49a4a19fd5292552e91799203108084ff4c1fa29 100644
+--- a/src/main/java/net/minecraft/world/level/block/ShulkerBoxBlock.java
++++ b/src/main/java/net/minecraft/world/level/block/ShulkerBoxBlock.java
+@@ -253,7 +253,17 @@ public class ShulkerBoxBlock extends BaseEntityBlock {
+ 
+     @Override
+     public int getAnalogOutputSignal(BlockState state, Level world, BlockPos pos) {
+-        return AbstractContainerMenu.getRedstoneSignalFromContainer((Container)world.getBlockEntity(pos));
++        // Leaves start - fix update suppression crash
++        if (top.leavesmc.leaves.LeavesConfig.updateSuppressionCrashFix) {
++            try {
++                return AbstractContainerMenu.getRedstoneSignalFromContainer((Container)world.getBlockEntity(pos));
++            } catch (ClassCastException ex) {
++                throw new top.leavesmc.leaves.util.UpdateSuppressionException(null, pos);
++            }
++        } else {
++            return AbstractContainerMenu.getRedstoneSignalFromContainer((Container)world.getBlockEntity(pos));
++        }
++        // Leaves end - fix update suppression crash
+     }
+ 
+     @Override
 diff --git a/src/main/java/net/minecraft/world/level/redstone/NeighborUpdater.java b/src/main/java/net/minecraft/world/level/redstone/NeighborUpdater.java
-index 19faa8f5f891c1ffbed0af8391dee8202433c447..964b4506e0409019299485627eae9a1036d53a22 100644
+index 19faa8f5f891c1ffbed0af8391dee8202433c447..2ef9510ee382dfcc25a213684c0acdbc352811df 100644
 --- a/src/main/java/net/minecraft/world/level/redstone/NeighborUpdater.java
 +++ b/src/main/java/net/minecraft/world/level/redstone/NeighborUpdater.java
-@@ -65,10 +65,18 @@ public interface NeighborUpdater {
-             // CraftBukkit end
+@@ -66,9 +66,17 @@ public interface NeighborUpdater {
              state.neighborChanged(world, pos, sourceBlock, sourcePos, notify);
              // Spigot Start
--        } catch (StackOverflowError ex) {
-+        } catch (StackOverflowError | ClassCastException ex) {
+         } catch (StackOverflowError ex) {
 +            // Leaves start - fix update suppression crash
 +            if (top.leavesmc.leaves.LeavesConfig.updateSuppressionCrashFix) {
-+                throw new top.leavesmc.leaves.util.UpdateSuppressionException();
++                throw new top.leavesmc.leaves.util.UpdateSuppressionException(pos, sourcePos);
 +            }
              world.lastPhysicsProblem = new BlockPos(pos);
              // Spigot End
          } catch (Throwable throwable) {
 +            if (top.leavesmc.leaves.LeavesConfig.updateSuppressionCrashFix) {
-+                throw new top.leavesmc.leaves.util.UpdateSuppressionException();
++                throw new top.leavesmc.leaves.util.UpdateSuppressionException(pos, sourcePos);
 +            }
 +            // Leaves end - fix update suppression crash
              CrashReport crashreport = CrashReport.forThrowable(throwable, "Exception while updating neighbours");
@@ -64,14 +85,40 @@ index 19faa8f5f891c1ffbed0af8391dee8202433c447..964b4506e0409019299485627eae9a10
  
 diff --git a/src/main/java/top/leavesmc/leaves/util/UpdateSuppressionException.java b/src/main/java/top/leavesmc/leaves/util/UpdateSuppressionException.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..fa4c91f4ba9a8eab4fdea97737ed778af46518dc
+index 0000000000000000000000000000000000000000..f9a9f3e28bebdaa5038ebf81ac53447182c2bc10
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/util/UpdateSuppressionException.java
-@@ -0,0 +1,7 @@
+@@ -0,0 +1,33 @@
 +package top.leavesmc.leaves.util;
 +
++import net.minecraft.core.BlockPos;
++
 +public class UpdateSuppressionException extends RuntimeException {
-+    public UpdateSuppressionException() {
++
++    private final BlockPos pos;
++    private final BlockPos source;
++
++    public UpdateSuppressionException(BlockPos pos, BlockPos source) {
 +        super("Update suppression");
++        this.pos = pos;
++        this.source = source;
++    }
++
++    public BlockPos getPos() {
++        return pos;
++    }
++
++    public BlockPos getSource() {
++        return source;
++    }
++
++    public String getMessage() {
++        if (pos != null) {
++            return "An update suppression processed, form [x:%d,y:%d,z:%d] to [x:%d,y:%d,z:%d]"
++                .formatted(source.getX(), source.getY(), source.getZ(), pos.getX(), pos.getY(), pos.getZ());
++        } else {
++            return "An update suppression processed, form [x:%d,y:%d,z:%d]"
++                .formatted(source.getX(), source.getY(), source.getZ());
++        }
 +    }
 +}

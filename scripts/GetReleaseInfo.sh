@@ -19,6 +19,7 @@ jarName="leaves-$mcversion.jar"
 leavesid="Leaves-$commitid"
 releaseinfo="releaseinfo.md"
 discordmes="discordmes.json"
+make_latest=$([ $preVersion = "true" ] && echo "false" || echo "true")
 
 rm -f $discordmes
 rm -f $releaseinfo
@@ -30,6 +31,7 @@ echo "jar=$jarName" >> $GITHUB_ENV
 echo "info=$releaseinfo" >> $GITHUB_ENV
 echo "discordmes=$discordmes" >> $GITHUB_ENV
 echo "pre=$preVersion" >> $GITHUB_ENV
+echo "make_latest=$make_latest" >> $GITHUB_ENV
 
 echo "$leavesid [![download](https://img.shields.io/github/downloads/LeavesMC/Leaves/$tagid/total?color=0)](https://github.com/Leaves/LeavesMC/releases/download/$tagid/$jarName)" >> $releaseinfo
 echo "=====" >> $releaseinfo

@@ -5,7 +5,7 @@ Subject: [PATCH] Fakeplayer support
 
 
 diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
-index 2e7850a1e0da1f2978b585312aefb46bf0d039e9..fbda71a2c200ee3643f035c996c3082447af0bc7 100644
+index 18b10f1d1d62e1184a562ef52e1625b4927aec45..307d4fd4b52aa654f859aab34126048b6a127dde 100644
 --- a/src/main/java/net/minecraft/server/MinecraftServer.java
 +++ b/src/main/java/net/minecraft/server/MinecraftServer.java
 @@ -127,6 +127,7 @@ import net.minecraft.util.profiling.metrics.storage.MetricsPersister;
@@ -236,7 +236,7 @@ index fc0dc8e607cc24020106ea1af92b4421a5f9393d..81670f76c4d7ccec6f9e95465687c83b
              }
              // Water Animals
 diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
-index 0a7a28151137a34346c9c4aca1ba53f2b77ee55a..b097f72c1009d4c9618e1eece839f53d7429b528 100644
+index 6156868aab660e8cccb8539dc38fb0e418487995..893d8cce3273e767d6681c9a7fbf629953c35dbe 100644
 --- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
 +++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
 @@ -7,6 +7,9 @@ import org.bukkit.Bukkit;
@@ -1885,14 +1885,13 @@ index 0000000000000000000000000000000000000000..609605b21cfe5af8876f76ea4922e379
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/BreakBlockAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/BreakBlockAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..20f8b87ef5c63daef317aae37fc189a983c15086
+index 0000000000000000000000000000000000000000..2a3ca671b43fec658bf5cd8a6eb08b476a766c29
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/actions/BreakBlockAction.java
-@@ -0,0 +1,92 @@
+@@ -0,0 +1,104 @@
 +package top.leavesmc.leaves.bot.agent.actions;
 +
 +import net.minecraft.core.BlockPos;
-+import net.minecraft.server.MinecraftServer;
 +import net.minecraft.server.level.ServerPlayer;
 +import net.minecraft.world.level.block.state.BlockState;
 +import org.bukkit.block.Block;
@@ -1930,7 +1929,7 @@ index 0000000000000000000000000000000000000000..20f8b87ef5c63daef317aae37fc189a9
 +    private int nowDelay = 0;
 +
 +    private BlockPos lastPos = null;
-+    private int destroyProgressTime = -1;
++    private int destroyProgressTime = 0;
 +    private int lastSentState = -1;
 +
 +    @Override
@@ -1954,14 +1953,20 @@ index 0000000000000000000000000000000000000000..20f8b87ef5c63daef317aae37fc189a9
 +            if (!iblockdata.isAir()) {
 +                bot.punch();
 +
++                if (iblockdata.getDestroyProgress(bot, bot.level(), pos) >= 1.0F) {
++                    bot.gameMode.destroyAndAck(pos, 0, "insta mine");
++                    bot.level().destroyBlockProgress(bot.getId(), pos, -1);
++                    bot.updateItemInMainHand();
++                    finalBreak();
++                    return true;
++                }
++
 +                float damage = this.incrementDestroyProgress(bot, iblockdata, pos);
 +                if (damage >= 1.0F) {
-+                    bot.gameMode.destroyAndAck(lastPos, 0, "destroyed");
-+                    bot.level().destroyBlockProgress(bot.getId(), lastPos, -1);
++                    bot.gameMode.destroyAndAck(pos, 0, "destroyed");
++                    bot.level().destroyBlockProgress(bot.getId(), pos, -1);
 +                    bot.updateItemInMainHand();
-+                    destroyProgressTime = 0;
-+                    lastSentState = -1;
-+                    nowDelay = delay;
++                    finalBreak();
 +                    return true;
 +                }
 +            }
@@ -1969,8 +1974,15 @@ index 0000000000000000000000000000000000000000..20f8b87ef5c63daef317aae37fc189a9
 +        return false;
 +    }
 +
++    private void finalBreak() {
++        lastPos = null;
++        destroyProgressTime = 0;
++        lastSentState = -1;
++        nowDelay = delay;
++    }
++
 +    private float incrementDestroyProgress(ServerBot bot, @NotNull BlockState state, BlockPos pos) {
-+        float f = state.getDestroyProgress(bot, bot.level(), pos) * (float) (destroyProgressTime++);
++        float f = state.getDestroyProgress(bot, bot.level(), pos) * (float) (++destroyProgressTime);
 +        int k = (int) (f * 10.0F);
 +
 +        if (k != lastSentState) {

@@ -2,6 +2,7 @@ Leaves
 ===========
 
 [![Leaves CI](https://github.com/LeavesMC/Leaves/actions/workflows/leaves.yml/badge.svg)](https://github.com/LeavesMC/Leaves/actions/workflows/leaves.yml)
+[![Leaves Download](https://img.shields.io/github/downloads/LeavesMC/Leaves/total?color=0&logo=github)](https://github.com/LeavesMC/Leaves/releases/latest)
 [![Discord](https://badgen.net/discord/online-members/5hgtU72w33?icon=discord&label=Discord&list=what)](https://discord.gg/5hgtU72w33)
 [![QQ](https://img.shields.io/badge/QQ-603461533-blue)](http://qm.qq.com/cgi-bin/qm/qr?_wv=1027&k=YZCUmBIMQIoKIdoSohMN4nVI4SHuwwJC&authKey=0GotlXL9HYCYQk3oPARGPS920kJL8xQ3radhaAGj4A9z6OgSnKQRK5U6ManMrMuK&noverify=0&group_code=603461533)
 
@@ -14,7 +15,7 @@ Leaves
 ## 对于服务器管理员
 此分支使用与Paper一致的paperclip分发
 
-你可以从 [此处](https://github.com/LeavesMC/Leaves/releases) 下载最新的构建结果 (1.19.x)
+你可以从 [此处](https://github.com/LeavesMC/Leaves/releases/latest) 下载最新的构建结果 (1.20.x)
 
 也可以通过 [此处](https://github.com/LeavesMC/Leaves/blob/master/README_cn.md#自行构建) 的指南自行构建
 
@@ -26,14 +27,14 @@ Leaves
 Leaves-API:
 ```kotlin
 dependencies {
-    compileOnly("top.leavesmc.leaves:leaves-api:1.19.4-R0.1-SNAPSHOT")
+    compileOnly("top.leavesmc.leaves:leaves-api:1.20.1-R0.1-SNAPSHOT")
 }
  ```
 
 Leaves-Server:
 ```kotlin
 dependencies {
-    compileOnly("top.leavesmc.leaves:leaves:1.19.4-R0.1-SNAPSHOT")
+    compileOnly("top.leavesmc.leaves:leaves:1.20.1-R0.1-SNAPSHOT")
 }
  ```
 

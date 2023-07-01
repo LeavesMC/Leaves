@@ -2,6 +2,7 @@ Leaves
 ===========
 
 [![Leaves CI](https://github.com/LeavesMC/Leaves/actions/workflows/leaves.yml/badge.svg)](https://github.com/LeavesMC/Leaves/actions/workflows/leaves.yml)
+[![Leaves Download](https://img.shields.io/github/downloads/LeavesMC/Leaves/total?color=0&logo=github)](https://github.com/LeavesMC/Leaves/releases/latest)
 [![Discord](https://badgen.net/discord/online-members/5hgtU72w33?icon=discord&label=Discord&list=what)](https://discord.gg/5hgtU72w33)
 [![QQ](https://img.shields.io/badge/QQ-603461533-blue)](http://qm.qq.com/cgi-bin/qm/qr?_wv=1027&k=YZCUmBIMQIoKIdoSohMN4nVI4SHuwwJC&authKey=0GotlXL9HYCYQk3oPARGPS920kJL8xQ3radhaAGj4A9z6OgSnKQRK5U6ManMrMuK&noverify=0&group_code=603461533)
 
@@ -14,7 +15,7 @@ Leaves
 ## How To (Server Admins)
 Leaves use the same paperclip jar system that Paper uses.
 
-You can download the latest build (1.19.x) of Leaves by going [here](https://github.com/LeavesMC/Leaves/releases)
+You can download the latest build (1.20.x) of Leaves by going [here](https://github.com/LeavesMC/Leaves/releases/latest)
 
 You can also [build it yourself](https://github.com/LeavesMC/Leaves#building).
 
@@ -27,14 +28,14 @@ Each time you want to update your dependency you must re-build Leaves.
 Leaves-API maven dependency:
 ```kotlin
 dependencies {
-    compileOnly("top.leavesmc.leaves:leaves-api:1.19.4-R0.1-SNAPSHOT")
+    compileOnly("top.leavesmc.leaves:leaves-api:1.20.1-R0.1-SNAPSHOT")
 }
  ```
 
 Leaves-Server maven dependency:
 ```kotlin
 dependencies {
-    compileOnly("top.leavesmc.leaves:leaves:1.19.4-R0.1-SNAPSHOT")
+    compileOnly("top.leavesmc.leaves:leaves:1.20.1-R0.1-SNAPSHOT")
 }
  ```
 

@@ -35,13 +35,21 @@ Leaves Modification
 - Vanilla random
 - Update suppression crash fixed
 - Bedrock break list
+- No feather falling trample
+- Shared villager discounts
+- Redstone wire dont connect if on trapdoor (as 1.20-)
+- Despawn enderman with block
+- Creative fly no clip (need carpet mod and leaves-carpet protocol)
+- Enchantment mending compatibility infinity
+- Shave snow layers
+- Spawn ignore lc
 
 ## Performance
 
 > All of it will have configuration
 
 > Powered by [Pufferfish](https://github.com/pufferfish-gg/Pufferfish)
-- Optimize mob spawning
+- Optimize mob spawning (updating)
 - Multithreaded Tracker (updating)
 - Fix Paper#6045
 - Optimize entity coordinate key
@@ -71,6 +79,9 @@ Leaves Modification
 > Powered by [Purpur](https://github.com/PurpurMC/Purpur)
 - Don't send useless entity packets
 
+> Powered by [Carpet-AMS-Addition](https://github.com/Minecraft-AMS/Carpet-AMS-Addition)
+- Optimized dragon respawn
+
 ## Extra Protocol Support
 
 > All of it will have configuration
@@ -81,3 +92,5 @@ Leaves Modification
 - Carpet alternative block placement (carpet-extra)
 - Appleskin protocol
 - Xaero Map protocol
+- [Syncmatica](https://github.com/End-Tech/syncmatica) protocol
+- Leaves-Carpet protocol

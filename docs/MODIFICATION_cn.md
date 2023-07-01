@@ -35,13 +35,21 @@ Leaves Modification
 - 原版随机数 (支持RNG控制)
 - 更新抑制/跳略崩服修复
 - 破基岩榜
+- 有摔落缓冲不会踩坏田
+- 共享村民打折
+- 红石粉不会连接到活扳门 (恢复简易更新抑制)
+- 手上有方块的末影人一样会被刷新
+- 创造飞行无碰撞箱 (需要配合carpet协议和客户端mod)
+- 无限和精修不再冲突
+- 可以铲的雪
+- 怪物生成无视lc值
 
 ## 性能
 
 > 所有的性能内容都会存在配置项
 
 > Powered by [Pufferfish](https://github.com/pufferfish-gg/Pufferfish)
-- 生物生成优化
+- 生物生成优化 (正在升级 暂不可用)
 - 异步实体追踪 (正在升级 暂不可用)
 - 修复Paper#6045
 - 实体坐标键优化
@@ -71,6 +79,9 @@ Leaves Modification
 > Powered by [Purpur](https://github.com/PurpurMC/Purpur)
 - 减少不必要包的发送
 
+> Powered by [Carpet-AMS-Addition](https://github.com/Minecraft-AMS/Carpet-AMS-Addition)
+- 龙战优化
+
 ## 额外协议支持
 
 > 所有的协议内容都会存在配置项
@@ -81,3 +92,5 @@ Leaves Modification
 - Carpet精确放置协议 (carpet-extra)
 - 苹果皮显示协议
 - Xaero服务器地图设置协议
+- 共享原理图协议 ([syncmatica](https://github.com/End-Tech/syncmatica))
+- Leaves-Carpet协议 仅用于同步设置

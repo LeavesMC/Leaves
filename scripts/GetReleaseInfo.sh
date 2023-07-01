@@ -33,7 +33,7 @@ echo "discordmes=$discordmes" >> $GITHUB_ENV
 echo "pre=$preVersion" >> $GITHUB_ENV
 echo "make_latest=$make_latest" >> $GITHUB_ENV
 
-echo "$leavesid [![download](https://img.shields.io/github/downloads/LeavesMC/Leaves/$tagid/total?color=0)](https://github.com/Leaves/LeavesMC/releases/download/$tagid/$jarName)" >> $releaseinfo
+echo "$leavesid [![download](https://img.shields.io/github/downloads/LeavesMC/Leaves/$tagid/total?color=0)](https://github.com/LeavesMC/Leaves/releases/download/$tagid/$jarName)" >> $releaseinfo
 echo "=====" >> $releaseinfo
 echo "" >> $releaseinfo
 if [ $preVersion = "true" ]; then

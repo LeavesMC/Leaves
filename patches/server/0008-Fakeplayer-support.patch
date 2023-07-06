@@ -272,10 +272,10 @@ index cf9f2097abbfe6050b91301b2807feed7f697b71..667f09f576321d69a0fae0cc3c46be51
      public static void load(final YamlConfiguration config) {
 diff --git a/src/main/java/top/leavesmc/leaves/bot/BotCommand.java b/src/main/java/top/leavesmc/leaves/bot/BotCommand.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..9227559cd0aefe82d7f53a79b464be1d064b3ae1
+index 0000000000000000000000000000000000000000..5fc7398dc0f0ae4b7194956069758da03752d6b5
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/BotCommand.java
-@@ -0,0 +1,222 @@
+@@ -0,0 +1,245 @@
 +package top.leavesmc.leaves.bot;
 +
 +import net.minecraft.world.damagesource.DamageSource;
@@ -285,6 +285,7 @@ index 0000000000000000000000000000000000000000..9227559cd0aefe82d7f53a79b464be1d
 +import org.bukkit.World;
 +import org.bukkit.command.Command;
 +import org.bukkit.command.CommandSender;
++import org.bukkit.command.ConsoleCommandSender;
 +import org.bukkit.craftbukkit.entity.CraftPlayer;
 +import org.bukkit.entity.Player;
 +import org.bukkit.generator.WorldInfo;
@@ -373,35 +374,57 @@ index 0000000000000000000000000000000000000000..9227559cd0aefe82d7f53a79b464be1d
 +
 +    private void onCreate(CommandSender sender, String @NotNull [] args) {
 +        if (args.length < 2) {
-+            sender.sendMessage(ChatColor.RED + "Use /bot create <name> to create a fakeplayer");
++            sender.sendMessage(ChatColor.RED + "Use /bot create <name> [skin_name] to create a fakeplayer");
 +            return;
 +        }
 +
-+        if (!(sender instanceof Player)) {
-+            sender.sendMessage(ChatColor.RED + "This command only can use by player");
-+            return;
++        if (canCreate(sender, args[1])) {
++            if (sender instanceof Player) {
++                ServerBot.createBot(((Player) sender).getLocation(), args[1], args.length > 2 ? args[2] : null, null);
++            } else if (sender instanceof ConsoleCommandSender) {
++                if (args.length < 6) {
++                    sender.sendMessage(ChatColor.RED + "Use /bot create <name> <skin_name> <bukkit_world_name> <x> <y> <z> to create a fakeplayer");
++                    return;
++                }
++
++                try {
++                    World world = Bukkit.getWorld(args[2]);
++                    double x = Double.parseDouble(args[3]);
++                    double y = Double.parseDouble(args[4]);
++                    double z = Double.parseDouble(args[5]);
++
++                    if (world != null) {
++                        ServerBot.createBot(new Location(world, x, y, z), args[1], args[2], null);
++                    }
++                } catch (Exception e) {
++                    e.printStackTrace();
++                }
++            }
++        }
++    }
++
++    private boolean canCreate(CommandSender sender, @NotNull String name) {
++        if (!name.matches("^[a-zA-Z0-9_]{4,16}$")) {
++            sender.sendMessage(ChatColor.RED + "This name is illegal");
++            return false;
 +        }
 +
-+        if (!args[1].matches("^[a-zA-Z0-9_]{4,16}$")) {
-+            sender.sendMessage(ChatColor.RED + "This name is unable");
-+            return;
-+        }
-+
-+        if (Bukkit.getPlayer(args[1]) != null || ServerBot.getBot(args[1]) != null) {
++        if (Bukkit.getPlayer(name) != null || ServerBot.getBot(name) != null) {
 +            sender.sendMessage(ChatColor.RED + "This player is in server");
-+            return;
++            return false;
 +        }
 +
-+        if (top.leavesmc.leaves.LeavesConfig.unableFakeplayerNames.contains(args[1])) {
-+            sender.sendMessage(ChatColor.RED + "This name is unable");
-+            return;
++        if (top.leavesmc.leaves.LeavesConfig.unableFakeplayerNames.contains(name)) {
++            sender.sendMessage(ChatColor.RED + "This name is not allowed");
++            return false;
 +        }
 +
 +        if (ServerBot.getBots().size() >= top.leavesmc.leaves.LeavesConfig.fakeplayerLimit) {
 +            sender.sendMessage(ChatColor.RED + "Fakeplayer limit is full");
++            return false;
 +        }
 +
-+        ServerBot.createBot(((Player) sender).getLocation(), args[1], args.length > 2 ? args[2] : null, null);
++        return true;
 +    }
 +
 +    private void onRemove(CommandSender sender, String @NotNull [] args) {
@@ -413,7 +436,7 @@ index 0000000000000000000000000000000000000000..9227559cd0aefe82d7f53a79b464be1d
 +        ServerBot bot = ServerBot.getBot(args[1]);
 +
 +        if (bot == null) {
-+            sender.sendMessage(ChatColor.RED + "This fakeplayer is null");
++            sender.sendMessage(ChatColor.RED + "This fakeplayer is not in server");
 +            return;
 +        }
 +
@@ -433,13 +456,13 @@ index 0000000000000000000000000000000000000000..9227559cd0aefe82d7f53a79b464be1d
 +
 +        BotAction action = Actions.getForName(args[2]);
 +        if (action == null) {
-+            sender.sendMessage(ChatColor.RED + "This action is null");
++            sender.sendMessage(ChatColor.RED + "Invalid action");
 +            return;
 +        }
 +
 +        ServerBot bot = ServerBot.getBot(args[1]);
 +        if (bot == null) {
-+            sender.sendMessage(ChatColor.RED + "This fakeplayer is null");
++            sender.sendMessage(ChatColor.RED + "This fakeplayer is not in server");
 +            return;
 +        }
 +
@@ -925,7 +948,7 @@ index 0000000000000000000000000000000000000000..daaece30b2a3983f1cc9ee9a851e8f37
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/ServerBot.java b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..3ad2ce59e48a8d0cb10686e6645aff5c7612aeee
+index 0000000000000000000000000000000000000000..c6fc70ff58ab02f49c4afb8b29df05312a5d5c72
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
 @@ -0,0 +1,787 @@
@@ -1199,7 +1222,7 @@ index 0000000000000000000000000000000000000000..3ad2ce59e48a8d0cb10686e6645aff5c
 +            remove(RemovalReason.KILLED);
 +            this.setDead();
 +            this.removeTab();
-+            Bukkit.broadcastMessage(ChatColor.YELLOW + this.getName().getString() + " leaved the game"); // TODO i18n
++            Bukkit.broadcastMessage(ChatColor.YELLOW + this.getName().getString() + " left the game"); // TODO i18n
 +        }
 +    }
 +

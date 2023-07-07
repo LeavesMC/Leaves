@@ -245,7 +245,7 @@ index fc0dc8e607cc24020106ea1af92b4421a5f9393d..81670f76c4d7ccec6f9e95465687c83b
              }
              // Water Animals
 diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
-index cf9f2097abbfe6050b91301b2807feed7f697b71..667f09f576321d69a0fae0cc3c46be51925bdc23 100644
+index 95a94af3fb4a3de5fcae93cebe792129a88d9de1..09f6a097b2d16fc719b7a8f849850b9b402cdf91 100644
 --- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
 +++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
 @@ -7,6 +7,9 @@ import org.bukkit.Bukkit;
@@ -948,10 +948,10 @@ index 0000000000000000000000000000000000000000..daaece30b2a3983f1cc9ee9a851e8f37
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/ServerBot.java b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..c6fc70ff58ab02f49c4afb8b29df05312a5d5c72
+index 0000000000000000000000000000000000000000..b1bb4596af1d6657d52f8052219690be524d1bb6
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
-@@ -0,0 +1,787 @@
+@@ -0,0 +1,786 @@
 +package top.leavesmc.leaves.bot;
 +
 +import com.google.common.collect.Lists;
@@ -1594,8 +1594,7 @@ index 0000000000000000000000000000000000000000..c6fc70ff58ab02f49c4afb8b29df0531
 +
 +    public void jumpFromGround() {
 +        double jumpPower = (double) this.getJumpPower() + this.getJumpBoostPower();
-+        Vec3 vec3d = this.getDeltaMovement();
-+        this.setDeltaMovement(vec3d.x, jumpPower, vec3d.z);
++        velocity.setY(jumpPower);
 +    }
 +
 +    public void setItem(org.bukkit.inventory.ItemStack item, EquipmentSlot slot) {
@@ -1741,10 +1740,10 @@ index 0000000000000000000000000000000000000000..c6fc70ff58ab02f49c4afb8b29df0531
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/Actions.java b/src/main/java/top/leavesmc/leaves/bot/agent/Actions.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..4e019c1fd77078cf8deae93948b7bf94f4c29fd4
+index 0000000000000000000000000000000000000000..30ae23cbd3b0189b2aca62467a24e0acb65627a7
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/Actions.java
-@@ -0,0 +1,51 @@
+@@ -0,0 +1,52 @@
 +package top.leavesmc.leaves.bot.agent;
 +
 +import org.jetbrains.annotations.Contract;
@@ -1773,6 +1772,7 @@ index 0000000000000000000000000000000000000000..4e019c1fd77078cf8deae93948b7bf94
 +        register(new UseItemToAction());
 +        register(new LookAction());
 +        register(new FishAction());
++        register(new AttackSelfAction());
 +    }
 +
 +    public static void register(@NotNull BotAction action) {
@@ -1911,6 +1911,54 @@ index 0000000000000000000000000000000000000000..609605b21cfe5af8876f76ea4922e379
 +        if (result != null) {
 +            bot.attack(result.getEntity());
 +            return true;
++        }
++        return false;
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/AttackSelfAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/AttackSelfAction.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..5a0e5626751d0b6ea12a6074b5626937b6668608
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/agent/actions/AttackSelfAction.java
+@@ -0,0 +1,42 @@
++package top.leavesmc.leaves.bot.agent.actions;
++
++import com.google.common.base.Predicates;
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.world.entity.Entity;
++import org.jetbrains.annotations.NotNull;
++import top.leavesmc.leaves.bot.ServerBot;
++import top.leavesmc.leaves.bot.agent.BotAction;
++import top.leavesmc.leaves.command.CommandArgument;
++import top.leavesmc.leaves.command.CommandArgumentResult;
++import top.leavesmc.leaves.command.CommandArgumentType;
++
++import java.util.List;
++
++public class AttackSelfAction extends BotAction {
++
++    public AttackSelfAction() {
++        super("attack_self", new CommandArgument(CommandArgumentType.INTEGER, CommandArgumentType.INTEGER));
++        setTabComplete(0, List.of("[TickDelay]"));
++        setTabComplete(1, List.of("[DoNumber]"));
++    }
++
++    @Override
++    public BotAction getNew(@NotNull ServerPlayer player, @NotNull CommandArgumentResult result) {
++        return new AttackSelfAction().setTickDelay(result.readInt(20)).setNumber(result.readInt(-1));
++    }
++
++    @Override
++    public boolean doTick(@NotNull ServerBot bot) {
++        List<Entity> entities = bot.level().getEntities((Entity) null, bot.getBoundingBox(), Predicates.alwaysTrue());
++        if (!entities.isEmpty()) {
++            for (int i = 0; i < entities.size(); i++) {
++                Entity entity = entities.get(i);
++                if (entity != bot) {
++                    bot.attack(entity);
++                    return true;
++                }
++            }
 +        }
 +        return false;
 +    }

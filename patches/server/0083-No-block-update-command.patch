@@ -1,0 +1,134 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Fri, 7 Jul 2023 21:27:24 +0800
+Subject: [PATCH] No block update command
+
+
+diff --git a/src/main/java/net/minecraft/world/item/ItemStack.java b/src/main/java/net/minecraft/world/item/ItemStack.java
+index ae9b821d71d2868ba4eb3c73558fdcd6caf264e3..3b8f4c1883a00b4820e8b6fe3e727b5cb2326660 100644
+--- a/src/main/java/net/minecraft/world/item/ItemStack.java
++++ b/src/main/java/net/minecraft/world/item/ItemStack.java
+@@ -449,7 +449,7 @@ public final class ItemStack {
+                         net.minecraft.world.level.block.state.BlockState block = world.getBlockState(newblockposition);
+ 
+                         if (!(block.getBlock() instanceof BaseEntityBlock)) { // Containers get placed automatically
+-                            block.getBlock().onPlace(block, world, newblockposition, oldBlock, true, context); // Paper - pass context
++                            if (!top.leavesmc.leaves.command.NoBlockUpdateCommand.isNoBlockUpdate()) block.getBlock().onPlace(block, world, newblockposition, oldBlock, true, context); // Paper - pass context // Leaves - no block update
+                         }
+ 
+                         world.notifyAndUpdatePhysics(newblockposition, null, oldBlock, block, world.getBlockState(newblockposition), updateFlag, 512); // send null chunk as chunk.k() returns false by this point
+diff --git a/src/main/java/net/minecraft/world/level/material/FlowingFluid.java b/src/main/java/net/minecraft/world/level/material/FlowingFluid.java
+index 39669ad8e8895f1ff3e3a7e3ee1ab39c1b74b09d..c50fd02935870b0f660544efe3d05ea177a0102e 100644
+--- a/src/main/java/net/minecraft/world/level/material/FlowingFluid.java
++++ b/src/main/java/net/minecraft/world/level/material/FlowingFluid.java
+@@ -502,6 +502,7 @@ public abstract class FlowingFluid extends Fluid {
+ 
+     @Override
+     public void tick(Level world, BlockPos pos, FluidState state) {
++        if (top.leavesmc.leaves.command.NoBlockUpdateCommand.isNoBlockUpdate()) return; // Leaves - no block update
+         if (!state.isSource()) {
+             FluidState fluid1 = this.getNewLiquid(world, pos, world.getBlockState(pos));
+             int i = this.getSpreadDelay(world, pos, state, fluid1);
+diff --git a/src/main/java/net/minecraft/world/level/redstone/CollectingNeighborUpdater.java b/src/main/java/net/minecraft/world/level/redstone/CollectingNeighborUpdater.java
+index ec81be70cd6f92bbf9011395cb361f0ce54c5ad0..cc12f8575b21c973842b14998af1d92c9c217911 100644
+--- a/src/main/java/net/minecraft/world/level/redstone/CollectingNeighborUpdater.java
++++ b/src/main/java/net/minecraft/world/level/redstone/CollectingNeighborUpdater.java
+@@ -46,6 +46,7 @@ public class CollectingNeighborUpdater implements NeighborUpdater {
+     }
+ 
+     private void addAndRun(BlockPos pos, CollectingNeighborUpdater.NeighborUpdates entry) {
++        if (top.leavesmc.leaves.command.NoBlockUpdateCommand.isNoBlockUpdate()) return; // Leaves - no block update
+         boolean bl = this.count > 0;
+         boolean bl2 = this.maxChainedNeighborUpdates >= 0 && this.count >= this.maxChainedNeighborUpdates;
+         ++this.count;
+diff --git a/src/main/java/net/minecraft/world/level/redstone/InstantNeighborUpdater.java b/src/main/java/net/minecraft/world/level/redstone/InstantNeighborUpdater.java
+index 2708251ebc1995e71fb0e5dca9e158a3005f8a8a..e28351b379677fec356b6efec2d882ee20e7bd48 100644
+--- a/src/main/java/net/minecraft/world/level/redstone/InstantNeighborUpdater.java
++++ b/src/main/java/net/minecraft/world/level/redstone/InstantNeighborUpdater.java
+@@ -15,17 +15,20 @@ public class InstantNeighborUpdater implements NeighborUpdater {
+ 
+     @Override
+     public void shapeUpdate(Direction direction, BlockState neighborState, BlockPos pos, BlockPos neighborPos, int flags, int maxUpdateDepth) {
++        if (top.leavesmc.leaves.command.NoBlockUpdateCommand.isNoBlockUpdate()) return; // Leaves - no block update
+         NeighborUpdater.executeShapeUpdate(this.level, direction, neighborState, pos, neighborPos, flags, maxUpdateDepth - 1);
+     }
+ 
+     @Override
+     public void neighborChanged(BlockPos pos, Block sourceBlock, BlockPos sourcePos) {
++        if (top.leavesmc.leaves.command.NoBlockUpdateCommand.isNoBlockUpdate()) return; // Leaves - no block update
+         BlockState blockState = this.level.getBlockState(pos);
+         this.neighborChanged(blockState, pos, sourceBlock, sourcePos, false);
+     }
+ 
+     @Override
+     public void neighborChanged(BlockState state, BlockPos pos, Block sourceBlock, BlockPos sourcePos, boolean notify) {
++        if (top.leavesmc.leaves.command.NoBlockUpdateCommand.isNoBlockUpdate()) return; // Leaves - no block update
+         NeighborUpdater.executeUpdate(this.level, state, pos, sourceBlock, sourcePos, notify);
+     }
+ }
+diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+index a78e024492b075d3dacd0887cad78a65b34395e5..a63956a51def9c7ee0e1222a2536f3f29f8bb166 100644
+--- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
++++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+@@ -12,6 +12,7 @@ import org.bukkit.configuration.ConfigurationSection;
+ import org.bukkit.configuration.file.YamlConfiguration;
+ import top.leavesmc.leaves.bot.BotCommand;
+ import top.leavesmc.leaves.bot.agent.Actions;
++import top.leavesmc.leaves.command.NoBlockUpdateCommand;
+ import top.leavesmc.leaves.profile.LeavesMinecraftSessionService;
+ import top.leavesmc.leaves.protocol.syncmatica.SyncmaticaProtocol;
+ import top.leavesmc.leaves.util.MathUtils;
+@@ -82,6 +83,10 @@ public final class LeavesConfig {
+             commands.put("bot", new BotCommand("bot"));
+             Actions.registerAll();
+         }
++
++        if (LeavesConfig.noBlockUpdateCommand) {
++            commands.put("blockupdate", new NoBlockUpdateCommand("blockupdate"));
++        }
+     }
+ 
+     public static void load(final YamlConfiguration config) {
+diff --git a/src/main/java/top/leavesmc/leaves/command/NoBlockUpdateCommand.java b/src/main/java/top/leavesmc/leaves/command/NoBlockUpdateCommand.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..0eacacf05033289ad2dec9f759d359c956321798
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/command/NoBlockUpdateCommand.java
+@@ -0,0 +1,37 @@
++package top.leavesmc.leaves.command;
++
++import org.bukkit.command.Command;
++import org.bukkit.command.CommandSender;
++import org.jetbrains.annotations.NotNull;
++import top.leavesmc.leaves.LeavesConfig;
++
++import java.util.List;
++
++public class NoBlockUpdateCommand extends Command {
++
++    private static boolean noBlockUpdate = false;
++
++    public NoBlockUpdateCommand(@NotNull String name) {
++        super(name);
++        this.description = "No Block Update Command";
++        this.usageMessage = "/blockupdate";
++        this.setPermission("bukkit.command.blockupdate");
++    }
++
++    @Override
++    public @NotNull List<String> tabComplete(@NotNull CommandSender sender, @NotNull String alias, @NotNull String[] args) throws IllegalArgumentException {
++        return List.of();
++    }
++
++    @Override
++    public boolean execute(@NotNull CommandSender sender, @NotNull String commandLabel, @NotNull String[] args) {
++        if (!testPermission(sender)) return true;
++        noBlockUpdate = !noBlockUpdate;
++        sender.sendMessage("Block update status: " + !noBlockUpdate);
++        return true;
++    }
++
++    public static boolean isNoBlockUpdate() {
++        return LeavesConfig.noBlockUpdateCommand && noBlockUpdate;
++    }
++}

@@ -789,7 +789,7 @@ index 0000000000000000000000000000000000000000..07b688d376a4af88305e57519a5ae983
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/BotUtil.java b/src/main/java/top/leavesmc/leaves/bot/BotUtil.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..a609b0ff323ea4bc8a23a2b8be0d01c9e9d54d92
+index 0000000000000000000000000000000000000000..9c335c7d5828b7613c45704006802641f5d37330
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/BotUtil.java
 @@ -0,0 +1,147 @@
@@ -845,7 +845,7 @@ index 0000000000000000000000000000000000000000..a609b0ff323ea4bc8a23a2b8be0d01c9
 +                continue;
 +            }
 +
-+            if (itemStack1.getItem().getClass() == itemStack.getItem().getClass() && isDamage(itemStack1, 10)) {
++            if (itemStack1.getItem().getClass() == itemStack.getItem().getClass() && !isDamage(itemStack1, 10)) {
 +                ItemStack itemStack2 = itemStack1.copy();
 +                bot.getInventory().setItem(i, itemStack);
 +                bot.setItemSlot(slot, itemStack2);
@@ -989,10 +989,10 @@ index 0000000000000000000000000000000000000000..daaece30b2a3983f1cc9ee9a851e8f37
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/ServerBot.java b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..b1bb4596af1d6657d52f8052219690be524d1bb6
+index 0000000000000000000000000000000000000000..c192034974c34c7202b7f9a1e59d7fa45b787e3f
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
-@@ -0,0 +1,786 @@
+@@ -0,0 +1,753 @@
 +package top.leavesmc.leaves.bot;
 +
 +import com.google.common.collect.Lists;
@@ -1479,21 +1479,9 @@ index 0000000000000000000000000000000000000000..b1bb4596af1d6657d52f8052219690be
 +        this.updateItemInMainHand();
 +    }
 +
-+    private ItemStack lastItem = new ItemStack(Material.AIR);
-+
 +    public void updateItemInMainHand() {
-+        ItemStack item = this.getInventory().getSelected().asBukkitCopy();
 +        tryReplenishOrReplaceInMainHand();
-+
-+        if (!lastItem.isSimilar(item)) {
-+            this.setItem(item, EquipmentSlot.MAINHAND);
-+            lastItem = item;
-+        }
-+
-+        if (item.getAmount() == 0) {
-+            this.setItem(defaultItem, EquipmentSlot.MAINHAND);
-+            lastItem = defaultItem;
-+        }
++        detectEquipmentUpdates();
 +    }
 +
 +    public void tryReplenishOrReplaceInMainHand() {
@@ -1638,30 +1626,9 @@ index 0000000000000000000000000000000000000000..b1bb4596af1d6657d52f8052219690be
 +        velocity.setY(jumpPower);
 +    }
 +
-+    public void setItem(org.bukkit.inventory.ItemStack item, EquipmentSlot slot) {
-+        if (item == null) {
-+            item = defaultItem;
-+        }
-+
-+        this.detectEquipmentUpdates();
-+        if (slot == EquipmentSlot.MAINHAND) {
-+            getBukkitPlayer().getInventory().setItemInMainHand(item);
-+            setItemInHand(InteractionHand.MAIN_HAND, CraftItemStack.asNMSCopy(item));
-+        } else if (slot == EquipmentSlot.OFFHAND) {
-+            getBukkitPlayer().getInventory().setItemInOffHand(item);
-+            setItemInHand(InteractionHand.OFF_HAND, CraftItemStack.asNMSCopy(item));
-+        }
-+
-+        sendPacket(new ClientboundSetEquipmentPacket(getId(), new ArrayList<>(Collections.singletonList(
-+            new Pair<>(slot, CraftItemStack.asNMSCopy(item))
-+        ))));
-+    }
-+
 +    public void dropAll() {
 +        getInventory().dropAll();
-+        for (EquipmentSlot slot : EquipmentSlot.values()) {
-+            setItem(null, slot);
-+        }
++        detectEquipmentUpdates();
 +    }
 +
 +    public void setBotAction(BotAction botAction) {

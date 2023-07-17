@@ -30,8 +30,21 @@ index dae36c6452ccd57a436dd918547b64d59957ab0a..973ecf723e4239307600b42f2d12c264
              // CraftBukkit start
              String s = (String) Optional.ofNullable((String) optionset.valueOf("world")).orElse(dedicatedserversettings.getProperties().levelName);
              LevelStorageSource convertable = LevelStorageSource.createDefault(file.toPath());
+diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
+index c358f6de2947e16da54acdc7809c70ffae331944..54265a48aab8dc74c34903e177f9e578f459b35a 100644
+--- a/src/main/java/net/minecraft/server/MinecraftServer.java
++++ b/src/main/java/net/minecraft/server/MinecraftServer.java
+@@ -264,7 +264,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+     private boolean isDemo;
+     private volatile boolean isReady;
+     private long lastOverloadWarning;
+-    protected final Services services;
++    public final Services services; // Leaves - protected -> public
+     private long lastServerStatus;
+     public final Thread serverThread;
+     private long nextTickTime;
 diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
-index ffe31cf433c26264ab4d2e80bdbea166f79b614d..b5c0ad9065ab28b669ab602b8fe520b67f072c2c 100644
+index 59edfc922c5745e65469489cb319dbd0f1c812c9..e7bcaf347a28c805f68a805f460be33a44f84571 100644
 --- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
 +++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
 @@ -12,6 +12,7 @@ import org.bukkit.configuration.ConfigurationSection;
@@ -42,8 +55,8 @@ index ffe31cf433c26264ab4d2e80bdbea166f79b614d..b5c0ad9065ab28b669ab602b8fe520b6
  import top.leavesmc.leaves.util.MathUtils;
  
  import java.io.File;
-@@ -510,6 +511,9 @@ public final class LeavesConfig {
-         extraYggdrasilService = getBoolean("settings.misc.extra-yggdrasil-service.enable", extraYggdrasilService);
+@@ -512,6 +513,9 @@ public final class LeavesConfig {
+         extraYggdrasilLoginProtect = getBoolean("settings.misc.extra-yggdrasil-service.login-protect", extraYggdrasilLoginProtect);
          extraYggdrasilServiceList = getList("settings.misc.extra-yggdrasil-service.urls", extraYggdrasilServiceList);
          if (extraYggdrasilService) {
 +            LeavesLogger.LOGGER.warning("extra-yggdrasil-service is an unofficial support. Enabling it may cause data security problems!");
@@ -163,10 +176,10 @@ index 0000000000000000000000000000000000000000..ee10e314a7e1af28ea008123f75caee2
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/profile/LeavesMinecraftSessionService.java b/src/main/java/top/leavesmc/leaves/profile/LeavesMinecraftSessionService.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..98ef48c9e47d2aff31bb326dd30a246cac94f55f
+index 0000000000000000000000000000000000000000..fc39aa3c97118a3796f10951145f17ad696a79cb
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/profile/LeavesMinecraftSessionService.java
-@@ -0,0 +1,91 @@
+@@ -0,0 +1,101 @@
 +package top.leavesmc.leaves.profile;
 +
 +import com.destroystokyo.paper.profile.PaperMinecraftSessionService;
@@ -236,12 +249,22 @@ index 0000000000000000000000000000000000000000..98ef48c9e47d2aff31bb326dd30a246c
 +                arguments.put("ip", address.getHostAddress());
 +            }
 +
++            GameProfile cache = null;
++            if (LeavesConfig.extraYggdrasilLoginProtect) {
++                cache = MinecraftServer.getServer().services.profileCache().getProfileIfCached(user.getName());
++            }
++
 +            for (URL checkUrl : extraYggdrasilList) {
 +                URL url = HttpAuthenticationService.concatenateURL(checkUrl, HttpAuthenticationService.buildQuery(arguments));
 +
 +                try {
 +                    HasJoinedMinecraftServerResponse response = this.getAuthenticationService().makeHasJoinResponse(url);
 +                    if (response != null && response.getId() != null) {
++                        if (LeavesConfig.extraYggdrasilLoginProtect && cache != null) {
++                            if (response.getId() != cache.getId()) {
++                                continue;
++                            }
++                        }
 +                        result = new GameProfile(response.getId(), user.getName());
 +                        if (response.getProperties() != null) {
 +                            result.getProperties().putAll(response.getProperties());

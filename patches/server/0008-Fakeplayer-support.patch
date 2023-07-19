@@ -204,19 +204,6 @@ index fff7ad7a45f310783ac96b44575ad3db13d537fa..c09c25b6594d4f6a937c6bbb80a75977
 +    }
 +    // Leaves end - fakeplayer support
  }
-diff --git a/src/main/java/net/minecraft/world/entity/LivingEntity.java b/src/main/java/net/minecraft/world/entity/LivingEntity.java
-index e11d7283662834047b2ff81a2fd25a4263792deb..760ba7f0a5278dbb142a8415cb067f92aa5b6b17 100644
---- a/src/main/java/net/minecraft/world/entity/LivingEntity.java
-+++ b/src/main/java/net/minecraft/world/entity/LivingEntity.java
-@@ -1358,7 +1358,7 @@ public abstract class LivingEntity extends Entity implements Attackable {
-                 player.setRealHealth(health);
-             }
- 
--            player.updateScaledHealth(false);
-+            if (!(this instanceof top.leavesmc.leaves.bot.ServerBot)) player.updateScaledHealth(false); // Leaves - skip bot
-             return;
-         }
-         // CraftBukkit end
 diff --git a/src/main/java/net/minecraft/world/entity/projectile/FishingHook.java b/src/main/java/net/minecraft/world/entity/projectile/FishingHook.java
 index b8c238287e0639b578170c6fec0d4db5a1a59fe7..d57e6c88524482b4d37930d0fd2e9f7911c6d3a0 100644
 --- a/src/main/java/net/minecraft/world/entity/projectile/FishingHook.java
@@ -322,7 +309,7 @@ index d1a6bd01cb03424e0bdac98127dada77b3d11ea2..05cfea1440683d77b406803e0aafcc30
      public static void load(final YamlConfiguration config) {
 diff --git a/src/main/java/top/leavesmc/leaves/bot/BotCommand.java b/src/main/java/top/leavesmc/leaves/bot/BotCommand.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..5fc7398dc0f0ae4b7194956069758da03752d6b5
+index 0000000000000000000000000000000000000000..16ea90fb1acdb89d7e9fa0f0a2d7cfa870cbe239
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/BotCommand.java
 @@ -0,0 +1,245 @@
@@ -430,7 +417,7 @@ index 0000000000000000000000000000000000000000..5fc7398dc0f0ae4b7194956069758da0
 +
 +        if (canCreate(sender, args[1])) {
 +            if (sender instanceof Player) {
-+                ServerBot.createBot(((Player) sender).getLocation(), args[1], args.length > 2 ? args[2] : null, null);
++                ServerBot.createBot(((Player) sender).getLocation(), args[1], args.length > 2 ? args[2] : null, (serverBot -> {}));
 +            } else if (sender instanceof ConsoleCommandSender) {
 +                if (args.length < 6) {
 +                    sender.sendMessage(ChatColor.RED + "Use /bot create <name> <skin_name> <bukkit_world_name> <x> <y> <z> to create a fakeplayer");
@@ -444,7 +431,7 @@ index 0000000000000000000000000000000000000000..5fc7398dc0f0ae4b7194956069758da0
 +                    double z = Double.parseDouble(args[5]);
 +
 +                    if (world != null) {
-+                        ServerBot.createBot(new Location(world, x, y, z), args[1], args[2], null);
++                        ServerBot.createBot(new Location(world, x, y, z), args[1], args[2], (serverBot -> {}));
 +                    }
 +                } catch (Exception e) {
 +                    e.printStackTrace();
@@ -798,10 +785,10 @@ index 0000000000000000000000000000000000000000..07b688d376a4af88305e57519a5ae983
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/BotUtil.java b/src/main/java/top/leavesmc/leaves/bot/BotUtil.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..9c335c7d5828b7613c45704006802641f5d37330
+index 0000000000000000000000000000000000000000..71c810146fe059d8ce51ef323390f170faeb89ec
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/BotUtil.java
-@@ -0,0 +1,147 @@
+@@ -0,0 +1,177 @@
 +package top.leavesmc.leaves.bot;
 +
 +import com.google.gson.JsonElement;
@@ -817,6 +804,10 @@ index 0000000000000000000000000000000000000000..9c335c7d5828b7613c45704006802641
 +import org.bukkit.Bukkit;
 +import org.bukkit.Location;
 +import org.jetbrains.annotations.NotNull;
++import top.leavesmc.leaves.bot.agent.Actions;
++import top.leavesmc.leaves.bot.agent.BotAction;
++import top.leavesmc.leaves.bot.agent.actions.StopAction;
++import top.leavesmc.leaves.command.CommandArgumentResult;
 +
 +import java.io.File;
 +import java.io.IOException;
@@ -886,6 +877,8 @@ index 0000000000000000000000000000000000000000..9c335c7d5828b7613c45704006802641
 +        String dimension = bot.getLocation().getWorld().getName();
 +        String skin = bot.skinName == null ? "null" : bot.skinName;
 +        String uuid = bot.getStringUUID();
++        JsonObject action = new JsonObject();
++        BotAction botAction = bot.getBotAction();
 +
 +        JsonObject fakePlayer = new JsonObject();
 +        fakePlayer.addProperty("pos_x", pos_x);
@@ -896,6 +889,12 @@ index 0000000000000000000000000000000000000000..9c335c7d5828b7613c45704006802641
 +        fakePlayer.addProperty("dimension", dimension);
 +        fakePlayer.addProperty("skin", skin);
 +        fakePlayer.addProperty("invuuid", uuid);
++        if (botAction != null) {
++            action.addProperty("name", botAction.getName());
++            action.addProperty("number", String.valueOf(botAction.getNumber()));
++            action.addProperty("delay", String.valueOf(botAction.getTickDelay()));
++            fakePlayer.add("action", action);
++        }
 +
 +        CompoundTag invnbt = new CompoundTag();
 +        invnbt.put("Inventory", bot.getInventory().save(new ListTag()));
@@ -945,8 +944,26 @@ index 0000000000000000000000000000000000000000..9c335c7d5828b7613c45704006802641
 +            }
 +        }
 +
-+        ServerBot.createBot(new Location(Bukkit.getWorld(dimension), pos_x, pos_y, pos_z, yaw, pitch),
-+            username, skin, inv);
++        JsonObject actionObj = null;
++        if (fakePlayer.has("action")) {
++            actionObj = fakePlayer.get("action").getAsJsonObject();
++        }
++
++        final ListTag finalInv = inv;
++        final JsonObject finalActionObj = actionObj;
++        ServerBot.createBot(new Location(Bukkit.getWorld(dimension), pos_x, pos_y, pos_z, yaw, pitch), username, skin, (serverBot -> {
++            if (finalInv != null) {
++                serverBot.getInventory().load(finalInv);
++            }
++
++            if (finalActionObj != null) {
++                BotAction action = Actions.getForName(finalActionObj.get("name").getAsString());
++                BotAction newAction = action.getNew(serverBot,
++                    action.getArgument().parse(0, new String[]{finalActionObj.get("delay").getAsString(), finalActionObj.get("number").getAsString()})
++                );
++                serverBot.setBotAction(newAction);
++            }
++        }));
 +    }
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/MojangAPI.java b/src/main/java/top/leavesmc/leaves/bot/MojangAPI.java
@@ -998,10 +1015,10 @@ index 0000000000000000000000000000000000000000..daaece30b2a3983f1cc9ee9a851e8f37
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/ServerBot.java b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..c192034974c34c7202b7f9a1e59d7fa45b787e3f
+index 0000000000000000000000000000000000000000..f5fef14a67d8b4607eb345e35ff3d729f8fbdb8d
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
-@@ -0,0 +1,753 @@
+@@ -0,0 +1,757 @@
 +package top.leavesmc.leaves.bot;
 +
 +import com.google.common.collect.Lists;
@@ -1087,6 +1104,7 @@ index 0000000000000000000000000000000000000000..c192034974c34c7202b7f9a1e59d7fa4
 +import java.util.Map;
 +import java.util.Objects;
 +import java.util.UUID;
++import java.util.function.Consumer;
 +
 +// TODO remake all
 +public class ServerBot extends ServerPlayer {
@@ -1139,7 +1157,7 @@ index 0000000000000000000000000000000000000000..c192034974c34c7202b7f9a1e59d7fa4
 +        this.realName = realName;
 +    }
 +
-+    public static void createBot(Location loc, String name, String skinName, ListTag inv) {
++    public static void createBot(Location loc, String name, String skinName, Consumer<ServerBot> consumer) {
 +        String finalName = LeavesConfig.fakeplayerPrefix + name + LeavesConfig.fakeplayerSuffix;
 +        if (!isCreateLegal(finalName)) {
 +            return;
@@ -1147,15 +1165,18 @@ index 0000000000000000000000000000000000000000..c192034974c34c7202b7f9a1e59d7fa4
 +        if (skinName != null) {
 +            Bukkit.getScheduler().runTaskAsynchronously(MINECRAFT_PLUGIN, () -> {
 +                String[] skin = MojangAPI.getSkin(skinName);
-+                Bukkit.getScheduler().runTask(MINECRAFT_PLUGIN, () -> createBot(loc, finalName, name, skin, skinName, inv));
++                Bukkit.getScheduler().runTask(MINECRAFT_PLUGIN, () -> {
++                    ServerBot bot = createBot(loc, finalName, name, skin, skinName);
++                    consumer.accept(bot);
++                });
 +            });
 +        } else {
-+            createBot(loc, finalName, name, null, null, inv);
++            createBot(loc, finalName, name, null, null);
 +        }
 +    }
 +
 +    @Nullable
-+    public static ServerBot createBot(@NotNull Location loc, @NotNull String name, String realName, String[] skin, String skinName, ListTag inv) {
++    public static ServerBot createBot(@NotNull Location loc, @NotNull String name, String realName, String[] skin, String skinName) {
 +        if (!isCreateLegal(name)) {
 +            return null;
 +        }
@@ -1182,10 +1203,6 @@ index 0000000000000000000000000000000000000000..c192034974c34c7202b7f9a1e59d7fa4
 +
 +            if (event.getJoinMessage() != null) {
 +                Bukkit.broadcastMessage(event.getJoinMessage());
-+            }
-+
-+            if (inv != null) {
-+                bot.getInventory().load(inv);
 +            }
 +
 +            bot.teleportTo(loc.getX(), loc.getY(), loc.getZ());
@@ -1642,6 +1659,10 @@ index 0000000000000000000000000000000000000000..c192034974c34c7202b7f9a1e59d7fa4
 +
 +    public void setBotAction(BotAction botAction) {
 +        this.newAction = botAction;
++    }
++
++    public BotAction getBotAction() {
++        return action;
 +    }
 +
 +    @Override

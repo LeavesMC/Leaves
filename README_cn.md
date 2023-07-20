@@ -13,7 +13,7 @@ Leaves
 > 你可以在 [这里](https://github.com/LeavesMC/Leaves/blob/master/docs/MODIFICATION_cn.md) 查看所有的修改和修复内容
 
 ## 对于服务器管理员
-此分支使用与Paper一致的paperclip分发
+此分支使用与 Paper 一致的 paperclip 分发
 
 你可以从 [此处](https://github.com/LeavesMC/Leaves/releases/latest) 下载最新的构建结果 (1.20.x)
 
@@ -22,7 +22,7 @@ Leaves
 如果你想要获得更多信息，那么你可以访问我们的 [文档](https://docs.leavesmc.top/zh/leaves)
 
 ## 对于插件开发者
-如果你要将Leaves作为依赖,那么你必须进行 [自行构建](https://github.com/LeavesMC/Leaves/blob/master/README_cn.md#自行构建)
+如果你要将 Leaves 作为依赖,那么你必须进行 [自行构建](https://github.com/LeavesMC/Leaves/blob/master/README_cn.md#自行构建)
 
 Leaves-API:
 ```kotlin
@@ -40,7 +40,7 @@ dependencies {
 
 ## 自行构建
 
-你需要最低JDK17和一个可以正常访问各种git/maven库的网络
+你需要最低 JDK 17 和一个可以正常访问各种 git/maven 库的网络
 
 首先克隆此储存库，然后在你的终端里依次执行 `./gradlew applyPatches` 和 `./gradlew createReobfBundlerJar`
 
@@ -55,5 +55,3 @@ dependencies {
 [<img src="https://user-images.githubusercontent.com/21148213/121807008-8ffc6700-cc52-11eb-96a7-2f6f260f8fda.png" alt="" width="150">](https://www.jetbrains.com)
 
 [JetBrains](https://www.jetbrains.com/)，IntelliJ IDEA的创造者，为Leaves提供了 [开源许可证](https://www.jetbrains.com/opensource/)。我们极力推荐使用IntelliJ IDEA作为你的IDE。
-
-

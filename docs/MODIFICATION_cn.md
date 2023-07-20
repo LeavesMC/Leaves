@@ -3,7 +3,7 @@ Leaves Modification
 
 [English](https://github.com/LeavesMC/Leaves/blob/master/docs/MODIFICATION.md) | **中文**
 
-## 修复
+## 修复（使可用）
 
 > 所有的修复内容都不会存在配置项
 
@@ -17,7 +17,7 @@ Leaves Modification
 
 - 玩家可以编辑已经放置的告示牌
 - 雪球和鸡蛋可以击退玩家
-- 假人支持 (类似carpet) (指令为 /bot)
+- 假人支持 (类似carpet) (指令为 `/bot`，权限为 `bukkit.command.bot`)
 - 发射器里的剪刀可以无限使用
 - 剪刀可以用来旋转红石原件 (类似调试棒)
 - 紫水晶母岩可以被活塞推动

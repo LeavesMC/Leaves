@@ -43,7 +43,7 @@ dependencies {
 
 You need JDK 17 and good Internet conditions
 
-Clone this repo, run `./gradlew applyPatches`, then run `./gradlew createReobfBundlerJar` from your terminal.  
+Clone this repo, run `./gradlew applyPatches`, then run `./gradlew createReobfBundlerJar` in your terminal.  
 
 You can find the jars in the `build/libs` directory.
 

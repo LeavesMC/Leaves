@@ -204,6 +204,19 @@ index fff7ad7a45f310783ac96b44575ad3db13d537fa..c09c25b6594d4f6a937c6bbb80a75977
 +    }
 +    // Leaves end - fakeplayer support
  }
+diff --git a/src/main/java/net/minecraft/world/entity/Entity.java b/src/main/java/net/minecraft/world/entity/Entity.java
+index 0d59e39b321f0fb4fdd927f5bf2eed3b70d72aaf..a12a05c0007e642185d1042459a41922761180c1 100644
+--- a/src/main/java/net/minecraft/world/entity/Entity.java
++++ b/src/main/java/net/minecraft/world/entity/Entity.java
+@@ -1416,7 +1416,7 @@ public abstract class Entity implements Nameable, EntityAccess, CommandSource {
+         return offsetFactor;
+     }
+ 
+-    private Vec3 collide(Vec3 movement) {
++    public Vec3 collide(Vec3 movement) { // Leaves - private -> public
+         // Paper start - optimise collisions
+         // This is a copy of vanilla's except that it uses strictly AABB math
+         if (movement.x == 0.0 && movement.y == 0.0 && movement.z == 0.0) {
 diff --git a/src/main/java/net/minecraft/world/entity/projectile/FishingHook.java b/src/main/java/net/minecraft/world/entity/projectile/FishingHook.java
 index b8c238287e0639b578170c6fec0d4db5a1a59fe7..d57e6c88524482b4d37930d0fd2e9f7911c6d3a0 100644
 --- a/src/main/java/net/minecraft/world/entity/projectile/FishingHook.java
@@ -282,7 +295,7 @@ index fc0dc8e607cc24020106ea1af92b4421a5f9393d..81670f76c4d7ccec6f9e95465687c83b
              }
              // Water Animals
 diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
-index d1a6bd01cb03424e0bdac98127dada77b3d11ea2..05cfea1440683d77b406803e0aafcc3073fb58e2 100644
+index 5ca9ffe8747ef9e8bd2936402e2f7201ec3a5762..4a919417ffefde2afdeaa3da222ca8f79f6567a9 100644
 --- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
 +++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
 @@ -7,6 +7,9 @@ import org.bukkit.Bukkit;
@@ -1015,10 +1028,10 @@ index 0000000000000000000000000000000000000000..daaece30b2a3983f1cc9ee9a851e8f37
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/ServerBot.java b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..f5fef14a67d8b4607eb345e35ff3d729f8fbdb8d
+index 0000000000000000000000000000000000000000..e649d92c3c51a1087c0ff8b8b90e362bf57a8d29
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
-@@ -0,0 +1,757 @@
+@@ -0,0 +1,630 @@
 +package top.leavesmc.leaves.bot;
 +
 +import com.google.common.collect.Lists;
@@ -1027,9 +1040,8 @@ index 0000000000000000000000000000000000000000..f5fef14a67d8b4607eb345e35ff3d729
 +import com.google.gson.JsonObject;
 +import com.mojang.authlib.GameProfile;
 +import com.mojang.authlib.properties.Property;
-+import com.mojang.datafixers.util.Pair;
 +import net.minecraft.Util;
-+import net.minecraft.nbt.ListTag;
++import net.minecraft.core.BlockPos;
 +import net.minecraft.network.Connection;
 +import net.minecraft.network.PacketSendListener;
 +import net.minecraft.network.protocol.Packet;
@@ -1039,8 +1051,6 @@ index 0000000000000000000000000000000000000000..f5fef14a67d8b4607eb345e35ff3d729
 +import net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket;
 +import net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket;
 +import net.minecraft.network.protocol.game.ClientboundRotateHeadPacket;
-+import net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket;
-+import net.minecraft.network.protocol.game.ClientboundSetEquipmentPacket;
 +import net.minecraft.network.syncher.EntityDataAccessor;
 +import net.minecraft.network.syncher.EntityDataSerializers;
 +import net.minecraft.server.MinecraftServer;
@@ -1049,7 +1059,6 @@ index 0000000000000000000000000000000000000000..f5fef14a67d8b4607eb345e35ff3d729
 +import net.minecraft.server.network.ServerGamePacketListenerImpl;
 +import net.minecraft.server.network.ServerPlayerConnection;
 +import net.minecraft.stats.ServerStatsCounter;
-+import net.minecraft.util.Mth;
 +import net.minecraft.world.InteractionHand;
 +import net.minecraft.world.InteractionResult;
 +import net.minecraft.world.SimpleMenuProvider;
@@ -1057,10 +1066,11 @@ index 0000000000000000000000000000000000000000..f5fef14a67d8b4607eb345e35ff3d729
 +import net.minecraft.world.entity.Entity;
 +import net.minecraft.world.entity.EntityType;
 +import net.minecraft.world.entity.EquipmentSlot;
-+import net.minecraft.world.entity.MoverType;
 +import net.minecraft.world.entity.item.ItemEntity;
 +import net.minecraft.world.entity.player.Player;
 +import net.minecraft.world.inventory.ChestMenu;
++import net.minecraft.world.level.block.state.BlockState;
++import net.minecraft.world.level.gameevent.GameEvent;
 +import net.minecraft.world.level.storage.LevelResource;
 +import net.minecraft.world.phys.AABB;
 +import net.minecraft.world.phys.Vec3;
@@ -1068,16 +1078,11 @@ index 0000000000000000000000000000000000000000..f5fef14a67d8b4607eb345e35ff3d729
 +import org.bukkit.ChatColor;
 +import org.bukkit.Location;
 +import org.bukkit.Material;
-+import org.bukkit.World;
-+import org.bukkit.block.Block;
 +import org.bukkit.craftbukkit.CraftWorld;
 +import org.bukkit.craftbukkit.entity.CraftPlayer;
-+import org.bukkit.craftbukkit.inventory.CraftItemStack;
 +import org.bukkit.craftbukkit.scheduler.MinecraftInternalPlugin;
 +import org.bukkit.event.entity.CreatureSpawnEvent;
-+import org.bukkit.inventory.ItemStack;
 +import org.bukkit.plugin.Plugin;
-+import org.bukkit.util.BoundingBox;
 +import org.bukkit.util.Vector;
 +import org.jetbrains.annotations.Contract;
 +import org.jetbrains.annotations.NotNull;
@@ -1097,7 +1102,6 @@ index 0000000000000000000000000000000000000000..f5fef14a67d8b4607eb345e35ff3d729
 +import java.nio.charset.StandardCharsets;
 +import java.nio.file.Files;
 +import java.util.ArrayList;
-+import java.util.Collections;
 +import java.util.EnumSet;
 +import java.util.Iterator;
 +import java.util.List;
@@ -1109,20 +1113,18 @@ index 0000000000000000000000000000000000000000..f5fef14a67d8b4607eb345e35ff3d729
 +// TODO remake all
 +public class ServerBot extends ServerPlayer {
 +
-+    private Vector velocity;
-+    private Vector oldVelocity;
++    private Vec3 velocity;
 +    private BotAction action;
 +    private BotAction newAction;
 +
 +    private final boolean removeOnDeath;
 +    private int fireTicks;
-+    private int groundTicks;
 +    private int jumpTicks;
 +    private int noFallTicks;
 +    private int noActionTicks;
 +    private int doActionNumber;
++    public boolean waterSwim;
 +
-+    private final ItemStack defaultItem;
 +    private final ServerStatsCounter stats;
 +    public final String skinName;
 +    public final String realName;
@@ -1141,13 +1143,11 @@ index 0000000000000000000000000000000000000000..f5fef14a67d8b4607eb345e35ff3d729
 +        this.entityData.set(new EntityDataAccessor<>(16, EntityDataSerializers.INT), 0xFF);
 +        this.entityData.set(Player.DATA_PLAYER_MODE_CUSTOMISATION, (byte) -2);
 +
-+        this.velocity = new Vector(0, 0, 0);
-+        this.oldVelocity = velocity.clone();
++        this.velocity = new Vec3(this.xxa, this.yya, this.zza);
 +        this.noFallTicks = 60;
 +        this.fireTicks = 0;
 +        this.noActionTicks = 0;
 +        this.doActionNumber = -1;
-+        this.defaultItem = new ItemStack(Material.AIR);
 +        this.removeOnDeath = true;
 +        this.stats = new BotStatsCounter(server);
 +        this.skinName = skinName;
@@ -1155,6 +1155,7 @@ index 0000000000000000000000000000000000000000..f5fef14a67d8b4607eb345e35ff3d729
 +        server.getPlayerList().addNewBot(this);
 +        this.fauxSleeping = LeavesConfig.fakeplayerSkipSleep;
 +        this.realName = realName;
++        this.waterSwim = true;
 +    }
 +
 +    public static void createBot(Location loc, String name, String skinName, Consumer<ServerBot> consumer) {
@@ -1308,67 +1309,8 @@ index 0000000000000000000000000000000000000000..f5fef14a67d8b4607eb345e35ff3d729
 +
 +    @Nullable
 +    @Override
-+    public Entity changeDimension(ServerLevel destination) {
++    public Entity changeDimension(@NotNull ServerLevel destination) {
 +        return null; // disable dimension change
-+    }
-+
-+    @Override
-+    public boolean onGround() {
-+        return groundTicks != 0;
-+    }
-+
-+    public static boolean solidAt(@NotNull Location loc) {
-+        Block block = loc.getBlock();
-+        BoundingBox box = block.getBoundingBox();
-+        Vector position = loc.toVector();
-+
-+        double x = position.getX();
-+        double y = position.getY();
-+        double z = position.getZ();
-+
-+        double minX = box.getMinX();
-+        double minY = box.getMinY();
-+        double minZ = box.getMinZ();
-+
-+        double maxX = box.getMaxX();
-+        double maxY = box.getMaxY();
-+        double maxZ = box.getMaxZ();
-+
-+        return x > minX && x < maxX && y > minY && y < maxY && z > minZ && z < maxZ;
-+    }
-+
-+    public boolean checkGround() {
-+        double vy = velocity.getY();
-+
-+        if (vy > 0) {
-+            return false;
-+        }
-+
-+        World world = getBukkitPlayer().getWorld();
-+        AABB box = getBoundingBox();
-+
-+        double[] xVals = new double[]{
-+            box.minX,
-+            box.maxX
-+        };
-+
-+        double[] zVals = new double[]{
-+            box.minZ,
-+            box.maxZ
-+        };
-+
-+        for (double x : xVals) {
-+            for (double z : zVals) {
-+                Location loc = new Location(world, x, getY() - 0.01, z);
-+                Block block = world.getBlockAt(loc);
-+
-+                if (block.getType().isSolid() && solidAt(loc)) {
-+                    return true;
-+                }
-+            }
-+        }
-+
-+        return false;
 +    }
 +
 +    public Bot getBukkitPlayer() {
@@ -1419,12 +1361,6 @@ index 0000000000000000000000000000000000000000..f5fef14a67d8b4607eb345e35ff3d729
 +            --takeXpDelay;
 +        }
 +
-+        if (checkGround()) {
-+            if (groundTicks < 5) groundTicks++;
-+        } else {
-+            groundTicks = 0;
-+        }
-+
 +        updateLocation();
 +
 +        float health = getHealth();
@@ -1440,8 +1376,10 @@ index 0000000000000000000000000000000000000000..f5fef14a67d8b4607eb345e35ff3d729
 +
 +        this.setHealth(amount);
 +
-+        // fireDamageCheck();
-+        fallDamageCheck();
++        BlockPos blockposition = this.getOnPosLegacy();
++        BlockState iblockdata = this.level().getBlockState(blockposition);
++        Vec3 vec3d1 = this.collide(velocity);
++        this.checkFallDamage(vec3d1.y, this.onGround(), iblockdata, blockposition);
 +
 +        ++this.attackStrengthTicker;
 +
@@ -1469,8 +1407,6 @@ index 0000000000000000000000000000000000000000..f5fef14a67d8b4607eb345e35ff3d729
 +                this.touch(Util.getRandom(list1, this.random));
 +            }
 +        }
-+
-+        oldVelocity = velocity.clone();
 +
 +        if (newAction != null) {
 +            action = newAction;
@@ -1522,6 +1458,22 @@ index 0000000000000000000000000000000000000000..f5fef14a67d8b4607eb345e35ff3d729
 +    }
 +
 +    @Override
++    public void checkFallDamage(double heightDifference, boolean onGround, @NotNull BlockState state, @NotNull BlockPos landedPosition) {
++        if (onGround) {
++            if (this.fallDistance > 0.0F) {
++                state.getBlock().fallOn(this.level(), state, landedPosition, this, this.fallDistance);
++                this.level().gameEvent(GameEvent.HIT_GROUND, this.position(), GameEvent.Context.of(this, this.mainSupportingBlockPos.map((blockposition1) -> {
++                    return this.level().getBlockState(blockposition1);
++                }).orElse(state)));
++            }
++
++            this.resetFallDistance();
++        } else if (heightDifference < 0.0D) {
++            this.fallDistance -= (float) heightDifference;
++        }
++    }
++
++    @Override
 +    public void doTick() {
 +        if (this.hurtTime > 0) {
 +            this.hurtTime -= 1;
@@ -1535,85 +1487,19 @@ index 0000000000000000000000000000000000000000..f5fef14a67d8b4607eb345e35ff3d729
 +        this.xRotO = this.getXRot();
 +    }
 +
-+    @Override
-+    public void push(@NotNull Entity entity) {
-+        if (!this.isPassengerOfSameVehicle(entity) && !entity.noPhysics && !this.noPhysics) {
-+            double d0 = entity.getX() - this.getX();
-+            double d1 = entity.getZ() - this.getZ();
-+            double d2 = Mth.absMax(d0, d1);
-+            if (d2 >= 0.009999999776482582D) {
-+                d2 = Math.sqrt(d2);
-+                d0 /= d2;
-+                d1 /= d2;
-+                double d3 = 1.0D / d2;
-+                if (d3 > 1.0D) {
-+                    d3 = 1.0D;
-+                }
-+
-+                d0 *= d3;
-+                d1 *= d3;
-+                d0 *= 0.05000000074505806D;
-+                d1 *= 0.05000000074505806D;
-+                if (!this.isVehicle()) {
-+                    velocity.add(new Vector(-d0 * 3, 0.0D, -d1 * 3));
-+                }
-+
-+                if (!entity.isVehicle()) {
-+                    entity.push(d0, 0.0D, d1);
-+                }
-+            }
-+        }
-+    }
-+
 +    public Location getLocation() {
 +        return getBukkitPlayer().getLocation();
 +    }
 +
-+    public void setOnFirePackets(boolean onFire) {
-+        entityData.set(new EntityDataAccessor<>(0, EntityDataSerializers.BYTE), onFire ? (byte) 1 : (byte) 0);
-+        var list = entityData.packDirty();
-+        if (list != null) {
-+            sendPacket(new ClientboundSetEntityDataPacket(getId(), list));
-+        }
-+    }
-+
-+    private void fallDamageCheck() {
-+        if (groundTicks != 0 && noFallTicks == 0 && !(oldVelocity.getY() >= -0.8)) {
-+            hurt(this.damageSources().fall(), (float) Math.pow(3.6, -oldVelocity.getY()));
-+        }
-+    }
-+
-+    public void addFriction(double factor) {
-+
-+        double frictionMin = 0.01;
-+        double x = velocity.getX();
-+        double z = velocity.getZ();
-+
-+        velocity.setX(Math.abs(x) < frictionMin ? 0 : x * factor);
-+        velocity.setZ(Math.abs(z) < frictionMin ? 0 : z * factor);
-+    }
 +
 +    private void updateLocation() {
-+        double y;
++        this.velocity = new Vec3(this.xxa, this.yya, this.zza);
 +
-+        MathUtils.clean(velocity); // TODO lag
-+
-+        if (isInWater()) {
-+            y = Math.min(velocity.getY() + 0.1, 0.1);
-+            addFriction(0.8);
-+            velocity.setY(y);
-+        } else {
-+            if (groundTicks != 0) {
-+                velocity.setY(0);
-+                addFriction(0.5);
-+                y = 0;
-+            } else {
-+                y = velocity.getY();
-+                velocity.setY(Math.max(y - 0.1, -3.5));
-+            }
++        if (waterSwim && isInWater()) {
++            this.addDeltaMovement(new Vec3(0, 0.05, 0));
 +        }
 +
-+        this.move(MoverType.SELF, new Vec3(velocity.getX(), y, velocity.getZ()));
++        this.travel(this.velocity);
 +    }
 +
 +    public void faceLocation(@NotNull Location loc) {
@@ -1649,7 +1535,7 @@ index 0000000000000000000000000000000000000000..f5fef14a67d8b4607eb345e35ff3d729
 +
 +    public void jumpFromGround() {
 +        double jumpPower = (double) this.getJumpPower() + this.getJumpBoostPower();
-+        velocity.setY(jumpPower);
++        this.addDeltaMovement(new Vec3(0, jumpPower, 0));
 +    }
 +
 +    public void dropAll() {
@@ -1778,10 +1664,10 @@ index 0000000000000000000000000000000000000000..f5fef14a67d8b4607eb345e35ff3d729
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/Actions.java b/src/main/java/top/leavesmc/leaves/bot/agent/Actions.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..30ae23cbd3b0189b2aca62467a24e0acb65627a7
+index 0000000000000000000000000000000000000000..545adaad40470ef3b71f784e3e87151e96e6ff44
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/Actions.java
-@@ -0,0 +1,52 @@
+@@ -0,0 +1,53 @@
 +package top.leavesmc.leaves.bot.agent;
 +
 +import org.jetbrains.annotations.Contract;
@@ -1811,6 +1697,7 @@ index 0000000000000000000000000000000000000000..30ae23cbd3b0189b2aca62467a24e0ac
 +        register(new LookAction());
 +        register(new FishAction());
 +        register(new AttackSelfAction());
++        register(new SwimAction());
 +    }
 +
 +    public static void register(@NotNull BotAction action) {
@@ -2417,6 +2304,38 @@ index 0000000000000000000000000000000000000000..36d199269afc46783b0815e3887842cd
 +    @Override
 +    public boolean doTick(@NotNull ServerBot bot) {
 +        this.setCancel(true);
++        return true;
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/SwimAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/SwimAction.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..58c815bd0ebfd455fcf4903ee5ced6b81be00982
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/agent/actions/SwimAction.java
+@@ -0,0 +1,26 @@
++package top.leavesmc.leaves.bot.agent.actions;
++
++import net.minecraft.server.level.ServerPlayer;
++import org.jetbrains.annotations.NotNull;
++import top.leavesmc.leaves.bot.ServerBot;
++import top.leavesmc.leaves.bot.agent.BotAction;
++import top.leavesmc.leaves.command.CommandArgument;
++import top.leavesmc.leaves.command.CommandArgumentResult;
++
++public class SwimAction extends BotAction {
++
++    public SwimAction() {
++        super("swim", new CommandArgument());
++    }
++
++    @Override
++    public BotAction getNew(@NotNull ServerPlayer player, @NotNull CommandArgumentResult result) {
++        return this.setTickDelay(0).setNumber(1);
++    }
++
++    @Override
++    public boolean doTick(@NotNull ServerBot bot) {
++        bot.waterSwim = !bot.waterSwim;
 +        return true;
 +    }
 +}

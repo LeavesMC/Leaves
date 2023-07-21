@@ -22,17 +22,22 @@ You can also [build it yourself](https://github.com/LeavesMC/Leaves#building).
 You can visit our [documentation](https://docs.leavesmc.top/leaves) for more information.
 
 ## How To (Plugin developers)
-In order to use Leaves as a dependency you must [build it yourself](https://github.com/LeavesMC/Leaves#building).
-Each time you want to update your dependency, you must re-build Leaves.
-
-Leaves-API maven dependency:
+Leaves-API:
 ```kotlin
+maven {
+    name = 'leavesmc-repo'
+    url = 'https://repo.leavesmc.top/snapshots/'
+}
+
 dependencies {
     compileOnly("top.leavesmc.leaves:leaves-api:1.20.1-R0.1-SNAPSHOT")
 }
  ```
 
-Leaves-Server maven dependency:
+In order to use Leaves as a dependency you must [build it yourself](https://github.com/LeavesMC/Leaves#building).
+Each time you want to update your dependency, you must re-build Leaves.
+
+Leaves-Server:
 ```kotlin
 dependencies {
     compileOnly("top.leavesmc.leaves:leaves:1.20.1-R0.1-SNAPSHOT")

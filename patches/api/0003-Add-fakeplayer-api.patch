@@ -4,6 +4,62 @@ Date: Wed, 27 Jul 2022 15:30:34 +0800
 Subject: [PATCH] Add fakeplayer api
 
 
+diff --git a/src/main/java/org/bukkit/Bukkit.java b/src/main/java/org/bukkit/Bukkit.java
+index b243db56756c67cd2c41d7768898d01539f9260a..99a096e52775a58a38540dfd736b0f57236fd488 100644
+--- a/src/main/java/org/bukkit/Bukkit.java
++++ b/src/main/java/org/bukkit/Bukkit.java
+@@ -57,6 +57,7 @@ import org.jetbrains.annotations.Contract;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+ import io.papermc.paper.util.JarManifests; // Paper
++import top.leavesmc.leaves.entity.BotManager;
+ 
+ /**
+  * Represents the Bukkit core, for version and Server singleton handling
+@@ -2658,6 +2659,17 @@ public final class Bukkit {
+     }
+     // Paper end - Folia region threading API
+ 
++    // Leaves start - Bot API
++    /**
++     * Returns a bot manager.
++     *
++     * @return Bot Manager
++     */
++    public static @NotNull BotManager getBotManager() {
++        return server.getBotManager();
++    }
++    // Leaves end - Bot API
++
+     @NotNull
+     public static Server.Spigot spigot() {
+         return server.spigot();
+diff --git a/src/main/java/org/bukkit/Server.java b/src/main/java/org/bukkit/Server.java
+index 3c4915b8dd1b6e802a5942658b15d3a9db472364..0bfe5628c8327e9cd5728cea7ae6c2ce1ec9541d 100644
+--- a/src/main/java/org/bukkit/Server.java
++++ b/src/main/java/org/bukkit/Server.java
+@@ -57,6 +57,7 @@ import org.bukkit.util.CachedServerIcon;
+ import org.jetbrains.annotations.Contract;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
++import top.leavesmc.leaves.entity.BotManager;
+ 
+ /**
+  * Represents a server implementation.
+@@ -2321,4 +2322,13 @@ public interface Server extends PluginMessageRecipient, net.kyori.adventure.audi
+      */
+     boolean isOwnedByCurrentRegion(@NotNull Entity entity);
+     // Paper end - Folia region threading API
++
++    // Leaves start - Bot API
++    /**
++     * Returns a bot manager.
++     *
++     * @return Bot Manager
++     */
++    @NotNull BotManager getBotManager();
++    // Leaves end - Bot API
+ }
 diff --git a/src/main/java/top/leavesmc/leaves/entity/Bot.java b/src/main/java/top/leavesmc/leaves/entity/Bot.java
 new file mode 100644
 index 0000000000000000000000000000000000000000..8057d1faa66540b8c4042a0f5c0f862e8a39eef1
@@ -36,6 +92,101 @@ index 0000000000000000000000000000000000000000..8057d1faa66540b8c4042a0f5c0f862e
 +     */
 +    @NotNull
 +    public String getRealName();
++}
+diff --git a/src/main/java/top/leavesmc/leaves/entity/BotManager.java b/src/main/java/top/leavesmc/leaves/entity/BotManager.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..d9b2248ef7e080851bf5f1c4539aa6edb3927966
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/entity/BotManager.java
+@@ -0,0 +1,89 @@
++package top.leavesmc.leaves.entity;
++
++import org.bukkit.Location;
++import org.bukkit.util.Consumer;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++import java.util.Collection;
++import java.util.UUID;
++
++/**
++ * Simple fakeplayer manager
++ */
++public interface BotManager {
++
++    /**
++     * Gets a fakeplayer object by the given uuid.
++     *
++     * @param uuid the uuid to look up
++     * @return a fakeplayer if one was found, null otherwise
++     */
++    @Nullable
++    public Bot getBot(@NotNull UUID uuid);
++
++    /**
++     * Gets a fakeplayer object by the given name.
++     *
++     * @param name the name to look up
++     * @return a fakeplayer if one was found, null otherwise
++     */
++    @Nullable
++    public Bot getBot(@NotNull String name);
++
++    /**
++     * Creates a fakeplayer with given param.
++     * <p>
++     * prefix and suffix will not be added.
++     *
++     * @param name fakeplayer name
++     * @param realName fakeplayer real name
++     * @param skin fakeplayer skin arr
++     * @param skinName fakeplayer skin name
++     * @param location a location will create fakeplayer
++     * @return a fakeplayer if success, null otherwise
++     */
++    @Nullable
++    public Bot createBot(@NotNull String name, @NotNull String realName, @Nullable String[] skin, @Nullable String skinName, @NotNull Location location);
++
++    /**
++     * Creates a fakeplayer with given param.
++     *
++     * @param name fakeplayer name
++     * @param skinName fakeplayer skin name
++     * @param location a location will create fakeplayer
++     * @param consumer a consumer after create fakeplayer success
++     */
++    public void createBot(@NotNull String name, @Nullable String skinName, @NotNull Location location, @Nullable Consumer<Bot> consumer);
++
++    /**
++     * Removes a fakeplayer object by the given name.
++     *
++     * @param name the name to look up
++     */
++    public void removeBot(@NotNull String name);
++
++    /**
++     * Removes a fakeplayer object by the given uuid.
++     *
++     * @param uuid the uuid to look up
++     */
++    public void removeBot(@NotNull UUID uuid);
++
++    /**
++     * Removes all fakeplayers.
++     */
++    public void removeAllBots();
++
++    /**
++     * Save fakeplayers data if resident-fakeplayer is true, or remove all fakeplayer.
++     */
++    public void saveOrRemoveAllBots();
++
++    /**
++     * Gets a view of all currently logged in fakeplayers. This view is a reused object, making some operations like Collection.size() zero-allocation.
++     *
++     * @return a view of fakeplayers.
++     */
++    public Collection<Bot> getBots();
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/event/bot/BotCreateEvent.java b/src/main/java/top/leavesmc/leaves/event/bot/BotCreateEvent.java
 new file mode 100644

@@ -67,16 +67,3 @@ paperweight {
         }
     }
 }
-
-allprojects {
-    apply(plugin = "maven-publish")
-
-    publishing {
-        repositories {
-            maven("https://repo.leavesmc.top/snapshots") {
-                name = "leaves"
-                credentials(PasswordCredentials::class)
-            }
-        }
-    }
-}

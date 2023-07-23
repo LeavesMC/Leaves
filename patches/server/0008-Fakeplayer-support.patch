@@ -327,7 +327,7 @@ index fc0dc8e607cc24020106ea1af92b4421a5f9393d..81670f76c4d7ccec6f9e95465687c83b
              }
              // Water Animals
 diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
-index 28c18d02a1d04582e6f0badbc9917e6356bf8532..f621ae9f8a1c1488f4d4c3c98555cd3f4c769b87 100644
+index dd6c1d304914b9387da4b741707878ee1fe38935..8dbc01120e7590bd2c7d3a29e96987ce4909e5e2 100644
 --- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
 +++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
 @@ -7,6 +7,9 @@ import org.bukkit.Bukkit;
@@ -354,13 +354,12 @@ index 28c18d02a1d04582e6f0badbc9917e6356bf8532..f621ae9f8a1c1488f4d4c3c98555cd3f
      public static void load(final YamlConfiguration config) {
 diff --git a/src/main/java/top/leavesmc/leaves/bot/BotCommand.java b/src/main/java/top/leavesmc/leaves/bot/BotCommand.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..16ea90fb1acdb89d7e9fa0f0a2d7cfa870cbe239
+index 0000000000000000000000000000000000000000..4f0b8047bab85d44773cb8843e1affce6cfc1a40
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/BotCommand.java
-@@ -0,0 +1,245 @@
+@@ -0,0 +1,254 @@
 +package top.leavesmc.leaves.bot;
 +
-+import net.minecraft.world.damagesource.DamageSource;
 +import org.bukkit.Bukkit;
 +import org.bukkit.ChatColor;
 +import org.bukkit.Location;
@@ -374,8 +373,8 @@ index 0000000000000000000000000000000000000000..16ea90fb1acdb89d7e9fa0f0a2d7cfa8
 +import org.jetbrains.annotations.NotNull;
 +import top.leavesmc.leaves.bot.agent.Actions;
 +import top.leavesmc.leaves.bot.agent.BotAction;
++import top.leavesmc.leaves.bot.agent.actions.CraftCustomBotAction;
 +import top.leavesmc.leaves.entity.Bot;
-+import top.leavesmc.leaves.util.MathUtils;
 +
 +import java.util.ArrayList;
 +import java.util.HashMap;
@@ -531,7 +530,7 @@ index 0000000000000000000000000000000000000000..16ea90fb1acdb89d7e9fa0f0a2d7cfa8
 +            return;
 +        }
 +
-+        if (!(sender instanceof Player)) {
++        if (!(sender instanceof CraftPlayer player)) {
 +            sender.sendMessage(ChatColor.RED + "This command only can use by player");
 +            return;
 +        }
@@ -548,7 +547,17 @@ index 0000000000000000000000000000000000000000..16ea90fb1acdb89d7e9fa0f0a2d7cfa8
 +            return;
 +        }
 +
-+        BotAction newAction = action.getNew(((CraftPlayer) sender).getHandle(), action.getArgument().parse(3, args));
++        BotAction newAction;
++        if (action instanceof CraftCustomBotAction customBotAction) {
++            String[] realArgs = new String[args.length - 3];
++            if (realArgs.length != 0) {
++                System.arraycopy(args, 3, realArgs, 0, realArgs.length);
++            }
++            newAction = customBotAction.getNew(player, realArgs);
++        } else {
++            newAction = action.getNew(player.getHandle(), action.getArgument().parse(3, args));
++        }
++
 +        if (newAction == null) {
 +            sender.sendMessage(ChatColor.RED + "Action create error, check your arguments");
 +            return;
@@ -1709,10 +1718,10 @@ index 0000000000000000000000000000000000000000..a80777a9b2b6f5cb57671e722b29e60c
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/Actions.java b/src/main/java/top/leavesmc/leaves/bot/agent/Actions.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..545adaad40470ef3b71f784e3e87151e96e6ff44
+index 0000000000000000000000000000000000000000..f39b573fe0e3f21b5ba170c02da052ae86ef055e
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/Actions.java
-@@ -0,0 +1,53 @@
+@@ -0,0 +1,63 @@
 +package top.leavesmc.leaves.bot.agent;
 +
 +import org.jetbrains.annotations.Contract;
@@ -1745,10 +1754,20 @@ index 0000000000000000000000000000000000000000..545adaad40470ef3b71f784e3e87151e
 +        register(new SwimAction());
 +    }
 +
-+    public static void register(@NotNull BotAction action) {
++    public static boolean register(@NotNull BotAction action) {
 +        if (!actions.containsKey(action.getName())) {
 +            actions.put(action.getName(), action);
++            return true;
 +        }
++        return false;
++    }
++
++    public static boolean unregister(@NotNull String name) {
++        if (actions.containsKey(name)) {
++            actions.remove(name);
++            return true;
++        }
++        return false;
 +    }
 +
 +    @NotNull
@@ -2041,6 +2060,56 @@ index 0000000000000000000000000000000000000000..2a3ca671b43fec658bf5cd8a6eb08b47
 +        }
 +
 +        return f;
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/CraftCustomBotAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/CraftCustomBotAction.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..3352c826174e2d33060514fe975d6eab92070fce
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/agent/actions/CraftCustomBotAction.java
+@@ -0,0 +1,44 @@
++package top.leavesmc.leaves.bot.agent.actions;
++
++import net.minecraft.server.level.ServerPlayer;
++import org.bukkit.entity.Player;
++import org.jetbrains.annotations.NotNull;
++import top.leavesmc.leaves.bot.ServerBot;
++import top.leavesmc.leaves.bot.agent.BotAction;
++import top.leavesmc.leaves.command.CommandArgument;
++import top.leavesmc.leaves.command.CommandArgumentResult;
++import top.leavesmc.leaves.entity.botaction.CustomBotAction;
++
++public class CraftCustomBotAction extends BotAction {
++
++    private final CustomBotAction realAction;
++
++    public CraftCustomBotAction(String name, @NotNull CustomBotAction realAction) {
++        super(name, new CommandArgument().setAllTabComplete(realAction.getTabComplete()));
++        this.realAction = realAction;
++    }
++
++    @Override
++    public BotAction getNew(@NotNull ServerPlayer player, @NotNull CommandArgumentResult result) {
++        throw new UnsupportedOperationException("Not supported.");
++    }
++
++    public BotAction getNew(@NotNull Player player, String[] args) {
++        return new CraftCustomBotAction(getName(), realAction.getNew(player, args));
++    }
++
++    @Override
++    public int getNumber() {
++        return realAction.getNumber();
++    }
++
++    @Override
++    public int getTickDelay() {
++        return realAction.getTickDelay();
++    }
++
++    @Override
++    public boolean doTick(@NotNull ServerBot bot) {
++        return realAction.doTick(bot.getBukkitPlayer());
 +    }
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/DropAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/DropAction.java
@@ -2513,18 +2582,49 @@ index 0000000000000000000000000000000000000000..cc8689ee726144f220e4ccc5cd418b79
 +        return false;
 +    }
 +}
+diff --git a/src/main/java/top/leavesmc/leaves/command/CommandArgument.java b/src/main/java/top/leavesmc/leaves/command/CommandArgument.java
+index eadc6d168fb13299348b0c275ae352ee2f1e1ea2..134c6d26acc612bf6142ae6b6885a0ee53d2a196 100644
+--- a/src/main/java/top/leavesmc/leaves/command/CommandArgument.java
++++ b/src/main/java/top/leavesmc/leaves/command/CommandArgument.java
+@@ -32,6 +32,12 @@ public class CommandArgument {
+         return this;
+     }
+ 
++    public CommandArgument setAllTabComplete(List<List<String>> tabComplete) {
++        this.tabComplete.clear();
++        this.tabComplete.addAll(tabComplete);
++        return this;
++    }
++
+     public CommandArgumentResult parse(int index, String @NotNull [] args) {
+         Object[] result = new Object[argumentTypes.size()];
+         Arrays.fill(result, null);
+diff --git a/src/main/java/top/leavesmc/leaves/command/CommandArgumentResult.java b/src/main/java/top/leavesmc/leaves/command/CommandArgumentResult.java
+index 340eaca64c96180b895a075ce9e44402cd104eed..39e90dcff0de259373d7955021c29397c2cc15d5 100644
+--- a/src/main/java/top/leavesmc/leaves/command/CommandArgumentResult.java
++++ b/src/main/java/top/leavesmc/leaves/command/CommandArgumentResult.java
+@@ -58,5 +58,4 @@ public class CommandArgumentResult {
+             return null;
+         }
+     }
+-
+ }
 diff --git a/src/main/java/top/leavesmc/leaves/entity/CraftBot.java b/src/main/java/top/leavesmc/leaves/entity/CraftBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..7c436136a1f2a61978fbf992b90312a3b2321cfe
+index 0000000000000000000000000000000000000000..1346cfaafdb0c3a467b3619fd42286742e4e9f36
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/entity/CraftBot.java
-@@ -0,0 +1,37 @@
+@@ -0,0 +1,54 @@
 +package top.leavesmc.leaves.entity;
 +
 +import org.bukkit.craftbukkit.CraftServer;
 +import org.bukkit.craftbukkit.entity.CraftPlayer;
++import org.bukkit.entity.Player;
 +import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
 +import top.leavesmc.leaves.bot.ServerBot;
++import top.leavesmc.leaves.bot.agent.Actions;
++import top.leavesmc.leaves.bot.agent.BotAction;
 +
 +public class CraftBot extends CraftPlayer implements Bot {
 +
@@ -2543,6 +2643,19 @@ index 0000000000000000000000000000000000000000..7c436136a1f2a61978fbf992b90312a3
 +    }
 +
 +    @Override
++    public boolean setBotAction(@NotNull String action, @NotNull Player player, @NotNull String[] args) {
++        BotAction botAction = Actions.getForName(action);
++        if (botAction != null) {
++            BotAction newAction = botAction.getNew(((CraftPlayer) player).getHandle(), botAction.getArgument().parse(0, args));
++            if (newAction != null) {
++                getHandle().setBotAction(newAction);
++                return true;
++            }
++        }
++        return false;
++    }
++
++    @Override
 +    public ServerBot getHandle() {
 +        return (ServerBot) entity;
 +    }
@@ -2558,10 +2671,10 @@ index 0000000000000000000000000000000000000000..7c436136a1f2a61978fbf992b90312a3
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/entity/CraftBotManager.java b/src/main/java/top/leavesmc/leaves/entity/CraftBotManager.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..35a9c428432a65825a4712939574df5301bf2248
+index 0000000000000000000000000000000000000000..4586e7569fa17f12905046d82afe0b1909affe2c
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/entity/CraftBotManager.java
-@@ -0,0 +1,83 @@
+@@ -0,0 +1,96 @@
 +package top.leavesmc.leaves.entity;
 +
 +import com.google.common.base.Function;
@@ -2571,6 +2684,9 @@ index 0000000000000000000000000000000000000000..35a9c428432a65825a4712939574df53
 +import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
 +import top.leavesmc.leaves.bot.ServerBot;
++import top.leavesmc.leaves.bot.agent.Actions;
++import top.leavesmc.leaves.bot.agent.actions.CraftCustomBotAction;
++import top.leavesmc.leaves.entity.botaction.CustomBotAction;
 +
 +import java.util.Collection;
 +import java.util.Collections;
@@ -2643,6 +2759,16 @@ index 0000000000000000000000000000000000000000..35a9c428432a65825a4712939574df53
 +    @Override
 +    public Collection<Bot> getBots() {
 +        return botViews;
++    }
++
++    @Override
++    public boolean registerCustomBotAction(String name, CustomBotAction action) {
++        return Actions.register(new CraftCustomBotAction(name, action));
++    }
++
++    @Override
++    public boolean unregisterCustomBotAction(String name) {
++        return Actions.unregister(name);
 +    }
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/util/MathUtils.java b/src/main/java/top/leavesmc/leaves/util/MathUtils.java

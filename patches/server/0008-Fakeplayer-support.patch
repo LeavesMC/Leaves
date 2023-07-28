@@ -205,10 +205,10 @@ index fff7ad7a45f310783ac96b44575ad3db13d537fa..c09c25b6594d4f6a937c6bbb80a75977
 +    // Leaves end - fakeplayer support
  }
 diff --git a/src/main/java/net/minecraft/world/entity/Entity.java b/src/main/java/net/minecraft/world/entity/Entity.java
-index 0d59e39b321f0fb4fdd927f5bf2eed3b70d72aaf..a12a05c0007e642185d1042459a41922761180c1 100644
+index 1d76aae6657bb45b540644f7967f04cef24c9992..9ef072985e103cb07545c92e8dd22d6e07325f72 100644
 --- a/src/main/java/net/minecraft/world/entity/Entity.java
 +++ b/src/main/java/net/minecraft/world/entity/Entity.java
-@@ -1416,7 +1416,7 @@ public abstract class Entity implements Nameable, EntityAccess, CommandSource {
+@@ -1415,7 +1415,7 @@ public abstract class Entity implements Nameable, EntityAccess, CommandSource {
          return offsetFactor;
      }
  
@@ -327,7 +327,7 @@ index fc0dc8e607cc24020106ea1af92b4421a5f9393d..81670f76c4d7ccec6f9e95465687c83b
              }
              // Water Animals
 diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
-index dd6c1d304914b9387da4b741707878ee1fe38935..8dbc01120e7590bd2c7d3a29e96987ce4909e5e2 100644
+index f0424eba1d6e01c13497a15c858c4e90ae1a85a5..3ba91c1beb62dda928c4d5c965a9255733c545ae 100644
 --- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
 +++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
 @@ -7,6 +7,9 @@ import org.bukkit.Bukkit;
@@ -1071,10 +1071,10 @@ index 0000000000000000000000000000000000000000..daaece30b2a3983f1cc9ee9a851e8f37
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/ServerBot.java b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..c8e6235e0b35036c75c11df0a7c9bc62a71b1804
+index 0000000000000000000000000000000000000000..c89e92ed23afe9f9b11113e1bceaa4eb18c9f64d
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
-@@ -0,0 +1,642 @@
+@@ -0,0 +1,657 @@
 +package top.leavesmc.leaves.bot;
 +
 +import com.google.common.collect.Lists;
@@ -1109,6 +1109,7 @@ index 0000000000000000000000000000000000000000..c8e6235e0b35036c75c11df0a7c9bc62
 +import net.minecraft.world.entity.Entity;
 +import net.minecraft.world.entity.EntityType;
 +import net.minecraft.world.entity.EquipmentSlot;
++import net.minecraft.world.entity.ai.attributes.Attributes;
 +import net.minecraft.world.entity.item.ItemEntity;
 +import net.minecraft.world.entity.player.Player;
 +import net.minecraft.world.inventory.ChestMenu;
@@ -1169,6 +1170,7 @@ index 0000000000000000000000000000000000000000..c8e6235e0b35036c75c11df0a7c9bc62
 +    private int noActionTicks;
 +    private int doActionNumber;
 +    public boolean waterSwim;
++    private Vec3 knockback;
 +
 +    private final ServerStatsCounter stats;
 +    public final String skinName;
@@ -1201,6 +1203,7 @@ index 0000000000000000000000000000000000000000..c8e6235e0b35036c75c11df0a7c9bc62
 +        this.fauxSleeping = LeavesConfig.fakeplayerSkipSleep;
 +        this.realName = realName;
 +        this.waterSwim = true;
++        this.knockback = Vec3.ZERO;
 +    }
 +
 +    public static void createBot(Location loc, String name, String skinName, Consumer<ServerBot> consumer) {
@@ -1536,6 +1539,16 @@ index 0000000000000000000000000000000000000000..c8e6235e0b35036c75c11df0a7c9bc62
 +        return getBukkitPlayer().getLocation();
 +    }
 +
++    @Override
++    public void knockback(double strength, double x, double z, Entity knockingBackEntity) {
++        strength *= 1.0D - this.getAttributeValue(Attributes.KNOCKBACK_RESISTANCE);
++        if (strength > 0.0D) {
++            this.hasImpulse = true;
++            Vec3 vec3d = this.getDeltaMovement();
++            Vec3 vec3d1 = (new Vec3(x, 0.0D, z)).normalize().scale(strength);
++            knockback = new Vec3(vec3d.x / 2.0D - vec3d1.x, this.onGround() ? Math.min(0.4D, vec3d.y / 2.0D + strength) : vec3d.y, vec3d.z / 2.0D - vec3d1.z);
++        }
++    }
 +
 +    private void updateLocation() {
 +        this.velocity = new Vec3(this.xxa, this.yya, this.zza);
@@ -1543,6 +1556,8 @@ index 0000000000000000000000000000000000000000..c8e6235e0b35036c75c11df0a7c9bc62
 +        if (waterSwim && isInWater()) {
 +            this.addDeltaMovement(new Vec3(0, 0.05, 0));
 +        }
++        this.addDeltaMovement(knockback);
++        knockback = Vec3.ZERO;
 +
 +        this.travel(this.velocity);
 +    }
@@ -1719,10 +1734,10 @@ index 0000000000000000000000000000000000000000..c8e6235e0b35036c75c11df0a7c9bc62
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/Actions.java b/src/main/java/top/leavesmc/leaves/bot/agent/Actions.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..f39b573fe0e3f21b5ba170c02da052ae86ef055e
+index 0000000000000000000000000000000000000000..c8490bcb9108d72281338f0a3f806586986ee2d9
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/Actions.java
-@@ -0,0 +1,63 @@
+@@ -0,0 +1,64 @@
 +package top.leavesmc.leaves.bot.agent;
 +
 +import org.jetbrains.annotations.Contract;
@@ -1753,6 +1768,7 @@ index 0000000000000000000000000000000000000000..f39b573fe0e3f21b5ba170c02da052ae
 +        register(new FishAction());
 +        register(new AttackSelfAction());
 +        register(new SwimAction());
++        register(new LayAction());
 +    }
 +
 +    public static boolean register(@NotNull BotAction action) {
@@ -2264,6 +2280,42 @@ index 0000000000000000000000000000000000000000..d99f667992e45e85c0fe0bd74682d563
 +        } else {
 +            return false;
 +        }
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/LayAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/LayAction.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..b1d8e632686709c2425794ed28b694cf38984ab7
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/agent/actions/LayAction.java
+@@ -0,0 +1,30 @@
++package top.leavesmc.leaves.bot.agent.actions;
++
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.world.entity.Pose;
++import org.jetbrains.annotations.NotNull;
++import top.leavesmc.leaves.bot.ServerBot;
++import top.leavesmc.leaves.bot.agent.BotAction;
++import top.leavesmc.leaves.command.CommandArgument;
++import top.leavesmc.leaves.command.CommandArgumentResult;
++
++public class LayAction extends BotAction {
++
++    public LayAction() {
++        super("lay", new CommandArgument());
++    }
++
++    @Override
++    public BotAction getNew(@NotNull ServerPlayer player, @NotNull CommandArgumentResult result) {
++        return this.setTickDelay(0).setNumber(1);
++    }
++
++    @Override
++    public boolean doTick(@NotNull ServerBot bot) {
++        if (bot.isShiftKeyDown()) {
++            bot.setShiftKeyDown(false);
++        }
++        bot.setPose(bot.getPose() != Pose.FALL_FLYING ? Pose.FALL_FLYING : Pose.STANDING);
++        return true;
 +    }
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/LookAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/LookAction.java

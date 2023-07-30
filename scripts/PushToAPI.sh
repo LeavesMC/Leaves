@@ -19,7 +19,7 @@ fi
 promoted=false
 
 number=$(git log --oneline master ^`git describe --tags --abbrev=0` | wc -l)
-changes=$(echo "(git log --pretty='%H<<<%s>>>' -number)" | sed 's/\\n/\\\\n/g')
+changes=$(git log --pretty='%H<<<%s>>>' -"$number" | sed 's/\\n/\\\\n/g')
 jar_name="leaves-$mcversion.jar"
 jar_sha256=`sha256 $jar_name`
 
@@ -44,4 +44,6 @@ data=$(cat <<EOF
 EOF
 )
 
-curl -X POST -H "Content-Type: application/json" -d "$data" https://api.leavesmc.top/new_release
+echo $data >> "a.json"
+
+# curl -X POST -H "Content-Type: application/json" -d "$data" https://api.leavesmc.top/new_release

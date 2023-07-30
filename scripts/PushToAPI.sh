@@ -23,9 +23,6 @@ changes=$(git log --pretty='%H<<<%s>>>' -"$number" | sed 's/\\n/\\\\n/g')
 jar_name="leaves-$mcversion.jar"
 jar_sha256=`sha256 $jar_name`
 
-data=$(cat <<EOF
-{"project_id":"$project_id","project_name":"$project_name","version":"$mcversion","time":"$ctime","channel":"$channel","promoted":$promoted,"changes":"$changes","downloads":{"application":{"name":"$jar_name","sha256":"$jar_sha256","url":"https://github.com/LeavesMC/Leaves/releases/download/$tag/$jar_name"}},"secret":"$secret"}
-EOF
-)
+echo {"project_id":"$project_id","project_name":"$project_name","version":"$mcversion","time":"$ctime","channel":"$channel","promoted":$promoted,"changes":"$changes","downloads":{"application":{"name":"$jar_name","sha256":"$jar_sha256","url":"https://github.com/LeavesMC/Leaves/releases/download/$tag/$jar_name"}},"secret":"$secret"} > postData.json
 
-curl -X POST -H "Content-Type: application/json" -d $data https://api.leavesmc.top/new_release
+curl -X POST -H "Content-Type: application/json" -d @postData.json https://api.leavesmc.top/new_release

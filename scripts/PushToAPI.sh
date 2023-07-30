@@ -24,23 +24,7 @@ jar_name="leaves-$mcversion.jar"
 jar_sha256=`sha256 $jar_name`
 
 data=$(cat <<EOF
-'{
-    "project_id": "$project_id",
-    "project_name": "$project_name",
-    "version": "$mcversion",
-    "time": "$ctime",
-    "channel": "$channel",
-    "promoted": $promoted,
-    "changes": "$changes",
-    "downloads": {
-        "application": {
-            "name": "$jar_name",
-            "sha256": "$jar_sha256",
-            "url": "https://github.com/LeavesMC/Leaves/releases/download/$tag/$jar_name"
-        }
-    },
-    "secret": "$secret"
-}'
+{"project_id":"$project_id","project_name":"$project_name","version":"$mcversion","time":"$ctime","channel":"$channel","promoted":$promoted,"changes":"$changes","downloads":{"application":{"name":"$jar_name","sha256":"$jar_sha256","url":"https://github.com/LeavesMC/Leaves/releases/download/$tag/$jar_name"}},"secret":"$secret"}
 EOF
 )
 

@@ -24,7 +24,7 @@ jar_name="leaves-$mcversion.jar"
 jar_sha256=`sha256 $jar_name`
 
 data=$(cat <<EOF
-{
+'{
     "project_id": "$project_id",
     "project_name": "$project_name",
     "version": "$mcversion",
@@ -40,8 +40,8 @@ data=$(cat <<EOF
         }
     },
     "secret": "$secret"
-}
+}'
 EOF
 )
 
-curl -X POST -H "Content-Type: application/json" -d '$data' https://api.leavesmc.top/new_release
+curl -X POST -H "Content-Type: application/json" -d $data https://api.leavesmc.top/new_release

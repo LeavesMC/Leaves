@@ -19,7 +19,7 @@ fi
 promoted=false
 
 number=$(git log --oneline master ^`git describe --tags --abbrev=0` | wc -l)
-changes=$(git log --pretty='%H<<<%s>>>' -"$number" | sed 's/\\n/\\\\n/g')
+changes=$(git log --pretty='%H<<<%s>>>' -"$number" | sed ':a;N;$!ba;s/\n//g')
 jar_name="leaves-$mcversion.jar"
 jar_sha256=`sha256 $jar_name`
 

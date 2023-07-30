@@ -44,6 +44,4 @@ data=$(cat <<EOF
 EOF
 )
 
-echo $data >> "a.json"
-
-# curl -X POST -H "Content-Type: application/json" -d "$data" https://api.leavesmc.top/new_release
+curl -X POST -H "Content-Type: application/json" -d "$data" https://api.leavesmc.top/new_release

@@ -7,7 +7,7 @@ plugins {
 
 repositories {
     mavenCentral()
-    maven("https://papermc.io/repo/repository/maven-public/") {
+    maven("https://repo.leavesmc.top/releases") {
         content { onlyForConfigurations("paperclip") }
     }
 }
@@ -15,7 +15,7 @@ repositories {
 dependencies {
     remapper("net.fabricmc:tiny-remapper:0.8.6:fat")
     decompiler("net.minecraftforge:forgeflower:2.0.627.2")
-    paperclip("io.papermc:paperclip:3.0.3")
+    paperclip("top.leavesmc:leavesclip:1.0.2")
 }
 
 subprojects {

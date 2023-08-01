@@ -24,3 +24,4 @@ jar_name="leaves-$mcversion.jar"
 jar_sha256=`sha256 $jar_name`
 
 curl --location --request POST "https://api.leavesmc.top/new_release" --header "Content-Type: application/json" --data-raw "{\"project_id\":\"$project_id\",\"project_name\":\"$project_name\",\"version\":\"$mcversion\",\"time\":\"$ctime\",\"channel\":\"$channel\",\"promoted\":$promoted,\"changes\":\"$changes\",\"downloads\":{\"application\":{\"name\":\"$jar_name\",\"sha256\":\"$jar_sha256\",\"url\":\"https://github.com/LeavesMC/Leaves/releases/download/$tag/$jar_name\"}},\"secret\":\"$secret\"}"
+curl --location --request POST "https://dev.api.leavesmc.xor7.cn/v2/commit/build" --header "Content-Type: application/json" --header "Authentication: Bearer $api_token" --data-raw "{\"project_id\":\"$project_id\",\"version\":\"$mcversion\",\"channel\":\"$channel\",\"changes\":\"$changes\",\"jar_name\":\"$jar_name\",\"sha256\":\"$jar_sha256\",\"tag\":\"$tag\"}"

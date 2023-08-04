@@ -97,10 +97,10 @@ index 0000000000000000000000000000000000000000..46a86cfce4aa859b8de7c126c22f64a9
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/replay/Recorder.java b/src/main/java/top/leavesmc/leaves/replay/Recorder.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..ed4a373260959fa7155c02765932f9902d946590
+index 0000000000000000000000000000000000000000..838fbb9b4c55a40a57d53148abb4b952cd49aa55
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/replay/Recorder.java
-@@ -0,0 +1,211 @@
+@@ -0,0 +1,216 @@
 +package top.leavesmc.leaves.replay;
 +
 +import net.minecraft.SharedConstants;
@@ -211,6 +211,11 @@ index 0000000000000000000000000000000000000000..ed4a373260959fa7155c02765932f990
 +            return lastPacket;
 +        }
 +        return lastPacket = now;
++    }
++
++    @Override
++    public boolean isConnected() {
++        return true;
 +    }
 +
 +    @Override
@@ -359,10 +364,10 @@ index 0000000000000000000000000000000000000000..fdf46f1a7e3a1cf500ca5df0fd984205
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/replay/ReplayFile.java b/src/main/java/top/leavesmc/leaves/replay/ReplayFile.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..9f01d984f22a6be3eb4c3a49c6f5a21472f890b9
+index 0000000000000000000000000000000000000000..3c64052f0e4956de2ba3b3054900c2512ee74171
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/replay/ReplayFile.java
-@@ -0,0 +1,128 @@
+@@ -0,0 +1,139 @@
 +package top.leavesmc.leaves.replay;
 +
 +import com.google.gson.Gson;
@@ -389,6 +394,7 @@ index 0000000000000000000000000000000000000000..9f01d984f22a6be3eb4c3a49c6f5a214
 +import java.io.Writer;
 +import java.nio.charset.StandardCharsets;
 +import java.nio.file.Files;
++import java.util.List;
 +import java.util.UUID;
 +import java.util.zip.CRC32;
 +import java.util.zip.ZipEntry;
@@ -398,14 +404,17 @@ index 0000000000000000000000000000000000000000..9f01d984f22a6be3eb4c3a49c6f5a214
 +
 +    private static final String RECORDING_FILE = "recording.tmcpr";
 +    private static final String RECORDING_FILE_CRC32 = "recording.tmcpr.crc32";
++    private static final String MARKER_FILE = "markers.json";
 +    private static final String META_FILE = "metaData.json";
 +
++    private static final Gson MARKER_GSON = new GsonBuilder().registerTypeAdapter(ReplayMarker.class, new ReplayMarker.Serializer()).create();
 +    private static final Gson META_GSON = new GsonBuilder().registerTypeAdapter(UUID.class, new UUIDSerializer()).create();
 +
 +    private final File tmpDir;
 +    private final DataOutputStream packetStream;
 +    private final CRC32 crc32 = new CRC32();
 +
++    private final File markerFile;
 +    private final File metaFile;
 +
 +    public ReplayFile(@NotNull File name) throws IOException {
@@ -418,6 +427,7 @@ index 0000000000000000000000000000000000000000..9f01d984f22a6be3eb4c3a49c6f5a214
 +
 +        File packetFile = new File(tmpDir, RECORDING_FILE);
 +        metaFile = new File(tmpDir, META_FILE);
++        markerFile = new File(tmpDir, MARKER_FILE);
 +
 +        packetStream = new DataOutputStream(new DigestOutputStream(new BufferedOutputStream(new FileOutputStream(packetFile)), crc32));
 +    }
@@ -435,6 +445,12 @@ index 0000000000000000000000000000000000000000..9f01d984f22a6be3eb4c3a49c6f5a214
 +        buf.readBytes(ret);
 +        buf.release();
 +        return ret;
++    }
++
++    public void saveMarkers(List<ReplayMarker> markers) throws IOException {
++        try (Writer writer = new OutputStreamWriter(new FileOutputStream(markerFile), StandardCharsets.UTF_8)){
++            writer.write(MARKER_GSON.toJson(markers));
++        }
 +    }
 +
 +    public void saveMetaData(@NotNull RecordMetaData data) throws IOException {
@@ -489,6 +505,55 @@ index 0000000000000000000000000000000000000000..9f01d984f22a6be3eb4c3a49c6f5a214
 +            out.write(buffer, 0, len);
 +        }
 +        in.close();
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/replay/ReplayMarker.java b/src/main/java/top/leavesmc/leaves/replay/ReplayMarker.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..852f2098d93d4437fe79af06e454d8494b6decf1
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/replay/ReplayMarker.java
+@@ -0,0 +1,43 @@
++package top.leavesmc.leaves.replay;
++
++import com.google.gson.JsonElement;
++import com.google.gson.JsonObject;
++import com.google.gson.JsonPrimitive;
++import com.google.gson.JsonSerializationContext;
++import com.google.gson.JsonSerializer;
++
++import java.lang.reflect.Type;
++
++public class ReplayMarker {
++
++    public int time;
++    public String name;
++    public double x = 0;
++    public double y = 0;
++    public double z = 0;
++    public float phi = 0;
++    public float theta = 0;
++    public float varphi = 0;
++
++    public static class Serializer implements JsonSerializer<ReplayMarker> {
++        @Override
++        public JsonElement serialize(ReplayMarker src, Type typeOfSrc, JsonSerializationContext context) {
++            JsonObject ret = new JsonObject();
++            JsonObject value = new JsonObject();
++            JsonObject position = new JsonObject();
++            ret.add("realTimestamp", new JsonPrimitive(src.time));
++            ret.add("value", value);
++
++            value.add("name", new JsonPrimitive(src.name));
++            value.add("position", position);
++
++            position.add("x", new JsonPrimitive(src.x));
++            position.add("y", new JsonPrimitive(src.y));
++            position.add("z", new JsonPrimitive(src.z));
++            position.add("yaw", new JsonPrimitive(src.phi));
++            position.add("pitch", new JsonPrimitive(src.theta));
++            position.add("roll", new JsonPrimitive(src.varphi));
++            return ret;
++        }
 +    }
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/util/UUIDSerializer.java b/src/main/java/top/leavesmc/leaves/util/UUIDSerializer.java

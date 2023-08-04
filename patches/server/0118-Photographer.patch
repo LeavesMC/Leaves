@@ -1,0 +1,356 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Thu, 3 Aug 2023 20:36:38 +0800
+Subject: [PATCH] Photographer
+
+
+diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+index 337c9851d22aa45d2f68d770ea8850e81b86f9fd..62846743c0424ec1c6a4262b4d611d18f53d3363 100644
+--- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
++++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+@@ -4,21 +4,20 @@ import com.destroystokyo.paper.util.SneakyThrow;
+ import com.google.common.base.Throwables;
+ import io.papermc.paper.configuration.GlobalConfiguration;
+ import net.minecraft.server.MinecraftServer;
+-import net.minecraft.world.level.block.Blocks;
+-import net.minecraft.world.level.material.PushReaction;
+ import org.bukkit.Bukkit;
+ import org.bukkit.command.Command;
+ import org.bukkit.configuration.ConfigurationSection;
+ import org.bukkit.configuration.file.YamlConfiguration;
+-import top.leavesmc.leaves.command.LeavesCommand;
+ import top.leavesmc.leaves.bot.BotCommand;
+ import top.leavesmc.leaves.bot.agent.Actions;
++import top.leavesmc.leaves.command.LeavesCommand;
+ import top.leavesmc.leaves.command.NoBlockUpdateCommand;
+ import top.leavesmc.leaves.profile.LeavesMinecraftSessionService;
+-import top.leavesmc.leaves.protocol.syncmatica.SyncmaticaProtocol;
+-import top.leavesmc.leaves.util.MathUtils;
+ import top.leavesmc.leaves.protocol.CarpetServerProtocol.CarpetRule;
+ import top.leavesmc.leaves.protocol.CarpetServerProtocol.CarpetRules;
++import top.leavesmc.leaves.protocol.syncmatica.SyncmaticaProtocol;
++import top.leavesmc.leaves.replay.PhotographerCommand;
++import top.leavesmc.leaves.util.MathUtils;
+ 
+ import java.io.File;
+ import java.lang.reflect.InvocationTargetException;
+@@ -27,8 +26,8 @@ import java.lang.reflect.Modifier;
+ import java.util.HashMap;
+ import java.util.List;
+ import java.util.Map;
+-import java.util.logging.Level;
+ import java.util.Random;
++import java.util.logging.Level;
+ 
+ // Powered by Tuinity(https://github.com/Tuinity/Tuinity)
+ 
+@@ -86,6 +85,8 @@ public final class LeavesConfig {
+             Actions.registerAll();
+         }
+ 
++        commands.put("photographer",new PhotographerCommand("photographer"));
++
+         if (LeavesConfig.noBlockUpdateCommand) {
+             commands.put("blockupdate", new NoBlockUpdateCommand("blockupdate"));
+         }
+diff --git a/src/main/java/top/leavesmc/leaves/replay/Photographer.java b/src/main/java/top/leavesmc/leaves/replay/Photographer.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..1cf7022d56626779bb9fe8174beeb1738499acfa
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/replay/Photographer.java
+@@ -0,0 +1,4 @@
++package top.leavesmc.leaves.replay;
++
++public class Photographer {
++}
+diff --git a/src/main/java/top/leavesmc/leaves/replay/PhotographerCommand.java b/src/main/java/top/leavesmc/leaves/replay/PhotographerCommand.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..1d5a115658bbb8e01f1830c2fad2fdb69dacc01b
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/replay/PhotographerCommand.java
+@@ -0,0 +1,126 @@
++package top.leavesmc.leaves.replay;
++
++import org.bukkit.Bukkit;
++import org.bukkit.ChatColor;
++import org.bukkit.Location;
++import org.bukkit.World;
++import org.bukkit.command.Command;
++import org.bukkit.command.CommandSender;
++import org.bukkit.command.ConsoleCommandSender;
++import org.bukkit.entity.Player;
++import org.jetbrains.annotations.NotNull;
++
++import java.util.ArrayList;
++import java.util.List;
++
++public class PhotographerCommand extends Command {
++
++    public PhotographerCommand(String name) {
++        super(name);
++        this.description = "Photographer Command";
++        this.usageMessage = "/photographer [create]";
++        this.setPermission("bukkit.command.photographer");
++    }
++
++    @Override
++    public @NotNull List<String> tabComplete(@NotNull CommandSender sender, @NotNull String alias, String @NotNull [] args, Location location) throws IllegalArgumentException {
++        var list = new ArrayList<String>();
++
++        if (args.length <= 1) {
++            list.add("create");
++        }
++
++        if (args.length == 2) {
++            switch (args[0]) {
++                case "create" -> list.add("<PhotographerName>");
++            }
++        }
++
++        return list;
++    }
++
++    @Override
++    public boolean execute(@NotNull CommandSender sender, @NotNull String commandLabel, String[] args) {
++        if (!testPermission(sender)) return true;
++
++        if (args.length == 0) {
++            sender.sendMessage(ChatColor.RED + "Usage: " + usageMessage);
++            return false;
++        }
++
++        switch (args[0]) {
++            case "create" -> this.onCreate(sender, args);
++
++            default -> {
++                sender.sendMessage(ChatColor.RED + "Usage: " + usageMessage);
++                return false;
++            }
++        }
++
++        return true;
++    }
++
++    private void onCreate(CommandSender sender, String @NotNull [] args) {
++        if (args.length < 2) {
++            sender.sendMessage(ChatColor.RED + "Use /photographer create <name> to create a photographer");
++            return;
++        }
++
++        if (canCreate(sender, args[1])) {
++            if (sender instanceof Player player) {
++                new ServerPhotographer.PhotographerCreateState(player.getLocation(), args[1]).createSync();
++            } else if (sender instanceof ConsoleCommandSender) {
++                if (args.length < 5) {
++                    sender.sendMessage(ChatColor.RED + "Use /photographer create <name> <bukkit_world_name> <x> <y> <z> to create a photographer");
++                    return;
++                }
++
++                try {
++                    World world = Bukkit.getWorld(args[2]);
++                    double x = Double.parseDouble(args[3]);
++                    double y = Double.parseDouble(args[4]);
++                    double z = Double.parseDouble(args[5]);
++
++                    if (world != null) {
++                        new ServerPhotographer.PhotographerCreateState(new Location(world, x, y, z), args[1]).createSync();
++                    }
++                } catch (Exception e) {
++                    e.printStackTrace();
++                }
++            }
++        }
++    }
++
++    private boolean canCreate(CommandSender sender, @NotNull String name) {
++        if (!name.matches("^[a-zA-Z0-9_]{4,16}$")) {
++            sender.sendMessage(ChatColor.RED + "This name is illegal");
++            return false;
++        }
++//
++//        if (Bukkit.getPlayer(name) != null || ServerBot.getBot(name) != null) {
++//            sender.sendMessage(ChatColor.RED + "This player is in server");
++//            return false;
++//        }
++//
++//        if (top.leavesmc.leaves.LeavesConfig.unableFakeplayerNames.contains(name)) {
++//            sender.sendMessage(ChatColor.RED + "This name is not allowed");
++//            return false;
++//        }
++//
++//        if (ServerBot.getBots().size() >= top.leavesmc.leaves.LeavesConfig.fakeplayerLimit) {
++//            sender.sendMessage(ChatColor.RED + "Photographer limit is full");
++//            return false;
++//        }
++
++        return true;
++    }
++
++    @NotNull
++    private static String formatPlayerNameList(@NotNull List<String> list) {
++        if (list.isEmpty()) {
++            return "";
++        }
++        String string = list.toString();
++        return string.substring(1, string.length() - 1);
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/replay/PhotographerUtil.java b/src/main/java/top/leavesmc/leaves/replay/PhotographerUtil.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..12f91e0484de248670f23fce3be867c21d49b4a5
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/replay/PhotographerUtil.java
+@@ -0,0 +1,15 @@
++package top.leavesmc.leaves.replay;
++
++import com.google.common.base.Charsets;
++import org.jetbrains.annotations.Contract;
++import org.jetbrains.annotations.NotNull;
++
++import java.util.UUID;
++
++public class PhotographerUtil {
++    @Contract("_ -> new")
++    @NotNull
++    public static UUID getPhotographerUUID(ServerPhotographer.@NotNull PhotographerCreateState state) {
++        return UUID.nameUUIDFromBytes(("Photographer:" + state.id).getBytes(Charsets.UTF_8));
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/replay/ServerPhotographer.java b/src/main/java/top/leavesmc/leaves/replay/ServerPhotographer.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..a7f7a6ece923eac629ae8803b42cceca070fa125
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/replay/ServerPhotographer.java
+@@ -0,0 +1,132 @@
++package top.leavesmc.leaves.replay;
++
++import com.mojang.authlib.GameProfile;
++import net.minecraft.server.MinecraftServer;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.world.level.GameType;
++import org.bukkit.Bukkit;
++import org.bukkit.Location;
++import org.bukkit.craftbukkit.CraftWorld;
++import org.bukkit.craftbukkit.scheduler.MinecraftInternalPlugin;
++import org.bukkit.plugin.Plugin;
++import org.jetbrains.annotations.NotNull;
++
++import java.io.File;
++import java.io.IOException;
++import java.util.List;
++import java.util.UUID;
++import java.util.concurrent.CompletableFuture;
++import java.util.concurrent.CopyOnWriteArrayList;
++import java.util.function.Consumer;
++
++import static top.leavesmc.leaves.bot.ServerBot.isCreateLegal;
++
++public class ServerPhotographer extends ServerPlayer {
++
++    private static final Plugin MINECRAFT_PLUGIN = new MinecraftInternalPlugin();
++    private static final List<ServerPhotographer> photographers = new CopyOnWriteArrayList<>();
++
++    public PhotographerCreateState createState;
++
++    private Recorder recorder;
++
++    private ServerPhotographer(MinecraftServer server, ServerLevel world, GameProfile profile) {
++        super(server, world, profile);
++    }
++
++    public static ServerPhotographer createPhotographer(@NotNull PhotographerCreateState state) throws IOException {
++        if (!isCreateLegal(state.id)) {
++            return null;
++        }
++
++        MinecraftServer server = MinecraftServer.getServer();
++
++        ServerLevel world = ((CraftWorld) state.loc.getWorld()).getHandle();
++        GameProfile profile = new GameProfile(UUID.randomUUID(), state.id);
++
++        ServerPhotographer photographer = new ServerPhotographer(server, world, profile);
++        photographer.recorder = new Recorder(photographer, RecorderOption.createDefaultOption(), new File("replay" + File.separator + state.id + "-cache")); // TODO 更改缓存位置
++        photographer.createState = state;
++
++        photographer.recorder.start();
++        MinecraftServer.getServer().getPlayerList().placeNewPlayer(photographer.recorder, photographer); // 愚蠢的遗留代码
++        photographer.setGameMode(GameType.SPECTATOR);
++        photographer.setInvisible(true);// 不知道有没有用
++        photographer.serverLevel().chunkSource.move(photographer);
++
++        // TODO 动态视距
++
++        /* move to placeNewPlayer
++        photographer.teleportTo(state.loc.getX(), state.loc.getY(), state.loc.getZ());
++        photographer.setRot(state.loc.getYaw(), state.loc.getPitch());
++        photographer.getBukkitEntity().setRotation(state.loc.getYaw(), state.loc.getPitch());
++        world.addFreshEntity(photographer, CreatureSpawnEvent.SpawnReason.COMMAND);
++         */
++
++        return photographer;
++    }
++
++    @Override
++    public void tick() {
++        // 每10tick同步一次玩家位置
++        if (this.server.getTickCount() % 10 == 0) {
++            connection.resetPosition();
++            this.serverLevel().chunkSource.move(this);
++        }
++
++        // 父类
++        super.tick();
++        super.doTick();
++    }
++
++    @Override
++    public void remove(RemovalReason reason) {
++        super.remove(reason);
++        remove(true);
++    }
++
++    public void remove(boolean async) {
++        recorder.stop();
++        if (!recorder.isSaved()) {
++            final File saveFile = new File("replay", createState.id + ".mcpr");
++            CompletableFuture<Void> future = recorder.saveRecording(saveFile);
++            if (!async) {
++                future.join();
++            }
++        }
++    }
++
++    public static class PhotographerCreateState {
++
++        public Location loc;
++        public final String id;
++
++        public PhotographerCreateState(Location loc, String id) {
++            this.loc = loc;
++            this.id = id;
++        }
++
++        public void createSync() {
++            try {
++                ServerPhotographer serverPhotographer = createPhotographer(this);
++            } catch (IOException e) {
++                e.printStackTrace();
++            }
++        }
++
++        public void createAsync(Consumer<ServerPhotographer> consumer) {
++            Bukkit.getScheduler().runTaskAsynchronously(MINECRAFT_PLUGIN, () ->
++                Bukkit.getScheduler().runTask(MINECRAFT_PLUGIN, () -> {
++                try {
++                    ServerPhotographer serverPhotographer = createPhotographer(this);
++                    if (serverPhotographer != null && consumer != null) {
++                        consumer.accept(serverPhotographer);
++                    }
++                } catch (IOException e) {
++                    e.printStackTrace();
++                }
++            }));
++        }
++    }
++}

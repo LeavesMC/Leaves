@@ -4,6 +4,272 @@ Date: Thu, 3 Aug 2023 20:36:38 +0800
 Subject: [PATCH] Photographer
 
 
+diff --git a/src/main/java/net/minecraft/commands/arguments/EntityArgument.java b/src/main/java/net/minecraft/commands/arguments/EntityArgument.java
+index 150daf6bf4b27a6ff984d872a28002f19beef51c..a9bbb0894a122d03cffc74b574936064981aedb9 100644
+--- a/src/main/java/net/minecraft/commands/arguments/EntityArgument.java
++++ b/src/main/java/net/minecraft/commands/arguments/EntityArgument.java
+@@ -147,6 +147,7 @@ public class EntityArgument implements ArgumentType<EntitySelector> {
+                 if (icompletionprovider instanceof CommandSourceStack commandSourceStack && commandSourceStack.getEntity() instanceof ServerPlayer sourcePlayer) {
+                     collection = new java.util.ArrayList<>();
+                     for (final ServerPlayer player : commandSourceStack.getServer().getPlayerList().getPlayers()) {
++                        if (player instanceof top.leavesmc.leaves.replay.ServerPhotographer) continue; // Leaves - skip photographer
+                         if (sourcePlayer.getBukkitEntity().canSee(player.getBukkitEntity())) {
+                             collection.add(player.getGameProfile().getName());
+                         }
+diff --git a/src/main/java/net/minecraft/commands/arguments/selector/EntitySelector.java b/src/main/java/net/minecraft/commands/arguments/selector/EntitySelector.java
+index f25b9330e068c7d9e12cb57a7761cfef9ebaf7bc..7891fa8e60ed74dfcc85c33d5b9f9d516fc40b99 100644
+--- a/src/main/java/net/minecraft/commands/arguments/selector/EntitySelector.java
++++ b/src/main/java/net/minecraft/commands/arguments/selector/EntitySelector.java
+@@ -122,6 +122,7 @@ public class EntitySelector {
+             return this.findPlayers(source);
+         } else if (this.playerName != null) {
+             ServerPlayer entityplayer = source.getServer().getPlayerList().getPlayerByName(this.playerName);
++            entityplayer = entityplayer instanceof top.leavesmc.leaves.replay.ServerPhotographer ? null : entityplayer; // Leaves - skip photographer
+ 
+             return (List) (entityplayer == null ? Collections.emptyList() : Lists.newArrayList(new ServerPlayer[]{entityplayer}));
+         } else if (this.entityUUID != null) {
+@@ -137,6 +138,7 @@ public class EntitySelector {
+                 ServerLevel worldserver = (ServerLevel) iterator.next();
+ 
+                 entity = worldserver.getEntity(this.entityUUID);
++                entity = entity instanceof top.leavesmc.leaves.replay.ServerPhotographer ? null : entity; // Leaves - skip photographer
+             } while (entity == null);
+ 
+             return Lists.newArrayList(new Entity[]{entity});
+@@ -145,7 +147,7 @@ public class EntitySelector {
+             Predicate<Entity> predicate = this.getPredicate(vec3d);
+ 
+             if (this.currentEntity) {
+-                return (List) (source.getEntity() != null && predicate.test(source.getEntity()) ? Lists.newArrayList(new Entity[]{source.getEntity()}) : Collections.emptyList());
++                return (List) (source.getEntity() != null && !(source.getEntity() instanceof top.leavesmc.leaves.replay.ServerPhotographer) && predicate.test(source.getEntity()) ? Lists.newArrayList(new Entity[]{source.getEntity()}) : Collections.emptyList()); // Leaves - skip photographer
+             } else {
+                 List<Entity> list = Lists.newArrayList();
+ 
+@@ -160,6 +162,7 @@ public class EntitySelector {
+                         this.addEntities(list, worldserver1, vec3d, predicate);
+                     }
+                 }
++                list.removeIf(entity -> entity instanceof top.leavesmc.leaves.replay.ServerPhotographer); // Leaves - skip photographer
+ 
+                 return this.sortAndLimit(vec3d, list);
+             }
+@@ -200,9 +203,11 @@ public class EntitySelector {
+ 
+         if (this.playerName != null) {
+             entityplayer = source.getServer().getPlayerList().getPlayerByName(this.playerName);
++            entityplayer = entityplayer instanceof top.leavesmc.leaves.replay.ServerPhotographer ? null : entityplayer; // Leaves - skip photographer
+             return (List) (entityplayer == null ? Collections.emptyList() : Lists.newArrayList(new ServerPlayer[]{entityplayer}));
+         } else if (this.entityUUID != null) {
+             entityplayer = source.getServer().getPlayerList().getPlayer(this.entityUUID);
++            entityplayer = entityplayer instanceof top.leavesmc.leaves.replay.ServerPhotographer ? null : entityplayer; // Leaves - skip photographer
+             return (List) (entityplayer == null ? Collections.emptyList() : Lists.newArrayList(new ServerPlayer[]{entityplayer}));
+         } else {
+             Vec3 vec3d = (Vec3) this.position.apply(source.getPosition());
+@@ -212,7 +217,7 @@ public class EntitySelector {
+                 if (source.getEntity() instanceof ServerPlayer) {
+                     ServerPlayer entityplayer1 = (ServerPlayer) source.getEntity();
+ 
+-                    if (predicate.test(entityplayer1)) {
++                    if (predicate.test(entityplayer1) && !(entityplayer1 instanceof top.leavesmc.leaves.replay.ServerPhotographer)) { // Leaves - skip photographer
+                         return Lists.newArrayList(new ServerPlayer[]{entityplayer1});
+                     }
+                 }
+@@ -223,7 +228,7 @@ public class EntitySelector {
+                 Object object;
+ 
+                 if (this.isWorldLimited()) {
+-                    object = source.getLevel().getPlayers(predicate, i);
++                    object = source.getLevel().getPlayers((entityplayer3 -> !(entityplayer3 instanceof top.leavesmc.leaves.replay.ServerPhotographer) && predicate.test(entityplayer3)), i); // Leaves - skip photographer
+                 } else {
+                     object = Lists.newArrayList();
+                     Iterator iterator = source.getServer().getPlayerList().getPlayers().iterator();
+@@ -231,7 +236,7 @@ public class EntitySelector {
+                     while (iterator.hasNext()) {
+                         ServerPlayer entityplayer2 = (ServerPlayer) iterator.next();
+ 
+-                        if (predicate.test(entityplayer2)) {
++                        if (predicate.test(entityplayer2) && !(entityplayer2 instanceof top.leavesmc.leaves.replay.ServerPhotographer)) { // Leaves - skip photographer
+                             ((List) object).add(entityplayer2);
+                             if (((List) object).size() >= i) {
+                                 return (List) object;
+diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
+index 16670088947fe126674fa9058f4fc8df01546a2c..24507d3e2dd2a6872bce76b4f15f0254507034fa 100644
+--- a/src/main/java/net/minecraft/server/players/PlayerList.java
++++ b/src/main/java/net/minecraft/server/players/PlayerList.java
+@@ -136,6 +136,7 @@ import org.bukkit.event.player.PlayerSpawnChangeEvent;
+ 
+ import top.leavesmc.leaves.util.ArrayConstants;
+ import top.leavesmc.leaves.util.ReturnPortalManager; // Leaves - return portal fix
++import top.leavesmc.leaves.replay.ServerPhotographer;
+ 
+ public abstract class PlayerList {
+ 
+@@ -195,6 +196,108 @@ public abstract class PlayerList {
+     }
+     abstract public void loadAndSaveFiles(); // Paper - moved from DedicatedPlayerList constructor
+ 
++    // Leaves start - replay api
++    public void placeNewPhotographer(Connection connection, ServerPhotographer player, ServerLevel worldserver, Location location) {
++        player.isRealPlayer = true;
++        player.loginTime = System.currentTimeMillis();
++
++        player.setServerLevel(worldserver);
++
++        player.spawnIn(worldserver);
++        player.gameMode.setLevel((ServerLevel) player.level());
++        player.setPosRaw(location.getX(), location.getY(), location.getZ());
++        player.setRot(location.getYaw(), location.getPitch());
++
++        LevelData worlddata = worldserver.getLevelData();
++
++        ServerGamePacketListenerImpl playerconnection = new ServerGamePacketListenerImpl(this.server, connection, player);
++        GameRules gamerules = worldserver.getGameRules();
++        boolean flag = gamerules.getBoolean(GameRules.RULE_DO_IMMEDIATE_RESPAWN);
++        boolean flag1 = gamerules.getBoolean(GameRules.RULE_REDUCEDDEBUGINFO);
++
++        playerconnection.send(new ClientboundLoginPacket(player.getId(), worlddata.isHardcore(), player.gameMode.getGameModeForPlayer(), player.gameMode.getPreviousGameModeForPlayer(), this.server.levelKeys(), this.synchronizedRegistries, worldserver.dimensionTypeId(), worldserver.dimension(), BiomeManager.obfuscateSeed(worldserver.getSeed()), this.getMaxPlayers(), worldserver.getWorld().getSendViewDistance(), worldserver.getWorld().getSimulationDistance(), flag1, !flag, worldserver.isDebug(), worldserver.isFlat(), player.getLastDeathLocation(), player.getPortalCooldown()));
++        player.getBukkitEntity().sendSupportedChannels();
++        playerconnection.send(new ClientboundUpdateEnabledFeaturesPacket(FeatureFlags.REGISTRY.toNames(worldserver.enabledFeatures())));
++        playerconnection.send(new ClientboundCustomPayloadPacket(ClientboundCustomPayloadPacket.BRAND, (new FriendlyByteBuf(Unpooled.buffer())).writeUtf(this.getServer().getServerModName())));
++        playerconnection.send(new ClientboundChangeDifficultyPacket(worlddata.getDifficulty(), worlddata.isDifficultyLocked()));
++        playerconnection.send(new ClientboundPlayerAbilitiesPacket(player.getAbilities()));
++        playerconnection.send(new ClientboundSetCarriedItemPacket(player.getInventory().selected));
++        playerconnection.send(new ClientboundUpdateRecipesPacket(this.server.getRecipeManager().getRecipes()));
++        playerconnection.send(new ClientboundUpdateTagsPacket(TagNetworkSerialization.serializeTagsToNetwork(this.registries)));
++        this.sendPlayerPermissionLevel(player);
++        player.getStats().markAllDirty();
++        player.getRecipeBook().sendInitialRecipeBook(player);
++        this.updateEntireScoreboard(worldserver.getScoreboard(), player);
++        this.server.invalidateStatus();
++
++        playerconnection.teleport(player.getX(), player.getY(), player.getZ(), player.getYRot(), player.getXRot());
++        ServerStatus serverping = this.server.getStatus();
++
++        if (serverping != null) {
++            player.sendServerStatus(serverping);
++        }
++
++        this.players.add(player);
++        this.playersByName.put(player.getScoreboardName().toLowerCase(java.util.Locale.ROOT), player);
++        this.playersByUUID.put(player.getUUID(), player);
++
++        player.supressTrackerForLogin = true;
++        worldserver.addNewPlayer(player);
++        this.server.getCustomBossEvents().onPlayerConnect(player);
++        CraftPlayer bukkitPlayer = player.getBukkitEntity();
++
++        // Leaves start - bot support
++        if (top.leavesmc.leaves.LeavesConfig.fakeplayerSupport) {
++            ServerBot bot = ServerBot.getBot(player.getScoreboardName().toLowerCase(java.util.Locale.ROOT));
++            if (bot != null) {
++                bot.die(bot.damageSources().fellOutOfWorld()); // Leaves - remove bot with the same name
++                this.playersByName.put(player.getScoreboardName().toLowerCase(java.util.Locale.ROOT), player);
++                this.playersByUUID.put(player.getUUID(), player);
++            }
++            ServerBot.getBots().forEach(bot1 ->
++                bot1.render(playerconnection, true,player.getBukkitEntity().getWorld() == bot1.getBukkitEntity().getWorld())); // Leaves - render bot
++        }
++        // Leaves end - bot support
++
++        final List<ServerPlayer> onlinePlayers = Lists.newArrayListWithExpectedSize(this.players.size() - 1);
++        for (int i = 0; i < this.players.size(); ++i) {
++            ServerPlayer entityplayer1 = this.players.get(i);
++
++            if (entityplayer1 == player || !bukkitPlayer.canSee(entityplayer1.getBukkitEntity())) {
++                continue;
++            }
++
++            onlinePlayers.add(entityplayer1);
++        }
++
++        if (!onlinePlayers.isEmpty()) {
++            player.connection.send(ClientboundPlayerInfoUpdatePacket.createPlayerInitializing(onlinePlayers));
++        }
++
++        player.sentListPacket = true;
++        player.supressTrackerForLogin = false;
++        ((ServerLevel)player.level()).getChunkSource().chunkMap.addEntity(player);
++
++        this.sendLevelInfo(player, worldserver);
++
++        if (player.level() == worldserver && !worldserver.players().contains(player)) {
++            worldserver.addNewPlayer(player);
++            this.server.getCustomBossEvents().onPlayerConnect(player);
++        }
++
++        worldserver = player.serverLevel();
++        this.server.getServerResourcePack().ifPresent((minecraftserver_serverresourcepackinfo) -> {
++            player.sendTexturePack(minecraftserver_serverresourcepackinfo.url(), minecraftserver_serverresourcepackinfo.hash(), minecraftserver_serverresourcepackinfo.isRequired(), minecraftserver_serverresourcepackinfo.prompt());
++        });
++
++        Iterator<MobEffectInstance> iterator = player.getActiveEffects().iterator();
++        while (iterator.hasNext()) {
++            MobEffectInstance mobeffect = iterator.next();
++            playerconnection.send(new ClientboundUpdateMobEffectPacket(player.getId(), mobeffect));
++        }
++    }
++    // Leaves end - replay api
++
+     public void placeNewPlayer(Connection connection, ServerPlayer player) {
+         player.isRealPlayer = true; // Paper
+         player.loginTime = System.currentTimeMillis(); // Paper
+@@ -392,6 +495,12 @@ public abstract class PlayerList {
+                 continue;
+             }
+ 
++            // Leaves start - skip photographer
++            if (entityplayer1 instanceof ServerPhotographer) {
++                continue;
++            }
++            // Leaves end - skip photographer
++
+             onlinePlayers.add(entityplayer1); // Paper - use single player info update packet
+         }
+         // Paper start - use single player info update packet
+@@ -606,6 +715,43 @@ public abstract class PlayerList {
+ 
+     }
+ 
++    // Leaevs start - replay mod api
++    public void removePhotographer(ServerPhotographer entityplayer) {
++        ServerLevel worldserver = entityplayer.serverLevel();
++
++        entityplayer.awardStat(Stats.LEAVE_GAME);
++
++        if (entityplayer.containerMenu != entityplayer.inventoryMenu) {
++            entityplayer.closeContainer(org.bukkit.event.inventory.InventoryCloseEvent.Reason.DISCONNECT);
++        }
++
++        if (server.isSameThread()) entityplayer.doTick();
++
++        if (this.collideRuleTeamName != null) {
++            final Scoreboard scoreBoard = this.server.getLevel(Level.OVERWORLD).getScoreboard();
++            final PlayerTeam team = scoreBoard.getPlayersTeam(this.collideRuleTeamName);
++            if (entityplayer.getTeam() == team && team != null) {
++                scoreBoard.removePlayerFromTeam(entityplayer.getScoreboardName(), team);
++            }
++        }
++
++        worldserver.removePlayerImmediately(entityplayer, Entity.RemovalReason.UNLOADED_WITH_PLAYER);
++        entityplayer.retireScheduler();
++        entityplayer.getAdvancements().stopListening();
++        this.players.remove(entityplayer);
++        this.playersByName.remove(entityplayer.getScoreboardName().toLowerCase(java.util.Locale.ROOT));
++        this.server.getCustomBossEvents().onPlayerDisconnect(entityplayer);
++        UUID uuid = entityplayer.getUUID();
++        ServerPlayer entityplayer1 = this.playersByUUID.get(uuid);
++
++        if (entityplayer1 == entityplayer) {
++            this.playersByUUID.remove(uuid);
++        }
++
++        this.cserver.getScoreboardManager().removePlayer(entityplayer.getBukkitEntity());
++    }
++    // Leaves stop - replay mod api
++
+     public net.kyori.adventure.text.Component remove(ServerPlayer entityplayer) { // CraftBukkit - return string // Paper - return Component
+         // Paper start
+         return this.remove(entityplayer, net.kyori.adventure.text.Component.translatable("multiplayer.player.left", net.kyori.adventure.text.format.NamedTextColor.YELLOW, io.papermc.paper.configuration.GlobalConfiguration.get().messages.useDisplayNameInQuitMessage ? entityplayer.getBukkitEntity().displayName() : PaperAdventure.asAdventure(entityplayer.getDisplayName())));
 diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
 index 337c9851d22aa45d2f68d770ea8850e81b86f9fd..66fd0b46c977802fdcfdbc7dfdaf804c3f9d1218 100644
 --- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
@@ -36,10 +302,10 @@ index 0000000000000000000000000000000000000000..1cf7022d56626779bb9fe8174beeb173
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/replay/PhotographerCommand.java b/src/main/java/top/leavesmc/leaves/replay/PhotographerCommand.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..1d5a115658bbb8e01f1830c2fad2fdb69dacc01b
+index 0000000000000000000000000000000000000000..24d4aae46ce00a9c50d9ed58efc0aecc1731ad38
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/replay/PhotographerCommand.java
-@@ -0,0 +1,126 @@
+@@ -0,0 +1,124 @@
 +package top.leavesmc.leaves.replay;
 +
 +import org.bukkit.Bukkit;
@@ -60,7 +326,7 @@ index 0000000000000000000000000000000000000000..1d5a115658bbb8e01f1830c2fad2fdb6
 +    public PhotographerCommand(String name) {
 +        super(name);
 +        this.description = "Photographer Command";
-+        this.usageMessage = "/photographer [create]";
++        this.usageMessage = "/photographer [create | remove]";
 +        this.setPermission("bukkit.command.photographer");
 +    }
 +
@@ -70,11 +336,12 @@ index 0000000000000000000000000000000000000000..1d5a115658bbb8e01f1830c2fad2fdb6
 +
 +        if (args.length <= 1) {
 +            list.add("create");
++            list.add("remove");
 +        }
 +
 +        if (args.length == 2) {
 +            switch (args[0]) {
-+                case "create" -> list.add("<PhotographerName>");
++                case "create", "remove" -> list.add("<PhotographerName>");
 +            }
 +        }
 +
@@ -92,6 +359,7 @@ index 0000000000000000000000000000000000000000..1d5a115658bbb8e01f1830c2fad2fdb6
 +
 +        switch (args[0]) {
 +            case "create" -> this.onCreate(sender, args);
++            case "remove" -> this.onRemove(sender, args);
 +
 +            default -> {
 +                sender.sendMessage(ChatColor.RED + "Usage: " + usageMessage);
@@ -133,37 +401,33 @@ index 0000000000000000000000000000000000000000..1d5a115658bbb8e01f1830c2fad2fdb6
 +        }
 +    }
 +
-+    private boolean canCreate(CommandSender sender, @NotNull String name) {
-+        if (!name.matches("^[a-zA-Z0-9_]{4,16}$")) {
-+            sender.sendMessage(ChatColor.RED + "This name is illegal");
++    private boolean canCreate(CommandSender sender, @NotNull String id) {
++        if (!id.matches("^[a-zA-Z0-9_]{4,16}$")) {
++            sender.sendMessage(ChatColor.RED + "This id is illegal");
 +            return false;
 +        }
-+//
-+//        if (Bukkit.getPlayer(name) != null || ServerBot.getBot(name) != null) {
-+//            sender.sendMessage(ChatColor.RED + "This player is in server");
-+//            return false;
-+//        }
-+//
-+//        if (top.leavesmc.leaves.LeavesConfig.unableFakeplayerNames.contains(name)) {
-+//            sender.sendMessage(ChatColor.RED + "This name is not allowed");
-+//            return false;
-+//        }
-+//
-+//        if (ServerBot.getBots().size() >= top.leavesmc.leaves.LeavesConfig.fakeplayerLimit) {
-+//            sender.sendMessage(ChatColor.RED + "Photographer limit is full");
-+//            return false;
-+//        }
++
++        if (Bukkit.getPlayer(id) != null || ServerPhotographer.getPhotographer(id) != null) {
++            sender.sendMessage(ChatColor.RED + "This photographer is in server");
++            return false;
++        }
 +
 +        return true;
 +    }
-+
-+    @NotNull
-+    private static String formatPlayerNameList(@NotNull List<String> list) {
-+        if (list.isEmpty()) {
-+            return "";
++    private void onRemove(CommandSender sender, String @NotNull [] args) {
++        if (args.length < 2) {
++            sender.sendMessage(ChatColor.RED + "Use /photographer remove <name> to remove a photographer");
++            return;
 +        }
-+        String string = list.toString();
-+        return string.substring(1, string.length() - 1);
++
++        ServerPhotographer photographer = ServerPhotographer.getPhotographer(args[1]);
++
++        if (photographer  == null) {
++            sender.sendMessage(ChatColor.RED + "This photographer is not in server");
++            return;
++        }
++
++        photographer.remove(true);
 +    }
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/replay/PhotographerUtil.java b/src/main/java/top/leavesmc/leaves/replay/PhotographerUtil.java
@@ -189,16 +453,18 @@ index 0000000000000000000000000000000000000000..12f91e0484de248670f23fce3be867c2
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/replay/ServerPhotographer.java b/src/main/java/top/leavesmc/leaves/replay/ServerPhotographer.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..4c7f9c9efe2a18216878f5449913d785c841713c
+index 0000000000000000000000000000000000000000..70b2bdd897c4c3033db6fb277094f0b76c415ae3
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/replay/ServerPhotographer.java
-@@ -0,0 +1,125 @@
+@@ -0,0 +1,175 @@
 +package top.leavesmc.leaves.replay;
 +
 +import com.mojang.authlib.GameProfile;
++import net.minecraft.network.chat.Component;
 +import net.minecraft.server.MinecraftServer;
 +import net.minecraft.server.level.ServerLevel;
 +import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.world.damagesource.DamageSource;
 +import net.minecraft.world.level.GameType;
 +import org.bukkit.Bukkit;
 +import org.bukkit.Location;
@@ -206,6 +472,12 @@ index 0000000000000000000000000000000000000000..4c7f9c9efe2a18216878f5449913d785
 +import org.bukkit.craftbukkit.scheduler.MinecraftInternalPlugin;
 +import org.bukkit.plugin.Plugin;
 +import org.jetbrains.annotations.NotNull;
++import top.leavesmc.leaves.LeavesLogger;
++import top.leavesmc.leaves.bot.ServerBot;
++import top.leavesmc.leaves.entity.Bot;
++import top.leavesmc.leaves.entity.CraftBot;
++import top.leavesmc.leaves.entity.CraftPhotographer;
++import top.leavesmc.leaves.entity.Photographer;
 +
 +import java.io.File;
 +import java.io.IOException;
@@ -230,6 +502,10 @@ index 0000000000000000000000000000000000000000..4c7f9c9efe2a18216878f5449913d785
 +        super(server, world, profile);
 +    }
 +
++    public static List<ServerPhotographer> getPhotographers() {
++        return photographers;
++    }
++
 +    public static ServerPhotographer createPhotographer(@NotNull PhotographerCreateState state) throws IOException {
 +        if (!isCreateLegal(state.id)) {
 +            return null;
@@ -245,10 +521,13 @@ index 0000000000000000000000000000000000000000..4c7f9c9efe2a18216878f5449913d785
 +        photographer.createState = state;
 +
 +        photographer.recorder.start();
-+        MinecraftServer.getServer().getPlayerList().placeNewPlayer(photographer.recorder, photographer);
++        MinecraftServer.getServer().getPlayerList().placeNewPhotographer(photographer.recorder, photographer, world, state.loc);
 +        photographer.setGameMode(GameType.SPECTATOR);
-+        photographer.setInvisible(true);
 +        photographer.serverLevel().chunkSource.move(photographer);
++        photographer.setInvisible(true);
++        photographers.add(photographer);
++
++        LeavesLogger.LOGGER.info("Photographer " + state.id + " created");
 +
 +        // TODO 动态视距
 +
@@ -257,25 +536,27 @@ index 0000000000000000000000000000000000000000..4c7f9c9efe2a18216878f5449913d785
 +
 +    @Override
 +    public void tick() {
-+        // 每10tick同步一次玩家位置
 +        if (this.server.getTickCount() % 10 == 0) {
 +            connection.resetPosition();
 +            this.serverLevel().chunkSource.move(this);
 +        }
 +
-+        // 父类
 +        super.tick();
 +        super.doTick();
 +    }
 +
 +    @Override
-+    public void remove(RemovalReason reason) {
-+        super.remove(reason);
++    public void die(@NotNull DamageSource damageSource) {
++        super.die(damageSource);
 +        remove(true);
 +    }
 +
 +    public void remove(boolean async) {
-+        recorder.stop();
++        super.remove(RemovalReason.KILLED);
++        photographers.remove(this);
++        this.recorder.stop();
++        this.server.getPlayerList().removePhotographer(this);
++
 +        if (!recorder.isSaved()) {
 +            final File saveFile = new File("replay", createState.id + ".mcpr");
 +            CompletableFuture<Void> future = recorder.saveRecording(saveFile);
@@ -283,6 +564,38 @@ index 0000000000000000000000000000000000000000..4c7f9c9efe2a18216878f5449913d785
 +                future.join();
 +            }
 +        }
++    }
++
++    public static ServerPhotographer getPhotographer(String id) {
++        ServerPhotographer photographer = null;
++        for (ServerPhotographer p : photographers) {
++            if (p.createState.id.equals(id)) {
++                photographer = p;
++                break;
++            }
++        }
++        return photographer;
++    }
++
++    public static ServerPhotographer getPhotographer(UUID uuid) {
++        ServerPhotographer photographer = null;
++        for (ServerPhotographer p : photographers) {
++            if (p.uuid == uuid) {
++                photographer = p;
++                break;
++            }
++        }
++        return photographer;
++    }
++
++    public Photographer getBukkitPlayer() {
++        return getBukkitEntity();
++    }
++
++    @Override
++    @NotNull
++    public CraftPhotographer getBukkitEntity() {
++        return (CraftPhotographer) super.getBukkitEntity();
 +    }
 +
 +    public static class PhotographerCreateState {
@@ -295,12 +608,13 @@ index 0000000000000000000000000000000000000000..4c7f9c9efe2a18216878f5449913d785
 +            this.id = id;
 +        }
 +
-+        public void createSync() {
++        public ServerPhotographer createSync() {
 +            try {
-+                ServerPhotographer serverPhotographer = createPhotographer(this);
++                return createPhotographer(this);
 +            } catch (IOException e) {
 +                e.printStackTrace();
 +            }
++            return null;
 +        }
 +
 +        public void createAsync(Consumer<ServerPhotographer> consumer) {

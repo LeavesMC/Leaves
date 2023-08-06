@@ -372,10 +372,10 @@ index 0000000000000000000000000000000000000000..fdf46f1a7e3a1cf500ca5df0fd984205
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/replay/ReplayFile.java b/src/main/java/top/leavesmc/leaves/replay/ReplayFile.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..3c64052f0e4956de2ba3b3054900c2512ee74171
+index 0000000000000000000000000000000000000000..5dbd28ab5fa45653dc98dc00c28b936531896258
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/replay/ReplayFile.java
-@@ -0,0 +1,139 @@
+@@ -0,0 +1,164 @@
 +package top.leavesmc.leaves.replay;
 +
 +import com.google.gson.Gson;
@@ -428,8 +428,12 @@ index 0000000000000000000000000000000000000000..3c64052f0e4956de2ba3b3054900c251
 +    public ReplayFile(@NotNull File name) throws IOException {
 +        this.tmpDir = new File(name.getParentFile(), name.getName() + ".tmp");
 +        if (tmpDir.exists()) {
-+            throw new IOException("recording file " + name + " already exists!");
-+        } else if (!tmpDir.mkdirs()) {
++            if (!ReplayFile.deleteDir(tmpDir)) {
++                throw new IOException("Recording file " + name + " already exists!");
++            }
++        }
++
++        if (!tmpDir.mkdirs()) {
 +            throw new IOException("Failed to create temp directory for recording " + tmpDir);
 +        }
 +
@@ -456,7 +460,7 @@ index 0000000000000000000000000000000000000000..3c64052f0e4956de2ba3b3054900c251
 +    }
 +
 +    public void saveMarkers(List<ReplayMarker> markers) throws IOException {
-+        try (Writer writer = new OutputStreamWriter(new FileOutputStream(markerFile), StandardCharsets.UTF_8)){
++        try (Writer writer = new OutputStreamWriter(new FileOutputStream(markerFile), StandardCharsets.UTF_8)) {
 +            writer.write(MARKER_GSON.toJson(markers));
 +        }
 +    }
@@ -513,6 +517,27 @@ index 0000000000000000000000000000000000000000..3c64052f0e4956de2ba3b3054900c251
 +            out.write(buffer, 0, len);
 +        }
 +        in.close();
++    }
++
++    private static boolean deleteDir(File dir) {
++        if (dir == null || !dir.exists()) {
++            return false;
++        }
++
++        File[] files = dir.listFiles();
++        if (files != null) {
++            for (File file : files) {
++                if (file.isDirectory()) {
++                    deleteDir(file);
++                } else {
++                    if (!file.delete()) {
++                        return false;
++                    }
++                }
++            }
++        }
++
++        return dir.delete();
 +    }
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/replay/ReplayMarker.java b/src/main/java/top/leavesmc/leaves/replay/ReplayMarker.java

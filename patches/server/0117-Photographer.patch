@@ -92,6 +92,27 @@ index f25b9330e068c7d9e12cb57a7761cfef9ebaf7bc..7891fa8e60ed74dfcc85c33d5b9f9d51
                              ((List) object).add(entityplayer2);
                              if (((List) object).size() >= i) {
                                  return (List) object;
+diff --git a/src/main/java/net/minecraft/server/PlayerAdvancements.java b/src/main/java/net/minecraft/server/PlayerAdvancements.java
+index fd9e85dab7c511873824cac56a270ff435792292..257e51570ed08660613895f5a1eccbee785707f3 100644
+--- a/src/main/java/net/minecraft/server/PlayerAdvancements.java
++++ b/src/main/java/net/minecraft/server/PlayerAdvancements.java
+@@ -46,6 +46,7 @@ import net.minecraft.world.level.GameRules;
+ import net.minecraft.world.level.GameType;
+ import org.slf4j.Logger;
+ import top.leavesmc.leaves.bot.ServerBot;
++import top.leavesmc.leaves.replay.ServerPhotographer;
+ 
+ public class PlayerAdvancements {
+ 
+@@ -227,7 +228,7 @@ public class PlayerAdvancements {
+ 
+     public boolean award(Advancement advancement, String criterionName) {
+         // Leaves start - bot can't get advancement
+-        if (player instanceof ServerBot) {
++        if (player instanceof ServerBot || player instanceof ServerPhotographer) { // Leaves - and photographer
+             return false;
+         }
+         // Leaves end - bot can't get advancement
 diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
 index 16670088947fe126674fa9058f4fc8df01546a2c..24507d3e2dd2a6872bce76b4f15f0254507034fa 100644
 --- a/src/main/java/net/minecraft/server/players/PlayerList.java
@@ -432,10 +453,10 @@ index 0000000000000000000000000000000000000000..24d4aae46ce00a9c50d9ed58efc0aecc
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/replay/ServerPhotographer.java b/src/main/java/top/leavesmc/leaves/replay/ServerPhotographer.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..70b2bdd897c4c3033db6fb277094f0b76c415ae3
+index 0000000000000000000000000000000000000000..d45abb865860d4afeacf308a32e565486121cc85
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/replay/ServerPhotographer.java
-@@ -0,0 +1,175 @@
+@@ -0,0 +1,169 @@
 +package top.leavesmc.leaves.replay;
 +
 +import com.mojang.authlib.GameProfile;
@@ -443,6 +464,7 @@ index 0000000000000000000000000000000000000000..70b2bdd897c4c3033db6fb277094f0b7
 +import net.minecraft.server.MinecraftServer;
 +import net.minecraft.server.level.ServerLevel;
 +import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.stats.ServerStatsCounter;
 +import net.minecraft.world.damagesource.DamageSource;
 +import net.minecraft.world.level.GameType;
 +import org.bukkit.Bukkit;
@@ -452,9 +474,7 @@ index 0000000000000000000000000000000000000000..70b2bdd897c4c3033db6fb277094f0b7
 +import org.bukkit.plugin.Plugin;
 +import org.jetbrains.annotations.NotNull;
 +import top.leavesmc.leaves.LeavesLogger;
-+import top.leavesmc.leaves.bot.ServerBot;
-+import top.leavesmc.leaves.entity.Bot;
-+import top.leavesmc.leaves.entity.CraftBot;
++import top.leavesmc.leaves.bot.BotStatsCounter;
 +import top.leavesmc.leaves.entity.CraftPhotographer;
 +import top.leavesmc.leaves.entity.Photographer;
 +
@@ -477,8 +497,11 @@ index 0000000000000000000000000000000000000000..70b2bdd897c4c3033db6fb277094f0b7
 +
 +    private Recorder recorder;
 +
++    private final ServerStatsCounter stats;
++
 +    private ServerPhotographer(MinecraftServer server, ServerLevel world, GameProfile profile) {
 +        super(server, world, profile);
++        this.stats = new BotStatsCounter(server);
 +    }
 +
 +    public static List<ServerPhotographer> getPhotographers() {
@@ -528,6 +551,12 @@ index 0000000000000000000000000000000000000000..70b2bdd897c4c3033db6fb277094f0b7
 +    public void die(@NotNull DamageSource damageSource) {
 +        super.die(damageSource);
 +        remove(true);
++    }
++
++    @NotNull
++    @Override
++    public ServerStatsCounter getStats() {
++        return stats;
 +    }
 +
 +    public void remove(boolean async) {
@@ -594,20 +623,6 @@ index 0000000000000000000000000000000000000000..70b2bdd897c4c3033db6fb277094f0b7
 +                e.printStackTrace();
 +            }
 +            return null;
-+        }
-+
-+        public void createAsync(Consumer<ServerPhotographer> consumer) {
-+            Bukkit.getScheduler().runTaskAsynchronously(MINECRAFT_PLUGIN, () ->
-+                Bukkit.getScheduler().runTask(MINECRAFT_PLUGIN, () -> {
-+                    try {
-+                        ServerPhotographer serverPhotographer = createPhotographer(this);
-+                        if (serverPhotographer != null && consumer != null) {
-+                            consumer.accept(serverPhotographer);
-+                        }
-+                    } catch (IOException e) {
-+                        e.printStackTrace();
-+                    }
-+                }));
 +        }
 +    }
 +}

@@ -366,10 +366,10 @@ index fdf46f1a7e3a1cf500ca5df0fd984205f52eae86..87644f60a8215bc4037689fe4155e463
          CLEAR(new ClientboundGameEventPacket(ClientboundGameEventPacket.STOP_RAINING, 0), new ClientboundGameEventPacket(ClientboundGameEventPacket.RAIN_LEVEL_CHANGE, 0), new ClientboundGameEventPacket(ClientboundGameEventPacket.THUNDER_LEVEL_CHANGE, 0)),
          RAIN(new ClientboundGameEventPacket(ClientboundGameEventPacket.START_RAINING, 0), new ClientboundGameEventPacket(ClientboundGameEventPacket.RAIN_LEVEL_CHANGE, 1), new ClientboundGameEventPacket(ClientboundGameEventPacket.THUNDER_LEVEL_CHANGE, 0)),
 diff --git a/src/main/java/top/leavesmc/leaves/replay/ServerPhotographer.java b/src/main/java/top/leavesmc/leaves/replay/ServerPhotographer.java
-index 70b2bdd897c4c3033db6fb277094f0b76c415ae3..9e3e3d7705158cb5712afca94306ca318229f60d 100644
+index d45abb865860d4afeacf308a32e565486121cc85..53061dfdea1111d438f00e80ad10812fd20469c9 100644
 --- a/src/main/java/top/leavesmc/leaves/replay/ServerPhotographer.java
 +++ b/src/main/java/top/leavesmc/leaves/replay/ServerPhotographer.java
-@@ -1,22 +1,15 @@
+@@ -1,18 +1,14 @@
  package top.leavesmc.leaves.replay;
  
  import com.mojang.authlib.GameProfile;
@@ -377,6 +377,7 @@ index 70b2bdd897c4c3033db6fb277094f0b76c415ae3..9e3e3d7705158cb5712afca94306ca31
  import net.minecraft.server.MinecraftServer;
  import net.minecraft.server.level.ServerLevel;
  import net.minecraft.server.level.ServerPlayer;
+ import net.minecraft.stats.ServerStatsCounter;
  import net.minecraft.world.damagesource.DamageSource;
  import net.minecraft.world.level.GameType;
 -import org.bukkit.Bukkit;
@@ -386,13 +387,8 @@ index 70b2bdd897c4c3033db6fb277094f0b76c415ae3..9e3e3d7705158cb5712afca94306ca31
 -import org.bukkit.plugin.Plugin;
  import org.jetbrains.annotations.NotNull;
  import top.leavesmc.leaves.LeavesLogger;
--import top.leavesmc.leaves.bot.ServerBot;
--import top.leavesmc.leaves.entity.Bot;
--import top.leavesmc.leaves.entity.CraftBot;
- import top.leavesmc.leaves.entity.CraftPhotographer;
- import top.leavesmc.leaves.entity.Photographer;
- 
-@@ -26,25 +19,21 @@ import java.util.List;
+ import top.leavesmc.leaves.bot.BotStatsCounter;
+@@ -25,30 +21,26 @@ import java.util.List;
  import java.util.UUID;
  import java.util.concurrent.CompletableFuture;
  import java.util.concurrent.CopyOnWriteArrayList;
@@ -411,17 +407,22 @@ index 70b2bdd897c4c3033db6fb277094f0b76c415ae3..9e3e3d7705158cb5712afca94306ca31
      private Recorder recorder;
 +    private File saveFile;
  
+     private final ServerStatsCounter stats;
+ 
      private ServerPhotographer(MinecraftServer server, ServerLevel world, GameProfile profile) {
          super(server, world, profile);
--    }
--
--    public static List<ServerPhotographer> getPhotographers() {
--        return photographers;
 +        this.followPlayer = null;
+         this.stats = new BotStatsCounter(server);
      }
  
+-    public static List<ServerPhotographer> getPhotographers() {
+-        return photographers;
+-    }
+-
      public static ServerPhotographer createPhotographer(@NotNull PhotographerCreateState state) throws IOException {
-@@ -58,7 +47,8 @@ public class ServerPhotographer extends ServerPlayer {
+         if (!isCreateLegal(state.id)) {
+             return null;
+@@ -60,7 +52,8 @@ public class ServerPhotographer extends ServerPlayer {
          GameProfile profile = new GameProfile(UUID.randomUUID(), state.id);
  
          ServerPhotographer photographer = new ServerPhotographer(server, world, profile);
@@ -431,7 +432,7 @@ index 70b2bdd897c4c3033db6fb277094f0b76c415ae3..9e3e3d7705158cb5712afca94306ca31
          photographer.createState = state;
  
          photographer.recorder.start();
-@@ -70,7 +60,7 @@ public class ServerPhotographer extends ServerPlayer {
+@@ -72,7 +65,7 @@ public class ServerPhotographer extends ServerPlayer {
  
          LeavesLogger.LOGGER.info("Photographer " + state.id + " created");
  
@@ -440,7 +441,7 @@ index 70b2bdd897c4c3033db6fb277094f0b76c415ae3..9e3e3d7705158cb5712afca94306ca31
  
          return photographer;
      }
-@@ -82,6 +72,10 @@ public class ServerPhotographer extends ServerPlayer {
+@@ -84,6 +77,10 @@ public class ServerPhotographer extends ServerPlayer {
              this.serverLevel().chunkSource.move(this);
          }
  
@@ -451,7 +452,7 @@ index 70b2bdd897c4c3033db6fb277094f0b76c415ae3..9e3e3d7705158cb5712afca94306ca31
          super.tick();
          super.doTick();
      }
-@@ -98,8 +92,9 @@ public class ServerPhotographer extends ServerPlayer {
+@@ -106,8 +103,9 @@ public class ServerPhotographer extends ServerPlayer {
          this.recorder.stop();
          this.server.getPlayerList().removePhotographer(this);
  
@@ -462,7 +463,7 @@ index 70b2bdd897c4c3033db6fb277094f0b76c415ae3..9e3e3d7705158cb5712afca94306ca31
              CompletableFuture<Void> future = recorder.saveRecording(saveFile);
              if (!async) {
                  future.join();
-@@ -107,26 +102,43 @@ public class ServerPhotographer extends ServerPlayer {
+@@ -115,26 +113,43 @@ public class ServerPhotographer extends ServerPlayer {
          }
      }
  
@@ -518,7 +519,7 @@ index 70b2bdd897c4c3033db6fb277094f0b76c415ae3..9e3e3d7705158cb5712afca94306ca31
      }
  
      public Photographer getBukkitPlayer() {
-@@ -141,12 +153,14 @@ public class ServerPhotographer extends ServerPlayer {
+@@ -149,12 +164,14 @@ public class ServerPhotographer extends ServerPlayer {
  
      public static class PhotographerCreateState {
  
@@ -534,23 +535,3 @@ index 70b2bdd897c4c3033db6fb277094f0b76c415ae3..9e3e3d7705158cb5712afca94306ca31
          }
  
          public ServerPhotographer createSync() {
-@@ -157,19 +171,5 @@ public class ServerPhotographer extends ServerPlayer {
-             }
-             return null;
-         }
--
--        public void createAsync(Consumer<ServerPhotographer> consumer) {
--            Bukkit.getScheduler().runTaskAsynchronously(MINECRAFT_PLUGIN, () ->
--                Bukkit.getScheduler().runTask(MINECRAFT_PLUGIN, () -> {
--                    try {
--                        ServerPhotographer serverPhotographer = createPhotographer(this);
--                        if (serverPhotographer != null && consumer != null) {
--                            consumer.accept(serverPhotographer);
--                        }
--                    } catch (IOException e) {
--                        e.printStackTrace();
--                    }
--                }));
--        }
-     }
- }

@@ -25,7 +25,7 @@ index 952f9798aa2818eaac9b9f60acb2808f58e92e86..445e2bad15a3509f7f48f2c43657a4bd
              LeavesLogger.LOGGER.warning("Auto-Update is not completely safe. Enabling it may cause data security problems!");
          }
 diff --git a/src/main/java/top/leavesmc/leaves/util/LeavesUpdateHelper.java b/src/main/java/top/leavesmc/leaves/util/LeavesUpdateHelper.java
-index fb0f4ac5a864a9f05b99ae9887ac110701021b2e..e348ae6c04e2d882d6c9998458dd0b81fb539caa 100644
+index 7476f6c5bf8c4572878159a74507193e3c4a6207..98d89ee4791e09540d175770ec3ea7a91aed9806 100644
 --- a/src/main/java/top/leavesmc/leaves/util/LeavesUpdateHelper.java
 +++ b/src/main/java/top/leavesmc/leaves/util/LeavesUpdateHelper.java
 @@ -7,8 +7,11 @@ import com.google.gson.JsonElement;
@@ -53,18 +53,19 @@ index fb0f4ac5a864a9f05b99ae9887ac110701021b2e..e348ae6c04e2d882d6c9998458dd0b81
  import java.util.concurrent.locks.ReentrantLock;
  
  import static java.nio.file.StandardOpenOption.CREATE;
-@@ -40,7 +49,9 @@ public class LeavesUpdateHelper {
+@@ -40,7 +49,10 @@ public class LeavesUpdateHelper {
      private final static ReentrantLock updateLock = new ReentrantLock();
      private static boolean updateTaskStarted = false;
  
 -    public static void initAutoUpdate() {
++    private static int latestBuild = 0;
 +    private static final ScheduledExecutorService autoUpdateExecutor = Executors.newScheduledThreadPool(1);
 +
 +    public static void init() {
          File workingDirFile = new File(autoUpdateDir);
          if (!workingDirFile.exists()) {
              workingDirFile.mkdir();
-@@ -59,6 +70,24 @@ public class LeavesUpdateHelper {
+@@ -59,6 +71,24 @@ public class LeavesUpdateHelper {
          if (!leavesUpdateDir.exists()) {
              leavesUpdateDir.mkdir();
          }
@@ -89,7 +90,7 @@ index fb0f4ac5a864a9f05b99ae9887ac110701021b2e..e348ae6c04e2d882d6c9998458dd0b81
      }
  
      public static void tryUpdateLeaves() {
-@@ -66,12 +95,7 @@ public class LeavesUpdateHelper {
+@@ -66,12 +96,7 @@ public class LeavesUpdateHelper {
          try {
              if (!updateTaskStarted) {
                  updateTaskStarted = true;
@@ -103,7 +104,7 @@ index fb0f4ac5a864a9f05b99ae9887ac110701021b2e..e348ae6c04e2d882d6c9998458dd0b81
              }
          } finally {
              updateLock.unlock();
-@@ -83,7 +107,7 @@ public class LeavesUpdateHelper {
+@@ -83,7 +108,7 @@ public class LeavesUpdateHelper {
          String version = Bukkit.getVersion();
  
          if (version.startsWith("null")) {
@@ -112,3 +113,75 @@ index fb0f4ac5a864a9f05b99ae9887ac110701021b2e..e348ae6c04e2d882d6c9998458dd0b81
              updateTaskStarted = false;
              return;
          }
+@@ -94,6 +119,12 @@ public class LeavesUpdateHelper {
+         LeavesBuildInfo buildInfo = getLatestBuildInfo(minecraftVersion, gitHash);
+ 
+         if (buildInfo != LeavesBuildInfo.NULL) {
++            if (buildInfo.alreadyUpdate) {
++                LeavesLogger.LOGGER.warning("Already update, please restart your server.");
++                updateTaskStarted = false;
++                return;
++            }
++
+             if (!buildInfo.needUpdate) {
+                 LeavesLogger.LOGGER.warning("You are running the latest version, stopping update.");
+                 updateTaskStarted = false;
+@@ -134,7 +165,7 @@ public class LeavesUpdateHelper {
+                 }
+ 
+                 LeavesLogger.LOGGER.info("Download " + buildInfo.fileName + " completed.");
+-                if (!isFileValid(outFile, buildInfo.sha256)) {
++                if (isFileValid(outFile, buildInfo.sha256)) {
+                     LeavesLogger.LOGGER.warning("Hash check failed for downloaded file " + buildInfo.fileName);
+                     Files.deleteIfExists(outFile);
+                     updateTaskStarted = false;
+@@ -183,7 +214,7 @@ public class LeavesUpdateHelper {
+     private static String toHexString(byte @NotNull [] bytes) {
+         StringBuilder builder = new StringBuilder();
+         for (byte b : bytes) {
+-            builder.append(String.format("%02x", b));
++            builder.append(Integer.toHexString(b & 0xFF));
+         }
+         return builder.toString();
+     }
+@@ -197,11 +228,20 @@ public class LeavesUpdateHelper {
+                 JsonObject obj = new Gson().fromJson(reader, JsonObject.class);
+                 String channel = obj.get("channel").getAsString();
+ 
+-                if (channel.equals("default")) {
++                if ("default".equals(channel)) {
+                     int build = obj.get("build").getAsInt();
+ 
+                     JsonArray changes =  obj.get("changes").getAsJsonArray();
+                     boolean needUpdate = true;
++                    boolean alreadyUpdate = false;
++
++                    if (build > latestBuild) {
++                        latestBuild = build;
++                    } else {
++                        needUpdate = false;
++                        alreadyUpdate = true;
++                    }
++
+                     for (JsonElement change : changes) {
+                         if (change.getAsJsonObject().get("commit").getAsString().startsWith(gitHash)) {
+                             needUpdate = false;
+@@ -214,7 +254,7 @@ public class LeavesUpdateHelper {
+                     String sha256 = downloadInfo.get("sha256").getAsString();
+                     String githubUrl = downloadInfo.get("url").getAsString();
+                     String cdnUrl = downloadInfo.get("cdn_url").getAsString();
+-                    return new LeavesBuildInfo(build, name, sha256, needUpdate, cdnUrl, githubUrl);
++                    return new LeavesBuildInfo(build, name, sha256, needUpdate, alreadyUpdate, cdnUrl, githubUrl);
+                 } else {
+                     return LeavesBuildInfo.NULL;
+                 }
+@@ -228,7 +268,7 @@ public class LeavesUpdateHelper {
+         }
+     }
+ 
+-    private record LeavesBuildInfo(int build, String fileName, String sha256, boolean needUpdate, String cdnUrl, String githubUrl) {
+-        public static LeavesBuildInfo NULL = new LeavesBuildInfo(-1, null, null, false, null, null);
++    private record LeavesBuildInfo(int build, String fileName, String sha256, boolean needUpdate, boolean alreadyUpdate, String cdnUrl, String githubUrl) {
++        public static LeavesBuildInfo NULL = new LeavesBuildInfo(-1, null, null, false, false, null, null);
+     }
+ }

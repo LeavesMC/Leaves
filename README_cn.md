@@ -4,7 +4,6 @@ Leaves
 [![Leaves CI](https://github.com/LeavesMC/Leaves/actions/workflows/leaves.yml/badge.svg)](https://github.com/LeavesMC/Leaves/actions/workflows/leaves.yml)
 [![Leaves Download](https://img.shields.io/github/downloads/LeavesMC/Leaves/total?color=0&logo=github)](https://github.com/LeavesMC/Leaves/releases/latest)
 [![Discord](https://badgen.net/discord/online-members/5hgtU72w33?icon=discord&label=Discord&list=what)](https://discord.gg/5hgtU72w33)
-[![QQ](https://img.shields.io/badge/QQ-603461533-blue)](http://qm.qq.com/cgi-bin/qm/qr?_wv=1027&k=YZCUmBIMQIoKIdoSohMN4nVI4SHuwwJC&authKey=0GotlXL9HYCYQk3oPARGPS920kJL8xQ3radhaAGj4A9z6OgSnKQRK5U6ManMrMuK&noverify=0&group_code=603461533)
 
 [English](https://github.com/LeavesMC/Leaves/blob/master/README.md) | **中文**
 

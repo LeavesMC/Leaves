@@ -217,7 +217,7 @@ index 0000000000000000000000000000000000000000..56b41cb3401ea597b48ec98098fe31f4
 +    }
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/replay/PhotographerCommand.java b/src/main/java/top/leavesmc/leaves/replay/PhotographerCommand.java
-index 24d4aae46ce00a9c50d9ed58efc0aecc1731ad38..63a247a8766e2d6da4926206adc290bc86cd5829 100644
+index 24d4aae46ce00a9c50d9ed58efc0aecc1731ad38..926bbdd375f61ebb3f059d773a69e51bbbe7caae 100644
 --- a/src/main/java/top/leavesmc/leaves/replay/PhotographerCommand.java
 +++ b/src/main/java/top/leavesmc/leaves/replay/PhotographerCommand.java
 @@ -1,5 +1,8 @@
@@ -248,33 +248,39 @@ index 24d4aae46ce00a9c50d9ed58efc0aecc1731ad38..63a247a8766e2d6da4926206adc290bc
          super(name);
          this.description = "Photographer Command";
 -        this.usageMessage = "/photographer [create | remove]";
-+        this.usageMessage = "/photographer [create | remove | teleport]";
++        this.usageMessage = "/photographer [create | remove | teleport | follow | pause | resume]";
          this.setPermission("bukkit.command.photographer");
      }
  
-@@ -29,11 +35,12 @@ public class PhotographerCommand extends Command {
+@@ -29,11 +35,15 @@ public class PhotographerCommand extends Command {
          if (args.length <= 1) {
              list.add("create");
              list.add("remove");
 +            list.add("teleport");
++            list.add("follow");
++            list.add("pause");
++            list.add("resume");
          }
  
          if (args.length == 2) {
              switch (args[0]) {
 -                case "create", "remove" -> list.add("<PhotographerName>");
-+                case "create", "remove", "teleport" -> list.add("<PhotographerId>");
++                case "create", "remove", "teleport", "follow", "pause", "resume" -> list.add("<PhotographerId>");
              }
          }
  
-@@ -52,6 +59,7 @@ public class PhotographerCommand extends Command {
+@@ -52,6 +62,10 @@ public class PhotographerCommand extends Command {
          switch (args[0]) {
              case "create" -> this.onCreate(sender, args);
              case "remove" -> this.onRemove(sender, args);
 +            case "teleport" -> this.onTeleport(sender, args);
++            case "follow" -> this.onFollow(sender, args);
++            case "pause" -> this.onPause(sender, args);
++            case "resume" -> this.onResume(sender, args);
  
              default -> {
                  sender.sendMessage(ChatColor.RED + "Usage: " + usageMessage);
-@@ -64,16 +72,16 @@ public class PhotographerCommand extends Command {
+@@ -64,16 +78,16 @@ public class PhotographerCommand extends Command {
  
      private void onCreate(CommandSender sender, String @NotNull [] args) {
          if (args.length < 2) {
@@ -294,7 +300,7 @@ index 24d4aae46ce00a9c50d9ed58efc0aecc1731ad38..63a247a8766e2d6da4926206adc290bc
                      return;
                  }
  
-@@ -84,7 +92,7 @@ public class PhotographerCommand extends Command {
+@@ -84,7 +98,7 @@ public class PhotographerCommand extends Command {
                      double z = Double.parseDouble(args[5]);
  
                      if (world != null) {
@@ -303,7 +309,7 @@ index 24d4aae46ce00a9c50d9ed58efc0aecc1731ad38..63a247a8766e2d6da4926206adc290bc
                      }
                  } catch (Exception e) {
                      e.printStackTrace();
-@@ -106,9 +114,26 @@ public class PhotographerCommand extends Command {
+@@ -106,9 +120,26 @@ public class PhotographerCommand extends Command {
  
          return true;
      }
@@ -331,12 +337,67 @@ index 24d4aae46ce00a9c50d9ed58efc0aecc1731ad38..63a247a8766e2d6da4926206adc290bc
              return;
          }
  
-@@ -119,6 +144,6 @@ public class PhotographerCommand extends Command {
+@@ -119,6 +150,61 @@ public class PhotographerCommand extends Command {
              return;
          }
  
 -        photographer.remove(true);
 +        ServerPhotographer.getPhotographer(args[1]).teleportTo(((CraftPlayer) sender).getHandle().serverLevel(), Double.parseDouble(args[2]), Double.parseDouble(args[3]), Double.parseDouble(args[4]), 0, 0);
++    }
++
++    private void onFollow(CommandSender sender, String @NotNull [] args) {
++        if (args.length < 3) {
++            sender.sendMessage(ChatColor.RED + "Use /photographer follow <photographerId> <player> let a photographer follow one player");
++            return;
++        }
++
++        ServerPhotographer photographer = ServerPhotographer.getPhotographer(args[1]);
++
++        if (photographer == null) {
++            sender.sendMessage(ChatColor.RED + "This photographer is not in server");
++            return;
++        }
++
++        ServerPlayer player = ((CraftPlayer) Bukkit.getPlayer(args[2])).getHandle();
++
++        if (player == null) {
++            sender.sendMessage(ChatColor.RED + "This player is not in server");
++            return;
++        }
++
++        ServerPhotographer.getPhotographer(args[1]).setFollowPlayer(player);
++    }
++
++    private void onPause(CommandSender sender, String @NotNull [] args) {
++        if (args.length < 2) {
++            sender.sendMessage(ChatColor.RED + "Use /photographer pause <photographerId> to pause a photographer");
++            return;
++        }
++
++        ServerPhotographer photographer = ServerPhotographer.getPhotographer(args[1]);
++
++        if (photographer == null) {
++            sender.sendMessage(ChatColor.RED + "This photographer is not in server");
++            return;
++        }
++
++        ServerPhotographer.getPhotographer(args[1]).pauseRecording();
++    }
++
++    private void onResume(CommandSender sender, String @NotNull [] args) {
++        if (args.length < 2) {
++            sender.sendMessage(ChatColor.RED + "Use /photographer resume <photographerId> to resume a photographer");
++            return;
++        }
++
++        ServerPhotographer photographer = ServerPhotographer.getPhotographer(args[1]);
++
++        if (photographer == null) {
++            sender.sendMessage(ChatColor.RED + "This photographer is not in server");
++            return;
++        }
++
++        ServerPhotographer.getPhotographer(args[1]).resumeRecording();
      }
  }
 diff --git a/src/main/java/top/leavesmc/leaves/replay/RecorderOption.java b/src/main/java/top/leavesmc/leaves/replay/RecorderOption.java

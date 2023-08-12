@@ -115,7 +115,7 @@ index fd9e85dab7c511873824cac56a270ff435792292..257e51570ed08660613895f5a1eccbee
          }
          // Leaves end - bot can't get advancement
 diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
-index 3ff61af745630dc692d84aeccc25ad8dcf5c5746..02c41b3c1afab147f47c9d7e998ec92274e6de5b 100644
+index 3ff61af745630dc692d84aeccc25ad8dcf5c5746..32daf27565b1466f5f6645b9f5bbc4f00fe0cc3e 100644
 --- a/src/main/java/net/minecraft/server/players/PlayerList.java
 +++ b/src/main/java/net/minecraft/server/players/PlayerList.java
 @@ -136,6 +136,7 @@ import org.bukkit.event.player.PlayerSpawnChangeEvent;
@@ -126,7 +126,15 @@ index 3ff61af745630dc692d84aeccc25ad8dcf5c5746..02c41b3c1afab147f47c9d7e998ec922
  
  public abstract class PlayerList {
  
-@@ -195,6 +196,108 @@ public abstract class PlayerList {
+@@ -168,6 +169,7 @@ public abstract class PlayerList {
+     private boolean allowCheatsForAllPlayers;
+     private static final boolean ALLOW_LOGOUTIVATOR = false;
+     private int sendAllPlayerInfoIn;
++    public final List<ServerPlayer> realPlayers = new java.util.concurrent.CopyOnWriteArrayList(); // Leaves - replay api
+ 
+     // CraftBukkit start
+     private CraftServer cserver;
+@@ -195,6 +197,108 @@ public abstract class PlayerList {
      }
      abstract public void loadAndSaveFiles(); // Paper - moved from DedicatedPlayerList constructor
  
@@ -235,7 +243,15 @@ index 3ff61af745630dc692d84aeccc25ad8dcf5c5746..02c41b3c1afab147f47c9d7e998ec922
      public void placeNewPlayer(Connection connection, ServerPlayer player) {
          player.isRealPlayer = true; // Paper
          player.loginTime = System.currentTimeMillis(); // Paper
-@@ -392,6 +495,12 @@ public abstract class PlayerList {
+@@ -326,6 +430,7 @@ public abstract class PlayerList {
+ 
+         // entityplayer.connection.send(ClientboundPlayerInfoUpdatePacket.createPlayerInitializing(this.players)); // CraftBukkit - replaced with loop below
+         this.players.add(player);
++        this.realPlayers.add(player); // Leaves - replay api
+         this.playersByName.put(player.getScoreboardName().toLowerCase(java.util.Locale.ROOT), player); // Spigot
+         this.playersByUUID.put(player.getUUID(), player);
+         // this.broadcastAll(ClientboundPlayerInfoUpdatePacket.createPlayerInitializing(List.of(entityplayer))); // CraftBukkit - replaced with loop below
+@@ -392,6 +497,12 @@ public abstract class PlayerList {
                  continue;
              }
  
@@ -248,7 +264,7 @@ index 3ff61af745630dc692d84aeccc25ad8dcf5c5746..02c41b3c1afab147f47c9d7e998ec922
              onlinePlayers.add(entityplayer1); // Paper - use single player info update packet
          }
          // Paper start - use single player info update packet
-@@ -606,6 +715,43 @@ public abstract class PlayerList {
+@@ -606,6 +717,43 @@ public abstract class PlayerList {
  
      }
  
@@ -292,8 +308,16 @@ index 3ff61af745630dc692d84aeccc25ad8dcf5c5746..02c41b3c1afab147f47c9d7e998ec922
      public net.kyori.adventure.text.Component remove(ServerPlayer entityplayer) { // CraftBukkit - return string // Paper - return Component
          // Paper start
          return this.remove(entityplayer, net.kyori.adventure.text.Component.translatable("multiplayer.player.left", net.kyori.adventure.text.format.NamedTextColor.YELLOW, io.papermc.paper.configuration.GlobalConfiguration.get().messages.useDisplayNameInQuitMessage ? entityplayer.getBukkitEntity().displayName() : PaperAdventure.asAdventure(entityplayer.getDisplayName())));
+@@ -676,6 +824,7 @@ public abstract class PlayerList {
+         entityplayer.retireScheduler(); // Paper - Folia schedulers
+         entityplayer.getAdvancements().stopListening();
+         this.players.remove(entityplayer);
++        this.realPlayers.remove(entityplayer); // Leaves - replay api
+         this.playersByName.remove(entityplayer.getScoreboardName().toLowerCase(java.util.Locale.ROOT)); // Spigot
+         this.server.getCustomBossEvents().onPlayerDisconnect(entityplayer);
+         UUID uuid = entityplayer.getUUID();
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 947f6f4b8daeff972aef5f22e633f398b46402bf..0e3753356d2080f31596d1d7bd4f0298e020efd9 100644
+index 3948b88cf2fb407ebf228de93d42330ff1df0634..6bd1ef55b2d171025132ccb158fe51638267f28c 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 @@ -261,6 +261,7 @@ import org.yaml.snakeyaml.error.MarkedYAMLException;
@@ -312,6 +336,15 @@ index 947f6f4b8daeff972aef5f22e633f398b46402bf..0e3753356d2080f31596d1d7bd4f0298
  
      // Paper start - Folia region threading API
      private final io.papermc.paper.threadedregions.scheduler.FallbackRegionScheduler regionizedScheduler = new io.papermc.paper.threadedregions.scheduler.FallbackRegionScheduler();
+@@ -388,7 +390,7 @@ public final class CraftServer implements Server {
+     public CraftServer(DedicatedServer console, PlayerList playerList) {
+         this.console = console;
+         this.playerList = (DedicatedPlayerList) playerList;
+-        this.playerView = Collections.unmodifiableList(Lists.transform(playerList.players, new Function<ServerPlayer, CraftPlayer>() {
++        this.playerView = Collections.unmodifiableList(Lists.transform(playerList.realPlayers, new Function<ServerPlayer, CraftPlayer>() { // Leaves - replay api
+             @Override
+             public CraftPlayer apply(ServerPlayer player) {
+                 return player.getBukkitEntity();
 @@ -3163,4 +3165,11 @@ public final class CraftServer implements Server {
          return botManager;
      }

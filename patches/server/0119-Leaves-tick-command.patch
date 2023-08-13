@@ -1,0 +1,126 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Sun, 13 Aug 2023 17:22:08 +0800
+Subject: [PATCH] Leaves tick command
+
+
+diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
+index 87bb9de0403339d3f14fa9065d0a0515fad3e767..75a73d5797dd9655b646de00435d750c5fc63f68 100644
+--- a/src/main/java/net/minecraft/server/MinecraftServer.java
++++ b/src/main/java/net/minecraft/server/MinecraftServer.java
+@@ -1100,6 +1100,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+     // Spigot End
+ 
+     public static volatile RuntimeException chunkSystemCrash; // Paper - rewrite chunk system
++    public static boolean skipTickWait = false; // Leaves - tick command - warp
+ 
+     protected void runServer() {
+         try {
+@@ -1179,7 +1180,13 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+                 this.profiler.popPush("nextTickWait");
+                 this.mayHaveDelayedTasks = true;
+                 this.delayedTasksMaxNextTickTime = Math.max(Util.getMillis() + 50L, this.nextTickTime);
+-                this.waitUntilNextTick();
++                // Leaves - tick command - warp
++                if (skipTickWait) {
++                    this.nextTickTime = Util.getMillis();
++                } else {
++                    this.waitUntilNextTick();
++                }
++                // Leaves - tick command - warp
+                 this.profiler.pop();
+                 this.endMetricsRecordingTick();
+                 this.isReady = true;
+diff --git a/src/main/java/top/leavesmc/leaves/command/LeavesCommand.java b/src/main/java/top/leavesmc/leaves/command/LeavesCommand.java
+index da1f7ce2db23c509c70f673c8bb1c46af2ed7279..0259a1472bba36b5bb903e559a99f791e8a9317a 100644
+--- a/src/main/java/top/leavesmc/leaves/command/LeavesCommand.java
++++ b/src/main/java/top/leavesmc/leaves/command/LeavesCommand.java
+@@ -13,6 +13,7 @@ import org.bukkit.plugin.PluginManager;
+ import org.checkerframework.checker.nullness.qual.Nullable;
+ import org.jetbrains.annotations.NotNull;
+ import top.leavesmc.leaves.command.subcommands.PeacefulModeSwitchCommand;
++import top.leavesmc.leaves.command.subcommands.TickCommand;
+ import top.leavesmc.leaves.command.subcommands.UpdateCommand;
+ 
+ import java.util.ArrayList;
+@@ -35,6 +36,7 @@ public final class LeavesCommand extends Command {
+         final Map<Set<String>, LeavesSubcommand> commands = new HashMap<>();
+         commands.put(Set.of("update"), new UpdateCommand());
+         commands.put(Set.of("peaceful"), new PeacefulModeSwitchCommand());
++        commands.put(Set.of("tick"), new TickCommand());
+ 
+         return commands.entrySet().stream()
+             .flatMap(entry -> entry.getKey().stream().map(s -> Map.entry(s, entry.getValue())))
+diff --git a/src/main/java/top/leavesmc/leaves/command/subcommands/TickCommand.java b/src/main/java/top/leavesmc/leaves/command/subcommands/TickCommand.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..a6dcf7b1c5df95d7f8dcccda14674195317f22a8
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/command/subcommands/TickCommand.java
+@@ -0,0 +1,67 @@
++package top.leavesmc.leaves.command.subcommands;
++
++import io.papermc.paper.command.CommandUtil;
++import net.kyori.adventure.text.Component;
++import net.kyori.adventure.text.JoinConfiguration;
++import net.kyori.adventure.text.format.NamedTextColor;
++import net.minecraft.server.MinecraftServer;
++import org.bukkit.command.CommandSender;
++import top.leavesmc.leaves.command.LeavesSubcommand;
++
++import java.util.Collections;
++import java.util.List;
++
++public class TickCommand implements LeavesSubcommand {
++
++    @Override
++    public boolean execute(CommandSender sender, String subCommand, String[] args) {
++        if (args.length < 1) {
++            sender.sendMessage(Component.join(JoinConfiguration.noSeparators(),
++                Component.text("Tick Status: ", NamedTextColor.GRAY),
++                this.getStatus().getMessage()
++            ));
++            return true;
++        }
++
++        switch (args[0]) {
++            case "warp" -> {
++                TickStatus oldStatus = this.getStatus();
++                MinecraftServer.skipTickWait = !MinecraftServer.skipTickWait;
++                sender.sendMessage(Component.join(JoinConfiguration.noSeparators(),
++                    Component.text("Tick Status: ", NamedTextColor.GRAY),
++                    oldStatus.getMessage(),
++                    Component.text(" -> ", NamedTextColor.GRAY),
++                    this.getStatus().getMessage()
++                ));
++            }
++        }
++        return true;
++    }
++
++    public TickStatus getStatus() {
++        return MinecraftServer.skipTickWait ? TickStatus.WARP : TickStatus.NORMAL;
++    }
++
++    public enum TickStatus {
++        NORMAL(Component.text("normal", NamedTextColor.GRAY)),
++        WARP(Component.text("warp", NamedTextColor.AQUA));
++
++        private final Component message;
++
++        private TickStatus(Component message) {
++            this.message = message;
++        }
++
++        public Component getMessage() {
++            return message;
++        }
++    }
++
++    @Override
++    public List<String> tabComplete(final CommandSender sender, final String subCommand, final String[] args) {
++        if (args.length == 1) {
++            return CommandUtil.getListMatchingLast(sender, args, "warp");
++        }
++        return Collections.emptyList();
++    }
++}

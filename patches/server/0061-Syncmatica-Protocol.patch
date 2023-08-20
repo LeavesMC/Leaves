@@ -54,7 +54,7 @@ index dac97d0c32a8801e6dfddfe47b2c9de4ed9f6ae6..b898c0c4dc108ea111935fa32eaaf0ef
                  ServerGamePacketListenerImpl.LOGGER.error("Couldn\'t dispatch custom payload", ex);
                  this.disconnect("Invalid custom payload!", org.bukkit.event.player.PlayerKickEvent.Cause.INVALID_PAYLOAD);
 diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
-index 11a0353a2fd698a66e7ecfa3df22221a056c1069..7f9c9ddbd16a25b7f2b1d267901aade4452d64b2 100644
+index ea4908c14ffedddc7966932468067f047ecb5b23..b6984f7074ee1782a31c44820c255d21a4228df6 100644
 --- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
 +++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
 @@ -12,6 +12,7 @@ import top.leavesmc.leaves.command.LeavesCommand;
@@ -75,10 +75,10 @@ index 11a0353a2fd698a66e7ecfa3df22221a056c1069..7f9c9ddbd16a25b7f2b1d267901aade4
  
 diff --git a/src/main/java/top/leavesmc/leaves/protocol/syncmatica/CommunicationManager.java b/src/main/java/top/leavesmc/leaves/protocol/syncmatica/CommunicationManager.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..1dda69bb2ab8103d0886a7800c227344d7fc32f7
+index 0000000000000000000000000000000000000000..5320948762a791bcdda915f842ce139516b09657
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/protocol/syncmatica/CommunicationManager.java
-@@ -0,0 +1,378 @@
+@@ -0,0 +1,382 @@
 +package top.leavesmc.leaves.protocol.syncmatica;
 +
 +import com.mojang.authlib.GameProfile;
@@ -238,6 +238,10 @@ index 0000000000000000000000000000000000000000..1dda69bb2ab8103d0886a7800c227344
 +            final UUID placementId = packetBuf.readUUID();
 +            final ServerPlacement placement = SyncmaticaProtocol.getSyncmaticManager().getPlacement(placementId);
 +            if (placement != null) {
++                if (!this.getGameProfile(source).getId().equals(placement.getOwner().uuid)) {
++                    return;
++                }
++
 +                final Exchange modifier = getModifier(placement);
 +                if (modifier != null) {
 +                    modifier.close(true);
@@ -1788,10 +1792,10 @@ index 0000000000000000000000000000000000000000..f92739dbfa00de0e078834818dab79e3
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/protocol/syncmatica/exchange/ModifyExchangeServer.java b/src/main/java/top/leavesmc/leaves/protocol/syncmatica/exchange/ModifyExchangeServer.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..b78c71ceb67aca814e8c7c772e079a8ab1bc2641
+index 0000000000000000000000000000000000000000..d87602fa78a8e599b71556f3dd103ff71ee83ae0
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/protocol/syncmatica/exchange/ModifyExchangeServer.java
-@@ -0,0 +1,77 @@
+@@ -0,0 +1,81 @@
 +package top.leavesmc.leaves.protocol.syncmatica.exchange;
 +
 +import io.netty.buffer.Unpooled;
@@ -1840,7 +1844,11 @@ index 0000000000000000000000000000000000000000..b78c71ceb67aca814e8c7c772e079a8a
 +        if (getPlacement() == null || SyncmaticaProtocol.getCommunicationManager().getModifier(placement) != null) {
 +            close(true);
 +        } else {
-+            accept();
++            if (SyncmaticaProtocol.getPlayerIdentifierProvider().createOrGet(this.getPartner()).uuid.equals(placement.getOwner().uuid)) {
++                accept();
++            } else {
++                close(true);
++            }
 +        }
 +    }
 +

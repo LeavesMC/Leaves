@@ -354,10 +354,10 @@ index 03f2fd1958b8f2c7d97232240f05affcc6f56b7f..ad85acbb2b6f23c12d8ca250f98b86cf
      public static void load(final YamlConfiguration config) {
 diff --git a/src/main/java/top/leavesmc/leaves/bot/BotCommand.java b/src/main/java/top/leavesmc/leaves/bot/BotCommand.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..8b9c3573b8778b984135aac57c68c341b99c91c8
+index 0000000000000000000000000000000000000000..ad49275aca2649ae0e7a6f90cfda9f439d72b067
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/BotCommand.java
-@@ -0,0 +1,261 @@
+@@ -0,0 +1,275 @@
 +package top.leavesmc.leaves.bot;
 +
 +import org.bukkit.Bukkit;
@@ -374,6 +374,7 @@ index 0000000000000000000000000000000000000000..8b9c3573b8778b984135aac57c68c341
 +import org.bukkit.permissions.PermissionDefault;
 +import org.bukkit.plugin.PluginManager;
 +import org.jetbrains.annotations.NotNull;
++import top.leavesmc.leaves.LeavesLogger;
 +import top.leavesmc.leaves.bot.agent.Actions;
 +import top.leavesmc.leaves.bot.agent.BotAction;
 +import top.leavesmc.leaves.bot.agent.actions.CraftCustomBotAction;
@@ -419,7 +420,10 @@ index 0000000000000000000000000000000000000000..8b9c3573b8778b984135aac57c68c341
 +
 +        if (args.length == 3) {
 +            switch (args[0]) {
-+                case "action" -> list.addAll(Actions.getNames());
++                case "action" -> {
++                    list.add("list");
++                    list.addAll(Actions.getNames());
++                }
 +                case "create" -> list.add("<BotSkinName>");
 +            }
 +        }
@@ -537,8 +541,17 @@ index 0000000000000000000000000000000000000000..8b9c3573b8778b984135aac57c68c341
 +            return;
 +        }
 +
-+        if (!(sender instanceof CraftPlayer player)) {
-+            sender.sendMessage(ChatColor.RED + "This command only can use by player");
++        ServerBot bot = ServerBot.getBot(args[1]);
++        if (bot == null) {
++            sender.sendMessage(ChatColor.RED + "This fakeplayer is not in server");
++            return;
++        }
++
++        if (args[2].equals("list")) {
++            sender.sendMessage(bot.getScoreboardName() + "'s action list:");
++            for (BotAction action : bot.getBotActions()) {
++                sender.sendMessage(action.getName());
++            }
 +            return;
 +        }
 +
@@ -548,10 +561,11 @@ index 0000000000000000000000000000000000000000..8b9c3573b8778b984135aac57c68c341
 +            return;
 +        }
 +
-+        ServerBot bot = ServerBot.getBot(args[1]);
-+        if (bot == null) {
-+            sender.sendMessage(ChatColor.RED + "This fakeplayer is not in server");
-+            return;
++        CraftPlayer player;
++        if (sender instanceof CraftPlayer) {
++            player = (CraftPlayer) sender;
++        } else {
++            player = bot.getBukkitEntity();
 +        }
 +
 +        BotAction newAction;
@@ -846,13 +860,14 @@ index 0000000000000000000000000000000000000000..07b688d376a4af88305e57519a5ae983
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/BotUtil.java b/src/main/java/top/leavesmc/leaves/bot/BotUtil.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..0f19bc7cfe12f128bae26025a6906da1fd7aa518
+index 0000000000000000000000000000000000000000..be3a40e3100ec838cf8de6437cc6b1b0c454bc68
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/BotUtil.java
 @@ -0,0 +1,182 @@
 +package top.leavesmc.leaves.bot;
 +
 +import com.google.common.base.Charsets;
++import com.google.gson.JsonArray;
 +import com.google.gson.JsonElement;
 +import com.google.gson.JsonObject;
 +import net.minecraft.core.NonNullList;
@@ -871,6 +886,7 @@ index 0000000000000000000000000000000000000000..0f19bc7cfe12f128bae26025a6906da1
 +
 +import java.io.File;
 +import java.io.IOException;
++import java.util.Collection;
 +import java.util.Map;
 +import java.util.UUID;
 +
@@ -947,14 +963,16 @@ index 0000000000000000000000000000000000000000..0f19bc7cfe12f128bae26025a6906da1
 +        fakePlayer.addProperty("dimension", dimension);
 +        fakePlayer.addProperty("skin", skin);
 +
-+        BotAction botAction = bot.getBotAction();
-+        if (botAction != null) {
-+            JsonObject action = new JsonObject();
-+            action.addProperty("name", botAction.getName());
-+            action.addProperty("number", String.valueOf(botAction.getNumber()));
-+            action.addProperty("delay", String.valueOf(botAction.getTickDelay()));
-+            fakePlayer.add("action", action);
++        Collection<BotAction> actions = bot.getBotActions();
++        JsonArray botActions = new JsonArray();
++        for (BotAction action : actions) {
++            JsonObject actionObj = new JsonObject();
++            actionObj.addProperty("name", action.getName());
++            actionObj.addProperty("number", String.valueOf(action.getNumber()));
++            actionObj.addProperty("delay", String.valueOf(action.getTickDelay()));
++            botActions.add(actionObj);
 +        }
++        fakePlayer.add("actions", botActions);
 +
 +        CompoundTag invnbt = new CompoundTag();
 +        invnbt.put("Inventory", bot.getInventory().save(new ListTag()));
@@ -1003,23 +1021,19 @@ index 0000000000000000000000000000000000000000..0f19bc7cfe12f128bae26025a6906da1
 +            file.delete();
 +        }
 +
-+        JsonObject actionObj = null;
-+        if (fakePlayer.has("action")) {
-+            actionObj = fakePlayer.get("action").getAsJsonObject();
-+        }
-+
++        final JsonArray finalActions = fakePlayer.get("actions").getAsJsonArray();
 +        final ListTag finalInv = inv;
-+        final JsonObject finalActionObj = actionObj;
 +        state.createAsync(serverBot -> {
 +            if (finalInv != null) {
 +                serverBot.getInventory().load(finalInv);
 +            }
 +
-+            if (finalActionObj != null) {
-+                BotAction action = Actions.getForName(finalActionObj.get("name").getAsString());
++            for (JsonElement element : finalActions) {
++                JsonObject actionObj = element.getAsJsonObject();
++                BotAction action = Actions.getForName(actionObj.get("name").getAsString());
 +                if (action != null) {
 +                    BotAction newAction = action.getNew(serverBot,
-+                        action.getArgument().parse(0, new String[]{finalActionObj.get("delay").getAsString(), finalActionObj.get("number").getAsString()})
++                        action.getArgument().parse(0, new String[]{actionObj.get("delay").getAsString(), actionObj.get("number").getAsString()})
 +                    );
 +                    serverBot.setBotAction(newAction);
 +                }
@@ -1081,10 +1095,10 @@ index 0000000000000000000000000000000000000000..daaece30b2a3983f1cc9ee9a851e8f37
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/ServerBot.java b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..2427c5035b4681bf20916fa83f415b407eeba08e
+index 0000000000000000000000000000000000000000..3d627847c03e741937b28263c4b8d92266aada1b
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
-@@ -0,0 +1,693 @@
+@@ -0,0 +1,706 @@
 +package top.leavesmc.leaves.bot;
 +
 +import com.google.common.collect.Lists;
@@ -1142,6 +1156,7 @@ index 0000000000000000000000000000000000000000..2427c5035b4681bf20916fa83f415b40
 +import org.jetbrains.annotations.NotNull;
 +import top.leavesmc.leaves.LeavesConfig;
 +import top.leavesmc.leaves.bot.agent.BotAction;
++import top.leavesmc.leaves.bot.agent.actions.StopAction;
 +import top.leavesmc.leaves.entity.Bot;
 +import top.leavesmc.leaves.entity.CraftBot;
 +import top.leavesmc.leaves.event.bot.BotCreateEvent;
@@ -1155,7 +1170,9 @@ index 0000000000000000000000000000000000000000..2427c5035b4681bf20916fa83f415b40
 +import java.io.IOException;
 +import java.nio.charset.StandardCharsets;
 +import java.nio.file.Files;
++import java.util.Collection;
 +import java.util.EnumSet;
++import java.util.HashMap;
 +import java.util.Iterator;
 +import java.util.List;
 +import java.util.Map;
@@ -1166,16 +1183,13 @@ index 0000000000000000000000000000000000000000..2427c5035b4681bf20916fa83f415b40
 +// TODO remake all
 +public class ServerBot extends ServerPlayer {
 +
-+    private Vec3 velocity;
-+    private BotAction action;
-+    private BotAction newAction;
-+
++    private final Map<String, BotAction> actions;
 +    private final boolean removeOnDeath;
++
++    private Vec3 velocity;
 +    private int fireTicks;
 +    private int jumpTicks;
 +    private int noFallTicks;
-+    private int noActionTicks;
-+    private int doActionNumber;
 +    public boolean waterSwim;
 +    private Vec3 knockback;
 +    public BotCreateState createState;
@@ -1194,8 +1208,7 @@ index 0000000000000000000000000000000000000000..2427c5035b4681bf20916fa83f415b40
 +        this.velocity = new Vec3(this.xxa, this.yya, this.zza);
 +        this.noFallTicks = 60;
 +        this.fireTicks = 0;
-+        this.noActionTicks = 0;
-+        this.doActionNumber = -1;
++        this.actions = new HashMap<>();
 +        this.removeOnDeath = true;
 +        this.stats = new BotStatsCounter(server);
 +        this.container = new BotInventoryContainer(this);
@@ -1384,9 +1397,6 @@ index 0000000000000000000000000000000000000000..2427c5035b4681bf20916fa83f415b40
 +        if (noFallTicks > 0) {
 +            --noFallTicks;
 +        }
-+        if (noActionTicks > 0) {
-+            --noActionTicks;
-+        }
 +        if (takeXpDelay > 0) {
 +            --takeXpDelay;
 +        }
@@ -1438,25 +1448,13 @@ index 0000000000000000000000000000000000000000..2427c5035b4681bf20916fa83f415b40
 +            }
 +        }
 +
-+        if (newAction != null) {
-+            action = newAction;
-+            newAction = null;
-+            noActionTicks = 0;
-+            doActionNumber = action.getNumber();
-+        }
-+
-+        if (action != null && noActionTicks <= 0) {
-+            if (action.isCancel()) {
-+                action = null;
++        Iterator<Map.Entry<String, BotAction>> iterator = actions.entrySet().iterator();
++        while (iterator.hasNext()) {
++            Map.Entry<String, BotAction> entry = iterator.next();
++            if (entry.getValue().isCancel()) {
++                iterator.remove();
 +            } else {
-+                if (doActionNumber != 0) {
-+                    if (action.doTick(this)) {
-+                        doActionNumber--;
-+                    }
-+                    noActionTicks = action.getTickDelay();
-+                } else {
-+                    action = null;
-+                }
++                entry.getValue().tryTick(this);
 +            }
 +        }
 +    }
@@ -1474,6 +1472,22 @@ index 0000000000000000000000000000000000000000..2427c5035b4681bf20916fa83f415b40
 +    public void updateItemInMainHand() {
 +        tryReplenishOrReplaceInMainHand();
 +        detectEquipmentUpdates();
++    }
++
++    public void updateItemInOffHand() {
++        tryReplenishOrReplaceInOffHand();
++        detectEquipmentUpdates();
++    }
++
++    public void tryReplenishOrReplaceInOffHand() {
++        net.minecraft.world.item.ItemStack offhand = getOffhandItem();
++
++        if (!offhand.isEmpty()) {
++            BotUtil.replenishment(offhand, getInventory().items);
++            if (BotUtil.isDamage(offhand, 10)) {
++                BotUtil.replaceTool(EquipmentSlot.OFFHAND, this);
++            }
++        }
 +    }
 +
 +    public void tryReplenishOrReplaceInMainHand() {
@@ -1585,12 +1599,25 @@ index 0000000000000000000000000000000000000000..2427c5035b4681bf20916fa83f415b40
 +        detectEquipmentUpdates();
 +    }
 +
-+    public void setBotAction(BotAction botAction) {
-+        this.newAction = botAction;
++    public void setBotAction(BotAction action) {
++        if (action instanceof StopAction) {
++            this.actions.clear();
++        }
++        action.init();
++        this.actions.put(action.getName(), action);
 +    }
 +
++    public Collection<BotAction> getBotActions() {
++        return actions.values();
++    }
++
++    public BotAction getBotAction(String name) {
++        return actions.get(name);
++    }
++
++    @Deprecated
 +    public BotAction getBotAction() {
-+        return action;
++        return null;
 +    }
 +
 +    @Override
@@ -1780,10 +1807,10 @@ index 0000000000000000000000000000000000000000..2427c5035b4681bf20916fa83f415b40
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/Actions.java b/src/main/java/top/leavesmc/leaves/bot/agent/Actions.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..c8490bcb9108d72281338f0a3f806586986ee2d9
+index 0000000000000000000000000000000000000000..78ef7b176b229ca49996d2180d5f32e9d1643036
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/Actions.java
-@@ -0,0 +1,64 @@
+@@ -0,0 +1,67 @@
 +package top.leavesmc.leaves.bot.agent;
 +
 +import org.jetbrains.annotations.Contract;
@@ -1815,6 +1842,9 @@ index 0000000000000000000000000000000000000000..c8490bcb9108d72281338f0a3f806586
 +        register(new AttackSelfAction());
 +        register(new SwimAction());
 +        register(new LayAction());
++        register(new UseItemOffHandAction());
++        register(new UseItemOnOffhandAction());
++        register(new UseItemToOffhandAction());
 +    }
 +
 +    public static boolean register(@NotNull BotAction action) {
@@ -1850,10 +1880,10 @@ index 0000000000000000000000000000000000000000..c8490bcb9108d72281338f0a3f806586
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/BotAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/BotAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..9d01944805cfbffbd08343121b8ff27e06e504fb
+index 0000000000000000000000000000000000000000..94c0148b7a112f0a87975fa70d250c906d000e3d
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/BotAction.java
-@@ -0,0 +1,71 @@
+@@ -0,0 +1,92 @@
 +package top.leavesmc.leaves.bot.agent;
 +
 +import net.minecraft.server.level.ServerPlayer;
@@ -1872,6 +1902,9 @@ index 0000000000000000000000000000000000000000..9d01944805cfbffbd08343121b8ff27e
 +    private boolean cancel;
 +    private int tickDelay;
 +    private int number;
++
++    private int needWaitTick;
++    private int canDoNumber;
 +
 +    public BotAction(String name, CommandArgument argument) {
 +        this.name = name;
@@ -1915,6 +1948,24 @@ index 0000000000000000000000000000000000000000..9d01944805cfbffbd08343121b8ff27e
 +
 +    public void setCancel(boolean cancel) {
 +        this.cancel = cancel;
++    }
++
++    public void init() {
++        this.needWaitTick = 0;
++        this.canDoNumber = this.getNumber();
++    }
++
++    public void tryTick(ServerBot bot) {
++        if (canDoNumber == 0) {
++            this.setCancel(true);
++            return;
++        }
++        if (needWaitTick-- <= 0) {
++            if (this.doTick(bot)) {
++                canDoNumber--;
++                needWaitTick = this.getTickDelay();
++            }
++        }
 +    }
 +
 +    public CommandArgument getArgument() {
@@ -2595,6 +2646,45 @@ index 0000000000000000000000000000000000000000..5dc3fbf8e62ccffc8291962c835a568e
 +        return bot.getInventory().getSelected().use(bot.level(), bot, InteractionHand.MAIN_HAND).getResult().consumesAction();
 +    }
 +}
+diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemOffHandAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemOffHandAction.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..345932e779f5187355ca722c2bb9b05f384660a1
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemOffHandAction.java
+@@ -0,0 +1,33 @@
++package top.leavesmc.leaves.bot.agent.actions;
++
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.world.InteractionHand;
++import org.jetbrains.annotations.NotNull;
++import top.leavesmc.leaves.bot.ServerBot;
++import top.leavesmc.leaves.bot.agent.BotAction;
++import top.leavesmc.leaves.command.CommandArgument;
++import top.leavesmc.leaves.command.CommandArgumentResult;
++import top.leavesmc.leaves.command.CommandArgumentType;
++
++import java.util.List;
++
++public class UseItemOffHandAction extends BotAction {
++
++    public UseItemOffHandAction() {
++        super("use_offhand", new CommandArgument(CommandArgumentType.INTEGER, CommandArgumentType.INTEGER));
++        setTabComplete(0, List.of("[TickDelay]"));
++        setTabComplete(1, List.of("[DoNumber]"));
++    }
++
++    @Override
++    public BotAction getNew(@NotNull ServerPlayer player, @NotNull CommandArgumentResult result) {
++        return new UseItemOffHandAction().setTickDelay(result.readInt(20)).setNumber(result.readInt(-1));
++    }
++
++    @Override
++    public boolean doTick(@NotNull ServerBot bot) {
++        bot.punch();
++        bot.updateItemInOffHand();
++        return bot.getInventory().getSelected().use(bot.level(), bot, InteractionHand.OFF_HAND).getResult().consumesAction();
++    }
++}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemOnAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemOnAction.java
 new file mode 100644
 index 0000000000000000000000000000000000000000..886e37227e66dc25653b8ad53fef600c705aa101
@@ -2641,6 +2731,52 @@ index 0000000000000000000000000000000000000000..886e37227e66dc25653b8ad53fef600c
 +        return false;
 +    }
 +}
+diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemOnOffhandAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemOnOffhandAction.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..16ae37e2ffb4189041986e759d563d00a9126ad8
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemOnOffhandAction.java
+@@ -0,0 +1,40 @@
++package top.leavesmc.leaves.bot.agent.actions;
++
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.world.InteractionHand;
++import net.minecraft.world.level.ClipContext;
++import net.minecraft.world.phys.BlockHitResult;
++import net.minecraft.world.phys.HitResult;
++import org.jetbrains.annotations.NotNull;
++import top.leavesmc.leaves.bot.ServerBot;
++import top.leavesmc.leaves.bot.agent.BotAction;
++import top.leavesmc.leaves.command.CommandArgument;
++import top.leavesmc.leaves.command.CommandArgumentResult;
++import top.leavesmc.leaves.command.CommandArgumentType;
++
++import java.util.List;
++
++public class UseItemOnOffhandAction extends BotAction {
++
++    public UseItemOnOffhandAction() {
++        super("use_on_offhand", new CommandArgument(CommandArgumentType.INTEGER, CommandArgumentType.INTEGER));
++        setTabComplete(0, List.of("[TickDelay]"));
++        setTabComplete(1, List.of("[DoNumber]"));
++    }
++
++    @Override
++    public BotAction getNew(@NotNull ServerPlayer player, @NotNull CommandArgumentResult result) {
++        return new UseItemOnOffhandAction().setTickDelay(result.readInt(20)).setNumber(result.readInt(-1));
++    }
++
++    @Override
++    public boolean doTick(@NotNull ServerBot bot) {
++        HitResult result = bot.getRayTrace(5, ClipContext.Fluid.NONE);
++        if (result.getType() == HitResult.Type.BLOCK) {
++            bot.punch();
++            bot.updateItemInOffHand();
++            return bot.gameMode.useItemOn(bot, bot.level(), bot.getItemInHand(InteractionHand.OFF_HAND), InteractionHand.OFF_HAND, (BlockHitResult) result).consumesAction();
++        }
++        return false;
++    }
++}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemToAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemToAction.java
 new file mode 100644
 index 0000000000000000000000000000000000000000..cc8689ee726144f220e4ccc5cd418b79a29b79ab
@@ -2681,6 +2817,50 @@ index 0000000000000000000000000000000000000000..cc8689ee726144f220e4ccc5cd418b79
 +            bot.punch();
 +            bot.updateItemInMainHand();
 +            return result.getEntity().interact(bot, InteractionHand.MAIN_HAND).consumesAction();
++        }
++        return false;
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemToOffhandAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemToOffhandAction.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..1fde496c993ec0c961a63b32a8088479da88c91d
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemToOffhandAction.java
+@@ -0,0 +1,38 @@
++package top.leavesmc.leaves.bot.agent.actions;
++
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.world.InteractionHand;
++import net.minecraft.world.phys.EntityHitResult;
++import org.jetbrains.annotations.NotNull;
++import top.leavesmc.leaves.bot.ServerBot;
++import top.leavesmc.leaves.bot.agent.BotAction;
++import top.leavesmc.leaves.command.CommandArgument;
++import top.leavesmc.leaves.command.CommandArgumentResult;
++import top.leavesmc.leaves.command.CommandArgumentType;
++
++import java.util.List;
++
++public class UseItemToOffhandAction extends BotAction {
++
++    public UseItemToOffhandAction() {
++        super("use_to_offhand", new CommandArgument(CommandArgumentType.INTEGER, CommandArgumentType.INTEGER));
++        setTabComplete(0, List.of("[TickDelay]"));
++        setTabComplete(1, List.of("[DoNumber]"));
++    }
++
++    @Override
++    public BotAction getNew(@NotNull ServerPlayer player, @NotNull CommandArgumentResult result) {
++        return new UseItemToOffhandAction().setTickDelay(result.readInt(20)).setNumber(result.readInt(-1));
++    }
++
++    @Override
++    public boolean doTick(@NotNull ServerBot bot) {
++        EntityHitResult result = bot.getTargetEntity(3);
++        if (result != null) {
++            bot.punch();
++            bot.updateItemInOffHand();
++            return result.getEntity().interact(bot, InteractionHand.OFF_HAND).consumesAction();
 +        }
 +        return false;
 +    }

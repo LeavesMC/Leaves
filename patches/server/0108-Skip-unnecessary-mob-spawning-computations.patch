@@ -6,10 +6,10 @@ Subject: [PATCH] Skip unnecessary mob spawning computations
 This patch is Powered by Gale(https://github.com/GaleMC/Gale)
 
 diff --git a/src/main/java/net/minecraft/server/level/ServerChunkCache.java b/src/main/java/net/minecraft/server/level/ServerChunkCache.java
-index b3d60819cee789c4cb3f7dcd2a8ea4aeb0b50f27..47787f1f86b99cfcae6e1bb3dcf7648e9f04c936 100644
+index 5942626173e68d80a2e93d7221f2f470f07f022b..e3760154b7d3aabb9d63a06f11e4dca0743bb03f 100644
 --- a/src/main/java/net/minecraft/server/level/ServerChunkCache.java
 +++ b/src/main/java/net/minecraft/server/level/ServerChunkCache.java
-@@ -566,15 +566,19 @@ public class ServerChunkCache extends ChunkSource {
+@@ -566,50 +566,57 @@ public class ServerChunkCache extends ChunkSource {
              int k = this.level.getGameRules().getInt(GameRules.RULE_RANDOMTICKING);
              boolean flag1 = level.ticksPerSpawnCategory.getLong(org.bukkit.entity.SpawnCategory.ANIMAL) != 0L && worlddata.getGameTime() % level.ticksPerSpawnCategory.getLong(org.bukkit.entity.SpawnCategory.ANIMAL) == 0L; // CraftBukkit
  
@@ -20,6 +20,17 @@ index b3d60819cee789c4cb3f7dcd2a8ea4aeb0b50f27..47787f1f86b99cfcae6e1bb3dcf7648e
 +            // Leaves start - skip unnecessary mob spawning computations
              NaturalSpawner.SpawnState spawnercreature_d; // moved down
 -            if ((this.spawnFriendlies || this.spawnEnemies) && this.chunkMap.playerMobDistanceMap != null) { // don't count mobs when animals and monsters are disabled
+-                // Leaves start - optimize mob spawning
+-                if (!top.leavesmc.leaves.LeavesConfig.asyncMobSpawning) {
+-                    // re-set mob counts
+-                    for (ServerPlayer player : this.level.players) {
+-                        // Paper start - per player mob spawning backoff
+-                        for (int ii = 0; ii < ServerPlayer.MOBCATEGORY_TOTAL_ENUMS; ii++) {
+-                            player.mobCounts[ii] = 0;
+-
+-                            int newBackoff = player.mobBackoffCounts[ii] - 1; // TODO make configurable bleed // TODO use nonlinear algorithm?
+-                            if (newBackoff < 0) {
+-                                newBackoff = 0;
 +            boolean flag2 = this.level.getGameRules().getBoolean(GameRules.RULE_DOMOBSPAWNING) && !this.level.players().isEmpty(); // CraftBukkit
 +            boolean flag2AndHasNaturalSpawn = flag2 && this.anySpawnCategoryIsSpawnedThisTick();
 +            if (!top.leavesmc.leaves.LeavesConfig.skipUnnecessaryMobSpawningComputations || flag2AndHasNaturalSpawn) {
@@ -28,29 +39,54 @@ index b3d60819cee789c4cb3f7dcd2a8ea4aeb0b50f27..47787f1f86b99cfcae6e1bb3dcf7648e
 +                int l = this.distanceManager.getNaturalSpawnChunkCount();
 +                // Paper start - per player mob spawning
 +                if ((this.spawnFriendlies || this.spawnEnemies) && this.chunkMap.playerMobDistanceMap != null) { // don't count mobs when animals and monsters are disabled
-                     // Leaves start - optimize mob spawning
-                     if (!top.leavesmc.leaves.LeavesConfig.asyncMobSpawning) {
--                        // re-set mob counts
++                    // Leaves start - optimize mob spawning
++                    if (!top.leavesmc.leaves.LeavesConfig.asyncMobSpawning) {
 +                        //re-set mob counts
-                         for (ServerPlayer player : this.level.players) {
-                             Arrays.fill(player.mobCounts, 0);
-                         }
-@@ -587,18 +591,21 @@ public class ServerChunkCache extends ChunkSource {
-                     spawnCountsReady.set(true);
-                     // Leaves end - optimize mob spawning
++                        for (ServerPlayer player : this.level.players) {
++                            // Paper start - per player mob spawning backoff
++                            for (int ii = 0; ii < ServerPlayer.MOBCATEGORY_TOTAL_ENUMS; ii++) {
++                                player.mobCounts[ii] = 0;
++
++                                int newBackoff = player.mobBackoffCounts[ii] - 1; // TODO make configurable bleed // TODO use nonlinear algorithm?
++                                if (newBackoff < 0) {
++                                    newBackoff = 0;
++                                }
++                                player.mobBackoffCounts[ii] = newBackoff;
+                             }
+-                            player.mobBackoffCounts[ii] = newBackoff;
+-                        }
+ 
+-                        // Paper end - per player mob spawning backoff
++                            // Paper end - per player mob spawning backoff
++                        }
++                        lastSpawnState = NaturalSpawner.createState(l, this.level.getAllEntities(), this::getFullChunk, null, true);
+                     }
+-                    lastSpawnState = NaturalSpawner.createState(l, this.level.getAllEntities(), this::getFullChunk, null, true);
++                    // Leaves end - optimize mob spawning
++                } else {
++                    // Leaves start - optimize mob spawning
++                    lastSpawnState = NaturalSpawner.createState(l, this.level.getAllEntities(), this::getFullChunk, this.chunkMap.playerMobDistanceMap == null ? new LocalMobCapCalculator(this.chunkMap) : null, false);
++                    spawnCountsReady.set(true);
++                    // Leaves end - optimize mob spawning
                  }
--            // Paper end
--            this.level.timings.countNaturalMobs.stopTiming(); // Paper - timings
+-                // Leaves end - optimize mob spawning
 +                // Paper end
 +                this.level.timings.countNaturalMobs.stopTiming(); // Paper - timings
- 
--            // this.lastSpawnState = spawnercreature_d; // Leaves - optimize mob spawning
--            gameprofilerfiller.popPush("filteringLoadedChunks");
++
 +                // this.lastSpawnState = spawnercreature_d; // Leaves - optimize mob spawning
 +                gameprofilerfiller.popPush("filteringLoadedChunks");
-+            } else {
-+                spawnercreature_d = null;
-+            }
+             } else {
+-                // Leaves start - optimize mob spawning
+-                lastSpawnState = NaturalSpawner.createState(l, this.level.getAllEntities(), this::getFullChunk, this.chunkMap.playerMobDistanceMap == null ? new LocalMobCapCalculator(this.chunkMap) : null, false);
+-                spawnCountsReady.set(true);
+-                // Leaves end - optimize mob spawning
++                lastSpawnState = null;
+             }
+-            // Paper end
+-            this.level.timings.countNaturalMobs.stopTiming(); // Paper - timings
+-
+-            // this.lastSpawnState = spawnercreature_d; // Leaves - optimize mob spawning
+-            gameprofilerfiller.popPush("filteringLoadedChunks");
              // Paper - moved down
              this.level.timings.chunkTicks.startTiming(); // Paper
  
@@ -62,7 +98,7 @@ index b3d60819cee789c4cb3f7dcd2a8ea4aeb0b50f27..47787f1f86b99cfcae6e1bb3dcf7648e
  
              // Paper - only shuffle if per-player mob spawning is disabled
              // Paper - moved natural spawn event up
-@@ -630,7 +637,7 @@ public class ServerChunkCache extends ChunkSource {
+@@ -641,7 +648,7 @@ public class ServerChunkCache extends ChunkSource {
                  if ((true || this.level.isNaturalSpawningAllowed(chunkcoordintpair)) && this.chunkMap.anyPlayerCloseEnoughForSpawning(holder, chunkcoordintpair, false)) { // Paper - optimise anyPlayerCloseEnoughForSpawning // Paper - the chunk is known ticking
                      chunk1.incrementInhabitedTime(j);
                      // Leaves start - optimize mob spawning
@@ -71,16 +107,16 @@ index b3d60819cee789c4cb3f7dcd2a8ea4aeb0b50f27..47787f1f86b99cfcae6e1bb3dcf7648e
                          NaturalSpawner.spawnForChunk(this.level, chunk1, lastSpawnState, this.spawnFriendlies, this.spawnEnemies, flag1);
                      }
                      // Leaves end - optimize mob spawning
-@@ -695,7 +702,7 @@ public class ServerChunkCache extends ChunkSource {
+@@ -706,7 +713,7 @@ public class ServerChunkCache extends ChunkSource {
              // Paper end - controlled flush for entity tracker packets
  
              // Leaves start - optimize mob spawning
 -            if (top.leavesmc.leaves.LeavesConfig.asyncMobSpawning) {
 +            if (top.leavesmc.leaves.LeavesConfig.asyncMobSpawning && (!top.leavesmc.leaves.LeavesConfig.skipUnnecessaryMobSpawningComputations || flag2AndHasNaturalSpawn)) {
                  for (ServerPlayer player : this.level.players) {
-                     Arrays.fill(player.mobCounts, 0);
-                 }
-@@ -720,6 +727,18 @@ public class ServerChunkCache extends ChunkSource {
+                     for (int ii = 0; ii < ServerPlayer.MOBCATEGORY_TOTAL_ENUMS; ii++) {
+                         player.mobCounts[ii] = 0;
+@@ -739,6 +746,18 @@ public class ServerChunkCache extends ChunkSource {
          }
      }
  

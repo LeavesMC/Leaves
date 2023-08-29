@@ -5,7 +5,7 @@ Subject: [PATCH] Bladeren mspt sync protocol
 
 
 diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
-index 28b48043f621d931006ef36123ff5d1eaed7d040..0a486e22e87d6eb717caa1b530877236c9a0f285 100644
+index 5c09e2164a045346e0e2d4ce64408ac9209cf501..d47e29850462356e843591deba7e8a83f59faba0 100644
 --- a/src/main/java/net/minecraft/server/MinecraftServer.java
 +++ b/src/main/java/net/minecraft/server/MinecraftServer.java
 @@ -1611,6 +1611,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
@@ -16,33 +16,11 @@ index 28b48043f621d931006ef36123ff5d1eaed7d040..0a486e22e87d6eb717caa1b530877236
  
          MinecraftTimings.tickablesTimer.startTiming(); // Spigot // Paper
          for (int i = 0; i < this.tickables.size(); ++i) {
-diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index 3d7e2654d67b9b61cf783e234e33576a03351413..6640cb8c04871bebeadc59f91db097124d06f801 100644
---- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-+++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-@@ -3666,6 +3666,9 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
-                 if (top.leavesmc.leaves.LeavesConfig.leavesCarpetSupport && ProtocolUtils.isNamespacePacket(packet, top.leavesmc.leaves.protocol.CarpetServerProtocol.PROTOCOL_ID)) {
-                     top.leavesmc.leaves.protocol.CarpetServerProtocol.handlePacket(player, packet);
-                 }
-+                if (top.leavesmc.leaves.LeavesConfig.msptSyncProtocol && ProtocolUtils.isNamespacePacket(packet, top.leavesmc.leaves.protocol.bladeren.MsptSyncProtocol.PROTOCOL_ID)) {
-+                    top.leavesmc.leaves.protocol.bladeren.MsptSyncProtocol.handlePacket(player, packet);
-+                }
-             } catch (Exception ex) {
-                 ServerGamePacketListenerImpl.LOGGER.error("Couldn\'t dispatch custom payload", ex);
-                 this.disconnect("Invalid custom payload!", org.bukkit.event.player.PlayerKickEvent.Cause.INVALID_PAYLOAD);
 diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
-index 13356860e13374227ac5559daf77fc4dc60e378d..9676ada06db5956cdc4489d07f4c031ae9372b06 100644
+index 13356860e13374227ac5559daf77fc4dc60e378d..163827eb405e407bca16b890c4ae3f8a4a927320 100644
 --- a/src/main/java/net/minecraft/server/players/PlayerList.java
 +++ b/src/main/java/net/minecraft/server/players/PlayerList.java
-@@ -365,6 +365,7 @@ public abstract class PlayerList {
-         top.leavesmc.leaves.protocol.JadeProtocol.onPlayerJoin(player); // Leaves - Jade
-         top.leavesmc.leaves.protocol.AppleSkinProtocol.onPlayerLoggedIn(player); // Leaves - appleskin
-         top.leavesmc.leaves.protocol.CarpetServerProtocol.onPlayerJoin(player); // Leaves - carpet
-+        top.leavesmc.leaves.protocol.bladeren.MsptSyncProtocol.onPlayerJoin(player); // Leaves - mspt sync
- 
-         final net.kyori.adventure.text.Component jm = playerJoinEvent.joinMessage();
- 
-@@ -618,6 +619,7 @@ public abstract class PlayerList {
+@@ -618,6 +618,7 @@ public abstract class PlayerList {
      public net.kyori.adventure.text.Component remove(ServerPlayer entityplayer, net.kyori.adventure.text.Component leaveMessage) {
          top.leavesmc.leaves.protocol.BBORProtocol.onPlayerLoggedOut(entityplayer); // Leaves - bbor
          top.leavesmc.leaves.protocol.AppleSkinProtocol.onPlayerLoggedOut(entityplayer); // Leaves - appleskin
@@ -50,12 +28,36 @@ index 13356860e13374227ac5559daf77fc4dc60e378d..9676ada06db5956cdc4489d07f4c031a
          // Paper end
          ServerLevel worldserver = entityplayer.serverLevel();
  
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index 47b27712c6ed11fc5c2cd7de04482870207545e7..93054a59f14fee933a908944e93b462b5dae2ce6 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -470,6 +470,7 @@ public final class CraftServer implements Server {
+         datapackManager = new io.papermc.paper.datapack.PaperDatapackManager(console.getPackRepository()); // Paper
+         top.leavesmc.leaves.protocol.PcaSyncProtocol.init(); // Leaves - pca
+         top.leavesmc.leaves.protocol.JadeProtocol.init(); // Leaves - Jade
++        top.leavesmc.leaves.protocol.bladeren.MsptSyncProtocol.init(); // Leaves - mspt
+     }
+ 
+     public boolean getCommandBlockOverride(String command) {
+diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+index e14aeb52a17ac174c22f95294708129db84a521b..a89cb107ed8c405548172f720b4481c2bf6950a8 100644
+--- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
++++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+@@ -845,6 +845,7 @@ public final class LeavesConfig {
+     }
+ 
+     public static void registerLeavesFeatures() {
++        LeavesFeatureSet.register(LeavesFeature.of("mspt_sync", msptSyncProtocol));
+     }
+ 
+     public static final class WorldConfig {
 diff --git a/src/main/java/top/leavesmc/leaves/protocol/bladeren/MsptSyncProtocol.java b/src/main/java/top/leavesmc/leaves/protocol/bladeren/MsptSyncProtocol.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..f04ea3ad31ac8d9d820599a09c002d4c5db6104d
+index 0000000000000000000000000000000000000000..5c206ecc6aba1ef632467f85ea83f909486ced29
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/protocol/bladeren/MsptSyncProtocol.java
-@@ -0,0 +1,67 @@
+@@ -0,0 +1,69 @@
 +package top.leavesmc.leaves.protocol.bladeren;
 +
 +import io.netty.buffer.Unpooled;
@@ -77,7 +79,6 @@ index 0000000000000000000000000000000000000000..f04ea3ad31ac8d9d820599a09c002d4c
 +
 +    public static final String PROTOCOL_ID = "bladeren";
 +
-+    private static final ResourceLocation MSPT_SYNC_ENABLE = id("mspt_sync_enable");
 +    private static final ResourceLocation MSPT_SYNC = id("mspt_sync");
 +
 +    private static final List<ServerPlayer> players = new ArrayList<>();
@@ -87,15 +88,18 @@ index 0000000000000000000000000000000000000000..f04ea3ad31ac8d9d820599a09c002d4c
 +        return new ResourceLocation(PROTOCOL_ID, path);
 +    }
 +
-+    public static void onPlayerJoin(@NotNull ServerPlayer player) {
-+        if (LeavesConfig.msptSyncProtocol) {
-+            FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
-+            ProtocolUtils.sendPayloadPacket(player, MSPT_SYNC_ENABLE, buf);
-+        }
++    public static void init() {
++        LeavesProtocol.registerFeature("mspt_sync", (player, compoundTag) -> {
++            if (compoundTag.getString("Value").equals("true"))  {
++                onPlayerSubmit(player);
++            } else {
++                onPlayerLoggedOut(player);
++            }
++        });
 +    }
 +
-+    public static void handlePacket(ServerPlayer player, @NotNull ServerboundCustomPayloadPacket packet) {
-+        if (packet.identifier.equals(MSPT_SYNC_ENABLE)) {
++    public static void onPlayerSubmit(@NotNull ServerPlayer player) {
++        if (LeavesConfig.msptSyncProtocol) {
 +            players.add(player);
 +        }
 +    }

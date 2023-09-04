@@ -5,7 +5,7 @@ Subject: [PATCH] Fakeplayer support
 
 
 diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
-index d532410d066d163ec168401c8b7532929c33a2d4..3cc6001c5a6b3ccb1af3b15660520ac6ca2b126e 100644
+index 1a1d69b3a51e03b8f1547b86b6f32243cb332df1..5d3dea7f058e2824a37abe78956cae25aa5cbb05 100644
 --- a/src/main/java/net/minecraft/server/MinecraftServer.java
 +++ b/src/main/java/net/minecraft/server/MinecraftServer.java
 @@ -127,6 +127,7 @@ import net.minecraft.util.profiling.metrics.storage.MetricsPersister;
@@ -57,8 +57,26 @@ index acc49f66bf34e2507d0ee6fec0a56b11bfc68f46..7fc87841fd72fc9b5bca4fbdffd378c7
          boolean flag = false;
          AdvancementProgress advancementprogress = this.getOrStartProgress(advancement);
          boolean flag1 = advancementprogress.isDone();
+diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
+index 65d947df910d60f478e7a449eb161e5105e2c0c9..0034c4bcd8301788fd86e279c6632ad0a95dbd37 100644
+--- a/src/main/java/net/minecraft/server/level/ChunkMap.java
++++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
+@@ -1584,6 +1584,13 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+                     }
+                     // Paper end
+                     this.serverEntity.removePairing(player);
++                    // Leaves start - render bot
++                    if (entity instanceof top.leavesmc.leaves.bot.ServerBot bot) {
++                        if (top.leavesmc.leaves.LeavesConfig.alwaysSendFakeplayerData) {
++                            bot.render(player, false);
++                        }
++                    }
++                    // Leaves end - render bot
+                 }
+ 
+             }
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-index b382da838acc04a1c5d89064b4fa43bcdd38ae71..012818c15a04e4a6cd9c72f0fd8658175790a852 100644
+index b382da838acc04a1c5d89064b4fa43bcdd38ae71..0cc848a600fa0f8af4f5f991834dd1d044c1c897 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
 @@ -185,6 +185,7 @@ import org.bukkit.event.player.PlayerTeleportEvent;
@@ -122,7 +140,7 @@ index b382da838acc04a1c5d89064b4fa43bcdd38ae71..012818c15a04e4a6cd9c72f0fd865817
 +                // Leaves start - bot support
 +                if (top.leavesmc.leaves.LeavesConfig.fakeplayerSupport) {
 +                    ServerBot.getBots().forEach(bot1 ->
-+                        bot1.render(this.connection, true,this.getBukkitEntity().getWorld() == bot1.getBukkitEntity().getWorld())); // Leaves - render bot
++                        bot1.render(this, true)); // Leaves - render bot
 +                }
 +                // Leaves end - bot support
 +
@@ -327,7 +345,7 @@ index 2dbe8b870fd39b4d22e9725912f443757ae70761..8388c2a56cbe531cf5f60a18866c85fa
              }
              // Water Animals
 diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
-index 3c3b0262348107669e1374e28ff4bd54beea6fe2..0d42833238843d8a1b603b3f0a5bed71faadab74 100644
+index da736450a6abc10d800f7d2ef97bfc33b2b9b814..25c1ffac09406a21b80c56b4ef0c750f1e81679e 100644
 --- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
 +++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
 @@ -8,6 +8,9 @@ import org.bukkit.command.Command;
@@ -1095,10 +1113,10 @@ index 0000000000000000000000000000000000000000..daaece30b2a3983f1cc9ee9a851e8f37
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/ServerBot.java b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..3d627847c03e741937b28263c4b8d92266aada1b
+index 0000000000000000000000000000000000000000..145c5b6abb0a76e9d08d25bfa21d706fd071f698
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
-@@ -0,0 +1,706 @@
+@@ -0,0 +1,710 @@
 +package top.leavesmc.leaves.bot;
 +
 +import com.google.common.collect.Lists;
@@ -1289,6 +1307,10 @@ index 0000000000000000000000000000000000000000..3d627847c03e741937b28263c4b8d922
 +
 +    public void render(ServerPlayerConnection connection, boolean login, boolean all) {
 +        render(connection, getRenderPackets(), login, all && LeavesConfig.alwaysSendFakeplayerData);
++    }
++
++    public void render(ServerPlayer player, boolean login) {
++        render(player.connection, getRenderPackets(), login, player.level() == this.level() && LeavesConfig.alwaysSendFakeplayerData);
 +    }
 +
 +    private void render(@NotNull ServerPlayerConnection connection, Packet<?> @NotNull [] packets, boolean login, boolean all) { // always use getRenderPackets() to get packets. replace it soon

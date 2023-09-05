@@ -1148,10 +1148,10 @@ index 0000000000000000000000000000000000000000..daaece30b2a3983f1cc9ee9a851e8f37
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/ServerBot.java b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..145c5b6abb0a76e9d08d25bfa21d706fd071f698
+index 0000000000000000000000000000000000000000..4365351efbe01b46b5df29a34bef08abfa79cd9e
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
-@@ -0,0 +1,710 @@
+@@ -0,0 +1,711 @@
 +package top.leavesmc.leaves.bot;
 +
 +import com.google.common.collect.Lists;
@@ -1458,7 +1458,8 @@ index 0000000000000000000000000000000000000000..145c5b6abb0a76e9d08d25bfa21d706f
 +            --takeXpDelay;
 +        }
 +
-+        updateLocation();
++        this.updateLocation();
++        this.updatePlayerPose();
 +
 +        float health = getHealth();
 +        float maxHealth = getMaxHealth();
@@ -1864,10 +1865,10 @@ index 0000000000000000000000000000000000000000..145c5b6abb0a76e9d08d25bfa21d706f
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/Actions.java b/src/main/java/top/leavesmc/leaves/bot/agent/Actions.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..78ef7b176b229ca49996d2180d5f32e9d1643036
+index 0000000000000000000000000000000000000000..a7e98848e400641077ac567d9ea9a58c32123c98
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/Actions.java
-@@ -0,0 +1,67 @@
+@@ -0,0 +1,66 @@
 +package top.leavesmc.leaves.bot.agent;
 +
 +import org.jetbrains.annotations.Contract;
@@ -1898,7 +1899,6 @@ index 0000000000000000000000000000000000000000..78ef7b176b229ca49996d2180d5f32e9
 +        register(new FishAction());
 +        register(new AttackSelfAction());
 +        register(new SwimAction());
-+        register(new LayAction());
 +        register(new UseItemOffHandAction());
 +        register(new UseItemOnOffhandAction());
 +        register(new UseItemToOffhandAction());
@@ -1937,10 +1937,10 @@ index 0000000000000000000000000000000000000000..78ef7b176b229ca49996d2180d5f32e9
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/BotAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/BotAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..94c0148b7a112f0a87975fa70d250c906d000e3d
+index 0000000000000000000000000000000000000000..20ba4904219d015903cd3a5b2e1693eaba6088d8
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/BotAction.java
-@@ -0,0 +1,92 @@
+@@ -0,0 +1,93 @@
 +package top.leavesmc.leaves.bot.agent;
 +
 +import net.minecraft.server.level.ServerPlayer;
@@ -2010,6 +2010,7 @@ index 0000000000000000000000000000000000000000..94c0148b7a112f0a87975fa70d250c90
 +    public void init() {
 +        this.needWaitTick = 0;
 +        this.canDoNumber = this.getNumber();
++        this.setCancel(false);
 +    }
 +
 +    public void tryTick(ServerBot bot) {
@@ -2436,42 +2437,6 @@ index 0000000000000000000000000000000000000000..d99f667992e45e85c0fe0bd74682d563
 +        }
 +    }
 +}
-diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/LayAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/LayAction.java
-new file mode 100644
-index 0000000000000000000000000000000000000000..b1d8e632686709c2425794ed28b694cf38984ab7
---- /dev/null
-+++ b/src/main/java/top/leavesmc/leaves/bot/agent/actions/LayAction.java
-@@ -0,0 +1,30 @@
-+package top.leavesmc.leaves.bot.agent.actions;
-+
-+import net.minecraft.server.level.ServerPlayer;
-+import net.minecraft.world.entity.Pose;
-+import org.jetbrains.annotations.NotNull;
-+import top.leavesmc.leaves.bot.ServerBot;
-+import top.leavesmc.leaves.bot.agent.BotAction;
-+import top.leavesmc.leaves.command.CommandArgument;
-+import top.leavesmc.leaves.command.CommandArgumentResult;
-+
-+public class LayAction extends BotAction {
-+
-+    public LayAction() {
-+        super("lay", new CommandArgument());
-+    }
-+
-+    @Override
-+    public BotAction getNew(@NotNull ServerPlayer player, @NotNull CommandArgumentResult result) {
-+        return this.setTickDelay(0).setNumber(1);
-+    }
-+
-+    @Override
-+    public boolean doTick(@NotNull ServerBot bot) {
-+        if (bot.isShiftKeyDown()) {
-+            bot.setShiftKeyDown(false);
-+        }
-+        bot.setPose(bot.getPose() != Pose.FALL_FLYING ? Pose.FALL_FLYING : Pose.STANDING);
-+        return true;
-+    }
-+}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/LookAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/LookAction.java
 new file mode 100644
 index 0000000000000000000000000000000000000000..5432e61c156a1a6d49dcf4b24e3bcfcc6c1aa7bb
@@ -2568,10 +2533,10 @@ index 0000000000000000000000000000000000000000..1e5be54b33467591924cb2400639fb59
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/SneakAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/SneakAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..250416464daae6f824f02b4fd339a4c1b7a2fb67
+index 0000000000000000000000000000000000000000..18e276c0252fa867b2cdc9770e3a7ed0b9cc63de
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/actions/SneakAction.java
-@@ -0,0 +1,28 @@
+@@ -0,0 +1,27 @@
 +package top.leavesmc.leaves.bot.agent.actions;
 +
 +import net.minecraft.server.level.ServerPlayer;
@@ -2596,7 +2561,6 @@ index 0000000000000000000000000000000000000000..250416464daae6f824f02b4fd339a4c1
 +    @Override
 +    public boolean doTick(@NotNull ServerBot bot) {
 +        bot.setShiftKeyDown(!bot.isShiftKeyDown());
-+        bot.setPose(bot.isShiftKeyDown() ? Pose.CROUCHING : Pose.STANDING);
 +        return true;
 +    }
 +}

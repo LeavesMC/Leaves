@@ -1,0 +1,188 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Fri, 7 Jul 2023 16:50:06 +0800
+Subject: [PATCH] Leaves protocol
+
+
+diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index 3d7e2654d67b9b61cf783e234e33576a03351413..f5e16e9f144824a78ccd4a9fa0a5c0f3364fdf5d 100644
+--- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -3666,6 +3666,9 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
+                 if (top.leavesmc.leaves.LeavesConfig.leavesCarpetSupport && ProtocolUtils.isNamespacePacket(packet, top.leavesmc.leaves.protocol.CarpetServerProtocol.PROTOCOL_ID)) {
+                     top.leavesmc.leaves.protocol.CarpetServerProtocol.handlePacket(player, packet);
+                 }
++                if (top.leavesmc.leaves.LeavesConfig.bladerenLeavesProtocol && ProtocolUtils.isNamespacePacket(packet, top.leavesmc.leaves.protocol.bladeren.LeavesProtocol.PROTOCOL_ID)) {
++                    top.leavesmc.leaves.protocol.bladeren.LeavesProtocol.handlePacket(player, packet);
++                }
+             } catch (Exception ex) {
+                 ServerGamePacketListenerImpl.LOGGER.error("Couldn\'t dispatch custom payload", ex);
+                 this.disconnect("Invalid custom payload!", org.bukkit.event.player.PlayerKickEvent.Cause.INVALID_PAYLOAD);
+diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
+index dde9803e5163b4bba99831ab09f4283c0d748a79..a1629559dc62adbd8918727bde2a65574d26f3ac 100644
+--- a/src/main/java/net/minecraft/server/players/PlayerList.java
++++ b/src/main/java/net/minecraft/server/players/PlayerList.java
+@@ -365,6 +365,7 @@ public abstract class PlayerList {
+         top.leavesmc.leaves.protocol.JadeProtocol.onPlayerJoin(player); // Leaves - Jade
+         top.leavesmc.leaves.protocol.AppleSkinProtocol.onPlayerLoggedIn(player); // Leaves - appleskin
+         top.leavesmc.leaves.protocol.CarpetServerProtocol.onPlayerJoin(player); // Leaves - carpet
++        top.leavesmc.leaves.protocol.bladeren.LeavesProtocol.onPlayerJoin(player); // Leaves - leaves protocol
+ 
+         final net.kyori.adventure.text.Component jm = playerJoinEvent.joinMessage();
+ 
+diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+index 944a4bac0042d43dd5da809ce9feef56b9f6c0ed..ee079956d675a51a18b1ad3382d0b70ad19a4b8e 100644
+--- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
++++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+@@ -16,6 +16,8 @@ import top.leavesmc.leaves.protocol.syncmatica.SyncmaticaProtocol;
+ import top.leavesmc.leaves.util.MathUtils;
+ import top.leavesmc.leaves.protocol.CarpetServerProtocol.CarpetRule;
+ import top.leavesmc.leaves.protocol.CarpetServerProtocol.CarpetRules;
++import top.leavesmc.leaves.protocol.bladeren.LeavesProtocol.LeavesFeatureSet;
++import top.leavesmc.leaves.protocol.bladeren.LeavesProtocol.LeavesFeature;
+ 
+ import java.io.File;
+ import java.lang.reflect.InvocationTargetException;
+@@ -75,6 +77,7 @@ public final class LeavesConfig {
+ 
+         LeavesConfig.load(config);
+         registerCarpetRules();
++        registerLeavesFeatures();
+ 
+ 	    commands = new HashMap<>();
+         commands.put("leaves", new LeavesCommand("leaves"));
+@@ -858,6 +861,10 @@ public final class LeavesConfig {
+     }
+ 
+     public static void registerLeavesFeatures() {
++        LeavesFeatureSet.register(LeavesFeature.of("lava_riptide", lavaRiptide));
++        LeavesFeatureSet.register(LeavesFeature.of("mspt_sync", msptSyncProtocol));
++        LeavesFeatureSet.register(LeavesFeature.of("loot_world_random", lootWorldRandom));
++        LeavesFeatureSet.register(LeavesFeature.of("use_vanilla_random", useVanillaRandom));
+     }
+ 
+     public static boolean hopperCounter = false;
+diff --git a/src/main/java/top/leavesmc/leaves/protocol/bladeren/LeavesProtocol.java b/src/main/java/top/leavesmc/leaves/protocol/bladeren/LeavesProtocol.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..97337f795490419611a4515dfcfa038e9e6c3fb6
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/protocol/bladeren/LeavesProtocol.java
+@@ -0,0 +1,118 @@
++package top.leavesmc.leaves.protocol.bladeren;
++
++import io.netty.buffer.Unpooled;
++import net.minecraft.nbt.CompoundTag;
++import net.minecraft.network.FriendlyByteBuf;
++import net.minecraft.network.protocol.game.ServerboundCustomPayloadPacket;
++import net.minecraft.resources.ResourceLocation;
++import net.minecraft.server.level.ServerPlayer;
++import org.jetbrains.annotations.Contract;
++import org.jetbrains.annotations.NotNull;
++import top.leavesmc.leaves.LeavesConfig;
++import top.leavesmc.leaves.util.ProtocolUtils;
++
++import java.util.HashMap;
++import java.util.Map;
++import java.util.function.BiConsumer;
++
++public class LeavesProtocol {
++
++    public static final String PROTOCOL_ID = "bladeren";
++    public static final String PROTOCOL_VERSION = "1.0.0";
++
++    private static final ResourceLocation HELLO_ID = id("hello");
++    private static final ResourceLocation FEATURE_MODIFY_ID = id("feature_modify");
++
++    private static final Map<String, BiConsumer<ServerPlayer, CompoundTag>> registeredFeatures = new HashMap<>();
++    private static final Map<ResourceLocation, BiConsumer<ServerPlayer, FriendlyByteBuf>> registeredPackets = new HashMap<>();
++
++    @Contract("_ -> new")
++    public static @NotNull ResourceLocation id(String path) {
++        return new ResourceLocation(PROTOCOL_ID, path);
++    }
++
++    public static void registerFeature(String name, BiConsumer<ServerPlayer, CompoundTag> consumer) {
++        registeredFeatures.put(name, consumer);
++    }
++
++    public static void registerPacket(ResourceLocation id, BiConsumer<ServerPlayer, FriendlyByteBuf> consumer) {
++        registeredPackets.put(id, consumer);
++    }
++
++    public static void handlePacket(ServerPlayer player, @NotNull ServerboundCustomPayloadPacket packet) {
++        if (packet.identifier.equals(HELLO_ID)) {
++            handleHello(player, packet.data);
++        } else if (packet.identifier.equals(FEATURE_MODIFY_ID)) {
++            handleModify(player, packet.data);
++        } else if (registeredPackets.containsKey(packet.identifier)) {
++            registeredPackets.get(packet.identifier).accept(player, packet.data);
++        }
++    }
++
++    private static void handleModify(@NotNull ServerPlayer player, @NotNull FriendlyByteBuf data) {
++        String name = data.readUtf();
++        CompoundTag tag = data.readNbt();
++
++        if (registeredFeatures.containsKey(name)) {
++            registeredFeatures.get(name).accept(player, tag);
++        }
++    }
++
++    private static void handleHello(@NotNull ServerPlayer player, @NotNull FriendlyByteBuf data) {
++        String clientVersion = data.readUtf(64);
++        CompoundTag tag = data.readNbt();
++
++        if (tag != null) {
++            CompoundTag featureNbt = tag.getCompound("Features");
++            for (String name : featureNbt.getAllKeys()) {
++                if (registeredFeatures.containsKey(name)) {
++                    registeredFeatures.get(name).accept(player, featureNbt.getCompound(name));
++                }
++            }
++        }
++    }
++
++    public static void onPlayerJoin(@NotNull ServerPlayer player) {
++        if (LeavesConfig.bladerenLeavesProtocol) {
++            FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
++            buf.writeUtf(PROTOCOL_VERSION);
++
++            CompoundTag tag = new CompoundTag();
++            LeavesFeatureSet.writeNBT(tag);
++            buf.writeNbt(tag);
++
++            ProtocolUtils.sendPayloadPacket(player, HELLO_ID, buf);
++        }
++    }
++
++    public static class LeavesFeatureSet {
++
++        private static final Map<String, LeavesFeature> features = new HashMap<>();
++
++        public static void writeNBT(@NotNull CompoundTag tag) {
++            CompoundTag featureNbt = new CompoundTag();
++            features.values().forEach(feature -> feature.writeNBT(featureNbt));
++            tag.put("Features", featureNbt);
++        }
++
++        public static void register(LeavesFeature feature) {
++            features.put(feature.name, feature);
++        }
++    }
++
++    public record LeavesFeature(String name, String value) {
++
++        @NotNull
++        @Contract("_, _ -> new")
++        public static LeavesFeature of(String name, boolean value) {
++            return new LeavesFeature(name, Boolean.toString(value));
++        }
++
++        public void writeNBT(@NotNull CompoundTag rules) {
++            CompoundTag rule = new CompoundTag();
++            rule.putString("Feature", name);
++            rule.putString("Value", value);
++            rules.put(name, rule);
++        }
++    }
++}

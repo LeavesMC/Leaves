@@ -1,0 +1,283 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Thu, 2 Feb 2023 16:01:18 +0800
+Subject: [PATCH] Leaves Extra Yggdrasil Service
+
+
+diff --git a/src/main/java/com/destroystokyo/paper/profile/PaperAuthenticationService.java b/src/main/java/com/destroystokyo/paper/profile/PaperAuthenticationService.java
+index 1459a1f99fe614d072a087cda18788cf13102645..73bfda834fa704b208a5dd9271bb397a9f8b5983 100644
+--- a/src/main/java/com/destroystokyo/paper/profile/PaperAuthenticationService.java
++++ b/src/main/java/com/destroystokyo/paper/profile/PaperAuthenticationService.java
+@@ -8,7 +8,7 @@ import com.mojang.authlib.yggdrasil.YggdrasilEnvironment;
+ import java.net.Proxy;
+ 
+ public class PaperAuthenticationService extends YggdrasilAuthenticationService {
+-    private final Environment environment;
++    protected final Environment environment; // Leaves - private -> protected
+     public PaperAuthenticationService(Proxy proxy) {
+         super(proxy);
+         this.environment = EnvironmentParser.getEnvironmentFromProperties().orElse(YggdrasilEnvironment.PROD.getEnvironment());
+diff --git a/src/main/java/net/minecraft/server/Main.java b/src/main/java/net/minecraft/server/Main.java
+index dae36c6452ccd57a436dd918547b64d59957ab0a..973ecf723e4239307600b42f2d12c264f44d1827 100644
+--- a/src/main/java/net/minecraft/server/Main.java
++++ b/src/main/java/net/minecraft/server/Main.java
+@@ -193,7 +193,7 @@ public class Main {
+                 file = new File(bukkitConfiguration.getString("settings.world-container", "."));
+             }
+             // Paper end - fix SPIGOT-5824
+-            Services services = Services.create(new com.destroystokyo.paper.profile.PaperAuthenticationService(Proxy.NO_PROXY), file, userCacheFile, optionset); // Paper
++            Services services = Services.create(new top.leavesmc.leaves.profile.LeavesAuthenticationService(Proxy.NO_PROXY), file, userCacheFile, optionset); // Paper // Leaves - extra-yggdrasil-service
+             // CraftBukkit start
+             String s = (String) Optional.ofNullable((String) optionset.valueOf("world")).orElse(dedicatedserversettings.getProperties().levelName);
+             LevelStorageSource convertable = LevelStorageSource.createDefault(file.toPath());
+diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
+index c748b29bf2d4382215bffd41854f70fd15f9411e..43638595413bbcc5dcaf04daa8c1df05c42c9f4f 100644
+--- a/src/main/java/net/minecraft/server/MinecraftServer.java
++++ b/src/main/java/net/minecraft/server/MinecraftServer.java
+@@ -264,7 +264,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+     private boolean isDemo;
+     private volatile boolean isReady;
+     private long lastOverloadWarning;
+-    protected final Services services;
++    public final Services services; // Leaves - protected -> public
+     private long lastServerStatus;
+     public final Thread serverThread;
+     private long nextTickTime;
+diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+index 36d878c5bd82ff8773f9f27024f2ff8ce67dd9f6..3baae7c57985582608e9cab9137c35938e953088 100644
+--- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
++++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+@@ -11,6 +11,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
+ import top.leavesmc.leaves.command.LeavesCommand;
+ import top.leavesmc.leaves.bot.BotCommand;
+ import top.leavesmc.leaves.bot.agent.Actions;
++import top.leavesmc.leaves.profile.LeavesMinecraftSessionService;
+ import top.leavesmc.leaves.util.MathUtils;
+ 
+ import java.io.File;
+@@ -527,6 +528,9 @@ public final class LeavesConfig {
+         extraYggdrasilLoginProtect = getBoolean("settings.misc.extra-yggdrasil-service.login-protect", extraYggdrasilLoginProtect);
+         extraYggdrasilServiceList = getList("settings.misc.extra-yggdrasil-service.urls", extraYggdrasilServiceList);
+         if (extraYggdrasilService) {
++            LeavesLogger.LOGGER.warning("extra-yggdrasil-service is an unofficial support. Enabling it may cause data security problems!");
++            GlobalConfiguration.get().unsupportedSettings.performUsernameValidation = true; // always check user name
++            LeavesMinecraftSessionService.initExtraYggdrasilList();
+         }
+     }
+ 
+diff --git a/src/main/java/top/leavesmc/leaves/profile/LeavesAuthenticationService.java b/src/main/java/top/leavesmc/leaves/profile/LeavesAuthenticationService.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..ee10e314a7e1af28ea008123f75caee26515b692
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/profile/LeavesAuthenticationService.java
+@@ -0,0 +1,103 @@
++package top.leavesmc.leaves.profile;
++
++import com.destroystokyo.paper.profile.PaperAuthenticationService;
++import com.google.gson.Gson;
++import com.google.gson.GsonBuilder;
++import com.google.gson.JsonDeserializationContext;
++import com.google.gson.JsonDeserializer;
++import com.google.gson.JsonElement;
++import com.google.gson.JsonObject;
++import com.google.gson.JsonParseException;
++import com.google.gson.JsonSerializationContext;
++import com.google.gson.JsonSerializer;
++import com.mojang.authlib.GameProfile;
++import com.mojang.authlib.exceptions.AuthenticationException;
++import com.mojang.authlib.exceptions.AuthenticationUnavailableException;
++import com.mojang.authlib.exceptions.InsufficientPrivilegesException;
++import com.mojang.authlib.exceptions.InvalidCredentialsException;
++import com.mojang.authlib.exceptions.UserBannedException;
++import com.mojang.authlib.exceptions.UserMigratedException;
++import com.mojang.authlib.minecraft.MinecraftSessionService;
++import com.mojang.authlib.properties.PropertyMap;
++import com.mojang.authlib.yggdrasil.response.HasJoinedMinecraftServerResponse;
++import com.mojang.authlib.yggdrasil.response.ProfileSearchResultsResponse;
++import com.mojang.util.UUIDTypeAdapter;
++import org.apache.commons.lang3.StringUtils;
++
++import java.io.IOException;
++import java.lang.reflect.Type;
++import java.net.Proxy;
++import java.net.URL;
++import java.util.UUID;
++
++public class LeavesAuthenticationService extends PaperAuthenticationService {
++
++    protected final Gson gson;
++
++    public LeavesAuthenticationService(Proxy proxy) {
++        super(proxy);
++
++        GsonBuilder builder = new GsonBuilder();
++        builder.registerTypeAdapter(GameProfile.class, new GameProfileSerializer());
++        builder.registerTypeAdapter(PropertyMap.class, new PropertyMap.Serializer());
++        builder.registerTypeAdapter(UUID.class, new UUIDTypeAdapter());
++        builder.registerTypeAdapter(ProfileSearchResultsResponse.class, new ProfileSearchResultsResponse.Serializer());
++        this.gson = builder.create();
++    }
++
++    @Override
++    public MinecraftSessionService createMinecraftSessionService() {
++        return new LeavesMinecraftSessionService(this, this.environment);
++    }
++
++    public HasJoinedMinecraftServerResponse makeHasJoinResponse(URL url) throws AuthenticationException {
++        try {
++            String jsonResult = performGetRequest(url, null);
++            HasJoinedMinecraftServerResponse result = this.gson.fromJson(jsonResult, HasJoinedMinecraftServerResponse.class);
++            if (result == null) {
++                return null;
++            } else if (StringUtils.isNotBlank(result.getError())) {
++                if ("UserMigratedException".equals(result.getCause())) {
++                    throw new UserMigratedException(result.getErrorMessage());
++                } else if ("ForbiddenOperationException".equals(result.getError())) {
++                    throw new InvalidCredentialsException(result.getErrorMessage());
++                } else if ("InsufficientPrivilegesException".equals(result.getError())) {
++                    throw new InsufficientPrivilegesException(result.getErrorMessage());
++                } else if ("multiplayer.access.banned".equals(result.getError())) {
++                    throw new UserBannedException();
++                } else {
++                    throw new AuthenticationException(result.getErrorMessage());
++                }
++            } else {
++                return result;
++            }
++        } catch (IllegalStateException | JsonParseException | IOException var7) {
++            throw new AuthenticationUnavailableException("Cannot contact authentication server", var7);
++        }
++    }
++
++    public static class GameProfileSerializer implements JsonSerializer<GameProfile>, JsonDeserializer<GameProfile> {
++        private GameProfileSerializer() {
++        }
++
++        public GameProfile deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
++            JsonObject object = (JsonObject)json;
++            UUID id = object.has("id") ? (UUID)context.deserialize(object.get("id"), UUID.class) : null;
++            String name = object.has("name") ? object.getAsJsonPrimitive("name").getAsString() : null;
++            return new GameProfile(id, name);
++        }
++
++        public JsonElement serialize(GameProfile src, Type typeOfSrc, JsonSerializationContext context) {
++            JsonObject result = new JsonObject();
++            if (src.getId() != null) {
++                result.add("id", context.serialize(src.getId()));
++            }
++
++            if (src.getName() != null) {
++                result.addProperty("name", src.getName());
++            }
++
++            return result;
++        }
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/profile/LeavesMinecraftSessionService.java b/src/main/java/top/leavesmc/leaves/profile/LeavesMinecraftSessionService.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..fc39aa3c97118a3796f10951145f17ad696a79cb
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/profile/LeavesMinecraftSessionService.java
+@@ -0,0 +1,101 @@
++package top.leavesmc.leaves.profile;
++
++import com.destroystokyo.paper.profile.PaperMinecraftSessionService;
++import com.google.gson.JsonParseException;
++import com.mojang.authlib.Environment;
++import com.mojang.authlib.GameProfile;
++import com.mojang.authlib.HttpAuthenticationService;
++import com.mojang.authlib.exceptions.AuthenticationException;
++import com.mojang.authlib.exceptions.AuthenticationUnavailableException;
++import com.mojang.authlib.exceptions.InsufficientPrivilegesException;
++import com.mojang.authlib.exceptions.InvalidCredentialsException;
++import com.mojang.authlib.exceptions.UserBannedException;
++import com.mojang.authlib.exceptions.UserMigratedException;
++import com.mojang.authlib.yggdrasil.YggdrasilAuthenticationService;
++import com.mojang.authlib.yggdrasil.response.HasJoinedMinecraftServerResponse;
++import com.mojang.authlib.yggdrasil.response.Response;
++import net.minecraft.server.MinecraftServer;
++import net.minecraft.server.level.ServerPlayer;
++import org.apache.commons.lang3.StringUtils;
++import top.leavesmc.leaves.LeavesConfig;
++import top.leavesmc.leaves.bot.ServerBot;
++
++import java.io.IOException;
++import java.net.InetAddress;
++import java.net.URL;
++import java.util.ArrayList;
++import java.util.Collections;
++import java.util.HashMap;
++import java.util.List;
++import java.util.Map;
++
++public class LeavesMinecraftSessionService extends PaperMinecraftSessionService {
++
++    protected LeavesMinecraftSessionService(LeavesAuthenticationService authenticationService, Environment environment) {
++        super(authenticationService, environment);
++    }
++
++    private static List<URL> extraYggdrasilList = List.of();
++
++    public static void initExtraYggdrasilList() {
++        List<URL> list = new ArrayList<>();
++        for (String str : LeavesConfig.extraYggdrasilServiceList) {
++            list.add(HttpAuthenticationService.constantURL(str + "/sessionserver/session/minecraft/hasJoined"));
++        }
++        extraYggdrasilList = Collections.unmodifiableList(list);
++    }
++
++    @Override
++    public LeavesAuthenticationService getAuthenticationService() {
++        return (LeavesAuthenticationService) super.getAuthenticationService();
++    }
++
++    @Override
++    public GameProfile hasJoinedServer(GameProfile user, String serverId, InetAddress address) throws AuthenticationUnavailableException {
++        GameProfile result = super.hasJoinedServer(user, serverId, address); // mojang result
++
++        ServerPlayer player = MinecraftServer.getServer().getPlayerList().getPlayerByName(user.getName());
++        if (player != null && !(player instanceof ServerBot)) {
++            return null; // if it has same name, return null
++        }
++
++        if (LeavesConfig.extraYggdrasilService && result == null) {
++            Map<String, Object> arguments = new HashMap<>();
++            arguments.put("username", user.getName());
++            arguments.put("serverId", serverId);
++            if (address != null) {
++                arguments.put("ip", address.getHostAddress());
++            }
++
++            GameProfile cache = null;
++            if (LeavesConfig.extraYggdrasilLoginProtect) {
++                cache = MinecraftServer.getServer().services.profileCache().getProfileIfCached(user.getName());
++            }
++
++            for (URL checkUrl : extraYggdrasilList) {
++                URL url = HttpAuthenticationService.concatenateURL(checkUrl, HttpAuthenticationService.buildQuery(arguments));
++
++                try {
++                    HasJoinedMinecraftServerResponse response = this.getAuthenticationService().makeHasJoinResponse(url);
++                    if (response != null && response.getId() != null) {
++                        if (LeavesConfig.extraYggdrasilLoginProtect && cache != null) {
++                            if (response.getId() != cache.getId()) {
++                                continue;
++                            }
++                        }
++                        result = new GameProfile(response.getId(), user.getName());
++                        if (response.getProperties() != null) {
++                            result.getProperties().putAll(response.getProperties());
++                        }
++                        return result;
++                    }
++                } catch (AuthenticationUnavailableException var8) {
++                    throw var8;
++                } catch (AuthenticationException ignored) {
++                }
++            }
++        }
++
++        return result;
++    }
++}

@@ -58,7 +58,7 @@ index acc49f66bf34e2507d0ee6fec0a56b11bfc68f46..7fc87841fd72fc9b5bca4fbdffd378c7
          AdvancementProgress advancementprogress = this.getOrStartProgress(advancement);
          boolean flag1 = advancementprogress.isDone();
 diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
-index 65d947df910d60f478e7a449eb161e5105e2c0c9..0034c4bcd8301788fd86e279c6632ad0a95dbd37 100644
+index 65d947df910d60f478e7a449eb161e5105e2c0c9..56be0c66374b6cb200d43212582fd1280442a6a3 100644
 --- a/src/main/java/net/minecraft/server/level/ChunkMap.java
 +++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
 @@ -1584,6 +1584,13 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
@@ -68,7 +68,7 @@ index 65d947df910d60f478e7a449eb161e5105e2c0c9..0034c4bcd8301788fd86e279c6632ad0
 +                    // Leaves start - render bot
 +                    if (entity instanceof top.leavesmc.leaves.bot.ServerBot bot) {
 +                        if (top.leavesmc.leaves.LeavesConfig.alwaysSendFakeplayerData) {
-+                            bot.render(player, false);
++                            bot.sendFakeData(player.connection, false);
 +                        }
 +                    }
 +                    // Leaves end - render bot
@@ -76,10 +76,18 @@ index 65d947df910d60f478e7a449eb161e5105e2c0c9..0034c4bcd8301788fd86e279c6632ad0
  
              }
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-index b382da838acc04a1c5d89064b4fa43bcdd38ae71..0cc848a600fa0f8af4f5f991834dd1d044c1c897 100644
+index b382da838acc04a1c5d89064b4fa43bcdd38ae71..c63142cea44d26c6742f39b090eeba8f2052662c 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-@@ -185,6 +185,7 @@ import org.bukkit.event.player.PlayerTeleportEvent;
+@@ -100,7 +100,6 @@ import net.minecraft.util.Mth;
+ import net.minecraft.util.RandomSource;
+ import net.minecraft.util.Unit;
+ import net.minecraft.world.damagesource.DamageSource;
+-import net.minecraft.world.damagesource.DamageSources;
+ import net.minecraft.world.effect.MobEffectInstance;
+ import net.minecraft.world.effect.MobEffects;
+ import net.minecraft.world.entity.Entity;
+@@ -185,6 +184,7 @@ import org.bukkit.event.player.PlayerTeleportEvent;
  import org.bukkit.event.player.PlayerTeleportEvent.TeleportCause;
  import org.bukkit.event.player.PlayerToggleSneakEvent;
  import org.bukkit.inventory.MainHand;
@@ -87,7 +95,7 @@ index b382da838acc04a1c5d89064b4fa43bcdd38ae71..0cc848a600fa0f8af4f5f991834dd1d0
  // CraftBukkit end
  
  public class ServerPlayer extends Player {
-@@ -719,15 +720,19 @@ public class ServerPlayer extends Player {
+@@ -719,15 +719,19 @@ public class ServerPlayer extends Player {
          }
  
          // Paper start - Configurable container update tick rate
@@ -115,7 +123,7 @@ index b382da838acc04a1c5d89064b4fa43bcdd38ae71..0cc848a600fa0f8af4f5f991834dd1d0
  
          Entity entity = this.getCamera();
  
-@@ -743,7 +748,7 @@ public class ServerPlayer extends Player {
+@@ -743,7 +747,7 @@ public class ServerPlayer extends Player {
              }
          }
  
@@ -124,7 +132,7 @@ index b382da838acc04a1c5d89064b4fa43bcdd38ae71..0cc848a600fa0f8af4f5f991834dd1d0
          if (this.levitationStartPos != null) {
              CriteriaTriggers.LEVITATION.trigger(this, this.levitationStartPos, this.tickCount - this.levitationStartTime);
          }
-@@ -936,7 +941,7 @@ public class ServerPlayer extends Player {
+@@ -936,7 +940,7 @@ public class ServerPlayer extends Player {
          java.util.List<org.bukkit.inventory.ItemStack> loot = new java.util.ArrayList<org.bukkit.inventory.ItemStack>(this.getInventory().getContainerSize());
          boolean keepInventory = this.level().getGameRules().getBoolean(GameRules.RULE_KEEPINVENTORY) || this.isSpectator();
  
@@ -133,14 +141,14 @@ index b382da838acc04a1c5d89064b4fa43bcdd38ae71..0cc848a600fa0f8af4f5f991834dd1d0
              for (ItemStack item : this.getInventory().getContents()) {
                  if (!item.isEmpty() && !EnchantmentHelper.hasVanishingCurse(item)) {
                      loot.add(CraftItemStack.asCraftMirror(item));
-@@ -1265,6 +1270,13 @@ public class ServerPlayer extends Player {
+@@ -1265,6 +1269,13 @@ public class ServerPlayer extends Player {
                  this.lastSentHealth = -1.0F;
                  this.lastSentFood = -1;
  
 +                // Leaves start - bot support
 +                if (top.leavesmc.leaves.LeavesConfig.fakeplayerSupport) {
 +                    ServerBot.getBots().forEach(bot1 ->
-+                        bot1.render(this, true)); // Leaves - render bot
++                        bot1.sendFakeDataIfNeed(this, true)); // Leaves - render bot
 +                }
 +                // Leaves end - bot support
 +
@@ -148,18 +156,10 @@ index b382da838acc04a1c5d89064b4fa43bcdd38ae71..0cc848a600fa0f8af4f5f991834dd1d0
                  PlayerChangedWorldEvent changeEvent = new PlayerChangedWorldEvent(this.getBukkitEntity(), worldserver1.getWorld());
                  this.level().getCraftServer().getPluginManager().callEvent(changeEvent);
 diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
-index f097ec5b4e3ad6b1a7c464a8cff4f8b2568fcf4f..c64c53075efdefc5bb845f954de87c3f3f9d3fcf 100644
+index f097ec5b4e3ad6b1a7c464a8cff4f8b2568fcf4f..175c117bb5acca0b0d43b5ce090e51e20a2ca23b 100644
 --- a/src/main/java/net/minecraft/server/players/PlayerList.java
 +++ b/src/main/java/net/minecraft/server/players/PlayerList.java
-@@ -81,6 +81,7 @@ import net.minecraft.server.ServerScoreboard;
- import net.minecraft.tags.BlockTags;
- import net.minecraft.tags.TagNetworkSerialization;
- import net.minecraft.util.Mth;
-+import net.minecraft.world.damagesource.DamageSource;
- import net.minecraft.world.effect.MobEffectInstance;
- import net.minecraft.world.entity.Entity;
- import net.minecraft.world.entity.EntityType;
-@@ -101,6 +102,7 @@ import net.minecraft.world.scores.Objective;
+@@ -101,6 +101,7 @@ import net.minecraft.world.scores.Objective;
  import net.minecraft.world.scores.PlayerTeam;
  import net.minecraft.world.scores.Scoreboard; // Paper
  import net.minecraft.world.scores.Team;
@@ -167,7 +167,23 @@ index f097ec5b4e3ad6b1a7c464a8cff4f8b2568fcf4f..c64c53075efdefc5bb845f954de87c3f
  import org.slf4j.Logger;
  
  // CraftBukkit start
-@@ -342,6 +344,19 @@ public abstract class PlayerList {
+@@ -118,7 +119,6 @@ import org.bukkit.Location;
+ import org.bukkit.craftbukkit.CraftServer;
+ import org.bukkit.craftbukkit.CraftWorld;
+ import org.bukkit.craftbukkit.entity.CraftPlayer;
+-import org.bukkit.craftbukkit.util.CraftChatMessage;
+ import org.bukkit.craftbukkit.util.CraftLocation;
+ import org.bukkit.entity.Player;
+ import org.bukkit.event.player.PlayerChangedWorldEvent;
+@@ -127,7 +127,6 @@ import org.bukkit.event.player.PlayerLoginEvent;
+ import org.bukkit.event.player.PlayerQuitEvent;
+ import org.bukkit.event.player.PlayerRespawnEvent;
+ import org.bukkit.event.player.PlayerRespawnEvent.RespawnReason;
+-import org.bukkit.event.player.PlayerSpawnChangeEvent;
+ // CraftBukkit end
+ 
+ public abstract class PlayerList {
+@@ -342,6 +341,21 @@ public abstract class PlayerList {
              return;
          }
  
@@ -179,29 +195,31 @@ index f097ec5b4e3ad6b1a7c464a8cff4f8b2568fcf4f..c64c53075efdefc5bb845f954de87c3f
 +                this.playersByName.put(player.getScoreboardName().toLowerCase(java.util.Locale.ROOT), player);
 +                this.playersByUUID.put(player.getUUID(), player);
 +            }
-+            ServerBot.getBots().forEach(bot1 ->
-+                bot1.render(playerconnection, true,player.getBukkitEntity().getWorld() == bot1.getBukkitEntity().getWorld())); // Leaves - render bot
++            ServerBot.getBots().forEach(bot1 -> {
++                bot1.sendPlayerInfo(player);
++                bot1.sendFakeDataIfNeed(player, true);
++            }); // Leaves - render bot
 +        }
 +        // Leaves end - bot support
 +
          final net.kyori.adventure.text.Component jm = playerJoinEvent.joinMessage();
  
          if (jm != null && !jm.equals(net.kyori.adventure.text.Component.empty())) { // Paper - Adventure
-@@ -985,6 +1000,13 @@ public abstract class PlayerList {
+@@ -985,6 +999,13 @@ public abstract class PlayerList {
          }
          // Paper end
  
 +        // Leaves start - bot support
 +        if (top.leavesmc.leaves.LeavesConfig.fakeplayerSupport) {
 +            top.leavesmc.leaves.bot.ServerBot.getBots().forEach(bot1 ->
-+                bot1.render(entityplayer1, true)); // Leaves - render bot
++                bot1.sendFakeDataIfNeed(entityplayer1, true)); // Leaves - render bot
 +        }
 +        // Leaves end - bot support
 +
          // CraftBukkit end
          return entityplayer1;
      }
-@@ -1095,11 +1117,16 @@ public abstract class PlayerList {
+@@ -1095,11 +1116,16 @@ public abstract class PlayerList {
      }
  
      public String[] getPlayerNamesArray() {
@@ -219,7 +237,7 @@ index f097ec5b4e3ad6b1a7c464a8cff4f8b2568fcf4f..c64c53075efdefc5bb845f954de87c3f
  
          return astring;
      }
-@@ -1578,4 +1605,16 @@ public abstract class PlayerList {
+@@ -1578,4 +1604,16 @@ public abstract class PlayerList {
      public boolean isAllowCheatsForAllPlayers() {
          return this.allowCheatsForAllPlayers;
      }
@@ -1148,10 +1166,10 @@ index 0000000000000000000000000000000000000000..daaece30b2a3983f1cc9ee9a851e8f37
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/ServerBot.java b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..4365351efbe01b46b5df29a34bef08abfa79cd9e
+index 0000000000000000000000000000000000000000..8bcffe8d307c9664133a37677900312c2a19c275
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
-@@ -0,0 +1,711 @@
+@@ -0,0 +1,712 @@
 +package top.leavesmc.leaves.bot;
 +
 +import com.google.common.collect.Lists;
@@ -1178,6 +1196,7 @@ index 0000000000000000000000000000000000000000..4365351efbe01b46b5df29a34bef08ab
 +import net.minecraft.server.level.ServerPlayer;
 +import net.minecraft.server.network.ServerGamePacketListenerImpl;
 +import net.minecraft.server.network.ServerPlayerConnection;
++import net.minecraft.server.players.PlayerList;
 +import net.minecraft.stats.ServerStatsCounter;
 +import net.minecraft.world.InteractionHand;
 +import net.minecraft.world.InteractionResult;
@@ -1238,6 +1257,7 @@ index 0000000000000000000000000000000000000000..4365351efbe01b46b5df29a34bef08ab
 +
 +    private final Map<String, BotAction> actions;
 +    private final boolean removeOnDeath;
++    private final int tracingRange;
 +
 +    private Vec3 velocity;
 +    private int fireTicks;
@@ -1268,6 +1288,7 @@ index 0000000000000000000000000000000000000000..4365351efbe01b46b5df29a34bef08ab
 +        this.fauxSleeping = LeavesConfig.fakeplayerSkipSleep;
 +        this.waterSwim = true;
 +        this.knockback = Vec3.ZERO;
++        this.tracingRange = world.spigotConfig.playerTrackingRange * world.spigotConfig.playerTrackingRange;
 +    }
 +
 +    public static ServerBot createBot(@NotNull BotCreateState state) {
@@ -1334,46 +1355,44 @@ index 0000000000000000000000000000000000000000..4365351efbe01b46b5df29a34bef08ab
 +        return ServerBot.getBots().size() < top.leavesmc.leaves.LeavesConfig.fakeplayerLimit;
 +    }
 +
-+    private void renderAll() {
-+        Packet<?>[] packets = getRenderPackets();
-+        Bukkit.getOnlinePlayers().forEach(p ->
-+            render(((CraftPlayer) p).getHandle().connection, packets, false, p.getWorld() == getBukkitPlayer().getWorld()));
-+    }
-+
-+    public void render(ServerPlayerConnection connection, boolean login, boolean all) {
-+        render(connection, getRenderPackets(), login, all && LeavesConfig.alwaysSendFakeplayerData);
-+    }
-+
-+    public void render(ServerPlayer player, boolean login) {
-+        render(player.connection, getRenderPackets(), login, player.level() == this.level() && LeavesConfig.alwaysSendFakeplayerData);
-+    }
-+
-+    private void render(@NotNull ServerPlayerConnection connection, Packet<?> @NotNull [] packets, boolean login, boolean all) { // always use getRenderPackets() to get packets. replace it soon
-+        connection.send(packets[0]);
-+        if (all) {
-+            connection.send(packets[1]);
-+            if (login) {
-+                Bukkit.getScheduler().runTaskLater(MINECRAFT_PLUGIN, () -> {
-+                    connection.send(packets[2]);
-+                }, 10);
-+            } else {
-+                connection.send(packets[2]);
++    public void renderAll() {
++        MinecraftServer.getServer().getPlayerList().getPlayers().forEach(
++            player -> {
++                this.sendPlayerInfo(player);
++                this.sendFakeData(player.connection, false);
 +            }
++        );
++    }
++
++    public void sendPlayerInfo(ServerPlayer player) {
++        player.connection.send(new ClientboundPlayerInfoUpdatePacket(EnumSet.of(ClientboundPlayerInfoUpdatePacket.Action.ADD_PLAYER, ClientboundPlayerInfoUpdatePacket.Action.UPDATE_LISTED, ClientboundPlayerInfoUpdatePacket.Action.UPDATE_DISPLAY_NAME), List.of(this)));
++    }
++
++    public boolean needSendFakeData(ServerPlayer player) {
++        return LeavesConfig.alwaysSendFakeplayerData && (player.level() == this.level() && player.position().distanceToSqr(this.position()) > this.tracingRange);
++    }
++
++    public void sendFakeDataIfNeed(ServerPlayer player, boolean login) {
++        if (needSendFakeData(player)) {
++            this.sendFakeData(player.connection, login);
 +        }
 +    }
 +
-+    @Contract(" -> new")
-+    private Packet<?> @NotNull [] getRenderPackets() {
-+        return new Packet[]{
-+            new ClientboundPlayerInfoUpdatePacket(EnumSet.of(ClientboundPlayerInfoUpdatePacket.Action.ADD_PLAYER, ClientboundPlayerInfoUpdatePacket.Action.UPDATE_LISTED, ClientboundPlayerInfoUpdatePacket.Action.UPDATE_DISPLAY_NAME), List.of(this)),
-+            new ClientboundAddPlayerPacket(this),
-+            // new ClientboundSetEntityDataPacket(this.getId(), ),
-+            new ClientboundRotateHeadPacket(this, (byte) ((getYRot() * 256f) / 360f))
-+        };
++    public void sendFakeData(ServerPlayerConnection playerConnection, boolean login) {
++        playerConnection.send(new ClientboundAddPlayerPacket(this));
++        if (login) {
++            Bukkit.getScheduler().runTaskLater(MINECRAFT_PLUGIN, () -> {
++                connection.send(new ClientboundRotateHeadPacket(this, (byte) ((getYRot() * 256f) / 360f)));
++            }, 10);
++        } else {
++            connection.send(new ClientboundRotateHeadPacket(this, (byte) ((getYRot() * 256f) / 360f)));
++        }
 +    }
 +
 +    private void sendPacket(Packet<?> packet) {
-+        Bukkit.getOnlinePlayers().forEach(p -> ((CraftPlayer) p).getHandle().connection.send(packet));
++        MinecraftServer.getServer().getPlayerList().getPlayers().forEach(
++            player -> player.connection.send(packet)
++        );
 +    }
 +
 +    // die check start

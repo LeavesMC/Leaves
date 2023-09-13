@@ -1,0 +1,223 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Wed, 13 Sep 2023 19:31:20 +0800
+Subject: [PATCH] Servux Protocol
+
+
+diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
+index fba016014ffc628887dc873cfa54f8c76a72c7ef..3201913bd2fba0038ab4853931a641e361a883b1 100644
+--- a/src/main/java/net/minecraft/server/MinecraftServer.java
++++ b/src/main/java/net/minecraft/server/MinecraftServer.java
+@@ -1610,6 +1610,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+         top.leavesmc.leaves.protocol.AppleSkinProtocol.tick(); // Leaves - appleskin
+         top.leavesmc.leaves.util.BreakBedrockList.endTick(); // Leaves - break bedrock list
+         top.leavesmc.leaves.protocol.bladeren.MsptSyncProtocol.tick(this); // Leaves - mspt sync
++        top.leavesmc.leaves.protocol.ServuxProtocol.tick(); // Leaves - servux
+ 
+         for (int i = 0; i < this.tickables.size(); ++i) {
+             ((Runnable) this.tickables.get(i)).run();
+diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index e22cf5ed3c905d0536cad7ac23b7d94f755aa518..5f3b0cd7cbe6ca840b8a9c2072bf54ef12eb11b9 100644
+--- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -3629,6 +3629,11 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
+             try {
+                 String channels = packet.data.toString(com.google.common.base.Charsets.UTF_8);
+                 for (String channel : channels.split("\0")) {
++                    // Leaves start - leaves extra protocol
++                    if (top.leavesmc.leaves.LeavesConfig.servuxProtocol && channel.equals(top.leavesmc.leaves.protocol.ServuxProtocol.CHANNEL.toString())) {
++                        top.leavesmc.leaves.protocol.ServuxProtocol.onPlayerSubscribed(player);
++                    }
++                    // Leaves end - leaves extra protocol
+                     this.getCraftPlayer().addChannel(channel);
+                 }
+             } catch (Exception ex) {
+diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
+index cf4ea675119d3c1a12435a6f00309ea2023e0a71..34cb5a6bd8ea93b4cdab6c9ce289c8cb68edf5f8 100644
+--- a/src/main/java/net/minecraft/server/players/PlayerList.java
++++ b/src/main/java/net/minecraft/server/players/PlayerList.java
+@@ -769,6 +769,7 @@ public abstract class PlayerList {
+         top.leavesmc.leaves.protocol.BBORProtocol.onPlayerLoggedOut(entityplayer); // Leaves - bbor
+         top.leavesmc.leaves.protocol.AppleSkinProtocol.onPlayerLoggedOut(entityplayer); // Leaves - appleskin
+         top.leavesmc.leaves.protocol.bladeren.MsptSyncProtocol.onPlayerLoggedOut(entityplayer); // Leaves - mspt sync
++        top.leavesmc.leaves.protocol.ServuxProtocol.onPlayerLoggedOut(entityplayer); // Leaves - servux
+         // Paper end
+         ServerLevel worldserver = entityplayer.serverLevel();
+ 
+diff --git a/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java b/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java
+index e34e6fa60cedb925e2cb6f3a031d4157a9633eb5..f08c9be4a3fbab9f95167226b489d5d7bf0bdfac 100644
+--- a/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java
++++ b/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java
+@@ -1030,6 +1030,7 @@ public class LevelChunk extends ChunkAccess {
+         // Leaves start - bbor
+         if (loaded) {
+             top.leavesmc.leaves.protocol.BBORProtocol.onChunkLoaded(this);
++            top.leavesmc.leaves.protocol.ServuxProtocol.onChunkLoaded(this); // and servux
+         }
+         // Leaves end - bbor
+     }
+diff --git a/src/main/java/top/leavesmc/leaves/protocol/ServuxProtocol.java b/src/main/java/top/leavesmc/leaves/protocol/ServuxProtocol.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..3102c81528595d82c5ef9b8ceee15d2d595fc434
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/protocol/ServuxProtocol.java
+@@ -0,0 +1,159 @@
++package top.leavesmc.leaves.protocol;
++
++import io.netty.buffer.Unpooled;
++import net.minecraft.core.Registry;
++import net.minecraft.core.registries.Registries;
++import net.minecraft.nbt.CompoundTag;
++import net.minecraft.nbt.ListTag;
++import net.minecraft.network.FriendlyByteBuf;
++import net.minecraft.resources.ResourceLocation;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.world.level.chunk.LevelChunk;
++import net.minecraft.world.level.levelgen.structure.BoundingBox;
++import net.minecraft.world.level.levelgen.structure.Structure;
++import net.minecraft.world.level.levelgen.structure.StructureStart;
++import net.minecraft.world.level.levelgen.structure.pieces.StructurePieceSerializationContext;
++import org.jetbrains.annotations.Contract;
++import org.jetbrains.annotations.NotNull;
++import top.leavesmc.leaves.LeavesConfig;
++import top.leavesmc.leaves.util.ProtocolUtils;
++
++import java.util.ArrayList;
++import java.util.HashMap;
++import java.util.HashSet;
++import java.util.List;
++import java.util.Map;
++import java.util.Set;
++import java.util.concurrent.ConcurrentHashMap;
++
++public class ServuxProtocol {
++
++    public static final String PROTOCOL_ID = "servux";
++
++    public static final int PROTOCOL_VERSION = 1;
++    public static final int PACKET_METADATA = 1;
++    public static final int PACKET_STRUCTURE_DATA = 2;
++
++    public static final ResourceLocation CHANNEL = id("structures");
++
++    private static final Map<Integer, ServerPlayer> players = new ConcurrentHashMap<>();
++    private static final Map<Integer, Set<BoundingBox>> playerBoundingBoxesCache = new HashMap<>();
++    private static final Map<ResourceLocation, Map<BoundingBox, CompoundTag>> dimensionCache = new ConcurrentHashMap<>();
++
++    @Contract("_ -> new")
++    public static @NotNull ResourceLocation id(String path) {
++        return new ResourceLocation(PROTOCOL_ID, path);
++    }
++
++    public static void onPlayerSubscribed(@NotNull ServerPlayer player) {
++        if (LeavesConfig.servuxProtocol) {
++            players.put(player.getId(), player);
++
++            CompoundTag tag = new CompoundTag();
++            tag.putInt("version", PROTOCOL_VERSION);
++            tag.putString("id", CHANNEL.toString());
++            tag.putInt("timeout", Integer.MAX_VALUE - 200);
++            sendNBTPacket(player, PACKET_METADATA, tag);
++        }
++    }
++
++    public static void onPlayerLoggedOut(@NotNull ServerPlayer player) {
++        if (LeavesConfig.servuxProtocol) {
++            players.remove(player.getId());
++            playerBoundingBoxesCache.remove(player.getId());
++        }
++    }
++
++    public static void onChunkLoaded(@NotNull LevelChunk chunk) {
++        if (LeavesConfig.servuxProtocol) {
++            List<StructureStart> structures = new ArrayList<>();
++            final Registry<Structure> structureFeatureRegistry = chunk.getLevel().registryAccess().registryOrThrow(Registries.STRUCTURE);
++            for (var es : chunk.getAllStarts().entrySet()) {
++                final var optional = structureFeatureRegistry.getResourceKey(es.getKey());
++                optional.ifPresent(key -> structures.add(es.getValue()));
++            }
++
++            if (!structures.isEmpty()) {
++                onStructuresLoaded((ServerLevel) chunk.getLevel(), structures);
++            }
++        }
++    }
++
++    public static void onStructuresLoaded(@NotNull ServerLevel level, @NotNull List<StructureStart> structures) {
++        Map<BoundingBox, CompoundTag> cache = getOrCreateCache(level.dimension().location());
++        for (StructureStart structureStart : structures) {
++            if (structureStart == null) {
++                return;
++            }
++
++            StructurePieceSerializationContext ctx = StructurePieceSerializationContext.fromLevel(level);
++
++            BoundingBox boundingBox = structureStart.getBoundingBox();
++            if (cache.containsKey(boundingBox)) {
++                return;
++            }
++
++            cache.put(boundingBox, structureStart.createTag(ctx, structureStart.getChunkPos()));
++        }
++    }
++
++    private static void sendBoundingToPlayer(int id, ServerPlayer player) {
++        Map<BoundingBox, CompoundTag> boundingBoxMap = dimensionCache.get(player.level().dimension().location());
++        if (boundingBoxMap == null) {
++            return;
++        }
++
++        Set<BoundingBox> playerBoundingBoxes = playerBoundingBoxesCache.computeIfAbsent(id, k -> new HashSet<>());
++
++        ListTag listTag = new ListTag();
++        for (BoundingBox key : boundingBoxMap.keySet()) {
++            if (listTag.size() >= 50) {
++                break;
++            }
++            if (playerBoundingBoxes.contains(key)) {
++                continue;
++            }
++
++            CompoundTag boundingBoxes = boundingBoxMap.get(key);
++            if (boundingBoxes != null) {
++                listTag.add(boundingBoxes);
++            }
++            playerBoundingBoxes.add(key);
++        }
++
++        if (!listTag.isEmpty()) {
++            CompoundTag tag = new CompoundTag();
++            tag.put("Structures", listTag);
++            sendNBTPacket(player, PACKET_STRUCTURE_DATA, tag);
++        }
++    }
++
++    public static void tick() {
++        if (LeavesConfig.servuxProtocol) {
++            for (var playerEntry : players.entrySet()) {
++                sendBoundingToPlayer(playerEntry.getKey(), playerEntry.getValue());
++            }
++        }
++    }
++
++    private static Map<BoundingBox, CompoundTag> getOrCreateCache(ResourceLocation dimensionId) {
++        return dimensionCache.computeIfAbsent(dimensionId, dt -> new ConcurrentHashMap<>());
++    }
++
++    public static void sendNBTPacket(ServerPlayer player, int packetType, CompoundTag data) {
++        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
++        buf.writeVarInt(packetType);
++        buf.writeNbt(data);
++
++        int len = buf.writerIndex();
++        buf.readerIndex(0);
++
++        FriendlyByteBuf buf1 = new FriendlyByteBuf(Unpooled.buffer(len));
++        buf1.writeVarInt(len);
++        buf1.writeBytes(buf, len);
++        ProtocolUtils.sendPayloadPacket(player, CHANNEL, buf1);
++
++        buf.release();
++    }
++}

@@ -67,3 +67,7 @@ paperweight {
         }
     }
 }
+
+tasks.withType<io.papermc.paperweight.tasks.RebuildGitPatches> {
+    filterPatches.set(false)
+}

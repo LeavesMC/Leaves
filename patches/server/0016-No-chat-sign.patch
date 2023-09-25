@@ -41,10 +41,10 @@ index 72a8aa676836fcb3b4578689d16af65e18f55bbe..47a06936a4727c6209a7ad0fb8fb1099
      public MessageSignature get(String argumentName) {
          for(ArgumentSignatures.Entry entry : this.entries) {
 diff --git a/src/main/java/net/minecraft/network/FriendlyByteBuf.java b/src/main/java/net/minecraft/network/FriendlyByteBuf.java
-index 9938bb90bef84cf784f9a1ceb02a1a45aa8b48a1..923b77b9793369395f5f138ef03d8b489957caa1 100644
+index 2e395962b555bef0ce1a98e1d768e7738f011535..62558d52fc55e8a7430c2a30783223d11dc0792c 100644
 --- a/src/main/java/net/minecraft/network/FriendlyByteBuf.java
 +++ b/src/main/java/net/minecraft/network/FriendlyByteBuf.java
-@@ -67,6 +67,7 @@ import net.minecraft.nbt.NbtIo;
+@@ -65,6 +65,7 @@ import net.minecraft.nbt.NbtIo;
  import net.minecraft.nbt.Tag;
  import net.minecraft.network.chat.Component;
  import net.minecraft.network.chat.MutableComponent;
@@ -52,7 +52,7 @@ index 9938bb90bef84cf784f9a1ceb02a1a45aa8b48a1..923b77b9793369395f5f138ef03d8b48
  import net.minecraft.resources.ResourceKey;
  import net.minecraft.resources.ResourceLocation;
  import net.minecraft.util.Crypt;
-@@ -154,6 +155,16 @@ public class FriendlyByteBuf extends ByteBuf {
+@@ -137,6 +138,16 @@ public class FriendlyByteBuf extends ByteBuf {
      public <T> void writeJsonWithCodec(Codec<T> codec, T value) {
          DataResult<JsonElement> dataresult = codec.encodeStart(JsonOps.INSTANCE, value);
  
@@ -110,7 +110,7 @@ index 9d6db4a378036559efab91c8b7dcf2a6b0c2cce6..2c349dc502ce275a8215766933f4855f
      }
  }
 diff --git a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
-index 56ae779a44bc361f78188ec3d2bfe88daa0869aa..4e2c9525767136bc29366b2224a5adc5ad6485bd 100644
+index 601d062a90aa416705d93cc672c7fc42360f2f04..325efe0875e5721661e10fb3bf61bf108fdc55e2 100644
 --- a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
 +++ b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
 @@ -643,7 +643,7 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
@@ -121,19 +121,19 @@ index 56ae779a44bc361f78188ec3d2bfe88daa0869aa..4e2c9525767136bc29366b2224a5adc5
 +        return dedicatedserverproperties.enforceSecureProfile && dedicatedserverproperties.onlineMode && this.services.profileKeySignatureValidator() != null && !top.leavesmc.leaves.LeavesConfig.noChatSign; // Leaves - No Secure profile;
      }
  
-     protected boolean convertOldUsers() {
-diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index ab58827001b3b42e44d7f701c390480fed1fa1f1..f728382ac721d2204d2cac18f21a43212a08ab7c 100644
---- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-+++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-@@ -2200,10 +2200,27 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
- 
      @Override
+diff --git a/src/main/java/net/minecraft/server/network/ServerCommonPacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerCommonPacketListenerImpl.java
+index ff01c0e7f1d84a4a6e2684446ef1172754ddc570..3ce27913620e6e49ad3b44e2ddfadfaa6eace218 100644
+--- a/src/main/java/net/minecraft/server/network/ServerCommonPacketListenerImpl.java
++++ b/src/main/java/net/minecraft/server/network/ServerCommonPacketListenerImpl.java
+@@ -227,10 +227,27 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
+     }
+ 
      public void send(Packet<?> packet) {
 +        // Leaves start - no ClientboundPlayerChatHeaderPacket and rebuild ClientboundPlayerChatPacket
 +        if (top.leavesmc.leaves.LeavesConfig.noChatSign) {
-+            if (packet instanceof ClientboundPlayerChatPacket chat) {
-+                packet = new ClientboundSystemChatPacket(chat.chatType().resolve(this.player.level().registryAccess())
++            if (packet instanceof net.minecraft.network.protocol.game.ClientboundPlayerChatPacket chat) {
++                packet = new net.minecraft.network.protocol.game.ClientboundSystemChatPacket(chat.chatType().resolve(this.player.level().registryAccess())
 +                    .get().decorate(chat.unsignedContent() != null ? chat.unsignedContent()
 +                        : Component.literal(chat.body().content())), false);
 +            }
@@ -145,7 +145,7 @@ index ab58827001b3b42e44d7f701c390480fed1fa1f1..f728382ac721d2204d2cac18f21a4321
      public void send(Packet<?> packet, @Nullable PacketSendListener callbacks) {
 +        // Leaves start - no ClientboundPlayerChatHeaderPacket and rebuild ClientboundPlayerChatPacket
 +        if (top.leavesmc.leaves.LeavesConfig.noChatSign) {
-+            if (packet instanceof ClientboundPlayerChatPacket chat && callbacks != null) {
++            if (packet instanceof net.minecraft.network.protocol.game.ClientboundPlayerChatPacket chat && callbacks != null) {
 +                this.send(chat);
 +                return;
 +            }
@@ -155,10 +155,10 @@ index ab58827001b3b42e44d7f701c390480fed1fa1f1..f728382ac721d2204d2cac18f21a4321
          if (packet == null || this.processedDisconnect) { // Spigot
              return;
 diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
-index 175c117bb5acca0b0d43b5ce090e51e20a2ca23b..0e095d71cbe46acbf076623a0e1af6963610e5c4 100644
+index 73044c64a6e34892aac7cc2aa8f4403e41e35e57..2c49cf5ddfa28c60e9f2ce2f81cd231569ea1b29 100644
 --- a/src/main/java/net/minecraft/server/players/PlayerList.java
 +++ b/src/main/java/net/minecraft/server/players/PlayerList.java
-@@ -1465,7 +1465,7 @@ public abstract class PlayerList {
+@@ -1459,7 +1459,7 @@ public abstract class PlayerList {
      }
  
      public boolean verifyChatTrusted(PlayerChatMessage message) { // Paper - private -> public

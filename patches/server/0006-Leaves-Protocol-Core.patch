@@ -114,10 +114,10 @@ index 0000000000000000000000000000000000000000..64a1d25973b032e8cab64bbffa6824a1
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/protocol/core/LeavesProtocolManager.java b/src/main/java/top/leavesmc/leaves/protocol/core/LeavesProtocolManager.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..316a684d3197de011c0158a4cbd9d1939612baff
+index 0000000000000000000000000000000000000000..7bffa45deac41bf5daf9e696155338bc801e1ef1
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/protocol/core/LeavesProtocolManager.java
-@@ -0,0 +1,247 @@
+@@ -0,0 +1,256 @@
 +package top.leavesmc.leaves.protocol.core;
 +
 +import net.minecraft.network.FriendlyByteBuf;
@@ -148,7 +148,7 @@ index 0000000000000000000000000000000000000000..316a684d3197de011c0158a4cbd9d193
 +public class LeavesProtocolManager {
 +
 +    private static final Map<LeavesProtocol, Map<ProtocolHandler.PayloadReceiver, Constructor<? extends CustomPacketPayload>>> KNOWN_TYPES = new HashMap<>();
-+    private static final Map<ProtocolHandler.PayloadReceiver, List<Method>> KNOW_RECEIVERS = new HashMap<>();
++    private static final Map<LeavesProtocol, Map<ProtocolHandler.PayloadReceiver, List<Method>>> KNOW_RECEIVERS = new HashMap<>();
 +
 +    private static final List<Method> TICKERS = new ArrayList<>();
 +    private static final List<Method> PLAYER_JOIN = new ArrayList<>();
@@ -196,12 +196,12 @@ index 0000000000000000000000000000000000000000..316a684d3197de011c0158a4cbd9d193
 +                            continue;
 +                        }
 +
-+                        if (!KNOW_RECEIVERS.containsKey(receiver)) {
-+                            KNOW_RECEIVERS.put(receiver, new ArrayList<>());
++                        if (!KNOW_RECEIVERS.get(protocol).containsKey(receiver)) {
++                            KNOW_RECEIVERS.get(protocol).put(receiver, new ArrayList<>());
 +                        }
 +
 +                        method.setAccessible(true);
-+                        KNOW_RECEIVERS.get(receiver).add(method);
++                        KNOW_RECEIVERS.get(protocol).get(receiver).add(method);
 +                        continue;
 +                    }
 +
@@ -235,15 +235,17 @@ index 0000000000000000000000000000000000000000..316a684d3197de011c0158a4cbd9d193
 +
 +    public static CustomPacketPayload getPayload(ResourceLocation id, FriendlyByteBuf buf) {
 +        for (LeavesProtocol protocol : KNOWN_TYPES.keySet()) {
-+            if (protocol.namespace().equals(id.getNamespace()) || ArrayUtils.contains(protocol.namespaces(), id.getNamespace())) {
-+                Map<ProtocolHandler.PayloadReceiver, Constructor<? extends CustomPacketPayload>> map = KNOWN_TYPES.get(protocol);
-+                for (ProtocolHandler.PayloadReceiver receiver : map.keySet()) {
-+                    if (receiver.ignoreId() || receiver.payloadId().equals(id.getPath()) || ArrayUtils.contains(receiver.payloadIds(), id.getPath())) {
-+                        try {
-+                            return map.get(receiver).newInstance(id, buf);
-+                        } catch (InvocationTargetException | InstantiationException | IllegalAccessException e) {
-+                            e.printStackTrace();
-+                        }
++            if (!protocol.namespace().equals(id.getNamespace()) && !ArrayUtils.contains(protocol.namespaces(), id.getNamespace())) {
++                continue;
++            }
++
++            Map<ProtocolHandler.PayloadReceiver, Constructor<? extends CustomPacketPayload>> map = KNOWN_TYPES.get(protocol);
++            for (ProtocolHandler.PayloadReceiver receiver : map.keySet()) {
++                if (receiver.ignoreId() || receiver.payloadId().equals(id.getPath()) || ArrayUtils.contains(receiver.payloadIds(), id.getPath())) {
++                    try {
++                        return map.get(receiver).newInstance(id, buf);
++                    } catch (InvocationTargetException | InstantiationException | IllegalAccessException e) {
++                        e.printStackTrace();
 +                    }
 +                }
 +            }
@@ -252,18 +254,25 @@ index 0000000000000000000000000000000000000000..316a684d3197de011c0158a4cbd9d193
 +    }
 +
 +    public static void handlePayload(ServerPlayer player, CustomPacketPayload payload) {
-+        for (ProtocolHandler.PayloadReceiver receiver : KNOW_RECEIVERS.keySet()) {
-+            if (payload.getClass() == receiver.payload()) {
-+                if (receiver.ignoreId() || receiver.payloadId().equals(payload.id().getPath()) ||
-+                    ArrayUtils.contains(receiver.payloadIds(), payload.id().getPath())) {
-+                    List<Method> methods = KNOW_RECEIVERS.get(receiver);
-+                    if (methods != null && !methods.isEmpty()) {
-+                        try {
-+                            for (Method method : methods) {
-+                                method.invoke(player, payload);
++        for (LeavesProtocol protocol : KNOW_RECEIVERS.keySet()) {
++            if (!protocol.namespace().equals(payload.id().getNamespace()) && !ArrayUtils.contains(protocol.namespaces(), payload.id().getNamespace())) {
++                continue;
++            }
++
++            Map<ProtocolHandler.PayloadReceiver, List<Method>> map = KNOW_RECEIVERS.get(protocol);
++            for (ProtocolHandler.PayloadReceiver receiver : map.keySet()) {
++                if (payload.getClass() == receiver.payload()) {
++                    if (receiver.ignoreId() || receiver.payloadId().equals(payload.id().getPath()) ||
++                        ArrayUtils.contains(receiver.payloadIds(), payload.id().getPath())) {
++                        List<Method> methods = map.get(receiver);
++                        if (methods != null && !methods.isEmpty()) {
++                            try {
++                                for (Method method : methods) {
++                                    method.invoke(player, payload);
++                                }
++                            } catch (InvocationTargetException | IllegalAccessException e) {
++                                e.printStackTrace();
 +                            }
-+                        } catch (InvocationTargetException | IllegalAccessException e) {
-+                            e.printStackTrace();
 +                        }
 +                    }
 +                }

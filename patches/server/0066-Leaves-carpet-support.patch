@@ -1,0 +1,143 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Tue, 27 Jun 2023 01:54:43 +0800
+Subject: [PATCH] Leaves carpet support
+
+
+diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+index 0c39a4e12afc90faec690b505657771742b94e3e..d952dfaf5ef3e6d36377f08e6e9d3e2540da82c8 100644
+--- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
++++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+@@ -13,6 +13,8 @@ import top.leavesmc.leaves.bot.BotCommand;
+ import top.leavesmc.leaves.bot.agent.Actions;
+ import top.leavesmc.leaves.profile.LeavesMinecraftSessionService;
+ import top.leavesmc.leaves.util.MathUtils;
++import top.leavesmc.leaves.protocol.CarpetServerProtocol.CarpetRule;
++import top.leavesmc.leaves.protocol.CarpetServerProtocol.CarpetRules;
+ 
+ import java.io.File;
+ import java.lang.reflect.InvocationTargetException;
+@@ -607,6 +609,8 @@ public final class LeavesConfig {
+     }
+ 
+     public static void registerCarpetRules() {
++        CarpetRules.register(CarpetRule.of("carpet", "creativeNoClip", creativeNoClip));
++        CarpetRules.register(CarpetRule.of("pca", "avoidAnvilTooExpensive", avoidAnvilTooExpensive));
+     }
+ 
+     public static boolean creativeNoClip = false;
+diff --git a/src/main/java/top/leavesmc/leaves/protocol/CarpetServerProtocol.java b/src/main/java/top/leavesmc/leaves/protocol/CarpetServerProtocol.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..931834ff7ad215163aef119091b2caa3a40c4618
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/protocol/CarpetServerProtocol.java
+@@ -0,0 +1,109 @@
++package top.leavesmc.leaves.protocol;
++
++import net.minecraft.nbt.CompoundTag;
++import net.minecraft.network.FriendlyByteBuf;
++import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
++import net.minecraft.resources.ResourceLocation;
++import net.minecraft.server.level.ServerPlayer;
++import org.jetbrains.annotations.Contract;
++import org.jetbrains.annotations.NotNull;
++import top.leavesmc.leaves.LeavesConfig;
++import top.leavesmc.leaves.LeavesLogger;
++import top.leavesmc.leaves.protocol.core.LeavesProtocol;
++import top.leavesmc.leaves.protocol.core.ProtocolHandler;
++import top.leavesmc.leaves.protocol.core.ProtocolUtils;
++
++import java.util.HashMap;
++import java.util.Map;
++
++@LeavesProtocol(namespace = "carpet")
++public class CarpetServerProtocol {
++
++    public static final String PROTOCOL_ID = "carpet";
++    public static final String VERSION = "leaves-carpet-1.0.0";
++
++    private static final ResourceLocation HELLO_ID = CarpetServerProtocol.id("hello");
++
++    private static final int HI = 69;
++    private static final int HELLO = 420;
++    private static final int DATA = 1;
++
++    @Contract("_ -> new")
++    public static @NotNull ResourceLocation id(String path) {
++        return new ResourceLocation(PROTOCOL_ID, path);
++    }
++
++    @ProtocolHandler.PlayerJoin
++    public static void onPlayerJoin(ServerPlayer player) {
++        if (LeavesConfig.leavesCarpetSupport) {
++            ProtocolUtils.sendPayloadPacket(player, new CarpetHelloPayload(HI, VERSION, new CompoundTag()));
++        }
++    }
++
++    @ProtocolHandler.PayloadReceiver(payload = CarpetHelloPayload.class, payloadId = "hello")
++    private static void handleHello(@NotNull ServerPlayer player, @NotNull CarpetHelloPayload payload) {
++        if (payload.helloId == HELLO) {
++            LeavesLogger.LOGGER.info("Player " + player.getScoreboardName() + " joined with carpet " + payload.version);
++            ProtocolUtils.sendPayloadPacket(player, HELLO_ID, CarpetRules::write);
++        }
++    }
++
++    public static class CarpetRules {
++
++        private static final Map<String, CarpetRule> rules = new HashMap<>();
++
++        public static void write(@NotNull FriendlyByteBuf buf) {
++            buf.writeVarInt(DATA);
++
++            CompoundTag rulesNbt = new CompoundTag();
++            rules.values().forEach(rule -> rule.writeNBT(rulesNbt));
++
++            CompoundTag tag = new CompoundTag();
++            tag.put("Rules", rulesNbt);
++            buf.writeNbt(tag);
++        }
++
++        public static void register(CarpetRule rule) {
++            rules.put(rule.name, rule);
++        }
++    }
++
++    public record CarpetRule(String identifier, String name, String value) {
++
++        @NotNull
++        @Contract("_, _, _ -> new")
++        public static CarpetRule of(String identifier, String name, boolean value) {
++            return new CarpetRule(identifier, name, Boolean.toString(value));
++        }
++
++        public void writeNBT(@NotNull CompoundTag rules) {
++            CompoundTag rule = new CompoundTag();
++            rule.putString("Value", value);
++            rule.putString("Manager", identifier);
++            rule.putString("Rule", name);
++            rules.put(name, rule);
++        }
++    }
++
++    public record CarpetHelloPayload(int helloId, String version, CompoundTag nbt) implements CustomPacketPayload {
++
++        private static final ResourceLocation HELLO_ID = CarpetServerProtocol.id("hello");
++
++        public CarpetHelloPayload(ResourceLocation location, FriendlyByteBuf buf) {
++            this(buf.readVarInt(), buf.readUtf(64), buf.readNbt());
++        }
++
++        @Override
++        public void write(FriendlyByteBuf buf) {
++            buf.writeVarInt(helloId);
++            buf.writeUtf(version);
++            buf.writeNbt(nbt);
++        }
++
++        @Override
++        @NotNull
++        public ResourceLocation id() {
++            return HELLO_ID;
++        }
++    }
++}

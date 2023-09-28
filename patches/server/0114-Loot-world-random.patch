@@ -1,0 +1,66 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Mon, 4 Sep 2023 22:09:10 +0800
+Subject: [PATCH] Loot world random
+
+
+diff --git a/src/main/java/net/minecraft/world/entity/projectile/FishingHook.java b/src/main/java/net/minecraft/world/entity/projectile/FishingHook.java
+index d0752407684312982188abd0fa4af4f706edc3e3..9c09bcf10075aeefc48cbc1d3cefb9c219de2f3c 100644
+--- a/src/main/java/net/minecraft/world/entity/projectile/FishingHook.java
++++ b/src/main/java/net/minecraft/world/entity/projectile/FishingHook.java
+@@ -496,7 +496,7 @@ public class FishingHook extends Projectile {
+             } else if (this.nibble > 0) {
+                 LootParams lootparams = (new LootParams.Builder((ServerLevel) this.level())).withParameter(LootContextParams.ORIGIN, this.position()).withParameter(LootContextParams.TOOL, usedItem).withParameter(LootContextParams.THIS_ENTITY, this).withLuck((float) this.luck + entityhuman.getLuck()).create(LootContextParamSets.FISHING);
+                 LootTable loottable = this.level().getServer().getLootData().getLootTable(BuiltInLootTables.FISHING);
+-                List<ItemStack> list = loottable.getRandomItems(lootparams);
++                List<ItemStack> list = top.leavesmc.leaves.LeavesConfig.lootWorldRandom ? loottable.getRandomItems(lootparams, this.random) : loottable.getRandomItems(lootparams); // Leaves - world random
+ 
+                 CriteriaTriggers.FISHING_ROD_HOOKED.trigger((ServerPlayer) entityhuman, usedItem, this, list);
+                 Iterator iterator = list.iterator();
+diff --git a/src/main/java/net/minecraft/world/level/storage/loot/LootContext.java b/src/main/java/net/minecraft/world/level/storage/loot/LootContext.java
+index d042b04108c3fe244caa6b9fc293c83ac7200a57..dd63d7893d12c9378192f5415231d7ec832c0a78 100644
+--- a/src/main/java/net/minecraft/world/level/storage/loot/LootContext.java
++++ b/src/main/java/net/minecraft/world/level/storage/loot/LootContext.java
+@@ -95,6 +95,13 @@ public class LootContext {
+             this.params = parameters;
+         }
+ 
++        // Leaves start - world random
++        public LootContext.Builder withRandom(RandomSource random) {
++            this.random = random;
++            return this;
++        }
++        // Leaves end - world random
++
+         public LootContext.Builder withOptionalRandomSeed(long seed) {
+             if (seed != 0L) {
+                 this.random = RandomSource.create(seed);
+@@ -110,6 +117,11 @@ public class LootContext {
+         public LootContext create(Optional<ResourceLocation> randomId) {
+             ServerLevel serverLevel = this.getLevel();
+             MinecraftServer minecraftServer = serverLevel.getServer();
++            // Leaves start - world random
++            if (top.leavesmc.leaves.LeavesConfig.lootWorldRandom) {
++                return new LootContext(this.params, serverLevel.getRandom(), minecraftServer.getLootData());
++            }
++            // Leaves end - world random
+             RandomSource randomSource = Optional.ofNullable(this.random).or(() -> {
+                 return randomId.map(serverLevel::getRandomSequence);
+             }).orElseGet(serverLevel::getRandom);
+diff --git a/src/main/java/net/minecraft/world/level/storage/loot/LootTable.java b/src/main/java/net/minecraft/world/level/storage/loot/LootTable.java
+index 5373070034cefbbfa797c675ce698637b526a2c8..806d1528ae1c6070ebd81b34b01d0d836af0ab6a 100644
+--- a/src/main/java/net/minecraft/world/level/storage/loot/LootTable.java
++++ b/src/main/java/net/minecraft/world/level/storage/loot/LootTable.java
+@@ -131,6 +131,12 @@ public class LootTable {
+         return this.getRandomItems((new LootContext.Builder(parameters)).create(this.randomSequence));
+     }
+ 
++    // Leaves start - world random
++    public ObjectArrayList<ItemStack> getRandomItems(LootParams parameters, RandomSource randomSource) {
++        return this.getRandomItems((new LootContext.Builder(parameters)).withRandom(randomSource).create(this.randomSequence));
++    }
++    // Leaves end - world random
++
+     private ObjectArrayList<ItemStack> getRandomItems(LootContext context) {
+         ObjectArrayList<ItemStack> objectarraylist = new ObjectArrayList();
+ 

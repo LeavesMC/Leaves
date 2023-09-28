@@ -1,0 +1,704 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Thu, 20 Jul 2023 15:03:28 +0800
+Subject: [PATCH] Reduce array allocations
+
+This patch is Powered by Gale(https://github.com/GaleMC/Gale)
+
+diff --git a/src/main/java/com/destroystokyo/paper/util/maplist/EntityList.java b/src/main/java/com/destroystokyo/paper/util/maplist/EntityList.java
+index 0133ea6feb1ab88f021f66855669f58367e7420b..d5e5463e3054cc06bd6589a864ff2003b1dfb9e3 100644
+--- a/src/main/java/com/destroystokyo/paper/util/maplist/EntityList.java
++++ b/src/main/java/com/destroystokyo/paper/util/maplist/EntityList.java
+@@ -5,6 +5,7 @@ import net.minecraft.world.entity.Entity;
+ import java.util.Arrays;
+ import java.util.Iterator;
+ import java.util.NoSuchElementException;
++import top.leavesmc.leaves.util.ArrayConstants;
+ 
+ // list with O(1) remove & contains
+ /**
+@@ -17,9 +18,7 @@ public final class EntityList implements Iterable<Entity> {
+         this.entityToIndex.defaultReturnValue(Integer.MIN_VALUE);
+     }
+ 
+-    protected static final Entity[] EMPTY_LIST = new Entity[0];
+-
+-    protected Entity[] entities = EMPTY_LIST;
++    protected Entity[] entities = ArrayConstants.emptyEntityArray; // Leaves - reduce array allocations
+     protected int count;
+ 
+     public int size() {
+diff --git a/src/main/java/com/destroystokyo/paper/util/maplist/IBlockDataList.java b/src/main/java/com/destroystokyo/paper/util/maplist/IBlockDataList.java
+index 277cfd9d1e8fff5d9b5e534b75c3c5162d58b0b7..19d5f3e167d7c94d33fcedc6c787d86ad5fee770 100644
+--- a/src/main/java/com/destroystokyo/paper/util/maplist/IBlockDataList.java
++++ b/src/main/java/com/destroystokyo/paper/util/maplist/IBlockDataList.java
+@@ -6,6 +6,7 @@ import java.util.Arrays;
+ import net.minecraft.world.level.block.Block;
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.level.chunk.GlobalPalette;
++import top.leavesmc.leaves.util.ArrayConstants;
+ 
+ /**
+  * @author Spottedleaf
+@@ -20,9 +21,7 @@ public final class IBlockDataList {
+         this.map.defaultReturnValue(Long.MAX_VALUE);
+     }
+ 
+-    private static final long[] EMPTY_LIST = new long[0];
+-
+-    private long[] byIndex = EMPTY_LIST;
++    private long[] byIndex = ArrayConstants.emptyLongArray; // Leaves - reduce array allocations
+     private int size;
+ 
+     public static int getLocationKey(final int x, final int y, final int z) {
+diff --git a/src/main/java/io/papermc/paper/command/subcommands/VersionCommand.java b/src/main/java/io/papermc/paper/command/subcommands/VersionCommand.java
+index ae60bd96b5284d54676d8e7e4dd5d170b526ec1e..ad33c51ea9f74d2afd39c9139a9114b0f4436400 100644
+--- a/src/main/java/io/papermc/paper/command/subcommands/VersionCommand.java
++++ b/src/main/java/io/papermc/paper/command/subcommands/VersionCommand.java
+@@ -7,6 +7,7 @@ import org.bukkit.command.CommandSender;
+ import org.checkerframework.checker.nullness.qual.NonNull;
+ import org.checkerframework.checker.nullness.qual.Nullable;
+ import org.checkerframework.framework.qual.DefaultQualifier;
++import top.leavesmc.leaves.util.ArrayConstants;
+ 
+ @DefaultQualifier(NonNull.class)
+ public final class VersionCommand implements PaperSubcommand {
+@@ -14,7 +15,7 @@ public final class VersionCommand implements PaperSubcommand {
+     public boolean execute(final CommandSender sender, final String subCommand, final String[] args) {
+         final @Nullable Command ver = MinecraftServer.getServer().server.getCommandMap().getCommand("version");
+         if (ver != null) {
+-            ver.execute(sender, "paper", new String[0]);
++            ver.execute(sender, "paper", ArrayConstants.emptyStringArray); // Leaves - reduce array allocations
+         }
+         return true;
+     }
+diff --git a/src/main/java/io/papermc/paper/world/ChunkEntitySlices.java b/src/main/java/io/papermc/paper/world/ChunkEntitySlices.java
+index 7e8dc9e8f381abfdcce2746edc93122d623622d1..59403aa7b77adab763c60f3f7805c802a94dcd41 100644
+--- a/src/main/java/io/papermc/paper/world/ChunkEntitySlices.java
++++ b/src/main/java/io/papermc/paper/world/ChunkEntitySlices.java
+@@ -24,6 +24,7 @@ import java.util.Arrays;
+ import java.util.Iterator;
+ import java.util.List;
+ import java.util.function.Predicate;
++import top.leavesmc.leaves.util.ArrayConstants;
+ 
+ public final class ChunkEntitySlices {
+ 
+@@ -82,7 +83,7 @@ public final class ChunkEntitySlices {
+             }
+         }
+ 
+-        return ret.toArray(new org.bukkit.entity.Entity[0]);
++        return ret.toArray(ArrayConstants.emptyBukkitEntityArray); // Leaves - reduce array allocations
+     }
+ 
+     public CompoundTag save() {
+@@ -303,7 +304,7 @@ public final class ChunkEntitySlices {
+ 
+     protected static final class BasicEntityList<E extends Entity> {
+ 
+-        protected static final Entity[] EMPTY = new Entity[0];
++        // protected static final Entity[] EMPTY = new Entity[0]; // Leaves - reduce array allocations
+         protected static final int DEFAULT_CAPACITY = 4;
+ 
+         protected E[] storage;
+@@ -314,7 +315,7 @@ public final class ChunkEntitySlices {
+         }
+ 
+         public BasicEntityList(final int cap) {
+-            this.storage = (E[])(cap <= 0 ? EMPTY : new Entity[cap]);
++            this.storage = (E[])(cap <= 0 ? ArrayConstants.emptyEntityArray : new Entity[cap]); // Leaves - reduce array allocations
+         }
+ 
+         public boolean isEmpty() {
+@@ -326,7 +327,7 @@ public final class ChunkEntitySlices {
+         }
+ 
+         private void resize() {
+-            if (this.storage == EMPTY) {
++            if (this.storage == ArrayConstants.emptyEntityArray) { // Leaves - reduce array allocations
+                 this.storage = (E[])new Entity[DEFAULT_CAPACITY];
+             } else {
+                 this.storage = Arrays.copyOf(this.storage, this.storage.length * 2);
+diff --git a/src/main/java/net/minecraft/nbt/ByteArrayTag.java b/src/main/java/net/minecraft/nbt/ByteArrayTag.java
+index 06648f9751fd8a322d0809ffebf6a544596ee1a4..40e957a4364c8017072dcd81fcb7cf2c9415df38 100644
+--- a/src/main/java/net/minecraft/nbt/ByteArrayTag.java
++++ b/src/main/java/net/minecraft/nbt/ByteArrayTag.java
+@@ -7,6 +7,7 @@ import java.io.IOException;
+ import java.util.Arrays;
+ import java.util.List;
+ import org.apache.commons.lang3.ArrayUtils;
++import top.leavesmc.leaves.util.ArrayConstants;
+ 
+ public class ByteArrayTag extends CollectionTag<ByteTag> {
+ 
+@@ -175,7 +176,7 @@ public class ByteArrayTag extends CollectionTag<ByteTag> {
+     }
+ 
+     public void clear() {
+-        this.data = new byte[0];
++        this.data = ArrayConstants.emptyByteArray; // Leaves - reduce array allocations
+     }
+ 
+     @Override
+diff --git a/src/main/java/net/minecraft/nbt/CompoundTag.java b/src/main/java/net/minecraft/nbt/CompoundTag.java
+index 84fc2adf591f02a14862f7c1cd645c2efde55c3d..8a601f7d10ea985b2383a5be31c0ba8596a16d7b 100644
+--- a/src/main/java/net/minecraft/nbt/CompoundTag.java
++++ b/src/main/java/net/minecraft/nbt/CompoundTag.java
+@@ -17,6 +17,7 @@ import javax.annotation.Nullable;
+ import net.minecraft.CrashReport;
+ import net.minecraft.CrashReportCategory;
+ import net.minecraft.ReportedException;
++import top.leavesmc.leaves.util.ArrayConstants;
+ 
+ public class CompoundTag implements Tag {
+     public static final Codec<CompoundTag> CODEC = Codec.PASSTHROUGH.comapFlatMap((dynamic) -> {
+@@ -416,7 +417,7 @@ public class CompoundTag implements Tag {
+             throw new ReportedException(this.createReport(key, ByteArrayTag.TYPE, var3));
+         }
+ 
+-        return new byte[0];
++        return ArrayConstants.emptyByteArray; // Leaves - reduce array allocations
+     }
+ 
+     public int[] getIntArray(String key) {
+@@ -428,7 +429,7 @@ public class CompoundTag implements Tag {
+             throw new ReportedException(this.createReport(key, IntArrayTag.TYPE, var3));
+         }
+ 
+-        return new int[0];
++        return ArrayConstants.emptyIntArray; // Leaves - reduce array allocations
+     }
+ 
+     public long[] getLongArray(String key) {
+@@ -440,7 +441,7 @@ public class CompoundTag implements Tag {
+             throw new ReportedException(this.createReport(key, LongArrayTag.TYPE, var3));
+         }
+ 
+-        return new long[0];
++        return ArrayConstants.emptyLongArray; // Leaves - reduce array allocations
+     }
+ 
+     public CompoundTag getCompound(String key) {
+diff --git a/src/main/java/net/minecraft/nbt/IntArrayTag.java b/src/main/java/net/minecraft/nbt/IntArrayTag.java
+index ff13d67151c50ea11a45117e524c7524e2b1a202..c25d23c9c2ed887ce9ae7f07cd8aa0d18dfc719c 100644
+--- a/src/main/java/net/minecraft/nbt/IntArrayTag.java
++++ b/src/main/java/net/minecraft/nbt/IntArrayTag.java
+@@ -7,6 +7,7 @@ import java.io.IOException;
+ import java.util.Arrays;
+ import java.util.List;
+ import org.apache.commons.lang3.ArrayUtils;
++import top.leavesmc.leaves.util.ArrayConstants;
+ 
+ public class IntArrayTag extends CollectionTag<IntTag> {
+ 
+@@ -186,7 +187,7 @@ public class IntArrayTag extends CollectionTag<IntTag> {
+     }
+ 
+     public void clear() {
+-        this.data = new int[0];
++        this.data = ArrayConstants.emptyIntArray; // Leaves - reduce array allocations
+     }
+ 
+     @Override
+diff --git a/src/main/java/net/minecraft/network/Connection.java b/src/main/java/net/minecraft/network/Connection.java
+index c0ea20dcee8bb293df96bc6ee019e50ad6b383fd..4fe8b0341a5e4b243c3f11fa84dc37baf1a916cd 100644
+--- a/src/main/java/net/minecraft/network/Connection.java
++++ b/src/main/java/net/minecraft/network/Connection.java
+@@ -57,6 +57,7 @@ import org.apache.commons.lang3.Validate;
+ import org.slf4j.Logger;
+ import org.slf4j.Marker;
+ import org.slf4j.MarkerFactory;
++import top.leavesmc.leaves.util.ArrayConstants;
+ 
+ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+ 
+diff --git a/src/main/java/net/minecraft/server/level/ServerEntity.java b/src/main/java/net/minecraft/server/level/ServerEntity.java
+index c5bec163e5b9a389e278d7074faa006a5eeb8149..c76a81dc13ba7b88450e62f679e0b7a68f3b42f5 100644
+--- a/src/main/java/net/minecraft/server/level/ServerEntity.java
++++ b/src/main/java/net/minecraft/server/level/ServerEntity.java
+@@ -348,7 +348,7 @@ public class ServerEntity {
+ 
+         if (this.entity instanceof LivingEntity) {
+             List<Pair<EquipmentSlot, ItemStack>> list = Lists.newArrayList();
+-            EquipmentSlot[] aenumitemslot = EquipmentSlot.values();
++            EquipmentSlot[] aenumitemslot = EquipmentSlot.VALUES; // Leaves - reduce array allocations
+             int i = aenumitemslot.length;
+ 
+             for (int j = 0; j < i; ++j) {
+diff --git a/src/main/java/net/minecraft/server/level/ServerLevel.java b/src/main/java/net/minecraft/server/level/ServerLevel.java
+index 66b95197df737fac490a1b22949ab3855a7fce59..6e30d82b3216f8b7303b4c76d76f57a76f0e6c45 100644
+--- a/src/main/java/net/minecraft/server/level/ServerLevel.java
++++ b/src/main/java/net/minecraft/server/level/ServerLevel.java
+@@ -172,6 +172,7 @@ import org.bukkit.event.weather.LightningStrikeEvent;
+ import org.bukkit.event.world.TimeSkipEvent;
+ // CraftBukkit end
+ import it.unimi.dsi.fastutil.ints.IntArrayList; // Paper
++import top.leavesmc.leaves.util.ArrayConstants;
+ 
+ public class ServerLevel extends Level implements WorldGenLevel {
+ 
+@@ -1047,7 +1048,7 @@ public class ServerLevel extends Level implements WorldGenLevel {
+                     BlockPos blockposition2 = blockposition.set(j + randomX, randomY, k + randomZ);
+                     BlockState iblockdata = com.destroystokyo.paper.util.maplist.IBlockDataList.getBlockDataFromRaw(raw);
+ 
+-                    iblockdata.randomTick(this, blockposition2, this.randomTickRandom);
++                    iblockdata.randomTick(this, blockposition2.immutable(), this.randomTickRandom); // Leaves - reduce array allocations
+                     // We drop the fluid tick since LAVA is ALREADY TICKED by the above method (See LiquidBlock).
+                     // TODO CHECK ON UPDATE (ping the Canadian)
+                 }
+@@ -1347,7 +1348,7 @@ public class ServerLevel extends Level implements WorldGenLevel {
+ 
+     public static List<Entity> getCurrentlyTickingEntities() {
+         Entity ticking = currentlyTickingEntity.get();
+-        List<Entity> ret = java.util.Arrays.asList(ticking == null ? new Entity[0] : new Entity[] { ticking });
++        List<Entity> ret = java.util.Arrays.asList(ticking == null ? ArrayConstants.emptyEntityArray : new Entity[] { ticking }); // Leaves - reduce array allocations
+ 
+         return ret;
+     }
+diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index c4eb2ae57967f0a16ef215c43255c8f8e13424eb..b71e01ed840fafcace0a457fa098a482004b1aeb 100644
+--- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -239,6 +239,7 @@ import org.bukkit.inventory.EquipmentSlot;
+ import org.bukkit.inventory.InventoryView;
+ import org.bukkit.inventory.SmithingInventory;
+ // CraftBukkit end
++import top.leavesmc.leaves.util.ArrayConstants;
+ 
+ public class ServerGamePacketListenerImpl extends ServerCommonPacketListenerImpl implements ServerGamePacketListener, ServerPlayerConnection, TickablePacketListener {
+ 
+@@ -770,13 +771,13 @@ public class ServerGamePacketListenerImpl extends ServerCommonPacketListenerImpl
+         // PacketUtils.ensureRunningOnSameThread(packet, this, this.player.serverLevel()); // Paper - run this async
+         // CraftBukkit start
+         if (this.chatSpamTickCount.addAndGet(io.papermc.paper.configuration.GlobalConfiguration.get().spamLimiter.tabSpamIncrement) > io.papermc.paper.configuration.GlobalConfiguration.get().spamLimiter.tabSpamLimit && !this.server.getPlayerList().isOp(this.player.getGameProfile())) { // Paper start - split and make configurable
+-            server.scheduleOnMain(() -> this.disconnect(Component.translatable("disconnect.spam", new Object[0]), org.bukkit.event.player.PlayerKickEvent.Cause.SPAM)); // Paper - kick event cause
++            server.scheduleOnMain(() -> this.disconnect(Component.translatable("disconnect.spam", ArrayConstants.emptyObjectArray), org.bukkit.event.player.PlayerKickEvent.Cause.SPAM)); // Paper - kick event cause // Leaves - reduce array allocations
+             return;
+         }
+         // Paper start
+         String str = packet.getCommand(); int index = -1;
+         if (str.length() > 64 && ((index = str.indexOf(' ')) == -1 || index >= 64)) {
+-            server.scheduleOnMain(() -> this.disconnect(Component.translatable("disconnect.spam", new Object[0]))); // Paper
++            server.scheduleOnMain(() -> this.disconnect(Component.translatable("disconnect.spam", ArrayConstants.emptyObjectArray))); // Paper - kick event cause // Leaves - reduce array allocations
+             return;
+         }
+         // Paper end
+@@ -3185,7 +3186,7 @@ public class ServerGamePacketListenerImpl extends ServerCommonPacketListenerImpl
+         // Paper start
+         if (!org.bukkit.Bukkit.isPrimaryThread()) {
+             if (this.recipeSpamPackets.addAndGet(io.papermc.paper.configuration.GlobalConfiguration.get().spamLimiter.recipeSpamIncrement) > io.papermc.paper.configuration.GlobalConfiguration.get().spamLimiter.recipeSpamLimit) {
+-                this.server.scheduleOnMain(() -> this.disconnect(net.minecraft.network.chat.Component.translatable("disconnect.spam", new Object[0]), org.bukkit.event.player.PlayerKickEvent.Cause.SPAM)); // Paper - kick event cause
++                this.server.scheduleOnMain(() -> this.disconnect(net.minecraft.network.chat.Component.translatable("disconnect.spam", ArrayConstants.emptyObjectArray), org.bukkit.event.player.PlayerKickEvent.Cause.SPAM)); // Paper - kick event cause // Leaves - reduce array allocations
+                 return;
+             }
+         }
+diff --git a/src/main/java/net/minecraft/server/network/ServerLoginPacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerLoginPacketListenerImpl.java
+index ff2dd53e9e943aa929188fd9d4c35498b78c497a..3ccd8d80344a436bf4db6e119453adac40fdc2b9 100644
+--- a/src/main/java/net/minecraft/server/network/ServerLoginPacketListenerImpl.java
++++ b/src/main/java/net/minecraft/server/network/ServerLoginPacketListenerImpl.java
+@@ -43,6 +43,7 @@ import org.bukkit.craftbukkit.util.Waitable;
+ import org.bukkit.event.player.AsyncPlayerPreLoginEvent;
+ import org.bukkit.event.player.PlayerPreLoginEvent;
+ // CraftBukkit end
++import top.leavesmc.leaves.util.ArrayConstants;
+ 
+ public class ServerLoginPacketListenerImpl implements ServerLoginPacketListener, TickablePacketListener {
+ 
+@@ -157,8 +158,10 @@ public class ServerLoginPacketListenerImpl implements ServerLoginPacketListener,
+ 
+     @Override
+     public void handleHello(ServerboundHelloPacket packet) {
+-        Validate.validState(this.state == ServerLoginPacketListenerImpl.State.HELLO, "Unexpected hello packet", new Object[0]);
+-        Validate.validState(ServerLoginPacketListenerImpl.isValidUsername(packet.name()), "Invalid characters in username", new Object[0]);
++        // Gale start - JettPack - reduce array allocations
++        Validate.validState(this.state == ServerLoginPacketListenerImpl.State.HELLO, "Unexpected hello packet", ArrayConstants.emptyObjectArray);
++        Validate.validState(ServerLoginPacketListenerImpl.isValidUsername(packet.name()), "Invalid characters in username", ArrayConstants.emptyObjectArray);
++        // Gale end - JettPack - reduce array allocations
+         // Paper start - validate usernames
+         if (io.papermc.paper.configuration.GlobalConfiguration.get().proxies.isProxyOnlineMode() && io.papermc.paper.configuration.GlobalConfiguration.get().unsupportedSettings.performUsernameValidation) {
+             if (!this.iKnowThisMayNotBeTheBestIdeaButPleaseDisableUsernameValidation && !validateUsername(packet.name())) {
+@@ -251,7 +254,7 @@ public class ServerLoginPacketListenerImpl implements ServerLoginPacketListener,
+ 
+     @Override
+     public void handleKey(ServerboundKeyPacket packet) {
+-        Validate.validState(this.state == ServerLoginPacketListenerImpl.State.KEY, "Unexpected key packet", new Object[0]);
++        Validate.validState(this.state == ServerLoginPacketListenerImpl.State.KEY, "Unexpected key packet", ArrayConstants.emptyObjectArray); // Leaves - reduce array allocations
+ 
+         final String s;
+ 
+diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
+index 16ce16049f6ee6d989606495d022af6ff893a695..234abc2192339c3e28a53561b05578fb0847d5d9 100644
+--- a/src/main/java/net/minecraft/server/players/PlayerList.java
++++ b/src/main/java/net/minecraft/server/players/PlayerList.java
+@@ -123,6 +123,7 @@ import org.bukkit.event.player.PlayerRespawnEvent;
+ import org.bukkit.event.player.PlayerRespawnEvent.RespawnReason;
+ // CraftBukkit end
+ 
++import top.leavesmc.leaves.util.ArrayConstants;
+ import top.leavesmc.leaves.util.ReturnPortalManager; // Leaves - return portal fix
+ 
+ public abstract class PlayerList {
+@@ -715,7 +716,7 @@ public abstract class PlayerList {
+         while (iterator.hasNext()) {
+             entityplayer = (ServerPlayer) iterator.next();
+             this.save(entityplayer); // CraftBukkit - Force the player's inventory to be saved
+-            entityplayer.connection.disconnect(Component.translatable("multiplayer.disconnect.duplicate_login", new Object[0]), org.bukkit.event.player.PlayerKickEvent.Cause.DUPLICATE_LOGIN); // Paper - kick event cause
++            entityplayer.connection.disconnect(Component.translatable("multiplayer.disconnect.duplicate_login", ArrayConstants.emptyObjectArray), org.bukkit.event.player.PlayerKickEvent.Cause.DUPLICATE_LOGIN); // Paper - kick event cause // Leaves - reduce array allocations
+         }
+ 
+         // Instead of kicking then returning, we need to store the kick reason
+diff --git a/src/main/java/net/minecraft/server/players/StoredUserList.java b/src/main/java/net/minecraft/server/players/StoredUserList.java
+index 09fc086548b9d0f97849f56f41e3a5be87f5091a..455efedffb3301a9883107dc35499f493a06a4ef 100644
+--- a/src/main/java/net/minecraft/server/players/StoredUserList.java
++++ b/src/main/java/net/minecraft/server/players/StoredUserList.java
+@@ -27,6 +27,7 @@ import javax.annotation.Nullable;
+ import net.minecraft.Util;
+ import net.minecraft.util.GsonHelper;
+ import org.slf4j.Logger;
++import top.leavesmc.leaves.util.ArrayConstants;
+ 
+ public abstract class StoredUserList<K, V extends StoredUserEntry<K>> {
+ 
+@@ -96,7 +97,7 @@ public abstract class StoredUserList<K, V extends StoredUserEntry<K>> {
+     }
+ 
+     public String[] getUserList() {
+-        return (String[]) this.map.keySet().toArray(new String[0]);
++        return (String[]) this.map.keySet().toArray(ArrayConstants.emptyStringArray); // Leaves - reduce array allocations
+     }
+ 
+     public boolean isEmpty() {
+diff --git a/src/main/java/net/minecraft/util/ZeroBitStorage.java b/src/main/java/net/minecraft/util/ZeroBitStorage.java
+index e23995acb97100830079677aab0896487a705416..53e81721507cfc8f88be0ca9565746d78b2a1686 100644
+--- a/src/main/java/net/minecraft/util/ZeroBitStorage.java
++++ b/src/main/java/net/minecraft/util/ZeroBitStorage.java
+@@ -4,9 +4,10 @@ import java.util.Arrays;
+ import java.util.function.IntConsumer;
+ import org.apache.commons.lang3.Validate;
+ import net.minecraft.world.level.chunk.Palette;
++import top.leavesmc.leaves.util.ArrayConstants;
+ 
+ public class ZeroBitStorage implements BitStorage {
+-    public static final long[] RAW = new long[0];
++    public static final long[] RAW = ArrayConstants.emptyLongArray; // Leaves - reduce array allocations
+     private final int size;
+ 
+     public ZeroBitStorage(int size) {
+diff --git a/src/main/java/net/minecraft/world/entity/EquipmentSlot.java b/src/main/java/net/minecraft/world/entity/EquipmentSlot.java
+index 2e324276ea4cd9e528c6a3f9a9ba394b378fe075..8d949983a30f27a60982f6b406151408faacb18a 100644
+--- a/src/main/java/net/minecraft/world/entity/EquipmentSlot.java
++++ b/src/main/java/net/minecraft/world/entity/EquipmentSlot.java
+@@ -15,6 +15,7 @@ public enum EquipmentSlot implements StringRepresentable {
+     private final int index;
+     private final int filterFlag;
+     private final String name;
++    public static final EquipmentSlot[] VALUES = EquipmentSlot.values(); // Leaves - reduce array allocations
+ 
+     private EquipmentSlot(EquipmentSlot.Type type, int entityId, int armorStandId, String name) {
+         this.type = type;
+diff --git a/src/main/java/net/minecraft/world/entity/LivingEntity.java b/src/main/java/net/minecraft/world/entity/LivingEntity.java
+index 37a9ed678f674fe7026fc59ff438eb3203f8a792..d82e629fa347331b360d6f5ea1bd2d49edf5f677 100644
+--- a/src/main/java/net/minecraft/world/entity/LivingEntity.java
++++ b/src/main/java/net/minecraft/world/entity/LivingEntity.java
+@@ -3141,7 +3141,7 @@ public abstract class LivingEntity extends Entity implements Attackable {
+     @Nullable
+     private Map<EquipmentSlot, ItemStack> collectEquipmentChanges() {
+         Map<EquipmentSlot, ItemStack> map = null;
+-        EquipmentSlot[] aenumitemslot = EquipmentSlot.values();
++        EquipmentSlot[] aenumitemslot = EquipmentSlot.VALUES; // Leaves - reduce array allocations
+         int i = aenumitemslot.length;
+ 
+         for (int j = 0; j < i; ++j) {
+diff --git a/src/main/java/net/minecraft/world/entity/Mob.java b/src/main/java/net/minecraft/world/entity/Mob.java
+index 48889d29c94dc09030d5c9825d3b0a637e660b0e..c7475a368efd82d0b1e407c9addc0aeef630189a 100644
+--- a/src/main/java/net/minecraft/world/entity/Mob.java
++++ b/src/main/java/net/minecraft/world/entity/Mob.java
+@@ -1083,7 +1083,7 @@ public abstract class Mob extends LivingEntity implements Targeting {
+     @Override
+     protected void dropCustomDeathLoot(DamageSource source, int lootingMultiplier, boolean allowDrops) {
+         super.dropCustomDeathLoot(source, lootingMultiplier, allowDrops);
+-        EquipmentSlot[] aenumitemslot = EquipmentSlot.values();
++        EquipmentSlot[] aenumitemslot = EquipmentSlot.VALUES; // Leaves - reduce array allocations
+         int j = aenumitemslot.length;
+ 
+         for (int k = 0; k < j; ++k) {
+@@ -1145,7 +1145,7 @@ public abstract class Mob extends LivingEntity implements Targeting {
+             }
+ 
+             boolean flag = true;
+-            EquipmentSlot[] aenumitemslot = EquipmentSlot.values();
++            EquipmentSlot[] aenumitemslot = EquipmentSlot.VALUES; // Leaves - reduce array allocations
+             int j = aenumitemslot.length;
+ 
+             for (int k = 0; k < j; ++k) {
+@@ -1232,7 +1232,7 @@ public abstract class Mob extends LivingEntity implements Targeting {
+         float f = localDifficulty.getSpecialMultiplier();
+ 
+         this.enchantSpawnedWeapon(random, f);
+-        EquipmentSlot[] aenumitemslot = EquipmentSlot.values();
++        EquipmentSlot[] aenumitemslot = EquipmentSlot.VALUES; // Leaves - reduce array allocations
+         int i = aenumitemslot.length;
+ 
+         for (int j = 0; j < i; ++j) {
+@@ -1451,7 +1451,7 @@ public abstract class Mob extends LivingEntity implements Targeting {
+                 t0.setInvulnerable(this.isInvulnerable());
+                 if (flag) {
+                     t0.setCanPickUpLoot(this.canPickUpLoot());
+-                    EquipmentSlot[] aenumitemslot = EquipmentSlot.values();
++                    EquipmentSlot[] aenumitemslot = EquipmentSlot.VALUES; // Leaves - reduce array allocations
+                     int i = aenumitemslot.length;
+ 
+                     for (int j = 0; j < i; ++j) {
+diff --git a/src/main/java/net/minecraft/world/entity/monster/ZombieVillager.java b/src/main/java/net/minecraft/world/entity/monster/ZombieVillager.java
+index 807cff3fb51269b97d9aecbcc4706f0a139dfeaa..459cfde5cf1fc619b186e2adfbd252bd12720990 100644
+--- a/src/main/java/net/minecraft/world/entity/monster/ZombieVillager.java
++++ b/src/main/java/net/minecraft/world/entity/monster/ZombieVillager.java
+@@ -237,7 +237,7 @@ public class ZombieVillager extends Zombie implements VillagerDataHolder {
+             return;
+         }
+         // CraftBukkit end
+-        EquipmentSlot[] aenumitemslot = EquipmentSlot.values();
++        EquipmentSlot[] aenumitemslot = EquipmentSlot.VALUES; // Leaves - reduce array allocations
+         int i = aenumitemslot.length;
+ 
+         for (int j = 0; j < i; ++j) {
+diff --git a/src/main/java/net/minecraft/world/item/ItemStack.java b/src/main/java/net/minecraft/world/item/ItemStack.java
+index 8c9bc54a7007b0c5ae1c8576aeca5d05a55613d1..2a0ea91caace8fc04890ca4b45283e09e36265b1 100644
+--- a/src/main/java/net/minecraft/world/item/ItemStack.java
++++ b/src/main/java/net/minecraft/world/item/ItemStack.java
+@@ -1025,7 +1025,7 @@ public final class ItemStack {
+         int k;
+ 
+         if (ItemStack.shouldShowInTooltip(i, ItemStack.TooltipPart.MODIFIERS)) {
+-            EquipmentSlot[] aenumitemslot = EquipmentSlot.values();
++            EquipmentSlot[] aenumitemslot = EquipmentSlot.VALUES; // Leaves - reduce array allocations
+ 
+             k = aenumitemslot.length;
+ 
+diff --git a/src/main/java/net/minecraft/world/item/crafting/ShapedRecipe.java b/src/main/java/net/minecraft/world/item/crafting/ShapedRecipe.java
+index 17bef91546fa85d401b263c3a69fbf464f290eca..131d9b730f1c3dfa4c8c4a63a6567fe3ebd6191e 100644
+--- a/src/main/java/net/minecraft/world/item/crafting/ShapedRecipe.java
++++ b/src/main/java/net/minecraft/world/item/crafting/ShapedRecipe.java
+@@ -25,6 +25,7 @@ import org.bukkit.craftbukkit.inventory.CraftRecipe;
+ import org.bukkit.craftbukkit.inventory.CraftShapedRecipe;
+ import org.bukkit.inventory.RecipeChoice;
+ // CraftBukkit end
++import top.leavesmc.leaves.util.ArrayConstants;
+ 
+ public class ShapedRecipe extends io.papermc.paper.inventory.recipe.RecipeBookExactChoiceRecipe<CraftingContainer> implements CraftingRecipe { // Paper - improve exact recipe choices
+ 
+@@ -226,7 +227,7 @@ public class ShapedRecipe extends io.papermc.paper.inventory.recipe.RecipeBookEx
+         }
+ 
+         if (pattern.size() == l) {
+-            return new String[0];
++            return ArrayConstants.emptyStringArray; // Leaves - reduce array allocations
+         } else {
+             String[] astring = new String[pattern.size() - l - k];
+ 
+diff --git a/src/main/java/net/minecraft/world/item/enchantment/Enchantments.java b/src/main/java/net/minecraft/world/item/enchantment/Enchantments.java
+index 2bfbdaeb2b0d99dfd956cd5936403fe8b0eeae64..7ad1545631604aa55f6d4fbdcbaefe6dc647f35c 100644
+--- a/src/main/java/net/minecraft/world/item/enchantment/Enchantments.java
++++ b/src/main/java/net/minecraft/world/item/enchantment/Enchantments.java
+@@ -44,8 +44,10 @@ public class Enchantments {
+     public static final Enchantment MULTISHOT = Enchantments.register("multishot", new MultiShotEnchantment(Enchantment.Rarity.RARE, new EquipmentSlot[]{EquipmentSlot.MAINHAND}));
+     public static final Enchantment QUICK_CHARGE = Enchantments.register("quick_charge", new QuickChargeEnchantment(Enchantment.Rarity.UNCOMMON, new EquipmentSlot[]{EquipmentSlot.MAINHAND}));
+     public static final Enchantment PIERCING = Enchantments.register("piercing", new ArrowPiercingEnchantment(Enchantment.Rarity.COMMON, new EquipmentSlot[]{EquipmentSlot.MAINHAND}));
+-    public static final Enchantment MENDING = Enchantments.register("mending", new MendingEnchantment(Enchantment.Rarity.RARE, EquipmentSlot.values()));
+-    public static final Enchantment VANISHING_CURSE = Enchantments.register("vanishing_curse", new VanishingCurseEnchantment(Enchantment.Rarity.VERY_RARE, EquipmentSlot.values()));
++    // Leaves start - reduce array allocations
++    public static final Enchantment MENDING = Enchantments.register("mending", new MendingEnchantment(Enchantment.Rarity.RARE, EquipmentSlot.VALUES));
++    public static final Enchantment VANISHING_CURSE = Enchantments.register("vanishing_curse", new VanishingCurseEnchantment(Enchantment.Rarity.VERY_RARE, EquipmentSlot.VALUES));
++    // Leaves end - reduce array allocations
+ 
+     public Enchantments() {}
+ 
+diff --git a/src/main/java/net/minecraft/world/level/Level.java b/src/main/java/net/minecraft/world/level/Level.java
+index cb62c2b8b6cdd628037b67a58b3fbf7e5f1d0284..1f59cf27dc482a62592dd39e3ac755c29ed175ef 100644
+--- a/src/main/java/net/minecraft/world/level/Level.java
++++ b/src/main/java/net/minecraft/world/level/Level.java
+@@ -94,6 +94,7 @@ import org.bukkit.craftbukkit.util.CraftSpawnCategory;
+ import org.bukkit.entity.SpawnCategory;
+ import org.bukkit.event.block.BlockPhysicsEvent;
+ // CraftBukkit end
++import top.leavesmc.leaves.util.ArrayConstants;
+ 
+ public abstract class Level implements LevelAccessor, AutoCloseable {
+ 
+@@ -1828,7 +1829,7 @@ public abstract class Level implements LevelAccessor, AutoCloseable {
+     public org.bukkit.entity.Entity[] getChunkEntities(int chunkX, int chunkZ) {
+         io.papermc.paper.world.ChunkEntitySlices slices = ((ServerLevel)this).getEntityLookup().getChunk(chunkX, chunkZ);
+         if (slices == null) {
+-            return new org.bukkit.entity.Entity[0];
++            return ArrayConstants.emptyBukkitEntityArray; // Leaves - reduce array allocations
+         }
+         return slices.getChunkEntities();
+     }
+diff --git a/src/main/java/net/minecraft/world/level/block/ComposterBlock.java b/src/main/java/net/minecraft/world/level/block/ComposterBlock.java
+index 10d3912ef043eefdf89105332e29b0d2bf4a5539..3bc33b552743be03c6b895e0d217152a65454807 100644
+--- a/src/main/java/net/minecraft/world/level/block/ComposterBlock.java
++++ b/src/main/java/net/minecraft/world/level/block/ComposterBlock.java
+@@ -43,6 +43,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
+ import org.bukkit.craftbukkit.inventory.CraftBlockInventoryHolder;
+ import org.bukkit.craftbukkit.util.DummyGeneratorAccess;
+ // CraftBukkit end
++import top.leavesmc.leaves.util.ArrayConstants;
+ 
+ public class ComposterBlock extends Block implements WorldlyContainerHolder {
+ 
+@@ -415,7 +416,7 @@ public class ComposterBlock extends Block implements WorldlyContainerHolder {
+ 
+         @Override
+         public int[] getSlotsForFace(Direction side) {
+-            return side == Direction.DOWN ? new int[]{0} : new int[0];
++            return side == Direction.DOWN ? ArrayConstants.zeroSingletonIntArray : ArrayConstants.emptyIntArray; // Leaves - reduce array allocations
+         }
+ 
+         @Override
+@@ -464,7 +465,7 @@ public class ComposterBlock extends Block implements WorldlyContainerHolder {
+ 
+         @Override
+         public int[] getSlotsForFace(Direction side) {
+-            return side == Direction.UP ? new int[]{0} : new int[0];
++            return side == Direction.UP ? ArrayConstants.zeroSingletonIntArray : ArrayConstants.emptyIntArray; // Leaves - reduce array allocations
+         }
+ 
+         @Override
+@@ -506,7 +507,7 @@ public class ComposterBlock extends Block implements WorldlyContainerHolder {
+ 
+         @Override
+         public int[] getSlotsForFace(Direction side) {
+-            return new int[0];
++            return ArrayConstants.emptyIntArray; // Leaves - reduce array allocations
+         }
+ 
+         @Override
+diff --git a/src/main/java/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java b/src/main/java/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java
+index eeed0ccbf0fc04e12dea5e8602f67d862fbd3600..0caf6040c2da342971c37a9af5d83f3263909361 100644
+--- a/src/main/java/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java
++++ b/src/main/java/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java
+@@ -58,6 +58,7 @@ import org.bukkit.event.inventory.FurnaceSmeltEvent;
+ import org.bukkit.event.inventory.FurnaceStartSmeltEvent;
+ import org.bukkit.inventory.CookingRecipe;
+ // CraftBukkit end
++import top.leavesmc.leaves.util.ArrayConstants;
+ 
+ public abstract class AbstractFurnaceBlockEntity extends BaseContainerBlockEntity implements WorldlyContainer, RecipeCraftingHolder, StackedContentsCompatible {
+ 
+@@ -65,7 +66,7 @@ public abstract class AbstractFurnaceBlockEntity extends BaseContainerBlockEntit
+     protected static final int SLOT_FUEL = 1;
+     protected static final int SLOT_RESULT = 2;
+     public static final int DATA_LIT_TIME = 0;
+-    private static final int[] SLOTS_FOR_UP = new int[]{0};
++    private static final int[] SLOTS_FOR_UP = ArrayConstants.zeroSingletonIntArray; // Leaves - reduce array allocations
+     private static final int[] SLOTS_FOR_DOWN = new int[]{2, 1};
+     private static final int[] SLOTS_FOR_SIDES = new int[]{1};
+     public static final int DATA_LIT_DURATION = 1;
+diff --git a/src/main/java/net/minecraft/world/level/storage/PlayerDataStorage.java b/src/main/java/net/minecraft/world/level/storage/PlayerDataStorage.java
+index 36af81f0957d17e170d229059c66f4eb4539dfeb..487d09aaadd9cf1b239cf9773fa71cbff6e6a77e 100644
+--- a/src/main/java/net/minecraft/world/level/storage/PlayerDataStorage.java
++++ b/src/main/java/net/minecraft/world/level/storage/PlayerDataStorage.java
+@@ -9,7 +9,6 @@ import net.minecraft.nbt.CompoundTag;
+ import net.minecraft.nbt.NbtIo;
+ import net.minecraft.nbt.NbtUtils;
+ import net.minecraft.server.level.ServerPlayer;
+-import net.minecraft.util.datafix.DataFixTypes;
+ import net.minecraft.world.entity.player.Player;
+ import org.slf4j.Logger;
+ 
+@@ -18,6 +17,7 @@ import java.io.FileInputStream;
+ import java.io.InputStream;
+ import org.bukkit.craftbukkit.entity.CraftPlayer;
+ // CraftBukkit end
++import top.leavesmc.leaves.util.ArrayConstants;
+ 
+ public class PlayerDataStorage {
+ 
+@@ -119,7 +119,7 @@ public class PlayerDataStorage {
+         String[] astring = this.playerDir.list();
+ 
+         if (astring == null) {
+-            astring = new String[0];
++            astring = ArrayConstants.emptyStringArray; // Leaves - reduce array allocations
+         }
+ 
+         for (int i = 0; i < astring.length; ++i) {
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftEquipmentSlot.java b/src/main/java/org/bukkit/craftbukkit/CraftEquipmentSlot.java
+index 402a238cf502003a232bb95473bd13e59e067fab..6095f5c9298558c77a788c1c9f9ef1f32825b37c 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftEquipmentSlot.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftEquipmentSlot.java
+@@ -5,8 +5,10 @@ import org.bukkit.inventory.EquipmentSlot;
+ 
+ public class CraftEquipmentSlot {
+ 
+-    private static final net.minecraft.world.entity.EquipmentSlot[] slots = new net.minecraft.world.entity.EquipmentSlot[EquipmentSlot.values().length];
+-    private static final EquipmentSlot[] enums = new EquipmentSlot[net.minecraft.world.entity.EquipmentSlot.values().length];
++    // Leaves start - reduce array allocations
++    private static final net.minecraft.world.entity.EquipmentSlot[] slots = net.minecraft.world.entity.EquipmentSlot.VALUES;
++    private static final EquipmentSlot[] enums = new EquipmentSlot[net.minecraft.world.entity.EquipmentSlot.VALUES.length];
++    // Leaves end - reduce array allocations
+ 
+     static {
+         set(EquipmentSlot.HAND, net.minecraft.world.entity.EquipmentSlot.MAINHAND);
+diff --git a/src/main/java/org/bukkit/craftbukkit/inventory/CraftEntityEquipment.java b/src/main/java/org/bukkit/craftbukkit/inventory/CraftEntityEquipment.java
+index 6827979a5b270ced53b46ecb9eff548727dadb81..1b84078152d0585ec51288e585754be176f2d7c2 100644
+--- a/src/main/java/org/bukkit/craftbukkit/inventory/CraftEntityEquipment.java
++++ b/src/main/java/org/bukkit/craftbukkit/inventory/CraftEntityEquipment.java
+@@ -165,7 +165,7 @@ public class CraftEntityEquipment implements EntityEquipment {
+ 
+     @Override
+     public void clear() {
+-        for (net.minecraft.world.entity.EquipmentSlot slot : net.minecraft.world.entity.EquipmentSlot.values()) {
++        for (net.minecraft.world.entity.EquipmentSlot slot : net.minecraft.world.entity.EquipmentSlot.VALUES) { // Leaves - reduce array allocations
+             this.setEquipment(slot, null, false);
+         }
+     }
+diff --git a/src/main/java/org/bukkit/craftbukkit/util/WeakCollection.java b/src/main/java/org/bukkit/craftbukkit/util/WeakCollection.java
+index bbacf58740f3faea0d555e4012fe2b15fb46ed50..97afd508898096e5c2e6401cf02b0be587f365d9 100644
+--- a/src/main/java/org/bukkit/craftbukkit/util/WeakCollection.java
++++ b/src/main/java/org/bukkit/craftbukkit/util/WeakCollection.java
+@@ -6,6 +6,7 @@ import java.util.ArrayList;
+ import java.util.Collection;
+ import java.util.Iterator;
+ import java.util.NoSuchElementException;
++import top.leavesmc.leaves.util.ArrayConstants;
+ 
+ public final class WeakCollection<T> implements Collection<T> {
+     static final Object NO_VALUE = new Object();
+@@ -164,7 +165,7 @@ public final class WeakCollection<T> implements Collection<T> {
+ 
+     @Override
+     public Object[] toArray() {
+-        return this.toArray(new Object[0]);
++        return this.toArray(ArrayConstants.emptyObjectArray); // Leaves - reduce array allocations
+     }
+ 
+     @Override
+diff --git a/src/main/java/top/leavesmc/leaves/util/ArrayConstants.java b/src/main/java/top/leavesmc/leaves/util/ArrayConstants.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..0523062a825bd36f335f1fa6e1440eaaf400fd58
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/util/ArrayConstants.java
+@@ -0,0 +1,21 @@
++package top.leavesmc.leaves.util;
++
++import net.minecraft.server.level.ServerLevel;
++
++// Powered by Gale(https://github.com/GaleMC/Gale)
++
++public class ArrayConstants {
++
++    private ArrayConstants() {}
++
++    public static final Object[] emptyObjectArray = new Object[0];
++    public static final int[] emptyIntArray = new int[0];
++    public static final int[] zeroSingletonIntArray = new int[]{0};
++    public static final byte[] emptyByteArray = new byte[0];
++    public static final String[] emptyStringArray = new String[0];
++    public static final long[] emptyLongArray = new long[0];
++    public static final org.bukkit.entity.Entity[] emptyBukkitEntityArray = new org.bukkit.entity.Entity[0];
++    public static final net.minecraft.world.entity.Entity[] emptyEntityArray = new net.minecraft.world.entity.Entity[0];
++    public static final ServerLevel[] emptyServerLevelArray = new ServerLevel[0];
++
++}

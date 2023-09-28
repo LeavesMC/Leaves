@@ -5,7 +5,7 @@ Subject: [PATCH] Build changes
 
 
 diff --git a/build.gradle.kts b/build.gradle.kts
-index 7e0580bbd0a557c7bb269507a99d25db07bf31f1..8833737c364f53b18e74c86ceb21899d5da6c70d 100644
+index 683159586641dd9aa42ae96fa51602469755723f..a0fbd152b6933e198b47abb13acec9004c91d27f 100644
 --- a/build.gradle.kts
 +++ b/build.gradle.kts
 @@ -13,8 +13,12 @@ configurations.named(log4jPlugins.compileClasspathConfigurationName) {
@@ -16,7 +16,7 @@ index 7e0580bbd0a557c7bb269507a99d25db07bf31f1..8833737c364f53b18e74c86ceb21899d
 -    implementation(project(":paper-mojangapi"))
 +	implementation(project(":leaves-api")) // Leaves
 +	// Leaves start
-+	implementation("io.papermc.paper:paper-mojangapi:1.20.1-R0.1-SNAPSHOT") {
++	implementation("io.papermc.paper:paper-mojangapi:1.20.2-R0.1-SNAPSHOT") {
 +		exclude("io.papermc.paper", "paper-api")
 +	}
 +	// Leaves end
@@ -26,7 +26,7 @@ index 7e0580bbd0a557c7bb269507a99d25db07bf31f1..8833737c364f53b18e74c86ceb21899d
 @@ -60,19 +64,29 @@ dependencies {
  }
  
- val craftbukkitPackageVersion = "1_20_R1" // Paper
+ val craftbukkitPackageVersion = "1_20_R2" // Paper
 +
 +// Leaves start - hide irrelevant compilation warnings
 +tasks.withType<JavaCompile> {
@@ -55,7 +55,7 @@ index 7e0580bbd0a557c7bb269507a99d25db07bf31f1..8833737c364f53b18e74c86ceb21899d
              "Implementation-Vendor" to date, // Paper
              "Specification-Title" to "Bukkit",
              "Specification-Version" to project.version,
-@@ -149,7 +163,7 @@ fun TaskContainer.registerRunTask(
+@@ -156,7 +170,7 @@ fun TaskContainer.registerRunTask(
      name: String,
      block: JavaExec.() -> Unit
  ): TaskProvider<JavaExec> = register<JavaExec>(name) {
@@ -64,6 +64,15 @@ index 7e0580bbd0a557c7bb269507a99d25db07bf31f1..8833737c364f53b18e74c86ceb21899d
      mainClass.set("org.bukkit.craftbukkit.Main")
      standardInput = System.`in`
      workingDir = rootProject.layout.projectDirectory
+@@ -212,7 +226,6 @@ val runtimeClasspathForRunDev = sourceSets.main.flatMap { src ->
+ }
+ tasks.registerRunTask("runDev") {
+     description = "Spin up a non-relocated Mojang-mapped test server"
+-    classpath(tasks.filterProjectDir.flatMap { it.outputJar })
+-    classpath(runtimeClasspathForRunDev)
++    classpath(sourceSets.main.map { it.runtimeClasspath }) // Leaves - fix it for windows
+     jvmArgs("-DPaper.isRunDev=true")
+ }
 diff --git a/src/main/java/com/destroystokyo/paper/Metrics.java b/src/main/java/com/destroystokyo/paper/Metrics.java
 index 4b002e8b75d117b726b0de274a76d3596fce015b..9ce4d3d96d2d5fbde1f0af599209c6c55038fb58 100644
 --- a/src/main/java/com/destroystokyo/paper/Metrics.java
@@ -153,10 +162,10 @@ index 4b002e8b75d117b726b0de274a76d3596fce015b..9ce4d3d96d2d5fbde1f0af599209c6c5
      }
  }
 diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
-index 67ee3a4ca8a6cdeb275653d492a1fea8037c51fb..6b487cf1045b8ea6cda589c7c0d5467c528bbfe8 100644
+index 97745f0bab8d82d397c6c2a5775aed92bca0a034..2a473825144f69968635d8894f1499af1c39481a 100644
 --- a/src/main/java/net/minecraft/server/MinecraftServer.java
 +++ b/src/main/java/net/minecraft/server/MinecraftServer.java
-@@ -1692,7 +1692,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+@@ -1697,7 +1697,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
  
      @DontObfuscate
      public String getServerModName() {
@@ -166,7 +175,7 @@ index 67ee3a4ca8a6cdeb275653d492a1fea8037c51fb..6b487cf1045b8ea6cda589c7c0d5467c
  
      public SystemReport fillSystemReport(SystemReport details) {
 diff --git a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
-index c49802c936ae8e3f4dc1badd98414d96714ecd60..b0e3ac5b92f0f45a47e2972d3baa8dd86d77de30 100644
+index dbccbcb9b44e4efacdf53c2d161115cc20b36cff..81e3d3dbc74e238c76ead4a0b6efaa2ada3cc49d 100644
 --- a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
 +++ b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
 @@ -217,11 +217,12 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
@@ -184,10 +193,10 @@ index c49802c936ae8e3f4dc1badd98414d96714ecd60..b0e3ac5b92f0f45a47e2972d3baa8dd8
          this.setFlightAllowed(dedicatedserverproperties.allowFlight);
          this.setMotd(dedicatedserverproperties.motd);
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 74d06790de674cbd230a0b14ac9a6b614c9f84ef..6358daff1af6c0094f469966bc94b8b5583c4f15 100644
+index fcd5096d64edfaf6bce3ecce8c9b9afb84462786..fab14ca6965d903df220e0f7d0e73e20cfb5f2b1 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -265,7 +265,7 @@ import javax.annotation.Nullable; // Paper
+@@ -267,7 +267,7 @@ import javax.annotation.Nullable; // Paper
  import javax.annotation.Nonnull; // Paper
  
  public final class CraftServer implements Server {
@@ -197,7 +206,7 @@ index 74d06790de674cbd230a0b14ac9a6b614c9f84ef..6358daff1af6c0094f469966bc94b8b5
      private final String bukkitVersion = Versioning.getBukkitVersion();
      private final Logger logger = Logger.getLogger("Minecraft");
 diff --git a/src/main/java/org/bukkit/craftbukkit/Main.java b/src/main/java/org/bukkit/craftbukkit/Main.java
-index 7c29d92362a82330440dff151bcf421f15c68f71..dc13164f498eeb1d52c08f9180c44e96c0478b2e 100644
+index e7746952417a3ca4ea97103e38568db42039f717..cd92954cb2f622fbbfa8b0a9ec82bb15fd5af371 100644
 --- a/src/main/java/org/bukkit/craftbukkit/Main.java
 +++ b/src/main/java/org/bukkit/craftbukkit/Main.java
 @@ -300,7 +300,7 @@ public class Main {

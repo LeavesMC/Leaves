@@ -1,0 +1,1480 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Fri, 29 Oct 2021 16:52:57 +0800
+Subject: [PATCH] Leaves Server Config And Command
+
+
+diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
+index d75338a60cc830dde5f505b83e9f43856e0204be..c798fbe078e14b0473b2d8bcdccc11238d28025e 100644
+--- a/src/main/java/net/minecraft/server/MinecraftServer.java
++++ b/src/main/java/net/minecraft/server/MinecraftServer.java
+@@ -1095,6 +1095,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+             LOGGER.info("Done ({})! For help, type \"help\"", doneTime);
+             // Paper end
+ 
++			top.leavesmc.leaves.LeavesConfig.createWorldSections = false; // Leaves - dont let plugin create worlds fill our config
+             org.spigotmc.WatchdogThread.tick(); // Paper
+             org.spigotmc.WatchdogThread.hasStarted = true; // Paper
+             Arrays.fill( recentTps, 20 );
+diff --git a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
+index 6e42c5b72598aaff4a4d3c4ebb9c7bd20bc2639a..0835a4ab23b3cb0864d9b452e1a6c8141496cd57 100644
+--- a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
++++ b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
+@@ -219,6 +219,10 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
+         com.destroystokyo.paper.VersionHistoryManager.INSTANCE.getClass(); // load version history now
+         io.papermc.paper.brigadier.PaperBrigadierProviderImpl.INSTANCE.getClass(); // init PaperBrigadierProvider
+         // Paper end
++		
++		top.leavesmc.leaves.LeavesConfig.init((java.io.File) options.valueOf("leaves-settings")); // Leaves - Server Config
++        top.leavesmc.leaves.LeavesConfig.registerCommands(); // Leaves - Server Command
++        System.setProperty("spark.serverconfigs.extra", "leaves.yml"); // Leaves - spark config
+ 
+         com.destroystokyo.paper.Metrics.PaperMetrics.startMetrics(); // Leaves - down
+ 
+diff --git a/src/main/java/net/minecraft/world/entity/ai/gossip/GossipType.java b/src/main/java/net/minecraft/world/entity/ai/gossip/GossipType.java
+index 8c942c21dc3aebcd2fc89b5bde92c73a95bdc3e3..c3d1d7b525a6f2b708144ebe9bc28dfadcfe11fa 100644
+--- a/src/main/java/net/minecraft/world/entity/ai/gossip/GossipType.java
++++ b/src/main/java/net/minecraft/world/entity/ai/gossip/GossipType.java
+@@ -15,9 +15,9 @@ public enum GossipType implements StringRepresentable {
+     public static final int REPUTATION_CHANGE_PER_TRADE = 2;
+     public final String id;
+     public final int weight;
+-    public final int max;
++    public int max;
+     public final int decayPerDay;
+-    public final int decayPerTransfer;
++    public int decayPerTransfer;
+     public static final Codec<GossipType> CODEC = StringRepresentable.fromEnum(GossipType::values);
+ 
+     private GossipType(String key, int multiplier, int maxReputation, int decay, int shareDecrement) {
+diff --git a/src/main/java/net/minecraft/world/level/Level.java b/src/main/java/net/minecraft/world/level/Level.java
+index 0cd2163fcca1908f4b0a1dea952afc968cf16a3b..219f4c7368ce6b805f3f4cffd8e3f65b1590f7ed 100644
+--- a/src/main/java/net/minecraft/world/level/Level.java
++++ b/src/main/java/net/minecraft/world/level/Level.java
+@@ -166,6 +166,7 @@ public abstract class Level implements LevelAccessor, AutoCloseable {
+     // Paper end
+ 
+     public final com.destroystokyo.paper.antixray.ChunkPacketBlockController chunkPacketBlockController; // Paper - Anti-Xray
++	public final top.leavesmc.leaves.LeavesConfig.WorldConfig leavesConfig; // Leaves - World Config
+     public static BlockPos lastPhysicsProblem; // Spigot
+     private org.spigotmc.TickLimiter entityLimiter;
+     private org.spigotmc.TickLimiter tileLimiter;
+@@ -202,6 +203,7 @@ public abstract class Level implements LevelAccessor, AutoCloseable {
+     protected Level(WritableLevelData worlddatamutable, ResourceKey<Level> resourcekey, RegistryAccess iregistrycustom, Holder<DimensionType> holder, Supplier<ProfilerFiller> supplier, boolean flag, boolean flag1, long i, int j, org.bukkit.generator.ChunkGenerator gen, org.bukkit.generator.BiomeProvider biomeProvider, org.bukkit.World.Environment env, java.util.function.Function<org.spigotmc.SpigotWorldConfig, io.papermc.paper.configuration.WorldConfiguration> paperWorldConfigCreator, java.util.concurrent.Executor executor) { // Paper - Async-Anti-Xray - Pass executor
+         this.spigotConfig = new org.spigotmc.SpigotWorldConfig(((net.minecraft.world.level.storage.PrimaryLevelData) worlddatamutable).getLevelName()); // Spigot
+         this.paperConfig = paperWorldConfigCreator.apply(this.spigotConfig); // Paper
++		this.leavesConfig = new top.leavesmc.leaves.LeavesConfig.WorldConfig(((net.minecraft.world.level.storage.PrimaryLevelData)worlddatamutable).getLevelName()); // Leaves - World Config
+         this.generator = gen;
+         this.world = new CraftWorld((ServerLevel) this, gen, biomeProvider, env);
+ 
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index fab14ca6965d903df220e0f7d0e73e20cfb5f2b1..c7120a96ae8277dceecb3f7953423f40ab6b8e9c 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -1039,6 +1039,7 @@ public final class CraftServer implements Server {
+ 
+         org.spigotmc.SpigotConfig.init((File) console.options.valueOf("spigot-settings")); // Spigot
+         this.console.paperConfigurations.reloadConfigs(this.console);
++		top.leavesmc.leaves.LeavesConfig.init((File) console.options.valueOf("leaves-settings")); // Leaves - Server Config
+         for (ServerLevel world : this.console.getAllLevels()) {
+             // world.serverLevelData.setDifficulty(config.difficulty); // Paper - per level difficulty
+             world.setSpawnSettings(world.serverLevelData.getDifficulty() != Difficulty.PEACEFUL && config.spawnMonsters, config.spawnAnimals); // Paper - per level difficulty (from MinecraftServer#setDifficulty(ServerLevel, Difficulty, boolean))
+@@ -1054,6 +1055,7 @@ public final class CraftServer implements Server {
+                 }
+             }
+             world.spigotConfig.init(); // Spigot
++			world.leavesConfig.init(); // Leaves - World Config
+         }
+ 
+         Plugin[] pluginClone = pluginManager.getPlugins().clone(); // Paper
+@@ -1069,6 +1071,7 @@ public final class CraftServer implements Server {
+         this.reloadData();
+         org.spigotmc.SpigotConfig.registerCommands(); // Spigot
+         io.papermc.paper.command.PaperCommands.registerCommands(this.console); // Paper
++        top.leavesmc.leaves.LeavesConfig.registerCommands(); // Leaves - Server Command
+         this.overrideAllCommandBlockCommands = this.commandsConfiguration.getStringList("command-block-overrides").contains("*");
+         this.ignoreVanillaPermissions = this.commandsConfiguration.getBoolean("ignore-vanilla-permissions");
+ 
+@@ -2913,6 +2916,14 @@ public final class CraftServer implements Server {
+         {
+             return CraftServer.this.console.paperConfigurations.createLegacyObject(CraftServer.this.console);
+         }
++		
++		// Leaves start - add config to timings report
++		@Override
++		public YamlConfiguration getLeavesConfig()
++		{
++			return top.leavesmc.leaves.LeavesConfig.config;
++		}
++		/// Leaves end - add config to timings report
+ 
+         @Override
+         public void restart() {
+diff --git a/src/main/java/org/bukkit/craftbukkit/Main.java b/src/main/java/org/bukkit/craftbukkit/Main.java
+index 07b79c811727e8a26f7c34908e9b2a6eb2fbea9e..cfdad68eb410690f57fd4ebfb1c270827bec5685 100644
+--- a/src/main/java/org/bukkit/craftbukkit/Main.java
++++ b/src/main/java/org/bukkit/craftbukkit/Main.java
+@@ -165,6 +165,14 @@ public class Main {
+                         .ofType(File.class)
+                         .defaultsTo(new File("paper.yml"))
+                         .describedAs("Yml file");
++						
++				// Leaves start - Server Config
++				acceptsAll(asList("leaves", "leaves-settings"), "File for leaves settings")
++                        .withRequiredArg()
++                        .ofType(File.class)
++                        .defaultsTo(new File("leaves.yml"))
++                        .describedAs("Yml file");
++				// Leaves end - Server Config
+ 
+                 acceptsAll(asList("add-plugin", "add-extra-plugin-jar"), "Specify paths to extra plugin jars to be loaded in addition to those in the plugins folder. This argument can be specified multiple times, once for each extra plugin jar path.")
+                         .withRequiredArg()
+diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..85fb668409eb3dea6c174b88654ac7db9fa020ca
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+@@ -0,0 +1,1037 @@
++package top.leavesmc.leaves;
++
++import com.destroystokyo.paper.util.SneakyThrow;
++import com.google.common.base.Throwables;
++import net.minecraft.server.MinecraftServer;
++import org.bukkit.Bukkit;
++import org.bukkit.command.Command;
++import org.bukkit.configuration.ConfigurationSection;
++import org.bukkit.configuration.file.YamlConfiguration;
++import top.leavesmc.leaves.command.LeavesCommand;
++
++import java.io.File;
++import java.lang.reflect.InvocationTargetException;
++import java.lang.reflect.Method;
++import java.lang.reflect.Modifier;
++import java.util.HashMap;
++import java.util.List;
++import java.util.Map;
++import java.util.logging.Level;
++import java.util.Random;
++
++// Powered by Tuinity(https://github.com/Tuinity/Tuinity)
++
++@SuppressWarnings("unused")
++public final class LeavesConfig {
++
++    public static final String CONFIG_HEADER = "Configuration file for Leaves.";
++    public static final int CURRENT_CONFIG_VERSION = 5;
++
++    private static final Object[] EMPTY = new Object[0];
++
++    private static File configFile;
++    public static YamlConfiguration config;
++    private static int configVersion;
++    public static boolean createWorldSections = true;
++    static Map<String, Command> commands;
++
++    public static void init(final File file) {
++        LeavesConfig.configFile = file;
++        config = new YamlConfiguration();
++        config.options().header(CONFIG_HEADER);
++        config.options().copyDefaults(true);
++
++        if (!file.exists()) {
++            try {
++                file.createNewFile();
++            } catch (final Exception ex) {
++                Bukkit.getLogger().log(Level.SEVERE, "Failure to create leaves config", ex);
++            }
++        } else {
++            try {
++                config.load(file);
++            } catch (final Exception ex) {
++                Bukkit.getLogger().log(Level.SEVERE, "Failure to load leaves config", ex);
++                SneakyThrow.sneaky(ex); /* Rethrow, this is critical */
++                throw new RuntimeException(ex); // unreachable
++            }
++        }
++
++        if (config.contains("config-version-please-do-not-modify-me")) {
++            LeavesConfig.set("config-version-please-do-not-modify-me", null);
++        }
++        LeavesConfig.configVersion = LeavesConfig.getInt("config-version", CURRENT_CONFIG_VERSION);
++        LeavesConfig.set("config-version", CURRENT_CONFIG_VERSION);
++
++        updateConfigVersion(config);
++
++        LeavesConfig.load(config);
++        registerCarpetRules();
++
++	    commands = new HashMap<>();
++        commands.put("leaves", new LeavesCommand("leaves"));
++    }
++
++    public static void load(final YamlConfiguration config) {
++        for (Method method : LeavesConfig.class.getDeclaredMethods()) {
++            if (Modifier.isPrivate(method.getModifiers())) {
++                if (method.getParameterTypes().length == 0 && method.getReturnType() == Void.TYPE) {
++                    try {
++                        method.setAccessible(true);
++                        method.invoke(null);
++                    } catch (InvocationTargetException ex) {
++                        throw Throwables.propagate(ex.getCause());
++                    } catch (Exception ex) {
++                        Bukkit.getLogger().log(Level.SEVERE, "Error invoking " + method, ex);
++                    }
++                }
++            }
++        }
++
++        /* We re-save to add new options */
++        try {
++            config.save(LeavesConfig.configFile);
++        } catch (final Exception ex) {
++            Bukkit.getLogger().log(Level.SEVERE, "Unable to save leaves config", ex);
++        }
++    }
++
++    private static void updateConfigVersion(final YamlConfiguration config) {
++        if (configVersion < CURRENT_CONFIG_VERSION) {
++            switch (configVersion) {
++                case 1 -> {
++                    snowballAndEggCanKnockback = config.getBoolean("settings.snowball-and-egg-can-knockback-player", snowballAndEggCanKnockback);
++                    fakeplayerSupport = config.getBoolean("settings.fakeplayer.enable", fakeplayerSupport);
++                    unableFakeplayerNames = (List<String>) config.getList("settings.fakeplayer.unable-fakeplayer-names", unableFakeplayerNames);
++                    shearsInDispenserCanZeroAmount = config.getBoolean("settings.shears-in-dispenser-can-zero-amount", shearsInDispenserCanZeroAmount);
++                    redstoneShearsWrench = config.getBoolean("settings.redstone-shears-wrench", redstoneShearsWrench);
++                    buddingAmethystCanPushByPiston = config.getBoolean("settings.budding-amethyst-can-push-by-piston", buddingAmethystCanPushByPiston);
++                    spectatorDontGetAdvancement = config.getBoolean("settings.spectator-dont-get-advancement", spectatorDontGetAdvancement);
++                    stickChangeArmorStandArmStatus = config.getBoolean("settings.stick-change-armorstand-arm-status", stickChangeArmorStandArmStatus);
++                    noChatSign = config.getBoolean("settings.no-chat-sign", noChatSign);
++
++                    config.set("settings.snowball-and-egg-can-knockback-player", null);
++                    config.set("settings.player-can-edit-sign", null);
++                    config.set("settings.fakeplayer", null);
++                    config.set("settings.shears-in-dispenser-can-zero-amount", null);
++                    config.set("settings.redstone-shears-wrench", null);
++                    config.set("settings.budding-amethyst-can-push-by-piston", null);
++                    config.set("settings.spectator-dont-get-advancement", null);
++                    config.set("settings.stick-change-armorstand-arm-status", null);
++                    config.set("settings.no-chat-sign", null);
++                }
++
++                case 2 -> {
++                    config.set("settings.modify.player-can-edit-sign", null);
++                    config.set("settings.performance.skip-clone-loot-parameters", null);
++                }
++
++                case 3 -> {
++                    boolean carpetAlternative = config.getBoolean("settings.protocol.carpet-alternative-block-placement", false);
++                    alternativeBlockPlacement = carpetAlternative ? "CARPET" : "NONE";
++                    config.set("settings.protocol.carpet-alternative-block-placement", null);
++                }
++
++                case 4 -> {
++                    shearsInDispenserCanZeroAmount = config.getBoolean("settings.modify.shears-in-dispenser-can-zero-amount", shearsInDispenserCanZeroAmount);
++                    instantBlockUpdaterReintroduced = config.getBoolean("settings.modify.instant-block-updater-reintroduced", instantBlockUpdaterReintroduced);
++                    redstoneDontCantOnTrapDoor = config.getBoolean("settings.modify.redstone-wire-dont-connect-if-on-trapdoor", redstoneDontCantOnTrapDoor);
++                    mendingCompatibilityInfinity = config.getBoolean("settings.modify.mending-compatibility-infinity", mendingCompatibilityInfinity);
++                    zeroTickPlants = config.getBoolean("settings.modify.zero-tick-plants", zeroTickPlants);
++
++                    config.set("settings.modify.shears-in-dispenser-can-zero-amount", null);
++                    config.set("settings.modify.instant-block-updater-reintroduced", null);
++                    config.set("settings.modify.redstone-wire-dont-connect-if-on-trapdoor", null);
++                    config.set("settings.modify.mending-compatibility-infinity", null);
++                    config.set("settings.modify.zero-tick-plants", null);
++                }
++            }
++        }
++    }
++
++    static void set(final String path, final Object value) {
++        LeavesConfig.config.set(path, value);
++    }
++
++    public static void registerCommands() {
++        for (Map.Entry<String, Command> entry : commands.entrySet()) {
++            MinecraftServer.getServer().server.getCommandMap().register(entry.getKey(), "Leaves", entry.getValue());
++        }
++    }
++
++    static boolean getBoolean(final String path, final boolean dfl) {
++        LeavesConfig.config.addDefault(path, Boolean.valueOf(dfl));
++        return LeavesConfig.config.getBoolean(path, dfl);
++    }
++
++    static int getInt(final String path, final int dfl) {
++        LeavesConfig.config.addDefault(path, Integer.valueOf(dfl));
++        return LeavesConfig.config.getInt(path, dfl);
++    }
++
++    static long getLong(final String path, final long dfl) {
++        LeavesConfig.config.addDefault(path, Long.valueOf(dfl));
++        return LeavesConfig.config.getLong(path, dfl);
++    }
++
++    static double getDouble(final String path, final double dfl) {
++        LeavesConfig.config.addDefault(path, Double.valueOf(dfl));
++        return LeavesConfig.config.getDouble(path, dfl);
++    }
++
++    static String getString(final String path, final String dfl) {
++        LeavesConfig.config.addDefault(path, dfl);
++        return LeavesConfig.config.getString(path, dfl);
++    }
++
++    static <T> List<T> getList(final String path, final List<T> def) {
++        LeavesConfig.config.addDefault(path, def);
++        return (List<T>) LeavesConfig.config.getList(path, config.getList(path));
++    }
++
++    public static boolean snowballAndEggCanKnockback = true;
++    private static void snowballAndEggCanKnockback() {
++        snowballAndEggCanKnockback = getBoolean("settings.modify.snowball-and-egg-can-knockback-player", snowballAndEggCanKnockback);
++    }
++
++    public static boolean fakeplayerSupport = true;
++    public static List<String> unableFakeplayerNames = List.of("player-name");
++    public static int fakeplayerLimit = 10;
++    public static String fakeplayerPrefix = "";
++    public static String fakeplayerSuffix = "";
++    public static boolean alwaysSendFakeplayerData = true;
++    public static boolean fakeplayerResident = false;
++    public static boolean openFakeplayerInventory = false;
++    public static boolean fakeplayerSkipSleep = false;
++    public static boolean fakeplayerSpawnPhantom = false;
++    private static void fakeplayer() {
++        fakeplayerSupport = getBoolean("settings.modify.fakeplayer.enable", fakeplayerSupport);
++        unableFakeplayerNames = getList("settings.modify.fakeplayer.unable-fakeplayer-names", unableFakeplayerNames);
++        fakeplayerLimit = getInt("settings.modify.fakeplayer.limit", fakeplayerLimit);
++        fakeplayerPrefix = getString("settings.modify.fakeplayer.prefix", fakeplayerPrefix);
++        fakeplayerSuffix = getString("settings.modify.fakeplayer.suffix", fakeplayerSuffix);
++        alwaysSendFakeplayerData = getBoolean("settings.modify.fakeplayer.always-send-data", alwaysSendFakeplayerData);
++        fakeplayerResident = getBoolean("settings.modify.fakeplayer.resident-fakeplayer", fakeplayerResident);
++        openFakeplayerInventory = getBoolean("settings.modify.fakeplayer.open-fakeplayer-inventory", openFakeplayerInventory);
++        fakeplayerSkipSleep = getBoolean("settings.modify.fakeplayer.skip-sleep-check", fakeplayerSkipSleep);
++        fakeplayerSpawnPhantom = getBoolean("settings.modify.fakeplayer.spawn-phantom", fakeplayerSpawnPhantom);
++    }
++
++    public static boolean shearsInDispenserCanZeroAmount = false;
++    private static void shearsInDispenserCanZeroAmount() {
++        shearsInDispenserCanZeroAmount = getBoolean("settings.modify.minecraft-old.shears-in-dispenser-can-zero-amount", shearsInDispenserCanZeroAmount);
++    }
++
++    public static boolean redstoneShearsWrench = true;
++    private static void redstoneShearsWrench() {
++        redstoneShearsWrench = getBoolean("settings.modify.redstone-shears-wrench", redstoneShearsWrench);
++    }
++
++    public static boolean buddingAmethystCanPushByPiston = false;
++    private static void buddingAmethystCanPushByPiston() {
++        buddingAmethystCanPushByPiston = getBoolean("settings.modify.budding-amethyst-can-push-by-piston", buddingAmethystCanPushByPiston);
++    }
++
++    public static boolean spectatorDontGetAdvancement = false;
++    private static void spectatorDontGetAdvancement() {
++        spectatorDontGetAdvancement = getBoolean("settings.modify.spectator-dont-get-advancement", spectatorDontGetAdvancement);
++    }
++
++    public static boolean stickChangeArmorStandArmStatus = true;
++    private static void stickChangeArmorStandHasArm() {
++        stickChangeArmorStandArmStatus = getBoolean("settings.modify.stick-change-armorstand-arm-status", stickChangeArmorStandArmStatus);
++    }
++
++    public static boolean noChatSign = true;
++    private static void noChatSign() {
++        noChatSign = getBoolean("settings.misc.no-chat-sign", noChatSign);
++    }
++
++    public static boolean asyncMobSpawning = false;
++    private static boolean asyncMobSpawningLock = false;
++    private static void asyncMobSpawning() {
++        if (!asyncMobSpawningLock) {
++            asyncMobSpawning = getBoolean("settings.performance.async-mob-spawning", asyncMobSpawning);
++            asyncMobSpawningLock = true;
++        }
++    }
++
++    public static boolean dontSendUselessEntityPackets = true;
++    private static void dontSendUselessEntityPackets() {
++        dontSendUselessEntityPackets = getBoolean("settings.performance.dont-send-useless-entity-packets", dontSendUselessEntityPackets);
++    }
++
++    public static boolean asyncEntityTracker = false;
++    private static boolean asyncEntityTrackerLock = false;
++    private static void asyncEntityTracker() {
++        if (!asyncEntityTrackerLock) {
++            asyncEntityTracker = getBoolean("settings.performance.async-entity-tracker", asyncEntityTracker);
++            asyncEntityTrackerLock = true;
++        }
++
++        if (asyncEntityTracker) {
++            asyncEntityTracker = false;
++            LeavesLogger.LOGGER.severe("Async EntityTracker is updating, it can't work");
++        }
++    }
++
++    public static boolean fixPaper6045 = true;
++    private static void fixPaper6045() {
++        fixPaper6045 = getBoolean("settings.performance.fix.fix-paper-6045", fixPaper6045);
++    }
++
++    public static boolean optimizeEntityCoordinateKey = true;
++    private static void optimizeEntityCoordinateKey() {
++        optimizeEntityCoordinateKey = getBoolean("settings.performance.optimize-entity-coordinate-key", optimizeEntityCoordinateKey);
++    }
++
++    public static boolean enableSuffocationOptimization = true;
++    private static void enableSuffocationOptimization() {
++        enableSuffocationOptimization = getBoolean("settings.performance.enable-suffocation-optimization", enableSuffocationOptimization);
++    }
++
++    public static boolean entityStripRaytracing = true;
++    private static void entityStripRaytracing() {
++        entityStripRaytracing = getBoolean("settings.performance.strip-raytracing-for-entity", entityStripRaytracing);
++    }
++
++    public static boolean checkSpookySeasonOnceAnHour = true;
++    private static void checkSpookySeasonOnceAnHour() {
++        checkSpookySeasonOnceAnHour = getBoolean("settings.performance.check-spooky-season-once-an-hour", checkSpookySeasonOnceAnHour);
++    }
++
++    public static boolean optimizeChunkTicking = true;
++    private static boolean optimizeChunkTickingLock = false;
++    private static void optimizeChunkTicking() {
++        if (!optimizeChunkTickingLock) {
++            optimizeChunkTicking = getBoolean("settings.performance.optimize-chunk-ticking", optimizeChunkTicking);
++            optimizeChunkTickingLock = true;
++        }
++    }
++
++    public static boolean skipPOIFindingInVehicle = true;
++    private static void skipPOIFindingInVehicle() {
++        skipPOIFindingInVehicle = getBoolean("settings.performance.skip-poi-find-in-vehicle", skipPOIFindingInVehicle);
++    }
++
++    public static boolean entityTargetFindingOptimization = true;
++    private static void entityTargetFindingOptimization() {
++        entityTargetFindingOptimization = getBoolean("settings.performance.entity-target-find-optimization", entityTargetFindingOptimization);
++    }
++
++    public static boolean useMoreThreadUnsafeRandom = true;
++    private static void useMoreThreadUnsafeRandom() {
++        useMoreThreadUnsafeRandom = getBoolean("settings.performance.use-more-thread-unsafe-random", useMoreThreadUnsafeRandom);
++    }
++
++    public static boolean disableMethodProfiler = true;
++    private static void disableMethodProfiler() {
++        disableMethodProfiler = getBoolean("settings.misc.disable-method-profiler", disableMethodProfiler);
++    }
++
++    public static boolean throttleInactiveGoalSelectorTick = false;
++    private static void throttleInactiveGoalSelectorTick() {
++        throttleInactiveGoalSelectorTick = getBoolean("settings.performance.inactive-goal-selector-disable", throttleInactiveGoalSelectorTick);
++    }
++
++    public static boolean reduceEntityAllocations = true;
++    private static void reduceEntityAllocations() {
++        reduceEntityAllocations = getBoolean("settings.performance.reduce-entity-allocations", reduceEntityAllocations);
++    }
++
++    public static boolean removeTickGuardLambda = true;
++    private static void removeTickGuardLambda() {
++        removeTickGuardLambda = getBoolean("settings.performance.remove.tick-guard-lambda", removeTickGuardLambda);
++    }
++
++    public static boolean removeInventoryContainsIterators = true;
++    private static void removeInventoryContainsIterators() {
++        removeInventoryContainsIterators = getBoolean("settings.performance.remove.inventory-contains-iterators", removeInventoryContainsIterators);
++    }
++
++    public static boolean removeGetNearPlayerStreams = true;
++    private static void removeGetNearPlayerStreams() {
++        removeGetNearPlayerStreams = getBoolean("settings.performance.remove.get-nearby-players-streams", removeGetNearPlayerStreams);
++    }
++
++    public static boolean removeRangeCheckStreams = true;
++    private static void removeRangeCheckStreams() {
++        removeRangeCheckStreams = getBoolean("settings.performance.remove.range-check-streams-and-iterators", removeRangeCheckStreams);
++    }
++
++    // only config now
++    public static boolean asyncPathfinding = false;
++    private static boolean asyncPathfindingLock = false;
++    private static void asyncPathfinding() {
++        if (!asyncPathfindingLock) {
++            asyncPathfinding = getBoolean("settings.performance.async-pathfinding", asyncPathfinding);
++            asyncPathfindingLock = true;
++        }
++
++        if (asyncPathfinding) {
++            asyncPathfinding = false;
++            LeavesLogger.LOGGER.severe("Async Pathfinding is updating, it can't work");
++        }
++    }
++
++    public static boolean cacheClimbCheck = true;
++    private static void cacheClimbCheck() {
++        cacheClimbCheck = getBoolean("settings.performance.cache-climb-check", cacheClimbCheck);
++    }
++
++    public static boolean biomeTemperaturesUseAgingCache = true;
++    private static boolean biomeTemperaturesUseAgingCacheLock = false;
++    private static void biomeTemperaturesUseAgingCache() {
++        if (!biomeTemperaturesUseAgingCacheLock) {
++            biomeTemperaturesUseAgingCache = getBoolean("settings.performance.biome-temperatures-use-aging-cache", biomeTemperaturesUseAgingCache);
++            biomeTemperaturesUseAgingCacheLock = true;
++        }
++    }
++
++    public static boolean reduceEntityFluidLookup = true;
++    private static void reduceEntityFluidLookup() {
++        reduceEntityFluidLookup = getBoolean("settings.performance.reduce-entity-fluid-lookup", reduceEntityFluidLookup);
++    }
++
++    public static boolean reduceChuckLoadAndLookup = true;
++    private static void reduceChuckLoadAndLookup() {
++        reduceChuckLoadAndLookup = getBoolean("settings.performance.reduce-chuck-load-and-lookup", reduceChuckLoadAndLookup);
++    }
++
++    public static boolean pcaSyncProtocol = false;
++    private static void pcaSyncProtocol() {
++        pcaSyncProtocol = getBoolean("settings.protocol.pca-sync-protocol", pcaSyncProtocol);
++    }
++
++    public static String pcaSyncPlayerEntity = "OPS";
++    private static final List<String> pcaSyncPlayerEntityList = List.of("NOBODY", "BOT", "OPS", "OPS_AND_SELF", "EVERYONE");
++    private static void pcaSyncPlayerEntity() {
++        pcaSyncPlayerEntity = getString("settings.protocol.pca-sync-player-entity", pcaSyncPlayerEntity);
++        if (!pcaSyncPlayerEntityList.contains(pcaSyncPlayerEntity)) {
++            pcaSyncPlayerEntity = "OPS";
++            LeavesLogger.LOGGER.severe("pca-sync-player-entity value error, reset to OPS");
++        }
++    }
++
++    public static boolean bborProtocol = false;
++    private static void bborProtocol() {
++        bborProtocol = getBoolean("settings.protocol.bbor-protocol", bborProtocol);
++    }
++
++    public static boolean instantBlockUpdaterReintroduced = false;
++    private static boolean instantBlockUpdaterReintroducedLock = false;
++    private static void instantBlockUpdaterReintroduced() {
++        if (!instantBlockUpdaterReintroducedLock) {
++            instantBlockUpdaterReintroduced = getBoolean("settings.modify.minecraft-old.instant-block-updater-reintroduced", instantBlockUpdaterReintroduced);
++            instantBlockUpdaterReintroducedLock = true;
++        }
++    }
++
++    public static boolean flattenTriangularDistribution = false;
++    private static void flattenTriangularDistribution() {
++        flattenTriangularDistribution = getBoolean("settings.modify.flatten-triangular-distribution", flattenTriangularDistribution);
++    }
++
++    public static boolean jadeProtocol = false;
++    private static void jadeProtocol() {
++        jadeProtocol = getBoolean("settings.protocol.jade-protocol", jadeProtocol);
++    }
++
++    public static String alternativeBlockPlacement = "NONE";
++    private static final List<String> alternativeBlockPlacementType = List.of("NONE", "CARPET", "CARPET_FIX", "LITEMATICA");
++    private static void alternativeBlockPlacement() {
++        alternativeBlockPlacement = getString("settings.protocol.alternative-block-placement", alternativeBlockPlacement);
++        if (!alternativeBlockPlacementType.contains(alternativeBlockPlacement)) {
++            alternativeBlockPlacement = "NONE";
++            LeavesLogger.LOGGER.severe("alternative-block-placement value error, reset to NONE");
++        }
++    }
++
++    public static boolean playerOperationLimiter = false;
++    private static void playerOperationLimiter() {
++        playerOperationLimiter = getBoolean("settings.modify.player-operation-limiter", playerOperationLimiter);
++    }
++
++    public static double renewableElytra = -1.0;
++    private static void renewableElytra() {
++        renewableElytra = getDouble("settings.modify.renewable-elytra", renewableElytra);
++    }
++
++    public static int shulkerBoxStackSize = 1;
++    private static String stackableShulkerBoxes = "false";
++    private static void stackableShulkerBoxes() {
++        stackableShulkerBoxes = getString("settings.modify.stackable-shulker-boxes", stackableShulkerBoxes);
++        stackableShulkerBoxes = MathUtils.isNumeric(stackableShulkerBoxes) ? stackableShulkerBoxes : stackableShulkerBoxes.equals("true") ? "2" : "1";
++        shulkerBoxStackSize = Integer.parseInt(stackableShulkerBoxes);
++    }
++
++    public static boolean improveFluidDirectionCaching = true;
++    private static boolean improveFluidDirectionCachingLock = false;
++    private static void improveFluidDirectionCaching() {
++        if (!improveFluidDirectionCachingLock) {
++            improveFluidDirectionCaching = getBoolean("settings.performance.improve-fluid-direction-caching", improveFluidDirectionCaching);
++            improveFluidDirectionCachingLock = true;
++        }
++    }
++
++    public static boolean mcTechnicalMode = true;
++    private static void mcTechnicalMode() {
++        mcTechnicalMode = getBoolean("settings.modify.mc-technical-survival-mode", mcTechnicalMode);
++        doMcTechnicalMode();
++    }
++
++    public static void doMcTechnicalMode() {
++        if (mcTechnicalMode) {
++        }
++    }
++
++    public static boolean netherPortalFix = false;
++    private static void netherPortalFix() {
++        netherPortalFix = getBoolean("settings.modify.return-nether-portal-fix", netherPortalFix);
++    }
++
++    public static boolean appleskinProtocol = false;
++    private static void appleskinProtocol() {
++        appleskinProtocol = getBoolean("settings.protocol.appleskin-protocol", appleskinProtocol);
++    }
++
++    public static boolean xaeroMapProtocol = false;
++    public static int xaeroMapServerID = new Random().nextInt();
++    private static void xaeroMapProtocol() {
++        xaeroMapProtocol = getBoolean("settings.protocol.xaero-map-protocol", xaeroMapProtocol);
++        xaeroMapServerID = getInt("settings.protocol.xaero-map-server-id", xaeroMapServerID);
++    }
++
++    public static boolean extraYggdrasilService = false;
++    public static boolean extraYggdrasilLoginProtect = false;
++    public static List<String> extraYggdrasilServiceList = List.of("https://url.with.authlib-injector-yggdrasil");
++    private static void extraYggdrasilService() {
++        extraYggdrasilService = getBoolean("settings.misc.extra-yggdrasil-service.enable", extraYggdrasilService);
++        extraYggdrasilLoginProtect = getBoolean("settings.misc.extra-yggdrasil-service.login-protect", extraYggdrasilLoginProtect);
++        extraYggdrasilServiceList = getList("settings.misc.extra-yggdrasil-service.urls", extraYggdrasilServiceList);
++        if (extraYggdrasilService) {
++        }
++    }
++
++    public static boolean useVanillaRandom = false;
++    private static boolean useVanillaRandomLock = false;
++    private static void useVanillaRandom() {
++        if (!useVanillaRandomLock) {
++            useVanillaRandom = getBoolean("settings.modify.use-vanilla-random", useVanillaRandom);
++            useVanillaRandomLock = true;
++        }
++    }
++
++    public static boolean updateSuppressionCrashFix = true;
++    private static void updateSuppressionCrashFix() {
++        updateSuppressionCrashFix = getBoolean("settings.modify.fix-update-suppression-crash", updateSuppressionCrashFix);
++    }
++
++    public static boolean bedrockBreakList = false;
++    private static boolean bedrockBreakListLock = false;
++    private static void bedrockBreakList() {
++        if (!bedrockBreakListLock) {
++            bedrockBreakList = getBoolean("settings.modify.bedrock-break-list", bedrockBreakList);
++            bedrockBreakListLock = true;
++        }
++    }
++
++    public static boolean syncmaticaProtocol = false;
++    public static boolean syncmaticaQuota = false;
++    public static int syncmaticaQuotaLimit = 40000000;
++    private static void syncmaticaProtocol() {
++        syncmaticaProtocol = getBoolean("settings.protocol.syncmatica.enable", syncmaticaProtocol);
++        syncmaticaQuota = getBoolean("settings.protocol.syncmatica.quota", syncmaticaQuota);
++        syncmaticaQuotaLimit = getInt("settings.protocol.syncmatica.quota-limit", syncmaticaQuotaLimit);
++        if (syncmaticaProtocol) {
++        }
++    }
++
++    public static boolean disableDistanceCheckForUseItem = false;
++    private static void disableDistanceCheckForUseItem() {
++        disableDistanceCheckForUseItem = getBoolean("settings.modify.disable-distance-check-for-use-item", disableDistanceCheckForUseItem);
++        if (!alternativeBlockPlacement.equals("NONE")) {
++            disableDistanceCheckForUseItem = true;
++        }
++    }
++
++    public static boolean noFeatherFallingTrample = false;
++    private static void noFeatherFallingTrample() {
++        noFeatherFallingTrample = getBoolean("settings.modify.no-feather-falling-trample", noFeatherFallingTrample);
++    }
++
++    public static boolean sharedVillagerDiscounts = false;
++    private static void sharedVillagerDiscounts() {
++        sharedVillagerDiscounts = getBoolean("settings.modify.shared-villager-discounts", sharedVillagerDiscounts);
++    }
++
++    public static boolean redstoneDontCantOnTrapDoor = false;
++    private static void redstoneDontCantOnTrapDoor() {
++        redstoneDontCantOnTrapDoor = getBoolean("settings.modify.minecraft-old.redstone-wire-dont-connect-if-on-trapdoor", redstoneDontCantOnTrapDoor);
++    }
++
++    public static boolean disableCheckOutOfOrderCommand = false;
++    private static void disableCheckOutOfOrderCommand() {
++        disableCheckOutOfOrderCommand = getBoolean("settings.modify.disable-check-out-of-order-command", disableCheckOutOfOrderCommand);
++    }
++
++    public static boolean despawnEndermanWithBlock = false;
++    private static void despawnEndermanWithBlock() {
++        despawnEndermanWithBlock = getBoolean("settings.modify.despawn-enderman-with-block", despawnEndermanWithBlock);
++    }
++
++    public static boolean leavesCarpetSupport = false;
++    private static void leavesCarpetSupport() {
++        leavesCarpetSupport = getBoolean("settings.protocol.leaves-carpet-support", leavesCarpetSupport);
++    }
++
++    public static void registerCarpetRules() {
++    }
++
++    public static boolean creativeNoClip = false;
++    private static void creativeNoClip() {
++        creativeNoClip = getBoolean("settings.modify.creative-no-clip", creativeNoClip);
++    }
++
++    public static boolean optimizedDragonRespawn = false;
++    private static void optimizedDragonRespawn() {
++        optimizedDragonRespawn = getBoolean("settings.performance.optimized-dragon-respawn", optimizedDragonRespawn);
++    }
++
++    public static boolean mendingCompatibilityInfinity = false;
++    private static void mendingCompatibilityInfinity() {
++        mendingCompatibilityInfinity = getBoolean("settings.modify.minecraft-old.mending-compatibility-infinity", mendingCompatibilityInfinity);
++    }
++
++    public static boolean shaveSnowLayers = true;
++    private static void shaveSnowLayers() {
++        shaveSnowLayers = getBoolean("settings.modify.shave-snow-layers", shaveSnowLayers);
++    }
++
++    public static boolean ignoreLC = false;
++    private static void ignoreLC() {
++        ignoreLC = getBoolean("settings.modify.ignore-lc", ignoreLC);
++    }
++
++    public static boolean elytraAeronauticsNoChunk = false;
++    public static double elytraAeronauticsNoChunkHeight = 500.0D;
++    public static double elytraAeronauticsNoChunkSpeed = -1.0D;
++    public static boolean elytraAeronauticsNoChunkMes = true;
++    public static String elytraAeronauticsNoChunkStartMes = "Flight enter cruise mode";
++    public static String elytraAeronauticsNoChunkEndMes = "Flight exit cruise mode";
++    private static void elytraAeronautics() {
++        elytraAeronauticsNoChunk = getBoolean("settings.modify.elytra-aeronautics.no-chunk-load", elytraAeronauticsNoChunk);
++        elytraAeronauticsNoChunkHeight = getDouble("settings.modify.elytra-aeronautics.no-chunk-height", elytraAeronauticsNoChunkHeight);
++        elytraAeronauticsNoChunkSpeed = getDouble("settings.modify.elytra-aeronautics.no-chunk-speed", elytraAeronauticsNoChunkSpeed);
++        elytraAeronauticsNoChunkMes = getBoolean("settings.modify.elytra-aeronautics.message", elytraAeronauticsNoChunkMes);
++        elytraAeronauticsNoChunkStartMes = getString("settings.modify.elytra-aeronautics.message-start", elytraAeronauticsNoChunkStartMes);
++        elytraAeronauticsNoChunkEndMes = getString("settings.modify.elytra-aeronautics.message-end", elytraAeronauticsNoChunkEndMes);
++    }
++
++    public static boolean msptSyncProtocol = false;
++    public static int msptSyncTickInterval = 20;
++    private static void msptSyncProtocol() {
++        msptSyncTickInterval = getInt("settings.protocol.bladeren.mspt-sync-tick-interval", msptSyncTickInterval);
++        msptSyncProtocol = getBoolean("settings.protocol.bladeren.mspt-sync-protocol", msptSyncProtocol);
++    }
++
++    public static boolean fixPaper9372 = true;
++    private static void fixPaper9372() {
++        fixPaper9372 = getBoolean("settings.performance.fix.fix-paper-9372", fixPaper9372);
++    }
++
++    public static boolean cacheIgniteOdds = true;
++    private static void cacheIgniteOdds() {
++        cacheIgniteOdds = getBoolean("settings.performance.cache-ignite-odds", cacheIgniteOdds);
++    }
++
++    public static boolean lavaRiptide = false;
++    private static void lavaRiptide() {
++        lavaRiptide = getBoolean("settings.modify.lava-riptide", lavaRiptide);
++    }
++
++    public static boolean noBlockUpdateCommand = false;
++    private static void noBlockUpdateCommand() {
++        noBlockUpdateCommand = getBoolean("settings.modify.no-block-update-command", noBlockUpdateCommand);
++    }
++
++    public static boolean skipSelfRaidCheck = false;
++    private static void skipSelfRaidCheck() {
++        skipSelfRaidCheck = getBoolean("settings.modify.raider-die-skip-self-raid-check", skipSelfRaidCheck);
++    }
++
++    public static boolean containerPassthrough = false;
++    private static void containerPassthrough() {
++        containerPassthrough = getBoolean("settings.modify.container-passthrough", containerPassthrough);
++    }
++
++    public static boolean dontRespondPingBeforeStart = true;
++    private static void dontRespondPingBeforeStart() {
++        dontRespondPingBeforeStart = getBoolean("settings.misc.dont-respond-ping-before-start-fully", dontRespondPingBeforeStart);
++    }
++
++    public static boolean fasterChunkSerialization = true;
++    private static void fasterChunkSerialization() {
++        fasterChunkSerialization = getBoolean("settings.performance.faster-chunk-serialization", fasterChunkSerialization);
++    }
++
++    public static boolean optimizeWorldGenerationAccess = true;
++    private static void optimizeWorldGenerationAccess() {
++        optimizeWorldGenerationAccess = getBoolean("settings.performance.optimize-world-generation-and-block-access", optimizeWorldGenerationAccess);
++    }
++
++    public static boolean cacheWorldGeneratorSeaLevel = true;
++    private static void cacheWorldGeneratorSeaLevel() {
++        cacheWorldGeneratorSeaLevel = getBoolean("settings.performance.cache-world-generator-sea-level", cacheWorldGeneratorSeaLevel);
++    }
++
++    public static boolean skipSecondaryPOISensorIfAbsent = true;
++    private static void skipSecondaryPOISensorIfAbsent() {
++        skipSecondaryPOISensorIfAbsent = getBoolean("settings.performance.skip-secondary-POI-sensor-if-absent", skipSecondaryPOISensorIfAbsent);
++    }
++
++    public static boolean cacheCubeVoxelShapeShapeArray = true;
++    private static void cacheCubeVoxelShapeShapeArray() {
++        cacheCubeVoxelShapeShapeArray = getBoolean("settings.performance.cache-CubeVoxelShape-shape-array", cacheCubeVoxelShapeShapeArray);
++    }
++
++    public static boolean storeMobCountsInArray = true;
++    private static void storeMobCountsInArray() {
++        storeMobCountsInArray = getBoolean("settings.performance.store-mob-counts-in-array", storeMobCountsInArray);
++    }
++
++    public static boolean cacheBlockStatePairKeyHash = true;
++    private static void cacheBlockStatePairKeyHash() {
++        cacheBlockStatePairKeyHash = getBoolean("settings.performance.cache-BlockStatePairKey-hash", cacheBlockStatePairKeyHash);
++    }
++
++    public static boolean optimizeNoiseGeneration = false;
++    private static void optimizeNoiseGeneration() {
++        optimizeNoiseGeneration = getBoolean("settings.performance.optimize-noise-generation", optimizeNoiseGeneration);
++    }
++
++    public static boolean disablePacketLimit = false;
++    private static void disablePacketLimit() {
++        disablePacketLimit = getBoolean("settings.modify.disable-packet-limit", disablePacketLimit);
++    }
++
++    public static boolean optimizeSunBurnTick = true;
++    private static void optimizeSunBurnTick() {
++        optimizeSunBurnTick = getBoolean("settings.performance.optimize-sun-burn-tick", optimizeSunBurnTick);
++    }
++
++    public static boolean removeDamageLambda = true;
++    private static void removeDamageLambda() {
++        removeDamageLambda = getBoolean("settings.performance.remove.damage-lambda", removeDamageLambda);
++    }
++
++    public static boolean useOptimizedCollection = true;
++    private static void useOptimizedCollection() {
++        useOptimizedCollection = getBoolean("settings.performance.use-optimized-collection", useOptimizedCollection);
++    }
++
++    public static boolean optimizedCubePointRange = true;
++    private static void optimizedCubePointRange() {
++        optimizedCubePointRange = getBoolean("settings.performance.optimized-CubePointRange", optimizedCubePointRange);
++    }
++
++    public static boolean checkFrozenTicksBeforeLandingBlock = true;
++    private static void checkFrozenTicksBeforeLandingBlock() {
++        checkFrozenTicksBeforeLandingBlock = getBoolean("settings.performance.check-frozen-ticks-before-landing-block", checkFrozenTicksBeforeLandingBlock);
++    }
++
++    public static boolean cacheOminousBannerItem = true;
++    private static void cacheOminousBannerItem() {
++        cacheOminousBannerItem = getBoolean("settings.performance.cache-ominous-banner-item", cacheOminousBannerItem);
++    }
++
++    public static boolean skipEntityMoveIfMovementIsZero = true;
++    private static void skipEntityMoveIfMovementIsZero() {
++        skipEntityMoveIfMovementIsZero = getBoolean("settings.performance.skip-entity-move-if-movement-is-zero", skipEntityMoveIfMovementIsZero);
++    }
++
++    public static boolean skipCloningAdvancementCriteria = false;
++    private static void skipCloningAdvancementCriteria() {
++        skipCloningAdvancementCriteria = getBoolean("settings.performance.skip-cloning-advancement-criteria", skipCloningAdvancementCriteria);
++    }
++
++    public static boolean skipNegligiblePlanarMovementMultiplication = true;
++    private static void skipNegligiblePlanarMovementMultiplication() {
++        skipNegligiblePlanarMovementMultiplication = getBoolean("settings.performance.skip-negligible-planar-movement-multiplication", skipNegligiblePlanarMovementMultiplication);
++    }
++
++    public static boolean villagersDontReleaseMemoryFix = false;
++    private static void villagersDontReleaseMemoryFix() {
++        villagersDontReleaseMemoryFix = getBoolean("settings.performance.fix-villagers-dont-release-memory", villagersDontReleaseMemoryFix);
++    }
++
++    public static boolean avoidAnvilTooExpensive = false;
++    private static void avoidAnvilTooExpensive() {
++        avoidAnvilTooExpensive = getBoolean("settings.modify.avoid-anvil-too-expensive", avoidAnvilTooExpensive);
++    }
++
++    public static boolean bowInfinityFix = false;
++    private static void bowInfinityFix() {
++        bowInfinityFix = getBoolean("settings.modify.bow-infinity-fix", bowInfinityFix);
++    }
++
++    public static boolean zeroTickPlants = false;
++    private static void zeroTickPlants() {
++        zeroTickPlants = getBoolean("settings.modify.minecraft-old.zero-tick-plants", zeroTickPlants);
++    }
++
++    public static boolean bstatsPrivacyMode = false;
++    private static void bstatsPrivacyMode() {
++        bstatsPrivacyMode = getBoolean("settings.misc.bstats-privacy-mode", bstatsPrivacyMode);
++    }
++
++    public static boolean autoUpdate = false;
++    public static List<String> autoUpdateTime = List.of("14:00","2:00");
++    private static void autoUpdate() {
++        autoUpdate = getBoolean("settings.misc.auto-update.enable", autoUpdate);
++        autoUpdateTime = getList("settings.misc.auto-update.time", autoUpdateTime);
++        if (autoUpdate) {
++            LeavesLogger.LOGGER.warning("Auto-Update is not completely safe. Enabling it may cause data security problems!");
++        }
++    }
++
++    public static String serverLang = "en_us";
++    private static final List<String> supportLang = List.of("en_us", "zh_cn");
++    private static void serverLang() {
++        serverLang = getString("settings.misc.server-lang", serverLang);
++        if (!supportLang.contains(serverLang)) {
++            serverLang = "en_us";
++            LeavesLogger.LOGGER.severe("server-lang value error, reset to en_us");
++        }
++    }
++
++    public static String serverModName = "Leaves";
++    private static void serverModName(){
++        serverModName = getString("settings.misc.server-mod-name", serverModName);
++    }
++
++    public static boolean tickCommand = false;
++    private static void tickCommand() {
++        tickCommand = getBoolean("settings.modify.tick-command", tickCommand);
++    }
++
++    public static boolean bladerenLeavesProtocol = true;
++    private static void bladerenLeavesProtocol() {
++        bladerenLeavesProtocol = getBoolean("settings.protocol.bladeren.protocol", bladerenLeavesProtocol);
++    }
++
++    public static void registerLeavesFeatures() {
++    }
++
++    public static boolean hopperCounter = false;
++    private static void hopperCounter() {
++        hopperCounter = getBoolean("settings.modify.hopper-counter", hopperCounter);
++    }
++
++    public static boolean lootWorldRandom = false;
++    private static void lootWorldRandom() {
++        lootWorldRandom = getBoolean("settings.modify.minecraft-old.loot-world-random", lootWorldRandom);
++    }
++
++    public static double spiderJockeysDropGapples = -1.0;
++    private static void spiderJockeysDropGapples() {
++        spiderJockeysDropGapples = getDouble("settings.modify.spider-jockeys-drop-gapples", spiderJockeysDropGapples);
++    }
++
++    public static boolean servuxProtocol = false;
++    private static void servuxProtocol() {
++        servuxProtocol = getBoolean("settings.protocol.servux-protocol", servuxProtocol);
++    }
++
++    public static boolean forceVoidTrade = false;
++    private static void forceVoidTrade() {
++        forceVoidTrade = getBoolean("settings.modify.force-void-trade", forceVoidTrade);
++    }
++
++    public static boolean cceUpdateSuppression = false;
++    private static void cceUpdateSuppression() {
++        cceUpdateSuppression = getBoolean("settings.modify.minecraft-old.cce-update-suppression", cceUpdateSuppression);
++    }
++
++    public static boolean villagerInfiniteDiscounts = false;
++    private static void villagerInfiniteDiscounts() {
++        villagerInfiniteDiscounts = getBoolean("settings.modify.minecraft-old.villager-infinite-discounts", villagerInfiniteDiscounts);
++        if (villagerInfiniteDiscounts) {
++        }
++    }
++
++    public static final class WorldConfig {
++
++        public final String worldName;
++        public String configPath;
++        ConfigurationSection worldDefaults;
++
++        public WorldConfig(final String worldName) {
++            this.worldName = worldName;
++            this.init();
++        }
++
++        public void init() {
++            this.worldDefaults = LeavesConfig.config.getConfigurationSection("world-settings.default");
++            if (this.worldDefaults == null) {
++                this.worldDefaults = LeavesConfig.config.createSection("world-settings.default");
++            }
++
++            String worldSectionPath = LeavesConfig.configVersion < CURRENT_CONFIG_VERSION ? this.worldName : "world-settings.".concat(this.worldName);
++            ConfigurationSection section = LeavesConfig.config.getConfigurationSection(worldSectionPath);
++            this.configPath = worldSectionPath;
++            if (LeavesConfig.createWorldSections) {
++                if (section == null) {
++                    section = LeavesConfig.config.createSection(worldSectionPath);
++                }
++                LeavesConfig.config.set(worldSectionPath, section);
++            }
++
++            this.load();
++        }
++
++        public void load() {
++            for (final Method method : LeavesConfig.WorldConfig.class.getDeclaredMethods()) {
++                if (method.getReturnType() != void.class || method.getParameterCount() != 0 ||
++                    !Modifier.isPrivate(method.getModifiers()) || Modifier.isStatic(method.getModifiers())) {
++                    continue;
++                }
++
++                try {
++                    method.setAccessible(true);
++                    method.invoke(this, EMPTY);
++                } catch (final Exception ex) {
++                    SneakyThrow.sneaky(ex); /* Rethrow, this is critical */
++                    throw new RuntimeException(ex); // unreachable
++                }
++            }
++
++            if (LeavesConfig.configVersion < CURRENT_CONFIG_VERSION) {
++                ConfigurationSection oldSection = LeavesConfig.config.getConfigurationSection(this.worldName);
++                LeavesConfig.config.set("world-settings.".concat(this.worldName), oldSection);
++                LeavesConfig.config.set(this.worldName, null);
++            }
++
++            /* We re-save to add new options */
++            try {
++                LeavesConfig.config.save(LeavesConfig.configFile);
++            } catch (final Exception ex) {
++                Bukkit.getLogger().log(Level.SEVERE, "Unable to save leaves config", ex);
++            }
++        }
++
++        void set(final String path, final Object val) {
++            final ConfigurationSection config = LeavesConfig.config.getConfigurationSection(this.configPath);
++            this.worldDefaults.set(path, val);
++            if (config != null && config.get(path) != null) {
++                config.set(path, val);
++            }
++        }
++
++        boolean getBoolean(final String path, final boolean dfl) {
++            final ConfigurationSection config = LeavesConfig.config.getConfigurationSection(this.configPath);
++            this.worldDefaults.addDefault(path, Boolean.valueOf(dfl));
++            if (LeavesConfig.configVersion < CURRENT_CONFIG_VERSION) {
++                if (config != null && config.getBoolean(path) == dfl) {
++                    config.set(path, null);
++                }
++            }
++            return config == null ? this.worldDefaults.getBoolean(path) : config.getBoolean(path, this.worldDefaults.getBoolean(path));
++        }
++
++        boolean getBooleanRaw(final String path, final boolean dfl) {
++            final ConfigurationSection config = LeavesConfig.config.getConfigurationSection(this.configPath);
++            if (LeavesConfig.configVersion < CURRENT_CONFIG_VERSION) {
++                if (config != null && config.getBoolean(path) == dfl) {
++                    config.set(path, null);
++                }
++            }
++            return config == null ? this.worldDefaults.getBoolean(path, dfl) : config.getBoolean(path, this.worldDefaults.getBoolean(path, dfl));
++        }
++
++        int getInt(final String path, final int dfl) {
++            final ConfigurationSection config = LeavesConfig.config.getConfigurationSection(this.configPath);
++            this.worldDefaults.addDefault(path, Integer.valueOf(dfl));
++            if (LeavesConfig.configVersion < CURRENT_CONFIG_VERSION) {
++                if (config != null && config.getInt(path) == dfl) {
++                    config.set(path, null);
++                }
++            }
++            return config == null ? this.worldDefaults.getInt(path) : config.getInt(path, this.worldDefaults.getInt(path));
++        }
++
++        int getIntRaw(final String path, final int dfl) {
++            final ConfigurationSection config = LeavesConfig.config.getConfigurationSection(this.configPath);
++            if (LeavesConfig.configVersion < CURRENT_CONFIG_VERSION) {
++                if (config != null && config.getInt(path) == dfl) {
++                    config.set(path, null);
++                }
++            }
++            return config == null ? this.worldDefaults.getInt(path, dfl) : config.getInt(path, this.worldDefaults.getInt(path, dfl));
++        }
++
++        long getLong(final String path, final long dfl) {
++            final ConfigurationSection config = LeavesConfig.config.getConfigurationSection(this.configPath);
++            this.worldDefaults.addDefault(path, Long.valueOf(dfl));
++            if (LeavesConfig.configVersion < CURRENT_CONFIG_VERSION) {
++                if (config != null && config.getLong(path) == dfl) {
++                    config.set(path, null);
++                }
++            }
++            return config == null ? this.worldDefaults.getLong(path) : config.getLong(path, this.worldDefaults.getLong(path));
++        }
++
++        long getLongRaw(final String path, final long dfl) {
++            final ConfigurationSection config = LeavesConfig.config.getConfigurationSection(this.configPath);
++            if (LeavesConfig.configVersion < CURRENT_CONFIG_VERSION) {
++                if (config != null && config.getLong(path) == dfl) {
++                    config.set(path, null);
++                }
++            }
++            return config == null ? this.worldDefaults.getLong(path, dfl) : config.getLong(path, this.worldDefaults.getLong(path, dfl));
++        }
++
++        double getDouble(final String path, final double dfl) {
++            final ConfigurationSection config = LeavesConfig.config.getConfigurationSection(this.configPath);
++            this.worldDefaults.addDefault(path, Double.valueOf(dfl));
++            if (LeavesConfig.configVersion < CURRENT_CONFIG_VERSION) {
++                if (config != null && config.getDouble(path) == dfl) {
++                    config.set(path, null);
++                }
++            }
++            return config == null ? this.worldDefaults.getDouble(path) : config.getDouble(path, this.worldDefaults.getDouble(path));
++        }
++
++        double getDoubleRaw(final String path, final double dfl) {
++            final ConfigurationSection config = LeavesConfig.config.getConfigurationSection(this.configPath);
++            if (LeavesConfig.configVersion < CURRENT_CONFIG_VERSION) {
++                if (config != null && config.getDouble(path) == dfl) {
++                    config.set(path, null);
++                }
++            }
++            return config == null ? this.worldDefaults.getDouble(path, dfl) : config.getDouble(path, this.worldDefaults.getDouble(path, dfl));
++        }
++
++        String getString(final String path, final String dfl) {
++            final ConfigurationSection config = LeavesConfig.config.getConfigurationSection(this.configPath);
++            this.worldDefaults.addDefault(path, dfl);
++            return config == null ? this.worldDefaults.getString(path) : config.getString(path, this.worldDefaults.getString(path));
++        }
++
++        String getStringRaw(final String path, final String dfl) {
++            final ConfigurationSection config = LeavesConfig.config.getConfigurationSection(this.configPath);
++            return config == null ? this.worldDefaults.getString(path, dfl) : config.getString(path, this.worldDefaults.getString(path, dfl));
++        }
++
++        List getList(final String path, final List dfl) {
++            final ConfigurationSection config = LeavesConfig.config.getConfigurationSection(this.configPath);
++            this.worldDefaults.addDefault(path, dfl);
++            return config == null ? this.worldDefaults.getList(path) : config.getList(path, this.worldDefaults.getList(path));
++        }
++
++        List getListRaw(final String path, final List dfl) {
++            final ConfigurationSection config = LeavesConfig.config.getConfigurationSection(this.configPath);
++            return config == null ? this.worldDefaults.getList(path, dfl) : config.getList(path, this.worldDefaults.getList(path, dfl));
++        }
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/command/CommandArgument.java b/src/main/java/top/leavesmc/leaves/command/CommandArgument.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..eadc6d168fb13299348b0c275ae352ee2f1e1ea2
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/command/CommandArgument.java
+@@ -0,0 +1,43 @@
++package top.leavesmc.leaves.command;
++
++import org.jetbrains.annotations.NotNull;
++
++import java.util.ArrayList;
++import java.util.Arrays;
++import java.util.List;
++
++public class CommandArgument {
++
++    private final List<CommandArgumentType<?>> argumentTypes;
++    private final List<List<String>> tabComplete;
++
++    public CommandArgument(CommandArgumentType<?>... argumentTypes) {
++        this.argumentTypes = List.of(argumentTypes);
++        this.tabComplete = new ArrayList<>();
++        for (int i = 0; i < argumentTypes.length; i++) {
++            tabComplete.add(new ArrayList<>());
++        }
++    }
++
++    public List<String> tabComplete(int n) {
++        if (tabComplete.size() > n) {
++            return tabComplete.get(n);
++        } else {
++            return List.of();
++        }
++    }
++
++    public CommandArgument setTabComplete(int index, List<String> list) {
++        tabComplete.set(index, list);
++        return this;
++    }
++
++    public CommandArgumentResult parse(int index, String @NotNull [] args) {
++        Object[] result = new Object[argumentTypes.size()];
++        Arrays.fill(result, null);
++        for (int i = index, j = 0; i < args.length && j < result.length; i++, j++) {
++            result[j] = argumentTypes.get(j).pasre(args[i]);
++        }
++        return new CommandArgumentResult(new ArrayList<>(Arrays.asList(result)));
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/command/CommandArgumentResult.java b/src/main/java/top/leavesmc/leaves/command/CommandArgumentResult.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..340eaca64c96180b895a075ce9e44402cd104eed
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/command/CommandArgumentResult.java
+@@ -0,0 +1,62 @@
++package top.leavesmc.leaves.command;
++
++import net.minecraft.core.BlockPos;
++import org.bukkit.util.Vector;
++
++import java.util.List;
++import java.util.Objects;
++
++public class CommandArgumentResult {
++
++    private final List<Object> result;
++
++    public CommandArgumentResult(List<Object> result) {
++        this.result = result;
++    }
++
++    public Integer readInt(int def) {
++        return Objects.requireNonNullElse(read(Integer.class), def);
++    }
++
++    public Double readDouble(double def) {
++        return Objects.requireNonNullElse(read(Double.class), def);
++    }
++
++    public String readString(String def) {
++        return Objects.requireNonNullElse(read(String.class), def);
++    }
++
++    public BlockPos readPos() {
++        Integer[] pos = {read(Integer.class), read(Integer.class), read(Integer.class)};
++        for (Integer po : pos) {
++            if (po == null) {
++                return null;
++            }
++        }
++        return new BlockPos(pos[0], pos[1], pos[2]);
++    }
++
++    public Vector readVector() {
++        Double[] pos = {read(Double.class), read(Double.class), read(Double.class)};
++        for (Double po : pos) {
++            if (po == null) {
++                return null;
++            }
++        }
++        return new Vector(pos[0], pos[1], pos[2]);
++    }
++
++    public <T> T read(Class<T> tClass) {
++        if (result.isEmpty()) {
++            return null;
++        }
++
++        Object obj = result.remove(0);
++        if (tClass.isInstance(obj)) {
++            return tClass.cast(obj);
++        } else {
++            return null;
++        }
++    }
++
++}
+diff --git a/src/main/java/top/leavesmc/leaves/command/CommandArgumentType.java b/src/main/java/top/leavesmc/leaves/command/CommandArgumentType.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..edf12195c7224ca2fb5d3c2ac3fcf485d3049d07
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/command/CommandArgumentType.java
+@@ -0,0 +1,37 @@
++package top.leavesmc.leaves.command;
++
++import org.jetbrains.annotations.NotNull;
++
++public abstract class CommandArgumentType<E> {
++
++    public static final CommandArgumentType<Integer> INTEGER = new CommandArgumentType<>() {
++        @Override
++        public Integer pasre(@NotNull String arg) {
++            try {
++                return Integer.parseInt(arg);
++            } catch (NumberFormatException e) {
++                return null;
++            }
++        }
++    };
++
++    public static final CommandArgumentType<Double> DOUBLE = new CommandArgumentType<>() {
++        @Override
++        public Double pasre(@NotNull String arg) {
++            try {
++                return Double.parseDouble(arg);
++            } catch (NumberFormatException e) {
++                return null;
++            }
++        }
++    };
++
++    public static final CommandArgumentType<String> STRING = new CommandArgumentType<>() {
++        @Override
++        public String pasre(@NotNull String arg) {
++            return arg;
++        }
++    };
++
++    public abstract E pasre(@NotNull String arg);
++}
+diff --git a/src/main/java/top/leavesmc/leaves/command/LeavesCommand.java b/src/main/java/top/leavesmc/leaves/command/LeavesCommand.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..e89bf96486c87cdff6c1a425afd10d744376c77f
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/command/LeavesCommand.java
+@@ -0,0 +1,116 @@
++package top.leavesmc.leaves.command;
++
++import io.papermc.paper.command.CommandUtil;
++import it.unimi.dsi.fastutil.Pair;
++import net.minecraft.Util;
++import org.bukkit.Bukkit;
++import org.bukkit.Location;
++import org.bukkit.command.Command;
++import org.bukkit.command.CommandSender;
++import org.bukkit.permissions.Permission;
++import org.bukkit.permissions.PermissionDefault;
++import org.bukkit.plugin.PluginManager;
++import org.checkerframework.checker.nullness.qual.Nullable;
++import org.jetbrains.annotations.NotNull;
++
++import java.util.ArrayList;
++import java.util.Arrays;
++import java.util.Collections;
++import java.util.HashMap;
++import java.util.List;
++import java.util.Locale;
++import java.util.Map;
++import java.util.Set;
++import java.util.stream.Collectors;
++
++import static net.kyori.adventure.text.Component.text;
++import static net.kyori.adventure.text.format.NamedTextColor.RED;
++
++public final class LeavesCommand extends Command {
++    static final String BASE_PERM = "bukkit.command.leaves.";
++    // subcommand label -> subcommand
++    private static final Map<String, LeavesSubcommand> SUBCOMMANDS = Util.make(() -> {
++        final Map<Set<String>, LeavesSubcommand> commands = new HashMap<>();
++
++        return commands.entrySet().stream()
++            .flatMap(entry -> entry.getKey().stream().map(s -> Map.entry(s, entry.getValue())))
++            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
++    });
++    private static final Set<String> COMPLETABLE_SUBCOMMANDS = SUBCOMMANDS.entrySet().stream().filter(entry -> entry.getValue().tabCompletes()).map(Map.Entry::getKey).collect(Collectors.toSet());
++
++    public LeavesCommand(final String name) {
++        super(name);
++        this.description = "Leaves related commands";
++        this.usageMessage = "/leaves [" + String.join(" | ", SUBCOMMANDS.keySet()) + "]";
++        final List<String> permissions = new ArrayList<>();
++        permissions.add("bukkit.command.leaves");
++        permissions.addAll(SUBCOMMANDS.keySet().stream().map(s -> BASE_PERM + s).toList());
++        this.setPermission(String.join(";", permissions));
++        final PluginManager pluginManager = Bukkit.getServer().getPluginManager();
++        for (final String perm : permissions) {
++            if (pluginManager.getPermission(perm) == null) {
++                pluginManager.addPermission(new Permission(perm, PermissionDefault.OP));
++            }
++        }
++    }
++
++    private static boolean testPermission(final CommandSender sender, final String permission) {
++        if (sender.hasPermission(BASE_PERM + permission) || sender.hasPermission("bukkit.command.leaves")) {
++            return true;
++        }
++        sender.sendMessage(Bukkit.permissionMessage());
++        return false;
++    }
++
++    @NotNull
++
++    @Override
++    public List<String> tabComplete(final @NotNull CommandSender sender, final @NotNull String alias, final String[] args, final @Nullable Location location) throws IllegalArgumentException {
++        if (args.length <= 1) {
++            return CommandUtil.getListMatchingLast(sender, args, COMPLETABLE_SUBCOMMANDS);
++        }
++
++        final @Nullable Pair<String, LeavesSubcommand> subCommand = resolveCommand(args[0]);
++        if (subCommand != null) {
++            return subCommand.second().tabComplete(sender, subCommand.first(), Arrays.copyOfRange(args, 1, args.length));
++        }
++
++        return Collections.emptyList();
++    }
++
++    @Override
++    public boolean execute(final @NotNull CommandSender sender, final @NotNull String commandLabel, final String[] args) {
++        if (!testPermission(sender)) {
++            return true;
++        }
++
++        if (args.length == 0) {
++            sender.sendMessage(text("Usage: " + this.usageMessage, RED));
++            return false;
++        }
++        final Pair<String, LeavesSubcommand> subCommand = resolveCommand(args[0]);
++
++        if (subCommand == null) {
++            sender.sendMessage(text("Usage: " + this.usageMessage, RED));
++            return false;
++        }
++
++        if (!testPermission(sender, subCommand.first())) {
++            return true;
++        }
++        final String[] choppedArgs = Arrays.copyOfRange(args, 1, args.length);
++        return subCommand.second().execute(sender, subCommand.first(), choppedArgs);
++    }
++
++    @Nullable
++    private static Pair<String, LeavesSubcommand> resolveCommand(String label) {
++        label = label.toLowerCase(Locale.ENGLISH);
++        LeavesSubcommand subCommand = SUBCOMMANDS.get(label);
++
++        if (subCommand != null) {
++            return Pair.of(label, subCommand);
++        }
++
++        return null;
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/command/LeavesSubcommand.java b/src/main/java/top/leavesmc/leaves/command/LeavesSubcommand.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..7ba1b573c8e49cc0838c25bc26687d14841a9e7f
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/command/LeavesSubcommand.java
+@@ -0,0 +1,18 @@
++package top.leavesmc.leaves.command;
++
++import org.bukkit.command.CommandSender;
++
++import java.util.Collections;
++import java.util.List;
++
++public interface LeavesSubcommand {
++    boolean execute(CommandSender sender, String subCommand, String[] args);
++
++    default List<String> tabComplete(final CommandSender sender, final String subCommand, final String[] args) {
++        return Collections.emptyList();
++    }
++
++    default boolean tabCompletes() {
++        return true;
++    }
++}

@@ -1,19 +1,19 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: violetc <58360096+s-yh-china@users.noreply.github.com>
 Date: Fri, 7 Jul 2023 16:50:06 +0800
-Subject: [PATCH] Leaves protocol
+Subject: [PATCH] Bladeren Protocol
 
 
 diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
-index 296aa94bb0bf21d1c6c1bed7aa791bc611cd8b2a..481c9b2755a923a31e1af10a374d4973035ef785 100644
+index 96d16ed5804ad5c802a2ddce38e758345cc166dd..35c7215163cf89b394c60a6cda2efdd4bcee3c83 100644
 --- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
 +++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
-@@ -16,6 +16,8 @@ import top.leavesmc.leaves.protocol.syncmatica.SyncmaticaProtocol;
+@@ -16,6 +16,8 @@ import top.leavesmc.leaves.profile.LeavesMinecraftSessionService;
  import top.leavesmc.leaves.util.MathUtils;
  import top.leavesmc.leaves.protocol.CarpetServerProtocol.CarpetRule;
  import top.leavesmc.leaves.protocol.CarpetServerProtocol.CarpetRules;
-+import top.leavesmc.leaves.protocol.bladeren.LeavesProtocol.LeavesFeatureSet;
-+import top.leavesmc.leaves.protocol.bladeren.LeavesProtocol.LeavesFeature;
++import top.leavesmc.leaves.protocol.bladeren.BladerenProtocol.LeavesFeatureSet;
++import top.leavesmc.leaves.protocol.bladeren.BladerenProtocol.LeavesFeature;
  
  import java.io.File;
  import java.lang.reflect.InvocationTargetException;
@@ -25,7 +25,7 @@ index 296aa94bb0bf21d1c6c1bed7aa791bc611cd8b2a..481c9b2755a923a31e1af10a374d4973
  
  	    commands = new HashMap<>();
          commands.put("leaves", new LeavesCommand("leaves"));
-@@ -858,6 +861,10 @@ public final class LeavesConfig {
+@@ -851,6 +854,10 @@ public final class LeavesConfig {
      }
  
      public static void registerLeavesFeatures() {
@@ -36,30 +36,32 @@ index 296aa94bb0bf21d1c6c1bed7aa791bc611cd8b2a..481c9b2755a923a31e1af10a374d4973
      }
  
      public static boolean hopperCounter = false;
-diff --git a/src/main/java/top/leavesmc/leaves/protocol/bladeren/LeavesProtocol.java b/src/main/java/top/leavesmc/leaves/protocol/bladeren/LeavesProtocol.java
+diff --git a/src/main/java/top/leavesmc/leaves/protocol/bladeren/BladerenProtocol.java b/src/main/java/top/leavesmc/leaves/protocol/bladeren/BladerenProtocol.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..97337f795490419611a4515dfcfa038e9e6c3fb6
+index 0000000000000000000000000000000000000000..a91011c7a2c56646053bb9d158ff0c265c658c00
 --- /dev/null
-+++ b/src/main/java/top/leavesmc/leaves/protocol/bladeren/LeavesProtocol.java
-@@ -0,0 +1,118 @@
++++ b/src/main/java/top/leavesmc/leaves/protocol/bladeren/BladerenProtocol.java
+@@ -0,0 +1,145 @@
 +package top.leavesmc.leaves.protocol.bladeren;
 +
-+import io.netty.buffer.Unpooled;
 +import net.minecraft.nbt.CompoundTag;
 +import net.minecraft.network.FriendlyByteBuf;
-+import net.minecraft.network.protocol.game.ServerboundCustomPayloadPacket;
++import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 +import net.minecraft.resources.ResourceLocation;
 +import net.minecraft.server.level.ServerPlayer;
 +import org.jetbrains.annotations.Contract;
 +import org.jetbrains.annotations.NotNull;
 +import top.leavesmc.leaves.LeavesConfig;
-+import top.leavesmc.leaves.util.ProtocolUtils;
++import top.leavesmc.leaves.protocol.core.LeavesProtocol;
++import top.leavesmc.leaves.protocol.core.ProtocolHandler;
++import top.leavesmc.leaves.protocol.core.ProtocolUtils;
 +
 +import java.util.HashMap;
 +import java.util.Map;
 +import java.util.function.BiConsumer;
 +
-+public class LeavesProtocol {
++@LeavesProtocol(namespace = "bladeren")
++public class BladerenProtocol {
 +
 +    public static final String PROTOCOL_ID = "bladeren";
 +    public static final String PROTOCOL_VERSION = "1.0.0";
@@ -68,65 +70,52 @@ index 0000000000000000000000000000000000000000..97337f795490419611a4515dfcfa038e
 +    private static final ResourceLocation FEATURE_MODIFY_ID = id("feature_modify");
 +
 +    private static final Map<String, BiConsumer<ServerPlayer, CompoundTag>> registeredFeatures = new HashMap<>();
-+    private static final Map<ResourceLocation, BiConsumer<ServerPlayer, FriendlyByteBuf>> registeredPackets = new HashMap<>();
 +
 +    @Contract("_ -> new")
 +    public static @NotNull ResourceLocation id(String path) {
 +        return new ResourceLocation(PROTOCOL_ID, path);
 +    }
 +
-+    public static void registerFeature(String name, BiConsumer<ServerPlayer, CompoundTag> consumer) {
-+        registeredFeatures.put(name, consumer);
-+    }
++    @ProtocolHandler.PayloadReceiver(payload = BladerenHelloPayload.class, payloadId = "hello")
++    private static void handleHello(@NotNull ServerPlayer player, @NotNull BladerenHelloPayload payload) {
++        if (LeavesConfig.bladerenLeavesProtocol) {
++            String clientVersion = payload.version;
++            CompoundTag tag = payload.nbt;
 +
-+    public static void registerPacket(ResourceLocation id, BiConsumer<ServerPlayer, FriendlyByteBuf> consumer) {
-+        registeredPackets.put(id, consumer);
-+    }
-+
-+    public static void handlePacket(ServerPlayer player, @NotNull ServerboundCustomPayloadPacket packet) {
-+        if (packet.identifier.equals(HELLO_ID)) {
-+            handleHello(player, packet.data);
-+        } else if (packet.identifier.equals(FEATURE_MODIFY_ID)) {
-+            handleModify(player, packet.data);
-+        } else if (registeredPackets.containsKey(packet.identifier)) {
-+            registeredPackets.get(packet.identifier).accept(player, packet.data);
-+        }
-+    }
-+
-+    private static void handleModify(@NotNull ServerPlayer player, @NotNull FriendlyByteBuf data) {
-+        String name = data.readUtf();
-+        CompoundTag tag = data.readNbt();
-+
-+        if (registeredFeatures.containsKey(name)) {
-+            registeredFeatures.get(name).accept(player, tag);
-+        }
-+    }
-+
-+    private static void handleHello(@NotNull ServerPlayer player, @NotNull FriendlyByteBuf data) {
-+        String clientVersion = data.readUtf(64);
-+        CompoundTag tag = data.readNbt();
-+
-+        if (tag != null) {
-+            CompoundTag featureNbt = tag.getCompound("Features");
-+            for (String name : featureNbt.getAllKeys()) {
-+                if (registeredFeatures.containsKey(name)) {
-+                    registeredFeatures.get(name).accept(player, featureNbt.getCompound(name));
++            if (tag != null) {
++                CompoundTag featureNbt = tag.getCompound("Features");
++                for (String name : featureNbt.getAllKeys()) {
++                    if (registeredFeatures.containsKey(name)) {
++                        registeredFeatures.get(name).accept(player, featureNbt.getCompound(name));
++                    }
 +                }
 +            }
 +        }
 +    }
 +
++    @ProtocolHandler.PayloadReceiver(payload = BladerenFeatureModifyPayload.class, payloadId = "feature_modify")
++    private static void handleModify(@NotNull ServerPlayer player, @NotNull BladerenFeatureModifyPayload payload) {
++        if (LeavesConfig.bladerenLeavesProtocol) {
++            String name = payload.name;
++            CompoundTag tag = payload.nbt;
++
++            if (registeredFeatures.containsKey(name)) {
++                registeredFeatures.get(name).accept(player, tag);
++            }
++        }
++    }
++
++    @ProtocolHandler.PlayerJoin
 +    public static void onPlayerJoin(@NotNull ServerPlayer player) {
 +        if (LeavesConfig.bladerenLeavesProtocol) {
-+            FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
-+            buf.writeUtf(PROTOCOL_VERSION);
-+
 +            CompoundTag tag = new CompoundTag();
 +            LeavesFeatureSet.writeNBT(tag);
-+            buf.writeNbt(tag);
-+
-+            ProtocolUtils.sendPayloadPacket(player, HELLO_ID, buf);
++            ProtocolUtils.sendPayloadPacket(player, new BladerenHelloPayload(PROTOCOL_VERSION, tag));
 +        }
++    }
++
++    public static void registerFeature(String name, BiConsumer<ServerPlayer, CompoundTag> consumer) {
++        registeredFeatures.put(name, consumer);
 +    }
 +
 +    public static class LeavesFeatureSet {
@@ -157,6 +146,44 @@ index 0000000000000000000000000000000000000000..97337f795490419611a4515dfcfa038e
 +            rule.putString("Feature", name);
 +            rule.putString("Value", value);
 +            rules.put(name, rule);
++        }
++    }
++
++    public record BladerenFeatureModifyPayload(String name, CompoundTag nbt) implements CustomPacketPayload {
++
++        public BladerenFeatureModifyPayload(ResourceLocation location, FriendlyByteBuf buf) {
++            this(buf.readUtf(), buf.readNbt());
++        }
++
++        @Override
++        public void write(@NotNull FriendlyByteBuf buf) {
++            buf.writeUtf(name);
++            buf.writeNbt(nbt);
++        }
++
++        @Override
++        @NotNull
++        public ResourceLocation id() {
++            return FEATURE_MODIFY_ID;
++        }
++    }
++
++    public record BladerenHelloPayload(String version, CompoundTag nbt) implements CustomPacketPayload {
++
++        public BladerenHelloPayload(ResourceLocation location, @NotNull FriendlyByteBuf buf) {
++            this(buf.readUtf(64), buf.readNbt());
++        }
++
++        @Override
++        public void write(@NotNull FriendlyByteBuf buf) {
++            buf.writeUtf(version);
++            buf.writeNbt(nbt);
++        }
++
++        @Override
++        @NotNull
++        public ResourceLocation id() {
++            return HELLO_ID;
 +        }
 +    }
 +}

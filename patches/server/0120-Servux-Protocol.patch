@@ -4,51 +4,11 @@ Date: Wed, 13 Sep 2023 19:31:20 +0800
 Subject: [PATCH] Servux Protocol
 
 
-diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
-index fba016014ffc628887dc873cfa54f8c76a72c7ef..3201913bd2fba0038ab4853931a641e361a883b1 100644
---- a/src/main/java/net/minecraft/server/MinecraftServer.java
-+++ b/src/main/java/net/minecraft/server/MinecraftServer.java
-@@ -1610,6 +1610,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
-         top.leavesmc.leaves.protocol.AppleSkinProtocol.tick(); // Leaves - appleskin
-         top.leavesmc.leaves.util.BreakBedrockList.endTick(); // Leaves - break bedrock list
-         top.leavesmc.leaves.protocol.bladeren.MsptSyncProtocol.tick(this); // Leaves - mspt sync
-+        top.leavesmc.leaves.protocol.ServuxProtocol.tick(); // Leaves - servux
- 
-         for (int i = 0; i < this.tickables.size(); ++i) {
-             ((Runnable) this.tickables.get(i)).run();
-diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index 9b4bdbd98ed4d2a39d5908b0ba29f85ec6d45799..52d400b81ed45fc40983b7a238b5f8f679380471 100644
---- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-+++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-@@ -3605,6 +3605,11 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
-             try {
-                 String channels = packet.data.toString(com.google.common.base.Charsets.UTF_8);
-                 for (String channel : channels.split("\0")) {
-+                    // Leaves start - leaves extra protocol
-+                    if (top.leavesmc.leaves.LeavesConfig.servuxProtocol && channel.equals(top.leavesmc.leaves.protocol.ServuxProtocol.CHANNEL.toString())) {
-+                        top.leavesmc.leaves.protocol.ServuxProtocol.onPlayerSubscribed(player);
-+                    }
-+                    // Leaves end - leaves extra protocol
-                     this.getCraftPlayer().addChannel(channel);
-                 }
-             } catch (Exception ex) {
-diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
-index cf4ea675119d3c1a12435a6f00309ea2023e0a71..34cb5a6bd8ea93b4cdab6c9ce289c8cb68edf5f8 100644
---- a/src/main/java/net/minecraft/server/players/PlayerList.java
-+++ b/src/main/java/net/minecraft/server/players/PlayerList.java
-@@ -769,6 +769,7 @@ public abstract class PlayerList {
-         top.leavesmc.leaves.protocol.BBORProtocol.onPlayerLoggedOut(entityplayer); // Leaves - bbor
-         top.leavesmc.leaves.protocol.AppleSkinProtocol.onPlayerLoggedOut(entityplayer); // Leaves - appleskin
-         top.leavesmc.leaves.protocol.bladeren.MsptSyncProtocol.onPlayerLoggedOut(entityplayer); // Leaves - mspt sync
-+        top.leavesmc.leaves.protocol.ServuxProtocol.onPlayerLoggedOut(entityplayer); // Leaves - servux
-         // Paper end
-         ServerLevel worldserver = entityplayer.serverLevel();
- 
 diff --git a/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java b/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java
-index e34e6fa60cedb925e2cb6f3a031d4157a9633eb5..f08c9be4a3fbab9f95167226b489d5d7bf0bdfac 100644
+index 00989bd8ba9953353a213d57c5ff81f7d2f07773..914fb5deb5dbdab1cd8899810e08205270d78df2 100644
 --- a/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java
 +++ b/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java
-@@ -1030,6 +1030,7 @@ public class LevelChunk extends ChunkAccess {
+@@ -939,6 +939,7 @@ public class LevelChunk extends ChunkAccess {
          // Leaves start - bbor
          if (loaded) {
              top.leavesmc.leaves.protocol.BBORProtocol.onChunkLoaded(this);
@@ -58,10 +18,10 @@ index e34e6fa60cedb925e2cb6f3a031d4157a9633eb5..f08c9be4a3fbab9f95167226b489d5d7
      }
 diff --git a/src/main/java/top/leavesmc/leaves/protocol/ServuxProtocol.java b/src/main/java/top/leavesmc/leaves/protocol/ServuxProtocol.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..3102c81528595d82c5ef9b8ceee15d2d595fc434
+index 0000000000000000000000000000000000000000..fc50a1c8f5114fab81f3fbce1117a48937170d5c
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/protocol/ServuxProtocol.java
-@@ -0,0 +1,159 @@
+@@ -0,0 +1,165 @@
 +package top.leavesmc.leaves.protocol;
 +
 +import io.netty.buffer.Unpooled;
@@ -81,7 +41,9 @@ index 0000000000000000000000000000000000000000..3102c81528595d82c5ef9b8ceee15d2d
 +import org.jetbrains.annotations.Contract;
 +import org.jetbrains.annotations.NotNull;
 +import top.leavesmc.leaves.LeavesConfig;
-+import top.leavesmc.leaves.util.ProtocolUtils;
++import top.leavesmc.leaves.protocol.core.LeavesProtocol;
++import top.leavesmc.leaves.protocol.core.ProtocolHandler;
++import top.leavesmc.leaves.protocol.core.ProtocolUtils;
 +
 +import java.util.ArrayList;
 +import java.util.HashMap;
@@ -91,6 +53,7 @@ index 0000000000000000000000000000000000000000..3102c81528595d82c5ef9b8ceee15d2d
 +import java.util.Set;
 +import java.util.concurrent.ConcurrentHashMap;
 +
++@LeavesProtocol(namespace = "servux")
 +public class ServuxProtocol {
 +
 +    public static final String PROTOCOL_ID = "servux";
@@ -110,6 +73,7 @@ index 0000000000000000000000000000000000000000..3102c81528595d82c5ef9b8ceee15d2d
 +        return new ResourceLocation(PROTOCOL_ID, path);
 +    }
 +
++    @ProtocolHandler.MinecraftRegister(channelId = "structures")
 +    public static void onPlayerSubscribed(@NotNull ServerPlayer player) {
 +        if (LeavesConfig.servuxProtocol) {
 +            players.put(player.getId(), player);
@@ -122,10 +86,20 @@ index 0000000000000000000000000000000000000000..3102c81528595d82c5ef9b8ceee15d2d
 +        }
 +    }
 +
++    @ProtocolHandler.PlayerLeave
 +    public static void onPlayerLoggedOut(@NotNull ServerPlayer player) {
 +        if (LeavesConfig.servuxProtocol) {
 +            players.remove(player.getId());
 +            playerBoundingBoxesCache.remove(player.getId());
++        }
++    }
++
++    @ProtocolHandler.Ticker
++    public static void tick() {
++        if (LeavesConfig.servuxProtocol) {
++            for (var playerEntry : players.entrySet()) {
++                sendBoundingToPlayer(playerEntry.getKey(), playerEntry.getValue());
++            }
 +        }
 +    }
 +
@@ -193,14 +167,6 @@ index 0000000000000000000000000000000000000000..3102c81528595d82c5ef9b8ceee15d2d
 +        }
 +    }
 +
-+    public static void tick() {
-+        if (LeavesConfig.servuxProtocol) {
-+            for (var playerEntry : players.entrySet()) {
-+                sendBoundingToPlayer(playerEntry.getKey(), playerEntry.getValue());
-+            }
-+        }
-+    }
-+
 +    private static Map<BoundingBox, CompoundTag> getOrCreateCache(ResourceLocation dimensionId) {
 +        return dimensionCache.computeIfAbsent(dimensionId, dt -> new ConcurrentHashMap<>());
 +    }
@@ -213,10 +179,10 @@ index 0000000000000000000000000000000000000000..3102c81528595d82c5ef9b8ceee15d2d
 +        int len = buf.writerIndex();
 +        buf.readerIndex(0);
 +
-+        FriendlyByteBuf buf1 = new FriendlyByteBuf(Unpooled.buffer(len));
-+        buf1.writeVarInt(len);
-+        buf1.writeBytes(buf, len);
-+        ProtocolUtils.sendPayloadPacket(player, CHANNEL, buf1);
++        ProtocolUtils.sendPayloadPacket(player, CHANNEL, buf1 -> {
++            buf1.writeVarInt(len);
++            buf1.writeBytes(buf, len);
++        });
 +
 +        buf.release();
 +    }

@@ -4,6 +4,25 @@ Date: Thu, 3 Feb 2022 12:28:15 +0800
 Subject: [PATCH] Fakeplayer support
 
 
+diff --git a/src/main/java/net/minecraft/network/Connection.java b/src/main/java/net/minecraft/network/Connection.java
+index c0ea20dcee8bb293df96bc6ee019e50ad6b383fd..f265b3b3736de5ff3bc1b52146d11f92033730a5 100644
+--- a/src/main/java/net/minecraft/network/Connection.java
++++ b/src/main/java/net/minecraft/network/Connection.java
+@@ -339,6 +339,14 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+         }
+     }
+ 
++    // Leaves start - fakeplayer
++    public void setListenerForce(PacketListener packetListener) {
++        Validate.notNull(packetListener, "packetListener");
++        this.packetListener = packetListener;
++        this.disconnectListener = null;
++    }
++    // Leaves end - fakeplayer
++
+     public void setListenerForServerboundHandshake(PacketListener packetListener) {
+         if (this.packetListener != null) {
+             throw new IllegalStateException("Listener already set");
 diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
 index 68a242f6aaa4aeebff5c2c566ac2aab538eccc87..8e9f72fe364bc4ad51d7a235531af09df5cdcfa9 100644
 --- a/src/main/java/net/minecraft/server/MinecraftServer.java
@@ -147,6 +166,25 @@ index d4aec99cac3f83d764e21946cc904c00e084704e..ae6fe20cac39766bd1cde1adfd93072c
                  // CraftBukkit start
                  PlayerChangedWorldEvent changeEvent = new PlayerChangedWorldEvent(this.getBukkitEntity(), worldserver1.getWorld());
                  this.level().getCraftServer().getPluginManager().callEvent(changeEvent);
+diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index 6c704b32091b2d7db742e1a68404ba6db1f9154f..72cfca4a310f7714c7e22be312175e7435051397 100644
+--- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -298,7 +298,13 @@ public class ServerGamePacketListenerImpl extends ServerCommonPacketListenerImpl
+         this.lastSeenMessages = new LastSeenMessagesValidator(20);
+         this.messageSignatureCache = MessageSignatureCache.createDefault();
+         this.chunkSender = new PlayerChunkSender(connection.isMemoryConnection());
+-        connection.setListener(this);
++        // Leaves start - fakeplayer
++        if (player instanceof top.leavesmc.leaves.bot.ServerBot) {
++            connection.setListenerForce(this);
++        } else {
++            connection.setListener(this);
++        }
++        // Leaves end - fakeplayer
+         this.player = player;
+         player.connection = this;
+         player.getTextFilter().join();
 diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
 index b58dea1fd418fa3199b403df079f87990ffdd6a8..cc610748dd0ae033c8e48d30f1077c1f9697dac3 100644
 --- a/src/main/java/net/minecraft/server/players/PlayerList.java
@@ -384,6 +422,19 @@ index e932cfac619c30b8c7444a9fa41e0403a6eadf6a..8818daa3e89fd5a5b0a0ea4069ccbf0f
                  else { return new CraftHumanEntity(server, (net.minecraft.world.entity.player.Player) entity); }
              }
              // Water Animals
+diff --git a/src/main/java/org/bukkit/craftbukkit/scheduler/CraftScheduler.java b/src/main/java/org/bukkit/craftbukkit/scheduler/CraftScheduler.java
+index c993fde1c026a270f370c437edba9e679aefb44f..342fd19005b8cfd8e9ca0d5bbbf2b07048703c86 100644
+--- a/src/main/java/org/bukkit/craftbukkit/scheduler/CraftScheduler.java
++++ b/src/main/java/org/bukkit/craftbukkit/scheduler/CraftScheduler.java
+@@ -44,7 +44,7 @@ import org.bukkit.scheduler.BukkitWorker;
+  */
+ public class CraftScheduler implements BukkitScheduler {
+ 
+-    static Plugin MINECRAFT = new MinecraftInternalPlugin();
++    public static Plugin MINECRAFT = new MinecraftInternalPlugin(); // Leaves - package -> public
+     /**
+      * The start ID for the counter.
+      */
 diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
 index ce9855b560ee6602983b2d05c9f80902674f248f..7963e2233d3ff3a511927109b5a35f511dcca2a6 100644
 --- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
@@ -1158,7 +1209,7 @@ index 0000000000000000000000000000000000000000..daaece30b2a3983f1cc9ee9a851e8f37
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/ServerBot.java b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..ad84c8195ae21d1faf85a7bf7e97b8a6f6b02151
+index 0000000000000000000000000000000000000000..00de26efb99e8dbe163625d29e65a126073f0116
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
 @@ -0,0 +1,710 @@
@@ -1213,6 +1264,7 @@ index 0000000000000000000000000000000000000000..ad84c8195ae21d1faf85a7bf7e97b8a6
 +import org.bukkit.Material;
 +import org.bukkit.craftbukkit.CraftWorld;
 +import org.bukkit.craftbukkit.entity.CraftPlayer;
++import org.bukkit.craftbukkit.scheduler.CraftScheduler;
 +import org.bukkit.craftbukkit.scheduler.MinecraftInternalPlugin;
 +import org.bukkit.event.entity.CreatureSpawnEvent;
 +import org.bukkit.plugin.Plugin;
@@ -1264,7 +1316,6 @@ index 0000000000000000000000000000000000000000..ad84c8195ae21d1faf85a7bf7e97b8a6
 +    private final BotInventoryContainer container;
 +
 +    private static final List<ServerBot> bots = new CopyOnWriteArrayList<>();
-+    private static final Plugin MINECRAFT_PLUGIN = new MinecraftInternalPlugin();
 +
 +    private ServerBot(MinecraftServer server, ServerLevel world, GameProfile profile) {
 +        super(server, world, profile, ClientInformation.createDefault());
@@ -1305,7 +1356,7 @@ index 0000000000000000000000000000000000000000..ad84c8195ae21d1faf85a7bf7e97b8a6
 +
 +        ServerBot bot = new ServerBot(server, world, profile);
 +
-+        bot.connection = new ServerGamePacketListenerImpl(server, new Connection(PacketFlow.CLIENTBOUND) {
++        bot.connection = new ServerGamePacketListenerImpl(server, new Connection(PacketFlow.SERVERBOUND) {
 +            @Override
 +            public void send(@NotNull Packet<?> packet, @Nullable PacketSendListener packetsendlistener) {
 +            }
@@ -1374,7 +1425,7 @@ index 0000000000000000000000000000000000000000..ad84c8195ae21d1faf85a7bf7e97b8a6
 +    public void sendFakeData(ServerPlayerConnection playerConnection, boolean login) {
 +            playerConnection.send(new ClientboundAddEntityPacket(this));
 +        if (login) {
-+            Bukkit.getScheduler().runTaskLater(MINECRAFT_PLUGIN, () -> {
++            Bukkit.getScheduler().runTaskLater(CraftScheduler.MINECRAFT, () -> {
 +                connection.send(new ClientboundRotateHeadPacket(this, (byte) ((getYRot() * 256f) / 360f)));
 +            }, 10);
 +        } else {
@@ -1840,12 +1891,12 @@ index 0000000000000000000000000000000000000000..ad84c8195ae21d1faf85a7bf7e97b8a6
 +        }
 +
 +        public void createAsync(Consumer<ServerBot> consumer) {
-+            Bukkit.getScheduler().runTaskAsynchronously(MINECRAFT_PLUGIN, () -> {
++            Bukkit.getScheduler().runTaskAsynchronously(CraftScheduler.MINECRAFT, () -> {
 +                if (skinName != null) {
 +                    this.skin = MojangAPI.getSkin(skinName);
 +                }
 +
-+                Bukkit.getScheduler().runTask(MINECRAFT_PLUGIN, () -> {
++                Bukkit.getScheduler().runTask(CraftScheduler.MINECRAFT, () -> {
 +                    ServerBot bot = createBot(this);
 +                    if (bot != null && consumer != null) {
 +                        consumer.accept(bot);

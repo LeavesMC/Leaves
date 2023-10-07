@@ -2,7 +2,7 @@ plugins {
     java
     `maven-publish`
     id("com.github.johnrengelman.shadow") version "8.1.1" apply false
-    id("io.papermc.paperweight.patcher") version "1.5.7-SNAPSHOT"
+    id("io.papermc.paperweight.patcher") version "1.5.7"
 }
 
 repositories {
@@ -66,8 +66,4 @@ paperweight {
             serverOutputDir.set(layout.projectDirectory.dir("leaves-server"))
         }
     }
-}
-
-tasks.withType<io.papermc.paperweight.tasks.RebuildGitPatches> {
-    filterPatches.set(false)
 }

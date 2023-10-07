@@ -6,24 +6,19 @@ Subject: [PATCH] Syncmatica Protocol
 This patch is Powered by Syncmatica(https://github.com/End-Tech/syncmatica)
 
 diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index 7b0e956b11817c08b42ee3a7db87d42a090f5b15..6775fbfe4051ae639f753d618fc6d5a17db2326b 100644
+index 72cfca4a310f7714c7e22be312175e7435051397..67431477762c1744a4604d5d1f59f1172be0244e 100644
 --- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-@@ -324,6 +324,12 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
+@@ -310,6 +310,7 @@ public class ServerGamePacketListenerImpl extends ServerCommonPacketListenerImpl
+         player.getTextFilter().join();
+         this.signedMessageDecoder = server.enforceSecureProfile() ? SignedMessageChain.Decoder.REJECT_ALL : SignedMessageChain.Decoder.unsigned(player.getUUID());
          this.chatMessageChain = new FutureChain(server.chatExecutor); // CraftBukkit - async chat
-         // CraftBukkit start - add fields and methods
-         this.cserver = server.server;
-+        // Leaves start - Syncmatica Protocol
-+        this.exchangeTarget = new top.leavesmc.leaves.protocol.syncmatica.exchange.ExchangeTarget(this);
-+        if (top.leavesmc.leaves.LeavesConfig.syncmaticaProtocol) {
-+            top.leavesmc.leaves.protocol.syncmatica.SyncmaticaProtocol.getCommunicationManager().onPlayerJoin(exchangeTarget, player);
-+        }
-+        // Leaves end - Syncmatica Protocol
++        this.exchangeTarget = new top.leavesmc.leaves.protocol.syncmatica.exchange.ExchangeTarget(this); // Leaves - Syncmatica Protocol
      }
  
-     private final org.bukkit.craftbukkit.CraftServer cserver;
-@@ -348,6 +354,8 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
-     }
+     // CraftBukkit start - add fields
+@@ -329,6 +330,8 @@ public class ServerGamePacketListenerImpl extends ServerCommonPacketListenerImpl
+     private boolean hasMoved; // Spigot
      // CraftBukkit end
  
 +    public final top.leavesmc.leaves.protocol.syncmatica.exchange.ExchangeTarget exchangeTarget; // Leaves - Syncmatica Protocol
@@ -31,30 +26,8 @@ index 7b0e956b11817c08b42ee3a7db87d42a090f5b15..6775fbfe4051ae639f753d618fc6d5a1
      @Override
      public void tick() {
          if (this.ackBlockChangesUpTo > -1) {
-@@ -2166,6 +2174,11 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
-             this.processedDisconnect = true;
-         }
-         // CraftBukkit end
-+        // Leaves start - Syncmatica Protocol
-+        if (top.leavesmc.leaves.LeavesConfig.syncmaticaProtocol) {
-+            top.leavesmc.leaves.protocol.syncmatica.SyncmaticaProtocol.getCommunicationManager().onPlayerLeave(exchangeTarget);
-+        }
-+        // Leaves end - Syncmatica Protocol
-         this.chatMessageChain.close();
-         ServerGamePacketListenerImpl.LOGGER.info("{} lost connection: {}", this.player.getName().getString(), reason.getString());
-         // CraftBukkit start - Replace vanilla quit message handling with our own.
-@@ -3626,6 +3639,9 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
-                 if (top.leavesmc.leaves.LeavesConfig.jadeProtocol && ProtocolUtils.isNamespacePacket(packet, top.leavesmc.leaves.protocol.JadeProtocol.PROTOCOL_ID)) {
-                     top.leavesmc.leaves.protocol.JadeProtocol.handlePacket(server, player, packet);
-                 }
-+                if (top.leavesmc.leaves.LeavesConfig.syncmaticaProtocol && ProtocolUtils.isNamespacePacket(packet, top.leavesmc.leaves.protocol.syncmatica.SyncmaticaProtocol.PROTOCOL_ID)) {
-+                    top.leavesmc.leaves.protocol.syncmatica.SyncmaticaProtocol.getCommunicationManager().onPacketGet(packet, this);
-+                }
-             } catch (Exception ex) {
-                 ServerGamePacketListenerImpl.LOGGER.error("Couldn\'t dispatch custom payload", ex);
-                 this.disconnect("Invalid custom payload!", org.bukkit.event.player.PlayerKickEvent.Cause.INVALID_PAYLOAD);
 diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
-index f0e28ad726fd9de56df7fcf78f18309e744a626f..a60c13ddbc4e9147324e8442ff48974f6dd35dbf 100644
+index db6b7ff06bf646aa50afadc354b381821cb5b1a9..7a1fae214f7ed5c664459665f43011c84e6b6259 100644
 --- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
 +++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
 @@ -12,6 +12,7 @@ import top.leavesmc.leaves.command.LeavesCommand;
@@ -75,10 +48,10 @@ index f0e28ad726fd9de56df7fcf78f18309e744a626f..a60c13ddbc4e9147324e8442ff48974f
  
 diff --git a/src/main/java/top/leavesmc/leaves/protocol/syncmatica/CommunicationManager.java b/src/main/java/top/leavesmc/leaves/protocol/syncmatica/CommunicationManager.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..5320948762a791bcdda915f842ce139516b09657
+index 0000000000000000000000000000000000000000..747da005acc37d8c1f8adec0d707afab1b5fc352
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/protocol/syncmatica/CommunicationManager.java
-@@ -0,0 +1,382 @@
+@@ -0,0 +1,391 @@
 +package top.leavesmc.leaves.protocol.syncmatica;
 +
 +import com.mojang.authlib.GameProfile;
@@ -86,13 +59,16 @@ index 0000000000000000000000000000000000000000..5320948762a791bcdda915f842ce1395
 +import net.minecraft.core.BlockPos;
 +import net.minecraft.network.FriendlyByteBuf;
 +import net.minecraft.network.chat.Component;
-+import net.minecraft.network.protocol.game.ServerboundCustomPayloadPacket;
++import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
 +import net.minecraft.resources.ResourceLocation;
 +import net.minecraft.server.level.ServerPlayer;
 +import net.minecraft.server.network.ServerGamePacketListenerImpl;
 +import net.minecraft.world.level.block.Mirror;
 +import net.minecraft.world.level.block.Rotation;
 +import org.jetbrains.annotations.NotNull;
++import top.leavesmc.leaves.protocol.core.LeavesProtocol;
++import top.leavesmc.leaves.protocol.core.LeavesProtocolManager;
++import top.leavesmc.leaves.protocol.core.ProtocolHandler;
 +import top.leavesmc.leaves.protocol.syncmatica.exchange.DownloadExchange;
 +import top.leavesmc.leaves.protocol.syncmatica.exchange.Exchange;
 +import top.leavesmc.leaves.protocol.syncmatica.exchange.ExchangeTarget;
@@ -111,6 +87,7 @@ index 0000000000000000000000000000000000000000..5320948762a791bcdda915f842ce1395
 +import java.util.Map;
 +import java.util.UUID;
 +
++@LeavesProtocol(namespace = "syncmatica")
 +public class CommunicationManager {
 +
 +    private final Map<UUID, List<ServerPlacement>> downloadingFile = new HashMap<>();
@@ -143,7 +120,9 @@ index 0000000000000000000000000000000000000000..5320948762a791bcdda915f842ce1395
 +        }
 +    }
 +
-+    public void onPlayerJoin(final ExchangeTarget newPlayer, final ServerPlayer player) {
++    @ProtocolHandler.PlayerJoin
++    public void onPlayerJoin(ServerPlayer player) {
++        final ExchangeTarget newPlayer = player.connection.exchangeTarget;
 +        final VersionHandshakeServer hi = new VersionHandshakeServer(newPlayer);
 +        playerMap.put(newPlayer, player);
 +        final GameProfile profile = player.getGameProfile();
@@ -151,7 +130,9 @@ index 0000000000000000000000000000000000000000..5320948762a791bcdda915f842ce1395
 +        startExchangeUnchecked(hi);
 +    }
 +
-+    public void onPlayerLeave(final @NotNull ExchangeTarget oldPlayer) {
++    @ProtocolHandler.PlayerLeave
++    public void onPlayerLeave(ServerPlayer player) {
++        final ExchangeTarget oldPlayer = player.connection.exchangeTarget;
 +        final Collection<Exchange> potentialMessageTarget = oldPlayer.getExchanges();
 +        if (potentialMessageTarget != null) {
 +            for (final Exchange target : potentialMessageTarget) {
@@ -163,8 +144,9 @@ index 0000000000000000000000000000000000000000..5320948762a791bcdda915f842ce1395
 +        playerMap.remove(oldPlayer);
 +    }
 +
-+    public void onPacketGet(final @NotNull ServerboundCustomPayloadPacket packet, final @NotNull ServerGamePacketListenerImpl impl) {
-+        onPacket(impl.exchangeTarget, packet.identifier, packet.data);
++    @ProtocolHandler.PayloadReceiver(payload = LeavesProtocolManager.LeavesPayload.class, ignoreId = true)
++    public void onPacketGet(ServerPlayer player, LeavesProtocolManager.LeavesPayload payload) {
++        onPacket(player.connection.exchangeTarget, payload.id(), payload.data());
 +    }
 +
 +    public void onPacket(final @NotNull ExchangeTarget source, final ResourceLocation id, final FriendlyByteBuf packetBuf) {
@@ -1694,16 +1676,16 @@ index 0000000000000000000000000000000000000000..26482e63b7c24c80bdc111cea51b8d7b
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/protocol/syncmatica/exchange/ExchangeTarget.java b/src/main/java/top/leavesmc/leaves/protocol/syncmatica/exchange/ExchangeTarget.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..eae6aab5cb02ea167ebfbfcb5e3f20f933ee6d39
+index 0000000000000000000000000000000000000000..706680a3d7fae22f94cb86b8da2e306cfcf4cb1b
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/protocol/syncmatica/exchange/ExchangeTarget.java
-@@ -0,0 +1,38 @@
+@@ -0,0 +1,40 @@
 +package top.leavesmc.leaves.protocol.syncmatica.exchange;
 +
 +import net.minecraft.network.FriendlyByteBuf;
-+import net.minecraft.network.protocol.game.ClientboundCustomPayloadPacket;
 +import net.minecraft.resources.ResourceLocation;
 +import net.minecraft.server.network.ServerGamePacketListenerImpl;
++import top.leavesmc.leaves.protocol.core.ProtocolUtils;
 +import top.leavesmc.leaves.protocol.syncmatica.FeatureSet;
 +
 +import java.util.ArrayList;
@@ -1721,7 +1703,9 @@ index 0000000000000000000000000000000000000000..eae6aab5cb02ea167ebfbfcb5e3f20f9
 +    }
 +
 +    public void sendPacket(final ResourceLocation id, final FriendlyByteBuf packetBuf) {
-+        client.send(new ClientboundCustomPayloadPacket(id, packetBuf));
++        ProtocolUtils.sendPayloadPacket(client.player, id, buf -> {
++            buf.writeBytes(packetBuf);
++        });
 +    }
 +
 +    public FeatureSet getFeatureSet() {

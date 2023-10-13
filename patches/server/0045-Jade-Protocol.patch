@@ -20,10 +20,10 @@ index 4aeab90e778629c355189dfe79c39c4b21f5f5ac..fe8c9b7e7956837829b4fe3eb449b2c0
  
 diff --git a/src/main/java/top/leavesmc/leaves/protocol/JadeProtocol.java b/src/main/java/top/leavesmc/leaves/protocol/JadeProtocol.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..713a3c2b29de57ad47ffe1f0c591ba9164b8c5ff
+index 0000000000000000000000000000000000000000..b0af99ba7bc27c27890b78cb6c370fa0c86e16f8
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/protocol/JadeProtocol.java
-@@ -0,0 +1,617 @@
+@@ -0,0 +1,622 @@
 +package top.leavesmc.leaves.protocol;
 +
 +import com.google.common.cache.Cache;
@@ -326,14 +326,14 @@ index 0000000000000000000000000000000000000000..713a3c2b29de57ad47ffe1f0c591ba91
 +        }
 +
 +        MinecraftServer server = MinecraftServer.getServer();
-+        Level world = player.level();
-+        boolean showDetails = payload.showDetails;
-+        Entity entity = world.getEntity(payload.entityId);
-+        if (entity == null || player.distanceToSqr(entity) > MAX_DISTANCE_SQR) {
-+            return;
-+        }
-+
 +        server.execute(() -> {
++            Level world = player.level();
++            boolean showDetails = payload.showDetails;
++            Entity entity = world.getEntity(payload.entityId);
++            if (entity == null || player.distanceToSqr(entity) > MAX_DISTANCE_SQR) {
++                return;
++            }
++
 +            var providers = entityDataProviders.get(entity);
 +            if (providers.isEmpty()) {
 +                return;
@@ -412,18 +412,21 @@ index 0000000000000000000000000000000000000000..713a3c2b29de57ad47ffe1f0c591ba91
 +        void saveData(CompoundTag data, ServerPlayer player, Level world, T object, boolean showDetails);
 +    }
 +
-+    public record RequestEntityPayload(boolean showDetails, int entityId) implements CustomPacketPayload {
++    public record RequestEntityPayload(boolean showDetails, int entityId, float hitX, float hitY, float hitZ) implements CustomPacketPayload {
 +
 +        private static final ResourceLocation PACKET_REQUEST_ENTITY = JadeProtocol.id("request_entity");
 +
 +        public RequestEntityPayload(ResourceLocation id, FriendlyByteBuf buf) {
-+            this(buf.readBoolean(), buf.readInt());
++            this(buf.readBoolean(), buf.readVarInt(), buf.readFloat(), buf.readFloat(), buf.readFloat());
 +        }
 +
 +        @Override
 +        public void write(FriendlyByteBuf buf) {
 +            buf.writeBoolean(showDetails);
 +            buf.writeInt(entityId);
++            buf.writeFloat(hitX);
++            buf.writeFloat(hitY);
++            buf.writeFloat(hitZ);
 +        }
 +
 +        @Override
@@ -433,18 +436,20 @@ index 0000000000000000000000000000000000000000..713a3c2b29de57ad47ffe1f0c591ba91
 +        }
 +    }
 +
-+    public record RequestTilePayload(boolean showDetails, BlockHitResult hitResult) implements CustomPacketPayload {
++    public record RequestTilePayload(boolean showDetails, BlockHitResult hitResult, int blockState, ItemStack fakeBlock) implements CustomPacketPayload {
 +
 +        private static final ResourceLocation PACKET_REQUEST_TILE = JadeProtocol.id("request_tile");
 +
 +        public RequestTilePayload(ResourceLocation id, FriendlyByteBuf buf) {
-+            this(buf.readBoolean(), buf.readBlockHitResult());
++            this(buf.readBoolean(), buf.readBlockHitResult(), buf.readVarInt(), buf.readItem());
 +        }
 +
 +        @Override
 +        public void write(FriendlyByteBuf buf) {
 +            buf.writeBoolean(showDetails);
 +            buf.writeBlockHitResult(hitResult);
++            buf.writeVarInt(blockState);
++            buf.writeItem(fakeBlock);
 +        }
 +
 +        @Override

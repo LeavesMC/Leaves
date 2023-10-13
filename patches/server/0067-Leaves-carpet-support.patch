@@ -28,10 +28,10 @@ index 7a1fae214f7ed5c664459665f43011c84e6b6259..79e3e4ae09d29134219485800d8d9efc
      public static boolean creativeNoClip = false;
 diff --git a/src/main/java/top/leavesmc/leaves/protocol/CarpetServerProtocol.java b/src/main/java/top/leavesmc/leaves/protocol/CarpetServerProtocol.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..ee51971365431be1f564e9e204e4beee85799fc2
+index 0000000000000000000000000000000000000000..207bbbdf462d12f39273eee1b1552477be35346f
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/protocol/CarpetServerProtocol.java
-@@ -0,0 +1,109 @@
+@@ -0,0 +1,106 @@
 +package top.leavesmc.leaves.protocol;
 +
 +import net.minecraft.nbt.CompoundTag;
@@ -58,9 +58,8 @@ index 0000000000000000000000000000000000000000..ee51971365431be1f564e9e204e4beee
 +
 +    private static final ResourceLocation HELLO_ID = CarpetServerProtocol.id("hello");
 +
-+    private static final int HI = 69;
-+    private static final int HELLO = 420;
-+    private static final int DATA = 1;
++    private static final String HI = "69";
++    private static final String HELLO = "420";
 +
 +    @Contract("_ -> new")
 +    public static @NotNull ResourceLocation id(String path) {
@@ -70,16 +69,20 @@ index 0000000000000000000000000000000000000000..ee51971365431be1f564e9e204e4beee
 +    @ProtocolHandler.PlayerJoin
 +    public static void onPlayerJoin(ServerPlayer player) {
 +        if (LeavesConfig.leavesCarpetSupport) {
-+            ProtocolUtils.sendPayloadPacket(player, new CarpetHelloPayload(HI, VERSION, new CompoundTag()));
++            CompoundTag data = new CompoundTag();
++            data.putString(HI, VERSION);
++            ProtocolUtils.sendPayloadPacket(player, new CarpetPayload(data));
 +        }
 +    }
 +
-+    @ProtocolHandler.PayloadReceiver(payload = CarpetHelloPayload.class, payloadId = "hello")
-+    private static void handleHello(@NotNull ServerPlayer player, @NotNull CarpetHelloPayload payload) {
++    @ProtocolHandler.PayloadReceiver(payload = CarpetPayload.class, payloadId = "hello")
++    private static void handleHello(@NotNull ServerPlayer player, @NotNull CarpetServerProtocol.CarpetPayload payload) {
 +        if (LeavesConfig.leavesCarpetSupport) {
-+            if (payload.helloId == HELLO) {
-+                LeavesLogger.LOGGER.info("Player " + player.getScoreboardName() + " joined with carpet " + payload.version);
-+                ProtocolUtils.sendPayloadPacket(player, HELLO_ID, CarpetRules::write);
++            if (payload.nbt.contains(HELLO)) {
++                LeavesLogger.LOGGER.info("Player " + player.getScoreboardName() + " joined with carpet " + payload.nbt.getString(HELLO));
++                CompoundTag data = new CompoundTag();
++                CarpetRules.write(data);
++                ProtocolUtils.sendPayloadPacket(player, new CarpetPayload(data));
 +            }
 +        }
 +    }
@@ -88,15 +91,11 @@ index 0000000000000000000000000000000000000000..ee51971365431be1f564e9e204e4beee
 +
 +        private static final Map<String, CarpetRule> rules = new HashMap<>();
 +
-+        public static void write(@NotNull FriendlyByteBuf buf) {
-+            buf.writeVarInt(DATA);
-+
++        public static void write(@NotNull CompoundTag tag) {
 +            CompoundTag rulesNbt = new CompoundTag();
 +            rules.values().forEach(rule -> rule.writeNBT(rulesNbt));
 +
-+            CompoundTag tag = new CompoundTag();
 +            tag.put("Rules", rulesNbt);
-+            buf.writeNbt(tag);
 +        }
 +
 +        public static void register(CarpetRule rule) {
@@ -121,16 +120,14 @@ index 0000000000000000000000000000000000000000..ee51971365431be1f564e9e204e4beee
 +        }
 +    }
 +
-+    public record CarpetHelloPayload(int helloId, String version, CompoundTag nbt) implements CustomPacketPayload {
++    public record CarpetPayload(CompoundTag nbt) implements CustomPacketPayload {
 +
-+        public CarpetHelloPayload(ResourceLocation location, FriendlyByteBuf buf) {
-+            this(buf.readVarInt(), buf.readUtf(64), buf.readNbt());
++        public CarpetPayload(ResourceLocation location, FriendlyByteBuf buf) {
++            this(buf.readNbt());
 +        }
 +
 +        @Override
 +        public void write(FriendlyByteBuf buf) {
-+            buf.writeVarInt(helloId);
-+            buf.writeUtf(version);
 +            buf.writeNbt(nbt);
 +        }
 +

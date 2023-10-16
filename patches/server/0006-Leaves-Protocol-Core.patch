@@ -120,10 +120,10 @@ index 0000000000000000000000000000000000000000..64a1d25973b032e8cab64bbffa6824a1
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/protocol/core/LeavesProtocolManager.java b/src/main/java/top/leavesmc/leaves/protocol/core/LeavesProtocolManager.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..3c738e1cfc3f9aef1e9684aa3a076cf677df1120
+index 0000000000000000000000000000000000000000..c233f9cc008481c7a3449d58eb5f5b0f4d093990
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/protocol/core/LeavesProtocolManager.java
-@@ -0,0 +1,292 @@
+@@ -0,0 +1,302 @@
 +package top.leavesmc.leaves.protocol.core;
 +
 +import net.minecraft.network.FriendlyByteBuf;
@@ -160,7 +160,7 @@ index 0000000000000000000000000000000000000000..3c738e1cfc3f9aef1e9684aa3a076cf6
 +    private static final List<Method> PLAYER_JOIN = new ArrayList<>();
 +    private static final List<Method> PLAYER_LEAVE = new ArrayList<>();
 +    private static final List<Method> RELOAD_SERVER = new ArrayList<>();
-+    private static final Map<ProtocolHandler.MinecraftRegister, Method> MINECRAFT_REGISTER = new HashMap<>();
++    private static final Map<LeavesProtocol, Map<ProtocolHandler.MinecraftRegister, Method>> MINECRAFT_REGISTER = new HashMap<>();
 +
 +    public static void init() {
 +        for (Class<?> clazz : getClasses("top.leavesmc.leaves.protocol")) {
@@ -239,7 +239,11 @@ index 0000000000000000000000000000000000000000..3c738e1cfc3f9aef1e9684aa3a076cf6
 +
 +                    final ProtocolHandler.MinecraftRegister minecraftRegister = method.getAnnotation(ProtocolHandler.MinecraftRegister.class);
 +                    if (minecraftRegister != null) {
-+                        MINECRAFT_REGISTER.put(minecraftRegister, method);
++                        if (!MINECRAFT_REGISTER.containsKey(protocol)) {
++                            MINECRAFT_REGISTER.put(protocol, new HashMap<>());
++                        }
++
++                        MINECRAFT_REGISTER.get(protocol).put(minecraftRegister, method);
 +                    }
 +                }
 +                KNOWN_TYPES.put(protocol, map);
@@ -337,13 +341,19 @@ index 0000000000000000000000000000000000000000..3c738e1cfc3f9aef1e9684aa3a076cf6
 +        }
 +    }
 +
-+    public static void handleMinecraftRegister(String channel, ServerPlayer player) {
-+        if (!MINECRAFT_REGISTER.isEmpty()) {
-+            for (ProtocolHandler.MinecraftRegister register : MINECRAFT_REGISTER.keySet()) {
-+                if (register.ignoreId() || register.channelId().equals(channel) ||
-+                    ArrayUtils.contains(register.channelIds(), channel)) {
++    public static void handleMinecraftRegister(String channelId, ServerPlayer player) {
++        for (LeavesProtocol protocol : MINECRAFT_REGISTER.keySet()) {
++            String[] channel = channelId.split(":");
++            if (!protocol.namespace().equals(channel[0]) && !ArrayUtils.contains(protocol.namespaces(), channel[0])) {
++                continue;
++            }
++
++            Map<ProtocolHandler.MinecraftRegister, Method> map = MINECRAFT_REGISTER.get(protocol);
++            for (ProtocolHandler.MinecraftRegister register : map.keySet()) {
++                if (register.ignoreId() || register.channelId().equals(channel[1]) ||
++                    ArrayUtils.contains(register.channelIds(), channel[1])) {
 +                    try {
-+                        MINECRAFT_REGISTER.get(register).invoke(null, player);
++                        map.get(register).invoke(null, player);
 +                    } catch (InvocationTargetException | IllegalAccessException e) {
 +                        e.printStackTrace();
 +                    }

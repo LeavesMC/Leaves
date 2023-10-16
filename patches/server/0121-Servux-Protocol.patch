@@ -18,10 +18,10 @@ index 00989bd8ba9953353a213d57c5ff81f7d2f07773..914fb5deb5dbdab1cd8899810e082052
      }
 diff --git a/src/main/java/top/leavesmc/leaves/protocol/ServuxProtocol.java b/src/main/java/top/leavesmc/leaves/protocol/ServuxProtocol.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..fc50a1c8f5114fab81f3fbce1117a48937170d5c
+index 0000000000000000000000000000000000000000..f6fa9368f66de0f23d5387b38c0cff35658d3d59
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/protocol/ServuxProtocol.java
-@@ -0,0 +1,165 @@
+@@ -0,0 +1,175 @@
 +package top.leavesmc.leaves.protocol;
 +
 +import io.netty.buffer.Unpooled;
@@ -171,19 +171,29 @@ index 0000000000000000000000000000000000000000..fc50a1c8f5114fab81f3fbce1117a489
 +        return dimensionCache.computeIfAbsent(dimensionId, dt -> new ConcurrentHashMap<>());
 +    }
 +
++    private static final int MAX_TOTAL_PER_PACKET_S2C = 1048576;
++    private static final int MAX_PAYLOAD_PER_PACKET_S2C = MAX_TOTAL_PER_PACKET_S2C - 5;
++
 +    public static void sendNBTPacket(ServerPlayer player, int packetType, CompoundTag data) {
-+        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
-+        buf.writeVarInt(packetType);
-+        buf.writeNbt(data);
++        FriendlyByteBuf packet = new FriendlyByteBuf(Unpooled.buffer());
++        packet.writeVarInt(packetType);
++        packet.writeNbt(data);
 +
-+        int len = buf.writerIndex();
-+        buf.readerIndex(0);
++        int len = packet.writerIndex();
++        packet.readerIndex(0);
 +
-+        ProtocolUtils.sendPayloadPacket(player, CHANNEL, buf1 -> {
-+            buf1.writeVarInt(len);
-+            buf1.writeBytes(buf, len);
-+        });
++        for (int offset = 0; offset < len; offset += MAX_PAYLOAD_PER_PACKET_S2C) {
++            int thisLen = Math.min(len - offset, MAX_PAYLOAD_PER_PACKET_S2C);
++            FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer(thisLen));
 +
-+        buf.release();
++            if (offset == 0) {
++                buf.writeVarInt(len);
++            }
++
++            buf.writeBytes(packet, thisLen);
++            ProtocolUtils.sendPayloadPacket(player, CHANNEL, buf1 -> buf1.writeBytes(buf));
++        }
++
++        packet.release();
 +    }
 +}

@@ -6,7 +6,7 @@ Subject: [PATCH] Syncmatica Protocol
 This patch is Powered by Syncmatica(https://github.com/End-Tech/syncmatica)
 
 diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index 72cfca4a310f7714c7e22be312175e7435051397..67431477762c1744a4604d5d1f59f1172be0244e 100644
+index 79a236ec2b7e9bab6c9a6c25b3b9f08152891c34..5fe844179c66204ec3eacc1bbfe6128af205b86f 100644
 --- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 @@ -310,6 +310,7 @@ public class ServerGamePacketListenerImpl extends ServerCommonPacketListenerImpl
@@ -48,7 +48,7 @@ index db6b7ff06bf646aa50afadc354b381821cb5b1a9..7a1fae214f7ed5c664459665f43011c8
  
 diff --git a/src/main/java/top/leavesmc/leaves/protocol/syncmatica/CommunicationManager.java b/src/main/java/top/leavesmc/leaves/protocol/syncmatica/CommunicationManager.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..747da005acc37d8c1f8adec0d707afab1b5fc352
+index 0000000000000000000000000000000000000000..fc229f23076147304754a267bcc345cc836b648b
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/protocol/syncmatica/CommunicationManager.java
 @@ -0,0 +1,391 @@
@@ -90,13 +90,13 @@ index 0000000000000000000000000000000000000000..747da005acc37d8c1f8adec0d707afab
 +@LeavesProtocol(namespace = "syncmatica")
 +public class CommunicationManager {
 +
-+    private final Map<UUID, List<ServerPlacement>> downloadingFile = new HashMap<>();
-+    private final Map<ExchangeTarget, ServerPlayer> playerMap = new HashMap<>();
++    private static final Map<UUID, List<ServerPlacement>> downloadingFile = new HashMap<>();
++    private static final Map<ExchangeTarget, ServerPlayer> playerMap = new HashMap<>();
 +
-+    protected final Collection<ExchangeTarget> broadcastTargets = new ArrayList<>();
++    protected static final Collection<ExchangeTarget> broadcastTargets = new ArrayList<>();
 +
-+    protected final Map<UUID, Boolean> downloadState = new HashMap<>();
-+    protected final Map<UUID, Exchange> modifyState = new HashMap<>();
++    protected static final Map<UUID, Boolean> downloadState = new HashMap<>();
++    protected static final Map<UUID, Exchange> modifyState = new HashMap<>();
 +
 +    protected static final Rotation[] rotOrdinals = Rotation.values();
 +    protected static final Mirror[] mirOrdinals = Mirror.values();
@@ -104,7 +104,7 @@ index 0000000000000000000000000000000000000000..747da005acc37d8c1f8adec0d707afab
 +    public CommunicationManager() {
 +    }
 +
-+    public GameProfile getGameProfile(final ExchangeTarget exchangeTarget) {
++    public static GameProfile getGameProfile(final ExchangeTarget exchangeTarget) {
 +        return playerMap.get(exchangeTarget).getGameProfile();
 +    }
 +
@@ -121,7 +121,7 @@ index 0000000000000000000000000000000000000000..747da005acc37d8c1f8adec0d707afab
 +    }
 +
 +    @ProtocolHandler.PlayerJoin
-+    public void onPlayerJoin(ServerPlayer player) {
++    public static void onPlayerJoin(ServerPlayer player) {
 +        final ExchangeTarget newPlayer = player.connection.exchangeTarget;
 +        final VersionHandshakeServer hi = new VersionHandshakeServer(newPlayer);
 +        playerMap.put(newPlayer, player);
@@ -131,7 +131,7 @@ index 0000000000000000000000000000000000000000..747da005acc37d8c1f8adec0d707afab
 +    }
 +
 +    @ProtocolHandler.PlayerLeave
-+    public void onPlayerLeave(ServerPlayer player) {
++    public static void onPlayerLeave(ServerPlayer player) {
 +        final ExchangeTarget oldPlayer = player.connection.exchangeTarget;
 +        final Collection<Exchange> potentialMessageTarget = oldPlayer.getExchanges();
 +        if (potentialMessageTarget != null) {
@@ -145,11 +145,11 @@ index 0000000000000000000000000000000000000000..747da005acc37d8c1f8adec0d707afab
 +    }
 +
 +    @ProtocolHandler.PayloadReceiver(payload = LeavesProtocolManager.LeavesPayload.class, ignoreId = true)
-+    public void onPacketGet(ServerPlayer player, LeavesProtocolManager.LeavesPayload payload) {
++    public static void onPacketGet(ServerPlayer player, LeavesProtocolManager.LeavesPayload payload) {
 +        onPacket(player.connection.exchangeTarget, payload.id(), payload.data());
 +    }
 +
-+    public void onPacket(final @NotNull ExchangeTarget source, final ResourceLocation id, final FriendlyByteBuf packetBuf) {
++    public static void onPacket(final @NotNull ExchangeTarget source, final ResourceLocation id, final FriendlyByteBuf packetBuf) {
 +        Exchange handler = null;
 +        final Collection<Exchange> potentialMessageTarget = source.getExchanges();
 +        if (potentialMessageTarget != null) {
@@ -168,7 +168,7 @@ index 0000000000000000000000000000000000000000..747da005acc37d8c1f8adec0d707afab
 +        }
 +    }
 +
-+    protected void handle(ExchangeTarget source, @NotNull ResourceLocation id, FriendlyByteBuf packetBuf) {
++    protected static void handle(ExchangeTarget source, @NotNull ResourceLocation id, FriendlyByteBuf packetBuf) {
 +        if (id.equals(PacketType.REQUEST_LITEMATIC.identifier)) {
 +            final UUID syncmaticaId = packetBuf.readUUID();
 +            final ServerPlacement placement = SyncmaticaProtocol.getSyncmaticManager().getPlacement(syncmaticaId);
@@ -220,7 +220,7 @@ index 0000000000000000000000000000000000000000..747da005acc37d8c1f8adec0d707afab
 +            final UUID placementId = packetBuf.readUUID();
 +            final ServerPlacement placement = SyncmaticaProtocol.getSyncmaticManager().getPlacement(placementId);
 +            if (placement != null) {
-+                if (!this.getGameProfile(source).getId().equals(placement.getOwner().uuid)) {
++                if (!getGameProfile(source).getId().equals(placement.getOwner().uuid)) {
 +                    return;
 +                }
 +
@@ -244,7 +244,7 @@ index 0000000000000000000000000000000000000000..747da005acc37d8c1f8adec0d707afab
 +        }
 +    }
 +
-+    protected void handleExchange(Exchange exchange) {
++    protected static void handleExchange(Exchange exchange) {
 +        if (exchange instanceof DownloadExchange) {
 +            final ServerPlacement p = ((DownloadExchange) exchange).getPlacement();
 +
@@ -294,7 +294,7 @@ index 0000000000000000000000000000000000000000..747da005acc37d8c1f8adec0d707afab
 +        }
 +    }
 +
-+    private void addPlacement(final ExchangeTarget t, final @NotNull ServerPlacement placement) {
++    private static void addPlacement(final ExchangeTarget t, final @NotNull ServerPlacement placement) {
 +        if (SyncmaticaProtocol.getSyncmaticManager().getPlacement(placement.getId()) != null) {
 +            cancelShare(t, placement);
 +            return;
@@ -305,19 +305,19 @@ index 0000000000000000000000000000000000000000..747da005acc37d8c1f8adec0d707afab
 +        }
 +    }
 +
-+    private void cancelShare(final @NotNull ExchangeTarget source, final @NotNull ServerPlacement placement) {
++    private static void cancelShare(final @NotNull ExchangeTarget source, final @NotNull ServerPlacement placement) {
 +        final FriendlyByteBuf FriendlyByteBuf = new FriendlyByteBuf(Unpooled.buffer());
 +        FriendlyByteBuf.writeUUID(placement.getId());
 +        source.sendPacket(PacketType.CANCEL_SHARE.identifier, FriendlyByteBuf);
 +    }
 +
-+    public void sendMetaData(final ServerPlacement metaData, final ExchangeTarget target) {
++    public static void sendMetaData(final ServerPlacement metaData, final ExchangeTarget target) {
 +        final FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
 +        putMetaData(metaData, buf, target);
 +        target.sendPacket(PacketType.REGISTER_METADATA.identifier, buf);
 +    }
 +
-+    public void putMetaData(final @NotNull ServerPlacement metaData, final @NotNull FriendlyByteBuf buf, final @NotNull ExchangeTarget exchangeTarget) {
++    public static void putMetaData(final @NotNull ServerPlacement metaData, final @NotNull FriendlyByteBuf buf, final @NotNull ExchangeTarget exchangeTarget) {
 +        buf.writeUUID(metaData.getId());
 +
 +        buf.writeUtf(SyncmaticaProtocol.sanitizeFileName(metaData.getName()));
@@ -333,7 +333,7 @@ index 0000000000000000000000000000000000000000..747da005acc37d8c1f8adec0d707afab
 +        putPositionData(metaData, buf, exchangeTarget);
 +    }
 +
-+    public void putPositionData(final @NotNull ServerPlacement metaData, final @NotNull FriendlyByteBuf buf, final @NotNull ExchangeTarget exchangeTarget) {
++    public static void putPositionData(final @NotNull ServerPlacement metaData, final @NotNull FriendlyByteBuf buf, final @NotNull ExchangeTarget exchangeTarget) {
 +        buf.writeBlockPos(metaData.getPosition());
 +        buf.writeUtf(metaData.getDimension());
 +        buf.writeInt(metaData.getRotation().ordinal());
@@ -357,7 +357,7 @@ index 0000000000000000000000000000000000000000..747da005acc37d8c1f8adec0d707afab
 +        }
 +    }
 +
-+    public ServerPlacement receiveMetaData(final @NotNull FriendlyByteBuf buf, final @NotNull ExchangeTarget exchangeTarget) {
++    public static ServerPlacement receiveMetaData(final @NotNull FriendlyByteBuf buf, final @NotNull ExchangeTarget exchangeTarget) {
 +        final UUID id = buf.readUUID();
 +
 +        final String fileName = SyncmaticaProtocol.sanitizeFileName(buf.readUtf(32767));
@@ -380,7 +380,7 @@ index 0000000000000000000000000000000000000000..747da005acc37d8c1f8adec0d707afab
 +        return placement;
 +    }
 +
-+    public void receivePositionData(final @NotNull ServerPlacement placement, final @NotNull FriendlyByteBuf buf, final @NotNull ExchangeTarget exchangeTarget) {
++    public static void receivePositionData(final @NotNull ServerPlacement placement, final @NotNull FriendlyByteBuf buf, final @NotNull ExchangeTarget exchangeTarget) {
 +        final BlockPos pos = buf.readBlockPos();
 +        final String dimensionId = buf.readUtf(32767);
 +        final Rotation rot = rotOrdinals[buf.readInt()];
@@ -397,7 +397,7 @@ index 0000000000000000000000000000000000000000..747da005acc37d8c1f8adec0d707afab
 +        }
 +    }
 +
-+    public void download(final ServerPlacement syncmatic, final ExchangeTarget source) throws NoSuchAlgorithmException, IOException {
++    public static void download(final ServerPlacement syncmatic, final ExchangeTarget source) throws NoSuchAlgorithmException, IOException {
 +        if (!SyncmaticaProtocol.getFileStorage().getLocalState(syncmatic).isReadyForDownload()) {
 +            throw new IllegalArgumentException(syncmatic.toString() + " is not ready for download local state is: " + SyncmaticaProtocol.getFileStorage().getLocalState(syncmatic).toString());
 +        }
@@ -407,30 +407,30 @@ index 0000000000000000000000000000000000000000..747da005acc37d8c1f8adec0d707afab
 +        startExchange(downloadExchange);
 +    }
 +
-+    public void setDownloadState(final @NotNull ServerPlacement syncmatic, final boolean b) {
++    public static void setDownloadState(final @NotNull ServerPlacement syncmatic, final boolean b) {
 +        downloadState.put(syncmatic.getHash(), b);
 +    }
 +
-+    public boolean getDownloadState(final @NotNull ServerPlacement syncmatic) {
++    public static boolean getDownloadState(final @NotNull ServerPlacement syncmatic) {
 +        return downloadState.getOrDefault(syncmatic.getHash(), false);
 +    }
 +
-+    public void setModifier(final @NotNull ServerPlacement syncmatic, final Exchange exchange) {
++    public static void setModifier(final @NotNull ServerPlacement syncmatic, final Exchange exchange) {
 +        modifyState.put(syncmatic.getHash(), exchange);
 +    }
 +
-+    public Exchange getModifier(final @NotNull ServerPlacement syncmatic) {
++    public static Exchange getModifier(final @NotNull ServerPlacement syncmatic) {
 +        return modifyState.get(syncmatic.getHash());
 +    }
 +
-+    public void startExchange(final @NotNull Exchange newExchange) {
++    public static void startExchange(final @NotNull Exchange newExchange) {
 +        if (!broadcastTargets.contains(newExchange.getPartner())) {
 +            throw new IllegalArgumentException(newExchange.getPartner().toString() + " is not a valid ExchangeTarget");
 +        }
 +        startExchangeUnchecked(newExchange);
 +    }
 +
-+    protected void startExchangeUnchecked(final @NotNull Exchange newExchange) {
++    protected static void startExchangeUnchecked(final @NotNull Exchange newExchange) {
 +        newExchange.getPartner().getExchanges().add(newExchange);
 +        newExchange.init();
 +        if (newExchange.isFinished()) {
@@ -438,7 +438,7 @@ index 0000000000000000000000000000000000000000..747da005acc37d8c1f8adec0d707afab
 +        }
 +    }
 +
-+    public void notifyClose(final @NotNull Exchange e) {
++    public static void notifyClose(final @NotNull Exchange e) {
 +        e.getPartner().getExchanges().remove(e);
 +        handleExchange(e);
 +    }

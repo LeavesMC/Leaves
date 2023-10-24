@@ -303,10 +303,10 @@ index 1fa22445a4ecc8c08dbcf0cc6bd39dc5003604c4..5c311270a39f6b4996c8b58822d24556
          return ShulkerBoxBlockEntity.SLOTS;
 diff --git a/src/main/java/top/leavesmc/leaves/protocol/PcaSyncProtocol.java b/src/main/java/top/leavesmc/leaves/protocol/PcaSyncProtocol.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..b9bc5fdfc55b1ad0e5f1e1065ec449d256e18159
+index 0000000000000000000000000000000000000000..f4a7aed61511ad9557c8cc4779229b3bf79159dd
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/protocol/PcaSyncProtocol.java
-@@ -0,0 +1,383 @@
+@@ -0,0 +1,389 @@
 +package top.leavesmc.leaves.protocol;
 +
 +import net.minecraft.core.BlockPos;
@@ -396,8 +396,7 @@ index 0000000000000000000000000000000000000000..b9bc5fdfc55b1ad0e5f1e1065ec449d2
 +    }
 +
 +    @ProtocolHandler.PayloadReceiver(payload = EmptyPayload.class, payloadId = "cancel_sync_entity")
-+    private static void cancelSyncEntityHandler(MinecraftServer server, ServerPlayer player,
-+                                                FriendlyByteBuf buf) {
++    private static void cancelSyncEntityHandler(ServerPlayer player, EmptyPayload payload) {
 +        if (!LeavesConfig.pcaSyncProtocol) {
 +            return;
 +        }
@@ -409,38 +408,42 @@ index 0000000000000000000000000000000000000000..b9bc5fdfc55b1ad0e5f1e1065ec449d2
 +        if (!LeavesConfig.pcaSyncProtocol) {
 +            return;
 +        }
++        MinecraftServer server = MinecraftServer.getServer();
 +        BlockPos pos = payload.pos;
 +        ServerLevel world = player.serverLevel();
-+        BlockState blockState = world.getBlockState(pos);
-+        clearPlayerWatchData(player);
 +
-+        BlockEntity blockEntityAdj = null;
-+        if (blockState.getBlock() instanceof ChestBlock) {
-+            if (blockState.getValue(ChestBlock.TYPE) != ChestType.SINGLE) {
-+                BlockPos posAdj = pos.offset(ChestBlock.getConnectedDirection(blockState).getNormal());
-+                // The method in World now checks that the caller is from the same thread...
-+                blockEntityAdj = world.getChunk(posAdj).getBlockEntity(posAdj);
++        server.execute(() -> {
++            BlockState blockState = world.getBlockState(pos);
++            clearPlayerWatchData(player);
++
++            BlockEntity blockEntityAdj = null;
++            if (blockState.getBlock() instanceof ChestBlock) {
++                if (blockState.getValue(ChestBlock.TYPE) != ChestType.SINGLE) {
++                    BlockPos posAdj = pos.offset(ChestBlock.getConnectedDirection(blockState).getNormal());
++                    // The method in World now checks that the caller is from the same thread...
++                    blockEntityAdj = world.getChunk(posAdj).getBlockEntity(posAdj);
++                }
 +            }
-+        }
 +
-+        if (blockEntityAdj != null) {
-+            updateBlockEntity(player, blockEntityAdj);
-+        }
++            if (blockEntityAdj != null) {
++                updateBlockEntity(player, blockEntityAdj);
++            }
 +
-+        // The method in World now checks that the caller is from the same thread...
-+        BlockEntity blockEntity = world.getChunk(pos).getBlockEntity(pos);
-+        if (blockEntity != null) {
-+            updateBlockEntity(player, blockEntity);
-+        }
++            // The method in World now checks that the caller is from the same thread...
++            BlockEntity blockEntity = world.getChunk(pos).getBlockEntity(pos);
++            if (blockEntity != null) {
++                updateBlockEntity(player, blockEntity);
++            }
 +
-+        Pair<ResourceLocation, BlockPos> pair = new ImmutablePair<>(player.level().dimension().location(), pos);
-+        lock.lock();
-+        playerWatchBlockPos.put(player, pair);
-+        if (!blockPosWatchPlayerSet.containsKey(pair)) {
-+            blockPosWatchPlayerSet.put(pair, new HashSet<>());
-+        }
-+        blockPosWatchPlayerSet.get(pair).add(player);
-+        lock.unlock();
++            Pair<ResourceLocation, BlockPos> pair = new ImmutablePair<>(player.level().dimension().location(), pos);
++            lock.lock();
++            playerWatchBlockPos.put(player, pair);
++            if (!blockPosWatchPlayerSet.containsKey(pair)) {
++                blockPosWatchPlayerSet.put(pair, new HashSet<>());
++            }
++            blockPosWatchPlayerSet.get(pair).add(player);
++            lock.unlock();
++        });
 +    }
 +
 +    @ProtocolHandler.PayloadReceiver(payload = SyncEntityPayload.class, payloadId = "sync_entity")
@@ -451,43 +454,45 @@ index 0000000000000000000000000000000000000000..b9bc5fdfc55b1ad0e5f1e1065ec449d2
 +        MinecraftServer server = MinecraftServer.getServer();
 +        int entityId = payload.entityId;
 +        ServerLevel world = player.serverLevel();
-+        Entity entity = world.getEntity(entityId);
-+        if (entity != null) {
-+            clearPlayerWatchData(player);
-+            if (entity instanceof Player) {
-+                if (LeavesConfig.pcaSyncPlayerEntity.equals("NOBODY")) {
-+                    return;
-+                } else if (LeavesConfig.pcaSyncPlayerEntity.equals("BOT")) {
-+                    if (!(entity instanceof ServerBot)) {
++        server.execute(() -> {
++            Entity entity = world.getEntity(entityId);
++            if (entity != null) {
++                clearPlayerWatchData(player);
++                if (entity instanceof Player) {
++                    if (LeavesConfig.pcaSyncPlayerEntity.equals("NOBODY")) {
++                        return;
++                    } else if (LeavesConfig.pcaSyncPlayerEntity.equals("BOT")) {
++                        if (!(entity instanceof ServerBot)) {
++                            return;
++                        }
++                    } else if (LeavesConfig.pcaSyncPlayerEntity.equals("OPS")) {
++                        if (!(entity instanceof ServerBot) && server.getProfilePermissions(player.getGameProfile()) < 2) {
++                            return;
++                        }
++                    } else if (LeavesConfig.pcaSyncPlayerEntity.equals("OPS_AND_SELF")) {
++                        if (!(entity instanceof ServerBot) &&
++                            server.getProfilePermissions(player.getGameProfile()) < 2 &&
++                            entity != player) {
++                            return;
++                        }
++                    } else if (!LeavesConfig.pcaSyncPlayerEntity.equals("EVERYONE")) {
++                        // wtf????
++                        LeavesLogger.LOGGER.warning("pcaSyncPlayerEntity wtf???");
 +                        return;
 +                    }
-+                } else if (LeavesConfig.pcaSyncPlayerEntity.equals("OPS")) {
-+                    if (!(entity instanceof ServerBot) && server.getProfilePermissions(player.getGameProfile()) < 2) {
-+                        return;
-+                    }
-+                } else if (LeavesConfig.pcaSyncPlayerEntity.equals("OPS_AND_SELF")) {
-+                    if (!(entity instanceof ServerBot) &&
-+                        server.getProfilePermissions(player.getGameProfile()) < 2 &&
-+                        entity != player) {
-+                        return;
-+                    }
-+                } else if (!LeavesConfig.pcaSyncPlayerEntity.equals("EVERYONE")) {
-+                    // wtf????
-+                    LeavesLogger.LOGGER.warning("pcaSyncPlayerEntity wtf???");
-+                    return;
 +                }
-+            }
-+            updateEntity(player, entity);
++                updateEntity(player, entity);
 +
-+            Pair<ResourceLocation, Entity> pair = new ImmutablePair<>(entity.level().dimension().location(), entity);
-+            lock.lock();
-+            playerWatchEntity.put(player, pair);
-+            if (!entityWatchPlayerSet.containsKey(pair)) {
-+                entityWatchPlayerSet.put(pair, new HashSet<>());
++                Pair<ResourceLocation, Entity> pair = new ImmutablePair<>(entity.level().dimension().location(), entity);
++                lock.lock();
++                playerWatchEntity.put(player, pair);
++                if (!entityWatchPlayerSet.containsKey(pair)) {
++                    entityWatchPlayerSet.put(pair, new HashSet<>());
++                }
++                entityWatchPlayerSet.get(pair).add(player);
++                lock.unlock();
 +            }
-+            entityWatchPlayerSet.get(pair).add(player);
-+            lock.unlock();
-+        }
++        });
 +    }
 +
 +    public static void enablePcaSyncProtocol(@NotNull ServerPlayer player) {
@@ -499,10 +504,11 @@ index 0000000000000000000000000000000000000000..b9bc5fdfc55b1ad0e5f1e1065ec449d2
 +    }
 +
 +    public static void updateEntity(@NotNull ServerPlayer player, @NotNull Entity entity) {
++        CompoundTag nbt = entity.saveWithoutId(new CompoundTag());
 +        ProtocolUtils.sendPayloadPacket(player, UPDATE_ENTITY, buf -> {
 +            buf.writeResourceLocation(entity.level().dimension().location());
 +            buf.writeInt(entity.getId());
-+            buf.writeNbt(entity.saveWithoutId(new CompoundTag()));
++            buf.writeNbt(nbt);
 +        });
 +    }
 +

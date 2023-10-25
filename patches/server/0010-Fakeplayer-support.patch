@@ -69,7 +69,7 @@ index e38e2e5a7ddba9c140f362021b6be0b0974f7cd1..870a9c94885c983cd7a557b76cb4dbac
          AdvancementProgress advancementprogress = this.getOrStartProgress(advancement);
          boolean flag1 = advancementprogress.isDone();
 diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
-index 8bb72e567633dff5d5748b221771d16d25bf8e39..e809ef00c17d2a55877799c595c6732f74f1680e 100644
+index 8486ed5cfb6268cfb9f0b7ce544aef10e459bbc7..00191f4063e56ef48a4e9341c24563839d562202 100644
 --- a/src/main/java/net/minecraft/server/level/ChunkMap.java
 +++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
 @@ -1298,6 +1298,13 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
@@ -87,7 +87,7 @@ index 8bb72e567633dff5d5748b221771d16d25bf8e39..e809ef00c17d2a55877799c595c6732f
  
              }
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-index 76157319b79d7fefe38cb2cc10b2d79c12667e3d..5c2aa7dc056a3597afded89d493ac7188228d4d1 100644
+index ba972d1661426d7e30f6f61bad3b9608e66ea721..fd785af7ede0afa0214899ba43ae155fe6db6c6a 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
 @@ -95,7 +95,6 @@ import net.minecraft.util.Mth;
@@ -167,7 +167,7 @@ index 76157319b79d7fefe38cb2cc10b2d79c12667e3d..5c2aa7dc056a3597afded89d493ac718
                  PlayerChangedWorldEvent changeEvent = new PlayerChangedWorldEvent(this.getBukkitEntity(), worldserver1.getWorld());
                  this.level().getCraftServer().getPluginManager().callEvent(changeEvent);
 diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index 6c704b32091b2d7db742e1a68404ba6db1f9154f..72cfca4a310f7714c7e22be312175e7435051397 100644
+index d52aae55bde8f3c831481580d43c73aa781a22b9..79a236ec2b7e9bab6c9a6c25b3b9f08152891c34 100644
 --- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 @@ -298,7 +298,13 @@ public class ServerGamePacketListenerImpl extends ServerCommonPacketListenerImpl
@@ -2768,17 +2768,23 @@ index 0000000000000000000000000000000000000000..345932e779f5187355ca722c2bb9b05f
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemOnAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemOnAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..886e37227e66dc25653b8ad53fef600c705aa101
+index 0000000000000000000000000000000000000000..f4837f60909763df89ea7474f70dd0236360e657
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemOnAction.java
-@@ -0,0 +1,40 @@
+@@ -0,0 +1,56 @@
 +package top.leavesmc.leaves.bot.agent.actions;
 +
 +import net.minecraft.server.level.ServerPlayer;
 +import net.minecraft.world.InteractionHand;
 +import net.minecraft.world.level.ClipContext;
++import net.minecraft.world.level.block.Blocks;
++import net.minecraft.world.level.block.entity.BlockEntity;
++import net.minecraft.world.level.block.entity.TrappedChestBlockEntity;
++import net.minecraft.world.level.block.state.BlockState;
 +import net.minecraft.world.phys.BlockHitResult;
 +import net.minecraft.world.phys.HitResult;
++import org.bukkit.Bukkit;
++import org.bukkit.craftbukkit.scheduler.CraftScheduler;
 +import org.jetbrains.annotations.NotNull;
 +import top.leavesmc.leaves.bot.ServerBot;
 +import top.leavesmc.leaves.bot.agent.BotAction;
@@ -2804,27 +2810,43 @@ index 0000000000000000000000000000000000000000..886e37227e66dc25653b8ad53fef600c
 +    @Override
 +    public boolean doTick(@NotNull ServerBot bot) {
 +        HitResult result = bot.getRayTrace(5, ClipContext.Fluid.NONE);
-+        if (result.getType() == HitResult.Type.BLOCK) {
++        if (result instanceof BlockHitResult blockHitResult) {
++            BlockState state = bot.serverLevel().getBlockState(blockHitResult.getBlockPos());
 +            bot.punch();
-+            bot.updateItemInMainHand();
-+            return bot.gameMode.useItemOn(bot, bot.level(), bot.getItemInHand(InteractionHand.MAIN_HAND), InteractionHand.MAIN_HAND, (BlockHitResult) result).consumesAction();
++            if (state.getBlock() == Blocks.TRAPPED_CHEST) {
++                BlockEntity entity = bot.serverLevel().getBlockEntity(blockHitResult.getBlockPos());
++                if (entity instanceof TrappedChestBlockEntity chestBlockEntity) {
++                    chestBlockEntity.startOpen(bot);
++                    Bukkit.getScheduler().runTaskLater(CraftScheduler.MINECRAFT, () -> chestBlockEntity.stopOpen(bot), 1);
++                    return true;
++                }
++            } else {
++                bot.updateItemInMainHand();
++                return bot.gameMode.useItemOn(bot, bot.level(), bot.getItemInHand(InteractionHand.MAIN_HAND), InteractionHand.MAIN_HAND, (BlockHitResult) result).consumesAction();
++            }
 +        }
 +        return false;
 +    }
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemOnOffhandAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemOnOffhandAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..16ae37e2ffb4189041986e759d563d00a9126ad8
+index 0000000000000000000000000000000000000000..4ab84fba3624a8e8c4d345c03fe678a012a5c367
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemOnOffhandAction.java
-@@ -0,0 +1,40 @@
+@@ -0,0 +1,56 @@
 +package top.leavesmc.leaves.bot.agent.actions;
 +
 +import net.minecraft.server.level.ServerPlayer;
 +import net.minecraft.world.InteractionHand;
 +import net.minecraft.world.level.ClipContext;
++import net.minecraft.world.level.block.Blocks;
++import net.minecraft.world.level.block.entity.BlockEntity;
++import net.minecraft.world.level.block.entity.TrappedChestBlockEntity;
++import net.minecraft.world.level.block.state.BlockState;
 +import net.minecraft.world.phys.BlockHitResult;
 +import net.minecraft.world.phys.HitResult;
++import org.bukkit.Bukkit;
++import org.bukkit.craftbukkit.scheduler.CraftScheduler;
 +import org.jetbrains.annotations.NotNull;
 +import top.leavesmc.leaves.bot.ServerBot;
 +import top.leavesmc.leaves.bot.agent.BotAction;
@@ -2850,10 +2872,20 @@ index 0000000000000000000000000000000000000000..16ae37e2ffb4189041986e759d563d00
 +    @Override
 +    public boolean doTick(@NotNull ServerBot bot) {
 +        HitResult result = bot.getRayTrace(5, ClipContext.Fluid.NONE);
-+        if (result.getType() == HitResult.Type.BLOCK) {
++        if (result instanceof BlockHitResult blockHitResult) {
++            BlockState state = bot.serverLevel().getBlockState(blockHitResult.getBlockPos());
 +            bot.punch();
-+            bot.updateItemInOffHand();
-+            return bot.gameMode.useItemOn(bot, bot.level(), bot.getItemInHand(InteractionHand.OFF_HAND), InteractionHand.OFF_HAND, (BlockHitResult) result).consumesAction();
++            if (state.getBlock() == Blocks.TRAPPED_CHEST) {
++                BlockEntity entity = bot.serverLevel().getBlockEntity(blockHitResult.getBlockPos());
++                if (entity instanceof TrappedChestBlockEntity chestBlockEntity) {
++                    chestBlockEntity.startOpen(bot);
++                    Bukkit.getScheduler().runTaskLater(CraftScheduler.MINECRAFT, () -> chestBlockEntity.stopOpen(bot), 1);
++                    return true;
++                }
++            } else {
++                bot.updateItemInMainHand();
++                return bot.gameMode.useItemOn(bot, bot.level(), bot.getItemInHand(InteractionHand.OFF_HAND), InteractionHand.OFF_HAND, (BlockHitResult) result).consumesAction();
++            }
 +        }
 +        return false;
 +    }

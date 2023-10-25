@@ -120,10 +120,10 @@ index 0000000000000000000000000000000000000000..64a1d25973b032e8cab64bbffa6824a1
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/protocol/core/LeavesProtocolManager.java b/src/main/java/top/leavesmc/leaves/protocol/core/LeavesProtocolManager.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..c233f9cc008481c7a3449d58eb5f5b0f4d093990
+index 0000000000000000000000000000000000000000..055f044ce6cef4377f6f577efdbfad0ec9a2d57b
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/protocol/core/LeavesProtocolManager.java
-@@ -0,0 +1,302 @@
+@@ -0,0 +1,340 @@
 +package top.leavesmc.leaves.protocol.core;
 +
 +import net.minecraft.network.FriendlyByteBuf;
@@ -139,6 +139,7 @@ index 0000000000000000000000000000000000000000..c233f9cc008481c7a3449d58eb5f5b0f
 +import java.lang.reflect.InvocationTargetException;
 +import java.lang.reflect.Method;
 +import java.lang.reflect.Modifier;
++import java.net.JarURLConnection;
 +import java.net.URL;
 +import java.net.URLDecoder;
 +import java.nio.charset.StandardCharsets;
@@ -147,9 +148,12 @@ index 0000000000000000000000000000000000000000..c233f9cc008481c7a3449d58eb5f5b0f
 +import java.util.Enumeration;
 +import java.util.HashMap;
 +import java.util.HashSet;
++import java.util.LinkedHashSet;
 +import java.util.List;
 +import java.util.Map;
 +import java.util.Set;
++import java.util.jar.JarEntry;
++import java.util.jar.JarFile;
 +
 +public class LeavesProtocolManager {
 +
@@ -362,42 +366,76 @@ index 0000000000000000000000000000000000000000..c233f9cc008481c7a3449d58eb5f5b0f
 +        }
 +    }
 +
-+    private static List<Class<?>> getClasses(String packageName) {
-+        List<Class<?>> classes = new ArrayList<>();
-+        String packageDirName = packageName.replace('.', '/');
++    public static Set<Class<?>> getClasses(String pack) {
++        Set<Class<?>> classes = new LinkedHashSet<Class<?>>();
++        String packageDirName = pack.replace('.', '/');
 +        Enumeration<URL> dirs;
 +        try {
 +            dirs = Thread.currentThread().getContextClassLoader().getResources(packageDirName);
 +            while (dirs.hasMoreElements()) {
 +                URL url = dirs.nextElement();
-+                findClassInPackageByFile(packageName, URLDecoder.decode(url.getFile(), StandardCharsets.UTF_8), classes);
++                String protocol = url.getProtocol();
++                if ("file".equals(protocol)) {
++                    String filePath = URLDecoder.decode(url.getFile(), StandardCharsets.UTF_8);
++                    findClassesInPackageByFile(pack, filePath, classes);
++                } else if ("jar".equals(protocol)) {
++                    JarFile jar;
++                    try {
++                        jar = ((JarURLConnection) url.openConnection()).getJarFile();
++                        Enumeration<JarEntry> entries = jar.entries();
++                        findClassesInPackageByJar(pack, entries, packageDirName, classes);
++                    } catch (IOException e) {
++                        e.printStackTrace();
++                    }
++                }
 +            }
 +        } catch (IOException e) {
-+            throw new RuntimeException(e);
++            e.printStackTrace();
 +        }
 +        return classes;
 +    }
 +
-+    private static void findClassInPackageByFile(String packageName, String filePath, List<Class<?>> classes) {
-+        File dir = new File(filePath);
++    private static void findClassesInPackageByFile(String packageName, String packagePath, Set<Class<?>> classes) {
++        File dir = new File(packagePath);
 +        if (!dir.exists() || !dir.isDirectory()) {
 +            return;
 +        }
-+
-+        File[] dirFiles = dir.listFiles(file -> file.getName().endsWith("class") || file.isDirectory());
-+        if (dirFiles != null) {
-+            for (File file : dirFiles) {
++        File[] dirfiles = dir.listFiles((file) -> file.isDirectory() || file.getName().endsWith(".class"));
++        if (dirfiles != null) {
++            for (File file : dirfiles) {
 +                if (file.isDirectory()) {
-+                    if (!file.getName().equals("core")) {
-+                        findClassInPackageByFile(packageName + "." + file.getName(), file.getPath(), classes);
++                    findClassesInPackageByFile(packageName + "." + file.getName(), file.getAbsolutePath(), classes);
++                } else {
++                    String className = file.getName().substring(0, file.getName().length() - 6);
++                    try {
++                        classes.add(Class.forName(packageName + '.' + className));
++                    } catch (ClassNotFoundException e) {
++                        e.printStackTrace();
 +                    }
-+                    continue;
 +                }
-+                String className = file.getName().substring(0, file.getName().length() - 6);
-+                try {
-+                    classes.add(Thread.currentThread().getContextClassLoader().loadClass(packageName + "." + className));
-+                } catch (ClassNotFoundException e) {
-+                    throw new RuntimeException(e);
++            }
++        }
++    }
++
++    private static void findClassesInPackageByJar(String packageName, Enumeration<JarEntry> entries, String packageDirName, Set<Class<?>> classes) {
++        while (entries.hasMoreElements()) {
++            JarEntry entry = entries.nextElement();
++            String name = entry.getName();
++            if (name.charAt(0) == '/') {
++                name = name.substring(1);
++            }
++            if (name.startsWith(packageDirName)) {
++                int idx = name.lastIndexOf('/');
++                if (idx != -1) {
++                    packageName = name.substring(0, idx).replace('/', '.');
++                }
++                if (name.endsWith(".class") && !entry.isDirectory()) {
++                    String className = name.substring(packageName.length() + 1, name.length() - 6);
++                    try {
++                        classes.add(Class.forName(packageName + '.' + className));
++                    } catch (ClassNotFoundException e) {
++                        e.printStackTrace();
++                    }
 +                }
 +            }
 +        }

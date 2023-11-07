@@ -5,20 +5,20 @@ Subject: [PATCH] Elytra aeronautics no chunk load
 
 
 diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
-index ed2e0774d5b14d4926b3214ebf3795d7555327e3..0434bf9b8d3b064c8426d51f9969686a188f0eaa 100644
+index 255c6508d7b507dc9b23c5910f872c2fa97c7c50..55cdb8e23b91ad68ad128c664ddad5b2cd734423 100644
 --- a/src/main/java/net/minecraft/server/level/ChunkMap.java
 +++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
-@@ -133,7 +133,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
-     // Paper start - distance maps
-     private final com.destroystokyo.paper.util.misc.PooledLinkedHashSets<ServerPlayer> pooledLinkedPlayerHashSets = new com.destroystokyo.paper.util.misc.PooledLinkedHashSets<>();
+@@ -150,7 +150,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+     }
+     // Paper end - use distance map to optimise tracker
  
 -    void addPlayerToDistanceMaps(ServerPlayer player) {
 +    public void addPlayerToDistanceMaps(ServerPlayer player) { // Leaves - package -> public
          int chunkX = io.papermc.paper.util.MCUtil.getChunkCoordinate(player.getX());
          int chunkZ = io.papermc.paper.util.MCUtil.getChunkCoordinate(player.getZ());
          // Note: players need to be explicitly added to distance maps before they can be updated
-@@ -141,7 +141,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
-         this.level.playerChunkLoader.addPlayer(player); // Paper - replace chunk loader
+@@ -166,7 +166,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+         // Paper end - use distance map to optimise entity tracker
      }
  
 -    void removePlayerFromDistanceMaps(ServerPlayer player) {
@@ -26,7 +26,7 @@ index ed2e0774d5b14d4926b3214ebf3795d7555327e3..0434bf9b8d3b064c8426d51f9969686a
          int chunkX = io.papermc.paper.util.MCUtil.getChunkCoordinate(player.getX());
          int chunkZ = io.papermc.paper.util.MCUtil.getChunkCoordinate(player.getZ());
          // Note: players need to be explicitly added to distance maps before they can be updated
-@@ -897,7 +897,8 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+@@ -977,7 +977,8 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
      }
  
      private boolean skipPlayer(ServerPlayer player) {
@@ -36,16 +36,16 @@ index ed2e0774d5b14d4926b3214ebf3795d7555327e3..0434bf9b8d3b064c8426d51f9969686a
      }
  
      void updatePlayerStatus(ServerPlayer player, boolean added) {
-@@ -934,6 +935,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+@@ -1014,6 +1015,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
      }
  
      public void move(ServerPlayer player) {
 +        if (player.elytraAeronauticsNoChunk) return; // Leaves - no chunk
-         ObjectIterator objectiterator = this.entityMap.values().iterator();
+         // Paper - delay this logic for the entity tracker tick, no need to duplicate it
  
-         while (objectiterator.hasNext()) {
+         SectionPos sectionposition = player.getLastSectionPos();
 diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index d6c9348d7e8989ebca5f9fe35915d9a5910162aa..6d03da4fee0e53ffffe12a36efe0e095498eac6f 100644
+index 13185dfaf91b1029f4091d4754b03b88fcc00f22..f311111b91543288588be584dbbd7bb833df0eca 100644
 --- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 @@ -540,7 +540,7 @@ public class ServerGamePacketListenerImpl extends ServerCommonPacketListenerImpl
@@ -58,10 +58,10 @@ index d6c9348d7e8989ebca5f9fe35915d9a5910162aa..6d03da4fee0e53ffffe12a36efe0e095
                          !worldserver.areChunksLoadedForMove(entity.getBoundingBox().expandTowards(new Vec3(toX, toY, toZ).subtract(entity.position())))
                      )) {
 diff --git a/src/main/java/net/minecraft/world/entity/Entity.java b/src/main/java/net/minecraft/world/entity/Entity.java
-index 4b1a08fa9a9d34c40b4fee601495528ea1c5095d..46dce902751fddc2966cb804e7b0b354e04bfad5 100644
+index 4073424b4a2eb2f48540ee196598bac423695ad6..00cc1bfec7578f2118d38ef275e92a0c01ecdecc 100644
 --- a/src/main/java/net/minecraft/world/entity/Entity.java
 +++ b/src/main/java/net/minecraft/world/entity/Entity.java
-@@ -1031,7 +1031,13 @@ public abstract class Entity implements Nameable, EntityAccess, CommandSource {
+@@ -1064,7 +1064,13 @@ public abstract class Entity implements Nameable, EntityAccess, CommandSource {
                      return;
                  }
              }
@@ -76,7 +76,7 @@ index 4b1a08fa9a9d34c40b4fee601495528ea1c5095d..46dce902751fddc2966cb804e7b0b354
              this.level().getProfiler().push("move");
              if (this.stuckSpeedMultiplier.lengthSqr() > 1.0E-7D) {
                  movement = movement.multiply(this.stuckSpeedMultiplier);
-@@ -1970,6 +1976,7 @@ public abstract class Entity implements Nameable, EntityAccess, CommandSource {
+@@ -2003,6 +2009,7 @@ public abstract class Entity implements Nameable, EntityAccess, CommandSource {
          this.yo = y;
          this.zo = d4;
          this.setPos(d3, y, d4);
@@ -85,7 +85,7 @@ index 4b1a08fa9a9d34c40b4fee601495528ea1c5095d..46dce902751fddc2966cb804e7b0b354
      }
  
 diff --git a/src/main/java/net/minecraft/world/entity/player/Player.java b/src/main/java/net/minecraft/world/entity/player/Player.java
-index 4aa241f2ef7f27e9c9cf5ea3bbb1c4b389ce887c..88e0901b7e46e59569555d8ce00f48817073ee35 100644
+index 78e39714759ef2fc8495d1c9de9e11b5bb364002..608bc9b00661dcacc9ac87adc364c2acd9e74450 100644
 --- a/src/main/java/net/minecraft/world/entity/player/Player.java
 +++ b/src/main/java/net/minecraft/world/entity/player/Player.java
 @@ -188,6 +188,7 @@ public abstract class Player extends LivingEntity {

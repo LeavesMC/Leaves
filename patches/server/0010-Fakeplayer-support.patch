@@ -463,7 +463,7 @@ index e2b4cdf549f66ccc243442a239b3a94ed1429cd0..b3675ab0b40862993efb71ff9bda6ec8
      public static void load(final YamlConfiguration config) {
 diff --git a/src/main/java/top/leavesmc/leaves/bot/BotCommand.java b/src/main/java/top/leavesmc/leaves/bot/BotCommand.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..ad49275aca2649ae0e7a6f90cfda9f439d72b067
+index 0000000000000000000000000000000000000000..6abc37cff54d876b598051bb23aa3a2c2e1a7baa
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/BotCommand.java
 @@ -0,0 +1,275 @@
@@ -581,7 +581,7 @@ index 0000000000000000000000000000000000000000..ad49275aca2649ae0e7a6f90cfda9f43
 +
 +        if (canCreate(sender, args[1])) {
 +            if (sender instanceof Player player) {
-+                new ServerBot.BotCreateState(player.getLocation(), args[1], args.length < 3 ? args[1] : args[2]).createAsync(null);
++                new ServerBot.BotCreateState(player.getLocation(), args[1], args.length < 3 ? args[1] : args[2]).createAsync(bot -> bot.createPlayer = player.getUniqueId());
 +            } else if (sender instanceof ConsoleCommandSender) {
 +                if (args.length < 6) {
 +                    sender.sendMessage(ChatColor.RED + "Use /bot create <name> <skin_name> <bukkit_world_name> <x> <y> <z> to create a fakeplayer");
@@ -1209,10 +1209,10 @@ index 0000000000000000000000000000000000000000..daaece30b2a3983f1cc9ee9a851e8f37
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/ServerBot.java b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..8c41c8034135d575d9f62847ba5894e84b5b0d21
+index 0000000000000000000000000000000000000000..1d86e1e1ff959403cdb651e2feea3f596be3efcb
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
-@@ -0,0 +1,710 @@
+@@ -0,0 +1,712 @@
 +package top.leavesmc.leaves.bot;
 +
 +import com.google.common.collect.Lists;
@@ -1263,13 +1263,9 @@ index 0000000000000000000000000000000000000000..8c41c8034135d575d9f62847ba5894e8
 +import org.bukkit.Location;
 +import org.bukkit.Material;
 +import org.bukkit.craftbukkit.CraftWorld;
-+import org.bukkit.craftbukkit.entity.CraftPlayer;
 +import org.bukkit.craftbukkit.scheduler.CraftScheduler;
-+import org.bukkit.craftbukkit.scheduler.MinecraftInternalPlugin;
 +import org.bukkit.event.entity.CreatureSpawnEvent;
-+import org.bukkit.plugin.Plugin;
 +import org.bukkit.util.Vector;
-+import org.jetbrains.annotations.Contract;
 +import org.jetbrains.annotations.NotNull;
 +import top.leavesmc.leaves.LeavesConfig;
 +import top.leavesmc.leaves.bot.agent.BotAction;
@@ -1277,6 +1273,7 @@ index 0000000000000000000000000000000000000000..8c41c8034135d575d9f62847ba5894e8
 +import top.leavesmc.leaves.entity.Bot;
 +import top.leavesmc.leaves.entity.CraftBot;
 +import top.leavesmc.leaves.event.bot.BotCreateEvent;
++import top.leavesmc.leaves.event.bot.BotInventoryOpenEvent;
 +import top.leavesmc.leaves.event.bot.BotJoinEvent;
 +import top.leavesmc.leaves.util.MathUtils;
 +
@@ -1311,6 +1308,7 @@ index 0000000000000000000000000000000000000000..8c41c8034135d575d9f62847ba5894e8
 +    public boolean waterSwim;
 +    private Vec3 knockback;
 +    public BotCreateState createState;
++    public UUID createPlayer;
 +
 +    private final ServerStatsCounter stats;
 +    private final BotInventoryContainer container;
@@ -1423,7 +1421,7 @@ index 0000000000000000000000000000000000000000..8c41c8034135d575d9f62847ba5894e8
 +    }
 +
 +    public void sendFakeData(ServerPlayerConnection playerConnection, boolean login) {
-+            playerConnection.send(new ClientboundAddEntityPacket(this));
++        playerConnection.send(new ClientboundAddEntityPacket(this));
 +        if (login) {
 +            Bukkit.getScheduler().runTaskLater(CraftScheduler.MINECRAFT, () -> {
 +                connection.send(new ClientboundRotateHeadPacket(this, (byte) ((getYRot() * 256f) / 360f)));
@@ -1753,9 +1751,13 @@ index 0000000000000000000000000000000000000000..8c41c8034135d575d9f62847ba5894e8
 +    @Override
 +    public @NotNull InteractionResult interact(@NotNull Player player, @NotNull InteractionHand hand) {
 +        if (LeavesConfig.openFakeplayerInventory) {
-+            if (player.getMainHandItem().isEmpty()) {
-+                player.openMenu(new SimpleMenuProvider((i, inventory, p) -> ChestMenu.sixRows(i, inventory, container), getDisplayName()));
-+                return InteractionResult.SUCCESS;
++            if (player instanceof ServerPlayer player1 && player.getMainHandItem().isEmpty()) {
++                BotInventoryOpenEvent event = new BotInventoryOpenEvent(this.getBukkitEntity(), player1.getBukkitEntity());
++                server.server.getPluginManager().callEvent(event);
++                if (!event.isCancelled()) {
++                    player.openMenu(new SimpleMenuProvider((i, inventory, p) -> ChestMenu.sixRows(i, inventory, container), getDisplayName()));
++                    return InteractionResult.SUCCESS;
++                }
 +            }
 +        }
 +        return super.interact(player, hand);
@@ -3007,10 +3009,10 @@ index 340eaca64c96180b895a075ce9e44402cd104eed..39e90dcff0de259373d7955021c29397
  }
 diff --git a/src/main/java/top/leavesmc/leaves/entity/CraftBot.java b/src/main/java/top/leavesmc/leaves/entity/CraftBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..e30ce391f638778fc805ca75287917af99b37443
+index 0000000000000000000000000000000000000000..713240da3ba37915b455d952a45ae7f68b8294ee
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/entity/CraftBot.java
-@@ -0,0 +1,60 @@
+@@ -0,0 +1,67 @@
 +package top.leavesmc.leaves.entity;
 +
 +import org.bukkit.craftbukkit.CraftServer;
@@ -3022,6 +3024,8 @@ index 0000000000000000000000000000000000000000..e30ce391f638778fc805ca75287917af
 +import top.leavesmc.leaves.bot.agent.Actions;
 +import top.leavesmc.leaves.bot.agent.BotAction;
 +import top.leavesmc.leaves.entity.botaction.LeavesBotAction;
++
++import java.util.UUID;
 +
 +public class CraftBot extends CraftPlayer implements Bot {
 +
@@ -3037,6 +3041,11 @@ index 0000000000000000000000000000000000000000..e30ce391f638778fc805ca75287917af
 +    @Override
 +    public @NotNull String getRealName() {
 +        return getHandle().createState.getRealName();
++    }
++
++    @Override
++    public @Nullable UUID getCreatePlayerUUID() {
++        return getHandle().createPlayer;
 +    }
 +
 +    @Override

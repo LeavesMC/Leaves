@@ -1,8 +1,15 @@
+import io.papermc.paperweight.tasks.BaseTask
+import io.papermc.paperweight.util.*
+import java.io.ByteArrayOutputStream
+import java.nio.file.Path
+import java.util.regex.Pattern
+import kotlin.io.path.*
+
 plugins {
     java
     `maven-publish`
     id("com.github.johnrengelman.shadow") version "8.1.1" apply false
-    id("io.papermc.paperweight.patcher") version "1.5.10"
+    id("io.papermc.paperweight.patcher") version "1.5.11"
 }
 
 repositories {
@@ -54,7 +61,7 @@ subprojects {
 paperweight {
     serverProject.set(project(":leaves-server"))
 
-	remapRepo.set("https://maven.fabricmc.net/")
+    remapRepo.set("https://maven.fabricmc.net/")
     decompileRepo.set("https://files.minecraftforge.net/maven/")
 
     usePaperUpstream(providers.gradleProperty("paperRef")) {
@@ -65,5 +72,18 @@ paperweight {
             serverPatchDir.set(layout.projectDirectory.dir("patches/server"))
             serverOutputDir.set(layout.projectDirectory.dir("leaves-server"))
         }
+    }
+}
+
+if (providers.gradleProperty("updatingMinecraft").getOrElse("false").toBoolean()) {
+
+    tasks.withType<io.papermc.paperweight.tasks.CollectATsFromPatches>().configureEach {
+        val dir = layout.projectDirectory.dir("patches/unapplied")
+        if (dir.path.isDirectory()) {
+            extraPatchDir = dir
+        }
+    }
+    tasks.withType<io.papermc.paperweight.tasks.RebuildGitPatches>().configureEach {
+        filterPatches = false
     }
 }

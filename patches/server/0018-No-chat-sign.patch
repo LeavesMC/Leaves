@@ -41,23 +41,15 @@ index 72a8aa676836fcb3b4578689d16af65e18f55bbe..47a06936a4727c6209a7ad0fb8fb1099
      public MessageSignature get(String argumentName) {
          for(ArgumentSignatures.Entry entry : this.entries) {
 diff --git a/src/main/java/net/minecraft/network/FriendlyByteBuf.java b/src/main/java/net/minecraft/network/FriendlyByteBuf.java
-index 2e395962b555bef0ce1a98e1d768e7738f011535..62558d52fc55e8a7430c2a30783223d11dc0792c 100644
+index ff794499df6a2b65db2ca5956d2b98317592057f..5f3fb560a64fdcf7d6be449316c8defbb8d2bb8d 100644
 --- a/src/main/java/net/minecraft/network/FriendlyByteBuf.java
 +++ b/src/main/java/net/minecraft/network/FriendlyByteBuf.java
-@@ -65,6 +65,7 @@ import net.minecraft.nbt.NbtIo;
- import net.minecraft.nbt.Tag;
- import net.minecraft.network.chat.Component;
- import net.minecraft.network.chat.MutableComponent;
-+import net.minecraft.network.protocol.status.ServerStatus;
- import net.minecraft.resources.ResourceKey;
- import net.minecraft.resources.ResourceLocation;
- import net.minecraft.util.Crypt;
-@@ -137,6 +138,16 @@ public class FriendlyByteBuf extends ByteBuf {
+@@ -138,6 +138,16 @@ public class FriendlyByteBuf extends ByteBuf {
      public <T> void writeJsonWithCodec(Codec<T> codec, T value) {
          DataResult<JsonElement> dataresult = codec.encodeStart(JsonOps.INSTANCE, value);
  
 +        // Leaves start - no chat sign
-+        if (codec == ServerStatus.CODEC) {
++        if (codec == net.minecraft.network.protocol.status.ServerStatus.CODEC) {
 +            JsonElement element = Util.getOrThrow(dataresult, string -> new EncoderException("Failed to encode: " + string + " " + value));
 +            element.getAsJsonObject().addProperty("preventsChatReports", top.leavesmc.leaves.LeavesConfig.noChatSign);
 +
@@ -110,20 +102,20 @@ index 9d6db4a378036559efab91c8b7dcf2a6b0c2cce6..2c349dc502ce275a8215766933f4855f
      }
  }
 diff --git a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
-index 76592ce972f8fa508ee22a7b572759e55082e6ee..9576e2ffffa7eea64ab631aed43225719f3a7483 100644
+index fd89dfb3f2ceab015b74d7e3a061973e590cedd5..4b13af14fcbe1925f9d3104d95ebbfbc596cfb3c 100644
 --- a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
 +++ b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
-@@ -642,7 +642,7 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
+@@ -643,7 +643,7 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
          // Paper start - fix secure profile with proxy online mode
          return dedicatedserverproperties.enforceSecureProfile
              && io.papermc.paper.configuration.GlobalConfiguration.get().proxies.isProxyOnlineMode()
--            && this.services.profileKeySignatureValidator() != null;
-+            && this.services.profileKeySignatureValidator() != null && !top.leavesmc.leaves.LeavesConfig.noChatSign; // Leaves - No Secure profile;
+-            && this.services.canValidateProfileKeys();
++            && this.services.canValidateProfileKeys() && !top.leavesmc.leaves.LeavesConfig.noChatSign;
          // Paper end
      }
  
 diff --git a/src/main/java/net/minecraft/server/network/ServerCommonPacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerCommonPacketListenerImpl.java
-index 0374cfb97e08496451d2f1d570c5fbc005f0215d..8812c99c0d89d379eac1ea0af28bd9c78f2cf537 100644
+index cfecb021de2f32fbe7d49332c5df763cd7cf0529..8cf3cce4a1824919d6687e555f4f5136120dbbcf 100644
 --- a/src/main/java/net/minecraft/server/network/ServerCommonPacketListenerImpl.java
 +++ b/src/main/java/net/minecraft/server/network/ServerCommonPacketListenerImpl.java
 @@ -226,10 +226,27 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
@@ -155,10 +147,10 @@ index 0374cfb97e08496451d2f1d570c5fbc005f0215d..8812c99c0d89d379eac1ea0af28bd9c7
          if (packet == null || this.processedDisconnect) { // Spigot
              return;
 diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
-index dea28bf8e1c0f67f13cc51d9e2cc6da69ad7fcb1..eebe80d8374b42d03b4658a0a04deafb96b06ace 100644
+index 81c09a9686731953787b56c3c8a20543418941a4..59270faed37229de11291e8259f292ad43e790c5 100644
 --- a/src/main/java/net/minecraft/server/players/PlayerList.java
 +++ b/src/main/java/net/minecraft/server/players/PlayerList.java
-@@ -1480,7 +1480,7 @@ public abstract class PlayerList {
+@@ -1483,7 +1483,7 @@ public abstract class PlayerList {
      }
  
      public boolean verifyChatTrusted(PlayerChatMessage message) { // Paper - private -> public

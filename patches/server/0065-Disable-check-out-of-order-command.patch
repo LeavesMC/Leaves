@@ -1,19 +1,19 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: violetc <58360096+s-yh-china@users.noreply.github.com>
-Date: Thu, 15 Jun 2023 18:01:51 +0800
+Date: Sun, 10 Dec 2023 13:13:14 +0800
 Subject: [PATCH] Disable check out-of-order command
 
 
-diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index aa35917f6d5c6c37f5c62bd220ccd0b04b264d73..454fd5f449d19660aec50e4b76152cbf272b572b 100644
---- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-+++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-@@ -2248,7 +2248,7 @@ public class ServerGamePacketListenerImpl extends ServerCommonPacketListenerImpl
-     }
- 
-     private Optional<LastSeenMessages> tryHandleChat(String message, Instant timestamp, LastSeenMessages.Update acknowledgment) {
--        if (!this.updateChatOrder(timestamp)) {
-+        if (!top.leavesmc.leaves.LeavesConfig.disableCheckOutOfOrderCommand && !this.updateChatOrder(timestamp)) { // Leaves - disable check to support Velocity
-             ServerGamePacketListenerImpl.LOGGER.warn("{} sent out-of-order chat: '{}': {} > {}", this.player.getName().getString(), message, this.lastChatTimeStamp.get().getEpochSecond(), timestamp.getEpochSecond()); // Paper
-             this.server.scheduleOnMain(() -> { // Paper - push to main
-             this.disconnect(Component.translatable("multiplayer.disconnect.out_of_order_chat"), org.bukkit.event.player.PlayerKickEvent.Cause.OUT_OF_ORDER_CHAT); // Paper - kick event causes
+diff --git a/src/main/java/net/minecraft/network/chat/SignedMessageChain.java b/src/main/java/net/minecraft/network/chat/SignedMessageChain.java
+index 85a8a687b1568a56e3e646b37ef78b562c1b8a82..90eb8e13c9ef9b966c6abf5a56f69f44a296e969 100644
+--- a/src/main/java/net/minecraft/network/chat/SignedMessageChain.java
++++ b/src/main/java/net/minecraft/network/chat/SignedMessageChain.java
+@@ -38,7 +38,7 @@ public class SignedMessageChain {
+                 throw new SignedMessageChain.DecodeException(Component.translatable("chat.disabled.chain_broken"), false); // Paper - diff on change (if disconnects, need a new kick event cause)
+             } else if (playerPublicKey.data().hasExpired()) {
+                 throw new SignedMessageChain.DecodeException(Component.translatable("chat.disabled.expiredProfileKey", org.bukkit.event.player.PlayerKickEvent.Cause.EXPIRED_PROFILE_PUBLIC_KEY), false); // Paper - kick event causes
+-            } else if (body.timeStamp().isBefore(this.lastTimeStamp)) {
++            } else if (body.timeStamp().isBefore(this.lastTimeStamp) && !top.leavesmc.leaves.LeavesConfig.disableCheckOutOfOrderCommand) { // Leaves - disable check to support Velocity
+                 throw new SignedMessageChain.DecodeException(Component.translatable("multiplayer.disconnect.out_of_order_chat", org.bukkit.event.player.PlayerKickEvent.Cause.OUT_OF_ORDER_CHAT), true); // Paper - kick event causes
+             } else {
+                 this.lastTimeStamp = body.timeStamp();

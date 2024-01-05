@@ -107,7 +107,7 @@ index f941e7add46e690e21d39111bed520df9156f154..5ea28c20b34b46eb68fb8a2d468ea009
          }
          // Leaves end - bot can't get advancement
 diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index 143fb847691645dc5c36fb207dee8cc694cae880..9776c4e3ff6327592322ca441ef8fc2e9022db8d 100644
+index 770213578923a0b2b226cb5a33991647c5f9131c..aa5fc061e905bc901ae6672cd54c3c9bca4cee76 100644
 --- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 @@ -300,7 +300,7 @@ public class ServerGamePacketListenerImpl extends ServerCommonPacketListenerImpl
@@ -642,20 +642,29 @@ index 0000000000000000000000000000000000000000..46a86cfce4aa859b8de7c126c22f64a9
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/replay/Recorder.java b/src/main/java/top/leavesmc/leaves/replay/Recorder.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..da1aa40293843de8d2b97e8003840bf96f44613b
+index 0000000000000000000000000000000000000000..c15ef462524871564cdc3fae4ab4eac9b5d35f02
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/replay/Recorder.java
-@@ -0,0 +1,232 @@
+@@ -0,0 +1,260 @@
 +package top.leavesmc.leaves.replay;
 +
 +import io.netty.channel.local.LocalChannel;
 +import net.minecraft.SharedConstants;
++import net.minecraft.core.LayeredRegistryAccess;
++import net.minecraft.core.RegistryAccess;
++import net.minecraft.core.RegistrySynchronization;
 +import net.minecraft.network.Connection;
 +import net.minecraft.network.ConnectionProtocol;
 +import net.minecraft.network.PacketSendListener;
 +import net.minecraft.network.protocol.Packet;
 +import net.minecraft.network.protocol.PacketFlow;
++import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket;
 +import net.minecraft.network.protocol.common.ClientboundDisconnectPacket;
++import net.minecraft.network.protocol.common.ClientboundUpdateTagsPacket;
++import net.minecraft.network.protocol.common.custom.BrandPayload;
++import net.minecraft.network.protocol.configuration.ClientboundFinishConfigurationPacket;
++import net.minecraft.network.protocol.configuration.ClientboundRegistryDataPacket;
++import net.minecraft.network.protocol.configuration.ClientboundUpdateEnabledFeaturesPacket;
 +import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
 +import net.minecraft.network.protocol.game.ClientboundBundlePacket;
 +import net.minecraft.network.protocol.game.ClientboundGameEventPacket;
@@ -663,7 +672,11 @@ index 0000000000000000000000000000000000000000..da1aa40293843de8d2b97e8003840bf9
 +import net.minecraft.network.protocol.game.ClientboundSetTimePacket;
 +import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
 +import net.minecraft.network.protocol.login.ClientboundGameProfilePacket;
++import net.minecraft.server.MinecraftServer;
++import net.minecraft.server.RegistryLayer;
++import net.minecraft.tags.TagNetworkSerialization;
 +import net.minecraft.world.entity.EntityType;
++import net.minecraft.world.flag.FeatureFlags;
 +import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
 +import top.leavesmc.leaves.LeavesLogger;
@@ -697,7 +710,6 @@ index 0000000000000000000000000000000000000000..da1aa40293843de8d2b97e8003840bf9
 +
 +    private boolean isSaved;
 +    private boolean isSaving;
-+
 +    private ConnectionProtocol state = ConnectionProtocol.LOGIN;
 +
 +    public Recorder(ServerPhotographer photographer, RecorderOption recorderOption, File replayFile) throws IOException {
@@ -720,12 +732,25 @@ index 0000000000000000000000000000000000000000..da1aa40293843de8d2b97e8003840bf9
 +        metaData.mcversion = SharedConstants.getCurrentVersion().getName();
 +
 +        // TODO start event
-+        savePacket(new ClientboundGameProfilePacket(photographer.getGameProfile()));
-+        state = ConnectionProtocol.PLAY;
++        savePacket(new ClientboundGameProfilePacket(photographer.getGameProfile()), ConnectionProtocol.LOGIN);
++        startConfiguration();
 +
 +        if (recorderOption.forceWeather != null) {
 +            setWeather(recorderOption.forceWeather);
 +        }
++    }
++
++    public void startConfiguration() {
++        state = ConnectionProtocol.CONFIGURATION;
++        MinecraftServer server = MinecraftServer.getServer();
++        savePacket(new ClientboundCustomPayloadPacket(new BrandPayload(server.getServerModName())), ConnectionProtocol.CONFIGURATION);
++        LayeredRegistryAccess<RegistryLayer> layeredregistryaccess = server.registries();
++
++        savePacket(new ClientboundUpdateEnabledFeaturesPacket(FeatureFlags.REGISTRY.toNames(server.getWorldData().enabledFeatures())), ConnectionProtocol.CONFIGURATION);
++        savePacket(new ClientboundRegistryDataPacket((new RegistryAccess.ImmutableRegistryAccess(RegistrySynchronization.networkedRegistries(layeredregistryaccess))).freeze()), ConnectionProtocol.CONFIGURATION);
++        savePacket(new ClientboundUpdateTagsPacket(TagNetworkSerialization.serializeTagsToNetwork(layeredregistryaccess)), ConnectionProtocol.CONFIGURATION);
++        savePacket(new ClientboundFinishConfigurationPacket(), ConnectionProtocol.CONFIGURATION);
++        state = ConnectionProtocol.PLAY;
 +    }
 +
 +    @Override
@@ -821,12 +846,15 @@ index 0000000000000000000000000000000000000000..da1aa40293843de8d2b97e8003840bf9
 +    }
 +
 +    private void savePacket(Packet<?> packet) {
++        this.savePacket(packet, state);
++    }
++
++    private void savePacket(Packet<?> packet, final ConnectionProtocol protocol) {
 +        try {
 +            final long timestamp = getCurrentTimeAndUpdate();
-+            final boolean login = state == ConnectionProtocol.LOGIN;
 +            saveService.submit(() -> {
 +                try {
-+                    replayFile.savePacket(timestamp, packet, login);
++                    replayFile.savePacket(timestamp, packet, protocol);
 +                } catch (Exception e) {
 +                    LOGGER.severe("Error saving packet");
 +                    e.printStackTrace();
@@ -943,10 +971,10 @@ index 0000000000000000000000000000000000000000..06e7166336d621e1a8edb4a2ad88e2cb
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/replay/ReplayFile.java b/src/main/java/top/leavesmc/leaves/replay/ReplayFile.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..da7d3c60af427899aaf837f90d9c83c66aa153e8
+index 0000000000000000000000000000000000000000..57e55d4d0eff91784e977f19fdad3e552a5cfb44
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/replay/ReplayFile.java
-@@ -0,0 +1,164 @@
+@@ -0,0 +1,163 @@
 +package top.leavesmc.leaves.replay;
 +
 +import com.google.gson.Gson;
@@ -1015,8 +1043,7 @@ index 0000000000000000000000000000000000000000..da7d3c60af427899aaf837f90d9c83c6
 +        packetStream = new DataOutputStream(new DigestOutputStream(new BufferedOutputStream(new FileOutputStream(packetFile)), crc32));
 +    }
 +
-+    private byte @NotNull [] getPacketBytes(Packet<?> packet, boolean isLogin) {
-+        ConnectionProtocol state = isLogin ? ConnectionProtocol.LOGIN : ConnectionProtocol.PLAY;
++    private byte @NotNull [] getPacketBytes(Packet<?> packet, ConnectionProtocol state) {
 +        int packetID = state.codec(PacketFlow.CLIENTBOUND).packetId(packet);
 +        ByteBuf buf = Unpooled.buffer();
 +        FriendlyByteBuf packetBuf = new FriendlyByteBuf(buf);
@@ -1046,8 +1073,8 @@ index 0000000000000000000000000000000000000000..da7d3c60af427899aaf837f90d9c83c6
 +        }
 +    }
 +
-+    public void savePacket(long timestamp, Packet<?> packet, boolean isLoginPhase) throws Exception {
-+        byte[] data = getPacketBytes(packet, isLoginPhase);
++    public void savePacket(long timestamp, Packet<?> packet, ConnectionProtocol protocol) throws Exception {
++        byte[] data = getPacketBytes(packet, protocol);
 +        packetStream.writeInt((int) timestamp);
 +        packetStream.writeInt(data.length);
 +        packetStream.write(data);

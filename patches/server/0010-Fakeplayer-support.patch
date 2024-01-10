@@ -353,7 +353,7 @@ index dfeb3e336e06ef01f5401a362755030db942bb07..c51413bf02b3572a05f09d2f0d02493d
                                      if (randomsource.nextInt(j) >= world.paperConfig().entities.behavior.playerInsomniaStartTicks) { // Paper
                                          BlockPos blockposition1 = blockposition.above(20 + randomsource.nextInt(15)).east(-10 + randomsource.nextInt(21)).south(-10 + randomsource.nextInt(21));
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index dc4ce7bbde058560c077fe2004da64e3113ccace..602d913b144c6d565e09c5623859c40775a4fcca 100644
+index 1e904d37a4646ebd2c3913fb6157342678c06ba9..1dc51050065af9bfc760f0a2cd7a479817888280 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 @@ -259,6 +259,7 @@ import org.yaml.snakeyaml.constructor.SafeConstructor;
@@ -372,7 +372,7 @@ index dc4ce7bbde058560c077fe2004da64e3113ccace..602d913b144c6d565e09c5623859c407
  
      // Paper start - Folia region threading API
      private final io.papermc.paper.threadedregions.scheduler.FallbackRegionScheduler regionizedScheduler = new io.papermc.paper.threadedregions.scheduler.FallbackRegionScheduler();
-@@ -3246,4 +3248,11 @@ public final class CraftServer implements Server {
+@@ -3244,4 +3246,11 @@ public final class CraftServer implements Server {
      }
  
      // Paper end
@@ -419,35 +419,9 @@ index 74ff54724626908a083063c54983e0adfbbf7749..7afc1618f2014df67ca42f00c09e863c
      /**
       * The start ID for the counter.
       */
-diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
-index a1ca90ea40b4ccd8df290f8cc34d63d390acc87c..ae21d3e873b22849cc2f02444624d150e9e3868d 100644
---- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
-+++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
-@@ -8,6 +8,9 @@ import org.bukkit.command.Command;
- import org.bukkit.configuration.ConfigurationSection;
- import org.bukkit.configuration.file.YamlConfiguration;
- import top.leavesmc.leaves.command.LeavesCommand;
-+import top.leavesmc.leaves.bot.BotCommand;
-+import top.leavesmc.leaves.bot.agent.Actions;
-+import top.leavesmc.leaves.util.MathUtils;
- 
- import java.io.File;
- import java.lang.reflect.InvocationTargetException;
-@@ -70,6 +73,11 @@ public final class LeavesConfig {
- 
- 	    commands = new HashMap<>();
-         commands.put("leaves", new LeavesCommand("leaves"));
-+
-+        if (top.leavesmc.leaves.LeavesConfig.fakeplayerSupport) {
-+            commands.put("bot", new BotCommand("bot"));
-+            Actions.registerAll();
-+        }
-     }
- 
-     public static void load(final YamlConfiguration config) {
 diff --git a/src/main/java/top/leavesmc/leaves/bot/BotCommand.java b/src/main/java/top/leavesmc/leaves/bot/BotCommand.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..6abc37cff54d876b598051bb23aa3a2c2e1a7baa
+index 0000000000000000000000000000000000000000..6a67f2e548d5f0a5936cc7520eb8369788e9bea8
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/BotCommand.java
 @@ -0,0 +1,275 @@
@@ -467,7 +441,7 @@ index 0000000000000000000000000000000000000000..6abc37cff54d876b598051bb23aa3a2c
 +import org.bukkit.permissions.PermissionDefault;
 +import org.bukkit.plugin.PluginManager;
 +import org.jetbrains.annotations.NotNull;
-+import top.leavesmc.leaves.LeavesLogger;
++import top.leavesmc.leaves.LeavesConfig;
 +import top.leavesmc.leaves.bot.agent.Actions;
 +import top.leavesmc.leaves.bot.agent.BotAction;
 +import top.leavesmc.leaves.bot.agent.actions.CraftCustomBotAction;
@@ -532,7 +506,7 @@ index 0000000000000000000000000000000000000000..6abc37cff54d876b598051bb23aa3a2c
 +
 +    @Override
 +    public boolean execute(@NotNull CommandSender sender, @NotNull String commandLabel, String[] args) {
-+        if (!testPermission(sender)) return true;
++        if (!testPermission(sender) || !LeavesConfig.fakeplayerSupport) return true;
 +
 +        if (args.length == 0) {
 +            sender.sendMessage(ChatColor.RED + "Usage: " + usageMessage);
@@ -1194,7 +1168,7 @@ index 0000000000000000000000000000000000000000..daaece30b2a3983f1cc9ee9a851e8f37
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/ServerBot.java b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..02ef39695d921f804c2a89ae5cf7959c0c0e2903
+index 0000000000000000000000000000000000000000..7a8eb0a472933239145e79930de28deb4cb7b0d6
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
 @@ -0,0 +1,722 @@
@@ -1518,7 +1492,7 @@ index 0000000000000000000000000000000000000000..02ef39695d921f804c2a89ae5cf7959c
 +        if (server.getTickCount() % 20 == 0) {
 +            float health = getHealth();
 +            float maxHealth = getMaxHealth();
-+            float regenAmount = LeavesConfig.fakeplayerRegenAmount * 20;
++            float regenAmount = (float) (LeavesConfig.fakeplayerRegenAmount * 20);
 +            float amount;
 +
 +            if (health < maxHealth - regenAmount) {

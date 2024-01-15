@@ -5,7 +5,7 @@ Subject: [PATCH] Force Void Trade
 
 
 diff --git a/src/main/java/net/minecraft/world/entity/npc/AbstractVillager.java b/src/main/java/net/minecraft/world/entity/npc/AbstractVillager.java
-index 17cc25b6fbc85c9e0023be7e9d857b2d76f6e58c..4c54a9f54310efb78e5f5c47457b9f0d62c1de55 100644
+index 17cc25b6fbc85c9e0023be7e9d857b2d76f6e58c..75bb3f2d2eaf8ffe542534fec40084674003ec64 100644
 --- a/src/main/java/net/minecraft/world/entity/npc/AbstractVillager.java
 +++ b/src/main/java/net/minecraft/world/entity/npc/AbstractVillager.java
 @@ -59,6 +59,7 @@ public abstract class AbstractVillager extends AgeableMob implements InventoryCa
@@ -16,16 +16,22 @@ index 17cc25b6fbc85c9e0023be7e9d857b2d76f6e58c..4c54a9f54310efb78e5f5c47457b9f0d
  
      public AbstractVillager(EntityType<? extends AbstractVillager> type, Level world) {
          super(type, world);
-@@ -149,7 +150,7 @@ public abstract class AbstractVillager extends AgeableMob implements InventoryCa
-     // Paper start
+@@ -150,7 +151,13 @@ public abstract class AbstractVillager extends AgeableMob implements InventoryCa
      @Override
      public void processTrade(MerchantOffer recipe, @Nullable io.papermc.paper.event.player.PlayerPurchaseEvent event) { // The MerchantRecipe passed in here is the one set by the PlayerPurchaseEvent
--        if (event == null || event.willIncreaseTradeUses()) {
-+        if (!voidTrade && (event == null || event.willIncreaseTradeUses())) { // Leaves - force void trade
-             recipe.increaseUses();
+         if (event == null || event.willIncreaseTradeUses()) {
+-            recipe.increaseUses();
++            // Leaves start - force void trade
++            if (voidTrade) {
++                recipe.increaseVoidUses();
++            } else {
++                recipe.increaseUses();
++            }
++            // Leaves end - force void trade
          }
          if (event == null || event.isRewardingExp()) {
-@@ -162,7 +163,7 @@ public abstract class AbstractVillager extends AgeableMob implements InventoryCa
+             this.rewardTradeXp(recipe);
+@@ -162,7 +169,7 @@ public abstract class AbstractVillager extends AgeableMob implements InventoryCa
      @Override
      public void notifyTrade(MerchantOffer offer) {
          // offer.increaseUses(); // Paper - handled in processTrade
@@ -34,7 +40,7 @@ index 17cc25b6fbc85c9e0023be7e9d857b2d76f6e58c..4c54a9f54310efb78e5f5c47457b9f0d
          // this.rewardTradeXp(offer); // Paper - handled in processTrade
          if (this.tradingPlayer instanceof ServerPlayer) {
              CriteriaTriggers.TRADE.trigger((ServerPlayer) this.tradingPlayer, this, offer.getResult());
-@@ -180,7 +181,7 @@ public abstract class AbstractVillager extends AgeableMob implements InventoryCa
+@@ -180,7 +187,7 @@ public abstract class AbstractVillager extends AgeableMob implements InventoryCa
      @Override
      public void notifyTradeUpdated(ItemStack stack) {
          if (!this.level().isClientSide && this.ambientSoundTime > -this.getAmbientSoundInterval() + 20) {
@@ -43,15 +49,20 @@ index 17cc25b6fbc85c9e0023be7e9d857b2d76f6e58c..4c54a9f54310efb78e5f5c47457b9f0d
              this.playSound(this.getTradeUpdatedSound(!stack.isEmpty()), this.getSoundVolume(), this.getVoicePitch());
          }
  
-@@ -229,6 +230,7 @@ public abstract class AbstractVillager extends AgeableMob implements InventoryCa
+@@ -229,6 +236,12 @@ public abstract class AbstractVillager extends AgeableMob implements InventoryCa
      }
  
      protected void stopTrading() {
-+        this.voidTrade = false; // Leaves - force void trade
++        // Leaves start - force void trade
++        this.voidTrade = false;
++        if (this.offers != null) {
++            this.offers.forEach(MerchantOffer::resetVoidUses);
++        }
++        // Leaves end - force void trade
          this.setTradingPlayer((Player) null);
      }
  
-@@ -308,4 +310,10 @@ public abstract class AbstractVillager extends AgeableMob implements InventoryCa
+@@ -308,4 +321,10 @@ public abstract class AbstractVillager extends AgeableMob implements InventoryCa
      public boolean isClientSide() {
          return this.level().isClientSide;
      }
@@ -114,6 +125,68 @@ index 8eab7596e1f7d1beb9ab0d70d1310d26822262e9..55ae9ccbadeb3bb358dd04aadd7b32b1
      private final MerchantContainer tradeContainer;
      private int merchantLevel;
      private boolean showProgressBar;
+diff --git a/src/main/java/net/minecraft/world/item/trading/MerchantOffer.java b/src/main/java/net/minecraft/world/item/trading/MerchantOffer.java
+index 4f7457578ab3118d10e0d5dfc23d79c9b20c2f44..a71d4fd78e1a9b6f4f691d512f372f0cf2b60b4e 100644
+--- a/src/main/java/net/minecraft/world/item/trading/MerchantOffer.java
++++ b/src/main/java/net/minecraft/world/item/trading/MerchantOffer.java
+@@ -20,6 +20,7 @@ public class MerchantOffer {
+     public float priceMultiplier;
+     public int xp;
+     public boolean ignoreDiscounts; // Paper
++    public int voidTradeUses; // Leaves - force void trade
+     // CraftBukkit start
+     private CraftMerchantRecipe bukkitHandle;
+ 
+@@ -73,6 +74,7 @@ public class MerchantOffer {
+         this.specialPriceDiff = nbt.getInt("specialPrice");
+         this.demand = nbt.getInt("demand");
+         this.ignoreDiscounts = nbt.getBoolean("Paper.IgnoreDiscounts"); // Paper
++        this.voidTradeUses = 0; // Leaves - force void trade
+     }
+ 
+     public MerchantOffer(ItemStack buyItem, ItemStack sellItem, int maxUses, int merchantExperience, float priceMultiplier) {
+@@ -107,6 +109,7 @@ public class MerchantOffer {
+         this.xp = merchantExperience;
+         this.priceMultiplier = priceMultiplier;
+         this.demand = demandBonus;
++        this.voidTradeUses = 0; // Leaves - force void trade
+     }
+ 
+     private MerchantOffer(MerchantOffer offer) {
+@@ -122,6 +125,7 @@ public class MerchantOffer {
+         this.demand = offer.demand;
+         this.priceMultiplier = offer.priceMultiplier;
+         this.xp = offer.xp;
++        this.voidTradeUses = 0; // Leaves - force void trade
+     }
+ 
+     public ItemStack getBaseCostA() {
+@@ -172,6 +176,16 @@ public class MerchantOffer {
+         ++this.uses;
+     }
+ 
++    // Leaves start - force void trade
++    public void increaseVoidUses() {
++        ++this.voidTradeUses;
++    }
++
++    public void resetVoidUses() {
++        this.voidTradeUses = 0;
++    }
++    // Leaves end - force void trade
++
+     public int getDemand() {
+         return this.demand;
+     }
+@@ -201,7 +215,7 @@ public class MerchantOffer {
+     }
+ 
+     public boolean isOutOfStock() {
+-        return this.uses >= this.maxUses;
++        return this.uses + this.voidTradeUses >= this.maxUses; // Leaves - force void trade
+     }
+ 
+     public void setToOutOfStock() {
 diff --git a/src/main/java/net/minecraft/world/level/block/entity/TheEndGatewayBlockEntity.java b/src/main/java/net/minecraft/world/level/block/entity/TheEndGatewayBlockEntity.java
 index c06092aa35d44ba98b9680dc72eeba09f6d07822..a2df4fd3c0beb001cd313b3e48f677f37455b772 100644
 --- a/src/main/java/net/minecraft/world/level/block/entity/TheEndGatewayBlockEntity.java

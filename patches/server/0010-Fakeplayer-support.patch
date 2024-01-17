@@ -81,7 +81,7 @@ index f655e0ae4a287886d0291cd0089bad2000249d0f..2694f899241ad8ce06d3bcba78550af5
          AdvancementProgress advancementprogress = this.getOrStartProgress(advancement);
          boolean flag1 = advancementprogress.isDone();
 diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
-index bfc7ba2238e1abc7f0a0ead102c00f8daf4081a2..4be0ae32912cd2250647c4540cedc3e39568f265 100644
+index bfc7ba2238e1abc7f0a0ead102c00f8daf4081a2..d79966a3c97af600b39890f9953a5fefa1e7b486 100644
 --- a/src/main/java/net/minecraft/server/level/ChunkMap.java
 +++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
 @@ -1417,6 +1417,13 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
@@ -90,7 +90,7 @@ index bfc7ba2238e1abc7f0a0ead102c00f8daf4081a2..4be0ae32912cd2250647c4540cedc3e3
                      this.serverEntity.removePairing(player);
 +                    // Leaves start - render bot
 +                    if (entity instanceof top.leavesmc.leaves.bot.ServerBot bot) {
-+                        if (top.leavesmc.leaves.LeavesConfig.alwaysSendFakeplayerData) {
++                        if (bot.alwaysSendData) {
 +                            bot.sendFakeData(player.connection, false);
 +                        }
 +                    }
@@ -337,7 +337,7 @@ index 8fd82051bba33b4703e4d99fff886b63a319a5ba..1a1736fe28014aca767aa9efdcba378b
          FeatureFlagSet featureflagset = player.level().enabledFeatures();
  
 diff --git a/src/main/java/net/minecraft/world/level/levelgen/PhantomSpawner.java b/src/main/java/net/minecraft/world/level/levelgen/PhantomSpawner.java
-index dfeb3e336e06ef01f5401a362755030db942bb07..c51413bf02b3572a05f09d2f0d02493db29a0df7 100644
+index dfeb3e336e06ef01f5401a362755030db942bb07..69eeb1b1a43a820846331240ebd78dc7a13a857b 100644
 --- a/src/main/java/net/minecraft/world/level/levelgen/PhantomSpawner.java
 +++ b/src/main/java/net/minecraft/world/level/levelgen/PhantomSpawner.java
 @@ -68,6 +68,11 @@ public class PhantomSpawner implements CustomSpawner {
@@ -345,8 +345,8 @@ index dfeb3e336e06ef01f5401a362755030db942bb07..c51413bf02b3572a05f09d2f0d02493d
                                      int j = Mth.clamp(serverstatisticmanager.getValue(Stats.CUSTOM.get(Stats.TIME_SINCE_REST)), 1, Integer.MAX_VALUE);
                                      boolean flag2 = true;
 +                                    // Leaves start - fakeplayer spawn
-+                                    if (top.leavesmc.leaves.LeavesConfig.fakeplayerSpawnPhantom && entityplayer instanceof top.leavesmc.leaves.bot.ServerBot) {
-+                                        j = world.paperConfig().entities.behavior.playerInsomniaStartTicks + 1;
++                                    if (entityplayer instanceof top.leavesmc.leaves.bot.ServerBot bot && bot.spawnPhantom) {
++                                        j = bot.notSleepTicks;
 +                                    }
 +                                    // Leaves end - fakeplayer spawn
  
@@ -421,10 +421,10 @@ index 74ff54724626908a083063c54983e0adfbbf7749..7afc1618f2014df67ca42f00c09e863c
       */
 diff --git a/src/main/java/top/leavesmc/leaves/bot/BotCommand.java b/src/main/java/top/leavesmc/leaves/bot/BotCommand.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..6a67f2e548d5f0a5936cc7520eb8369788e9bea8
+index 0000000000000000000000000000000000000000..25129195532cf2f22c758407580599332035e9c0
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/BotCommand.java
-@@ -0,0 +1,275 @@
+@@ -0,0 +1,331 @@
 +package top.leavesmc.leaves.bot;
 +
 +import org.bukkit.Bukkit;
@@ -473,13 +473,14 @@ index 0000000000000000000000000000000000000000..6a67f2e548d5f0a5936cc7520eb83697
 +            list.add("create");
 +            list.add("remove");
 +            list.add("action");
++            list.add("config");
 +            list.add("list");
 +        }
 +
 +        if (args.length == 2) {
 +            switch (args[0]) {
 +                case "create" -> list.add("<BotName>");
-+                case "remove", "action" ->
++                case "remove", "action", "config" ->
 +                    list.addAll(ServerBot.getBots().stream().map(e -> e.getName().getString()).toList());
 +                case "list" -> list.addAll(Bukkit.getWorlds().stream().map(WorldInfo::getName).toList());
 +            }
@@ -492,6 +493,16 @@ index 0000000000000000000000000000000000000000..6a67f2e548d5f0a5936cc7520eb83697
 +                    list.addAll(Actions.getNames());
 +                }
 +                case "create" -> list.add("<BotSkinName>");
++                case "config" -> list.addAll(acceptConfig);
++            }
++        }
++
++        if (args.length == 4) {
++            switch (args[0]) {
++                case "config" -> {
++                    list.add("true");
++                    list.add("false");
++                }
 +            }
 +        }
 +
@@ -501,6 +512,7 @@ index 0000000000000000000000000000000000000000..6a67f2e548d5f0a5936cc7520eb83697
 +                list.addAll(action.getArgument().tabComplete(args.length - 4));
 +            }
 +        }
++
 +        return list;
 +    }
 +
@@ -519,6 +531,8 @@ index 0000000000000000000000000000000000000000..6a67f2e548d5f0a5936cc7520eb83697
 +            case "remove" -> this.onRemove(sender, args);
 +
 +            case "action" -> this.onAction(sender, args);
++
++            case "config" -> this.onConfig(sender, args);
 +
 +            case "list" -> this.onList(sender, args);
 +
@@ -653,6 +667,48 @@ index 0000000000000000000000000000000000000000..6a67f2e548d5f0a5936cc7520eb83697
 +
 +        bot.setBotAction(newAction);
 +        sender.sendMessage("Action " + action.getName() + " has been issued to " + bot.getName().getString());
++    }
++
++    private static final List<String> acceptConfig = List.of("skip_sleep", "spawn_phantom", "always_send_data");
++
++    private void onConfig(CommandSender sender, String @NotNull [] args) {
++        if (args.length < 3) {
++            sender.sendMessage(ChatColor.RED + "Use /bot config <name> <config> to modify fakeplayer's config");
++            return;
++        }
++
++        ServerBot bot = ServerBot.getBot(args[1]);
++        if (bot == null) {
++            sender.sendMessage(ChatColor.RED + "This fakeplayer is not in server");
++            return;
++        }
++
++        if (!acceptConfig.contains(args[2])) {
++            sender.sendMessage(ChatColor.RED + "This config is not accept");
++            return;
++        }
++
++        if (args.length < 4) {
++            switch (args[2]) {
++                case "skip_sleep" -> sender.sendMessage(bot.getScoreboardName() + "'s skip_sleep: " + bot.fauxSleeping);
++                case "spawn_phantom" -> {
++                    sender.sendMessage(bot.getScoreboardName() + "'s spawn_phantom: " + bot.spawnPhantom);
++                    if (bot.spawnPhantom) {
++                        sender.sendMessage(bot.getScoreboardName() + "'s not_sleeping_ticks: " + bot.notSleepTicks);
++                    }
++                }
++                case "always_send_data" ->
++                    sender.sendMessage(bot.getScoreboardName() + "'s always_send_data: " + bot.alwaysSendData);
++            }
++        } else {
++            boolean value = args[3].equals("true");
++            switch (args[2]) {
++                case "skip_sleep" -> bot.fauxSleeping = value;
++                case "spawn_phantom" -> bot.spawnPhantom = value;
++                case "always_send_data" -> bot.alwaysSendData = value;
++            }
++            sender.sendMessage(bot.getScoreboardName() + "'s " + args[2] + " changed: " + value);
++        }
 +    }
 +
 +    private void onList(CommandSender sender, String @NotNull [] args) {
@@ -1168,10 +1224,10 @@ index 0000000000000000000000000000000000000000..daaece30b2a3983f1cc9ee9a851e8f37
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/ServerBot.java b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..7a8eb0a472933239145e79930de28deb4cb7b0d6
+index 0000000000000000000000000000000000000000..7f5af75066e1a5e64ddf2e910857a2b407064214
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
-@@ -0,0 +1,722 @@
+@@ -0,0 +1,734 @@
 +package top.leavesmc.leaves.bot;
 +
 +import com.google.common.collect.Lists;
@@ -1274,6 +1330,10 @@ index 0000000000000000000000000000000000000000..7a8eb0a472933239145e79930de28deb
 +
 +    private static final List<ServerBot> bots = new CopyOnWriteArrayList<>();
 +
++    public boolean spawnPhantom;
++    public int notSleepTicks;
++    public boolean alwaysSendData;
++
 +    private ServerBot(MinecraftServer server, ServerLevel world, GameProfile profile) {
 +        super(server, world, profile, ClientInformation.createDefault());
 +        this.entityData.set(new EntityDataAccessor<>(16, EntityDataSerializers.INT), 0xFF);
@@ -1286,10 +1346,14 @@ index 0000000000000000000000000000000000000000..7a8eb0a472933239145e79930de28deb
 +        this.removeOnDeath = true;
 +        this.stats = new BotStatsCounter(server);
 +        this.container = new BotInventoryContainer(this);
-+        this.fauxSleeping = LeavesConfig.fakeplayerSkipSleep;
 +        this.waterSwim = true;
 +        this.knockback = Vec3.ZERO;
 +        this.tracingRange = world.spigotConfig.playerTrackingRange * world.spigotConfig.playerTrackingRange;
++        this.notSleepTicks = 0;
++
++        this.fauxSleeping = LeavesConfig.fakeplayerSkipSleep;
++        this.spawnPhantom = LeavesConfig.fakeplayerSpawnPhantom;
++        this.alwaysSendData = LeavesConfig.alwaysSendFakeplayerData;
 +    }
 +
 +    public static ServerBot createBot(@NotNull BotCreateState state) {
@@ -1378,7 +1442,7 @@ index 0000000000000000000000000000000000000000..7a8eb0a472933239145e79930de28deb
 +    }
 +
 +    public boolean needSendFakeData(ServerPlayer player) {
-+        return LeavesConfig.alwaysSendFakeplayerData && (player.level() == this.level() && player.position().distanceToSqr(this.position()) > this.tracingRange);
++        return alwaysSendData && (player.level() == this.level() && player.position().distanceToSqr(this.position()) > this.tracingRange);
 +    }
 +
 +    public void sendFakeDataIfNeed(ServerPlayer player, boolean login) {
@@ -1471,6 +1535,10 @@ index 0000000000000000000000000000000000000000..7a8eb0a472933239145e79930de28deb
 +
 +        if (!isAlive()) {
 +            return;
++        }
++
++        if (spawnPhantom) {
++            notSleepTicks++;
 +        }
 +
 +        if (fireTicks > 0) {

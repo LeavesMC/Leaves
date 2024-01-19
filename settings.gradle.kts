@@ -7,4 +7,4 @@ pluginManagement {
 
 rootProject.name = "Leaves"
 
-include("leaves-api", "leaves-server")
+include("leaves-api", "leaves-server", "paper-api-generator")

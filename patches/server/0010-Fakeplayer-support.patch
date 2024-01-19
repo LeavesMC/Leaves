@@ -5,7 +5,7 @@ Subject: [PATCH] Fakeplayer support
 
 
 diff --git a/src/main/java/net/minecraft/advancements/critereon/SimpleCriterionTrigger.java b/src/main/java/net/minecraft/advancements/critereon/SimpleCriterionTrigger.java
-index 31fa6a0cb00139bfcb71f4fd30da8b736bf491f2..1ad8b58fc3e97026173727fd4bb847823942a474 100644
+index 00bf770559d9c628119658cb027eb0b970c04e1b..7284df7d0d4242f55ecd63df2c137ec3e7c2f25c 100644
 --- a/src/main/java/net/minecraft/advancements/critereon/SimpleCriterionTrigger.java
 +++ b/src/main/java/net/minecraft/advancements/critereon/SimpleCriterionTrigger.java
 @@ -42,6 +42,7 @@ public abstract class SimpleCriterionTrigger<T extends SimpleCriterionTrigger.Si
@@ -36,7 +36,7 @@ index 2ae08b21c63490bbf8cd870f9585d82ed131f815..c6f773afc39e7c97d13d1977a7609fc4
          if (this.packetListener != null) {
              throw new IllegalStateException("Listener already set");
 diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
-index eb376bf0cb055fb3ddb05e5a0ff8602a0108f772..37af0a508cfe56f23be806d2d4100d890ad5e7ec 100644
+index cba7872ef6fd648e2a9b4c997a97ae314557213c..85169a9082268fa77453a64196a419d59cb88c9a 100644
 --- a/src/main/java/net/minecraft/server/MinecraftServer.java
 +++ b/src/main/java/net/minecraft/server/MinecraftServer.java
 @@ -123,6 +123,7 @@ import net.minecraft.util.profiling.metrics.storage.MetricsPersister;
@@ -81,7 +81,7 @@ index f655e0ae4a287886d0291cd0089bad2000249d0f..2694f899241ad8ce06d3bcba78550af5
          AdvancementProgress advancementprogress = this.getOrStartProgress(advancement);
          boolean flag1 = advancementprogress.isDone();
 diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
-index bfc7ba2238e1abc7f0a0ead102c00f8daf4081a2..d79966a3c97af600b39890f9953a5fefa1e7b486 100644
+index 9ea2c8d06af2f6e082f8a2401092a7878afa9487..738787aa0212829a15770f65e37441a3fa76812d 100644
 --- a/src/main/java/net/minecraft/server/level/ChunkMap.java
 +++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
 @@ -1417,6 +1417,13 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
@@ -99,7 +99,7 @@ index bfc7ba2238e1abc7f0a0ead102c00f8daf4081a2..d79966a3c97af600b39890f9953a5fef
  
              }
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-index be05a52be037042c6158100e2ce880b8ed415d53..d9038d85f8a04381a92567acf1c8922d666aa3e8 100644
+index 3506cd1c5960b58fe2805d9cc7ea6758f45d4e2a..41acc2e1883af2220dcdfb9bbefef1976a54d202 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
 @@ -186,6 +186,7 @@ import org.bukkit.event.player.PlayerTeleportEvent;
@@ -148,14 +148,14 @@ index be05a52be037042c6158100e2ce880b8ed415d53..d9038d85f8a04381a92567acf1c8922d
              CriteriaTriggers.LEVITATION.trigger(this, this.levitationStartPos, this.tickCount - this.levitationStartTime);
          }
 @@ -947,7 +952,7 @@ public class ServerPlayer extends Player {
-         List<DefaultDrop> loot = new java.util.ArrayList<>(this.getInventory().getContainerSize()); // Paper
+         List<DefaultDrop> loot = new java.util.ArrayList<>(this.getInventory().getContainerSize()); // Paper - Restore vanilla drops behavior
          boolean keepInventory = this.level().getGameRules().getBoolean(GameRules.RULE_KEEPINVENTORY) || this.isSpectator();
  
 -        if (!keepInventory) {
 +        if (!keepInventory || this instanceof ServerBot) { // Leaves - skip bot
              for (ItemStack item : this.getInventory().getContents()) {
                  if (!item.isEmpty() && !EnchantmentHelper.hasVanishingCurse(item)) {
-                     loot.add(new DefaultDrop(item, stack -> this.drop(stack, true, false, false))); // Paper - drop function taken from Inventory#dropAll (don't fire drop event)
+                     loot.add(new DefaultDrop(item, stack -> this.drop(stack, true, false, false))); // Paper - Restore vanilla drops behavior; drop function taken from Inventory#dropAll (don't fire drop event)
 @@ -1272,6 +1277,13 @@ public class ServerPlayer extends Player {
                  this.lastSentHealth = -1.0F;
                  this.lastSentFood = -1;
@@ -171,7 +171,7 @@ index be05a52be037042c6158100e2ce880b8ed415d53..d9038d85f8a04381a92567acf1c8922d
                  PlayerChangedWorldEvent changeEvent = new PlayerChangedWorldEvent(this.getBukkitEntity(), worldserver1.getWorld());
                  this.level().getCraftServer().getPluginManager().callEvent(changeEvent);
 diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index a2eed9b45b2690d1af3b8f8dfb17c7b8ad3dd0cc..0fe509e4e47cfb9d2a96704a35f7532865684db8 100644
+index b51fec201db06edbbfb5e6e8abd137bd194cb542..e60bc1b390cd47c2c97735a0dcbe1ecc2c515640 100644
 --- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 @@ -298,7 +298,13 @@ public class ServerGamePacketListenerImpl extends ServerCommonPacketListenerImpl
@@ -190,7 +190,7 @@ index a2eed9b45b2690d1af3b8f8dfb17c7b8ad3dd0cc..0fe509e4e47cfb9d2a96704a35f75328
          player.connection = this;
          player.getTextFilter().join();
 diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
-index 00f4ee320f8a8d019cb311cee78bb38445835952..52f6ef8702a1902df079b1ec34282b46aae5d01e 100644
+index 3dba9e1361d8ea978f1a7f54d6fd03aab02053f4..89249723a490c5b08916241279ab94f82e41a942 100644
 --- a/src/main/java/net/minecraft/server/players/PlayerList.java
 +++ b/src/main/java/net/minecraft/server/players/PlayerList.java
 @@ -120,6 +120,8 @@ import org.bukkit.event.player.PlayerRespawnEvent.RespawnReason;
@@ -274,10 +274,10 @@ index 00f4ee320f8a8d019cb311cee78bb38445835952..52f6ef8702a1902df079b1ec34282b46
 +    // Leaves end - fakeplayer support
  }
 diff --git a/src/main/java/net/minecraft/world/entity/Entity.java b/src/main/java/net/minecraft/world/entity/Entity.java
-index dc85c4d6b6fb9ca9d1dbd2e696616cc347f1c05a..f9e9b708eecae0dfdb283899ac293ddbfb986ade 100644
+index b1a4824b23f15f944077bce56170f1a790575c48..d28f4e71a370606cf1626f7176aef815365b6cbe 100644
 --- a/src/main/java/net/minecraft/world/entity/Entity.java
 +++ b/src/main/java/net/minecraft/world/entity/Entity.java
-@@ -1424,7 +1424,7 @@ public abstract class Entity implements Nameable, EntityAccess, CommandSource, S
+@@ -1426,7 +1426,7 @@ public abstract class Entity implements Nameable, EntityAccess, CommandSource, S
          return offsetFactor;
      }
  
@@ -287,7 +287,7 @@ index dc85c4d6b6fb9ca9d1dbd2e696616cc347f1c05a..f9e9b708eecae0dfdb283899ac293ddb
          final boolean xZero = movement.x == 0.0;
          final boolean yZero = movement.y == 0.0;
 diff --git a/src/main/java/net/minecraft/world/entity/projectile/FishingHook.java b/src/main/java/net/minecraft/world/entity/projectile/FishingHook.java
-index a2093158e57d5f43c4afa66386481b82b3c4c3c4..35672105a000d87c7fe82eb65456d891b3bd983d 100644
+index 5706c9b744b660d6f7639b8152dce82799c4b466..50b0711cd62224ed3e26da45831673c36601f6e5 100644
 --- a/src/main/java/net/minecraft/world/entity/projectile/FishingHook.java
 +++ b/src/main/java/net/minecraft/world/entity/projectile/FishingHook.java
 @@ -61,7 +61,7 @@ public class FishingHook extends Projectile {
@@ -300,7 +300,7 @@ index a2093158e57d5f43c4afa66386481b82b3c4c3c4..35672105a000d87c7fe82eb65456d891
      private int timeUntilHooked;
      private float fishAngle;
 diff --git a/src/main/java/net/minecraft/world/inventory/AbstractContainerMenu.java b/src/main/java/net/minecraft/world/inventory/AbstractContainerMenu.java
-index 8fd82051bba33b4703e4d99fff886b63a319a5ba..1a1736fe28014aca767aa9efdcba378be3adc8ea 100644
+index 1548bc20988fea3f032d71cad40299fdf5b08b71..067f44d1fb245a315ec1c0fbccfef9b169c02d02 100644
 --- a/src/main/java/net/minecraft/world/inventory/AbstractContainerMenu.java
 +++ b/src/main/java/net/minecraft/world/inventory/AbstractContainerMenu.java
 @@ -406,6 +406,8 @@ public abstract class AbstractContainerMenu {
@@ -337,7 +337,7 @@ index 8fd82051bba33b4703e4d99fff886b63a319a5ba..1a1736fe28014aca767aa9efdcba378b
          FeatureFlagSet featureflagset = player.level().enabledFeatures();
  
 diff --git a/src/main/java/net/minecraft/world/level/levelgen/PhantomSpawner.java b/src/main/java/net/minecraft/world/level/levelgen/PhantomSpawner.java
-index dfeb3e336e06ef01f5401a362755030db942bb07..69eeb1b1a43a820846331240ebd78dc7a13a857b 100644
+index 7d7d37334321c844958ce09e77547dd61dcba6c8..0e3eabf4b35082ce640bdf2ba15019b67e0c6ca2 100644
 --- a/src/main/java/net/minecraft/world/level/levelgen/PhantomSpawner.java
 +++ b/src/main/java/net/minecraft/world/level/levelgen/PhantomSpawner.java
 @@ -68,6 +68,11 @@ public class PhantomSpawner implements CustomSpawner {
@@ -350,10 +350,10 @@ index dfeb3e336e06ef01f5401a362755030db942bb07..69eeb1b1a43a820846331240ebd78dc7
 +                                    }
 +                                    // Leaves end - fakeplayer spawn
  
-                                     if (randomsource.nextInt(j) >= world.paperConfig().entities.behavior.playerInsomniaStartTicks) { // Paper
+                                     if (randomsource.nextInt(j) >= world.paperConfig().entities.behavior.playerInsomniaStartTicks) { // Paper - Ability to control player's insomnia and phantoms
                                          BlockPos blockposition1 = blockposition.above(20 + randomsource.nextInt(15)).east(-10 + randomsource.nextInt(21)).south(-10 + randomsource.nextInt(21));
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 1e904d37a4646ebd2c3913fb6157342678c06ba9..1dc51050065af9bfc760f0a2cd7a479817888280 100644
+index c8e938ec5b740b2ffd198cccc349d6ae69cda50d..69a7933bca98d29f215edfe3839e416207d083f9 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 @@ -259,6 +259,7 @@ import org.yaml.snakeyaml.constructor.SafeConstructor;
@@ -367,12 +367,12 @@ index 1e904d37a4646ebd2c3913fb6157342678c06ba9..1dc51050065af9bfc760f0a2cd7a4798
 @@ -305,6 +306,7 @@ public final class CraftServer implements Server {
      public static Exception excessiveVelEx; // Paper - Velocity warnings
      private final io.papermc.paper.logging.SysoutCatcher sysoutCatcher = new io.papermc.paper.logging.SysoutCatcher(); // Paper
-     private final CraftPotionBrewer potionBrewer = new CraftPotionBrewer(); // Paper
+     private final CraftPotionBrewer potionBrewer = new CraftPotionBrewer(); // Paper - Custom Potion Mixes
 +    private final CraftBotManager botManager = new CraftBotManager();
  
      // Paper start - Folia region threading API
      private final io.papermc.paper.threadedregions.scheduler.FallbackRegionScheduler regionizedScheduler = new io.papermc.paper.threadedregions.scheduler.FallbackRegionScheduler();
-@@ -3244,4 +3246,11 @@ public final class CraftServer implements Server {
+@@ -3243,4 +3245,11 @@ public final class CraftServer implements Server {
      }
  
      // Paper end

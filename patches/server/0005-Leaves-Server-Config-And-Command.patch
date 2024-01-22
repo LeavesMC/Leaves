@@ -31,17 +31,17 @@ index 7fb484e4a97070e75b8611a59d84c9732ed5d17b..27f7507a50537ec76f88518d3584d7c8
  
          this.setPvpAllowed(dedicatedserverproperties.pvp);
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 12b5796ac962b73a36538d313b77c07784d6ebe7..98e673938df540f47ef882620daadd2da566f671 100644
+index 12b5796ac962b73a36538d313b77c07784d6ebe7..9e64df1a42ad11f4852a591eec40d37b3ee418a3 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -1037,6 +1037,7 @@ public final class CraftServer implements Server {
- 
-         org.spigotmc.SpigotConfig.init((File) this.console.options.valueOf("spigot-settings")); // Spigot
-         this.console.paperConfigurations.reloadConfigs(this.console);
-+		top.leavesmc.leaves.LeavesConfig.init((File) console.options.valueOf("leaves-settings")); // Leaves - Server Config
-         for (ServerLevel world : this.console.getAllLevels()) {
-             // world.serverLevelData.setDifficulty(config.difficulty); // Paper - per level difficulty
-             world.setSpawnSettings(world.serverLevelData.getDifficulty() != Difficulty.PEACEFUL && config.spawnMonsters, config.spawnAnimals); // Paper - per level difficulty (from MinecraftServer#setDifficulty(ServerLevel, Difficulty, boolean))
+@@ -1064,6 +1064,7 @@ public final class CraftServer implements Server {
+             playerMetadata.removeAll(plugin);
+         }
+         // Paper end
++        top.leavesmc.leaves.LeavesConfig.init((File) console.options.valueOf("leaves-settings")); // Leaves - Server Config
+         this.reloadData();
+         org.spigotmc.SpigotConfig.registerCommands(); // Spigot
+         io.papermc.paper.command.PaperCommands.registerCommands(this.console); // Paper
 @@ -3009,6 +3010,14 @@ public final class CraftServer implements Server {
          {
              return CraftServer.this.console.paperConfigurations.createLegacyObject(CraftServer.this.console);
@@ -78,10 +78,10 @@ index dd95c9d931da5ee2cb3e620c71cc90d178c51fbc..d1ebe4f340c53f987a42fffcc462f2ea
                          .withRequiredArg()
 diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..4eac1921b5cb8616881bcb56b889336ac559920e
+index 0000000000000000000000000000000000000000..a25273c37a36036d1014f754db07b51c9287d382
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
-@@ -0,0 +1,876 @@
+@@ -0,0 +1,892 @@
 +package top.leavesmc.leaves;
 +
 +import com.destroystokyo.paper.util.SneakyThrow;
@@ -163,6 +163,7 @@ index 0000000000000000000000000000000000000000..4eac1921b5cb8616881bcb56b889336a
 +        }
 +    }
 +
++    @SuppressWarnings("all")
 +    @Deprecated(forRemoval = true)
 +    private static void updateConfigVersion(final YamlConfiguration config) {
 +        if (configVersion < CURRENT_CONFIG_VERSION) {
@@ -548,6 +549,21 @@ index 0000000000000000000000000000000000000000..4eac1921b5cb8616881bcb56b889336a
 +
 +    @GlobalConfig(name = "renewable-sponges", category = "modify")
 +    public static boolean renewableSponges = false;
++
++    @GlobalConfig(name = "renewable-coral", category = "modify", verify = RenewableCoralVerify.class)
++    public static RenewableCoralType renewableCoral = RenewableCoralType.FALSE;
++
++    public enum RenewableCoralType {
++        FALSE, TRUE, EXPANDED
++    }
++
++    private static class RenewableCoralVerify extends ConfigVerify.EnumConfigVerify<RenewableCoralType> {
++        @Override
++        public String check(Enum<RenewableCoralType> old, Enum<RenewableCoralType> value) {
++            CarpetRules.register(CarpetRule.of("carpet", "renewableCoral", value));
++            return null;
++        }
++    }
 +
 +    // Leaves start - modify - removed
 +
@@ -1360,13 +1376,17 @@ index 0000000000000000000000000000000000000000..205e563ed4b3f59e294c2866952c73d2
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/config/ConfigVerify.java b/src/main/java/top/leavesmc/leaves/config/ConfigVerify.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..6cd0d02ed56140752d40642d8fcf7dc51423210a
+index 0000000000000000000000000000000000000000..1e3cb6a012ef2e8d997e904dc0f0a08aae06e63d
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/config/ConfigVerify.java
-@@ -0,0 +1,60 @@
+@@ -0,0 +1,92 @@
 +package top.leavesmc.leaves.config;
 +
++import java.lang.reflect.ParameterizedType;
++import java.lang.reflect.Type;
++import java.util.ArrayList;
 +import java.util.List;
++import java.util.Locale;
 +
 +public interface ConfigVerify<E> {
 +
@@ -1423,6 +1443,34 @@ index 0000000000000000000000000000000000000000..6cd0d02ed56140752d40642d8fcf7dc5
 +            throw new IllegalArgumentException("not support"); // TODO
 +        }
 +    }
++
++    class EnumConfigVerify<E extends Enum<E>> implements ConfigVerify<Enum<E>> {
++
++        private final Class<E> enumClass;
++        private final List<String> enumValues;
++
++        @SuppressWarnings({"unchecked", "unused"})
++        public EnumConfigVerify() {
++            Type genericSuperclass = getClass().getGenericSuperclass();
++            Type[] typeArguments = ((ParameterizedType) genericSuperclass).getActualTypeArguments();
++            this.enumClass = (Class<E>) typeArguments[0];
++            this.enumValues = new ArrayList<>(){{
++                for (E e : enumClass.getEnumConstants()) {
++                    add(e.name().toLowerCase(Locale.ROOT));
++                }
++            }};
++        }
++
++        @Override
++        public Enum<E> convert(String value) {
++            return Enum.valueOf(enumClass, value.toUpperCase(Locale.ROOT));
++        }
++
++        @Override
++        public List<String> valueSuggest() {
++            return enumValues;
++        }
++    }
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/config/GlobalConfig.java b/src/main/java/top/leavesmc/leaves/config/GlobalConfig.java
 new file mode 100644
@@ -1451,10 +1499,10 @@ index 0000000000000000000000000000000000000000..f6b946e5dfb5e3a2c169f88e8fb54718
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/config/GlobalConfigManager.java b/src/main/java/top/leavesmc/leaves/config/GlobalConfigManager.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..55899c275c496fc6441fbb15b22bb89406e587ae
+index 0000000000000000000000000000000000000000..fdf01d5682d3b0083eeb87ba7e7b7b46a76be9f8
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/config/GlobalConfigManager.java
-@@ -0,0 +1,133 @@
+@@ -0,0 +1,160 @@
 +package top.leavesmc.leaves.config;
 +
 +import org.bukkit.Bukkit;
@@ -1465,6 +1513,7 @@ index 0000000000000000000000000000000000000000..55899c275c496fc6441fbb15b22bb894
 +import java.lang.reflect.Field;
 +import java.lang.reflect.Modifier;
 +import java.util.HashMap;
++import java.util.Locale;
 +import java.util.Map;
 +import java.util.Set;
 +import java.util.logging.Level;
@@ -1484,27 +1533,53 @@ index 0000000000000000000000000000000000000000..55899c275c496fc6441fbb15b22bb894
 +                if (globalConfig != null) {
 +                    try {
 +                        VerifiedConfig verifiedConfig = VerifiedConfig.build(globalConfig, field);
++
 +                        if (field.getAnnotation(RemovedConfig.class) != null) {
 +                            LeavesConfig.config.set(verifiedConfig.path, null);
-+                        } else {
-+                            field.setAccessible(true);
-+                            if (globalConfig.lock() && !firstLoad) {
-+                                continue;
++                            continue;
++                        }
++
++                        field.setAccessible(true);
++                        if (globalConfig.lock() && !firstLoad) {
++                            continue;
++                        }
++
++                        Object defValue = field.get(null);
++                        if (verifiedConfig.verify instanceof ConfigVerify.EnumConfigVerify) {
++                            defValue = defValue.toString();
++                            LeavesConfig.config.addDefault(verifiedConfig.path, defValue);
++
++                            try {
++                                Object savedValue = verifiedConfig.verify.convert(LeavesConfig.config.getString(verifiedConfig.path));
++                                String checkInfo = verifiedConfig.verify.check(null, savedValue);
++
++                                if (checkInfo == null) {
++                                    field.set(null, savedValue);
++                                } else {
++                                    throw new IllegalArgumentException(checkInfo);
++                                }
++
++                                LeavesConfig.config.set(verifiedConfig.path, savedValue.toString());
++                            } catch (IllegalArgumentException e) {
++                                LeavesConfig.config.set(verifiedConfig.path, defValue);
++                                LeavesLogger.LOGGER.warning(e.getMessage() + ", reset to " + defValue);
 +                            }
-+                            Object defValue = field.get(null);
++                        } else {
 +                            LeavesConfig.config.addDefault(verifiedConfig.path, defValue);
 +
 +                            Object savedValue = LeavesConfig.config.get(verifiedConfig.path);
 +                            String checkInfo = verifiedConfig.verify.check(null, savedValue);
++
 +                            if (checkInfo == null) {
 +                                field.set(null, savedValue);
 +                            } else {
 +                                LeavesConfig.config.set(verifiedConfig.path, defValue);
 +                                LeavesLogger.LOGGER.warning(checkInfo + ", reset to " + defValue);
 +                            }
-+
-+                            verifiedConfigs.put(verifiedConfig.path.substring("settings.".length()), verifiedConfig);
++                            LeavesConfig.config.set(verifiedConfig.path, savedValue);
 +                        }
++
++                        verifiedConfigs.put(verifiedConfig.path.substring("settings.".length()), verifiedConfig);
 +                    } catch (Exception e) {
 +                        Bukkit.getLogger().log(Level.SEVERE, "Failure to load leaves config", e);
 +                    }
@@ -1547,7 +1622,7 @@ index 0000000000000000000000000000000000000000..55899c275c496fc6441fbb15b22bb894
 +
 +            try {
 +                field.set(null, value);
-+                LeavesConfig.config.set(path, value);
++                LeavesConfig.config.set(path, verify instanceof ConfigVerify.EnumConfigVerify ? realValue.toUpperCase(Locale.ROOT) : value);
 +                LeavesConfig.save();
 +            } catch (IllegalAccessException e) {
 +                throw new IllegalArgumentException("?");

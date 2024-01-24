@@ -5,7 +5,7 @@ Subject: [PATCH] Fakeplayer support
 
 
 diff --git a/src/main/java/net/minecraft/advancements/critereon/SimpleCriterionTrigger.java b/src/main/java/net/minecraft/advancements/critereon/SimpleCriterionTrigger.java
-index 00bf770559d9c628119658cb027eb0b970c04e1b..7284df7d0d4242f55ecd63df2c137ec3e7c2f25c 100644
+index a327973e37b5b8d4e15683ef24548482ac3dc3d5..65d82963d611a6dbbd7ca58d363854e4fad59230 100644
 --- a/src/main/java/net/minecraft/advancements/critereon/SimpleCriterionTrigger.java
 +++ b/src/main/java/net/minecraft/advancements/critereon/SimpleCriterionTrigger.java
 @@ -42,6 +42,7 @@ public abstract class SimpleCriterionTrigger<T extends SimpleCriterionTrigger.Si
@@ -17,7 +17,7 @@ index 00bf770559d9c628119658cb027eb0b970c04e1b..7284df7d0d4242f55ecd63df2c137ec3
          Set<CriterionTrigger.Listener<T>> set = (Set) playerAdvancements.criterionData.get(this); // Paper - fix AdvancementDataPlayer leak
          if (set != null && !set.isEmpty()) {
 diff --git a/src/main/java/net/minecraft/network/Connection.java b/src/main/java/net/minecraft/network/Connection.java
-index 2ae08b21c63490bbf8cd870f9585d82ed131f815..c6f773afc39e7c97d13d1977a7609fc46714709d 100644
+index b189aeb8646b5385c7cca0c4babfcb071a642220..d6179829579a07c29565d024f53069375be53fb7 100644
 --- a/src/main/java/net/minecraft/network/Connection.java
 +++ b/src/main/java/net/minecraft/network/Connection.java
 @@ -339,6 +339,14 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
@@ -36,36 +36,28 @@ index 2ae08b21c63490bbf8cd870f9585d82ed131f815..c6f773afc39e7c97d13d1977a7609fc4
          if (this.packetListener != null) {
              throw new IllegalStateException("Listener already set");
 diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
-index cba7872ef6fd648e2a9b4c997a97ae314557213c..85169a9082268fa77453a64196a419d59cb88c9a 100644
+index 5582fc4548cdaef69f4cf888f02d6d280adb3eaf..d90955687caa5fbe925c55184ac14fa3946afa74 100644
 --- a/src/main/java/net/minecraft/server/MinecraftServer.java
 +++ b/src/main/java/net/minecraft/server/MinecraftServer.java
-@@ -123,6 +123,7 @@ import net.minecraft.util.profiling.metrics.storage.MetricsPersister;
- import net.minecraft.util.thread.ReentrantBlockableEventLoop;
- import net.minecraft.world.Difficulty;
- import net.minecraft.world.RandomSequences;
-+import net.minecraft.world.damagesource.DamageSource;
- import net.minecraft.world.entity.Entity;
- import net.minecraft.world.entity.ai.village.VillageSiege;
- import net.minecraft.world.entity.npc.CatSpawner;
-@@ -665,6 +666,8 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+@@ -663,6 +663,8 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
          }
-         // Paper end
+         // Paper end - Configurable player collision
  
 +        top.leavesmc.leaves.bot.ServerBot.loadAllBot(); // Leaves - load resident bot
 +
          this.server.enablePlugins(org.bukkit.plugin.PluginLoadOrder.POSTWORLD);
          this.server.getPluginManager().callEvent(new ServerLoadEvent(ServerLoadEvent.LoadType.STARTUP));
          this.connection.acceptConnections();
-@@ -965,6 +968,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+@@ -963,6 +965,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
  
          MinecraftServer.LOGGER.info("Stopping server");
-         Commands.COMMAND_SENDING_POOL.shutdownNow(); // Paper - Shutdown and don't bother finishing
+         Commands.COMMAND_SENDING_POOL.shutdownNow(); // Paper - Perf: Async command map building; Shutdown and don't bother finishing
 +        top.leavesmc.leaves.bot.ServerBot.saveOrRemoveAllBot(); // Leaves - save or remove bot
          // CraftBukkit start
          if (this.server != null) {
              this.server.disablePlugins();
 diff --git a/src/main/java/net/minecraft/server/PlayerAdvancements.java b/src/main/java/net/minecraft/server/PlayerAdvancements.java
-index f655e0ae4a287886d0291cd0089bad2000249d0f..2694f899241ad8ce06d3bcba78550af5626561ce 100644
+index 24e5993b281448734eb67c7a8439a349bbf9fd72..677c4d5360509f212ccbe4ff7418e0e7ee1fbb59 100644
 --- a/src/main/java/net/minecraft/server/PlayerAdvancements.java
 +++ b/src/main/java/net/minecraft/server/PlayerAdvancements.java
 @@ -221,6 +221,11 @@ public class PlayerAdvancements {
@@ -81,10 +73,10 @@ index f655e0ae4a287886d0291cd0089bad2000249d0f..2694f899241ad8ce06d3bcba78550af5
          AdvancementProgress advancementprogress = this.getOrStartProgress(advancement);
          boolean flag1 = advancementprogress.isDone();
 diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
-index 9ea2c8d06af2f6e082f8a2401092a7878afa9487..738787aa0212829a15770f65e37441a3fa76812d 100644
+index 5c94fb3f0d586ef1b8554549491f3eed4bd1a28d..69a8dc72609e73c85581ac782b3d5ae09ed7c7f7 100644
 --- a/src/main/java/net/minecraft/server/level/ChunkMap.java
 +++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
-@@ -1417,6 +1417,13 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+@@ -1413,6 +1413,13 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
                      }
                  } else if (this.seenBy.remove(player.connection)) {
                      this.serverEntity.removePairing(player);
@@ -99,7 +91,7 @@ index 9ea2c8d06af2f6e082f8a2401092a7878afa9487..738787aa0212829a15770f65e37441a3
  
              }
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-index 3506cd1c5960b58fe2805d9cc7ea6758f45d4e2a..41acc2e1883af2220dcdfb9bbefef1976a54d202 100644
+index 4a0df97430cf025d1e830f681ef791ecec985102..23260d76c00e37df8499168ebfae21f0ee077cca 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
 @@ -186,6 +186,7 @@ import org.bukkit.event.player.PlayerTeleportEvent;
@@ -119,8 +111,8 @@ index 3506cd1c5960b58fe2805d9cc7ea6758f45d4e2a..41acc2e1883af2220dcdfb9bbefef197
 -            containerUpdateDelay = this.level().paperConfig().tickRates.containerUpdate;
 -        }
 -        // Paper end
--        if (!this.level().isClientSide && this.containerMenu != this.inventoryMenu && (this.isImmobile() || !this.containerMenu.stillValid(this))) { // Paper - auto close while frozen
--            this.closeContainer(org.bukkit.event.inventory.InventoryCloseEvent.Reason.CANT_USE); // Paper
+-        if (!this.level().isClientSide && this.containerMenu != this.inventoryMenu && (this.isImmobile() || !this.containerMenu.stillValid(this))) { // Paper - Prevent opening inventories when frozen
+-            this.closeContainer(org.bukkit.event.inventory.InventoryCloseEvent.Reason.CANT_USE); // Paper - Inventory close reason
 -            this.containerMenu = this.inventoryMenu;
 +        // Leaves start - skip bot
 +        if (!(this instanceof ServerBot)) {
@@ -129,8 +121,8 @@ index 3506cd1c5960b58fe2805d9cc7ea6758f45d4e2a..41acc2e1883af2220dcdfb9bbefef197
 +                containerUpdateDelay = this.level().paperConfig().tickRates.containerUpdate;
 +            }
 +            // Paper end
-+            if (!this.level().isClientSide && this.containerMenu != this.inventoryMenu && (this.isImmobile() || !this.containerMenu.stillValid(this))) { // Paper - auto close while frozen
-+                this.closeContainer(org.bukkit.event.inventory.InventoryCloseEvent.Reason.CANT_USE); // Paper
++            if (!this.level().isClientSide && this.containerMenu != this.inventoryMenu && (this.isImmobile() || !this.containerMenu.stillValid(this))) { // Paper - Prevent opening inventories when frozen
++                this.closeContainer(org.bukkit.event.inventory.InventoryCloseEvent.Reason.CANT_USE); // Paper - Inventory close reason
 +                this.containerMenu = this.inventoryMenu;
 +            }
          }
@@ -171,7 +163,7 @@ index 3506cd1c5960b58fe2805d9cc7ea6758f45d4e2a..41acc2e1883af2220dcdfb9bbefef197
                  PlayerChangedWorldEvent changeEvent = new PlayerChangedWorldEvent(this.getBukkitEntity(), worldserver1.getWorld());
                  this.level().getCraftServer().getPluginManager().callEvent(changeEvent);
 diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index b51fec201db06edbbfb5e6e8abd137bd194cb542..e60bc1b390cd47c2c97735a0dcbe1ecc2c515640 100644
+index 1461ee40c7b563869e75c036bfb0dd2656bc780f..22b7041cb524dfd9fff6bbfb8e47d69de0a3ac80 100644
 --- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 @@ -298,7 +298,13 @@ public class ServerGamePacketListenerImpl extends ServerCommonPacketListenerImpl
@@ -190,7 +182,7 @@ index b51fec201db06edbbfb5e6e8abd137bd194cb542..e60bc1b390cd47c2c97735a0dcbe1ecc
          player.connection = this;
          player.getTextFilter().join();
 diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
-index 3dba9e1361d8ea978f1a7f54d6fd03aab02053f4..89249723a490c5b08916241279ab94f82e41a942 100644
+index 753c10ca9e802e11f5b9b03b5df8e047f14aece2..7612ee6c93c4ad783d71b125ed3b2fe91ab7c166 100644
 --- a/src/main/java/net/minecraft/server/players/PlayerList.java
 +++ b/src/main/java/net/minecraft/server/players/PlayerList.java
 @@ -120,6 +120,8 @@ import org.bukkit.event.player.PlayerRespawnEvent.RespawnReason;
@@ -224,9 +216,9 @@ index 3dba9e1361d8ea978f1a7f54d6fd03aab02053f4..89249723a490c5b08916241279ab94f8
          final net.kyori.adventure.text.Component jm = playerJoinEvent.joinMessage();
  
          if (jm != null && !jm.equals(net.kyori.adventure.text.Component.empty())) { // Paper - Adventure
-@@ -1000,6 +1017,13 @@ public abstract class PlayerList {
+@@ -999,6 +1016,13 @@ public abstract class PlayerList {
          }
-         // Paper end
+         // Paper end - Add PlayerPostRespawnEvent
  
 +        // Leaves start - bot support
 +        if (top.leavesmc.leaves.LeavesConfig.fakeplayerSupport) {
@@ -238,7 +230,7 @@ index 3dba9e1361d8ea978f1a7f54d6fd03aab02053f4..89249723a490c5b08916241279ab94f8
          // CraftBukkit end
          return entityplayer1;
      }
-@@ -1116,11 +1140,16 @@ public abstract class PlayerList {
+@@ -1115,11 +1139,16 @@ public abstract class PlayerList {
      }
  
      public String[] getPlayerNamesArray() {
@@ -256,7 +248,7 @@ index 3dba9e1361d8ea978f1a7f54d6fd03aab02053f4..89249723a490c5b08916241279ab94f8
  
          return astring;
      }
-@@ -1599,4 +1628,16 @@ public abstract class PlayerList {
+@@ -1598,4 +1627,16 @@ public abstract class PlayerList {
      public boolean isAllowCheatsForAllPlayers() {
          return this.allowCheatsForAllPlayers;
      }
@@ -274,7 +266,7 @@ index 3dba9e1361d8ea978f1a7f54d6fd03aab02053f4..89249723a490c5b08916241279ab94f8
 +    // Leaves end - fakeplayer support
  }
 diff --git a/src/main/java/net/minecraft/world/entity/Entity.java b/src/main/java/net/minecraft/world/entity/Entity.java
-index b1a4824b23f15f944077bce56170f1a790575c48..d28f4e71a370606cf1626f7176aef815365b6cbe 100644
+index fc27159b0638a1ddbf146e8036249daea59e6642..30a2cd24727d1cffc31b077b383487f3bdb6ce4a 100644
 --- a/src/main/java/net/minecraft/world/entity/Entity.java
 +++ b/src/main/java/net/minecraft/world/entity/Entity.java
 @@ -1426,7 +1426,7 @@ public abstract class Entity implements Nameable, EntityAccess, CommandSource, S
@@ -300,7 +292,7 @@ index 5706c9b744b660d6f7639b8152dce82799c4b466..50b0711cd62224ed3e26da45831673c3
      private int timeUntilHooked;
      private float fishAngle;
 diff --git a/src/main/java/net/minecraft/world/inventory/AbstractContainerMenu.java b/src/main/java/net/minecraft/world/inventory/AbstractContainerMenu.java
-index 1548bc20988fea3f032d71cad40299fdf5b08b71..067f44d1fb245a315ec1c0fbccfef9b169c02d02 100644
+index 48f634a7521d31c1e9dfd3cfc83139d428dbd37a..7cef5c518207752f7e1bfdd5bbec55fe9fafca6b 100644
 --- a/src/main/java/net/minecraft/world/inventory/AbstractContainerMenu.java
 +++ b/src/main/java/net/minecraft/world/inventory/AbstractContainerMenu.java
 @@ -406,6 +406,8 @@ public abstract class AbstractContainerMenu {
@@ -337,7 +329,7 @@ index 1548bc20988fea3f032d71cad40299fdf5b08b71..067f44d1fb245a315ec1c0fbccfef9b1
          FeatureFlagSet featureflagset = player.level().enabledFeatures();
  
 diff --git a/src/main/java/net/minecraft/world/level/levelgen/PhantomSpawner.java b/src/main/java/net/minecraft/world/level/levelgen/PhantomSpawner.java
-index 7d7d37334321c844958ce09e77547dd61dcba6c8..0e3eabf4b35082ce640bdf2ba15019b67e0c6ca2 100644
+index ed80960777b18faca2d6a99783e53daf5fa19e09..9d492a2a45a2088f4bf28c85f04c22fa70a2996a 100644
 --- a/src/main/java/net/minecraft/world/level/levelgen/PhantomSpawner.java
 +++ b/src/main/java/net/minecraft/world/level/levelgen/PhantomSpawner.java
 @@ -68,6 +68,11 @@ public class PhantomSpawner implements CustomSpawner {
@@ -353,7 +345,7 @@ index 7d7d37334321c844958ce09e77547dd61dcba6c8..0e3eabf4b35082ce640bdf2ba15019b6
                                      if (randomsource.nextInt(j) >= world.paperConfig().entities.behavior.playerInsomniaStartTicks) { // Paper - Ability to control player's insomnia and phantoms
                                          BlockPos blockposition1 = blockposition.above(20 + randomsource.nextInt(15)).east(-10 + randomsource.nextInt(21)).south(-10 + randomsource.nextInt(21));
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index c8e938ec5b740b2ffd198cccc349d6ae69cda50d..69a7933bca98d29f215edfe3839e416207d083f9 100644
+index da4660b93b64100ed0f30cde5bcaafa64174fb7a..6b2c19f3ea4fb8e2f6afc165ece6d0c66ba59a75 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 @@ -259,6 +259,7 @@ import org.yaml.snakeyaml.constructor.SafeConstructor;
@@ -385,7 +377,7 @@ index c8e938ec5b740b2ffd198cccc349d6ae69cda50d..69a7933bca98d29f215edfe3839e4162
 +    // Leaves end - Bot API
  }
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
-index 1c3e1153d08b59d29b3613fc3b50a4780aa7a3ac..fa92ba466c958eea0330cd24bf45b96958a13204 100644
+index 8698104e3eb98e2cc5da5de87a8f538860c1d91d..dc7ba0ce76031e6dd7e550ceaf3b2f97cbc307f1 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
 @@ -54,6 +54,8 @@ import org.bukkit.plugin.Plugin;

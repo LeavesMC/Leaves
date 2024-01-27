@@ -6,10 +6,10 @@ Subject: [PATCH] Optimize random calls in chunk ticking
 This patch is Powered by Pufferfish(https://github.com/pufferfish-gg/Pufferfish)
 
 diff --git a/src/main/java/net/minecraft/server/level/ServerChunkCache.java b/src/main/java/net/minecraft/server/level/ServerChunkCache.java
-index cb755283ef6bf8812e2c2ad8b546627a334b75a2..9659b5adb9824df325285763ef211cd189174668 100644
+index 2a19a45e9c7ac4646ce89c566b5fec21281c45b9..a3db45d411772d71ba46632633e935f2251bcfda 100644
 --- a/src/main/java/net/minecraft/server/level/ServerChunkCache.java
 +++ b/src/main/java/net/minecraft/server/level/ServerChunkCache.java
-@@ -510,6 +510,11 @@ public class ServerChunkCache extends ChunkSource {
+@@ -495,6 +495,11 @@ public class ServerChunkCache extends ChunkSource {
              ProfilerFiller gameprofilerfiller = this.level.getProfiler();
  
              gameprofilerfiller.push("pollingChunks");
@@ -22,7 +22,7 @@ index cb755283ef6bf8812e2c2ad8b546627a334b75a2..9659b5adb9824df325285763ef211cd1
              // Paper - optimise chunk tick iteration
  
 diff --git a/src/main/java/net/minecraft/server/level/ServerLevel.java b/src/main/java/net/minecraft/server/level/ServerLevel.java
-index d046ffa452a6fe2f2f35a961fec792f27ed6df38..9018a9b714a157045e473294ee59980c561b9050 100644
+index c9e578cd3d941fa343cc957805df882b51e0761f..bb5833265661bfdef0808745c65ec04cc9240519 100644
 --- a/src/main/java/net/minecraft/server/level/ServerLevel.java
 +++ b/src/main/java/net/minecraft/server/level/ServerLevel.java
 @@ -968,6 +968,13 @@ public class ServerLevel extends Level implements WorldGenLevel {
@@ -43,13 +43,13 @@ index d046ffa452a6fe2f2f35a961fec792f27ed6df38..9018a9b714a157045e473294ee59980c
          gameprofilerfiller.push("thunder");
          final BlockPos.MutableBlockPos blockposition = this.chunkTickMutablePosition; // Paper - use mutable to reduce allocation rate, final to force compile fail on change
  
--        if (!this.paperConfig().environment.disableThunder && flag && this.isThundering() && this.spigotConfig.thunderChance > 0 && this.random.nextInt(this.spigotConfig.thunderChance) == 0) { // Spigot // Paper - disable thunder
-+        if (!this.paperConfig().environment.disableThunder && flag && this.isThundering() && this.spigotConfig.thunderChance > 0 && (top.leavesmc.leaves.LeavesConfig.optimizeChunkTicking ? chunk.shouldDoLightning(this.random) : this.random.nextInt(this.spigotConfig.thunderChance) == 0)) { // Spigot // Paper - disable thunder // Leaves - replace random with shouldDoLightning
+-        if (!this.paperConfig().environment.disableThunder && flag && this.isThundering() && this.spigotConfig.thunderChance > 0 && this.random.nextInt(this.spigotConfig.thunderChance) == 0) { // Spigot // Paper - Option to disable thunder
++        if (!this.paperConfig().environment.disableThunder && flag && this.isThundering() && this.spigotConfig.thunderChance > 0 && (top.leavesmc.leaves.LeavesConfig.optimizeChunkTicking ? chunk.shouldDoLightning(this.random) : this.random.nextInt(this.spigotConfig.thunderChance) == 0)) { // Spigot // Paper - Option to disable thunder // Leaves - replace random with shouldDoLightning
              blockposition.set(this.findLightningTargetAround(this.getBlockRandomPos(j, 0, k, 15))); // Paper
  
              if (this.isRainingAt(blockposition)) {
 diff --git a/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java b/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java
-index b2807c4493a558e2fd11b2a1f04593c6299d5874..6f89a493f557a55075263a74f32682fec66f4f23 100644
+index 44b9aaa534a4683b2924a2aa61a92218f9c846b3..ae746ebde8ba2aded37bc1c9b3c4acdfd5f9def0 100644
 --- a/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java
 +++ b/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java
 @@ -86,6 +86,18 @@ public class LevelChunk extends ChunkAccess {

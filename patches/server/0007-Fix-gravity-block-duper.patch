@@ -5,48 +5,26 @@ Subject: [PATCH] Fix gravity block duper
 
 
 diff --git a/src/main/java/net/minecraft/world/entity/Entity.java b/src/main/java/net/minecraft/world/entity/Entity.java
-index 552a68cacea57fec0dcaf22672ba8e12c677ee5f..fc27159b0638a1ddbf146e8036249daea59e6642 100644
+index 12e8a6794669496c0fa554be3947fac56f773d5d..6221f9a0d6db86ca3adcd72842dfce3c9d0b8a34 100644
 --- a/src/main/java/net/minecraft/world/entity/Entity.java
 +++ b/src/main/java/net/minecraft/world/entity/Entity.java
-@@ -505,36 +505,7 @@ public abstract class Entity implements Nameable, EntityAccess, CommandSource, S
- 
-     public boolean updatingSectionStatus = false;
-     // Paper end
--    // Paper start - make end portalling safe
--    public BlockPos portalBlock;
--    public ServerLevel portalWorld;
--    public void tickEndPortal() {
--        BlockPos pos = this.portalBlock;
--        ServerLevel world = this.portalWorld;
--        this.portalBlock = null;
--        this.portalWorld = null;
--
--        if (pos == null || world == null || world != this.level) {
--            return;
--        }
--
--        if (this.isPassenger() || this.isVehicle() || !this.canChangeDimensions() || this.isRemoved() || !this.valid || !this.isAlive()) {
--            return;
--        }
--
--        ResourceKey<Level> resourcekey = world.getTypeKey() == LevelStem.END ? Level.OVERWORLD : Level.END; // CraftBukkit - SPIGOT-6152: send back to main overworld in custom ends
--        ServerLevel worldserver = world.getServer().getLevel(resourcekey);
--
--        org.bukkit.event.entity.EntityPortalEnterEvent event = new org.bukkit.event.entity.EntityPortalEnterEvent(this.getBukkitEntity(), new org.bukkit.Location(world.getWorld(), pos.getX(), pos.getY(), pos.getZ()));
--        event.callEvent();
--
--        if (this instanceof ServerPlayer) {
--            ((ServerPlayer) this).changeDimension(worldserver, PlayerTeleportEvent.TeleportCause.END_PORTAL);
--            return;
--        }
--        this.teleportTo(worldserver, null);
--    }
--    // Paper end - make end portalling safe
-+	// Leaves - fix gravity block duper
+@@ -440,6 +440,7 @@ public abstract class Entity implements Nameable, EntityAccess, CommandSource, S
+         return this.originWorld;
+     }
+     // Paper end - Entity origin API
++    /* Leaves - fix gravity block duper
+     // Paper start - make end portalling safe
+     public BlockPos portalBlock;
+     public ServerLevel portalWorld;
+@@ -470,6 +471,7 @@ public abstract class Entity implements Nameable, EntityAccess, CommandSource, S
+         this.teleportTo(worldserver, null);
+     }
+     // Paper end - make end portalling safe
++     */
      // Paper start - optimise entity tracking
      final org.spigotmc.TrackingRange.TrackingRangeType trackingRangeType = org.spigotmc.TrackingRange.getTrackingRangeType(this);
  
-@@ -3182,7 +3153,7 @@ public abstract class Entity implements Nameable, EntityAccess, CommandSource, S
+@@ -3179,7 +3181,7 @@ public abstract class Entity implements Nameable, EntityAccess, CommandSource, S
              }
  
              this.processPortalCooldown();
@@ -56,7 +34,7 @@ index 552a68cacea57fec0dcaf22672ba8e12c677ee5f..fc27159b0638a1ddbf146e8036249dae
      }
  
 diff --git a/src/main/java/net/minecraft/world/entity/item/FallingBlockEntity.java b/src/main/java/net/minecraft/world/entity/item/FallingBlockEntity.java
-index a75e48f27cd8fbf6165c96c5df09671494eb9dd8..177317d75ccb2a75f75a814f10429f3b5ee0875c 100644
+index 9daf8aa557d9f4fdbcc138a47892ea5a061dd877..09f227c8b5a62497e943fb06d21abe4556b0a888 100644
 --- a/src/main/java/net/minecraft/world/entity/item/FallingBlockEntity.java
 +++ b/src/main/java/net/minecraft/world/entity/item/FallingBlockEntity.java
 @@ -132,11 +132,7 @@ public class FallingBlockEntity extends Entity {
@@ -72,19 +50,22 @@ index a75e48f27cd8fbf6165c96c5df09671494eb9dd8..177317d75ccb2a75f75a814f10429f3b
          if (this.blockState.isAir()) {
              this.discard();
          } else {
-@@ -149,11 +145,7 @@ public class FallingBlockEntity extends Entity {
+@@ -148,12 +144,14 @@ public class FallingBlockEntity extends Entity {
+             }
  
              this.move(MoverType.SELF, this.getDeltaMovement());
- 
--            // Paper start - fix sand duping
--            if (this.isRemoved()) {
--                return;
--            }
--            // Paper end - fix sand duping
-+			// Leaves - fix gravity block duper
- 
-             // Paper start - Configurable EntityFallingBlock height nerf
++            /* // Leaves - fix gravity block duper
+             // Paper start - fix sand duping
+             if (this.isRemoved()) {
+                 return;
+             }
+             // Paper end - fix sand duping
+-            // Paper start - Configurable falling blocks height nerf
++            */
++            // Paper start - Configurable EntityFallingBlock height nerf
              if (this.level().paperConfig().fixes.fallingBlockHeightNerf.test(v -> this.getY() > v)) {
+                 if (this.dropItem && this.level().getGameRules().getBoolean(GameRules.RULE_DOENTITYDROPS)) {
+                     this.spawnAtLocation(block);
 diff --git a/src/main/java/net/minecraft/world/level/block/EndPortalBlock.java b/src/main/java/net/minecraft/world/level/block/EndPortalBlock.java
 index a0c1db8cfebaa0344012cc0af18d6231cdcdcbb8..6482c2456d9dc9b4983f691f388b7ec045d2cab6 100644
 --- a/src/main/java/net/minecraft/world/level/block/EndPortalBlock.java

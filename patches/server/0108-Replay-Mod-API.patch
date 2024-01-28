@@ -93,6 +93,19 @@ index 676a1499747b071515479130875157263d3a8352..e5ef298dc1df9cc42b3d349939a966b7
                              ((List) object).add(entityplayer2);
                              if (((List) object).size() >= i) {
                                  return (List) object;
+diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
+index db16f74e87d62aba9f7cb2926935cbce1d724d48..21a8c6987cf919fa40a215244efc0ecdc00498c4 100644
+--- a/src/main/java/net/minecraft/server/MinecraftServer.java
++++ b/src/main/java/net/minecraft/server/MinecraftServer.java
+@@ -1596,7 +1596,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+     }
+ 
+     private ServerStatus.Players buildPlayerStatus() {
+-        List<ServerPlayer> list = this.playerList.getPlayers();
++        List<ServerPlayer> list = this.playerList.realPlayers; // Leaves - only real player
+         int i = this.getMaxPlayers();
+ 
+         if (this.hidesOnlinePlayers()) {
 diff --git a/src/main/java/net/minecraft/server/PlayerAdvancements.java b/src/main/java/net/minecraft/server/PlayerAdvancements.java
 index cb05ec292d26320562e51da96a5a28cb04ecc7e4..6cf0b94b185d901ee79f376a6d2ffd8ccfae5b84 100644
 --- a/src/main/java/net/minecraft/server/PlayerAdvancements.java
@@ -106,6 +119,19 @@ index cb05ec292d26320562e51da96a5a28cb04ecc7e4..6cf0b94b185d901ee79f376a6d2ffd8c
              return false;
          }
          // Leaves end - bot can't get advancement
+diff --git a/src/main/java/net/minecraft/server/commands/OpCommand.java b/src/main/java/net/minecraft/server/commands/OpCommand.java
+index 2e2a7c2cf3081187da817479a9da3eb10f662a6d..ee616fe98c98a345872c1eadf41c78524d131b61 100644
+--- a/src/main/java/net/minecraft/server/commands/OpCommand.java
++++ b/src/main/java/net/minecraft/server/commands/OpCommand.java
+@@ -20,7 +20,7 @@ public class OpCommand {
+             return source.hasPermission(3);
+         }).then(Commands.argument("targets", GameProfileArgument.gameProfile()).suggests((context, builder) -> {
+             PlayerList playerList = context.getSource().getServer().getPlayerList();
+-            return SharedSuggestionProvider.suggest(playerList.getPlayers().stream().filter((player) -> {
++            return SharedSuggestionProvider.suggest(playerList.realPlayers.stream().filter((player) -> { // Leaves - only real player
+                 return !playerList.isOp(player.getGameProfile());
+             }).map((player) -> {
+                 return player.getGameProfile().getName();
 diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 index ca3419c659e230bc43a86b17ae7dae4982c4ac3d..26106dda0dfd70071994e329e8894b6f17a16a89 100644
 --- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
@@ -120,7 +146,7 @@ index ca3419c659e230bc43a86b17ae7dae4982c4ac3d..26106dda0dfd70071994e329e8894b6f
          } else {
              connection.setListener(this);
 diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
-index d9848bbe9c1874f85c4d774e24fea60261251ccb..42f54487ba2a6afbdacf0f1de0f9161c47140b4f 100644
+index d9848bbe9c1874f85c4d774e24fea60261251ccb..f5e64399b9be6e7db3a9dd11d47ed918b5bbff06 100644
 --- a/src/main/java/net/minecraft/server/players/PlayerList.java
 +++ b/src/main/java/net/minecraft/server/players/PlayerList.java
 @@ -123,6 +123,7 @@ import org.bukkit.event.player.PlayerSpawnChangeEvent;
@@ -333,6 +359,15 @@ index d9848bbe9c1874f85c4d774e24fea60261251ccb..42f54487ba2a6afbdacf0f1de0f9161c
          this.playersByName.remove(entityplayer.getScoreboardName().toLowerCase(java.util.Locale.ROOT)); // Spigot
          this.server.getCustomBossEvents().onPlayerDisconnect(entityplayer);
          UUID uuid = entityplayer.getUUID();
+@@ -773,7 +934,7 @@ public abstract class PlayerList {
+             event.disallow(PlayerLoginEvent.Result.KICK_BANNED, io.papermc.paper.adventure.PaperAdventure.asAdventure(ichatmutablecomponent)); // Paper - Adventure
+         } else {
+             // return this.players.size() >= this.maxPlayers && !this.canBypassPlayerLimit(gameprofile) ? IChatBaseComponent.translatable("multiplayer.disconnect.server_full") : null;
+-            if (this.players.size() >= this.maxPlayers && !this.canBypassPlayerLimit(gameprofile)) {
++            if (this.realPlayers.size() >= this.maxPlayers && !this.canBypassPlayerLimit(gameprofile)) { // Leaves - only real player
+                 event.disallow(PlayerLoginEvent.Result.KICK_FULL, net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection().deserialize(org.spigotmc.SpigotConfig.serverFullMessage)); // Spigot // Paper - Adventure
+             }
+         }
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 index cb54b576d71f4b9c0a64199e03e99b1a8f2a1832..324429bc3ab08a62f720a4f7d5e31ea68b30668b 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java

@@ -78,10 +78,10 @@ index 7a266257b1220098a6c829ccf1c597b7e510205a..e85a4aaab6fb6d1784494aad0189539c
                          .withRequiredArg()
 diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..2e25bc89a8697e8c7dd41980e75b699c9d7aace2
+index 0000000000000000000000000000000000000000..63c5145d9b81c0a2b67d1ae55b29211049c46519
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
-@@ -0,0 +1,917 @@
+@@ -0,0 +1,914 @@
 +package top.leavesmc.leaves;
 +
 +import com.destroystokyo.paper.util.SneakyThrow;
@@ -327,13 +327,14 @@ index 0000000000000000000000000000000000000000..2e25bc89a8697e8c7dd41980e75b699c
 +    @GlobalConfig(name = "zero-tick-plants", category = {"modify", "minecraft-old"})
 +    public static boolean zeroTickPlants = false;
 +
-+    @GlobalConfig(name = "loot-world-random", category = {"modify", "minecraft-old"}, verify = LootWorldRandomVerify.class)
-+    public static boolean lootWorldRandom = false;
++    @RemovedConfig(name = "loot-world-random", category = {"modify", "minecraft-old"}, transform = true)
++    @GlobalConfig(name = "rng-fishing", category = {"modify", "minecraft-old"}, lock = true, verify = RNGFishingVerify.class)
++    public static boolean rngFishing = false;
 +
-+    private static class LootWorldRandomVerify extends ConfigVerify.BooleanConfigVerify {
++    private static class RNGFishingVerify extends ConfigVerify.BooleanConfigVerify {
 +        @Override
 +        public String check(Boolean old, Boolean value) {
-+            LeavesFeatureSet.register(LeavesFeature.of("loot_world_random", value));
++            LeavesFeatureSet.register(LeavesFeature.of("rng_fishing", value));
 +            return null;
 +        }
 +    }
@@ -584,8 +585,7 @@ index 0000000000000000000000000000000000000000..2e25bc89a8697e8c7dd41980e75b699c
 +
 +    // Leaves start - modify - removed
 +
-+    @RemovedConfig
-+    @GlobalConfig(name = "tick-command", category = "modify")
++    @RemovedConfig(name = "tick-command", category = "modify")
 +    public static boolean tickCommand = false;
 +
 +    // Leaves end - modify - removed
@@ -730,16 +730,13 @@ index 0000000000000000000000000000000000000000..2e25bc89a8697e8c7dd41980e75b699c
 +
 +    // Leaves start - performance - removed
 +
-+    @RemovedConfig
-+    @GlobalConfig(name = "async-pathfinding", category = "performance")
++    @RemovedConfig(name = "async-pathfinding", category = "performance")
 +    public static boolean asyncPathfinding = false;
 +
-+    @RemovedConfig
-+    @GlobalConfig(name = "async-mob-spawning", category = "performance")
++    @RemovedConfig(name = "async-mob-spawning", category = "performance")
 +    public static boolean asyncMobSpawning = false;
 +
-+    @RemovedConfig
-+    @GlobalConfig(name = "async-entity-tracker", category = "performance")
++    @RemovedConfig(name = "async-entity-tracker", category = "performance")
 +    public static boolean asyncEntityTracker = false;
 +
 +    // Leaves end - performance - removed
@@ -1399,12 +1396,25 @@ index 0000000000000000000000000000000000000000..205e563ed4b3f59e294c2866952c73d2
 +        return Collections.emptyList();
 +    }
 +}
+diff --git a/src/main/java/top/leavesmc/leaves/config/ConfigConvert.java b/src/main/java/top/leavesmc/leaves/config/ConfigConvert.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..7053897b5fe7774cb4a28462ef88f6eebd35f171
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/config/ConfigConvert.java
+@@ -0,0 +1,7 @@
++package top.leavesmc.leaves.config;
++
++public interface ConfigConvert<E> {
++
++    E convert(String value);
++
++}
 diff --git a/src/main/java/top/leavesmc/leaves/config/ConfigVerify.java b/src/main/java/top/leavesmc/leaves/config/ConfigVerify.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..1e3cb6a012ef2e8d997e904dc0f0a08aae06e63d
+index 0000000000000000000000000000000000000000..b345b7da3f861bcf205e2b2cbd462f69da5fa7b6
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/config/ConfigVerify.java
-@@ -0,0 +1,92 @@
+@@ -0,0 +1,90 @@
 +package top.leavesmc.leaves.config;
 +
 +import java.lang.reflect.ParameterizedType;
@@ -1413,13 +1423,11 @@ index 0000000000000000000000000000000000000000..1e3cb6a012ef2e8d997e904dc0f0a08a
 +import java.util.List;
 +import java.util.Locale;
 +
-+public interface ConfigVerify<E> {
++public interface ConfigVerify<E> extends ConfigConvert<E> {
 +
 +    default String check(E old, E value) {
 +        return null;
 +    }
-+
-+    E convert(String value);
 +
 +    default List<String> valueSuggest() {
 +        return List.of("<value>");
@@ -1524,10 +1532,10 @@ index 0000000000000000000000000000000000000000..f6b946e5dfb5e3a2c169f88e8fb54718
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/config/GlobalConfigManager.java b/src/main/java/top/leavesmc/leaves/config/GlobalConfigManager.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..fdf01d5682d3b0083eeb87ba7e7b7b46a76be9f8
+index 0000000000000000000000000000000000000000..28850b6cccb55a593ee98988cfab95f44f6029e7
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/config/GlobalConfigManager.java
-@@ -0,0 +1,160 @@
+@@ -0,0 +1,185 @@
 +package top.leavesmc.leaves.config;
 +
 +import org.bukkit.Bukkit;
@@ -1554,54 +1562,42 @@ index 0000000000000000000000000000000000000000..fdf01d5682d3b0083eeb87ba7e7b7b46
 +        Class<LeavesConfig> clazz = LeavesConfig.class;
 +        for (Field field : clazz.getDeclaredFields()) {
 +            if (Modifier.isStatic(field.getModifiers())) {
++                field.setAccessible(true);
++
++                RemovedConfig removedConfig = field.getAnnotation(RemovedConfig.class);
++                if (removedConfig != null) {
++                    RemovedVerifiedConfig verifiedConfig = RemovedVerifiedConfig.build(removedConfig, field);
++                    verifiedConfig.run();
++                }
++
 +                GlobalConfig globalConfig = field.getAnnotation(GlobalConfig.class);
 +                if (globalConfig != null) {
 +                    try {
 +                        VerifiedConfig verifiedConfig = VerifiedConfig.build(globalConfig, field);
 +
-+                        if (field.getAnnotation(RemovedConfig.class) != null) {
-+                            LeavesConfig.config.set(verifiedConfig.path, null);
-+                            continue;
-+                        }
-+
-+                        field.setAccessible(true);
 +                        if (globalConfig.lock() && !firstLoad) {
++                            verifiedConfigs.put(verifiedConfig.path.substring("settings.".length()), verifiedConfig);
 +                            continue;
 +                        }
 +
-+                        Object defValue = field.get(null);
-+                        if (verifiedConfig.verify instanceof ConfigVerify.EnumConfigVerify) {
-+                            defValue = defValue.toString();
-+                            LeavesConfig.config.addDefault(verifiedConfig.path, defValue);
++                        ConfigVerify<? super Object> verify = verifiedConfig.verify;
++                        boolean isEnumConfig = verify instanceof ConfigVerify.EnumConfigVerify;
 +
-+                            try {
-+                                Object savedValue = verifiedConfig.verify.convert(LeavesConfig.config.getString(verifiedConfig.path));
-+                                String checkInfo = verifiedConfig.verify.check(null, savedValue);
++                        Object defValue = isEnumConfig ? field.get(null).toString() : field.get(null);
++                        LeavesConfig.config.addDefault(verifiedConfig.path, defValue);
 +
-+                                if (checkInfo == null) {
-+                                    field.set(null, savedValue);
-+                                } else {
-+                                    throw new IllegalArgumentException(checkInfo);
-+                                }
-+
-+                                LeavesConfig.config.set(verifiedConfig.path, savedValue.toString());
-+                            } catch (IllegalArgumentException e) {
-+                                LeavesConfig.config.set(verifiedConfig.path, defValue);
-+                                LeavesLogger.LOGGER.warning(e.getMessage() + ", reset to " + defValue);
-+                            }
-+                        } else {
-+                            LeavesConfig.config.addDefault(verifiedConfig.path, defValue);
-+
-+                            Object savedValue = LeavesConfig.config.get(verifiedConfig.path);
-+                            String checkInfo = verifiedConfig.verify.check(null, savedValue);
++                        try {
++                            Object savedValue = verify.convert(LeavesConfig.config.get(verifiedConfig.path).toString());
++                            String checkInfo = verify.check(null, savedValue);
 +
 +                            if (checkInfo == null) {
 +                                field.set(null, savedValue);
 +                            } else {
-+                                LeavesConfig.config.set(verifiedConfig.path, defValue);
-+                                LeavesLogger.LOGGER.warning(checkInfo + ", reset to " + defValue);
++                                throw new IllegalArgumentException(checkInfo);
 +                            }
-+                            LeavesConfig.config.set(verifiedConfig.path, savedValue);
++                        } catch (IllegalArgumentException e) {
++                            LeavesConfig.config.set(verifiedConfig.path, defValue);
++                            LeavesLogger.LOGGER.warning(e.getMessage() + ", reset to " + defValue);
 +                        }
 +
 +                        verifiedConfigs.put(verifiedConfig.path.substring("settings.".length()), verifiedConfig);
@@ -1624,6 +1620,43 @@ index 0000000000000000000000000000000000000000..fdf01d5682d3b0083eeb87ba7e7b7b46
 +
 +    public static Set<String> getVerifiedConfigPaths() {
 +        return verifiedConfigs.keySet();
++    }
++
++    public record RemovedVerifiedConfig(RemovedConfig config, ConfigConvert<? super Object> convert, Field field, String path) {
++
++        public void run() {
++            if (config.transform()) {
++                if (LeavesConfig.config.contains(path)) {
++                    String string = LeavesConfig.config.get(path).toString();
++                    try {
++                        Object object = convert.convert(string);
++                        field.set(null, object);
++                    } catch (Exception e) {
++                        e.printStackTrace();
++                    }
++                }
++            }
++            LeavesConfig.config.set(path, null);
++        }
++
++        public static RemovedVerifiedConfig build(RemovedConfig config, Field field) {
++            StringBuilder path = new StringBuilder("settings.");
++            for (int i = 0; i < config.category().length; i++) {
++                path.append(config.category()[i]).append(".");
++            }
++            path.append(config.name());
++
++            ConfigConvert configConvert = null;
++            try {
++                Constructor<? extends ConfigConvert<?>> constructor = config.convert().getDeclaredConstructor();
++                constructor.setAccessible(true);
++                configConvert = constructor.newInstance();
++            } catch (Exception e) {
++                e.printStackTrace();
++            }
++
++            return new RemovedVerifiedConfig(config, configConvert, field, path.toString());
++        }
 +    }
 +
 +    public record VerifiedConfig(GlobalConfig config, ConfigVerify<? super Object> verify, Field field, String path) {
@@ -1690,10 +1723,10 @@ index 0000000000000000000000000000000000000000..fdf01d5682d3b0083eeb87ba7e7b7b46
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/config/RemovedConfig.java b/src/main/java/top/leavesmc/leaves/config/RemovedConfig.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..942992b3aba4492be7b24854129a570377fa17bc
+index 0000000000000000000000000000000000000000..0d6371d7f249495c738f1a11288d3abe3e61135c
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/config/RemovedConfig.java
-@@ -0,0 +1,12 @@
+@@ -0,0 +1,19 @@
 +package top.leavesmc.leaves.config;
 +
 +import java.lang.annotation.ElementType;
@@ -1705,4 +1738,11 @@ index 0000000000000000000000000000000000000000..942992b3aba4492be7b24854129a5703
 +@Retention(RetentionPolicy.RUNTIME)
 +public @interface RemovedConfig {
 +
++    String name();
++
++    String[] category();
++
++    boolean transform() default false;
++
++    Class<? extends ConfigConvert<?>> convert() default ConfigVerify.BooleanConfigVerify.class;
 +}

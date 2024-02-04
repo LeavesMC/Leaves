@@ -6,10 +6,10 @@ Subject: [PATCH] Use aging cache for biome temperatures
 This patch is Powered by Pufferfish(https://github.com/pufferfish-gg/Pufferfish)
 
 diff --git a/src/main/java/net/minecraft/world/level/biome/Biome.java b/src/main/java/net/minecraft/world/level/biome/Biome.java
-index 4f9187d9d640618c40a2fa528f36b845017b4777..dda41c3e3a1a937156e36545753a03cd53d1fb3a 100644
+index 4f9187d9d640618c40a2fa528f36b845017b4777..f9afca5e44ccb8e2828a26ffa179fed0bf9a209e 100644
 --- a/src/main/java/net/minecraft/world/level/biome/Biome.java
 +++ b/src/main/java/net/minecraft/world/level/biome/Biome.java
-@@ -66,23 +66,37 @@ public final class Biome {
+@@ -66,23 +66,33 @@ public final class Biome {
      private final BiomeGenerationSettings generationSettings;
      private final MobSpawnSettings mobSettings;
      private final BiomeSpecialEffects specialEffects;
@@ -32,32 +32,28 @@ index 4f9187d9d640618c40a2fa528f36b845017b4777..dda41c3e3a1a937156e36545753a03cd
          this.generationSettings = generationSettings;
          this.mobSettings = spawnSettings;
          this.specialEffects = effects;
-+        if (top.leavesmc.leaves.LeavesConfig.biomeTemperaturesUseAgingCache) {
-+            temperatureCache = null;
-+            temperatureAgingCache = ThreadLocal.withInitial(() -> {
-+                return Util.make(() -> {
-+                    return new top.leavesmc.leaves.structs.Long2FloatAgingCache(TEMPERATURE_CACHE_SIZE);
-+                });
++
++        temperatureCache = ThreadLocal.withInitial(() -> {
++            return Util.make(() -> {
++                Long2FloatLinkedOpenHashMap long2FloatLinkedOpenHashMap = new Long2FloatLinkedOpenHashMap(1024, 0.25F) {
++                    protected void rehash(int i) {
++                    }
++                };
++                long2FloatLinkedOpenHashMap.defaultReturnValue(Float.NaN);
++                return long2FloatLinkedOpenHashMap;
 +            });
-+        } else {
-+            temperatureCache = ThreadLocal.withInitial(() -> {
-+                return Util.make(() -> {
-+                    Long2FloatLinkedOpenHashMap long2FloatLinkedOpenHashMap = new Long2FloatLinkedOpenHashMap(1024, 0.25F) {
-+                        protected void rehash(int i) {
-+                        }
-+                    };
-+                    long2FloatLinkedOpenHashMap.defaultReturnValue(Float.NaN);
-+                    return long2FloatLinkedOpenHashMap;
-+                });
++        });
++        temperatureAgingCache = ThreadLocal.withInitial(() -> {
++            return Util.make(() -> {
++                return new top.leavesmc.leaves.structs.Long2FloatAgingCache(TEMPERATURE_CACHE_SIZE);
 +            });
-+            temperatureAgingCache = null;
-+        }
++        });
      }
 +    // Leaves end - use our cache
  
      public int getSkyColor() {
          return this.specialEffects.getSkyColor();
-@@ -118,19 +132,33 @@ public final class Biome {
+@@ -118,19 +128,33 @@ public final class Biome {
      @Deprecated
      public float getTemperature(BlockPos blockPos) {
          long l = blockPos.asLong();

@@ -1,0 +1,51 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?=E7=A7=8B=E9=9B=A8=E8=90=BD?= <i@rain.cx>
+Date: Sun, 4 Feb 2024 08:19:03 +0800
+Subject: [PATCH] Fix crash caused by stupid optimize.
+
+
+diff --git a/src/main/java/net/minecraft/world/level/biome/Biome.java b/src/main/java/net/minecraft/world/level/biome/Biome.java
+index dda41c3e3a1a937156e36545753a03cd53d1fb3a..f9afca5e44ccb8e2828a26ffa179fed0bf9a209e 100644
+--- a/src/main/java/net/minecraft/world/level/biome/Biome.java
++++ b/src/main/java/net/minecraft/world/level/biome/Biome.java
+@@ -75,26 +75,22 @@ public final class Biome {
+         this.generationSettings = generationSettings;
+         this.mobSettings = spawnSettings;
+         this.specialEffects = effects;
+-        if (top.leavesmc.leaves.LeavesConfig.biomeTemperaturesUseAgingCache) {
+-            temperatureCache = null;
+-            temperatureAgingCache = ThreadLocal.withInitial(() -> {
+-                return Util.make(() -> {
+-                    return new top.leavesmc.leaves.structs.Long2FloatAgingCache(TEMPERATURE_CACHE_SIZE);
+-                });
++
++        temperatureCache = ThreadLocal.withInitial(() -> {
++            return Util.make(() -> {
++                Long2FloatLinkedOpenHashMap long2FloatLinkedOpenHashMap = new Long2FloatLinkedOpenHashMap(1024, 0.25F) {
++                    protected void rehash(int i) {
++                    }
++                };
++                long2FloatLinkedOpenHashMap.defaultReturnValue(Float.NaN);
++                return long2FloatLinkedOpenHashMap;
+             });
+-        } else {
+-            temperatureCache = ThreadLocal.withInitial(() -> {
+-                return Util.make(() -> {
+-                    Long2FloatLinkedOpenHashMap long2FloatLinkedOpenHashMap = new Long2FloatLinkedOpenHashMap(1024, 0.25F) {
+-                        protected void rehash(int i) {
+-                        }
+-                    };
+-                    long2FloatLinkedOpenHashMap.defaultReturnValue(Float.NaN);
+-                    return long2FloatLinkedOpenHashMap;
+-                });
++        });
++        temperatureAgingCache = ThreadLocal.withInitial(() -> {
++            return Util.make(() -> {
++                return new top.leavesmc.leaves.structs.Long2FloatAgingCache(TEMPERATURE_CACHE_SIZE);
+             });
+-            temperatureAgingCache = null;
+-        }
++        });
+     }
+     // Leaves end - use our cache
+ 

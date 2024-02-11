@@ -1,0 +1,124 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Fri, 17 Mar 2023 15:57:08 +0800
+Subject: [PATCH] Fix update suppression crash
+
+
+diff --git a/src/main/java/net/minecraft/network/protocol/PacketUtils.java b/src/main/java/net/minecraft/network/protocol/PacketUtils.java
+index d0a487f0d563181818c5670749e8dd3a9d939265..140a9070fb5859e762e40ddb1e4259f666a8ed1e 100644
+--- a/src/main/java/net/minecraft/network/protocol/PacketUtils.java
++++ b/src/main/java/net/minecraft/network/protocol/PacketUtils.java
+@@ -51,6 +51,10 @@ public class PacketUtils {
+                 if (listener.shouldHandleMessage(packet)) {
+                     try {
+                         packet.handle(listener);
++                    // Leaves start - update suppression crash fix
++                    } catch (top.leavesmc.leaves.util.UpdateSuppressionException exception) {
++                        top.leavesmc.leaves.LeavesLogger.LOGGER.info(exception.getMessage());
++                    // Leaves start - update suppression crash fix
+                     } catch (Exception exception) {
+                         label25:
+                         {
+diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
+index 0e241a87f625b9cf952c59f9b0670d60563bdf06..b7f16c3e7b1427fb5a1d2b378a60a47eb9090b9e 100644
+--- a/src/main/java/net/minecraft/server/MinecraftServer.java
++++ b/src/main/java/net/minecraft/server/MinecraftServer.java
+@@ -1691,7 +1691,13 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+             this.profiler.push("tick");
+ 
+             try {
+-                worldserver.tick(shouldKeepTicking);
++                // Leaves start
++                try {
++                    worldserver.tick(shouldKeepTicking);
++                } catch (top.leavesmc.leaves.util.UpdateSuppressionException e) {
++                    top.leavesmc.leaves.LeavesLogger.LOGGER.info(e.getMessage());
++                }
++                // Leaves end
+                 // Paper start
+                 for (final io.papermc.paper.chunk.SingleThreadChunkRegionManager regionManager : worldserver.getChunkSource().chunkMap.regionManagers) {
+                     regionManager.recalculateRegions();
+diff --git a/src/main/java/net/minecraft/world/level/block/ShulkerBoxBlock.java b/src/main/java/net/minecraft/world/level/block/ShulkerBoxBlock.java
+index 42407c5c0c09cd9d19bc7af92af8868bb038c686..dd40b975b72f7bd16f2c491a36c39b7098c66f2b 100644
+--- a/src/main/java/net/minecraft/world/level/block/ShulkerBoxBlock.java
++++ b/src/main/java/net/minecraft/world/level/block/ShulkerBoxBlock.java
+@@ -265,7 +265,17 @@ public class ShulkerBoxBlock extends BaseEntityBlock {
+ 
+     @Override
+     public int getAnalogOutputSignal(BlockState state, Level world, BlockPos pos) {
+-        return AbstractContainerMenu.getRedstoneSignalFromBlockEntity(world.getBlockEntity(pos));
++        // Leaves start - fix update suppression crash
++        if (top.leavesmc.leaves.LeavesConfig.updateSuppressionCrashFix) {
++            try {
++                return AbstractContainerMenu.getRedstoneSignalFromBlockEntity(world.getBlockEntity(pos));
++            } catch (ClassCastException ex) {
++                throw new top.leavesmc.leaves.util.UpdateSuppressionException(null, pos);
++            }
++        } else {
++            return AbstractContainerMenu.getRedstoneSignalFromBlockEntity(world.getBlockEntity(pos));
++        }
++        // Leaves end - fix update suppression crash
+     }
+ 
+     @Override
+diff --git a/src/main/java/net/minecraft/world/level/redstone/NeighborUpdater.java b/src/main/java/net/minecraft/world/level/redstone/NeighborUpdater.java
+index 19faa8f5f891c1ffbed0af8391dee8202433c447..2ef9510ee382dfcc25a213684c0acdbc352811df 100644
+--- a/src/main/java/net/minecraft/world/level/redstone/NeighborUpdater.java
++++ b/src/main/java/net/minecraft/world/level/redstone/NeighborUpdater.java
+@@ -66,9 +66,17 @@ public interface NeighborUpdater {
+             state.neighborChanged(world, pos, sourceBlock, sourcePos, notify);
+             // Spigot Start
+         } catch (StackOverflowError ex) {
++            // Leaves start - fix update suppression crash
++            if (top.leavesmc.leaves.LeavesConfig.updateSuppressionCrashFix) {
++                throw new top.leavesmc.leaves.util.UpdateSuppressionException(pos, sourcePos);
++            }
+             world.lastPhysicsProblem = new BlockPos(pos);
+             // Spigot End
+         } catch (Throwable throwable) {
++            if (top.leavesmc.leaves.LeavesConfig.updateSuppressionCrashFix) {
++                throw new top.leavesmc.leaves.util.UpdateSuppressionException(pos, sourcePos);
++            }
++            // Leaves end - fix update suppression crash
+             CrashReport crashreport = CrashReport.forThrowable(throwable, "Exception while updating neighbours");
+             CrashReportCategory crashreportsystemdetails = crashreport.addCategory("Block being updated");
+ 
+diff --git a/src/main/java/top/leavesmc/leaves/util/UpdateSuppressionException.java b/src/main/java/top/leavesmc/leaves/util/UpdateSuppressionException.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..f9a9f3e28bebdaa5038ebf81ac53447182c2bc10
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/util/UpdateSuppressionException.java
+@@ -0,0 +1,33 @@
++package top.leavesmc.leaves.util;
++
++import net.minecraft.core.BlockPos;
++
++public class UpdateSuppressionException extends RuntimeException {
++
++    private final BlockPos pos;
++    private final BlockPos source;
++
++    public UpdateSuppressionException(BlockPos pos, BlockPos source) {
++        super("Update suppression");
++        this.pos = pos;
++        this.source = source;
++    }
++
++    public BlockPos getPos() {
++        return pos;
++    }
++
++    public BlockPos getSource() {
++        return source;
++    }
++
++    public String getMessage() {
++        if (pos != null) {
++            return "An update suppression processed, form [x:%d,y:%d,z:%d] to [x:%d,y:%d,z:%d]"
++                .formatted(source.getX(), source.getY(), source.getZ(), pos.getX(), pos.getY(), pos.getZ());
++        } else {
++            return "An update suppression processed, form [x:%d,y:%d,z:%d]"
++                .formatted(source.getX(), source.getY(), source.getZ());
++        }
++    }
++}

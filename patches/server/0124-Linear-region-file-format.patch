@@ -215,7 +215,7 @@ index 6cf83502a954cce9c562ec036bfeddb477d38b73..d43c41d377dd04d0babb99170203e2f5
          try (DataInputStream out = new DataInputStream(new java.io.BufferedInputStream(new InflaterInputStream(Files.newInputStream(file))))) {
              return NbtIo.read((java.io.DataInput) out);
 diff --git a/src/main/java/net/minecraft/world/level/chunk/storage/RegionFileStorage.java b/src/main/java/net/minecraft/world/level/chunk/storage/RegionFileStorage.java
-index fe312b1aef579cb4bf81bdd967cf72ff880d7505..8a313a13371109d388b30f40beff6a0d1c798570 100644
+index fe312b1aef579cb4bf81bdd967cf72ff880d7505..756c69066ad5336c8faffd22dd48f2ec94271200 100644
 --- a/src/main/java/net/minecraft/world/level/chunk/storage/RegionFileStorage.java
 +++ b/src/main/java/net/minecraft/world/level/chunk/storage/RegionFileStorage.java
 @@ -21,9 +21,14 @@ public class RegionFileStorage implements AutoCloseable {
@@ -442,7 +442,42 @@ index fe312b1aef579cb4bf81bdd967cf72ff880d7505..8a313a13371109d388b30f40beff6a0d
          if (nbt == null && regionfile == null) {
              return;
          }
-@@ -353,7 +401,7 @@ public class RegionFileStorage implements AutoCloseable {
+@@ -313,8 +361,33 @@ public class RegionFileStorage implements AutoCloseable {
+         if (nbt == null) {
+             regionfile.clear(pos);
+         } else {
+-            DataOutputStream dataoutputstream = regionfile.getChunkDataOutputStream(pos);
++            // Leaves start - auto convert anvil to linear
++            DataOutputStream dataoutputstream;
++
++            if(regionfile instanceof RegionFile && top.leavesmc.leaves.LeavesConfig.regionFormatName == top.leavesmc.leaves.region.RegionFileFormat.LINEAR && top.leavesmc.leaves.LeavesConfig.autoConvertAnvilToLinear) {
++                Path linearFilePath = Path.of(regionfile.getRegionFile().toString().replaceAll(".mca", ".linear"));
++                try (top.leavesmc.leaves.region.LinearRegionFile linearRegionFile = new top.leavesmc.leaves.region.LinearRegionFile(linearFilePath, top.leavesmc.leaves.LeavesConfig.linearCompressionLevel)) {
++                    DataInputStream regionDataInputStream = regionfile.getChunkDataInputStream(pos);
++                    if (regionDataInputStream == null) {
++                        continue;
++                    }
+ 
++                    CompoundTag compoundTag = NbtIo.read(regionDataInputStream);
++                    try (DataOutputStream linearDataOutputStream = linearRegionFile.getChunkDataOutputStream(pos)) {
++                        NbtIo.write(compoundTag, linearDataOutputStream);
++                    }
++
++                    linearRegionFile.flush();
++                    if(java.nio.file.Files.isRegularFile(regionfile.getRegionFile())) {
++                        java.nio.file.Files.delete(regionfile.getRegionFile());
++                    }
++
++                    dataoutputstream = linearRegionFile.getChunkDataOutputStream(pos);
++                }
++            } else {
++                dataoutputstream = regionfile.getChunkDataOutputStream(pos);
++            }
++            // leaves end - auto convert anvil to linear
+             try {
+                 NbtIo.write(nbt, (DataOutput) dataoutputstream);
+                 regionfile.setStatus(pos.x, pos.z, ChunkSerializer.getStatus(nbt)); // Paper - Cache chunk status
+@@ -353,7 +426,7 @@ public class RegionFileStorage implements AutoCloseable {
          // Paper end - Chunk save reattempt
          // Paper start - rewrite chunk system
          } finally {
@@ -451,7 +486,7 @@ index fe312b1aef579cb4bf81bdd967cf72ff880d7505..8a313a13371109d388b30f40beff6a0d
          }
          // Paper end - rewrite chunk system
      }
-@@ -363,7 +411,7 @@ public class RegionFileStorage implements AutoCloseable {
+@@ -363,7 +436,7 @@ public class RegionFileStorage implements AutoCloseable {
          ObjectIterator objectiterator = this.regionCache.values().iterator();
  
          while (objectiterator.hasNext()) {
@@ -460,7 +495,7 @@ index fe312b1aef579cb4bf81bdd967cf72ff880d7505..8a313a13371109d388b30f40beff6a0d
  
              try {
                  regionfile.close();
-@@ -379,7 +427,7 @@ public class RegionFileStorage implements AutoCloseable {
+@@ -379,7 +452,7 @@ public class RegionFileStorage implements AutoCloseable {
          ObjectIterator objectiterator = this.regionCache.values().iterator();
  
          while (objectiterator.hasNext()) {
@@ -905,7 +940,7 @@ index 0000000000000000000000000000000000000000..072495e6c0c08a3239faab0fb6ebb284
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/region/LinearRegionFileFlusher.java b/src/main/java/top/leavesmc/leaves/region/LinearRegionFileFlusher.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..f9f70c156ef3dc4e79acd4ce9643f310ac081008
+index 0000000000000000000000000000000000000000..fd8ec703b1be35ef3c29afd4abe2dfaf8bdc5c61
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/region/LinearRegionFileFlusher.java
 @@ -0,0 +1,52 @@
@@ -936,7 +971,7 @@ index 0000000000000000000000000000000000000000..f9f70c156ef3dc4e79acd4ce9643f310
 +
 +    public LinearRegionFileFlusher() {
 +        Bukkit.getLogger().info("Using " + LeavesConfig.getLinearFlushThreads() + " threads for linear region flushing.");
-+        scheduler.scheduleAtFixedRate(this::pollAndFlush, 0L, LeavesConfig.getLinearFlushThreads(), TimeUnit.SECONDS);
++        scheduler.scheduleAtFixedRate(this::pollAndFlush, 0L, LeavesConfig.linearFlushFrequency, TimeUnit.SECONDS);
 +    }
 +
 +    public void scheduleSave(LinearRegionFile regionFile) {

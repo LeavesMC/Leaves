@@ -4,6 +4,23 @@ Date: Fri, 29 Oct 2021 16:52:57 +0800
 Subject: [PATCH] Leaves Server Config And Command
 
 
+diff --git a/build.gradle.kts b/build.gradle.kts
+index f5c83d033a8163786f8f7e98655e65bb606bc9dc..227da433d47d4982877737a08817f4840dc51a00 100644
+--- a/build.gradle.kts
++++ b/build.gradle.kts
+@@ -227,3 +227,12 @@ tasks.registerRunTask("runDev") {
+     classpath(runtimeClasspathForRunDev)
+     jvmArgs("-DPaper.isRunDev=true")
+ }
++
++// Leaves start - create config file
++tasks.registerRunTask("createLeavesConfig") {
++    description = "Create a new leaves.yml"
++    mainClass = "top.leavesmc.leaves.config.GlobalConfigCreator"
++    classpath(tasks.filterProjectDir.flatMap { it.outputJar })
++    classpath(runtimeClasspathForRunDev)
++}
++// Leaves end - create config file
 diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
 index 61e0e14b74c6585a9d157cae3db9c5c3a69b393f..2cf51683978e72d552f9148a610704202d207df5 100644
 --- a/src/main/java/net/minecraft/server/MinecraftServer.java
@@ -1534,6 +1551,66 @@ index 0000000000000000000000000000000000000000..f6b946e5dfb5e3a2c169f88e8fb54718
 +    boolean lock() default false;
 +
 +    Class<? extends ConfigVerify<?>> verify() default ConfigVerify.BooleanConfigVerify.class;
++}
+diff --git a/src/main/java/top/leavesmc/leaves/config/GlobalConfigCreator.java b/src/main/java/top/leavesmc/leaves/config/GlobalConfigCreator.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..c8da8db4606ecf4a505e4ad88112976d37ea7420
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/config/GlobalConfigCreator.java
+@@ -0,0 +1,54 @@
++package top.leavesmc.leaves.config;
++
++import org.bukkit.configuration.file.YamlConfiguration;
++import top.leavesmc.leaves.LeavesConfig;
++
++import java.io.File;
++import java.io.IOException;
++import java.lang.reflect.Field;
++import java.lang.reflect.Modifier;
++import java.util.Collections;
++
++public class GlobalConfigCreator {
++
++    public static void main(String[] args) {
++        YamlConfiguration config = new YamlConfiguration();
++        config.options().setHeader(Collections.singletonList(LeavesConfig.CONFIG_HEADER));
++
++        config.set("config-version", LeavesConfig.CURRENT_CONFIG_VERSION);
++
++        Class<LeavesConfig> clazz = LeavesConfig.class;
++
++        for (Field field : clazz.getDeclaredFields()) {
++            if (Modifier.isStatic(field.getModifiers())) {
++                field.setAccessible(true);
++
++                GlobalConfig globalConfig = field.getAnnotation(GlobalConfig.class);
++                if (globalConfig != null) {
++                    try {
++                        GlobalConfigManager.VerifiedConfig verifiedConfig = GlobalConfigManager.VerifiedConfig.build(globalConfig, field);
++
++                        ConfigVerify<? super Object> verify = verifiedConfig.verify();
++                        boolean isEnumConfig = verify instanceof ConfigVerify.EnumConfigVerify;
++
++                        Object defValue = isEnumConfig ? field.get(null).toString() : field.get(null);
++                        config.set(verifiedConfig.path(), defValue);
++                    } catch (Exception e) {
++                        e.printStackTrace();
++                    }
++                }
++            }
++        }
++
++        try {
++            File file = new File("leaves.yml");
++            if (file.exists()) {
++                file.delete();
++            }
++            file.createNewFile();
++            config.save(file);
++        } catch (IOException e) {
++            e.printStackTrace();
++        }
++    }
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/config/GlobalConfigManager.java b/src/main/java/top/leavesmc/leaves/config/GlobalConfigManager.java
 new file mode 100644

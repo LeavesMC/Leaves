@@ -445,10 +445,10 @@ index 39b25c2478eadd373383a3445a7f27ea30d18550..0a1190e7331de715a2568ad7911fdb18
      @Override
 diff --git a/src/main/java/top/leavesmc/leaves/entity/CraftPhotographer.java b/src/main/java/top/leavesmc/leaves/entity/CraftPhotographer.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..65fd6fd9e6af4e43268f1f1507a37e1bd95d41b8
+index 0000000000000000000000000000000000000000..4f58b6623a6b5c726d718ced6ab106af3e665e35
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/entity/CraftPhotographer.java
-@@ -0,0 +1,68 @@
+@@ -0,0 +1,73 @@
 +package top.leavesmc.leaves.entity;
 +
 +import net.minecraft.server.level.ServerPlayer;
@@ -474,7 +474,12 @@ index 0000000000000000000000000000000000000000..65fd6fd9e6af4e43268f1f1507a37e1b
 +
 +    @Override
 +    public void stopRecording(boolean async) {
-+        this.getHandle().remove(async);
++        this.stopRecording(async, true);
++    }
++
++    @Override
++    public void stopRecording(boolean async, boolean save) {
++        this.getHandle().remove(async, save);
 +    }
 +
 +    @Override
@@ -690,10 +695,10 @@ index 0000000000000000000000000000000000000000..46a86cfce4aa859b8de7c126c22f64a9
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/replay/Recorder.java b/src/main/java/top/leavesmc/leaves/replay/Recorder.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..c15ef462524871564cdc3fae4ab4eac9b5d35f02
+index 0000000000000000000000000000000000000000..7626e7b1171fcf829673a5fb3c07b3d9e5de48bf
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/replay/Recorder.java
-@@ -0,0 +1,260 @@
+@@ -0,0 +1,264 @@
 +package top.leavesmc.leaves.replay;
 +
 +import io.netty.channel.local.LocalChannel;
@@ -918,7 +923,7 @@ index 0000000000000000000000000000000000000000..c15ef462524871564cdc3fae4ab4eac9
 +        return isSaved;
 +    }
 +
-+    public CompletableFuture<Void> saveRecording(File dest) {
++    public CompletableFuture<Void> saveRecording(File dest, boolean save) {
 +        isSaved = true;
 +        if (!isSaving) {
 +            isSaving = true;
@@ -933,7 +938,11 @@ index 0000000000000000000000000000000000000000..c15ef462524871564cdc3fae4ab4eac9
 +                    interrupted = true;
 +                }
 +                try {
-+                    replayFile.closeAndSave(dest);
++                    if (save) {
++                        replayFile.closeAndSave(dest);
++                    } else {
++                        replayFile.closeNotSave();
++                    }
 +                } catch (IOException e) {
 +                    e.printStackTrace();
 +                    throw new CompletionException(e);
@@ -1019,10 +1028,10 @@ index 0000000000000000000000000000000000000000..06e7166336d621e1a8edb4a2ad88e2cb
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/replay/ReplayFile.java b/src/main/java/top/leavesmc/leaves/replay/ReplayFile.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..57e55d4d0eff91784e977f19fdad3e552a5cfb44
+index 0000000000000000000000000000000000000000..8cb0f7e2c9f6b7455541c5e06acca0e1ceb60a11
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/replay/ReplayFile.java
-@@ -0,0 +1,163 @@
+@@ -0,0 +1,178 @@
 +package top.leavesmc.leaves.replay;
 +
 +import com.google.gson.Gson;
@@ -1156,6 +1165,21 @@ index 0000000000000000000000000000000000000000..57e55d4d0eff91784e977f19fdad3e55
 +        Files.delete(tmpDir.toPath());
 +    }
 +
++    public synchronized void closeNotSave() throws IOException {
++        packetStream.close();
++
++        String[] files = tmpDir.list();
++        if (files == null) {
++            return;
++        }
++
++        for (String fileName : files) {
++            File f = new File(tmpDir, fileName);
++            Files.delete(f.toPath());
++        }
++        Files.delete(tmpDir.toPath());
++    }
++
 +    private void copy(@NotNull InputStream in, OutputStream out) throws IOException {
 +        byte[] buffer = new byte[8192];
 +        int len;
@@ -1237,10 +1261,10 @@ index 0000000000000000000000000000000000000000..852f2098d93d4437fe79af06e454d849
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/replay/ServerPhotographer.java b/src/main/java/top/leavesmc/leaves/replay/ServerPhotographer.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..86e8dbaf5f5648ae992a26b35236150e13eb685b
+index 0000000000000000000000000000000000000000..27005d997eb1e3f4a3b1a357f818586d55c5c88c
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/replay/ServerPhotographer.java
-@@ -0,0 +1,212 @@
+@@ -0,0 +1,216 @@
 +package top.leavesmc.leaves.replay;
 +
 +import com.mojang.authlib.GameProfile;
@@ -1367,6 +1391,10 @@ index 0000000000000000000000000000000000000000..86e8dbaf5f5648ae992a26b35236150e
 +    }
 +
 +    public void remove(boolean async) {
++        this.remove(async, true);
++    }
++
++    public void remove(boolean async, boolean save) {
 +        super.remove(RemovalReason.KILLED);
 +        photographers.remove(this);
 +        this.recorder.stop();
@@ -1374,8 +1402,8 @@ index 0000000000000000000000000000000000000000..86e8dbaf5f5648ae992a26b35236150e
 +
 +        LeavesLogger.LOGGER.info("Photographer " + createState.id + " removed");
 +
-+        if (!recorder.isSaved()) {
-+            CompletableFuture<Void> future = recorder.saveRecording(saveFile);
++        if (save && !recorder.isSaved()) {
++            CompletableFuture<Void> future = recorder.saveRecording(saveFile, save);
 +            if (!async) {
 +                future.join();
 +            }

@@ -46,6 +46,24 @@ jobs:
       uses: gradle/gradle-build-action@937999e9cc2425eddc7fd62d1053baf041147db7
       with:
         arguments: publish -PleavesUsername=${{ secrets.REPO_USERNAME }} -PleavesPassword=${{ secrets.REPO_PASSWORD }}
+    - name: Create Configuration
+      continue-on-error: true
+      uses: gradle/gradle-build-action@937999e9cc2425eddc7fd62d1053baf041147db7
+      with:
+        arguments: createLeavesConfig
+    - name: Push Configuration
+      continue-on-error: true
+      run: |
+        mkdir --parents "$HOME/.ssh"
+        ssh-keyscan -H "github.com" > "$HOME/.ssh/known_hosts"
+        echo "${{ secrets.CONFIG_DEPLOY_KEY }}" > "$HOME/.ssh/deploy.key"
+        chmod 400 "$HOME/.ssh/deploy.key"
+        export GIT_SSH_COMMAND="ssh -i $HOME/.ssh/deploy.key"
+        git clone git@github.com:LeavesMC/Configuration.git configuration -b Leaves
+        cp run/leaves.yml configuration/leaves.yml -f
+        cd configuration
+        git commit leaves.yml -m "https://github.com/LeavesMC/Leaves/commit/$(cd .. && git rev-parse HEAD)"
+        git push origin HEAD:Leaves
     - name: Get Release Info
       run: sh scripts/GetReleaseInfo.sh
     - name: Create Release

@@ -4,6 +4,23 @@ Date: Thu, 3 Feb 2022 12:28:15 +0800
 Subject: [PATCH] Fakeplayer support
 
 
+diff --git a/src/main/java/io/papermc/paper/plugin/manager/PaperEventManager.java b/src/main/java/io/papermc/paper/plugin/manager/PaperEventManager.java
+index a1c9726d25479b5326fe2fa2b0f5a98d6b2da4c5..ee17f012497fa75e152bc279cb3f7778342c49d4 100644
+--- a/src/main/java/io/papermc/paper/plugin/manager/PaperEventManager.java
++++ b/src/main/java/io/papermc/paper/plugin/manager/PaperEventManager.java
+@@ -41,6 +41,12 @@ class PaperEventManager {
+             throw new IllegalStateException(event.getEventName() + " may only be triggered synchronously.");
+         }
+ 
++        // Leaves start - skip bot
++        if (event instanceof org.bukkit.event.player.PlayerEvent playerEvent && playerEvent.getPlayer() instanceof top.leavesmc.leaves.entity.Bot) {
++            return;
++        }
++        // Leaves end - skip bot
++
+         HandlerList handlers = event.getHandlers();
+         RegisteredListener[] listeners = handlers.getRegisteredListeners();
+ 
 diff --git a/src/main/java/net/minecraft/advancements/critereon/SimpleCriterionTrigger.java b/src/main/java/net/minecraft/advancements/critereon/SimpleCriterionTrigger.java
 index a327973e37b5b8d4e15683ef24548482ac3dc3d5..65d82963d611a6dbbd7ca58d363854e4fad59230 100644
 --- a/src/main/java/net/minecraft/advancements/critereon/SimpleCriterionTrigger.java
@@ -91,7 +108,7 @@ index 78f02c2e068a63648f6d650a48a1cf21c5da1545..85be9376fe30f18fe4fea437955f1a60
  
              }
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-index 58591bf2f63b9c5e97d9ce4188dff3366968a178..f961fc365118a06b140cac780d5618ea33c5d57a 100644
+index 58591bf2f63b9c5e97d9ce4188dff3366968a178..42b5d67e17cc62eb830ae4b3a930b48ae64dd11e 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
 @@ -186,6 +186,7 @@ import org.bukkit.event.player.PlayerTeleportEvent;
@@ -102,6 +119,15 @@ index 58591bf2f63b9c5e97d9ce4188dff3366968a178..f961fc365118a06b140cac780d5618ea
  // CraftBukkit end
  
  public class ServerPlayer extends Player {
+@@ -197,7 +198,7 @@ public class ServerPlayer extends Player {
+     private static final int FLY_STAT_RECORDING_SPEED = 25;
+     public ServerGamePacketListenerImpl connection;
+     public final MinecraftServer server;
+-    public final ServerPlayerGameMode gameMode;
++    public ServerPlayerGameMode gameMode; // Leaves - final -> null
+     private final PlayerAdvancements advancements;
+     private final ServerStatsCounter stats;
+     private float lastRecordedHealthAndAbsorption = Float.MIN_VALUE;
 @@ -729,16 +730,20 @@ public class ServerPlayer extends Player {
              --this.invulnerableTime;
          }
@@ -413,12 +439,29 @@ index bb9383f1a457433f9db3e78d7913616280925200..55b41ca7630db143d70137324a9de871
      /**
       * The start ID for the counter.
       */
+diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+index cb427686bf77366ddc9ad133b08f42b6b34fb0f5..19ee86e42d92c33cb7e35ba07927883d4c979913 100644
+--- a/src/main/java/top/leavesmc/leaves/LeavesConfig.java
++++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
+@@ -204,6 +204,12 @@ public final class LeavesConfig {
+         }
+     }
+ 
++    @GlobalConfig(name = "use-action", category = {"modify", "fakeplayer"})
++    public static boolean fakeplayerUseAction = true;
++
++    @GlobalConfig(name = "modify-config", category = {"modify", "fakeplayer"})
++    public static boolean fakeplayerModifyConfig = false;
++
+     // Leaves end - modify - fakeplayer
+ 
+     // Leaves start - modify - minecraft-old
 diff --git a/src/main/java/top/leavesmc/leaves/bot/BotCommand.java b/src/main/java/top/leavesmc/leaves/bot/BotCommand.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..25129195532cf2f22c758407580599332035e9c0
+index 0000000000000000000000000000000000000000..fd8a1306f3179d0729a4a543405ac210acefe8d9
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/BotCommand.java
-@@ -0,0 +1,331 @@
+@@ -0,0 +1,405 @@
 +package top.leavesmc.leaves.bot;
 +
 +import org.bukkit.Bukkit;
@@ -440,18 +483,22 @@ index 0000000000000000000000000000000000000000..25129195532cf2f22c75840758059933
 +import top.leavesmc.leaves.bot.agent.BotAction;
 +import top.leavesmc.leaves.bot.agent.actions.CraftCustomBotAction;
 +import top.leavesmc.leaves.entity.Bot;
++import top.leavesmc.leaves.event.bot.BotActionEvent;
++import top.leavesmc.leaves.event.bot.BotConfigModifyEvent;
 +
 +import java.util.ArrayList;
 +import java.util.HashMap;
 +import java.util.List;
++import java.util.Locale;
 +import java.util.Map;
++import java.util.stream.Stream;
 +
 +public class BotCommand extends Command {
 +
 +    public BotCommand(String name) {
 +        super(name);
 +        this.description = "FakePlayer Command";
-+        this.usageMessage = "/bot [create | remove | action | list]";
++        this.usageMessage = "/bot [create | remove | action | list | config]";
 +        this.setPermission("bukkit.command.bot");
 +        final PluginManager pluginManager = Bukkit.getServer().getPluginManager();
 +        if (pluginManager.getPermission("bukkit.command.bot") == null) {
@@ -466,16 +513,19 @@ index 0000000000000000000000000000000000000000..25129195532cf2f22c75840758059933
 +        if (args.length <= 1) {
 +            list.add("create");
 +            list.add("remove");
-+            list.add("action");
-+            list.add("config");
++            if (LeavesConfig.fakeplayerUseAction) {
++                list.add("action");
++            }
++            if (LeavesConfig.fakeplayerModifyConfig) {
++                list.add("config");
++            }
 +            list.add("list");
 +        }
 +
 +        if (args.length == 2) {
 +            switch (args[0]) {
 +                case "create" -> list.add("<BotName>");
-+                case "remove", "action", "config" ->
-+                    list.addAll(ServerBot.getBots().stream().map(e -> e.getName().getString()).toList());
++                case "remove", "action", "config" -> list.addAll(ServerBot.getBots().stream().map(e -> e.getName().getString()).toList());
 +                case "list" -> list.addAll(Bukkit.getWorlds().stream().map(WorldInfo::getName).toList());
 +            }
 +        }
@@ -494,8 +544,14 @@ index 0000000000000000000000000000000000000000..25129195532cf2f22c75840758059933
 +        if (args.length == 4) {
 +            switch (args[0]) {
 +                case "config" -> {
-+                    list.add("true");
-+                    list.add("false");
++                    if (args[2].equals(BotConfig.SIMULATION_DISTANCE.configName)) {
++                        list.add("10");
++                        list.add("2");
++                        list.add("<INT 2 - 32>");
++                    } else {
++                        list.add("true");
++                        list.add("false");
++                    }
 +                }
 +            }
 +        }
@@ -611,6 +667,10 @@ index 0000000000000000000000000000000000000000..25129195532cf2f22c75840758059933
 +    }
 +
 +    private void onAction(CommandSender sender, String @NotNull [] args) {
++        if (!LeavesConfig.fakeplayerUseAction) {
++            return;
++        }
++
 +        if (args.length < 3) {
 +            sender.sendMessage(ChatColor.RED + "Use /bot action <name> <action> to make fakeplayer do action");
 +            return;
@@ -643,15 +703,16 @@ index 0000000000000000000000000000000000000000..25129195532cf2f22c75840758059933
 +            player = bot.getBukkitEntity();
 +        }
 +
++        String[] realArgs = new String[args.length - 3];
++        if (realArgs.length != 0) {
++            System.arraycopy(args, 3, realArgs, 0, realArgs.length);
++        }
++
 +        BotAction newAction;
 +        if (action instanceof CraftCustomBotAction customBotAction) {
-+            String[] realArgs = new String[args.length - 3];
-+            if (realArgs.length != 0) {
-+                System.arraycopy(args, 3, realArgs, 0, realArgs.length);
-+            }
 +            newAction = customBotAction.getNew(player, realArgs);
 +        } else {
-+            newAction = action.getNew(player.getHandle(), action.getArgument().parse(3, args));
++            newAction = action.getNew(player.getHandle(), action.getArgument().parse(0, realArgs));
 +        }
 +
 +        if (newAction == null) {
@@ -659,13 +720,32 @@ index 0000000000000000000000000000000000000000..25129195532cf2f22c75840758059933
 +            return;
 +        }
 +
-+        bot.setBotAction(newAction);
-+        sender.sendMessage("Action " + action.getName() + " has been issued to " + bot.getName().getString());
++        BotActionEvent event = new BotActionEvent(bot.getBukkitEntity(), newAction.getName(), realArgs);
++        Bukkit.getPluginManager().callEvent(event);
++
++        if (!event.isCancelled()) {
++            bot.setBotAction(newAction);
++            sender.sendMessage("Action " + action.getName() + " has been issued to " + bot.getName().getString());
++        }
 +    }
 +
-+    private static final List<String> acceptConfig = List.of("skip_sleep", "spawn_phantom", "always_send_data");
++    public enum BotConfig {
++        SKIP_SLEEP, SPAWN_PHANTOM, ALWAYS_SEND_DATA, SIMULATION_DISTANCE;
++
++        public final String configName;
++
++        BotConfig() {
++            this.configName = this.name().toLowerCase(Locale.ROOT);
++        }
++    }
++
++    private static final List<String> acceptConfig = Stream.of(BotConfig.values()).map(config -> config.configName).toList();
 +
 +    private void onConfig(CommandSender sender, String @NotNull [] args) {
++        if (!LeavesConfig.fakeplayerModifyConfig) {
++            return;
++        }
++
 +        if (args.length < 3) {
 +            sender.sendMessage(ChatColor.RED + "Use /bot config <name> <config> to modify fakeplayer's config");
 +            return;
@@ -682,26 +762,63 @@ index 0000000000000000000000000000000000000000..25129195532cf2f22c75840758059933
 +            return;
 +        }
 +
++        BotConfig config = BotConfig.valueOf(args[2].toUpperCase(Locale.ROOT));
 +        if (args.length < 4) {
-+            switch (args[2]) {
-+                case "skip_sleep" -> sender.sendMessage(bot.getScoreboardName() + "'s skip_sleep: " + bot.fauxSleeping);
-+                case "spawn_phantom" -> {
++            String value = null;
++            switch (config) {
++                case SKIP_SLEEP -> value = String.valueOf(bot.fauxSleeping);
++                case SPAWN_PHANTOM -> {
 +                    sender.sendMessage(bot.getScoreboardName() + "'s spawn_phantom: " + bot.spawnPhantom);
 +                    if (bot.spawnPhantom) {
 +                        sender.sendMessage(bot.getScoreboardName() + "'s not_sleeping_ticks: " + bot.notSleepTicks);
 +                    }
++                    return;
 +                }
-+                case "always_send_data" ->
-+                    sender.sendMessage(bot.getScoreboardName() + "'s always_send_data: " + bot.alwaysSendData);
++                case ALWAYS_SEND_DATA -> value = String.valueOf(bot.alwaysSendData);
++                case SIMULATION_DISTANCE -> value = String.valueOf(bot.getBukkitEntity().getSimulationDistance());
 +            }
++            sender.sendMessage(bot.getScoreboardName() + "'s " + config.configName + ": " + value);
 +        } else {
-+            boolean value = args[3].equals("true");
-+            switch (args[2]) {
-+                case "skip_sleep" -> bot.fauxSleeping = value;
-+                case "spawn_phantom" -> bot.spawnPhantom = value;
-+                case "always_send_data" -> bot.alwaysSendData = value;
++            String value = args[3];
++
++            BotConfigModifyEvent event = new BotConfigModifyEvent(bot.getBukkitEntity(), config.configName, value);
++            Bukkit.getPluginManager().callEvent(event);
++
++            if (event.isCancelled()) {
++                return;
 +            }
-+            sender.sendMessage(bot.getScoreboardName() + "'s " + args[2] + " changed: " + value);
++
++            switch (config) {
++                case SKIP_SLEEP -> {
++                    boolean realValue = value.equals("true");
++                    bot.fauxSleeping = realValue;
++                    value = String.valueOf(realValue);
++                }
++                case SPAWN_PHANTOM -> {
++                    boolean realValue = value.equals("true");
++                    bot.spawnPhantom = realValue;
++                    value = String.valueOf(realValue);
++                }
++                case ALWAYS_SEND_DATA -> {
++                    boolean realValue = value.equals("true");
++                    bot.alwaysSendData = realValue;
++                    value = String.valueOf(realValue);
++                }
++                case SIMULATION_DISTANCE -> {
++                    try {
++                        int realValue = Integer.parseInt(value);
++                        if (realValue < 2 || realValue > 32) {
++                            sender.sendMessage("simulation_distance must be a number between 2 and 32, got: " + value);
++                            return;
++                        }
++                        bot.getBukkitEntity().setSimulationDistance(realValue);
++                    } catch (NumberFormatException e) {
++                        sender.sendMessage("simulation_distance must be a number between 2 and 32, got: " + value);
++                        return;
++                    }
++                }
++            }
++            sender.sendMessage(bot.getScoreboardName() + "'s " + config.configName + " changed: " + value);
 +        }
 +    }
 +
@@ -1218,10 +1335,10 @@ index 0000000000000000000000000000000000000000..daaece30b2a3983f1cc9ee9a851e8f37
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/ServerBot.java b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..c95adbad75fb1dca94a53990b5ad522795783748
+index 0000000000000000000000000000000000000000..a2dbfe898adf918a52ae639b0e0985e756ca826a
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/ServerBot.java
-@@ -0,0 +1,735 @@
+@@ -0,0 +1,716 @@
 +package top.leavesmc.leaves.bot;
 +
 +import com.google.common.collect.Lists;
@@ -1334,6 +1451,7 @@ index 0000000000000000000000000000000000000000..c95adbad75fb1dca94a53990b5ad5227
 +        this.entityData.set(new EntityDataAccessor<>(16, EntityDataSerializers.INT), 0xFF);
 +        this.entityData.set(Player.DATA_PLAYER_MODE_CUSTOMISATION, (byte) -2);
 +
++        this.gameMode = new ServerBotGameMode(this);
 +        this.velocity = new Vec3(this.xxa, this.yya, this.zza);
 +        this.noFallTicks = 60;
 +        this.fireTicks = 0;
@@ -1617,39 +1735,19 @@ index 0000000000000000000000000000000000000000..c95adbad75fb1dca94a53990b5ad5227
 +    @Override
 +    public void onItemPickup(@NotNull ItemEntity item) {
 +        super.onItemPickup(item);
-+        this.updateItemInMainHand();
++        this.updateItemInHand(InteractionHand.MAIN_HAND);
 +    }
 +
-+    public void updateItemInMainHand() {
-+        tryReplenishOrReplaceInMainHand();
-+        detectEquipmentUpdatesPublic();
-+    }
++    public void updateItemInHand(InteractionHand hand) {
++        net.minecraft.world.item.ItemStack item = getItemInHand(hand);
 +
-+    public void updateItemInOffHand() {
-+        tryReplenishOrReplaceInOffHand();
-+        detectEquipmentUpdatesPublic();
-+    }
-+
-+    public void tryReplenishOrReplaceInOffHand() {
-+        net.minecraft.world.item.ItemStack offhand = getOffhandItem();
-+
-+        if (!offhand.isEmpty()) {
-+            BotUtil.replenishment(offhand, getInventory().items);
-+            if (BotUtil.isDamage(offhand, 10)) {
-+                BotUtil.replaceTool(EquipmentSlot.OFFHAND, this);
++        if (!item.isEmpty()) {
++            BotUtil.replenishment(item, getInventory().items);
++            if (BotUtil.isDamage(item, 10)) {
++                BotUtil.replaceTool(hand == InteractionHand.MAIN_HAND ? EquipmentSlot.MAINHAND : EquipmentSlot.OFFHAND, this);
 +            }
 +        }
-+    }
-+
-+    public void tryReplenishOrReplaceInMainHand() {
-+        net.minecraft.world.item.ItemStack mainHand = getMainHandItem();
-+
-+        if (!mainHand.isEmpty()) {
-+            BotUtil.replenishment(mainHand, getInventory().items);
-+            if (BotUtil.isDamage(mainHand, 10)) {
-+                BotUtil.replaceTool(EquipmentSlot.MAINHAND, this);
-+            }
-+        }
++        detectEquipmentUpdatesPublic();
 +    }
 +
 +    @Override
@@ -1687,7 +1785,7 @@ index 0000000000000000000000000000000000000000..c95adbad75fb1dca94a53990b5ad5227
 +    }
 +
 +    @Override
-+    public void knockback(double strength, double x, double z, @NotNull Entity knockingBackEntity, EntityKnockbackEvent.KnockbackCause cause) {
++    public void knockback(double strength, double x, double z, @Nullable Entity knockingBackEntity, EntityKnockbackEvent.@NotNull KnockbackCause cause) {
 +        strength *= 1.0D - this.getAttributeValue(Attributes.KNOCKBACK_RESISTANCE);
 +        if (strength > 0.0D) {
 +            this.hasImpulse = true;
@@ -1731,15 +1829,12 @@ index 0000000000000000000000000000000000000000..c95adbad75fb1dca94a53990b5ad5227
 +        this.getBukkitEntity().setRotation(yaw, pitch);
 +    }
 +
-+    public void punch() {
++    public void attack(@NotNull Entity target) {
++        super.attack(target);
 +        swing(InteractionHand.MAIN_HAND);
 +    }
 +
-+    public void attack(@NotNull Entity target) {
-+        super.attack(target);
-+        punch();
-+    }
-+
++    @Override
 +    public void jumpFromGround() {
 +        double jumpPower = (double) this.getJumpPower() + this.getJumpBoostPower();
 +        this.addDeltaMovement(new Vec3(0, jumpPower, 0));
@@ -1751,6 +1846,9 @@ index 0000000000000000000000000000000000000000..c95adbad75fb1dca94a53990b5ad5227
 +    }
 +
 +    public void setBotAction(BotAction action) {
++        if (!LeavesConfig.fakeplayerUseAction) {
++            return;
++        }
 +        if (action instanceof StopAction) {
 +            this.actions.clear();
 +        }
@@ -1955,6 +2053,142 @@ index 0000000000000000000000000000000000000000..c95adbad75fb1dca94a53990b5ad5227
 +        public String getRealName() {
 +            return realName;
 +        }
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/bot/ServerBotGameMode.java b/src/main/java/top/leavesmc/leaves/bot/ServerBotGameMode.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..289894276faefac6c8410f5c78b5dafc15df5b4f
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/bot/ServerBotGameMode.java
+@@ -0,0 +1,130 @@
++package top.leavesmc.leaves.bot;
++
++import net.kyori.adventure.text.Component;
++import net.minecraft.core.BlockPos;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.server.level.ServerPlayerGameMode;
++import net.minecraft.world.InteractionHand;
++import net.minecraft.world.InteractionResult;
++import net.minecraft.world.item.ItemStack;
++import net.minecraft.world.item.context.UseOnContext;
++import net.minecraft.world.level.GameType;
++import net.minecraft.world.level.Level;
++import net.minecraft.world.level.block.Block;
++import net.minecraft.world.level.block.entity.BlockEntity;
++import net.minecraft.world.level.block.state.BlockState;
++import net.minecraft.world.phys.BlockHitResult;
++import org.bukkit.event.player.PlayerGameModeChangeEvent;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++public class ServerBotGameMode extends ServerPlayerGameMode {
++
++    public ServerBotGameMode(ServerBot bot) {
++        super(bot);
++        super.setGameModeForPlayer(GameType.SURVIVAL, null);
++    }
++
++    @Override
++    public boolean changeGameModeForPlayer(@NotNull GameType gameMode) {
++        return false;
++    }
++
++    @Nullable
++    @Override
++    public PlayerGameModeChangeEvent changeGameModeForPlayer(@NotNull GameType gameMode, PlayerGameModeChangeEvent.@NotNull Cause cause, @Nullable Component cancelMessage) {
++        return null;
++    }
++
++    @Override
++    protected void setGameModeForPlayer(@NotNull GameType gameMode, @Nullable GameType previousGameMode) {
++    }
++
++    @Override
++    public void tick() {
++    }
++
++    @Override
++    public void destroyAndAck(@NotNull BlockPos pos, int sequence, @NotNull String reason) {
++        this.destroyBlock(pos);
++    }
++
++    @Override
++    public boolean destroyBlock(@NotNull BlockPos pos) {
++        BlockState iblockdata = this.level.getBlockState(pos);
++        BlockEntity tileentity = this.level.getBlockEntity(pos);
++        Block block = iblockdata.getBlock();
++
++        if (this.player.blockActionRestricted(this.level, pos, this.getGameModeForPlayer())) {
++            return false;
++        } else {
++            this.level.captureDrops = null;
++            BlockState iblockdata1 = block.playerWillDestroy(this.level, pos, iblockdata, this.player);
++            boolean flag = this.level.removeBlock(pos, false);
++
++            if (flag) {
++                block.destroy(this.level, pos, iblockdata1);
++            }
++
++            ItemStack itemstack = this.player.getMainHandItem();
++            ItemStack itemstack1 = itemstack.copy();
++
++            boolean flag1 = this.player.hasCorrectToolForDrops(iblockdata1);
++
++            itemstack.mineBlock(this.level, iblockdata1, pos, this.player);
++            if (flag && flag1) {
++                Block.dropResources(iblockdata1, this.level, pos, tileentity, this.player, itemstack1, true);
++            }
++
++            if (flag) {
++                iblockdata.getBlock().popExperience(this.level, pos, block.getExpDrop(iblockdata, this.level, pos, itemstack, true), this.player);
++            }
++
++            return true;
++        }
++    }
++
++    @NotNull
++    @Override
++    public InteractionResult useItemOn(@NotNull ServerPlayer player, Level world, @NotNull ItemStack stack, @NotNull InteractionHand hand, BlockHitResult hitResult) {
++        BlockPos blockposition = hitResult.getBlockPos();
++        BlockState iblockdata = world.getBlockState(blockposition);
++        InteractionResult enuminteractionresult = InteractionResult.PASS;
++
++        if (!iblockdata.getBlock().isEnabled(world.enabledFeatures())) {
++            return InteractionResult.FAIL;
++        }
++
++        if (player.getCooldowns().isOnCooldown(stack.getItem())) {
++            return InteractionResult.PASS;
++        }
++
++        this.firedInteract = true;
++        this.interactResult = false;
++        this.interactPosition = blockposition.immutable();
++        this.interactHand = hand;
++        this.interactItemStack = stack.copy();
++
++        boolean flag = !player.getMainHandItem().isEmpty() || !player.getOffhandItem().isEmpty();
++        boolean flag1 = player.isSecondaryUseActive() && flag;
++
++        if (!flag1) {
++            enuminteractionresult = iblockdata.use(world, player, hand, hitResult);
++
++            if (enuminteractionresult.consumesAction()) {
++                return enuminteractionresult;
++            }
++        }
++
++        if (!stack.isEmpty() && enuminteractionresult != InteractionResult.SUCCESS && !this.interactResult) {
++            UseOnContext itemactioncontext = new UseOnContext(player, hand, hitResult);
++            return stack.useOn(itemactioncontext);
++        }
++        return enuminteractionresult;
++    }
++
++    @Override
++    public void setLevel(@NotNull ServerLevel world) {
 +    }
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/Actions.java b/src/main/java/top/leavesmc/leaves/bot/agent/Actions.java
@@ -2172,10 +2406,10 @@ index 0000000000000000000000000000000000000000..609605b21cfe5af8876f76ea4922e379
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/AttackSelfAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/AttackSelfAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..5a0e5626751d0b6ea12a6074b5626937b6668608
+index 0000000000000000000000000000000000000000..8543709b07ea4e598764d20b3ea4a6409496c890
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/actions/AttackSelfAction.java
-@@ -0,0 +1,42 @@
+@@ -0,0 +1,39 @@
 +package top.leavesmc.leaves.bot.agent.actions;
 +
 +import com.google.common.base.Predicates;
@@ -2205,14 +2439,11 @@ index 0000000000000000000000000000000000000000..5a0e5626751d0b6ea12a6074b5626937
 +
 +    @Override
 +    public boolean doTick(@NotNull ServerBot bot) {
-+        List<Entity> entities = bot.level().getEntities((Entity) null, bot.getBoundingBox(), Predicates.alwaysTrue());
++        List<Entity> entities = bot.level().getEntities((Entity) null, bot.getBoundingBox(), (entity -> entity != bot));
 +        if (!entities.isEmpty()) {
-+            for (int i = 0; i < entities.size(); i++) {
-+                Entity entity = entities.get(i);
-+                if (entity != bot) {
-+                    bot.attack(entity);
-+                    return true;
-+                }
++            for (Entity entity : entities) {
++                bot.attack(entity);
++                return true;
 +            }
 +        }
 +        return false;
@@ -2220,14 +2451,15 @@ index 0000000000000000000000000000000000000000..5a0e5626751d0b6ea12a6074b5626937
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/BreakBlockAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/BreakBlockAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..2a3ca671b43fec658bf5cd8a6eb08b476a766c29
+index 0000000000000000000000000000000000000000..12af5b8f2bb1a2c8718e3e26e17189609bb5268f
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/actions/BreakBlockAction.java
-@@ -0,0 +1,104 @@
+@@ -0,0 +1,105 @@
 +package top.leavesmc.leaves.bot.agent.actions;
 +
 +import net.minecraft.core.BlockPos;
 +import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.world.InteractionHand;
 +import net.minecraft.world.level.block.state.BlockState;
 +import org.bukkit.block.Block;
 +import org.bukkit.craftbukkit.block.CraftBlock;
@@ -2286,12 +2518,12 @@ index 0000000000000000000000000000000000000000..2a3ca671b43fec658bf5cd8a6eb08b47
 +
 +            BlockState iblockdata = bot.level().getBlockState(pos);
 +            if (!iblockdata.isAir()) {
-+                bot.punch();
++                bot.swing(InteractionHand.MAIN_HAND);
 +
 +                if (iblockdata.getDestroyProgress(bot, bot.level(), pos) >= 1.0F) {
 +                    bot.gameMode.destroyAndAck(pos, 0, "insta mine");
 +                    bot.level().destroyBlockProgress(bot.getId(), pos, -1);
-+                    bot.updateItemInMainHand();
++                    bot.updateItemInHand(InteractionHand.MAIN_HAND);
 +                    finalBreak();
 +                    return true;
 +                }
@@ -2300,7 +2532,7 @@ index 0000000000000000000000000000000000000000..2a3ca671b43fec658bf5cd8a6eb08b47
 +                if (damage >= 1.0F) {
 +                    bot.gameMode.destroyAndAck(pos, 0, "destroyed");
 +                    bot.level().destroyBlockProgress(bot.getId(), pos, -1);
-+                    bot.updateItemInMainHand();
++                    bot.updateItemInHand(InteractionHand.MAIN_HAND);
 +                    finalBreak();
 +                    return true;
 +                }
@@ -2724,7 +2956,7 @@ index 0000000000000000000000000000000000000000..58c815bd0ebfd455fcf4903ee5ced6b8
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..5dc3fbf8e62ccffc8291962c835a568efd65d7af
+index 0000000000000000000000000000000000000000..eb81cdc139814d3374f97ed368c4a59676ca25e5
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemAction.java
 @@ -0,0 +1,33 @@
@@ -2756,14 +2988,14 @@ index 0000000000000000000000000000000000000000..5dc3fbf8e62ccffc8291962c835a568e
 +
 +    @Override
 +    public boolean doTick(@NotNull ServerBot bot) {
-+        bot.punch();
-+        bot.updateItemInMainHand();
-+        return bot.getInventory().getSelected().use(bot.level(), bot, InteractionHand.MAIN_HAND).getResult().consumesAction();
++        bot.swing(InteractionHand.MAIN_HAND);
++        bot.updateItemInHand(InteractionHand.MAIN_HAND);
++        return bot.gameMode.useItem(bot, bot.level(), bot.getItemInHand(InteractionHand.MAIN_HAND), InteractionHand.MAIN_HAND).consumesAction();
 +    }
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemOffHandAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemOffHandAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..345932e779f5187355ca722c2bb9b05f384660a1
+index 0000000000000000000000000000000000000000..00c85bae0a278d3aad793635aa80859d94101f49
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemOffHandAction.java
 @@ -0,0 +1,33 @@
@@ -2795,14 +3027,14 @@ index 0000000000000000000000000000000000000000..345932e779f5187355ca722c2bb9b05f
 +
 +    @Override
 +    public boolean doTick(@NotNull ServerBot bot) {
-+        bot.punch();
-+        bot.updateItemInOffHand();
-+        return bot.getInventory().getSelected().use(bot.level(), bot, InteractionHand.OFF_HAND).getResult().consumesAction();
++        bot.swing(InteractionHand.OFF_HAND);
++        bot.updateItemInHand(InteractionHand.OFF_HAND);
++        return bot.gameMode.useItem(bot, bot.level(), bot.getItemInHand(InteractionHand.OFF_HAND), InteractionHand.OFF_HAND).consumesAction();
 +    }
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemOnAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemOnAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..f4837f60909763df89ea7474f70dd0236360e657
+index 0000000000000000000000000000000000000000..9731e1c3717c344d3a739e90f28a5d24243f7661
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemOnAction.java
 @@ -0,0 +1,56 @@
@@ -2846,7 +3078,7 @@ index 0000000000000000000000000000000000000000..f4837f60909763df89ea7474f70dd023
 +        HitResult result = bot.getRayTrace(5, ClipContext.Fluid.NONE);
 +        if (result instanceof BlockHitResult blockHitResult) {
 +            BlockState state = bot.serverLevel().getBlockState(blockHitResult.getBlockPos());
-+            bot.punch();
++            bot.swing(InteractionHand.MAIN_HAND);
 +            if (state.getBlock() == Blocks.TRAPPED_CHEST) {
 +                BlockEntity entity = bot.serverLevel().getBlockEntity(blockHitResult.getBlockPos());
 +                if (entity instanceof TrappedChestBlockEntity chestBlockEntity) {
@@ -2855,7 +3087,7 @@ index 0000000000000000000000000000000000000000..f4837f60909763df89ea7474f70dd023
 +                    return true;
 +                }
 +            } else {
-+                bot.updateItemInMainHand();
++                bot.updateItemInHand(InteractionHand.MAIN_HAND);
 +                return bot.gameMode.useItemOn(bot, bot.level(), bot.getItemInHand(InteractionHand.MAIN_HAND), InteractionHand.MAIN_HAND, (BlockHitResult) result).consumesAction();
 +            }
 +        }
@@ -2864,7 +3096,7 @@ index 0000000000000000000000000000000000000000..f4837f60909763df89ea7474f70dd023
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemOnOffhandAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemOnOffhandAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..4ab84fba3624a8e8c4d345c03fe678a012a5c367
+index 0000000000000000000000000000000000000000..f3104e0a4ee367ac4af0e093bcbbff2c997fc734
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemOnOffhandAction.java
 @@ -0,0 +1,56 @@
@@ -2908,7 +3140,7 @@ index 0000000000000000000000000000000000000000..4ab84fba3624a8e8c4d345c03fe678a0
 +        HitResult result = bot.getRayTrace(5, ClipContext.Fluid.NONE);
 +        if (result instanceof BlockHitResult blockHitResult) {
 +            BlockState state = bot.serverLevel().getBlockState(blockHitResult.getBlockPos());
-+            bot.punch();
++            bot.swing(InteractionHand.OFF_HAND);
 +            if (state.getBlock() == Blocks.TRAPPED_CHEST) {
 +                BlockEntity entity = bot.serverLevel().getBlockEntity(blockHitResult.getBlockPos());
 +                if (entity instanceof TrappedChestBlockEntity chestBlockEntity) {
@@ -2917,7 +3149,7 @@ index 0000000000000000000000000000000000000000..4ab84fba3624a8e8c4d345c03fe678a0
 +                    return true;
 +                }
 +            } else {
-+                bot.updateItemInMainHand();
++                bot.updateItemInHand(InteractionHand.OFF_HAND);
 +                return bot.gameMode.useItemOn(bot, bot.level(), bot.getItemInHand(InteractionHand.OFF_HAND), InteractionHand.OFF_HAND, (BlockHitResult) result).consumesAction();
 +            }
 +        }
@@ -2926,7 +3158,7 @@ index 0000000000000000000000000000000000000000..4ab84fba3624a8e8c4d345c03fe678a0
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemToAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemToAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..cc8689ee726144f220e4ccc5cd418b79a29b79ab
+index 0000000000000000000000000000000000000000..f9a2da353114cfb8a5fd70671c0baefd9aaac627
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemToAction.java
 @@ -0,0 +1,38 @@
@@ -2961,16 +3193,16 @@ index 0000000000000000000000000000000000000000..cc8689ee726144f220e4ccc5cd418b79
 +    public boolean doTick(@NotNull ServerBot bot) {
 +        EntityHitResult result = bot.getTargetEntity(3);
 +        if (result != null) {
-+            bot.punch();
-+            bot.updateItemInMainHand();
-+            return result.getEntity().interact(bot, InteractionHand.MAIN_HAND).consumesAction();
++            bot.swing(InteractionHand.MAIN_HAND);
++            bot.updateItemInHand(InteractionHand.MAIN_HAND);
++            return bot.interactOn(result.getEntity(), InteractionHand.MAIN_HAND).consumesAction();
 +        }
 +        return false;
 +    }
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemToOffhandAction.java b/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemToOffhandAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..1fde496c993ec0c961a63b32a8088479da88c91d
+index 0000000000000000000000000000000000000000..1398b7d07e5c510fffce81dc2d103f9686ccd7df
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/bot/agent/actions/UseItemToOffhandAction.java
 @@ -0,0 +1,38 @@
@@ -3005,9 +3237,9 @@ index 0000000000000000000000000000000000000000..1fde496c993ec0c961a63b32a8088479
 +    public boolean doTick(@NotNull ServerBot bot) {
 +        EntityHitResult result = bot.getTargetEntity(3);
 +        if (result != null) {
-+            bot.punch();
-+            bot.updateItemInOffHand();
-+            return result.getEntity().interact(bot, InteractionHand.OFF_HAND).consumesAction();
++            bot.swing(InteractionHand.OFF_HAND);
++            bot.updateItemInHand(InteractionHand.OFF_HAND);
++            return bot.interactOn(result.getEntity(), InteractionHand.OFF_HAND).consumesAction();
 +        }
 +        return false;
 +    }

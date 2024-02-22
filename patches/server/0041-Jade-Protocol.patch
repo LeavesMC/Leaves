@@ -33,10 +33,10 @@ index 7292e68199d244990efa8475fb40b94fe72323c0..3c234bfcecd6d93f8ff9b1abc6dfc72c
      protected Optional<SpawnData> nextSpawnData;
 diff --git a/src/main/java/top/leavesmc/leaves/protocol/JadeProtocol.java b/src/main/java/top/leavesmc/leaves/protocol/JadeProtocol.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..6ac52cf629d467daf3137304909b8c125b925550
+index 0000000000000000000000000000000000000000..9b99e7a19f260081c90cdb98f71cc295b5869575
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/protocol/JadeProtocol.java
-@@ -0,0 +1,901 @@
+@@ -0,0 +1,910 @@
 +package top.leavesmc.leaves.protocol;
 +
 +import com.google.common.cache.Cache;
@@ -78,6 +78,8 @@ index 0000000000000000000000000000000000000000..6ac52cf629d467daf3137304909b8c12
 +import net.minecraft.world.entity.animal.allay.Allay;
 +import net.minecraft.world.entity.animal.frog.Tadpole;
 +import net.minecraft.world.entity.animal.horse.AbstractHorse;
++import net.minecraft.world.entity.boss.EnderDragonPart;
++import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 +import net.minecraft.world.entity.monster.ZombieVillager;
 +import net.minecraft.world.entity.vehicle.ContainerEntity;
 +import net.minecraft.world.inventory.PlayerEnderChestContainer;
@@ -492,6 +494,12 @@ index 0000000000000000000000000000000000000000..6ac52cf629d467daf3137304909b8c12
 +            if (entity == null || player.distanceToSqr(entity) > MAX_DISTANCE_SQR) {
 +                return;
 +            }
++            if (payload.partIndex >= 0 && entity instanceof EnderDragon dragon) {
++                EnderDragonPart[] parts = dragon.getSubEntities();
++                if (payload.partIndex < parts.length) {
++                    entity = parts[payload.partIndex];
++                }
++            }
 +
 +            var providers = entityDataProviders.get(entity);
 +            if (providers.isEmpty()) {
@@ -567,18 +575,19 @@ index 0000000000000000000000000000000000000000..6ac52cf629d467daf3137304909b8c12
 +        }
 +    }
 +
-+    public record RequestEntityPayload(boolean showDetails, int entityId, float hitX, float hitY, float hitZ) implements CustomPacketPayload {
++    public record RequestEntityPayload(boolean showDetails, int entityId, int partIndex, float hitX, float hitY, float hitZ) implements CustomPacketPayload {
 +
 +        private static final ResourceLocation PACKET_REQUEST_ENTITY = JadeProtocol.id("request_entity");
 +
 +        public RequestEntityPayload(ResourceLocation id, FriendlyByteBuf buf) {
-+            this(buf.readBoolean(), buf.readVarInt(), buf.readFloat(), buf.readFloat(), buf.readFloat());
++            this(buf.readBoolean(), buf.readVarInt(), buf.readVarInt(), buf.readFloat(), buf.readFloat(), buf.readFloat());
 +        }
 +
 +        @Override
 +        public void write(FriendlyByteBuf buf) {
 +            buf.writeBoolean(showDetails);
-+            buf.writeInt(entityId);
++            buf.writeVarInt(entityId);
++            buf.writeVarInt(partIndex);
 +            buf.writeFloat(hitX);
 +            buf.writeFloat(hitY);
 +            buf.writeFloat(hitZ);

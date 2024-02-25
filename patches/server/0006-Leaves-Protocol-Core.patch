@@ -116,17 +116,19 @@ index 0000000000000000000000000000000000000000..f884f54f5a1f0665c290e014f088aae8
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/protocol/core/LeavesProtocolManager.java b/src/main/java/top/leavesmc/leaves/protocol/core/LeavesProtocolManager.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..26544936005d167f764a823faebc200f59b2e008
+index 0000000000000000000000000000000000000000..be939521c6c4f9ca1f960611473d68ac379d3331
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/protocol/core/LeavesProtocolManager.java
-@@ -0,0 +1,339 @@
+@@ -0,0 +1,359 @@
 +package top.leavesmc.leaves.protocol.core;
 +
 +import net.minecraft.network.FriendlyByteBuf;
++import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
 +import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 +import net.minecraft.resources.ResourceLocation;
 +import net.minecraft.server.level.ServerPlayer;
 +import org.apache.commons.lang.ArrayUtils;
++import org.bukkit.event.player.PlayerKickEvent;
 +import org.jetbrains.annotations.NotNull;
 +
 +import java.io.File;
@@ -140,6 +142,7 @@ index 0000000000000000000000000000000000000000..26544936005d167f764a823faebc200f
 +import java.net.URLDecoder;
 +import java.nio.charset.StandardCharsets;
 +import java.util.ArrayList;
++import java.util.Arrays;
 +import java.util.Collections;
 +import java.util.Enumeration;
 +import java.util.HashMap;
@@ -264,6 +267,8 @@ index 0000000000000000000000000000000000000000..26544936005d167f764a823faebc200f
 +                        return map.get(receiver).newInstance(id, buf);
 +                    } catch (InvocationTargetException | InstantiationException | IllegalAccessException e) {
 +                        e.printStackTrace();
++                        buf.readBytes(buf.readableBytes());
++                        return new ErrorPayload(id, protocol.namespace(), receiver.payloadId());
 +                    }
 +                }
 +            }
@@ -272,6 +277,15 @@ index 0000000000000000000000000000000000000000..26544936005d167f764a823faebc200f
 +    }
 +
 +    public static void handlePayload(ServerPlayer player, CustomPacketPayload payload) {
++        if (payload instanceof ServerboundCustomPayloadPacket.UnknownPayload) {
++            return;
++        }
++
++        if (payload instanceof ErrorPayload errorPayload) {
++            player.connection.disconnect("Payload " + Arrays.toString(errorPayload.packetID) + " from " + Arrays.toString(errorPayload.protocolID) + " error", PlayerKickEvent.Cause.INVALID_PAYLOAD);
++            return;
++        }
++
 +        for (LeavesProtocol protocol : KNOW_RECEIVERS.keySet()) {
 +            if (!ArrayUtils.contains(protocol.namespace(), payload.id().getNamespace())) {
 +                continue;
@@ -433,6 +447,12 @@ index 0000000000000000000000000000000000000000..26544936005d167f764a823faebc200f
 +                    }
 +                }
 +            }
++        }
++    }
++
++    public record ErrorPayload(ResourceLocation id, String[] protocolID, String[] packetID) implements CustomPacketPayload {
++        @Override
++        public void write(@NotNull FriendlyByteBuf buf) {
 +        }
 +    }
 +

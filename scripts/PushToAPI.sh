@@ -24,8 +24,8 @@ jar_name="leaves-$mcversion.jar"
 jar_sha256=`sha256 $jar_name`
 
 # v1
-curl --location --request POST "https://api.leavesmc.top/new_release" --header "Content-Type: application/json" --data-raw "{\"project_id\":\"$project_id\",\"project_name\":\"$project_name\",\"version\":\"$mcversion\",\"time\":\"$ctime\",\"channel\":\"$channel\",\"promoted\":$promoted,\"changes\":\"$changes\",\"downloads\":{\"application\":{\"name\":\"$jar_name\",\"sha256\":\"$jar_sha256\",\"url\":\"https://github.com/LeavesMC/Leaves/releases/download/$tag/$jar_name\"}},\"secret\":\"$secret\"}"
-curl --location --request POST "https://api.leavesmc.top/upload_file" -F "file=@$jar_name" -F "filename=$jar_name" -F "filehash=$jar_sha256" -F "secret=$secret"
+curl --location --request POST "https://api.leavesmc.org/new_release" --header "Content-Type: application/json" --data-raw "{\"project_id\":\"$project_id\",\"project_name\":\"$project_name\",\"version\":\"$mcversion\",\"time\":\"$ctime\",\"channel\":\"$channel\",\"promoted\":$promoted,\"changes\":\"$changes\",\"downloads\":{\"application\":{\"name\":\"$jar_name\",\"sha256\":\"$jar_sha256\",\"url\":\"https://github.com/LeavesMC/Leaves/releases/download/$tag/$jar_name\"}},\"secret\":\"$secret\"}"
+curl --location --request POST "https://api.leavesmc.org/upload_file" -F "file=@$jar_name" -F "filename=$jar_name" -F "filehash=$jar_sha256" -F "secret=$secret"
 
 # v2
-curl --location --request POST "https://api.leavesmc.top/v2/commit/build" --header "Content-Type: application/json" --header "Authentication: Bearer $secret_v2" --data-raw "{\"project_id\":\"$project_id\",\"version\":\"$mcversion\",\"channel\":\"$channel\",\"changes\":\"$changes\",\"jar_name\":\"$jar_name\",\"sha256\":\"$jar_sha256\",\"tag\":\"$tag\"}"
+curl --location --request POST "https://api.leavesmc.org/v2/commit/build" --header "Content-Type: application/json" --header "Authentication: Bearer $secret_v2" --data-raw "{\"project_id\":\"$project_id\",\"version\":\"$mcversion\",\"channel\":\"$channel\",\"changes\":\"$changes\",\"jar_name\":\"$jar_name\",\"sha256\":\"$jar_sha256\",\"tag\":\"$tag\"}"

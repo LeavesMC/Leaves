@@ -19,7 +19,7 @@ You can download the latest build (1.20.x) of Leaves by going [here](https://git
 
 You can also [build it yourself](https://github.com/LeavesMC/Leaves#building).
 
-You can visit our [documentation](https://docs.leavesmc.top/leaves) for more information.
+You can visit our [documentation](https://docs.leavesmc.org/leaves) for more information.
 
 ## How To (Plugin developers)
 Leaves-API:

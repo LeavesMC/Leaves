@@ -53,10 +53,10 @@ index 0000000000000000000000000000000000000000..293117a6c54fdce70d69b93fe80ce021
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/util/LeavesUpdateHelper.java b/src/main/java/top/leavesmc/leaves/util/LeavesUpdateHelper.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..e7060b91a27b1d0cddb14c155caaa0e78a043e20
+index 0000000000000000000000000000000000000000..8ed3d15ebea4d8cfa134f331bd49d38fb2219b9a
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/util/LeavesUpdateHelper.java
-@@ -0,0 +1,234 @@
+@@ -0,0 +1,240 @@
 +package top.leavesmc.leaves.util;
 +
 +import com.google.common.base.Charsets;
@@ -249,8 +249,14 @@ index 0000000000000000000000000000000000000000..e7060b91a27b1d0cddb14c155caaa0e7
 +
 +    private static LeavesBuildInfo getLatestBuildInfo(String mcVersion, String gitHash) {
 +        try {
-+            HttpURLConnection connection = (HttpURLConnection) new URL("https://api.leavesmc.top/projects/leaves/versions/" + mcVersion + "/builds/latest").openConnection();
++            HttpURLConnection connection = (HttpURLConnection) new URL("https://api.leavesmc.org/projects/leaves/versions/" + mcVersion + "/builds/latest").openConnection();
 +            connection.connect();
++            boolean useApiV2 = false;
++            if (connection.getResponseCode() / 100 != 2){
++                connection = (HttpURLConnection) new URL("https://api.leavesmc.org/v2/projects/leaves/versions/" + mcVersion + "/builds/latest").openConnection();
++                connection.connect();
++                useApiV2 = true;
++            };
 +            if (connection.getResponseCode() == HttpURLConnection.HTTP_NOT_FOUND) return LeavesBuildInfo.NULL;
 +            try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream(), Charsets.UTF_8))) {
 +                JsonObject obj = new Gson().fromJson(reader, JsonObject.class);
@@ -271,8 +277,8 @@ index 0000000000000000000000000000000000000000..e7060b91a27b1d0cddb14c155caaa0e7
 +                    JsonObject downloadInfo = obj.get("downloads").getAsJsonObject().get("application").getAsJsonObject();
 +                    String name = downloadInfo.get("name").getAsString();
 +                    String sha256 = downloadInfo.get("sha256").getAsString();
-+                    String githubUrl = downloadInfo.get("url").getAsString();
-+                    String cdnUrl = downloadInfo.get("cdn_url").getAsString();
++                    String githubUrl = useApiV2 ? "https://api.leavesmc.org/v2/projects/leaves/versions/" + mcVersion + "/builds/" + build + "/downloads/" + name : downloadInfo.get("url").getAsString();
++                    String cdnUrl = useApiV2 ? "https://cdn.leavesmc.z0z0r4.top/cache/" + name : downloadInfo.get("cdn_url").getAsString();
 +                    return new LeavesBuildInfo(build, name, sha256, needUpdate, cdnUrl, githubUrl);
 +                } else {
 +                    return LeavesBuildInfo.NULL;

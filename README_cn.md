@@ -19,7 +19,7 @@ Leaves
 
 也可以通过 [此处](https://github.com/LeavesMC/Leaves/blob/master/README_cn.md#自行构建) 的指南自行构建
 
-如果你想要获得更多信息，那么你可以访问我们的 [文档](https://docs.leavesmc.org/zh/leaves)
+如果你想要获得更多信息，那么你可以访问我们的 [文档](https://docs.leavesmc.org/zh_Hans/leaves/guides/getting-started)
 
 ## 对于插件开发者
 Leaves-API:

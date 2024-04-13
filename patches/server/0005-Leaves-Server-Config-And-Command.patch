@@ -4,98 +4,62 @@ Date: Fri, 29 Oct 2021 16:52:57 +0800
 Subject: [PATCH] Leaves Server Config And Command
 
 
+diff --git a/build.gradle.kts b/build.gradle.kts
+index dc25ca9011a4fa0fcb642aa7371b0693c294dc9b..a2441f300345c3936bce69d6d3f21fdd6626136d 100644
+--- a/build.gradle.kts
++++ b/build.gradle.kts
+@@ -218,3 +218,11 @@ tasks.registerRunTask("runDev") {
+     classpath(sourceSets.main.map { it.runtimeClasspath })
+     jvmArgs("-DPaper.pushPaperAssetsRoot=true")
+ }
++
++// Leaves start - create config file
++tasks.registerRunTask("createLeavesConfig") {
++    description = "Create a new leaves.yml"
++    mainClass = "top.leavesmc.leaves.config.GlobalConfigCreator"
++    classpath(sourceSets.main.map { it.runtimeClasspath })
++}
++// Leaves end - create config file
+\ No newline at end of file
 diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
-index d75338a60cc830dde5f505b83e9f43856e0204be..c798fbe078e14b0473b2d8bcdccc11238d28025e 100644
+index 5db905f820a13c876fd9c9003610e1b3c42f0364..6538dfd5a0d62912ee67de8e414c4443538c32c2 100644
 --- a/src/main/java/net/minecraft/server/MinecraftServer.java
 +++ b/src/main/java/net/minecraft/server/MinecraftServer.java
-@@ -1095,6 +1095,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+@@ -1142,6 +1142,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
              LOGGER.info("Done ({})! For help, type \"help\"", doneTime);
              // Paper end
  
 +			top.leavesmc.leaves.LeavesConfig.createWorldSections = false; // Leaves - dont let plugin create worlds fill our config
              org.spigotmc.WatchdogThread.tick(); // Paper
              org.spigotmc.WatchdogThread.hasStarted = true; // Paper
-             Arrays.fill( recentTps, 20 );
+             Arrays.fill( this.recentTps, 20 );
 diff --git a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
-index 6e42c5b72598aaff4a4d3c4ebb9c7bd20bc2639a..0835a4ab23b3cb0864d9b452e1a6c8141496cd57 100644
+index d0cf730f175c707b50577b7080bd81cf045ed980..60e5129b42c430ba6b9776bf63d0db608552b50f 100644
 --- a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
 +++ b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
-@@ -219,6 +219,10 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
-         com.destroystokyo.paper.VersionHistoryManager.INSTANCE.getClass(); // load version history now
-         io.papermc.paper.brigadier.PaperBrigadierProviderImpl.INSTANCE.getClass(); // init PaperBrigadierProvider
-         // Paper end
-+		
+@@ -220,6 +220,9 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
+         com.destroystokyo.paper.VersionHistoryManager.INSTANCE.getClass(); // Paper - load version history now
+         io.papermc.paper.brigadier.PaperBrigadierProviderImpl.INSTANCE.getClass(); // Paper - init PaperBrigadierProvider
+ 
 +		top.leavesmc.leaves.LeavesConfig.init((java.io.File) options.valueOf("leaves-settings")); // Leaves - Server Config
-+        top.leavesmc.leaves.LeavesConfig.registerCommands(); // Leaves - Server Command
 +        System.setProperty("spark.serverconfigs.extra", "leaves.yml"); // Leaves - spark config
++
+         com.destroystokyo.paper.Metrics.PaperMetrics.startMetrics(); // Paper - start metrics // Leaves - down
  
-         com.destroystokyo.paper.Metrics.PaperMetrics.startMetrics(); // Leaves - down
- 
-diff --git a/src/main/java/net/minecraft/world/entity/ai/gossip/GossipType.java b/src/main/java/net/minecraft/world/entity/ai/gossip/GossipType.java
-index 8c942c21dc3aebcd2fc89b5bde92c73a95bdc3e3..c3d1d7b525a6f2b708144ebe9bc28dfadcfe11fa 100644
---- a/src/main/java/net/minecraft/world/entity/ai/gossip/GossipType.java
-+++ b/src/main/java/net/minecraft/world/entity/ai/gossip/GossipType.java
-@@ -15,9 +15,9 @@ public enum GossipType implements StringRepresentable {
-     public static final int REPUTATION_CHANGE_PER_TRADE = 2;
-     public final String id;
-     public final int weight;
--    public final int max;
-+    public int max;
-     public final int decayPerDay;
--    public final int decayPerTransfer;
-+    public int decayPerTransfer;
-     public static final Codec<GossipType> CODEC = StringRepresentable.fromEnum(GossipType::values);
- 
-     private GossipType(String key, int multiplier, int maxReputation, int decay, int shareDecrement) {
-diff --git a/src/main/java/net/minecraft/world/level/Level.java b/src/main/java/net/minecraft/world/level/Level.java
-index 0cd2163fcca1908f4b0a1dea952afc968cf16a3b..219f4c7368ce6b805f3f4cffd8e3f65b1590f7ed 100644
---- a/src/main/java/net/minecraft/world/level/Level.java
-+++ b/src/main/java/net/minecraft/world/level/Level.java
-@@ -166,6 +166,7 @@ public abstract class Level implements LevelAccessor, AutoCloseable {
-     // Paper end
- 
-     public final com.destroystokyo.paper.antixray.ChunkPacketBlockController chunkPacketBlockController; // Paper - Anti-Xray
-+	public final top.leavesmc.leaves.LeavesConfig.WorldConfig leavesConfig; // Leaves - World Config
-     public static BlockPos lastPhysicsProblem; // Spigot
-     private org.spigotmc.TickLimiter entityLimiter;
-     private org.spigotmc.TickLimiter tileLimiter;
-@@ -202,6 +203,7 @@ public abstract class Level implements LevelAccessor, AutoCloseable {
-     protected Level(WritableLevelData worlddatamutable, ResourceKey<Level> resourcekey, RegistryAccess iregistrycustom, Holder<DimensionType> holder, Supplier<ProfilerFiller> supplier, boolean flag, boolean flag1, long i, int j, org.bukkit.generator.ChunkGenerator gen, org.bukkit.generator.BiomeProvider biomeProvider, org.bukkit.World.Environment env, java.util.function.Function<org.spigotmc.SpigotWorldConfig, io.papermc.paper.configuration.WorldConfiguration> paperWorldConfigCreator, java.util.concurrent.Executor executor) { // Paper - Async-Anti-Xray - Pass executor
-         this.spigotConfig = new org.spigotmc.SpigotWorldConfig(((net.minecraft.world.level.storage.PrimaryLevelData) worlddatamutable).getLevelName()); // Spigot
-         this.paperConfig = paperWorldConfigCreator.apply(this.spigotConfig); // Paper
-+		this.leavesConfig = new top.leavesmc.leaves.LeavesConfig.WorldConfig(((net.minecraft.world.level.storage.PrimaryLevelData)worlddatamutable).getLevelName()); // Leaves - World Config
-         this.generator = gen;
-         this.world = new CraftWorld((ServerLevel) this, gen, biomeProvider, env);
- 
+         this.setPvpAllowed(dedicatedserverproperties.pvp);
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 47b05f315a744b0ad0daa9d354ac1229be5374ce..3b5d0a2cdeb014be13bb92c7674cc9f84d86f335 100644
+index 367975d5e0c9846e5ce6d9cbdc3a977c8ab26b97..a50a52b53f66366b3c810bdc2cad22af47a01578 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -1039,6 +1039,7 @@ public final class CraftServer implements Server {
- 
-         org.spigotmc.SpigotConfig.init((File) console.options.valueOf("spigot-settings")); // Spigot
-         this.console.paperConfigurations.reloadConfigs(this.console);
-+		top.leavesmc.leaves.LeavesConfig.init((File) console.options.valueOf("leaves-settings")); // Leaves - Server Config
-         for (ServerLevel world : this.console.getAllLevels()) {
-             // world.serverLevelData.setDifficulty(config.difficulty); // Paper - per level difficulty
-             world.setSpawnSettings(world.serverLevelData.getDifficulty() != Difficulty.PEACEFUL && config.spawnMonsters, config.spawnAnimals); // Paper - per level difficulty (from MinecraftServer#setDifficulty(ServerLevel, Difficulty, boolean))
-@@ -1054,6 +1055,7 @@ public final class CraftServer implements Server {
-                 }
-             }
-             world.spigotConfig.init(); // Spigot
-+			world.leavesConfig.init(); // Leaves - World Config
+@@ -1081,6 +1081,7 @@ public final class CraftServer implements Server {
+             playerMetadata.removeAll(plugin);
          }
- 
-         Plugin[] pluginClone = pluginManager.getPlugins().clone(); // Paper
-@@ -1069,6 +1071,7 @@ public final class CraftServer implements Server {
+         // Paper end
++        top.leavesmc.leaves.LeavesConfig.init((File) console.options.valueOf("leaves-settings")); // Leaves - Server Config
          this.reloadData();
          org.spigotmc.SpigotConfig.registerCommands(); // Spigot
          io.papermc.paper.command.PaperCommands.registerCommands(this.console); // Paper
-+        top.leavesmc.leaves.LeavesConfig.registerCommands(); // Leaves - Server Command
-         this.overrideAllCommandBlockCommands = this.commandsConfiguration.getStringList("command-block-overrides").contains("*");
-         this.ignoreVanillaPermissions = this.commandsConfiguration.getBoolean("ignore-vanilla-permissions");
- 
-@@ -2913,6 +2916,14 @@ public final class CraftServer implements Server {
+@@ -3027,6 +3028,14 @@ public final class CraftServer implements Server {
          {
              return CraftServer.this.console.paperConfigurations.createLegacyObject(CraftServer.this.console);
          }
@@ -111,10 +75,10 @@ index 47b05f315a744b0ad0daa9d354ac1229be5374ce..3b5d0a2cdeb014be13bb92c7674cc9f8
          @Override
          public void restart() {
 diff --git a/src/main/java/org/bukkit/craftbukkit/Main.java b/src/main/java/org/bukkit/craftbukkit/Main.java
-index a6e72d29f3168cbc252f7013b15b3678e65ae38d..c42d7526b37d0e11ce8f2b16fa03061df8199fd1 100644
+index a30365e430fe492075398af90351e692b1ef671c..416dbfe96d06769778cd45e9bd4e53b514eb2225 100644
 --- a/src/main/java/org/bukkit/craftbukkit/Main.java
 +++ b/src/main/java/org/bukkit/craftbukkit/Main.java
-@@ -165,6 +165,14 @@ public class Main {
+@@ -166,6 +166,14 @@ public class Main {
                          .ofType(File.class)
                          .defaultsTo(new File("paper.yml"))
                          .describedAs("Yml file");
@@ -131,56 +95,61 @@ index a6e72d29f3168cbc252f7013b15b3678e65ae38d..c42d7526b37d0e11ce8f2b16fa03061d
                          .withRequiredArg()
 diff --git a/src/main/java/top/leavesmc/leaves/LeavesConfig.java b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..ce9855b560ee6602983b2d05c9f80902674f248f
+index 0000000000000000000000000000000000000000..cb427686bf77366ddc9ad133b08f42b6b34fb0f5
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/LeavesConfig.java
-@@ -0,0 +1,1047 @@
+@@ -0,0 +1,919 @@
 +package top.leavesmc.leaves;
 +
 +import com.destroystokyo.paper.util.SneakyThrow;
-+import com.google.common.base.Throwables;
++import io.papermc.paper.configuration.GlobalConfiguration;
 +import net.minecraft.server.MinecraftServer;
++import net.minecraft.server.level.ServerLevel;
 +import org.bukkit.Bukkit;
 +import org.bukkit.command.Command;
-+import org.bukkit.configuration.ConfigurationSection;
 +import org.bukkit.configuration.file.YamlConfiguration;
 +import top.leavesmc.leaves.command.LeavesCommand;
++import top.leavesmc.leaves.config.ConfigVerify;
++import top.leavesmc.leaves.config.GlobalConfig;
++import top.leavesmc.leaves.config.GlobalConfigManager;
++import top.leavesmc.leaves.config.RemovedConfig;
++import top.leavesmc.leaves.util.MathUtils;
 +
 +import java.io.File;
-+import java.lang.reflect.InvocationTargetException;
-+import java.lang.reflect.Method;
-+import java.lang.reflect.Modifier;
-+import java.util.HashMap;
++import java.io.IOException;
++import java.util.Collections;
 +import java.util.List;
-+import java.util.Map;
 +import java.util.logging.Level;
 +import java.util.Random;
 +
-+// Powered by Tuinity(https://github.com/Tuinity/Tuinity)
++import top.leavesmc.leaves.protocol.CarpetServerProtocol.CarpetRule;
++import top.leavesmc.leaves.protocol.CarpetServerProtocol.CarpetRules;
 +
-+@SuppressWarnings("unused")
++import top.leavesmc.leaves.protocol.bladeren.BladerenProtocol.LeavesFeatureSet;
++import top.leavesmc.leaves.protocol.bladeren.BladerenProtocol.LeavesFeature;
++
 +public final class LeavesConfig {
 +
 +    public static final String CONFIG_HEADER = "Configuration file for Leaves.";
 +    public static final int CURRENT_CONFIG_VERSION = 5;
 +
-+    private static final Object[] EMPTY = new Object[0];
-+
 +    private static File configFile;
 +    public static YamlConfiguration config;
 +    private static int configVersion;
 +    public static boolean createWorldSections = true;
-+    static Map<String, Command> commands;
 +
 +    public static void init(final File file) {
 +        LeavesConfig.configFile = file;
 +        config = new YamlConfiguration();
-+        config.options().header(CONFIG_HEADER);
++        config.options().setHeader(Collections.singletonList(CONFIG_HEADER));
 +        config.options().copyDefaults(true);
 +
 +        if (!file.exists()) {
 +            try {
-+                file.createNewFile();
++                boolean is = file.createNewFile();
++                if (!is) {
++                    throw new IOException("Can't create file");
++                }
 +            } catch (final Exception ex) {
 +                Bukkit.getLogger().log(Level.SEVERE, "Failure to create leaves config", ex);
 +            }
@@ -194,38 +163,17 @@ index 0000000000000000000000000000000000000000..ce9855b560ee6602983b2d05c9f80902
 +            }
 +        }
 +
-+        if (config.contains("config-version-please-do-not-modify-me")) {
-+            LeavesConfig.set("config-version-please-do-not-modify-me", null);
-+        }
-+        LeavesConfig.configVersion = LeavesConfig.getInt("config-version", CURRENT_CONFIG_VERSION);
-+        LeavesConfig.set("config-version", CURRENT_CONFIG_VERSION);
++        LeavesConfig.configVersion = LeavesConfig.config.getInt("config-version", CURRENT_CONFIG_VERSION);
++        LeavesConfig.config.set("config-version", CURRENT_CONFIG_VERSION);
 +
 +        updateConfigVersion(config);
 +
-+        LeavesConfig.load(config);
-+        registerCarpetRules();
++        GlobalConfigManager.init();
 +
-+	    commands = new HashMap<>();
-+        commands.put("leaves", new LeavesCommand("leaves"));
++        registerCommand("leaves", new LeavesCommand("leaves"));
 +    }
 +
-+    public static void load(final YamlConfiguration config) {
-+        for (Method method : LeavesConfig.class.getDeclaredMethods()) {
-+            if (Modifier.isPrivate(method.getModifiers())) {
-+                if (method.getParameterTypes().length == 0 && method.getReturnType() == Void.TYPE) {
-+                    try {
-+                        method.setAccessible(true);
-+                        method.invoke(null);
-+                    } catch (InvocationTargetException ex) {
-+                        throw Throwables.propagate(ex.getCause());
-+                    } catch (Exception ex) {
-+                        Bukkit.getLogger().log(Level.SEVERE, "Error invoking " + method, ex);
-+                    }
-+                }
-+            }
-+        }
-+
-+        /* We re-save to add new options */
++    public static void save() {
 +        try {
 +            config.save(LeavesConfig.configFile);
 +        } catch (final Exception ex) {
@@ -233,6 +181,8 @@ index 0000000000000000000000000000000000000000..ce9855b560ee6602983b2d05c9f80902
 +        }
 +    }
 +
++    @SuppressWarnings("all")
++    @Deprecated(forRemoval = true)
 +    private static void updateConfigVersion(final YamlConfiguration config) {
 +        if (configVersion < CURRENT_CONFIG_VERSION) {
 +            switch (configVersion) {
@@ -286,901 +236,787 @@ index 0000000000000000000000000000000000000000..ce9855b560ee6602983b2d05c9f80902
 +        }
 +    }
 +
-+    static void set(final String path, final Object value) {
-+        LeavesConfig.config.set(path, value);
++    public static void registerCommand(String name, Command command) {
++        MinecraftServer.getServer().server.getCommandMap().register(name, "leaves", command);
++        MinecraftServer.getServer().server.syncCommands();
 +    }
 +
-+    public static void registerCommands() {
-+        for (Map.Entry<String, Command> entry : commands.entrySet()) {
-+            MinecraftServer.getServer().server.getCommandMap().register(entry.getKey(), "Leaves", entry.getValue());
-+        }
++    public static void unregisterCommand(String name) {
++        name = name.toLowerCase(java.util.Locale.ENGLISH).trim();
++        MinecraftServer.getServer().server.getCommandMap().getKnownCommands().remove(name);
++        MinecraftServer.getServer().server.getCommandMap().getKnownCommands().remove("leaves:" + name);
++        MinecraftServer.getServer().server.syncCommands();
 +    }
 +
-+    static boolean getBoolean(final String path, final boolean dfl) {
-+        LeavesConfig.config.addDefault(path, Boolean.valueOf(dfl));
-+        return LeavesConfig.config.getBoolean(path, dfl);
-+    }
++    // Leaves start - modify
 +
-+    static int getInt(final String path, final int dfl) {
-+        LeavesConfig.config.addDefault(path, Integer.valueOf(dfl));
-+        return LeavesConfig.config.getInt(path, dfl);
-+    }
++    // Leaves start - modify - fakeplayer
 +
-+    static long getLong(final String path, final long dfl) {
-+        LeavesConfig.config.addDefault(path, Long.valueOf(dfl));
-+        return LeavesConfig.config.getLong(path, dfl);
-+    }
-+
-+    static double getDouble(final String path, final double dfl) {
-+        LeavesConfig.config.addDefault(path, Double.valueOf(dfl));
-+        return LeavesConfig.config.getDouble(path, dfl);
-+    }
-+
-+    static String getString(final String path, final String dfl) {
-+        LeavesConfig.config.addDefault(path, dfl);
-+        return LeavesConfig.config.getString(path, dfl);
-+    }
-+
-+    static <T> List<T> getList(final String path, final List<T> def) {
-+        LeavesConfig.config.addDefault(path, def);
-+        return (List<T>) LeavesConfig.config.getList(path, config.getList(path));
-+    }
-+
-+    public static boolean snowballAndEggCanKnockback = true;
-+    private static void snowballAndEggCanKnockback() {
-+        snowballAndEggCanKnockback = getBoolean("settings.modify.snowball-and-egg-can-knockback-player", snowballAndEggCanKnockback);
-+    }
-+
++    @GlobalConfig(name = "enable", category = {"modify", "fakeplayer"}, verify = FakeplayerVerify.class)
 +    public static boolean fakeplayerSupport = true;
++
++    private static class FakeplayerVerify extends ConfigVerify.BooleanConfigVerify {
++        @Override
++        public String check(Boolean old, Boolean value) {
++            if (value) {
++                registerCommand("bot", new top.leavesmc.leaves.bot.BotCommand("bot"));
++                top.leavesmc.leaves.bot.agent.Actions.registerAll();
++            } else {
++                unregisterCommand("bot");
++            }
++            return null;
++        }
++    }
++
++    @GlobalConfig(name = "unable-fakeplayer-names", category = {"modify", "fakeplayer"}, verify = ConfigVerify.ListConfigVerify.class)
 +    public static List<String> unableFakeplayerNames = List.of("player-name");
++
++    @GlobalConfig(name = "limit", category = {"modify", "fakeplayer"}, verify = ConfigVerify.IntConfigVerify.class)
 +    public static int fakeplayerLimit = 10;
++
++    @GlobalConfig(name = "prefix", category = {"modify", "fakeplayer"}, verify = ConfigVerify.StringConfigVerify.class)
 +    public static String fakeplayerPrefix = "";
++
++    @GlobalConfig(name = "suffix", category = {"modify", "fakeplayer"}, verify = ConfigVerify.StringConfigVerify.class)
 +    public static String fakeplayerSuffix = "";
++
++    @GlobalConfig(name = "always-send-data", category = {"modify", "fakeplayer"})
 +    public static boolean alwaysSendFakeplayerData = true;
++
++    @GlobalConfig(name = "resident-fakeplayer", category = {"modify", "fakeplayer"})
 +    public static boolean fakeplayerResident = false;
++
++    @GlobalConfig(name = "open-fakeplayer-inventory", category = {"modify", "fakeplayer"})
 +    public static boolean openFakeplayerInventory = false;
++
++    @GlobalConfig(name = "skip-sleep-check", category = {"modify", "fakeplayer"})
 +    public static boolean fakeplayerSkipSleep = false;
++
++    @GlobalConfig(name = "spawn-phantom", category = {"modify", "fakeplayer"})
 +    public static boolean fakeplayerSpawnPhantom = false;
-+    private static void fakeplayer() {
-+        fakeplayerSupport = getBoolean("settings.modify.fakeplayer.enable", fakeplayerSupport);
-+        unableFakeplayerNames = getList("settings.modify.fakeplayer.unable-fakeplayer-names", unableFakeplayerNames);
-+        fakeplayerLimit = getInt("settings.modify.fakeplayer.limit", fakeplayerLimit);
-+        fakeplayerPrefix = getString("settings.modify.fakeplayer.prefix", fakeplayerPrefix);
-+        fakeplayerSuffix = getString("settings.modify.fakeplayer.suffix", fakeplayerSuffix);
-+        alwaysSendFakeplayerData = getBoolean("settings.modify.fakeplayer.always-send-data", alwaysSendFakeplayerData);
-+        fakeplayerResident = getBoolean("settings.modify.fakeplayer.resident-fakeplayer", fakeplayerResident);
-+        openFakeplayerInventory = getBoolean("settings.modify.fakeplayer.open-fakeplayer-inventory", openFakeplayerInventory);
-+        fakeplayerSkipSleep = getBoolean("settings.modify.fakeplayer.skip-sleep-check", fakeplayerSkipSleep);
-+        fakeplayerSpawnPhantom = getBoolean("settings.modify.fakeplayer.spawn-phantom", fakeplayerSpawnPhantom);
++
++    @GlobalConfig(name = "regen-amount", category = {"modify", "fakeplayer"}, verify = RegenAmountVerify.class)
++    public static double fakeplayerRegenAmount = 0.010;
++
++    private static class RegenAmountVerify extends ConfigVerify.DoubleConfigVerify {
++        @Override
++        public String check(Double old, Double value) {
++            return value > 0.0 ? null : "regen-amount need > 0.0f";
++        }
 +    }
 +
++    // Leaves end - modify - fakeplayer
++
++    // Leaves start - modify - minecraft-old
++
++    @GlobalConfig(name = "shears-in-dispenser-can-zero-amount", category = {"modify", "minecraft-old"})
 +    public static boolean shearsInDispenserCanZeroAmount = false;
-+    private static void shearsInDispenserCanZeroAmount() {
-+        shearsInDispenserCanZeroAmount = getBoolean("settings.modify.minecraft-old.shears-in-dispenser-can-zero-amount", shearsInDispenserCanZeroAmount);
-+    }
 +
-+    public static boolean redstoneShearsWrench = true;
-+    private static void redstoneShearsWrench() {
-+        redstoneShearsWrench = getBoolean("settings.modify.redstone-shears-wrench", redstoneShearsWrench);
-+    }
-+
-+    public static boolean buddingAmethystCanPushByPiston = false;
-+    private static void buddingAmethystCanPushByPiston() {
-+        buddingAmethystCanPushByPiston = getBoolean("settings.modify.budding-amethyst-can-push-by-piston", buddingAmethystCanPushByPiston);
-+    }
-+
-+    public static boolean spectatorDontGetAdvancement = false;
-+    private static void spectatorDontGetAdvancement() {
-+        spectatorDontGetAdvancement = getBoolean("settings.modify.spectator-dont-get-advancement", spectatorDontGetAdvancement);
-+    }
-+
-+    public static boolean stickChangeArmorStandArmStatus = true;
-+    private static void stickChangeArmorStandHasArm() {
-+        stickChangeArmorStandArmStatus = getBoolean("settings.modify.stick-change-armorstand-arm-status", stickChangeArmorStandArmStatus);
-+    }
-+
-+    public static boolean noChatSign = true;
-+    private static void noChatSign() {
-+        noChatSign = getBoolean("settings.misc.no-chat-sign", noChatSign);
-+    }
-+
-+    public static boolean asyncMobSpawning = false;
-+    private static boolean asyncMobSpawningLock = false;
-+    private static void asyncMobSpawning() {
-+        if (!asyncMobSpawningLock) {
-+            asyncMobSpawning = getBoolean("settings.performance.async-mob-spawning", asyncMobSpawning);
-+            asyncMobSpawningLock = true;
-+        }
-+    }
-+
-+    public static boolean dontSendUselessEntityPackets = true;
-+    private static void dontSendUselessEntityPackets() {
-+        dontSendUselessEntityPackets = getBoolean("settings.performance.dont-send-useless-entity-packets", dontSendUselessEntityPackets);
-+    }
-+
-+    public static boolean asyncEntityTracker = false;
-+    private static boolean asyncEntityTrackerLock = false;
-+    private static void asyncEntityTracker() {
-+        if (!asyncEntityTrackerLock) {
-+            asyncEntityTracker = getBoolean("settings.performance.async-entity-tracker", asyncEntityTracker);
-+            asyncEntityTrackerLock = true;
-+        }
-+
-+        if (asyncEntityTracker) {
-+            asyncEntityTracker = false;
-+            LeavesLogger.LOGGER.severe("Async EntityTracker is updating, it can't work");
-+        }
-+    }
-+
-+    public static boolean fixPaper6045 = true;
-+    private static void fixPaper6045() {
-+        fixPaper6045 = getBoolean("settings.performance.fix.fix-paper-6045", fixPaper6045);
-+    }
-+
-+    public static boolean optimizeEntityCoordinateKey = true;
-+    private static void optimizeEntityCoordinateKey() {
-+        optimizeEntityCoordinateKey = getBoolean("settings.performance.optimize-entity-coordinate-key", optimizeEntityCoordinateKey);
-+    }
-+
-+    public static boolean enableSuffocationOptimization = true;
-+    private static void enableSuffocationOptimization() {
-+        enableSuffocationOptimization = getBoolean("settings.performance.enable-suffocation-optimization", enableSuffocationOptimization);
-+    }
-+
-+    public static boolean entityStripRaytracing = true;
-+    private static void entityStripRaytracing() {
-+        entityStripRaytracing = getBoolean("settings.performance.strip-raytracing-for-entity", entityStripRaytracing);
-+    }
-+
-+    public static boolean checkSpookySeasonOnceAnHour = true;
-+    private static void checkSpookySeasonOnceAnHour() {
-+        checkSpookySeasonOnceAnHour = getBoolean("settings.performance.check-spooky-season-once-an-hour", checkSpookySeasonOnceAnHour);
-+    }
-+
-+    public static boolean optimizeChunkTicking = true;
-+    private static boolean optimizeChunkTickingLock = false;
-+    private static void optimizeChunkTicking() {
-+        if (!optimizeChunkTickingLock) {
-+            optimizeChunkTicking = getBoolean("settings.performance.optimize-chunk-ticking", optimizeChunkTicking);
-+            optimizeChunkTickingLock = true;
-+        }
-+    }
-+
-+    public static boolean skipPOIFindingInVehicle = true;
-+    private static void skipPOIFindingInVehicle() {
-+        skipPOIFindingInVehicle = getBoolean("settings.performance.skip-poi-find-in-vehicle", skipPOIFindingInVehicle);
-+    }
-+
-+    public static boolean entityTargetFindingOptimization = true;
-+    private static void entityTargetFindingOptimization() {
-+        entityTargetFindingOptimization = getBoolean("settings.performance.entity-target-find-optimization", entityTargetFindingOptimization);
-+    }
-+
-+    public static boolean useMoreThreadUnsafeRandom = true;
-+    private static void useMoreThreadUnsafeRandom() {
-+        useMoreThreadUnsafeRandom = getBoolean("settings.performance.use-more-thread-unsafe-random", useMoreThreadUnsafeRandom);
-+    }
-+
-+    public static boolean disableMethodProfiler = true;
-+    private static void disableMethodProfiler() {
-+        disableMethodProfiler = getBoolean("settings.misc.disable-method-profiler", disableMethodProfiler);
-+    }
-+
-+    public static boolean throttleInactiveGoalSelectorTick = false;
-+    private static void throttleInactiveGoalSelectorTick() {
-+        throttleInactiveGoalSelectorTick = getBoolean("settings.performance.inactive-goal-selector-disable", throttleInactiveGoalSelectorTick);
-+    }
-+
-+    public static boolean reduceEntityAllocations = true;
-+    private static void reduceEntityAllocations() {
-+        reduceEntityAllocations = getBoolean("settings.performance.reduce-entity-allocations", reduceEntityAllocations);
-+    }
-+
-+    public static boolean removeTickGuardLambda = true;
-+    private static void removeTickGuardLambda() {
-+        removeTickGuardLambda = getBoolean("settings.performance.remove.tick-guard-lambda", removeTickGuardLambda);
-+    }
-+
-+    public static boolean removeInventoryContainsIterators = true;
-+    private static void removeInventoryContainsIterators() {
-+        removeInventoryContainsIterators = getBoolean("settings.performance.remove.inventory-contains-iterators", removeInventoryContainsIterators);
-+    }
-+
-+    public static boolean removeGetNearPlayerStreams = true;
-+    private static void removeGetNearPlayerStreams() {
-+        removeGetNearPlayerStreams = getBoolean("settings.performance.remove.get-nearby-players-streams", removeGetNearPlayerStreams);
-+    }
-+
-+    public static boolean removeRangeCheckStreams = true;
-+    private static void removeRangeCheckStreams() {
-+        removeRangeCheckStreams = getBoolean("settings.performance.remove.range-check-streams-and-iterators", removeRangeCheckStreams);
-+    }
-+
-+    // only config now
-+    public static boolean asyncPathfinding = false;
-+    private static boolean asyncPathfindingLock = false;
-+    private static void asyncPathfinding() {
-+        if (!asyncPathfindingLock) {
-+            asyncPathfinding = getBoolean("settings.performance.async-pathfinding", asyncPathfinding);
-+            asyncPathfindingLock = true;
-+        }
-+
-+        if (asyncPathfinding) {
-+            asyncPathfinding = false;
-+            LeavesLogger.LOGGER.severe("Async Pathfinding is updating, it can't work");
-+        }
-+    }
-+
-+    public static boolean cacheClimbCheck = true;
-+    private static void cacheClimbCheck() {
-+        cacheClimbCheck = getBoolean("settings.performance.cache-climb-check", cacheClimbCheck);
-+    }
-+
-+    public static boolean biomeTemperaturesUseAgingCache = true;
-+    private static boolean biomeTemperaturesUseAgingCacheLock = false;
-+    private static void biomeTemperaturesUseAgingCache() {
-+        if (!biomeTemperaturesUseAgingCacheLock) {
-+            biomeTemperaturesUseAgingCache = getBoolean("settings.performance.biome-temperatures-use-aging-cache", biomeTemperaturesUseAgingCache);
-+            biomeTemperaturesUseAgingCacheLock = true;
-+        }
-+    }
-+
-+    public static boolean reduceEntityFluidLookup = true;
-+    private static void reduceEntityFluidLookup() {
-+        reduceEntityFluidLookup = getBoolean("settings.performance.reduce-entity-fluid-lookup", reduceEntityFluidLookup);
-+    }
-+
-+    public static boolean reduceChuckLoadAndLookup = true;
-+    private static void reduceChuckLoadAndLookup() {
-+        reduceChuckLoadAndLookup = getBoolean("settings.performance.reduce-chuck-load-and-lookup", reduceChuckLoadAndLookup);
-+    }
-+
-+    public static boolean pcaSyncProtocol = false;
-+    private static void pcaSyncProtocol() {
-+        pcaSyncProtocol = getBoolean("settings.protocol.pca-sync-protocol", pcaSyncProtocol);
-+    }
-+
-+    public static String pcaSyncPlayerEntity = "OPS";
-+    private static final List<String> pcaSyncPlayerEntityList = List.of("NOBODY", "BOT", "OPS", "OPS_AND_SELF", "EVERYONE");
-+    private static void pcaSyncPlayerEntity() {
-+        pcaSyncPlayerEntity = getString("settings.protocol.pca-sync-player-entity", pcaSyncPlayerEntity);
-+        if (!pcaSyncPlayerEntityList.contains(pcaSyncPlayerEntity)) {
-+            pcaSyncPlayerEntity = "OPS";
-+            LeavesLogger.LOGGER.severe("pca-sync-player-entity value error, reset to OPS");
-+        }
-+    }
-+
-+    public static boolean bborProtocol = false;
-+    private static void bborProtocol() {
-+        bborProtocol = getBoolean("settings.protocol.bbor-protocol", bborProtocol);
-+    }
-+
++    @GlobalConfig(name = "instant-block-updater-reintroduced", category = {"modify", "minecraft-old"}, lock = true)
 +    public static boolean instantBlockUpdaterReintroduced = false;
-+    private static boolean instantBlockUpdaterReintroducedLock = false;
-+    private static void instantBlockUpdaterReintroduced() {
-+        if (!instantBlockUpdaterReintroducedLock) {
-+            instantBlockUpdaterReintroduced = getBoolean("settings.modify.minecraft-old.instant-block-updater-reintroduced", instantBlockUpdaterReintroduced);
-+            instantBlockUpdaterReintroducedLock = true;
++
++    @GlobalConfig(name = "armor-stand-cant-kill-by-mob-projectile", category = {"modify", "minecraft-old"})
++    public static boolean armorStandCantKillByMobProjectile = false;
++
++    @GlobalConfig(name = "cce-update-suppression", category = {"modify", "minecraft-old"})
++    public static boolean cceUpdateSuppression = false;
++
++    @GlobalConfig(name = "villager-infinite-discounts", category = {"modify", "minecraft-old"}, verify = VillagerInfiniteDiscountsVerify.class)
++    public static boolean villagerInfiniteDiscounts = false;
++
++    private static class VillagerInfiniteDiscountsVerify extends ConfigVerify.BooleanConfigVerify {
++        @Override
++        public String check(Boolean old, Boolean value) {
++            top.leavesmc.leaves.util.VillagerInfiniteDiscountHelper.doVillagerInfiniteDiscount(value);
++            return null;
 +        }
 +    }
 +
++    @GlobalConfig(name = "copper-bulb-1gt-delay", category = {"modify", "minecraft-old"})
++    public static boolean copperBulb1gt = false;
++
++    @GlobalConfig(name = "crafter-1gt-delay", category = {"modify", "minecraft-old"})
++    public static boolean crafter1gt = false;
++
++    @GlobalConfig(name = "redstone-wire-dont-connect-if-on-trapdoor", category = {"modify", "minecraft-old"})
++    public static boolean redstoneDontCantOnTrapDoor = false;
++
++    @GlobalConfig(name = "mending-compatibility-infinity", category = {"modify", "minecraft-old"})
++    public static boolean mendingCompatibilityInfinity = false;
++
++    @GlobalConfig(name = "zero-tick-plants", category = {"modify", "minecraft-old"})
++    public static boolean zeroTickPlants = false;
++
++    @RemovedConfig(name = "loot-world-random", category = {"modify", "minecraft-old"}, transform = true)
++    @GlobalConfig(name = "rng-fishing", category = {"modify", "minecraft-old"}, lock = true, verify = RNGFishingVerify.class)
++    public static boolean rngFishing = false;
++
++    private static class RNGFishingVerify extends ConfigVerify.BooleanConfigVerify {
++        @Override
++        public String check(Boolean old, Boolean value) {
++            LeavesFeatureSet.register(LeavesFeature.of("rng_fishing", value));
++            return null;
++        }
++    }
++
++    @GlobalConfig(name = "protection-stacking", category = {"modify", "minecraft-old"})
++    public static boolean protectionStacking = false;
++
++    // Leaves end - modify - minecraft-old
++
++    // Leaves start - modify - elytra-aeronautics
++
++    @GlobalConfig(name = "no-chunk-load", category = {"modify", "elytra-aeronautics"})
++    public static boolean elytraAeronauticsNoChunk = false;
++
++    @GlobalConfig(name = "no-chunk-height", category = {"modify", "elytra-aeronautics"}, verify = ConfigVerify.DoubleConfigVerify.class)
++    public static double elytraAeronauticsNoChunkHeight = 500.0D;
++
++    @GlobalConfig(name = "no-chunk-speed", category = {"modify", "elytra-aeronautics"}, verify = ConfigVerify.DoubleConfigVerify.class)
++    public static double elytraAeronauticsNoChunkSpeed = -1.0D;
++
++    @GlobalConfig(name = "message", category = {"modify", "elytra-aeronautics"})
++    public static boolean elytraAeronauticsNoChunkMes = true;
++
++    @GlobalConfig(name = "message-start", category = {"modify", "elytra-aeronautics"}, verify = ConfigVerify.StringConfigVerify.class)
++    public static String elytraAeronauticsNoChunkStartMes = "Flight enter cruise mode";
++
++    @GlobalConfig(name = "message-end", category = {"modify", "elytra-aeronautics"}, verify = ConfigVerify.StringConfigVerify.class)
++    public static String elytraAeronauticsNoChunkEndMes = "Flight exit cruise mode";
++
++    // Leaves end - modify - elytra-aeronautics
++
++    @GlobalConfig(name = "redstone-shears-wrench", category = "modify")
++    public static boolean redstoneShearsWrench = true;
++
++    @GlobalConfig(name = "budding-amethyst-can-push-by-piston", category = "modify")
++    public static boolean buddingAmethystCanPushByPiston = false;
++
++    @GlobalConfig(name = "spectator-dont-get-advancement", category = "modify")
++    public static boolean spectatorDontGetAdvancement = false;
++
++    @GlobalConfig(name = "stick-change-armorstand-arm-status", category = "modify")
++    public static boolean stickChangeArmorStandArmStatus = true;
++
++    @GlobalConfig(name = "snowball-and-egg-can-knockback-player", category = "modify")
++    public static boolean snowballAndEggCanKnockback = true;
++
++    @GlobalConfig(name = "flatten-triangular-distribution", category = "modify")
 +    public static boolean flattenTriangularDistribution = false;
-+    private static void flattenTriangularDistribution() {
-+        flattenTriangularDistribution = getBoolean("settings.modify.flatten-triangular-distribution", flattenTriangularDistribution);
-+    }
 +
-+    public static boolean jadeProtocol = false;
-+    private static void jadeProtocol() {
-+        jadeProtocol = getBoolean("settings.protocol.jade-protocol", jadeProtocol);
-+    }
-+
-+    public static String alternativeBlockPlacement = "NONE";
-+    private static final List<String> alternativeBlockPlacementType = List.of("NONE", "CARPET", "CARPET_FIX", "LITEMATICA");
-+    private static void alternativeBlockPlacement() {
-+        alternativeBlockPlacement = getString("settings.protocol.alternative-block-placement", alternativeBlockPlacement);
-+        if (!alternativeBlockPlacementType.contains(alternativeBlockPlacement)) {
-+            alternativeBlockPlacement = "NONE";
-+            LeavesLogger.LOGGER.severe("alternative-block-placement value error, reset to NONE");
-+        }
-+    }
-+
++    @GlobalConfig(name = "player-operation-limiter", category = "modify")
 +    public static boolean playerOperationLimiter = false;
-+    private static void playerOperationLimiter() {
-+        playerOperationLimiter = getBoolean("settings.modify.player-operation-limiter", playerOperationLimiter);
-+    }
 +
-+    public static double renewableElytra = -1.0;
-+    private static void renewableElytra() {
-+        renewableElytra = getDouble("settings.modify.renewable-elytra", renewableElytra);
++    @GlobalConfig(name = "renewable-elytra", category = "modify", verify = RenewableElytraVerify.class)
++    public static double renewableElytra = -1.0F;
++
++    private static class RenewableElytraVerify extends ConfigVerify.DoubleConfigVerify {
++        @Override
++        public String check(Double old, Double value) {
++            return value <= 1.0 ? null : "renewable-elytra need <= 1.0f";
++        }
 +    }
 +
 +    public static int shulkerBoxStackSize = 1;
++    @GlobalConfig(name = "stackable-shulker-boxes", category = "modify", verify = StackableShulkerVerify.class)
 +    private static String stackableShulkerBoxes = "false";
-+    private static void stackableShulkerBoxes() {
-+        stackableShulkerBoxes = getString("settings.modify.stackable-shulker-boxes", stackableShulkerBoxes);
-+        stackableShulkerBoxes = MathUtils.isNumeric(stackableShulkerBoxes) ? stackableShulkerBoxes : stackableShulkerBoxes.equals("true") ? "2" : "1";
-+        shulkerBoxStackSize = Integer.parseInt(stackableShulkerBoxes);
-+    }
 +
-+    public static boolean improveFluidDirectionCaching = true;
-+    private static boolean improveFluidDirectionCachingLock = false;
-+    private static void improveFluidDirectionCaching() {
-+        if (!improveFluidDirectionCachingLock) {
-+            improveFluidDirectionCaching = getBoolean("settings.performance.improve-fluid-direction-caching", improveFluidDirectionCaching);
-+            improveFluidDirectionCachingLock = true;
++    private static class StackableShulkerVerify extends ConfigVerify.StringConfigVerify {
++        @Override
++        public String check(String old, String value) {
++            String realValue = MathUtils.isNumeric(value) ? value : value.equals("true") ? "2" : "1";
++            shulkerBoxStackSize = Integer.parseInt(realValue);
++            return null;
 +        }
 +    }
 +
-+    public static boolean mcTechnicalMode = true;
-+    private static void mcTechnicalMode() {
-+        mcTechnicalMode = getBoolean("settings.modify.mc-technical-survival-mode", mcTechnicalMode);
-+        doMcTechnicalMode();
-+    }
-+
-+    public static void doMcTechnicalMode() {
-+        if (mcTechnicalMode) {
-+        }
-+    }
-+
-+    public static boolean netherPortalFix = false;
-+    private static void netherPortalFix() {
-+        netherPortalFix = getBoolean("settings.modify.return-nether-portal-fix", netherPortalFix);
-+    }
-+
-+    public static boolean appleskinProtocol = false;
-+    private static void appleskinProtocol() {
-+        appleskinProtocol = getBoolean("settings.protocol.appleskin-protocol", appleskinProtocol);
-+    }
-+
-+    public static boolean xaeroMapProtocol = false;
-+    public static int xaeroMapServerID = new Random().nextInt();
-+    private static void xaeroMapProtocol() {
-+        xaeroMapProtocol = getBoolean("settings.protocol.xaero-map-protocol", xaeroMapProtocol);
-+        xaeroMapServerID = getInt("settings.protocol.xaero-map-server-id", xaeroMapServerID);
-+    }
-+
-+    public static boolean extraYggdrasilService = false;
-+    public static boolean extraYggdrasilLoginProtect = false;
-+    public static List<String> extraYggdrasilServiceList = List.of("https://url.with.authlib-injector-yggdrasil");
-+    private static void extraYggdrasilService() {
-+        extraYggdrasilService = getBoolean("settings.misc.extra-yggdrasil-service.enable", extraYggdrasilService);
-+        extraYggdrasilLoginProtect = getBoolean("settings.misc.extra-yggdrasil-service.login-protect", extraYggdrasilLoginProtect);
-+        extraYggdrasilServiceList = getList("settings.misc.extra-yggdrasil-service.urls", extraYggdrasilServiceList);
-+        if (extraYggdrasilService) {
-+        }
-+    }
-+
-+    public static boolean useVanillaRandom = false;
-+    private static boolean useVanillaRandomLock = false;
-+    private static void useVanillaRandom() {
-+        if (!useVanillaRandomLock) {
-+            useVanillaRandom = getBoolean("settings.modify.use-vanilla-random", useVanillaRandom);
-+            useVanillaRandomLock = true;
-+        }
-+    }
-+
-+    public static boolean updateSuppressionCrashFix = true;
-+    private static void updateSuppressionCrashFix() {
-+        updateSuppressionCrashFix = getBoolean("settings.modify.fix-update-suppression-crash", updateSuppressionCrashFix);
-+    }
-+
-+    public static boolean bedrockBreakList = false;
-+    private static boolean bedrockBreakListLock = false;
-+    private static void bedrockBreakList() {
-+        if (!bedrockBreakListLock) {
-+            bedrockBreakList = getBoolean("settings.modify.bedrock-break-list", bedrockBreakList);
-+            bedrockBreakListLock = true;
-+        }
-+    }
-+
-+    public static boolean syncmaticaProtocol = false;
-+    public static boolean syncmaticaQuota = false;
-+    public static int syncmaticaQuotaLimit = 40000000;
-+    private static void syncmaticaProtocol() {
-+        syncmaticaProtocol = getBoolean("settings.protocol.syncmatica.enable", syncmaticaProtocol);
-+        syncmaticaQuota = getBoolean("settings.protocol.syncmatica.quota", syncmaticaQuota);
-+        syncmaticaQuotaLimit = getInt("settings.protocol.syncmatica.quota-limit", syncmaticaQuotaLimit);
-+        if (syncmaticaProtocol) {
-+        }
-+    }
-+
-+    public static boolean disableDistanceCheckForUseItem = false;
-+    private static void disableDistanceCheckForUseItem() {
-+        disableDistanceCheckForUseItem = getBoolean("settings.modify.disable-distance-check-for-use-item", disableDistanceCheckForUseItem);
-+        if (!alternativeBlockPlacement.equals("NONE")) {
-+            disableDistanceCheckForUseItem = true;
-+        }
-+    }
-+
-+    public static boolean noFeatherFallingTrample = false;
-+    private static void noFeatherFallingTrample() {
-+        noFeatherFallingTrample = getBoolean("settings.modify.no-feather-falling-trample", noFeatherFallingTrample);
-+    }
-+
-+    public static boolean sharedVillagerDiscounts = false;
-+    private static void sharedVillagerDiscounts() {
-+        sharedVillagerDiscounts = getBoolean("settings.modify.shared-villager-discounts", sharedVillagerDiscounts);
-+    }
-+
-+    public static boolean redstoneDontCantOnTrapDoor = false;
-+    private static void redstoneDontCantOnTrapDoor() {
-+        redstoneDontCantOnTrapDoor = getBoolean("settings.modify.minecraft-old.redstone-wire-dont-connect-if-on-trapdoor", redstoneDontCantOnTrapDoor);
-+    }
-+
-+    public static boolean disableCheckOutOfOrderCommand = false;
-+    private static void disableCheckOutOfOrderCommand() {
-+        disableCheckOutOfOrderCommand = getBoolean("settings.modify.disable-check-out-of-order-command", disableCheckOutOfOrderCommand);
-+    }
-+
-+    public static boolean despawnEndermanWithBlock = false;
-+    private static void despawnEndermanWithBlock() {
-+        despawnEndermanWithBlock = getBoolean("settings.modify.despawn-enderman-with-block", despawnEndermanWithBlock);
-+    }
-+
-+    public static boolean leavesCarpetSupport = false;
-+    private static void leavesCarpetSupport() {
-+        leavesCarpetSupport = getBoolean("settings.protocol.leaves-carpet-support", leavesCarpetSupport);
-+    }
-+
-+    public static void registerCarpetRules() {
-+    }
-+
-+    public static boolean creativeNoClip = false;
-+    private static void creativeNoClip() {
-+        creativeNoClip = getBoolean("settings.modify.creative-no-clip", creativeNoClip);
-+    }
-+
-+    public static boolean optimizedDragonRespawn = false;
-+    private static void optimizedDragonRespawn() {
-+        optimizedDragonRespawn = getBoolean("settings.performance.optimized-dragon-respawn", optimizedDragonRespawn);
-+    }
-+
-+    public static boolean mendingCompatibilityInfinity = false;
-+    private static void mendingCompatibilityInfinity() {
-+        mendingCompatibilityInfinity = getBoolean("settings.modify.minecraft-old.mending-compatibility-infinity", mendingCompatibilityInfinity);
-+    }
-+
-+    public static boolean shaveSnowLayers = true;
-+    private static void shaveSnowLayers() {
-+        shaveSnowLayers = getBoolean("settings.modify.shave-snow-layers", shaveSnowLayers);
-+    }
-+
-+    public static boolean ignoreLC = false;
-+    private static void ignoreLC() {
-+        ignoreLC = getBoolean("settings.modify.ignore-lc", ignoreLC);
-+    }
-+
-+    public static boolean elytraAeronauticsNoChunk = false;
-+    public static double elytraAeronauticsNoChunkHeight = 500.0D;
-+    public static double elytraAeronauticsNoChunkSpeed = -1.0D;
-+    public static boolean elytraAeronauticsNoChunkMes = true;
-+    public static String elytraAeronauticsNoChunkStartMes = "Flight enter cruise mode";
-+    public static String elytraAeronauticsNoChunkEndMes = "Flight exit cruise mode";
-+    private static void elytraAeronautics() {
-+        elytraAeronauticsNoChunk = getBoolean("settings.modify.elytra-aeronautics.no-chunk-load", elytraAeronauticsNoChunk);
-+        elytraAeronauticsNoChunkHeight = getDouble("settings.modify.elytra-aeronautics.no-chunk-height", elytraAeronauticsNoChunkHeight);
-+        elytraAeronauticsNoChunkSpeed = getDouble("settings.modify.elytra-aeronautics.no-chunk-speed", elytraAeronauticsNoChunkSpeed);
-+        elytraAeronauticsNoChunkMes = getBoolean("settings.modify.elytra-aeronautics.message", elytraAeronauticsNoChunkMes);
-+        elytraAeronauticsNoChunkStartMes = getString("settings.modify.elytra-aeronautics.message-start", elytraAeronauticsNoChunkStartMes);
-+        elytraAeronauticsNoChunkEndMes = getString("settings.modify.elytra-aeronautics.message-end", elytraAeronauticsNoChunkEndMes);
-+    }
-+
-+    public static boolean msptSyncProtocol = false;
-+    public static int msptSyncTickInterval = 20;
-+    private static void msptSyncProtocol() {
-+        msptSyncTickInterval = getInt("settings.protocol.bladeren.mspt-sync-tick-interval", msptSyncTickInterval);
-+        msptSyncProtocol = getBoolean("settings.protocol.bladeren.mspt-sync-protocol", msptSyncProtocol);
-+    }
-+
-+    public static boolean fixPaper9372 = true;
-+    private static void fixPaper9372() {
-+        fixPaper9372 = getBoolean("settings.performance.fix.fix-paper-9372", fixPaper9372);
-+    }
-+
-+    public static boolean cacheIgniteOdds = true;
-+    private static void cacheIgniteOdds() {
-+        cacheIgniteOdds = getBoolean("settings.performance.cache-ignite-odds", cacheIgniteOdds);
-+    }
-+
-+    public static boolean lavaRiptide = false;
-+    private static void lavaRiptide() {
-+        lavaRiptide = getBoolean("settings.modify.lava-riptide", lavaRiptide);
-+    }
-+
-+    public static boolean noBlockUpdateCommand = false;
-+    private static void noBlockUpdateCommand() {
-+        noBlockUpdateCommand = getBoolean("settings.modify.no-block-update-command", noBlockUpdateCommand);
-+    }
-+
-+    public static boolean skipSelfRaidCheck = false;
-+    private static void skipSelfRaidCheck() {
-+        skipSelfRaidCheck = getBoolean("settings.modify.raider-die-skip-self-raid-check", skipSelfRaidCheck);
-+    }
-+
-+    public static boolean containerPassthrough = false;
-+    private static void containerPassthrough() {
-+        containerPassthrough = getBoolean("settings.modify.container-passthrough", containerPassthrough);
-+    }
-+
-+    public static boolean dontRespondPingBeforeStart = true;
-+    private static void dontRespondPingBeforeStart() {
-+        dontRespondPingBeforeStart = getBoolean("settings.misc.dont-respond-ping-before-start-fully", dontRespondPingBeforeStart);
-+    }
-+
-+    public static boolean fasterChunkSerialization = true;
-+    private static void fasterChunkSerialization() {
-+        fasterChunkSerialization = getBoolean("settings.performance.faster-chunk-serialization", fasterChunkSerialization);
-+    }
-+
-+    public static boolean optimizeWorldGenerationAccess = true;
-+    private static void optimizeWorldGenerationAccess() {
-+        optimizeWorldGenerationAccess = getBoolean("settings.performance.optimize-world-generation-and-block-access", optimizeWorldGenerationAccess);
-+    }
-+
-+    public static boolean cacheWorldGeneratorSeaLevel = true;
-+    private static void cacheWorldGeneratorSeaLevel() {
-+        cacheWorldGeneratorSeaLevel = getBoolean("settings.performance.cache-world-generator-sea-level", cacheWorldGeneratorSeaLevel);
-+    }
-+
-+    public static boolean skipSecondaryPOISensorIfAbsent = true;
-+    private static void skipSecondaryPOISensorIfAbsent() {
-+        skipSecondaryPOISensorIfAbsent = getBoolean("settings.performance.skip-secondary-POI-sensor-if-absent", skipSecondaryPOISensorIfAbsent);
-+    }
-+
-+    public static boolean cacheCubeVoxelShapeShapeArray = true;
-+    private static void cacheCubeVoxelShapeShapeArray() {
-+        cacheCubeVoxelShapeShapeArray = getBoolean("settings.performance.cache-CubeVoxelShape-shape-array", cacheCubeVoxelShapeShapeArray);
-+    }
-+
-+    public static boolean storeMobCountsInArray = true;
-+    private static void storeMobCountsInArray() {
-+        storeMobCountsInArray = getBoolean("settings.performance.store-mob-counts-in-array", storeMobCountsInArray);
-+    }
-+
-+    public static boolean cacheBlockStatePairKeyHash = true;
-+    private static void cacheBlockStatePairKeyHash() {
-+        cacheBlockStatePairKeyHash = getBoolean("settings.performance.cache-BlockStatePairKey-hash", cacheBlockStatePairKeyHash);
-+    }
-+
-+    public static boolean optimizeNoiseGeneration = false;
-+    private static void optimizeNoiseGeneration() {
-+        optimizeNoiseGeneration = getBoolean("settings.performance.optimize-noise-generation", optimizeNoiseGeneration);
-+    }
-+
-+    public static boolean disablePacketLimit = false;
-+    private static void disablePacketLimit() {
-+        disablePacketLimit = getBoolean("settings.modify.disable-packet-limit", disablePacketLimit);
-+    }
-+
-+    public static boolean optimizeSunBurnTick = true;
-+    private static void optimizeSunBurnTick() {
-+        optimizeSunBurnTick = getBoolean("settings.performance.optimize-sun-burn-tick", optimizeSunBurnTick);
-+    }
-+
-+    public static boolean removeDamageLambda = true;
-+    private static void removeDamageLambda() {
-+        removeDamageLambda = getBoolean("settings.performance.remove.damage-lambda", removeDamageLambda);
-+    }
-+
-+    public static boolean useOptimizedCollection = true;
-+    private static void useOptimizedCollection() {
-+        useOptimizedCollection = getBoolean("settings.performance.use-optimized-collection", useOptimizedCollection);
-+    }
-+
-+    public static boolean optimizedCubePointRange = true;
-+    private static void optimizedCubePointRange() {
-+        optimizedCubePointRange = getBoolean("settings.performance.optimized-CubePointRange", optimizedCubePointRange);
-+    }
-+
-+    public static boolean checkFrozenTicksBeforeLandingBlock = true;
-+    private static void checkFrozenTicksBeforeLandingBlock() {
-+        checkFrozenTicksBeforeLandingBlock = getBoolean("settings.performance.check-frozen-ticks-before-landing-block", checkFrozenTicksBeforeLandingBlock);
-+    }
-+
-+    public static boolean cacheOminousBannerItem = true;
-+    private static void cacheOminousBannerItem() {
-+        cacheOminousBannerItem = getBoolean("settings.performance.cache-ominous-banner-item", cacheOminousBannerItem);
-+    }
-+
-+    public static boolean skipEntityMoveIfMovementIsZero = true;
-+    private static void skipEntityMoveIfMovementIsZero() {
-+        skipEntityMoveIfMovementIsZero = getBoolean("settings.performance.skip-entity-move-if-movement-is-zero", skipEntityMoveIfMovementIsZero);
-+    }
-+
-+    public static boolean skipCloningAdvancementCriteria = false;
-+    private static void skipCloningAdvancementCriteria() {
-+        skipCloningAdvancementCriteria = getBoolean("settings.performance.skip-cloning-advancement-criteria", skipCloningAdvancementCriteria);
-+    }
-+
-+    public static boolean skipNegligiblePlanarMovementMultiplication = true;
-+    private static void skipNegligiblePlanarMovementMultiplication() {
-+        skipNegligiblePlanarMovementMultiplication = getBoolean("settings.performance.skip-negligible-planar-movement-multiplication", skipNegligiblePlanarMovementMultiplication);
-+    }
-+
-+    public static boolean villagersDontReleaseMemoryFix = false;
-+    private static void villagersDontReleaseMemoryFix() {
-+        villagersDontReleaseMemoryFix = getBoolean("settings.performance.fix-villagers-dont-release-memory", villagersDontReleaseMemoryFix);
-+    }
-+
-+    public static boolean avoidAnvilTooExpensive = false;
-+    private static void avoidAnvilTooExpensive() {
-+        avoidAnvilTooExpensive = getBoolean("settings.modify.avoid-anvil-too-expensive", avoidAnvilTooExpensive);
-+    }
-+
-+    public static boolean bowInfinityFix = false;
-+    private static void bowInfinityFix() {
-+        bowInfinityFix = getBoolean("settings.modify.bow-infinity-fix", bowInfinityFix);
-+    }
-+
-+    public static boolean zeroTickPlants = false;
-+    private static void zeroTickPlants() {
-+        zeroTickPlants = getBoolean("settings.modify.minecraft-old.zero-tick-plants", zeroTickPlants);
-+    }
-+
-+    public static boolean bstatsPrivacyMode = false;
-+    private static void bstatsPrivacyMode() {
-+        bstatsPrivacyMode = getBoolean("settings.misc.bstats-privacy-mode", bstatsPrivacyMode);
-+    }
-+
-+    public static boolean autoUpdate = false;
-+    public static List<String> autoUpdateTime = List.of("14:00","2:00");
-+    private static void autoUpdate() {
-+        autoUpdate = getBoolean("settings.misc.auto-update.enable", autoUpdate);
-+        autoUpdateTime = getList("settings.misc.auto-update.time", autoUpdateTime);
-+        if (autoUpdate) {
-+            LeavesLogger.LOGGER.warning("Auto-Update is not completely safe. Enabling it may cause data security problems!");
-+        }
-+    }
-+
-+    public static String serverLang = "en_us";
-+    private static final List<String> supportLang = List.of("en_us", "zh_cn");
-+    private static void serverLang() {
-+        serverLang = getString("settings.misc.server-lang", serverLang);
-+        if (!supportLang.contains(serverLang)) {
-+            serverLang = "en_us";
-+            LeavesLogger.LOGGER.severe("server-lang value error, reset to en_us");
-+        }
-+    }
-+
-+    public static String serverModName = "Leaves";
-+    private static void serverModName(){
-+        serverModName = getString("settings.misc.server-mod-name", serverModName);
-+    }
-+
-+    public static boolean tickCommand = false;
-+    private static void tickCommand() {
-+        tickCommand = getBoolean("settings.modify.tick-command", tickCommand);
-+    }
-+
-+    public static boolean bladerenLeavesProtocol = true;
-+    private static void bladerenLeavesProtocol() {
-+        bladerenLeavesProtocol = getBoolean("settings.protocol.bladeren.protocol", bladerenLeavesProtocol);
-+    }
-+
-+    public static void registerLeavesFeatures() {
-+    }
-+
-+    public static boolean hopperCounter = false;
-+    private static void hopperCounter() {
-+        hopperCounter = getBoolean("settings.modify.hopper-counter", hopperCounter);
-+    }
-+
-+    public static boolean lootWorldRandom = false;
-+    private static void lootWorldRandom() {
-+        lootWorldRandom = getBoolean("settings.modify.minecraft-old.loot-world-random", lootWorldRandom);
-+    }
-+
-+    public static double spiderJockeysDropGapples = -1.0;
-+    private static void spiderJockeysDropGapples() {
-+        spiderJockeysDropGapples = getDouble("settings.modify.spider-jockeys-drop-gapples", spiderJockeysDropGapples);
-+    }
-+
-+    public static boolean servuxProtocol = false;
-+    private static void servuxProtocol() {
-+        servuxProtocol = getBoolean("settings.protocol.servux-protocol", servuxProtocol);
-+    }
-+
++    @GlobalConfig(name = "force-void-trade", category = "modify")
 +    public static boolean forceVoidTrade = false;
-+    private static void forceVoidTrade() {
-+        forceVoidTrade = getBoolean("settings.modify.force-void-trade", forceVoidTrade);
-+    }
 +
-+    public static boolean cceUpdateSuppression = false;
-+    private static void cceUpdateSuppression() {
-+        cceUpdateSuppression = getBoolean("settings.modify.minecraft-old.cce-update-suppression", cceUpdateSuppression);
-+    }
-+
-+    public static boolean villagerInfiniteDiscounts = false;
-+    private static void villagerInfiniteDiscounts() {
-+        villagerInfiniteDiscounts = getBoolean("settings.modify.minecraft-old.villager-infinite-discounts", villagerInfiniteDiscounts);
-+        if (villagerInfiniteDiscounts) {
-+        }
-+    }
-+
++    @GlobalConfig(name = "disable-moved-wrongly-threshold", category = "modify")
 +    public static boolean disableMovedWronglyThreshold = false;
-+    private static void disableMovedWronglyThreshold() {
-+        disableMovedWronglyThreshold = getBoolean("settings.modify.disable-moved-wrongly-threshold", disableMovedWronglyThreshold);
++
++    @GlobalConfig(name = "mc-technical-survival-mode", category = "modify", verify = McTechnicalModeVerify.class, lock = true)
++    public static boolean mcTechnicalMode = true;
++
++    private static class McTechnicalModeVerify extends ConfigVerify.BooleanConfigVerify {
++        @Override
++        public String check(Boolean old, Boolean value) {
++            if (value) {
++                top.leavesmc.leaves.util.McTechnicalModeHelper.doMcTechnicalMode();
++            }
++            return null;
++        }
 +    }
 +
-+    public static boolean armorStandCantKillByMobProjectile = false;
-+    private static void armorStandCantKillByMobProjectile() {
-+        armorStandCantKillByMobProjectile = getBoolean("settings.modify.minecraft-old.armor-stand-cant-kill-by-mob-projectile", armorStandCantKillByMobProjectile);
-+    }
++    @GlobalConfig(name = "return-nether-portal-fix", category = "modify")
++    public static boolean netherPortalFix = false;
 +
-+    public static final class WorldConfig {
++    @GlobalConfig(name = "use-vanilla-random", category = "modify", lock = true, verify = UseVanillaRandomVerify.class)
++    public static boolean useVanillaRandom = false;
 +
-+        public final String worldName;
-+        public String configPath;
-+        ConfigurationSection worldDefaults;
-+
-+        public WorldConfig(final String worldName) {
-+            this.worldName = worldName;
-+            this.init();
-+        }
-+
-+        public void init() {
-+            this.worldDefaults = LeavesConfig.config.getConfigurationSection("world-settings.default");
-+            if (this.worldDefaults == null) {
-+                this.worldDefaults = LeavesConfig.config.createSection("world-settings.default");
-+            }
-+
-+            String worldSectionPath = LeavesConfig.configVersion < CURRENT_CONFIG_VERSION ? this.worldName : "world-settings.".concat(this.worldName);
-+            ConfigurationSection section = LeavesConfig.config.getConfigurationSection(worldSectionPath);
-+            this.configPath = worldSectionPath;
-+            if (LeavesConfig.createWorldSections) {
-+                if (section == null) {
-+                    section = LeavesConfig.config.createSection(worldSectionPath);
-+                }
-+                LeavesConfig.config.set(worldSectionPath, section);
-+            }
-+
-+            this.load();
-+        }
-+
-+        public void load() {
-+            for (final Method method : LeavesConfig.WorldConfig.class.getDeclaredMethods()) {
-+                if (method.getReturnType() != void.class || method.getParameterCount() != 0 ||
-+                    !Modifier.isPrivate(method.getModifiers()) || Modifier.isStatic(method.getModifiers())) {
-+                    continue;
-+                }
-+
-+                try {
-+                    method.setAccessible(true);
-+                    method.invoke(this, EMPTY);
-+                } catch (final Exception ex) {
-+                    SneakyThrow.sneaky(ex); /* Rethrow, this is critical */
-+                    throw new RuntimeException(ex); // unreachable
-+                }
-+            }
-+
-+            if (LeavesConfig.configVersion < CURRENT_CONFIG_VERSION) {
-+                ConfigurationSection oldSection = LeavesConfig.config.getConfigurationSection(this.worldName);
-+                LeavesConfig.config.set("world-settings.".concat(this.worldName), oldSection);
-+                LeavesConfig.config.set(this.worldName, null);
-+            }
-+
-+            /* We re-save to add new options */
-+            try {
-+                LeavesConfig.config.save(LeavesConfig.configFile);
-+            } catch (final Exception ex) {
-+                Bukkit.getLogger().log(Level.SEVERE, "Unable to save leaves config", ex);
-+            }
-+        }
-+
-+        void set(final String path, final Object val) {
-+            final ConfigurationSection config = LeavesConfig.config.getConfigurationSection(this.configPath);
-+            this.worldDefaults.set(path, val);
-+            if (config != null && config.get(path) != null) {
-+                config.set(path, val);
-+            }
-+        }
-+
-+        boolean getBoolean(final String path, final boolean dfl) {
-+            final ConfigurationSection config = LeavesConfig.config.getConfigurationSection(this.configPath);
-+            this.worldDefaults.addDefault(path, Boolean.valueOf(dfl));
-+            if (LeavesConfig.configVersion < CURRENT_CONFIG_VERSION) {
-+                if (config != null && config.getBoolean(path) == dfl) {
-+                    config.set(path, null);
-+                }
-+            }
-+            return config == null ? this.worldDefaults.getBoolean(path) : config.getBoolean(path, this.worldDefaults.getBoolean(path));
-+        }
-+
-+        boolean getBooleanRaw(final String path, final boolean dfl) {
-+            final ConfigurationSection config = LeavesConfig.config.getConfigurationSection(this.configPath);
-+            if (LeavesConfig.configVersion < CURRENT_CONFIG_VERSION) {
-+                if (config != null && config.getBoolean(path) == dfl) {
-+                    config.set(path, null);
-+                }
-+            }
-+            return config == null ? this.worldDefaults.getBoolean(path, dfl) : config.getBoolean(path, this.worldDefaults.getBoolean(path, dfl));
-+        }
-+
-+        int getInt(final String path, final int dfl) {
-+            final ConfigurationSection config = LeavesConfig.config.getConfigurationSection(this.configPath);
-+            this.worldDefaults.addDefault(path, Integer.valueOf(dfl));
-+            if (LeavesConfig.configVersion < CURRENT_CONFIG_VERSION) {
-+                if (config != null && config.getInt(path) == dfl) {
-+                    config.set(path, null);
-+                }
-+            }
-+            return config == null ? this.worldDefaults.getInt(path) : config.getInt(path, this.worldDefaults.getInt(path));
-+        }
-+
-+        int getIntRaw(final String path, final int dfl) {
-+            final ConfigurationSection config = LeavesConfig.config.getConfigurationSection(this.configPath);
-+            if (LeavesConfig.configVersion < CURRENT_CONFIG_VERSION) {
-+                if (config != null && config.getInt(path) == dfl) {
-+                    config.set(path, null);
-+                }
-+            }
-+            return config == null ? this.worldDefaults.getInt(path, dfl) : config.getInt(path, this.worldDefaults.getInt(path, dfl));
-+        }
-+
-+        long getLong(final String path, final long dfl) {
-+            final ConfigurationSection config = LeavesConfig.config.getConfigurationSection(this.configPath);
-+            this.worldDefaults.addDefault(path, Long.valueOf(dfl));
-+            if (LeavesConfig.configVersion < CURRENT_CONFIG_VERSION) {
-+                if (config != null && config.getLong(path) == dfl) {
-+                    config.set(path, null);
-+                }
-+            }
-+            return config == null ? this.worldDefaults.getLong(path) : config.getLong(path, this.worldDefaults.getLong(path));
-+        }
-+
-+        long getLongRaw(final String path, final long dfl) {
-+            final ConfigurationSection config = LeavesConfig.config.getConfigurationSection(this.configPath);
-+            if (LeavesConfig.configVersion < CURRENT_CONFIG_VERSION) {
-+                if (config != null && config.getLong(path) == dfl) {
-+                    config.set(path, null);
-+                }
-+            }
-+            return config == null ? this.worldDefaults.getLong(path, dfl) : config.getLong(path, this.worldDefaults.getLong(path, dfl));
-+        }
-+
-+        double getDouble(final String path, final double dfl) {
-+            final ConfigurationSection config = LeavesConfig.config.getConfigurationSection(this.configPath);
-+            this.worldDefaults.addDefault(path, Double.valueOf(dfl));
-+            if (LeavesConfig.configVersion < CURRENT_CONFIG_VERSION) {
-+                if (config != null && config.getDouble(path) == dfl) {
-+                    config.set(path, null);
-+                }
-+            }
-+            return config == null ? this.worldDefaults.getDouble(path) : config.getDouble(path, this.worldDefaults.getDouble(path));
-+        }
-+
-+        double getDoubleRaw(final String path, final double dfl) {
-+            final ConfigurationSection config = LeavesConfig.config.getConfigurationSection(this.configPath);
-+            if (LeavesConfig.configVersion < CURRENT_CONFIG_VERSION) {
-+                if (config != null && config.getDouble(path) == dfl) {
-+                    config.set(path, null);
-+                }
-+            }
-+            return config == null ? this.worldDefaults.getDouble(path, dfl) : config.getDouble(path, this.worldDefaults.getDouble(path, dfl));
-+        }
-+
-+        String getString(final String path, final String dfl) {
-+            final ConfigurationSection config = LeavesConfig.config.getConfigurationSection(this.configPath);
-+            this.worldDefaults.addDefault(path, dfl);
-+            return config == null ? this.worldDefaults.getString(path) : config.getString(path, this.worldDefaults.getString(path));
-+        }
-+
-+        String getStringRaw(final String path, final String dfl) {
-+            final ConfigurationSection config = LeavesConfig.config.getConfigurationSection(this.configPath);
-+            return config == null ? this.worldDefaults.getString(path, dfl) : config.getString(path, this.worldDefaults.getString(path, dfl));
-+        }
-+
-+        List getList(final String path, final List dfl) {
-+            final ConfigurationSection config = LeavesConfig.config.getConfigurationSection(this.configPath);
-+            this.worldDefaults.addDefault(path, dfl);
-+            return config == null ? this.worldDefaults.getList(path) : config.getList(path, this.worldDefaults.getList(path));
-+        }
-+
-+        List getListRaw(final String path, final List dfl) {
-+            final ConfigurationSection config = LeavesConfig.config.getConfigurationSection(this.configPath);
-+            return config == null ? this.worldDefaults.getList(path, dfl) : config.getList(path, this.worldDefaults.getList(path, dfl));
++    private static class UseVanillaRandomVerify extends ConfigVerify.BooleanConfigVerify {
++        @Override
++        public String check(Boolean old, Boolean value) {
++            LeavesFeatureSet.register(LeavesFeature.of("use_vanilla_random", value));
++            return null;
 +        }
 +    }
++
++    @GlobalConfig(name = "fix-update-suppression-crash", category = "modify")
++    public static boolean updateSuppressionCrashFix = true;
++
++    @GlobalConfig(name = "bedrock-break-list", category = "modify", lock = true)
++    public static boolean bedrockBreakList = false;
++
++    @GlobalConfig(name = "disable-distance-check-for-use-item", category = "modify")
++    public static boolean disableDistanceCheckForUseItem = false;
++
++    @GlobalConfig(name = "no-feather-falling-trample", category = "modify")
++    public static boolean noFeatherFallingTrample = false;
++
++    @GlobalConfig(name = "shared-villager-discounts", category = "modify")
++    public static boolean sharedVillagerDiscounts = false;
++
++    @GlobalConfig(name = "disable-check-out-of-order-command", category = "modify")
++    public static boolean disableCheckOutOfOrderCommand = false;
++
++    @GlobalConfig(name = "despawn-enderman-with-block", category = "modify")
++    public static boolean despawnEndermanWithBlock = false;
++
++    @GlobalConfig(name = "creative-no-clip", category = "modify", verify = CreativeNoClipVerify.class)
++    public static boolean creativeNoClip = false;
++
++    private static class CreativeNoClipVerify extends ConfigVerify.BooleanConfigVerify {
++        @Override
++        public String check(Boolean old, Boolean value) {
++            CarpetRules.register(CarpetRule.of("carpet", "creativeNoClip", value));
++            return null;
++        }
++    }
++
++    @GlobalConfig(name = "shave-snow-layers", category = "modify")
++    public static boolean shaveSnowLayers = true;
++
++    @GlobalConfig(name = "ignore-lc", category = "modify")
++    public static boolean ignoreLC = false;
++
++    @GlobalConfig(name = "disable-packet-limit", category = "modify")
++    public static boolean disablePacketLimit = false;
++
++    @GlobalConfig(name = "lava-riptide", category = "modify", verify = LavaRiptideVerify.class)
++    public static boolean lavaRiptide = false;
++
++    private static class LavaRiptideVerify extends ConfigVerify.BooleanConfigVerify {
++        @Override
++        public String check(Boolean old, Boolean value) {
++            LeavesFeatureSet.register(LeavesFeature.of("lava_riptide", value));
++            return null;
++        }
++    }
++
++    @GlobalConfig(name = "no-block-update-command", category = "modify", verify = NoBlockUpdateVerify.class)
++    public static boolean noBlockUpdateCommand = false;
++
++    @GlobalConfig(name = "no-tnt-place-update", category = "modify")
++    public static boolean noTNTPlaceUpdate = false;
++
++    private static class NoBlockUpdateVerify extends ConfigVerify.BooleanConfigVerify {
++        @Override
++        public String check(Boolean old, Boolean value) {
++            if (value) {
++                registerCommand("blockupdate", new top.leavesmc.leaves.command.NoBlockUpdateCommand("blockupdate"));
++            } else {
++                unregisterCommand("blockupdate");
++            }
++            return null;
++        }
++    }
++
++    @GlobalConfig(name = "raider-die-skip-self-raid-check", category = "modify")
++    public static boolean skipSelfRaidCheck = false;
++
++    @GlobalConfig(name = "container-passthrough", category = "modify")
++    public static boolean containerPassthrough = false;
++
++    @GlobalConfig(name = "avoid-anvil-too-expensive", category = "modify", verify = AnvilNotExpensiveVerify.class)
++    public static boolean avoidAnvilTooExpensive = false;
++
++    private static class AnvilNotExpensiveVerify extends ConfigVerify.BooleanConfigVerify {
++        @Override
++        public String check(Boolean old, Boolean value) {
++            CarpetRules.register(CarpetRule.of("pca", "avoidAnvilTooExpensive", value));
++            return null;
++        }
++    }
++
++    @GlobalConfig(name = "bow-infinity-fix", category = "modify")
++    public static boolean bowInfinityFix = false;
++
++    @GlobalConfig(name = "hopper-counter", category = "modify")
++    public static boolean hopperCounter = false;
++
++    @GlobalConfig(name = "spider-jockeys-drop-gapples", category = "modify", verify = JockeysDropGAppleVerify.class)
++    public static double spiderJockeysDropGapples = -1.0;
++
++    private static class JockeysDropGAppleVerify extends ConfigVerify.DoubleConfigVerify {
++        @Override
++        public String check(Double old, Double value) {
++            return value <= 1.0 ? null : "spider-jockeys-drop-gapples need <= 1.0f";
++        }
++    }
++
++    @GlobalConfig(name = "renewable-deepslate", category = "modify")
++    public static boolean renewableDeepslate = false;
++
++    @GlobalConfig(name = "renewable-sponges", category = "modify")
++    public static boolean renewableSponges = false;
++
++    @GlobalConfig(name = "renewable-coral", category = "modify", verify = RenewableCoralVerify.class)
++    public static RenewableCoralType renewableCoral = RenewableCoralType.FALSE;
++
++    public enum RenewableCoralType {
++        FALSE, TRUE, EXPANDED
++    }
++
++    private static class RenewableCoralVerify extends ConfigVerify.EnumConfigVerify<RenewableCoralType> {
++        @Override
++        public String check(Enum<RenewableCoralType> old, Enum<RenewableCoralType> value) {
++            CarpetRules.register(CarpetRule.of("carpet", "renewableCoral", value));
++            return null;
++        }
++    }
++
++    @GlobalConfig(name = "fast-resume", category = "modify")
++    public static boolean fastResume = false;
++
++    @GlobalConfig(name = "force-peaceful-mode", category = "modify", verify = ForcePeacefulModeVerify.class)
++    public static int forcePeacefulMode = -1;
++
++    private static class ForcePeacefulModeVerify extends ConfigVerify.IntConfigVerify {
++        @Override
++        public String check(Integer old, Integer value) {
++            for (ServerLevel level : MinecraftServer.getServer().getAllLevels()) {
++                level.chunkSource.peacefulModeSwitchTick = value;
++            }
++            return null;
++        }
++    }
++
++    // Leaves start - modify - removed
++
++    @RemovedConfig(name = "tick-command", category = "modify")
++    public static boolean tickCommand = false;
++
++    // Leaves end - modify - removed
++
++    // Leaves end - modify
++
++    // Leaves start - performance
++
++    // Leaves start - performance - remove
++
++    @GlobalConfig(name = "tick-guard-lambda", category = {"performance", "remove"})
++    public static boolean removeTickGuardLambda = true;
++
++    @GlobalConfig(name = "inventory-contains-iterators", category = {"performance", "remove"})
++    public static boolean removeInventoryContainsIterators = true;
++
++    @GlobalConfig(name = "get-nearby-players-streams", category = {"performance", "remove"})
++    public static boolean removeGetNearPlayerStreams = true;
++
++    @GlobalConfig(name = "range-check-streams-and-iterators", category = {"performance", "remove"})
++    public static boolean removeRangeCheckStreams = true;
++
++    @GlobalConfig(name = "damage-lambda", category = {"performance", "remove"})
++    public static boolean removeDamageLambda = true;
++
++    // Leaves end - performance - remove
++
++    @GlobalConfig(name = "optimized-dragon-respawn", category = "performance")
++    public static boolean optimizedDragonRespawn = false;
++
++    @GlobalConfig(name = "dont-send-useless-entity-packets", category = "performance")
++    public static boolean dontSendUselessEntityPackets = true;
++
++    @GlobalConfig(name = "optimize-entity-coordinate-key", category = "performance")
++    public static boolean optimizeEntityCoordinateKey = true;
++
++    @GlobalConfig(name = "enable-suffocation-optimization", category = "performance")
++    public static boolean enableSuffocationOptimization = true;
++
++    @GlobalConfig(name = "strip-raytracing-for-entity", category = "performance")
++    public static boolean entityStripRaytracing = true;
++
++    @GlobalConfig(name = "check-spooky-season-once-an-hour", category = "performance")
++    public static boolean checkSpookySeasonOnceAnHour = true;
++
++    @GlobalConfig(name = "optimize-chunk-ticking", category = "performance", lock = true)
++    public static boolean optimizeChunkTicking = true;
++
++    @GlobalConfig(name = "skip-poi-find-in-vehicle", category = "performance")
++    public static boolean skipPOIFindingInVehicle = true;
++
++    @GlobalConfig(name = "entity-target-find-optimization", category = "performance")
++    public static boolean entityTargetFindingOptimization = true;
++
++    @GlobalConfig(name = "use-more-thread-unsafe-random", category = "performance")
++    public static boolean useMoreThreadUnsafeRandom = true;
++
++    @GlobalConfig(name = "inactive-goal-selector-disable", category = "performance")
++    public static boolean throttleInactiveGoalSelectorTick = false;
++
++    @GlobalConfig(name = "reduce-entity-allocations", category = "performance")
++    public static boolean reduceEntityAllocations = true;
++
++    @GlobalConfig(name = "cache-climb-check", category = "performance")
++    public static boolean cacheClimbCheck = true;
++
++    @GlobalConfig(name = "biome-temperatures-use-aging-cache", category = "performance", lock = true)
++    public static boolean biomeTemperaturesUseAgingCache = true;
++
++    @GlobalConfig(name = "reduce-entity-fluid-lookup", category = "performance")
++    public static boolean reduceEntityFluidLookup = true;
++
++    @GlobalConfig(name = "reduce-chuck-load-and-lookup", category = "performance")
++    public static boolean reduceChuckLoadAndLookup = true;
++
++    @GlobalConfig(name = "improve-fluid-direction-caching", category = "performance", lock = true)
++    public static boolean improveFluidDirectionCaching = true;
++
++    @GlobalConfig(name = "cache-ignite-odds", category = "performance")
++    public static boolean cacheIgniteOdds = true;
++
++    @GlobalConfig(name = "faster-chunk-serialization", category = "performance")
++    public static boolean fasterChunkSerialization = true;
++
++    @GlobalConfig(name = "optimize-world-generation-and-block-access", category = "performance")
++    public static boolean optimizeWorldGenerationAccess = true;
++
++    @GlobalConfig(name = "cache-world-generator-sea-level", category = "performance")
++    public static boolean cacheWorldGeneratorSeaLevel = true;
++
++    @GlobalConfig(name = "skip-secondary-POI-sensor-if-absent", category = "performance")
++    public static boolean skipSecondaryPOISensorIfAbsent = true;
++
++    @GlobalConfig(name = "cache-CubeVoxelShape-shape-array", category = "performance")
++    public static boolean cacheCubeVoxelShapeShapeArray = true;
++
++    @GlobalConfig(name = "store-mob-counts-in-array", category = "performance")
++    public static boolean storeMobCountsInArray = true;
++
++    @GlobalConfig(name = "cache-BlockStatePairKey-hash", category = "performance")
++    public static boolean cacheBlockStatePairKeyHash = true;
++
++    @GlobalConfig(name = "optimize-noise-generation", category = "performance")
++    public static boolean optimizeNoiseGeneration = false;
++
++    @GlobalConfig(name = "optimize-sun-burn-tick", category = "performance")
++    public static boolean optimizeSunBurnTick = true;
++
++    @GlobalConfig(name = "use-optimized-collection", category = "performance")
++    public static boolean useOptimizedCollection = true;
++
++    @GlobalConfig(name = "optimized-CubePointRange", category = "performance")
++    public static boolean optimizedCubePointRange = true;
++
++    @GlobalConfig(name = "check-frozen-ticks-before-landing-block", category = "performance")
++    public static boolean checkFrozenTicksBeforeLandingBlock = true;
++
++    @GlobalConfig(name = "cache-ominous-banner-item", category = "performance")
++    public static boolean cacheOminousBannerItem = true;
++
++    @GlobalConfig(name = "skip-entity-move-if-movement-is-zero", category = "performance")
++    public static boolean skipEntityMoveIfMovementIsZero = true;
++
++    @GlobalConfig(name = "skip-cloning-advancement-criteria", category = "performance")
++    public static boolean skipCloningAdvancementCriteria = false;
++
++    @GlobalConfig(name = "skip-negligible-planar-movement-multiplication", category = "performance")
++    public static boolean skipNegligiblePlanarMovementMultiplication = true;
++
++    @GlobalConfig(name = "fix-villagers-dont-release-memory", category = "performance")
++    public static boolean villagersDontReleaseMemoryFix = false;
++
++    // Leaves start - performance - removed
++
++    @RemovedConfig(name = "async-pathfinding", category = "performance")
++    public static boolean asyncPathfinding = false;
++
++    @RemovedConfig(name = "async-mob-spawning", category = "performance")
++    public static boolean asyncMobSpawning = false;
++
++    @RemovedConfig(name = "async-entity-tracker", category = "performance")
++    public static boolean asyncEntityTracker = false;
++
++    @RemovedConfig(name = "fix-paper-6045", category = {"performance", "fix"})
++    public static boolean fixPaper6045 = true;
++
++    @RemovedConfig(name = "fix-paper-9372", category = {"performance", "fix"})
++    public static boolean fixPaper9372 = true;
++
++    // Leaves end - performance - removed
++
++    // Leaves end - performance
++
++    // Leaves start - protocol
++
++    // Leaves start - protocol - bladeren
++
++    @GlobalConfig(name = "protocol", category = {"protocol", "bladeren"})
++    public static boolean bladerenLeavesProtocol = true;
++
++    @GlobalConfig(name = "mspt-sync-protocol", category = {"protocol", "bladeren"}, verify = MSPTSyncVerify.class)
++    public static boolean msptSyncProtocol = false;
++
++    private static class MSPTSyncVerify extends ConfigVerify.BooleanConfigVerify {
++        @Override
++        public String check(Boolean old, Boolean value) {
++            LeavesFeatureSet.register(LeavesFeature.of("mspt_sync", value));
++            return null;
++        }
++    }
++
++    @GlobalConfig(name = "mspt-sync-tick-interval", category = {"protocol", "bladeren"}, verify = MSPTSyncIntervalVerify.class)
++    public static int msptSyncTickInterval = 20;
++
++    private static class MSPTSyncIntervalVerify extends ConfigVerify.IntConfigVerify {
++        @Override
++        public String check(Integer old, Integer value) {
++            return value > 0 ? null : "mspt-sync-tick-interval need > 0";
++        }
++    }
++
++    // Leaves end - protocol - bladeren
++
++    // Leaves start - protocol - syncmatica
++
++    @GlobalConfig(name = "enable", category = {"protocol", "syncmatica"}, verify = SyncmaticaVerify.class)
++    public static boolean syncmaticaProtocol = false;
++
++    @GlobalConfig(name = "quota", category = {"protocol", "syncmatica"})
++    public static boolean syncmaticaQuota = false;
++
++    @GlobalConfig(name = "quota-limit", category = {"protocol", "syncmatica"}, verify = ConfigVerify.IntConfigVerify.class)
++    public static int syncmaticaQuotaLimit = 40000000;
++
++    public static class SyncmaticaVerify extends ConfigVerify.BooleanConfigVerify {
++        @Override
++        public String check(Boolean old, Boolean value) {
++            if (value) {
++                top.leavesmc.leaves.protocol.syncmatica.SyncmaticaProtocol.init();
++            }
++            return null;
++        }
++    }
++
++    // Leaves end - protocol - syncmatica
++
++    @GlobalConfig(name = "pca-sync-protocol", category = "protocol")
++    public static boolean pcaSyncProtocol = false;
++
++    @GlobalConfig(name = "pca-sync-player-entity", category = "protocol", verify = PcaPlayerEntityVerify.class)
++    public static String pcaSyncPlayerEntity = "OPS";
++
++    private static class PcaPlayerEntityVerify extends ConfigVerify.StringConfigVerify {
++        private static final List<String> pcaSyncPlayerEntityList = List.of("NOBODY", "BOT", "OPS", "OPS_AND_SELF", "EVERYONE");
++
++        @Override
++        public String check(String old, String value) {
++            if (!pcaSyncPlayerEntityList.contains(value)) {
++                return "pca-sync-player-entity value error";
++            }
++            return null;
++        }
++    }
++
++    @GlobalConfig(name = "bbor-protocol", category = "protocol")
++    public static boolean bborProtocol = false;
++
++    @GlobalConfig(name = "jade-protocol", category = "protocol")
++    public static boolean jadeProtocol = false;
++
++    @GlobalConfig(name = "alternative-block-placement", category = "protocol", verify = AlternativePlaceVerify.class)
++    public static String alternativeBlockPlacement = "NONE";
++
++
++    private static class AlternativePlaceVerify extends ConfigVerify.StringConfigVerify {
++        private static final List<String> alternativeBlockPlacementType = List.of("NONE", "CARPET", "CARPET_FIX", "LITEMATICA");
++
++        @Override
++        public String check(String old, String value) {
++            if (!alternativeBlockPlacementType.contains(value)) {
++                return "alternative-block-placement value error";
++            }
++            return null;
++        }
++    }
++
++    @GlobalConfig(name = "appleskin-protocol", category = "protocol")
++    public static boolean appleskinProtocol = false;
++
++    @GlobalConfig(name = "xaero-map-protocol", category = "protocol")
++    public static boolean xaeroMapProtocol = false;
++
++    @GlobalConfig(name = "xaero-map-server-id", category = "protocol", verify = ConfigVerify.IntConfigVerify.class)
++    public static int xaeroMapServerID = new Random().nextInt();
++
++    @GlobalConfig(name = "servux-protocol", category = "protocol")
++    public static boolean servuxProtocol = false;
++
++    @GlobalConfig(name = "leaves-carpet-support", category = "protocol")
++    public static boolean leavesCarpetSupport = false;
++
++    // Leaves end - protocol
++
++    // Leaves start - misc
++
++    // Leaves start - misc - auto-update
++
++    @GlobalConfig(name = "enable", category = {"misc", "auto-update"}, lock = true, verify = AutoUpdateVerify.class)
++    public static boolean autoUpdate = false;
++
++    private static class AutoUpdateVerify extends ConfigVerify.BooleanConfigVerify {
++        @Override
++        public void runAfterLoader(Boolean value) {
++            top.leavesmc.leaves.util.LeavesUpdateHelper.init();
++            if (value) {
++                LeavesLogger.LOGGER.warning("Auto-Update is not completely safe. Enabling it may cause data security problems!");
++            }
++        }
++    }
++
++    @GlobalConfig(name = "time", category = {"misc", "auto-update"}, lock = true, verify = ConfigVerify.ListConfigVerify.class)
++    public static List<String> autoUpdateTime = List.of("14:00", "2:00");
++
++    // Leaves end - misc - auto-update
++
++    // Leaves start - misc - extra-yggdrasil-service
++
++    @GlobalConfig(name = "enable", category = {"misc", "extra-yggdrasil-service"}, verify = ExtraYggdrasilVerify.class)
++    public static boolean extraYggdrasilService = false;
++
++    public static class ExtraYggdrasilVerify extends ConfigVerify.BooleanConfigVerify {
++        @Override
++        public String check(Boolean old, Boolean value) {
++            if (value) {
++                LeavesLogger.LOGGER.warning("extra-yggdrasil-service is an unofficial support. Enabling it may cause data security problems!");
++                GlobalConfiguration.get().unsupportedSettings.performUsernameValidation = true; // always check username
++            }
++            return null;
++        }
++    }
++
++    @GlobalConfig(name = "login-protect", category = {"misc", "extra-yggdrasil-service"})
++    public static boolean extraYggdrasilLoginProtect = false;
++
++    @GlobalConfig(name = "urls", category = {"misc", "extra-yggdrasil-service"}, verify = ExtraYggdrasilUrlsVerify.class)
++    public static List<String> extraYggdrasilServiceList = List.of("https://url.with.authlib-injector-yggdrasil");
++
++    public static class ExtraYggdrasilUrlsVerify extends ConfigVerify.ListConfigVerify {
++        @Override
++        public String check(List<?> old, List<?> value) {
++            top.leavesmc.leaves.profile.LeavesMinecraftSessionService.initExtraYggdrasilList();
++            return null;
++        }
++    }
++
++    // Leaves end - misc - extra-yggdrasil-service
++
++    @GlobalConfig(name = "disable-method-profiler", category = "misc")
++    public static boolean disableMethodProfiler = true;
++
++    @GlobalConfig(name = "no-chat-sign", category = "misc")
++    public static boolean noChatSign = true;
++
++    @GlobalConfig(name = "dont-respond-ping-before-start-fully", category = "misc")
++    public static boolean dontRespondPingBeforeStart = true;
++
++    @GlobalConfig(name = "server-lang", category = "misc", lock = true, verify = ServerLangVerify.class)
++    public static String serverLang = "en_us";
++
++    private static class ServerLangVerify extends ConfigVerify.StringConfigVerify {
++        private static final List<String> supportLang = List.of("en_us", "zh_cn");
++
++        @Override
++        public String check(String old, String value) {
++            if (!supportLang.contains(value)) {
++                return "server-lang value error";
++            }
++            return null;
++        }
++    }
++
++    @GlobalConfig(name = "server-mod-name", category = "misc", verify = ConfigVerify.StringConfigVerify.class)
++    public static String serverModName = "Leaves";
++
++    @GlobalConfig(name = "bstats-privacy-mode", category = "misc")
++    public static boolean bstatsPrivacyMode = false;
++
++    @GlobalConfig(name = "force-minecraft-command", category = "misc")
++    public static boolean forceMinecraftCommand = true;
++
++    // Leaves end - misc
++
++    // Leaves start - region
++
++    public static top.leavesmc.leaves.region.RegionFileFormat regionFormatName = top.leavesmc.leaves.region.RegionFileFormat.ANVIL;
++    @GlobalConfig(name = "format", category = "region", lock = true, verify = RegionFormatVerify.class)
++    public static String regionFormat = "ANVIL";
++
++    private static class RegionFormatVerify extends ConfigVerify.StringConfigVerify {
++        @Override
++        public String check(String old, String value) {
++            top.leavesmc.leaves.region.RegionFileFormat format = top.leavesmc.leaves.region.RegionFileFormat.fromString(value);
++            if (format == top.leavesmc.leaves.region.RegionFileFormat.INVALID) {
++                return "Unknown region format " + value;
++            }
++            regionFormatName = format;
++            return null;
++        }
++    }
++
++    @GlobalConfig(name = "flush-frequency", category = {"region", "linear"}, lock = true, verify = ConfigVerify.IntConfigVerify.class)
++    public static int linearFlushFrequency = 10;
++
++    @GlobalConfig(name = "auto-convert-anvil-to-linear", category = {"region", "linear"}, lock = true)
++    public static boolean autoConvertAnvilToLinear = false;
++
++    @GlobalConfig(name = "flush-max-threads", category = {"region", "linear"}, lock = true, verify = ConfigVerify.IntConfigVerify.class)
++    public static int linearFlushThreads = 1;
++
++    public static int getLinearFlushThreads() {
++        if (linearFlushThreads < 0) {
++            return Math.max(Runtime.getRuntime().availableProcessors() + linearFlushThreads, 1);
++        } else {
++            return Math.max(linearFlushThreads, 1);
++        }
++    }
++
++    @GlobalConfig(name = "compression-level", category = {"region", "linear"}, lock = true, verify = LinearCompressVerify.class)
++    public static int linearCompressionLevel = 1;
++
++    private static class LinearCompressVerify extends ConfigVerify.IntConfigVerify {
++        @Override
++        public String check(Integer old, Integer value) {
++            if (value < 1 || value > 22) {
++                return "linear.compression-level need between 1 and 22";
++            }
++            return null;
++        }
++    }
++
++    @GlobalConfig(name = "crash-on-broken-symlink", category = {"region", "linear"}, lock = true)
++    public static boolean linearCrashOnBrokenSymlink = true;
++
++    // Leaves end - region
++
++    // Leaves start - fix
++
++    @GlobalConfig(name = "vanilla-hopper", category = "fix")
++    public static boolean vanillaHopper = false;
++
++    // Leaves end - region
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/command/CommandArgument.java b/src/main/java/top/leavesmc/leaves/command/CommandArgument.java
 new file mode 100644
@@ -1344,10 +1180,10 @@ index 0000000000000000000000000000000000000000..edf12195c7224ca2fb5d3c2ac3fcf485
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/command/LeavesCommand.java b/src/main/java/top/leavesmc/leaves/command/LeavesCommand.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..e89bf96486c87cdff6c1a425afd10d744376c77f
+index 0000000000000000000000000000000000000000..9b6fb546a672fa5b27047fec638e42b2b5dbf533
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/command/LeavesCommand.java
-@@ -0,0 +1,116 @@
+@@ -0,0 +1,118 @@
 +package top.leavesmc.leaves.command;
 +
 +import io.papermc.paper.command.CommandUtil;
@@ -1362,6 +1198,7 @@ index 0000000000000000000000000000000000000000..e89bf96486c87cdff6c1a425afd10d74
 +import org.bukkit.plugin.PluginManager;
 +import org.checkerframework.checker.nullness.qual.Nullable;
 +import org.jetbrains.annotations.NotNull;
++import top.leavesmc.leaves.command.subcommands.ConfigCommand;
 +
 +import java.util.ArrayList;
 +import java.util.Arrays;
@@ -1381,6 +1218,7 @@ index 0000000000000000000000000000000000000000..e89bf96486c87cdff6c1a425afd10d74
 +    // subcommand label -> subcommand
 +    private static final Map<String, LeavesSubcommand> SUBCOMMANDS = Util.make(() -> {
 +        final Map<Set<String>, LeavesSubcommand> commands = new HashMap<>();
++        commands.put(Set.of("config"), new ConfigCommand());
 +
 +        return commands.entrySet().stream()
 +            .flatMap(entry -> entry.getKey().stream().map(s -> Map.entry(s, entry.getValue())))
@@ -1487,4 +1325,511 @@ index 0000000000000000000000000000000000000000..7ba1b573c8e49cc0838c25bc26687d14
 +    default boolean tabCompletes() {
 +        return true;
 +    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/command/subcommands/ConfigCommand.java b/src/main/java/top/leavesmc/leaves/command/subcommands/ConfigCommand.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..205e563ed4b3f59e294c2866952c73d22bd367b0
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/command/subcommands/ConfigCommand.java
+@@ -0,0 +1,86 @@
++package top.leavesmc.leaves.command.subcommands;
++
++import io.papermc.paper.command.CommandUtil;
++import net.kyori.adventure.text.Component;
++import net.kyori.adventure.text.JoinConfiguration;
++import net.kyori.adventure.text.format.NamedTextColor;
++import org.bukkit.command.CommandSender;
++import top.leavesmc.leaves.command.LeavesSubcommand;
++import top.leavesmc.leaves.config.GlobalConfigManager;
++
++import java.util.ArrayList;
++import java.util.Collections;
++import java.util.List;
++
++public class ConfigCommand implements LeavesSubcommand {
++
++    @Override
++    public boolean execute(CommandSender sender, String subCommand, String[] args) {
++        if (args.length < 1) {
++            sender.sendMessage(Component.text("Leaves Config", NamedTextColor.GRAY));
++            return true;
++        }
++
++        GlobalConfigManager.VerifiedConfig verifiedConfig = GlobalConfigManager.getVerifiedConfig(args[0]);
++        if (verifiedConfig == null) {
++            sender.sendMessage(Component.join(JoinConfiguration.noSeparators(),
++                Component.text("Config ", NamedTextColor.GRAY),
++                Component.text(args[0], NamedTextColor.RED),
++                Component.text(" is Not Found.", NamedTextColor.GRAY)
++            ));
++            return true;
++        }
++
++        if (args.length > 1) {
++            try {
++                verifiedConfig.set(args[1]);
++                sender.sendMessage(Component.join(JoinConfiguration.noSeparators(),
++                    Component.text("Config ", NamedTextColor.GRAY),
++                    Component.text(args[0], NamedTextColor.AQUA),
++                    Component.text(" changed to ", NamedTextColor.GRAY),
++                    Component.text(verifiedConfig.getString(), NamedTextColor.AQUA)
++                ));
++            } catch (IllegalArgumentException exception) {
++                sender.sendMessage(Component.join(JoinConfiguration.noSeparators(),
++                    Component.text("Config ", NamedTextColor.GRAY),
++                    Component.text(args[0], NamedTextColor.RED),
++                    Component.text(" modify error by ", NamedTextColor.GRAY),
++                    Component.text(exception.getMessage(), NamedTextColor.RED)
++                ));
++            }
++        } else {
++            sender.sendMessage(Component.join(JoinConfiguration.noSeparators(),
++                Component.text("Config ", NamedTextColor.GRAY),
++                Component.text(args[0], NamedTextColor.AQUA),
++                Component.text(" value is ", NamedTextColor.GRAY),
++                Component.text(verifiedConfig.getString(), NamedTextColor.AQUA)
++            ));
++        }
++
++        return true;
++    }
++
++    @Override
++    public List<String> tabComplete(CommandSender sender, String subCommand, String[] args) {
++        switch (args.length) {
++            case 1 -> {
++                List<String> list = new ArrayList<>(GlobalConfigManager.getVerifiedConfigPaths());
++                return CommandUtil.getListMatchingLast(sender, args, list);
++            }
++
++            case 2 -> {
++                GlobalConfigManager.VerifiedConfig verifiedConfig = GlobalConfigManager.getVerifiedConfig(args[0]);
++                if (verifiedConfig != null) {
++                    if (verifiedConfig.config().lock()) {
++                        return Collections.singletonList("<LOCKED CONFIG>");
++                    }
++                    return CommandUtil.getListMatchingLast(sender, args, verifiedConfig.verify().valueSuggest());
++                } else {
++                    return Collections.singletonList("<ERROR CONFIG>");
++                }
++            }
++        }
++
++        return Collections.emptyList();
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/config/ConfigConvert.java b/src/main/java/top/leavesmc/leaves/config/ConfigConvert.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..7053897b5fe7774cb4a28462ef88f6eebd35f171
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/config/ConfigConvert.java
+@@ -0,0 +1,7 @@
++package top.leavesmc.leaves.config;
++
++public interface ConfigConvert<E> {
++
++    E convert(String value);
++
++}
+diff --git a/src/main/java/top/leavesmc/leaves/config/ConfigVerify.java b/src/main/java/top/leavesmc/leaves/config/ConfigVerify.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..b345b7da3f861bcf205e2b2cbd462f69da5fa7b6
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/config/ConfigVerify.java
+@@ -0,0 +1,90 @@
++package top.leavesmc.leaves.config;
++
++import java.lang.reflect.ParameterizedType;
++import java.lang.reflect.Type;
++import java.util.ArrayList;
++import java.util.List;
++import java.util.Locale;
++
++public interface ConfigVerify<E> extends ConfigConvert<E> {
++
++    default String check(E old, E value) {
++        return null;
++    }
++
++    default List<String> valueSuggest() {
++        return List.of("<value>");
++    }
++
++    default void runAfterLoader(E value) {
++    }
++
++    class BooleanConfigVerify implements ConfigVerify<Boolean> {
++
++        @Override
++        public Boolean convert(String value) {
++            return Boolean.parseBoolean(value);
++        }
++
++        @Override
++        public List<String> valueSuggest() {
++            return List.of("false", "true");
++        }
++    }
++
++    class IntConfigVerify implements ConfigVerify<Integer> {
++        @Override
++        public Integer convert(String value) {
++            return Integer.parseInt(value);
++        }
++    }
++
++    class StringConfigVerify implements ConfigVerify<String> {
++        @Override
++        public String convert(String value) {
++            return value;
++        }
++    }
++
++    class DoubleConfigVerify implements ConfigVerify<Double> {
++        @Override
++        public Double convert(String value) {
++            return Double.parseDouble(value);
++        }
++    }
++
++    class ListConfigVerify implements ConfigVerify<List<?>> {
++        @Override
++        public List<?> convert(String value) {
++            throw new IllegalArgumentException("not support"); // TODO
++        }
++    }
++
++    class EnumConfigVerify<E extends Enum<E>> implements ConfigVerify<Enum<E>> {
++
++        private final Class<E> enumClass;
++        private final List<String> enumValues;
++
++        @SuppressWarnings({"unchecked", "unused"})
++        public EnumConfigVerify() {
++            Type genericSuperclass = getClass().getGenericSuperclass();
++            Type[] typeArguments = ((ParameterizedType) genericSuperclass).getActualTypeArguments();
++            this.enumClass = (Class<E>) typeArguments[0];
++            this.enumValues = new ArrayList<>(){{
++                for (E e : enumClass.getEnumConstants()) {
++                    add(e.name().toLowerCase(Locale.ROOT));
++                }
++            }};
++        }
++
++        @Override
++        public Enum<E> convert(String value) {
++            return Enum.valueOf(enumClass, value.toUpperCase(Locale.ROOT));
++        }
++
++        @Override
++        public List<String> valueSuggest() {
++            return enumValues;
++        }
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/config/GlobalConfig.java b/src/main/java/top/leavesmc/leaves/config/GlobalConfig.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..f6b946e5dfb5e3a2c169f88e8fb54718b0ca84ea
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/config/GlobalConfig.java
+@@ -0,0 +1,19 @@
++package top.leavesmc.leaves.config;
++
++import java.lang.annotation.ElementType;
++import java.lang.annotation.Retention;
++import java.lang.annotation.RetentionPolicy;
++import java.lang.annotation.Target;
++
++@Target(ElementType.FIELD)
++@Retention(RetentionPolicy.RUNTIME)
++public @interface GlobalConfig {
++
++    String name();
++
++    String[] category();
++
++    boolean lock() default false;
++
++    Class<? extends ConfigVerify<?>> verify() default ConfigVerify.BooleanConfigVerify.class;
++}
+diff --git a/src/main/java/top/leavesmc/leaves/config/GlobalConfigCreator.java b/src/main/java/top/leavesmc/leaves/config/GlobalConfigCreator.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..8186cbdd5ce98131670be16ae1757b16d6d7012d
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/config/GlobalConfigCreator.java
+@@ -0,0 +1,56 @@
++package top.leavesmc.leaves.config;
++
++import org.bukkit.configuration.file.YamlConfiguration;
++import top.leavesmc.leaves.LeavesConfig;
++
++import java.io.File;
++import java.io.IOException;
++import java.lang.reflect.Field;
++import java.lang.reflect.Modifier;
++import java.util.Collections;
++
++public class GlobalConfigCreator {
++
++    public static void main(String[] args) {
++        YamlConfiguration config = new YamlConfiguration();
++        config.options().setHeader(Collections.singletonList(LeavesConfig.CONFIG_HEADER));
++
++        config.set("config-version", LeavesConfig.CURRENT_CONFIG_VERSION);
++
++        Class<LeavesConfig> clazz = LeavesConfig.class;
++
++        for (Field field : clazz.getDeclaredFields()) {
++            if (Modifier.isStatic(field.getModifiers())) {
++                field.setAccessible(true);
++
++                GlobalConfig globalConfig = field.getAnnotation(GlobalConfig.class);
++                if (globalConfig != null) {
++                    try {
++                        GlobalConfigManager.VerifiedConfig verifiedConfig = GlobalConfigManager.VerifiedConfig.build(globalConfig, field);
++
++                        ConfigVerify<? super Object> verify = verifiedConfig.verify();
++                        boolean isEnumConfig = verify instanceof ConfigVerify.EnumConfigVerify;
++
++                        Object defValue = isEnumConfig ? field.get(null).toString() : field.get(null);
++                        config.set(verifiedConfig.path(), defValue);
++                    } catch (Exception e) {
++                        e.printStackTrace();
++                    }
++                }
++            }
++        }
++
++        config.set("settings.protocol.xaero-map-server-id", 0);
++
++        try {
++            File file = new File("leaves.yml");
++            if (file.exists()) {
++                file.delete();
++            }
++            file.createNewFile();
++            config.save(file);
++        } catch (IOException e) {
++            e.printStackTrace();
++        }
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/config/GlobalConfigManager.java b/src/main/java/top/leavesmc/leaves/config/GlobalConfigManager.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..fb5fd1396f6df55b2b065a36c308456f016f343d
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/config/GlobalConfigManager.java
+@@ -0,0 +1,188 @@
++package top.leavesmc.leaves.config;
++
++import org.bukkit.Bukkit;
++import top.leavesmc.leaves.LeavesConfig;
++import top.leavesmc.leaves.LeavesLogger;
++
++import java.lang.reflect.Constructor;
++import java.lang.reflect.Field;
++import java.lang.reflect.Modifier;
++import java.util.HashMap;
++import java.util.Locale;
++import java.util.Map;
++import java.util.Set;
++import java.util.logging.Level;
++
++public class GlobalConfigManager {
++
++    private static boolean firstLoad = true;
++    private static final Map<String, VerifiedConfig> verifiedConfigs = new HashMap<>();
++
++    public static void init() {
++        verifiedConfigs.clear();
++
++        Class<LeavesConfig> clazz = LeavesConfig.class;
++        for (Field field : clazz.getDeclaredFields()) {
++            if (Modifier.isStatic(field.getModifiers())) {
++                field.setAccessible(true);
++
++                RemovedConfig removedConfig = field.getAnnotation(RemovedConfig.class);
++                if (removedConfig != null) {
++                    RemovedVerifiedConfig verifiedConfig = RemovedVerifiedConfig.build(removedConfig, field);
++                    verifiedConfig.run();
++                }
++
++                GlobalConfig globalConfig = field.getAnnotation(GlobalConfig.class);
++                if (globalConfig != null) {
++                    try {
++                        VerifiedConfig verifiedConfig = VerifiedConfig.build(globalConfig, field);
++
++                        if (globalConfig.lock() && !firstLoad) {
++                            verifiedConfigs.put(verifiedConfig.path.substring("settings.".length()), verifiedConfig);
++                            continue;
++                        }
++
++                        ConfigVerify<? super Object> verify = verifiedConfig.verify;
++                        boolean isEnumConfig = verify instanceof ConfigVerify.EnumConfigVerify;
++
++                        Object defValue = isEnumConfig ? field.get(null).toString() : field.get(null);
++                        LeavesConfig.config.addDefault(verifiedConfig.path, defValue);
++
++                        try {
++                            Object savedValue = LeavesConfig.config.get(verifiedConfig.path);
++                            if (isEnumConfig) {
++                                savedValue = verify.convert(savedValue.toString());
++                            }
++                            String checkInfo = verify.check(null, savedValue);
++
++                            if (checkInfo == null) {
++                                field.set(null, savedValue);
++                            } else {
++                                throw new IllegalArgumentException(checkInfo);
++                            }
++                        } catch (IllegalArgumentException | ClassCastException e) {
++                            LeavesConfig.config.set(verifiedConfig.path, defValue);
++                            LeavesLogger.LOGGER.warning(e.getMessage() + ", reset to " + defValue);
++                        }
++
++                        verifiedConfigs.put(verifiedConfig.path.substring("settings.".length()), verifiedConfig);
++                    } catch (Exception e) {
++                        Bukkit.getLogger().log(Level.SEVERE, "Failure to load leaves config", e);
++                    }
++                }
++            }
++        }
++
++        verifiedConfigs.forEach((path, config) -> config.verify.runAfterLoader(config.get()));
++
++        firstLoad = false;
++        LeavesConfig.save();
++    }
++
++    public static VerifiedConfig getVerifiedConfig(String path) {
++        return verifiedConfigs.get(path);
++    }
++
++    public static Set<String> getVerifiedConfigPaths() {
++        return verifiedConfigs.keySet();
++    }
++
++    public record RemovedVerifiedConfig(RemovedConfig config, ConfigConvert<? super Object> convert, Field field, String path) {
++
++        public void run() {
++            if (config.transform()) {
++                if (LeavesConfig.config.contains(path)) {
++                    String string = LeavesConfig.config.get(path).toString();
++                    try {
++                        Object object = convert.convert(string);
++                        field.set(null, object);
++                    } catch (Exception e) {
++                        e.printStackTrace();
++                    }
++                }
++            }
++            LeavesConfig.config.set(path, null);
++        }
++
++        public static RemovedVerifiedConfig build(RemovedConfig config, Field field) {
++            StringBuilder path = new StringBuilder("settings.");
++            for (int i = 0; i < config.category().length; i++) {
++                path.append(config.category()[i]).append(".");
++            }
++            path.append(config.name());
++
++            ConfigConvert configConvert = null;
++            try {
++                Constructor<? extends ConfigConvert<?>> constructor = config.convert().getDeclaredConstructor();
++                constructor.setAccessible(true);
++                configConvert = constructor.newInstance();
++            } catch (Exception e) {
++                e.printStackTrace();
++            }
++
++            return new RemovedVerifiedConfig(config, configConvert, field, path.toString());
++        }
++    }
++
++    public record VerifiedConfig(GlobalConfig config, ConfigVerify<? super Object> verify, Field field, String path) {
++
++        public void set(String realValue) throws IllegalArgumentException {
++            if (config.lock()) {
++                throw new IllegalArgumentException("locked");
++            }
++
++            Object value;
++            try {
++                value = verify.convert(realValue);
++            } catch (Exception e) {
++                throw new IllegalArgumentException("value parse error: " + e.getMessage());
++            }
++
++            String checkInfo = verify.check(this.get(), value);
++            if (checkInfo != null) {
++                throw new IllegalArgumentException(checkInfo);
++            }
++
++            try {
++                field.set(null, value);
++                LeavesConfig.config.set(path, verify instanceof ConfigVerify.EnumConfigVerify ? realValue.toUpperCase(Locale.ROOT) : value);
++                LeavesConfig.save();
++            } catch (IllegalAccessException e) {
++                throw new IllegalArgumentException("?");
++            }
++        }
++
++        public String getString() {
++            return this.get().toString();
++        }
++
++        public Object get() {
++            try {
++                return field.get(null);
++            } catch (IllegalAccessException e) {
++                LeavesLogger.LOGGER.log(Level.SEVERE, "Failure to get " + path + " value", e);
++                return "<VALUE ERROR>";
++            }
++        }
++
++        public static VerifiedConfig build(GlobalConfig config, Field field) {
++            StringBuilder path = new StringBuilder("settings.");
++            for (int i = 0; i < config.category().length; i++) {
++                path.append(config.category()[i]).append(".");
++            }
++            path.append(config.name());
++
++            ConfigVerify configVerify = null;
++            try {
++                Constructor<? extends ConfigVerify<?>> constructor = config.verify().getDeclaredConstructor();
++                constructor.setAccessible(true);
++                configVerify = constructor.newInstance();
++            } catch (Exception e) {
++                e.printStackTrace();
++            }
++
++
++            return new VerifiedConfig(config, configVerify, field, path.toString());
++        }
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/config/RemovedConfig.java b/src/main/java/top/leavesmc/leaves/config/RemovedConfig.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..0d6371d7f249495c738f1a11288d3abe3e61135c
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/config/RemovedConfig.java
+@@ -0,0 +1,19 @@
++package top.leavesmc.leaves.config;
++
++import java.lang.annotation.ElementType;
++import java.lang.annotation.Retention;
++import java.lang.annotation.RetentionPolicy;
++import java.lang.annotation.Target;
++
++@Target(ElementType.FIELD)
++@Retention(RetentionPolicy.RUNTIME)
++public @interface RemovedConfig {
++
++    String name();
++
++    String[] category();
++
++    boolean transform() default false;
++
++    Class<? extends ConfigConvert<?>> convert() default ConfigVerify.BooleanConfigVerify.class;
 +}

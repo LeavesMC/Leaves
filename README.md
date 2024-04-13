@@ -4,6 +4,7 @@ Leaves
 [![Leaves CI](https://github.com/LeavesMC/Leaves/actions/workflows/leaves.yml/badge.svg)](https://github.com/LeavesMC/Leaves/actions/workflows/leaves.yml)
 [![Leaves Download](https://img.shields.io/github/downloads/LeavesMC/Leaves/total?color=0&logo=github)](https://github.com/LeavesMC/Leaves/releases/latest)
 [![Discord](https://badgen.net/discord/online-members/5hgtU72w33?icon=discord&label=Discord&list=what)](https://discord.gg/5hgtU72w33)
+[![QQ](https://img.shields.io/badge/QQ_Unofficial-815857713-blue)](http://qm.qq.com/cgi-bin/qm/qr?_wv=1027&k=nisbmnCFeEJCcYWBQ10th4Fu99XWklH4&authKey=8VlUxSdrFCIwmIpxFQIGR8%2BXvIQ2II%2Bx2JfxuQ8amr9UKgINh%2BdXjudQfc%2FIeTO5&noverify=0&group_code=815857713)
 
 **English** | [中文](https://github.com/LeavesMC/Leaves/blob/master/README_cn.md)
 
@@ -18,7 +19,7 @@ You can download the latest build (1.20.x) of Leaves by going [here](https://git
 
 You can also [build it yourself](https://github.com/LeavesMC/Leaves#building).
 
-You can visit our [documentation](https://docs.leavesmc.top/leaves) for more information.
+You can visit our [documentation](https://docs.leavesmc.org/leaves/guides/getting-started) for more information.
 
 ## How To (Plugin developers)
 Leaves-API:
@@ -29,7 +30,7 @@ maven {
 }
 
 dependencies {
-    compileOnly("top.leavesmc.leaves:leaves-api:1.20.2-R0.1-SNAPSHOT")
+    compileOnly("top.leavesmc.leaves:leaves-api:1.20.4-R0.1-SNAPSHOT")
 }
  ```
 
@@ -39,7 +40,7 @@ Each time you want to update your dependency, you must re-build Leaves.
 Leaves-Server:
 ```kotlin
 dependencies {
-    compileOnly("top.leavesmc.leaves:leaves:1.20.2-R0.1-SNAPSHOT")
+    compileOnly("top.leavesmc.leaves:leaves:1.20.4-R0.1-SNAPSHOT")
 }
  ```
 

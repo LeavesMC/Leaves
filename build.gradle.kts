@@ -1,8 +1,11 @@
+import io.papermc.paperweight.util.*
+import kotlin.io.path.*
+
 plugins {
     java
     `maven-publish`
     id("com.github.johnrengelman.shadow") version "8.1.1" apply false
-    id("io.papermc.paperweight.patcher") version "1.5.8"
+    id("io.papermc.paperweight.patcher") version "1.5.13"
 }
 
 repositories {
@@ -13,7 +16,7 @@ repositories {
 }
 
 dependencies {
-    remapper("net.fabricmc:tiny-remapper:0.8.6:fat")
+    remapper("net.fabricmc:tiny-remapper:0.10.1:fat")
     decompiler("net.minecraftforge:forgeflower:2.0.627.2")
     paperclip("top.leavesmc:leavesclip:1.0.2")
 }
@@ -54,7 +57,7 @@ subprojects {
 paperweight {
     serverProject.set(project(":leaves-server"))
 
-	remapRepo.set("https://maven.fabricmc.net/")
+    remapRepo.set("https://maven.fabricmc.net/")
     decompileRepo.set("https://files.minecraftforge.net/maven/")
 
     usePaperUpstream(providers.gradleProperty("paperRef")) {
@@ -65,5 +68,25 @@ paperweight {
             serverPatchDir.set(layout.projectDirectory.dir("patches/server"))
             serverOutputDir.set(layout.projectDirectory.dir("leaves-server"))
         }
+
+        patchTasks.register("generatedApi") {
+            isBareDirectory = true
+            upstreamDirPath = "paper-api-generator/generated"
+            patchDir = layout.projectDirectory.dir("patches/generated-api")
+            outputDir = layout.projectDirectory.dir("paper-api-generator/generated")
+        }
+    }
+}
+
+if (providers.gradleProperty("updatingMinecraft").getOrElse("false").toBoolean()) {
+
+    tasks.withType<io.papermc.paperweight.tasks.CollectATsFromPatches>().configureEach {
+        val dir = layout.projectDirectory.dir("patches/unapplied")
+        if (dir.path.isDirectory()) {
+            extraPatchDir = dir
+        }
+    }
+    tasks.withType<io.papermc.paperweight.tasks.RebuildGitPatches>().configureEach {
+        filterPatches = false
     }
 }

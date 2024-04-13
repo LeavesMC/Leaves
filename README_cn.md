@@ -4,6 +4,7 @@ Leaves
 [![Leaves CI](https://github.com/LeavesMC/Leaves/actions/workflows/leaves.yml/badge.svg)](https://github.com/LeavesMC/Leaves/actions/workflows/leaves.yml)
 [![Leaves Download](https://img.shields.io/github/downloads/LeavesMC/Leaves/total?color=0&logo=github)](https://github.com/LeavesMC/Leaves/releases/latest)
 [![Discord](https://badgen.net/discord/online-members/5hgtU72w33?icon=discord&label=Discord&list=what)](https://discord.gg/5hgtU72w33)
+[![QQ](https://img.shields.io/badge/QQ_Unofficial-815857713-blue)](http://qm.qq.com/cgi-bin/qm/qr?_wv=1027&k=nisbmnCFeEJCcYWBQ10th4Fu99XWklH4&authKey=8VlUxSdrFCIwmIpxFQIGR8%2BXvIQ2II%2Bx2JfxuQ8amr9UKgINh%2BdXjudQfc%2FIeTO5&noverify=0&group_code=815857713)
 
 [English](https://github.com/LeavesMC/Leaves/blob/master/README.md) | **中文**
 
@@ -18,7 +19,7 @@ Leaves
 
 也可以通过 [此处](https://github.com/LeavesMC/Leaves/blob/master/README_cn.md#自行构建) 的指南自行构建
 
-如果你想要获得更多信息，那么你可以访问我们的 [文档](https://docs.leavesmc.top/zh/leaves)
+如果你想要获得更多信息，那么你可以访问我们的 [文档](https://docs.leavesmc.org/zh_Hans/leaves/guides/getting-started)
 
 ## 对于插件开发者
 Leaves-API:
@@ -29,7 +30,7 @@ maven {
 }
 
 dependencies {
-    compileOnly("top.leavesmc.leaves:leaves-api:1.20.2-R0.1-SNAPSHOT")
+    compileOnly("top.leavesmc.leaves:leaves-api:1.20.4-R0.1-SNAPSHOT")
 }
  ```
 
@@ -38,7 +39,7 @@ dependencies {
 Leaves-Server:
 ```kotlin
 dependencies {
-    compileOnly("top.leavesmc.leaves:leaves:1.20.2-R0.1-SNAPSHOT")
+    compileOnly("top.leavesmc.leaves:leaves:1.20.4-R0.1-SNAPSHOT")
 }
  ```
 

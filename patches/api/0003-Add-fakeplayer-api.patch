@@ -5,10 +5,10 @@ Subject: [PATCH] Add fakeplayer api
 
 
 diff --git a/src/main/java/org/bukkit/Bukkit.java b/src/main/java/org/bukkit/Bukkit.java
-index f78b5fd3c3347d28da58777bff88903d2eb140f6..63d9d30a11eecb872fe64f04ef7fe5d16f0afa3e 100644
+index 9a428153f34291bdc026a71f7e60e285b7794b0c..824982037eb064d536ac09c303d3bdd225355a6a 100644
 --- a/src/main/java/org/bukkit/Bukkit.java
 +++ b/src/main/java/org/bukkit/Bukkit.java
-@@ -57,6 +57,7 @@ import org.jetbrains.annotations.Contract;
+@@ -59,6 +59,7 @@ import org.jetbrains.annotations.Contract;
  import org.jetbrains.annotations.NotNull;
  import org.jetbrains.annotations.Nullable;
  import io.papermc.paper.util.JarManifests; // Paper
@@ -16,7 +16,7 @@ index f78b5fd3c3347d28da58777bff88903d2eb140f6..63d9d30a11eecb872fe64f04ef7fe5d1
  
  /**
   * Represents the Bukkit core, for version and Server singleton handling
-@@ -2752,6 +2753,17 @@ public final class Bukkit {
+@@ -2880,6 +2881,17 @@ public final class Bukkit {
      }
      // Paper end - Folia region threading API
  
@@ -35,10 +35,10 @@ index f78b5fd3c3347d28da58777bff88903d2eb140f6..63d9d30a11eecb872fe64f04ef7fe5d1
      public static Server.Spigot spigot() {
          return server.spigot();
 diff --git a/src/main/java/org/bukkit/Server.java b/src/main/java/org/bukkit/Server.java
-index 09fa5d4f8cbaf77150459f78d08004f85dd3cdcc..0b58392263898b4ef7eba8a082cddf74d3c7cd82 100644
+index cc119de8e5912eae124be1d6c94f73b77682de41..34196590f64f1c65c691b305b402b888b524c1d7 100644
 --- a/src/main/java/org/bukkit/Server.java
 +++ b/src/main/java/org/bukkit/Server.java
-@@ -57,6 +57,7 @@ import org.bukkit.util.CachedServerIcon;
+@@ -59,6 +59,7 @@ import org.bukkit.util.CachedServerIcon;
  import org.jetbrains.annotations.Contract;
  import org.jetbrains.annotations.NotNull;
  import org.jetbrains.annotations.Nullable;
@@ -46,7 +46,7 @@ index 09fa5d4f8cbaf77150459f78d08004f85dd3cdcc..0b58392263898b4ef7eba8a082cddf74
  
  /**
   * Represents a server implementation.
-@@ -2412,4 +2413,13 @@ public interface Server extends PluginMessageRecipient, net.kyori.adventure.audi
+@@ -2526,4 +2527,13 @@ public interface Server extends PluginMessageRecipient, net.kyori.adventure.audi
       */
      boolean isOwnedByCurrentRegion(@NotNull Entity entity);
      // Paper end - Folia region threading API
@@ -62,16 +62,18 @@ index 09fa5d4f8cbaf77150459f78d08004f85dd3cdcc..0b58392263898b4ef7eba8a082cddf74
  }
 diff --git a/src/main/java/top/leavesmc/leaves/entity/Bot.java b/src/main/java/top/leavesmc/leaves/entity/Bot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..8816683c795f9be6a4f112203cfac3f59d8faba5
+index 0000000000000000000000000000000000000000..02815077dcd6d5c1b155ef3ca5cd6e3a9c45c0b5
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/entity/Bot.java
-@@ -0,0 +1,46 @@
+@@ -0,0 +1,51 @@
 +package top.leavesmc.leaves.entity;
 +
 +import org.bukkit.entity.Player;
 +import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
 +import top.leavesmc.leaves.entity.botaction.LeavesBotAction;
++
++import java.util.UUID;
 +
 +/**
 + * Represents a fakeplayer
@@ -94,12 +96,15 @@ index 0000000000000000000000000000000000000000..8816683c795f9be6a4f112203cfac3f5
 +    @NotNull
 +    public String getRealName();
 +
++    @Nullable
++    public UUID getCreatePlayerUUID();
++
 +    /**
 +     * Sets the fakeplayer action with args.
 +     *
 +     * @param action action name
 +     * @param player player who create this action
-+     * @param args passed action arguments
++     * @param args   passed action arguments
 +     */
 +    public boolean setBotAction(@NotNull String action, @NotNull Player player, @NotNull String[] args);
 +
@@ -108,7 +113,7 @@ index 0000000000000000000000000000000000000000..8816683c795f9be6a4f112203cfac3f5
 +     *
 +     * @param action leaves bot action
 +     * @param player player who create this action
-+     * @param args passed action arguments
++     * @param args   passed action arguments
 +     */
 +    public boolean setBotAction(@NotNull LeavesBotAction action, @NotNull Player player, @NotNull String[] args);
 +}
@@ -321,6 +326,116 @@ index 0000000000000000000000000000000000000000..e298722319ff0cfd52e531693ea3767e
 +        return name;
 +    }
 +}
+diff --git a/src/main/java/top/leavesmc/leaves/event/bot/BotActionEvent.java b/src/main/java/top/leavesmc/leaves/event/bot/BotActionEvent.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..b18587ad3b813b71f5f3cde2a90f204603bdb180
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/event/bot/BotActionEvent.java
+@@ -0,0 +1,49 @@
++package top.leavesmc.leaves.event.bot;
++
++import org.bukkit.event.Cancellable;
++import org.bukkit.event.HandlerList;
++import org.jetbrains.annotations.NotNull;
++import top.leavesmc.leaves.entity.Bot;
++
++public class BotActionEvent extends BotEvent implements Cancellable {
++    private static final HandlerList handlers = new HandlerList();
++
++    private final String actionName;
++    private final String[] actionArgs;
++    private boolean cancel = false;
++
++    public BotActionEvent(@NotNull Bot who, String actionName, String[] actionArgs) {
++        super(who);
++        this.actionArgs = actionArgs;
++        this.actionName = actionName;
++    }
++
++    @NotNull
++    public String[] getActionArgs() {
++        return actionArgs;
++    }
++
++    @NotNull
++    public String getActionName() {
++        return actionName;
++    }
++
++    @Override
++    public @NotNull HandlerList getHandlers() {
++        return handlers;
++    }
++
++    @Override
++    public boolean isCancelled() {
++        return cancel;
++    }
++
++    @Override
++    public void setCancelled(boolean cancel) {
++        this.cancel = cancel;
++    }
++
++    public static HandlerList getHandlerList() {
++        return handlers;
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/event/bot/BotConfigModifyEvent.java b/src/main/java/top/leavesmc/leaves/event/bot/BotConfigModifyEvent.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..b395eba4734703cc99d04941e20e053b9527b1e1
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/event/bot/BotConfigModifyEvent.java
+@@ -0,0 +1,49 @@
++package top.leavesmc.leaves.event.bot;
++
++import org.bukkit.event.Cancellable;
++import org.bukkit.event.HandlerList;
++import org.jetbrains.annotations.NotNull;
++import top.leavesmc.leaves.entity.Bot;
++
++public class BotConfigModifyEvent extends BotEvent implements Cancellable {
++    private static final HandlerList handlers = new HandlerList();
++
++    private final String configName;
++    private final String configValue;
++    private boolean cancel;
++
++    public BotConfigModifyEvent(@NotNull Bot who, String configName, String configValue) {
++        super(who);
++        this.configName = configName;
++        this.configValue = configValue;
++    }
++
++    @NotNull
++    public String getConfigName() {
++        return configName;
++    }
++
++    @NotNull
++    public String getConfigValue() {
++        return configValue;
++    }
++
++    @Override
++    public @NotNull HandlerList getHandlers() {
++        return handlers;
++    }
++
++    @Override
++    public boolean isCancelled() {
++        return cancel;
++    }
++
++    @Override
++    public void setCancelled(boolean cancel) {
++        this.cancel = cancel;
++    }
++
++    public static HandlerList getHandlerList() {
++        return handlers;
++    }
++}
 diff --git a/src/main/java/top/leavesmc/leaves/event/bot/BotCreateEvent.java b/src/main/java/top/leavesmc/leaves/event/bot/BotCreateEvent.java
 new file mode 100644
 index 0000000000000000000000000000000000000000..7cf1eb4eb3d2fe9310f9272ec53208632b87b49b
@@ -468,6 +583,58 @@ index 0000000000000000000000000000000000000000..4a4fe07ce965d4a97e0d8105a91310da
 +    @NotNull
 +    public final Bot getBot() {
 +        return bot;
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/event/bot/BotInventoryOpenEvent.java b/src/main/java/top/leavesmc/leaves/event/bot/BotInventoryOpenEvent.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..e889f7e98ec9cb6a3b95d8ea865e25fffea662a1
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/event/bot/BotInventoryOpenEvent.java
+@@ -0,0 +1,46 @@
++package top.leavesmc.leaves.event.bot;
++
++import org.bukkit.entity.Player;
++import org.bukkit.event.Cancellable;
++import org.bukkit.event.HandlerList;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++import top.leavesmc.leaves.entity.Bot;
++
++public class BotInventoryOpenEvent extends BotEvent implements Cancellable {
++    private static final HandlerList handlers = new HandlerList();
++
++    private final Player player;
++    private boolean cancel = false;
++
++    public BotInventoryOpenEvent(@NotNull Bot who, @Nullable Player player) {
++        super(who);
++        this.player = player;
++    }
++
++    @Override
++    public boolean isCancelled() {
++        return cancel;
++    }
++
++    @Override
++    public void setCancelled(boolean cancel) {
++        this.cancel = cancel;
++    }
++
++    @Nullable
++    public Player getOpenPlayer() {
++        return player;
++    }
++
++
++    @Override
++    public @NotNull HandlerList getHandlers() {
++        return handlers;
++    }
++
++    @NotNull
++    public static HandlerList getHandlerList() {
++        return handlers;
 +    }
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/event/bot/BotJoinEvent.java b/src/main/java/top/leavesmc/leaves/event/bot/BotJoinEvent.java

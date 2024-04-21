@@ -1,0 +1,250 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Lumine1909 <3556577839@qq.com>
+Date: Fri, 12 Apr 2024 20:12:33 -0400
+Subject: [PATCH] bytebuf-api
+
+
+diff --git a/src/main/java/org/bukkit/Bukkit.java b/src/main/java/org/bukkit/Bukkit.java
+index 7e92a652d47042dec050e4be08b57e2121ccd0bb..8f7926a16988fc3282ed89f435f49099f679fecf 100644
+--- a/src/main/java/org/bukkit/Bukkit.java
++++ b/src/main/java/org/bukkit/Bukkit.java
+@@ -61,6 +61,7 @@ import org.jetbrains.annotations.Nullable;
+ import io.papermc.paper.util.JarManifests; // Paper
+ import top.leavesmc.leaves.entity.BotManager;
+ import top.leavesmc.leaves.entity.PhotographerManager;
++import top.leavesmc.leaves.packet.bytebuf.Bytebuf;
+ 
+ /**
+  * Represents the Bukkit core, for version and Server singleton handling
+@@ -2897,6 +2898,14 @@ public final class Bukkit {
+         return server.getPhotographerManager();
+     }
+     // Leaves end - Photographer API
++    // Leaves start - Bytebuf API
++    public static @NotNull Bytebuf newByteBuf() {
++        return server.newByteBuf();
++    }
++    public static @NotNull Bytebuf newByteBuf(int initalCapability) {
++        return server.newByteBuf(initalCapability);
++    }
++    // Leaves end - Bytebuf API
+ 
+     @NotNull
+     public static Server.Spigot spigot() {
+diff --git a/src/main/java/org/bukkit/Server.java b/src/main/java/org/bukkit/Server.java
+index d465633aab75def37a2b4a9f2a034071970c1dfa..8d31b31df0941b2147e5f11c3df8e8ca2a9c51b4 100644
+--- a/src/main/java/org/bukkit/Server.java
++++ b/src/main/java/org/bukkit/Server.java
+@@ -61,6 +61,7 @@ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+ import top.leavesmc.leaves.entity.BotManager;
+ import top.leavesmc.leaves.entity.PhotographerManager;
++import top.leavesmc.leaves.packet.bytebuf.Bytebuf;
+ 
+ /**
+  * Represents a server implementation.
+@@ -2540,4 +2541,9 @@ public interface Server extends PluginMessageRecipient, net.kyori.adventure.audi
+     // Leaves start - Photographer API
+     @NotNull PhotographerManager getPhotographerManager();
+     // Leaves end - Photographer API
++    // Leaves start - Bytebuf API
++    @NotNull Bytebuf newByteBuf();
++    @NotNull Bytebuf newByteBuf(int initalCapability);
++
++    // Leaves end - Bytebuf API
+ }
+diff --git a/src/main/java/org/bukkit/entity/Player.java b/src/main/java/org/bukkit/entity/Player.java
+index c6cb4f17469a8f2e60dd3e28d41402851ce5fb21..d81a817c9eb1ca8d0ff8cb3b68336841e6b390e0 100644
+--- a/src/main/java/org/bukkit/entity/Player.java
++++ b/src/main/java/org/bukkit/entity/Player.java
+@@ -50,6 +50,9 @@ import org.bukkit.scoreboard.Scoreboard;
+ import org.jetbrains.annotations.ApiStatus;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
++import top.leavesmc.leaves.packet.Packet;
++import top.leavesmc.leaves.packet.PacketType;
++import top.leavesmc.leaves.packet.bytebuf.Bytebuf;
+ 
+ /**
+  * Represents a player, connected or not
+@@ -3706,6 +3709,10 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
+      */
+     void resetIdleDuration();
+     // Paper end
++    // Leaves start - Bytebuf API
++    void sendPacket(Packet packet);
++    void sendPacket(Bytebuf buf, PacketType packetType);
++    // Leaves end - Bytebuf API
+ 
+     @NotNull
+     @Override
+diff --git a/src/main/java/top/leavesmc/leaves/packet/Packet.java b/src/main/java/top/leavesmc/leaves/packet/Packet.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..5fb6c0531b33358a8eaf6ae3651553931d34ea02
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/packet/Packet.java
+@@ -0,0 +1,8 @@
++package top.leavesmc.leaves.packet;
++
++import top.leavesmc.leaves.packet.bytebuf.Bytebuf;
++
++public interface Packet {
++    PacketType getType();
++    Bytebuf getBytebuf();
++}
+diff --git a/src/main/java/top/leavesmc/leaves/packet/PacketType.java b/src/main/java/top/leavesmc/leaves/packet/PacketType.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..d73878c6394d84e7d374e93b3a1f2f030f6216be
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/packet/PacketType.java
+@@ -0,0 +1,115 @@
++package top.leavesmc.leaves.packet;
++
++/***
++ * TODO: API comment
++ */
++public enum PacketType {
++    ClientboundAddEntity,
++    ClientboundAddExperienceOrb,
++    ClientboundAnimate,
++    ClientboundAwardStats,
++    ClientboundBlockChangedAck,
++    ClientboundBlockDestruction,
++    ClientboundBlockEntityData,
++    ClientboundBlockEvent,
++    ClientboundBlockUpdate,
++    ClientboundBossEvent,
++    // ClientboundBundle, Not a regular packet, see https://wiki.vg/Protocol#Bundle_Delimiter
++    ClientboundChangeDifficulty,
++    ClientboundChunkBatchFinished,
++    ClientboundChunkBatchStart,
++    ClientboundChunksBiomes,
++    ClientboundClearTitles,
++    ClientboundCommands,
++    ClientboundCommandSuggestions,
++    ClientboundContainerClose,
++    ClientboundContainerSetContent,
++    ClientboundContainerSetData,
++    ClientboundContainerSetSlot,
++    ClientboundCooldown,
++    ClientboundCustomChatCompletions,
++    ClientboundDamageEvent,
++    ClientboundDeleteChat,
++    ClientboundDisguisedChat,
++    ClientboundEntityEvent,
++    ClientboundExplode,
++    ClientboundForgetLevelChunk,
++    ClientboundGameEvent,
++    ClientboundHorseScreenOpen,
++    ClientboundHurtAnimation,
++    ClientboundInitializeBorder,
++    ClientboundLevelChunkWithLight,
++    ClientboundLevelEvent,
++    ClientboundLevelParticles,
++    ClientboundLightUpdate,
++    ClientboundLightUpdatePack,
++    ClientboundLogin,
++    ClientboundMapItemData,
++    ClientboundMerchantOffers,
++    // ClientboundMoveEntity, Abstract class
++    ClientboundMoveVehicle,
++    ClientboundOpenBook,
++    ClientboundOpenScreen,
++    ClientboundOpenSignEditor,
++    ClientboundPlaceGhostRecipe,
++    ClientboundPlayerAbilities,
++    ClientboundPlayerChat,
++    ClientboundPlayerCombatEnd,
++    ClientboundPlayerCombatEnter,
++    ClientboundPlayerCombatKill,
++    ClientboundPlayerInfoRemove,
++    ClientboundPlayerInfoUpdate,
++    ClientboundPlayerLookAt,
++    ClientboundPlayerPosition,
++    ClientboundRecipe,
++    ClientboundRemoveEntities,
++    ClientboundRemoveMobEffect,
++    ClientboundResetScore,
++    ClientboundRespawn,
++    ClientboundRotateHead,
++    ClientboundSectionBlocksUpdate,
++    ClientboundSelectAdvancementsTab,
++    ClientboundServerData,
++    ClientboundSetActionBarText,
++    ClientboundSetBorderCenter,
++    ClientboundSetBorderLerpSize,
++    ClientboundSetBorderSize,
++    ClientboundSetBorderWarningDelay,
++    ClientboundSetBorderWarningDistance,
++    ClientboundSetCamera,
++    ClientboundSetCarriedItem,
++    ClientboundSetChunkCacheCenter,
++    ClientboundSetChunkCacheRadius,
++    ClientboundSetDefaultSpawnPosition,
++    ClientboundSetDisplayObjective,
++    ClientboundSetEntityData,
++    ClientboundSetEntityLink,
++    ClientboundSetEntityMotion,
++    ClientboundSetEquipment,
++    ClientboundSetExperience,
++    ClientboundSetHealth,
++    ClientboundSetObjective,
++    ClientboundSetPassengers,
++    ClientboundSetPlayerTeam,
++    ClientboundSetScore,
++    ClientboundSetSimulationDistance,
++    ClientboundSetSubtitleText,
++    ClientboundSetTime,
++    ClientboundSetTitlesAnimation,
++    ClientboundSetTitleText,
++    ClientboundSoundEntity,
++    ClientboundSound,
++    ClientboundStartConfiguration,
++    ClientboundStopSound,
++    ClientboundSystemChat,
++    ClientboundTabList,
++    ClientboundTagQuery,
++    ClientboundTakeItemEntity,
++    ClientboundTeleportEntity,
++    ClientboundTickingState,
++    ClientboundTickingStep,
++    ClientboundUpdateAdvancements,
++    ClientboundUpdateAttributes,
++    ClientboundUpdateMobEffect,
++    ClientboundUpdateRecipes
++}
+diff --git a/src/main/java/top/leavesmc/leaves/packet/bytebuf/Bytebuf.java b/src/main/java/top/leavesmc/leaves/packet/bytebuf/Bytebuf.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..93fe005dd471ca887b3ea804d1f87bb27211559e
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/packet/bytebuf/Bytebuf.java
+@@ -0,0 +1,29 @@
++package top.leavesmc.leaves.packet.bytebuf;
++
++import org.bukkit.inventory.ItemStack;
++import top.leavesmc.leaves.packet.Packet;
++import top.leavesmc.leaves.packet.PacketType;
++
++import java.util.UUID;
++
++public interface Bytebuf {
++    Packet toPacket(PacketType type);
++    Bytebuf writeByte(int i);
++    Bytebuf writeBoolean(boolean flag);
++    Bytebuf writeFloat(float f);
++    Bytebuf writeInt(int i);
++    Bytebuf writeShort(int i);
++    Bytebuf writeLong(long i);
++    Bytebuf writeVarInt(int value);
++    Bytebuf writeUUID(UUID uuid);
++    Bytebuf writeVarLong(long value);
++
++    /*
++    In order to bypass NMS in the API, use deserialization of Object here.
++    In the future, it may be adjusted to use API encapsulated content (workload++).
++     */
++    Bytebuf writeStringNbt(String nbt);
++    Bytebuf writeStringComponent(String component);
++    Bytebuf writeItem(ItemStack itemStack);
++
++}

@@ -1,0 +1,350 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Lumine1909 <3556577839@qq.com>
+Date: Fri, 12 Apr 2024 20:13:20 -0400
+Subject: [PATCH] bytebuf-api-impl
+
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index 70b4f5dc96e285184bd3e676397c6bddd193db37..856e8343396a6ff31b62c0883591fc1fcc8cbf83 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -245,7 +245,6 @@ import org.bukkit.plugin.PluginManager;
+ import org.bukkit.plugin.ServicesManager;
+ import org.bukkit.plugin.SimplePluginManager;
+ import org.bukkit.plugin.SimpleServicesManager;
+-import org.bukkit.plugin.java.JavaPluginLoader;
+ import org.bukkit.plugin.messaging.Messenger;
+ import org.bukkit.plugin.messaging.StandardMessenger;
+ import org.bukkit.potion.Potion;
+@@ -255,6 +254,7 @@ import org.bukkit.scoreboard.Criteria;
+ import org.bukkit.structure.StructureManager;
+ import org.bukkit.util.StringUtil;
+ import org.bukkit.util.permissions.DefaultPermissions;
++import org.jetbrains.annotations.NotNull;
+ import org.yaml.snakeyaml.LoaderOptions;
+ import org.yaml.snakeyaml.Yaml;
+ import org.yaml.snakeyaml.constructor.SafeConstructor;
+@@ -263,6 +263,8 @@ import org.yaml.snakeyaml.error.MarkedYAMLException;
+ import net.md_5.bungee.api.chat.BaseComponent; // Spigot
+ import top.leavesmc.leaves.entity.CraftBotManager;
+ import top.leavesmc.leaves.entity.CraftPhotographerManager;
++import top.leavesmc.leaves.packet.bytebuf.Bytebuf;
++import top.leavesmc.leaves.packet.bytebuf.WrappedBytebuf;
+ 
+ import javax.annotation.Nullable; // Paper
+ import javax.annotation.Nonnull; // Paper
+@@ -3288,4 +3290,15 @@ public final class CraftServer implements Server {
+         return photographerManager;
+     }
+     // Leaves end - replay mod api
++    // Leaves start - Bytebuf API
++    @Override
++    public @NotNull Bytebuf newByteBuf() {
++        return new WrappedBytebuf();
++    }
++
++    @Override
++    public @NotNull Bytebuf newByteBuf(int initalCapability) {
++        return new WrappedBytebuf(initalCapability);
++    }
++    // Leaves end - Bytebuf API
+ }
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+index 578343e048bc48d36cd6d26dcebb6f7567913b13..b864fd2e2003aa72dfd180acaf4b9357464f7f6f 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+@@ -179,6 +179,10 @@ import org.bukkit.scoreboard.Scoreboard;
+ import org.jetbrains.annotations.NotNull;
+ 
+ import net.md_5.bungee.api.chat.BaseComponent; // Spigot
++import top.leavesmc.leaves.packet.Packet;
++import top.leavesmc.leaves.packet.PacketType;
++import top.leavesmc.leaves.packet.WrappedPacket;
++import top.leavesmc.leaves.packet.bytebuf.Bytebuf;
+ 
+ @DelegateDeserialization(CraftOfflinePlayer.class)
+ public class CraftPlayer extends CraftHumanEntity implements Player {
+@@ -3388,6 +3392,17 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+     public void resetIdleDuration() {
+         this.getHandle().resetLastActionTime();
+     }
++    // Leaves start - Bytebuf API
++    @Override
++    public void sendPacket(Packet packet) {
++        this.getHandle().connection.send(((WrappedPacket) packet).getNmsPacket());
++    }
++    @Override
++    public void sendPacket(Bytebuf buf, PacketType packetType) {
++        Packet packet = buf.toPacket(packetType);
++        this.getHandle().connection.send(((WrappedPacket) packet).getNmsPacket());
++    }
++    // Leaves end - Bytebuf API
+     // Paper end
+ 
+     public Player.Spigot spigot()
+diff --git a/src/main/java/top/leavesmc/leaves/packet/WrappedPacket.java b/src/main/java/top/leavesmc/leaves/packet/WrappedPacket.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..2a2923d547f2f237c331e01353a397286b2018af
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/packet/WrappedPacket.java
+@@ -0,0 +1,140 @@
++package top.leavesmc.leaves.packet;
++
++import net.minecraft.network.protocol.game.*;
++import top.leavesmc.leaves.packet.bytebuf.Bytebuf;
++import top.leavesmc.leaves.packet.bytebuf.WrappedBytebuf;
++
++public class WrappedPacket implements Packet {
++    private final PacketType type;
++    private final Bytebuf wrappedBytebuf;
++    net.minecraft.network.protocol.Packet nmsPacket;
++    public WrappedPacket(PacketType type, WrappedBytebuf buf) {
++        this.type = type;
++        this.wrappedBytebuf = buf;
++        try {
++            switch (type) {
++                case ClientboundAddEntity -> nmsPacket = new ClientboundAddEntityPacket(buf.getFriendlyByteBuf());
++                case ClientboundAddExperienceOrb -> nmsPacket = new ClientboundAddExperienceOrbPacket(buf.getFriendlyByteBuf());
++                case ClientboundAnimate -> nmsPacket = new ClientboundAnimatePacket(buf.getFriendlyByteBuf());
++                case ClientboundAwardStats -> nmsPacket = new ClientboundAwardStatsPacket(buf.getFriendlyByteBuf());
++                case ClientboundBlockChangedAck -> nmsPacket = new ClientboundBlockChangedAckPacket(buf.getFriendlyByteBuf());
++                case ClientboundBlockDestruction -> nmsPacket = new ClientboundBlockDestructionPacket(buf.getFriendlyByteBuf());
++                case ClientboundBlockEntityData -> nmsPacket = new ClientboundBlockEntityDataPacket(buf.getFriendlyByteBuf());
++                case ClientboundBlockEvent -> nmsPacket = new ClientboundBlockEventPacket(buf.getFriendlyByteBuf());
++                case ClientboundBlockUpdate -> nmsPacket = new ClientboundBlockUpdatePacket(buf.getFriendlyByteBuf());
++                case ClientboundBossEvent -> nmsPacket = new ClientboundBossEventPacket(buf.getFriendlyByteBuf());
++                case ClientboundChangeDifficulty -> nmsPacket = new ClientboundChangeDifficultyPacket(buf.getFriendlyByteBuf());
++                case ClientboundChunkBatchFinished -> nmsPacket = new ClientboundChunkBatchFinishedPacket(buf.getFriendlyByteBuf());
++                case ClientboundChunkBatchStart -> nmsPacket = new ClientboundChunkBatchStartPacket(buf.getFriendlyByteBuf());
++                case ClientboundChunksBiomes -> nmsPacket = new ClientboundChunksBiomesPacket(buf.getFriendlyByteBuf());
++                case ClientboundClearTitles -> nmsPacket = new ClientboundClearTitlesPacket(buf.getFriendlyByteBuf());
++                case ClientboundCommands -> nmsPacket = new ClientboundCommandsPacket(buf.getFriendlyByteBuf());
++                case ClientboundCommandSuggestions -> nmsPacket = new ClientboundCommandSuggestionsPacket(buf.getFriendlyByteBuf());
++                case ClientboundContainerClose -> nmsPacket = new ClientboundContainerClosePacket(buf.getFriendlyByteBuf());
++                case ClientboundContainerSetContent -> nmsPacket = new ClientboundContainerSetContentPacket(buf.getFriendlyByteBuf());
++                case ClientboundContainerSetData -> nmsPacket = new ClientboundContainerSetDataPacket(buf.getFriendlyByteBuf());
++                case ClientboundContainerSetSlot -> nmsPacket = new ClientboundContainerSetSlotPacket(buf.getFriendlyByteBuf());
++                case ClientboundCooldown -> nmsPacket = new ClientboundCooldownPacket(buf.getFriendlyByteBuf());
++                case ClientboundCustomChatCompletions -> nmsPacket = new ClientboundCustomChatCompletionsPacket(buf.getFriendlyByteBuf());
++                case ClientboundDamageEvent -> nmsPacket = new ClientboundDamageEventPacket(buf.getFriendlyByteBuf());
++                case ClientboundDeleteChat -> nmsPacket = new ClientboundDeleteChatPacket(buf.getFriendlyByteBuf());
++                case ClientboundDisguisedChat -> nmsPacket = new ClientboundDisguisedChatPacket(buf.getFriendlyByteBuf());
++                case ClientboundEntityEvent -> nmsPacket = new ClientboundEntityEventPacket(buf.getFriendlyByteBuf());
++                case ClientboundExplode -> nmsPacket = new ClientboundExplodePacket(buf.getFriendlyByteBuf());
++                case ClientboundForgetLevelChunk -> nmsPacket = new ClientboundForgetLevelChunkPacket(buf.getFriendlyByteBuf());
++                case ClientboundGameEvent -> nmsPacket = new ClientboundGameEventPacket(buf.getFriendlyByteBuf());
++                case ClientboundHorseScreenOpen -> nmsPacket = new ClientboundHorseScreenOpenPacket(buf.getFriendlyByteBuf());
++                case ClientboundHurtAnimation -> nmsPacket = new ClientboundHurtAnimationPacket(buf.getFriendlyByteBuf());
++                case ClientboundInitializeBorder -> nmsPacket = new ClientboundInitializeBorderPacket(buf.getFriendlyByteBuf());
++                case ClientboundLevelChunkWithLight -> nmsPacket = new ClientboundLevelChunkWithLightPacket(buf.getFriendlyByteBuf());
++                case ClientboundLevelEvent -> nmsPacket = new ClientboundLevelEventPacket(buf.getFriendlyByteBuf());
++                case ClientboundLevelParticles -> nmsPacket = new ClientboundLevelParticlesPacket(buf.getFriendlyByteBuf());
++                case ClientboundLightUpdate -> nmsPacket = new ClientboundLightUpdatePacket(buf.getFriendlyByteBuf());
++                case ClientboundLogin -> nmsPacket = new ClientboundLoginPacket(buf.getFriendlyByteBuf());
++                case ClientboundMapItemData -> nmsPacket = new ClientboundMapItemDataPacket(buf.getFriendlyByteBuf());
++                case ClientboundMerchantOffers -> nmsPacket = new ClientboundMerchantOffersPacket(buf.getFriendlyByteBuf());
++                case ClientboundMoveVehicle -> nmsPacket = new ClientboundMoveVehiclePacket(buf.getFriendlyByteBuf());
++                case ClientboundOpenBook -> nmsPacket = new ClientboundOpenBookPacket(buf.getFriendlyByteBuf());
++                case ClientboundOpenScreen -> nmsPacket = new ClientboundOpenScreenPacket(buf.getFriendlyByteBuf());
++                case ClientboundOpenSignEditor -> nmsPacket = new ClientboundOpenSignEditorPacket(buf.getFriendlyByteBuf());
++                case ClientboundPlaceGhostRecipe -> nmsPacket = new ClientboundPlaceGhostRecipePacket(buf.getFriendlyByteBuf());
++                case ClientboundPlayerAbilities -> nmsPacket = new ClientboundPlayerAbilitiesPacket(buf.getFriendlyByteBuf());
++                case ClientboundPlayerChat -> nmsPacket = new ClientboundPlayerChatPacket(buf.getFriendlyByteBuf());
++                case ClientboundPlayerCombatEnd -> nmsPacket = new ClientboundPlayerCombatEndPacket(buf.getFriendlyByteBuf());
++                case ClientboundPlayerCombatEnter -> nmsPacket = new ClientboundPlayerCombatEnterPacket(buf.getFriendlyByteBuf());
++                case ClientboundPlayerCombatKill -> nmsPacket = new ClientboundPlayerCombatKillPacket(buf.getFriendlyByteBuf());
++                case ClientboundPlayerInfoRemove -> nmsPacket = new ClientboundPlayerInfoRemovePacket(buf.getFriendlyByteBuf());
++                case ClientboundPlayerInfoUpdate -> nmsPacket = new ClientboundPlayerInfoUpdatePacket(buf.getFriendlyByteBuf());
++                case ClientboundPlayerLookAt -> nmsPacket = new ClientboundPlayerLookAtPacket(buf.getFriendlyByteBuf());
++                case ClientboundPlayerPosition -> nmsPacket = new ClientboundPlayerPositionPacket(buf.getFriendlyByteBuf());
++                case ClientboundRecipe -> nmsPacket = new ClientboundRecipePacket(buf.getFriendlyByteBuf());
++                case ClientboundRemoveEntities -> nmsPacket = new ClientboundRemoveEntitiesPacket(buf.getFriendlyByteBuf());
++                case ClientboundRemoveMobEffect -> nmsPacket = new ClientboundRemoveMobEffectPacket(buf.getFriendlyByteBuf());
++                case ClientboundResetScore -> nmsPacket = new ClientboundResetScorePacket(buf.getFriendlyByteBuf());
++                case ClientboundRespawn -> nmsPacket = new ClientboundRespawnPacket(buf.getFriendlyByteBuf());
++                case ClientboundRotateHead -> nmsPacket = new ClientboundRotateHeadPacket(buf.getFriendlyByteBuf());
++                case ClientboundSectionBlocksUpdate -> nmsPacket = new ClientboundSectionBlocksUpdatePacket(buf.getFriendlyByteBuf());
++                case ClientboundSelectAdvancementsTab -> nmsPacket = new ClientboundSelectAdvancementsTabPacket(buf.getFriendlyByteBuf());
++                case ClientboundServerData -> nmsPacket = new ClientboundServerDataPacket(buf.getFriendlyByteBuf());
++                case ClientboundSetActionBarText -> nmsPacket = new ClientboundSetActionBarTextPacket(buf.getFriendlyByteBuf());
++                case ClientboundSetBorderCenter -> nmsPacket = new ClientboundSetBorderCenterPacket(buf.getFriendlyByteBuf());
++                case ClientboundSetBorderLerpSize -> nmsPacket = new ClientboundSetBorderLerpSizePacket(buf.getFriendlyByteBuf());
++                case ClientboundSetBorderSize -> nmsPacket = new ClientboundSetBorderSizePacket(buf.getFriendlyByteBuf());
++                case ClientboundSetBorderWarningDelay -> nmsPacket = new ClientboundSetBorderWarningDelayPacket(buf.getFriendlyByteBuf());
++                case ClientboundSetBorderWarningDistance -> nmsPacket = new ClientboundSetBorderWarningDistancePacket(buf.getFriendlyByteBuf());
++                case ClientboundSetCamera -> nmsPacket = new ClientboundSetCameraPacket(buf.getFriendlyByteBuf());
++                case ClientboundSetCarriedItem -> nmsPacket = new ClientboundSetCarriedItemPacket(buf.getFriendlyByteBuf());
++                case ClientboundSetChunkCacheCenter -> nmsPacket = new ClientboundSetChunkCacheCenterPacket(buf.getFriendlyByteBuf());
++                case ClientboundSetChunkCacheRadius -> nmsPacket = new ClientboundSetChunkCacheRadiusPacket(buf.getFriendlyByteBuf());
++                case ClientboundSetDefaultSpawnPosition -> nmsPacket = new ClientboundSetDefaultSpawnPositionPacket(buf.getFriendlyByteBuf());
++                case ClientboundSetDisplayObjective -> nmsPacket = new ClientboundSetDisplayObjectivePacket(buf.getFriendlyByteBuf());
++                case ClientboundSetEntityData -> nmsPacket = new ClientboundSetEntityDataPacket(buf.getFriendlyByteBuf());
++                case ClientboundSetEntityLink -> nmsPacket = new ClientboundSetEntityLinkPacket(buf.getFriendlyByteBuf());
++                case ClientboundSetEntityMotion -> nmsPacket = new ClientboundSetEntityMotionPacket(buf.getFriendlyByteBuf());
++                case ClientboundSetEquipment -> nmsPacket = new ClientboundSetEquipmentPacket(buf.getFriendlyByteBuf());
++                case ClientboundSetExperience -> nmsPacket = new ClientboundSetExperiencePacket(buf.getFriendlyByteBuf());
++                case ClientboundSetHealth -> nmsPacket = new ClientboundSetHealthPacket(buf.getFriendlyByteBuf());
++                case ClientboundSetObjective -> nmsPacket = new ClientboundSetObjectivePacket(buf.getFriendlyByteBuf());
++                case ClientboundSetPassengers -> nmsPacket = new ClientboundSetPassengersPacket(buf.getFriendlyByteBuf());
++                case ClientboundSetPlayerTeam -> nmsPacket = new ClientboundSetPlayerTeamPacket(buf.getFriendlyByteBuf());
++                case ClientboundSetScore -> nmsPacket = new ClientboundSetScorePacket(buf.getFriendlyByteBuf());
++                case ClientboundSetSimulationDistance -> nmsPacket = new ClientboundSetSimulationDistancePacket(buf.getFriendlyByteBuf());
++                case ClientboundSetSubtitleText -> nmsPacket = new ClientboundSetSubtitleTextPacket(buf.getFriendlyByteBuf());
++                case ClientboundSetTime -> nmsPacket = new ClientboundSetTimePacket(buf.getFriendlyByteBuf());
++                case ClientboundSetTitlesAnimation -> nmsPacket = new ClientboundSetTitlesAnimationPacket(buf.getFriendlyByteBuf());
++                case ClientboundSetTitleText -> nmsPacket = new ClientboundSetTitleTextPacket(buf.getFriendlyByteBuf());
++                case ClientboundSoundEntity -> nmsPacket = new ClientboundSoundEntityPacket(buf.getFriendlyByteBuf());
++                case ClientboundSound -> nmsPacket = new ClientboundSoundPacket(buf.getFriendlyByteBuf());
++                case ClientboundStartConfiguration -> nmsPacket = new ClientboundStartConfigurationPacket(buf.getFriendlyByteBuf());
++                case ClientboundStopSound -> nmsPacket = new ClientboundStopSoundPacket(buf.getFriendlyByteBuf());
++                case ClientboundSystemChat -> nmsPacket = new ClientboundSystemChatPacket(buf.getFriendlyByteBuf());
++                case ClientboundTabList -> nmsPacket = new ClientboundTabListPacket(buf.getFriendlyByteBuf());
++                case ClientboundTagQuery -> nmsPacket = new ClientboundTagQueryPacket(buf.getFriendlyByteBuf());
++                case ClientboundTakeItemEntity -> nmsPacket = new ClientboundTakeItemEntityPacket(buf.getFriendlyByteBuf());
++                case ClientboundTeleportEntity -> nmsPacket = new ClientboundTeleportEntityPacket(buf.getFriendlyByteBuf());
++                case ClientboundTickingState -> nmsPacket = new ClientboundTickingStatePacket(buf.getFriendlyByteBuf());
++                case ClientboundTickingStep -> nmsPacket = new ClientboundTickingStepPacket(buf.getFriendlyByteBuf());
++                case ClientboundUpdateAdvancements -> nmsPacket = new ClientboundUpdateAdvancementsPacket(buf.getFriendlyByteBuf());
++                case ClientboundUpdateAttributes -> nmsPacket = new ClientboundUpdateAttributesPacket(buf.getFriendlyByteBuf());
++                case ClientboundUpdateMobEffect -> nmsPacket = new ClientboundUpdateMobEffectPacket(buf.getFriendlyByteBuf());
++                case ClientboundUpdateRecipes -> nmsPacket = new ClientboundUpdateRecipesPacket(buf.getFriendlyByteBuf());
++
++            }
++        } catch (Exception e) {
++            throw new UnsupportedOperationException("This feature is not completely finished yet, packet type " + type + " is not supported temporary.");
++        }
++    }
++    @Override
++    public PacketType getType() {
++        return type;
++    }
++
++    @Override
++    public Bytebuf getBytebuf() {
++        return wrappedBytebuf;
++    }
++
++    public net.minecraft.network.protocol.Packet getNmsPacket() {
++        return nmsPacket;
++    }
++}
+diff --git a/src/main/java/top/leavesmc/leaves/packet/bytebuf/WrappedBytebuf.java b/src/main/java/top/leavesmc/leaves/packet/bytebuf/WrappedBytebuf.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..cd080ec9c99dcceca8e72850b97a726706b349bc
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/packet/bytebuf/WrappedBytebuf.java
+@@ -0,0 +1,114 @@
++package top.leavesmc.leaves.packet.bytebuf;
++
++import com.mojang.brigadier.exceptions.CommandSyntaxException;
++import io.netty.buffer.Unpooled;
++import net.minecraft.nbt.Tag;
++import net.minecraft.nbt.TagParser;
++import net.minecraft.network.FriendlyByteBuf;
++import net.minecraft.network.chat.Component;
++import org.bukkit.craftbukkit.inventory.CraftItemStack;
++import org.bukkit.inventory.ItemStack;
++import top.leavesmc.leaves.packet.Packet;
++import top.leavesmc.leaves.packet.PacketType;
++import top.leavesmc.leaves.packet.WrappedPacket;
++
++import java.util.UUID;
++
++public class WrappedBytebuf implements Bytebuf {
++    private final FriendlyByteBuf friendlyByteBuf;
++    public WrappedBytebuf() {
++        this(256);
++    }
++    public WrappedBytebuf(int initialCapacity) {
++        friendlyByteBuf = new FriendlyByteBuf(Unpooled.buffer(initialCapacity));
++    }
++
++    @Override
++    public Packet toPacket(PacketType type) {
++        return new WrappedPacket(type, this);
++    }
++
++    @Override
++    public Bytebuf writeByte(int i) {
++        friendlyByteBuf.writeByte(i);
++        return this;
++    }
++
++    @Override
++    public Bytebuf writeBoolean(boolean flag) {
++        friendlyByteBuf.writeBoolean(flag);
++        return this;
++    }
++
++    @Override
++    public Bytebuf writeFloat(float f) {
++        friendlyByteBuf.writeFloat(f);
++        return this;
++    }
++
++    @Override
++    public Bytebuf writeInt(int i) {
++        friendlyByteBuf.writeInt(i);
++        return this;
++    }
++
++    @Override
++    public Bytebuf writeShort(int i) {
++        friendlyByteBuf.writeShort(i);
++        return this;
++    }
++
++    @Override
++    public Bytebuf writeLong(long i) {
++        friendlyByteBuf.writeLong(i);
++        return this;
++    }
++
++    @Override
++    public Bytebuf writeVarInt(int value) {
++        friendlyByteBuf.writeVarInt(value);
++        return this;
++    }
++
++    @Override
++    public Bytebuf writeUUID(UUID uuid) {
++        return null;
++    }
++
++    @Override
++    public Bytebuf writeVarLong(long value) {
++        friendlyByteBuf.writeVarLong(value);
++        return this;
++    }
++
++    @Override
++    public Bytebuf writeStringNbt(String nbt) {
++        try {
++            Tag tag = TagParser.parseTag(nbt);
++            friendlyByteBuf.writeNbt(tag);
++        } catch (CommandSyntaxException e) {
++            throw new IllegalArgumentException(e);
++        }
++        return this;
++    }
++
++    @Override
++    public Bytebuf writeStringComponent(String component) {
++        try {
++            friendlyByteBuf.writeComponent(Component.Serializer.fromJson(component));
++        } catch (Exception e) {
++            throw new IllegalArgumentException(e);
++        }
++        return this;
++    }
++
++    @Override
++    public Bytebuf writeItem(ItemStack itemStack) {
++        friendlyByteBuf.writeItem(((CraftItemStack) itemStack).handle);
++        return this;
++    }
++
++    public FriendlyByteBuf getFriendlyByteBuf() {
++        return friendlyByteBuf;
++    }
++}

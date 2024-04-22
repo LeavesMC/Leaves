@@ -5,7 +5,7 @@ Subject: [PATCH] bytebuf-api-impl
 
 
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 70b4f5dc96e285184bd3e676397c6bddd193db37..856e8343396a6ff31b62c0883591fc1fcc8cbf83 100644
+index 70b4f5dc96e285184bd3e676397c6bddd193db37..e6e0ef62aa9576bce4c8bf3c3390641ba843d5b5 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 @@ -245,7 +245,6 @@ import org.bukkit.plugin.PluginManager;
@@ -16,83 +16,79 @@ index 70b4f5dc96e285184bd3e676397c6bddd193db37..856e8343396a6ff31b62c0883591fc1f
  import org.bukkit.plugin.messaging.Messenger;
  import org.bukkit.plugin.messaging.StandardMessenger;
  import org.bukkit.potion.Potion;
-@@ -255,6 +254,7 @@ import org.bukkit.scoreboard.Criteria;
- import org.bukkit.structure.StructureManager;
- import org.bukkit.util.StringUtil;
- import org.bukkit.util.permissions.DefaultPermissions;
-+import org.jetbrains.annotations.NotNull;
- import org.yaml.snakeyaml.LoaderOptions;
- import org.yaml.snakeyaml.Yaml;
- import org.yaml.snakeyaml.constructor.SafeConstructor;
-@@ -263,6 +263,8 @@ import org.yaml.snakeyaml.error.MarkedYAMLException;
- import net.md_5.bungee.api.chat.BaseComponent; // Spigot
- import top.leavesmc.leaves.entity.CraftBotManager;
- import top.leavesmc.leaves.entity.CraftPhotographerManager;
-+import top.leavesmc.leaves.packet.bytebuf.Bytebuf;
-+import top.leavesmc.leaves.packet.bytebuf.WrappedBytebuf;
- 
- import javax.annotation.Nullable; // Paper
- import javax.annotation.Nonnull; // Paper
-@@ -3288,4 +3290,15 @@ public final class CraftServer implements Server {
+@@ -3288,4 +3287,15 @@ public final class CraftServer implements Server {
          return photographerManager;
      }
      // Leaves end - replay mod api
 +    // Leaves start - Bytebuf API
 +    @Override
-+    public @NotNull Bytebuf newByteBuf() {
-+        return new WrappedBytebuf();
++    public @Nonnull org.leavesmc.leaves.packet.bytebuf.Bytebuf newByteBuf() {
++        return new org.leavesmc.leaves.packet.bytebuf.WrappedBytebuf();
 +    }
 +
 +    @Override
-+    public @NotNull Bytebuf newByteBuf(int initalCapability) {
-+        return new WrappedBytebuf(initalCapability);
++    public @Nonnull org.leavesmc.leaves.packet.bytebuf.Bytebuf newByteBuf(int initalCapability) {
++        return new org.leavesmc.leaves.packet.bytebuf.WrappedBytebuf(initalCapability);
 +    }
 +    // Leaves end - Bytebuf API
  }
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
-index 578343e048bc48d36cd6d26dcebb6f7567913b13..b864fd2e2003aa72dfd180acaf4b9357464f7f6f 100644
+index 578343e048bc48d36cd6d26dcebb6f7567913b13..eb7af60b34e2fdd6b063c53d50d97dd8d6e352c7 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
-@@ -179,6 +179,10 @@ import org.bukkit.scoreboard.Scoreboard;
+@@ -148,7 +148,6 @@ import org.bukkit.craftbukkit.map.CraftMapView;
+ import org.bukkit.craftbukkit.map.RenderData;
+ import org.bukkit.craftbukkit.potion.CraftPotionEffectType;
+ import org.bukkit.craftbukkit.potion.CraftPotionUtil;
+-import org.bukkit.craftbukkit.profile.CraftPlayerProfile;
+ import org.bukkit.craftbukkit.scoreboard.CraftScoreboard;
+ import org.bukkit.craftbukkit.util.CraftChatMessage;
+ import org.bukkit.craftbukkit.util.CraftLocation;
+@@ -161,7 +160,6 @@ import org.bukkit.event.player.PlayerExpCooldownChangeEvent;
+ import org.bukkit.event.player.PlayerHideEntityEvent;
+ import org.bukkit.event.player.PlayerRegisterChannelEvent;
+ import org.bukkit.event.player.PlayerShowEntityEvent;
+-import org.bukkit.event.player.PlayerSpawnChangeEvent;
+ import org.bukkit.event.player.PlayerTeleportEvent;
+ import org.bukkit.event.player.PlayerUnregisterChannelEvent;
+ import org.bukkit.inventory.EquipmentSlot;
+@@ -174,7 +172,6 @@ import org.bukkit.plugin.Plugin;
+ import org.bukkit.plugin.messaging.StandardMessenger;
+ import org.bukkit.potion.PotionEffect;
+ import org.bukkit.potion.PotionEffectType;
+-import org.bukkit.profile.PlayerProfile;
+ import org.bukkit.scoreboard.Scoreboard;
  import org.jetbrains.annotations.NotNull;
  
- import net.md_5.bungee.api.chat.BaseComponent; // Spigot
-+import top.leavesmc.leaves.packet.Packet;
-+import top.leavesmc.leaves.packet.PacketType;
-+import top.leavesmc.leaves.packet.WrappedPacket;
-+import top.leavesmc.leaves.packet.bytebuf.Bytebuf;
- 
- @DelegateDeserialization(CraftOfflinePlayer.class)
- public class CraftPlayer extends CraftHumanEntity implements Player {
-@@ -3388,6 +3392,17 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+@@ -3388,6 +3385,17 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
      public void resetIdleDuration() {
          this.getHandle().resetLastActionTime();
      }
 +    // Leaves start - Bytebuf API
 +    @Override
-+    public void sendPacket(Packet packet) {
-+        this.getHandle().connection.send(((WrappedPacket) packet).getNmsPacket());
++    public void sendPacket(org.leavesmc.leaves.packet.Packet packet) {
++        this.getHandle().connection.send(((org.leavesmc.leaves.packet.WrappedPacket) packet).getNmsPacket());
 +    }
 +    @Override
-+    public void sendPacket(Bytebuf buf, PacketType packetType) {
-+        Packet packet = buf.toPacket(packetType);
-+        this.getHandle().connection.send(((WrappedPacket) packet).getNmsPacket());
++    public void sendPacket(org.leavesmc.leaves.packet.bytebuf.Bytebuf buf, org.leavesmc.leaves.packet.PacketType packetType) {
++        org.leavesmc.leaves.packet.Packet packet = buf.toPacket(packetType);
++        this.getHandle().connection.send(((org.leavesmc.leaves.packet.WrappedPacket) packet).getNmsPacket());
 +    }
 +    // Leaves end - Bytebuf API
      // Paper end
  
      public Player.Spigot spigot()
-diff --git a/src/main/java/top/leavesmc/leaves/packet/WrappedPacket.java b/src/main/java/top/leavesmc/leaves/packet/WrappedPacket.java
+diff --git a/src/main/java/org/leavesmc/leaves/packet/WrappedPacket.java b/src/main/java/org/leavesmc/leaves/packet/WrappedPacket.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..2a2923d547f2f237c331e01353a397286b2018af
+index 0000000000000000000000000000000000000000..dc0dde18d3ae300657d92e20ae3e17136b8b72f4
 --- /dev/null
-+++ b/src/main/java/top/leavesmc/leaves/packet/WrappedPacket.java
++++ b/src/main/java/org/leavesmc/leaves/packet/WrappedPacket.java
 @@ -0,0 +1,140 @@
-+package top.leavesmc.leaves.packet;
++package org.leavesmc.leaves.packet;
 +
 +import net.minecraft.network.protocol.game.*;
-+import top.leavesmc.leaves.packet.bytebuf.Bytebuf;
-+import top.leavesmc.leaves.packet.bytebuf.WrappedBytebuf;
++import org.leavesmc.leaves.packet.bytebuf.Bytebuf;
++import org.leavesmc.leaves.packet.bytebuf.WrappedBytebuf;
 +
 +public class WrappedPacket implements Packet {
 +    private final PacketType type;
@@ -228,13 +224,13 @@ index 0000000000000000000000000000000000000000..2a2923d547f2f237c331e01353a39728
 +        return nmsPacket;
 +    }
 +}
-diff --git a/src/main/java/top/leavesmc/leaves/packet/bytebuf/WrappedBytebuf.java b/src/main/java/top/leavesmc/leaves/packet/bytebuf/WrappedBytebuf.java
+diff --git a/src/main/java/org/leavesmc/leaves/packet/bytebuf/WrappedBytebuf.java b/src/main/java/org/leavesmc/leaves/packet/bytebuf/WrappedBytebuf.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..cd080ec9c99dcceca8e72850b97a726706b349bc
+index 0000000000000000000000000000000000000000..7444fab5dba74abfcf7b33eb39ea51d53a283a15
 --- /dev/null
-+++ b/src/main/java/top/leavesmc/leaves/packet/bytebuf/WrappedBytebuf.java
++++ b/src/main/java/org/leavesmc/leaves/packet/bytebuf/WrappedBytebuf.java
 @@ -0,0 +1,114 @@
-+package top.leavesmc.leaves.packet.bytebuf;
++package org.leavesmc.leaves.packet.bytebuf;
 +
 +import com.mojang.brigadier.exceptions.CommandSyntaxException;
 +import io.netty.buffer.Unpooled;
@@ -244,9 +240,9 @@ index 0000000000000000000000000000000000000000..cd080ec9c99dcceca8e72850b97a7267
 +import net.minecraft.network.chat.Component;
 +import org.bukkit.craftbukkit.inventory.CraftItemStack;
 +import org.bukkit.inventory.ItemStack;
-+import top.leavesmc.leaves.packet.Packet;
-+import top.leavesmc.leaves.packet.PacketType;
-+import top.leavesmc.leaves.packet.WrappedPacket;
++import org.leavesmc.leaves.packet.WrappedPacket;
++import org.leavesmc.leaves.packet.Packet;
++import org.leavesmc.leaves.packet.PacketType;
 +
 +import java.util.UUID;
 +

@@ -6,43 +6,38 @@ Subject: [PATCH] Use aging cache for biome temperatures
 This patch is Powered by Pufferfish(https://github.com/pufferfish-gg/Pufferfish)
 
 diff --git a/src/main/java/net/minecraft/world/level/biome/Biome.java b/src/main/java/net/minecraft/world/level/biome/Biome.java
-index 4f9187d9d640618c40a2fa528f36b845017b4777..f9afca5e44ccb8e2828a26ffa179fed0bf9a209e 100644
+index 64076a452a315090d299a7a58a43fd3b5c1b4e0a..0071e220624d636aec5f1477b8338c4d6b4f8918 100644
 --- a/src/main/java/net/minecraft/world/level/biome/Biome.java
 +++ b/src/main/java/net/minecraft/world/level/biome/Biome.java
-@@ -66,23 +66,33 @@ public final class Biome {
+@@ -63,7 +63,17 @@ public final class Biome {
      private final BiomeGenerationSettings generationSettings;
      private final MobSpawnSettings mobSettings;
      private final BiomeSpecialEffects specialEffects;
--    private final ThreadLocal<Long2FloatLinkedOpenHashMap> temperatureCache = ThreadLocal.withInitial(() -> {
--        return Util.make(() -> {
--            Long2FloatLinkedOpenHashMap long2FloatLinkedOpenHashMap = new Long2FloatLinkedOpenHashMap(1024, 0.25F) {
--                protected void rehash(int i) {
--                }
--            };
--            long2FloatLinkedOpenHashMap.defaultReturnValue(Float.NaN);
--            return long2FloatLinkedOpenHashMap;
--        });
--    });
+-    private final ThreadLocal<Long2FloatLinkedOpenHashMap> temperatureCache = ThreadLocal.withInitial(() -> Util.make(() -> {
 +    // Leaves start - use our cache
 +    private final ThreadLocal<Long2FloatLinkedOpenHashMap> temperatureCache;
 +    private final ThreadLocal<top.leavesmc.leaves.structs.Long2FloatAgingCache> temperatureAgingCache;
- 
-     Biome(Biome.ClimateSettings weather, BiomeSpecialEffects effects, BiomeGenerationSettings generationSettings, MobSpawnSettings spawnSettings) {
-         this.climateSettings = weather;
-         this.generationSettings = generationSettings;
-         this.mobSettings = spawnSettings;
-         this.specialEffects = effects;
 +
-+        temperatureCache = ThreadLocal.withInitial(() -> {
-+            return Util.make(() -> {
-+                Long2FloatLinkedOpenHashMap long2FloatLinkedOpenHashMap = new Long2FloatLinkedOpenHashMap(1024, 0.25F) {
-+                    protected void rehash(int i) {
-+                    }
-+                };
-+                long2FloatLinkedOpenHashMap.defaultReturnValue(Float.NaN);
-+                return long2FloatLinkedOpenHashMap;
-+            });
-+        });
++    Biome(Biome.ClimateSettings weather, BiomeSpecialEffects effects, BiomeGenerationSettings generationSettings, MobSpawnSettings spawnSettings) {
++        this.climateSettings = weather;
++        this.generationSettings = generationSettings;
++        this.mobSettings = spawnSettings;
++        this.specialEffects = effects;
++
++        temperatureCache = ThreadLocal.withInitial(() -> Util.make(() -> {
+             Long2FloatLinkedOpenHashMap long2FloatLinkedOpenHashMap = new Long2FloatLinkedOpenHashMap(1024, 0.25F) {
+                 protected void rehash(int i) {
+                 }
+@@ -71,13 +81,13 @@ public final class Biome {
+             long2FloatLinkedOpenHashMap.defaultReturnValue(Float.NaN);
+             return long2FloatLinkedOpenHashMap;
+         }));
+-
+-    Biome(Biome.ClimateSettings weather, BiomeSpecialEffects effects, BiomeGenerationSettings generationSettings, MobSpawnSettings spawnSettings) {
+-        this.climateSettings = weather;
+-        this.generationSettings = generationSettings;
+-        this.mobSettings = spawnSettings;
+-        this.specialEffects = effects;
 +        temperatureAgingCache = ThreadLocal.withInitial(() -> {
 +            return Util.make(() -> {
 +                return new top.leavesmc.leaves.structs.Long2FloatAgingCache(TEMPERATURE_CACHE_SIZE);
@@ -53,7 +48,7 @@ index 4f9187d9d640618c40a2fa528f36b845017b4777..f9afca5e44ccb8e2828a26ffa179fed0
  
      public int getSkyColor() {
          return this.specialEffects.getSkyColor();
-@@ -118,19 +128,33 @@ public final class Biome {
+@@ -112,19 +122,32 @@ public final class Biome {
      @Deprecated
      public float getTemperature(BlockPos blockPos) {
          long l = blockPos.asLong();
@@ -61,10 +56,6 @@ index 4f9187d9d640618c40a2fa528f36b845017b4777..f9afca5e44ccb8e2828a26ffa179fed0
 -        float f = long2FloatLinkedOpenHashMap.get(l);
 -        if (!Float.isNaN(f)) {
 -            return f;
--        } else {
--            float g = this.getHeightAdjustedTemperature(blockPos);
--            if (long2FloatLinkedOpenHashMap.size() == 1024) {
--                long2FloatLinkedOpenHashMap.removeFirstFloat();
 +        // Leaves start - use our cache
 +        if (top.leavesmc.leaves.LeavesConfig.biomeTemperaturesUseAgingCache) {
 +            top.leavesmc.leaves.structs.Long2FloatAgingCache cache = this.temperatureAgingCache.get();
@@ -75,8 +66,11 @@ index 4f9187d9d640618c40a2fa528f36b845017b4777..f9afca5e44ccb8e2828a26ffa179fed0
 +                float g = this.getHeightAdjustedTemperature(blockPos);
 +                cache.putValue(l, g);
 +                return g;
-             }
-+        } else {
++            }
+         } else {
+-            float g = this.getHeightAdjustedTemperature(blockPos);
+-            if (long2FloatLinkedOpenHashMap.size() == 1024) {
+-                long2FloatLinkedOpenHashMap.removeFirstFloat();
 +            Long2FloatLinkedOpenHashMap long2FloatLinkedOpenHashMap = this.temperatureCache.get();
 +            float f = long2FloatLinkedOpenHashMap.get(l);
 +            if (!Float.isNaN(f)) {
@@ -86,12 +80,12 @@ index 4f9187d9d640618c40a2fa528f36b845017b4777..f9afca5e44ccb8e2828a26ffa179fed0
 +                if (long2FloatLinkedOpenHashMap.size() == 1024) {
 +                    long2FloatLinkedOpenHashMap.removeFirstFloat();
 +                }
- 
--            long2FloatLinkedOpenHashMap.put(l, g);
--            return g;
 +                long2FloatLinkedOpenHashMap.put(l, g);
 +                return g;
-+            }
+             }
+-
+-            long2FloatLinkedOpenHashMap.put(l, g);
+-            return g;
          }
 +        // Leaves end - use our cache
      }

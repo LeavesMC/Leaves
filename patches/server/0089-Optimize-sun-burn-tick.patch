@@ -1,0 +1,86 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Thu, 20 Jul 2023 15:18:50 +0800
+Subject: [PATCH] Optimize sun burn tick
+
+This patch is Powered by Gale(https://github.com/GaleMC/Gale)
+
+diff --git a/src/main/java/net/minecraft/world/entity/Entity.java b/src/main/java/net/minecraft/world/entity/Entity.java
+index 4b0e6e5366294f74c24a3bbd97699ede15706954..8b5c464eed35364edb441012ce5e7ecf8f03e004 100644
+--- a/src/main/java/net/minecraft/world/entity/Entity.java
++++ b/src/main/java/net/minecraft/world/entity/Entity.java
+@@ -2036,8 +2036,22 @@ public abstract class Entity implements Nameable, EntityAccess, CommandSource, S
+     /** @deprecated */
+     @Deprecated
+     public float getLightLevelDependentMagicValue() {
+-        return this.level().hasChunkAt(this.getBlockX(), this.getBlockZ()) ? this.level().getLightLevelDependentMagicValue(BlockPos.containing(this.getX(), this.getEyeY(), this.getZ())) : 0.0F;
++        // Leaves start - optimize sun burn tick
++        if (!top.leavesmc.leaves.LeavesConfig.optimizeSunBurnTick) {
++            return this.level().hasChunkAt(this.getBlockX(), this.getBlockZ()) ? this.level().getLightLevelDependentMagicValue(BlockPos.containing(this.getX(), this.getEyeY(), this.getZ())) : 0.0F;
++        } else {
++            return this.getLightLevelDependentMagicValue(BlockPos.containing(this.getX(), this.getEyeY(), this.getZ()));
++        }
++        // Leaves end - optimize sun burn tick
++    }
++
++    // Leaves start - optimize sun burn tick
++    /** @deprecated */
++    @Deprecated
++    public float getLightLevelDependentMagicValue(BlockPos pos) {
++        return this.level().hasChunkAt(this.getBlockX(), this.getBlockZ()) ? this.level.getLightLevelDependentMagicValue(pos) : 0.0F;
+     }
++    // Leaves end - optimize sun burn tick
+ 
+     public void absMoveTo(double x, double y, double z, float yaw, float pitch) {
+         this.absMoveTo(x, y, z);
+diff --git a/src/main/java/net/minecraft/world/entity/Mob.java b/src/main/java/net/minecraft/world/entity/Mob.java
+index a4a0f99784ba5a0af851ff43eaf4ca10b6e96b1d..f41ed311f9368a0ab81a613238cd5a2468aae706 100644
+--- a/src/main/java/net/minecraft/world/entity/Mob.java
++++ b/src/main/java/net/minecraft/world/entity/Mob.java
+@@ -1725,15 +1725,41 @@ public abstract class Mob extends LivingEntity implements Targeting {
+ 
+     }
+ 
++    // Leaves start - optimize sun burn tick
++    private BlockPos cached_eye_blockpos;
++    private int cached_position_hashcode;
++    // Leaves end - optimize sun burn tick
++
+     public boolean isSunBurnTick() {
+         if (this.level().isDay() && !this.level().isClientSide) {
+-            float f = this.getLightLevelDependentMagicValue();
+-            BlockPos blockposition = BlockPos.containing(this.getX(), this.getEyeY(), this.getZ());
+-            boolean flag = this.isInWaterRainOrBubble() || this.isInPowderSnow || this.wasInPowderSnow;
++            // Leaves start - optimize sun burn tick
++            if (!top.leavesmc.leaves.LeavesConfig.optimizeSunBurnTick) {
++                float f = this.getLightLevelDependentMagicValue();
++                BlockPos blockposition = BlockPos.containing(this.getX(), this.getEyeY(), this.getZ());
++                boolean flag = this.isInWaterRainOrBubble() || this.isInPowderSnow || this.wasInPowderSnow;
+ 
+-            if (f > 0.5F && this.random.nextFloat() * 30.0F < (f - 0.4F) * 2.0F && !flag && this.level().canSeeSky(blockposition)) {
+-                return true;
++                if (f > 0.5F && this.random.nextFloat() * 30.0F < (f - 0.4F) * 2.0F && !flag && this.level().canSeeSky(blockposition)) {
++                    return true;
++                }
++            } else {
++                int positionHashCode = this.position().hashCode();
++                if (this.cached_position_hashcode != positionHashCode) {
++                    this.cached_eye_blockpos = BlockPos.containing(this.getX(), this.getEyeY(), this.getZ());
++                    this.cached_position_hashcode = positionHashCode;
++                }
++
++                float f = this.getLightLevelDependentMagicValue(cached_eye_blockpos); // Pass BlockPos to getBrightness
++
++                // Check brightness first
++                if (f <= 0.5F) return false;
++                if (this.random.nextFloat() * 30.0F >= (f - 0.4F) * 2.0F) return false;
++                boolean flag = this.isInWaterRainOrBubble() || this.isInPowderSnow || this.wasInPowderSnow;
++
++                if (!flag && this.level().canSeeSky(this.cached_eye_blockpos)) {
++                    return true;
++                }
+             }
++            // Leaves end - optimize sun burn tick
+         }
+ 
+         return false;

@@ -1,0 +1,169 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Thu, 20 Jul 2023 16:09:56 +0800
+Subject: [PATCH] Use optimized collection
+
+This patch is Powered by Gale(https://github.com/GaleMC/Gale)
+
+diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
+index 234897e942df0023307418566211a549a32124e9..86207dd0f1f666588535d03f5576fbe4e2267eeb 100644
+--- a/src/main/java/net/minecraft/server/level/ChunkMap.java
++++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
+@@ -237,7 +237,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+         // Paper - rewrite chunk system
+         this.tickingGenerated = new AtomicInteger();
+         this.playerMap = new PlayerMap();
+-        this.entityMap = new Int2ObjectOpenHashMap();
++        this.entityMap = top.leavesmc.leaves.LeavesConfig.useOptimizedCollection ? new it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap() : new Int2ObjectOpenHashMap(); // Leaves - se linked map for entity trackers - provides faster iteration
+         this.chunkTypeCache = new Long2ByteOpenHashMap();
+         this.chunkSaveCooldowns = new Long2LongOpenHashMap();
+         this.unloadQueue = Queues.newConcurrentLinkedQueue();
+diff --git a/src/main/java/net/minecraft/util/ClassInstanceMultiMap.java b/src/main/java/net/minecraft/util/ClassInstanceMultiMap.java
+index ebad17e6ec90a7f385cd38c5ec6c2772798d4562..6865a46614adc7dd8077ee37677d087e816a1cec 100644
+--- a/src/main/java/net/minecraft/util/ClassInstanceMultiMap.java
++++ b/src/main/java/net/minecraft/util/ClassInstanceMultiMap.java
+@@ -14,7 +14,7 @@ import java.util.Map.Entry;
+ import java.util.stream.Collectors;
+ 
+ public class ClassInstanceMultiMap<T> extends AbstractCollection<T> {
+-    private final Map<Class<?>, List<T>> byClass = Maps.newHashMap();
++    private final Map<Class<?>, List<T>> byClass = top.leavesmc.leaves.LeavesConfig.useOptimizedCollection ? new it.unimi.dsi.fastutil.objects.Reference2ReferenceOpenHashMap<>(2) : Maps.newHashMap(); // Leaves - replace class map with optimized collection
+     private final Class<T> baseClass;
+     private final List<T> allInstances = Lists.newArrayList();
+ 
+diff --git a/src/main/java/net/minecraft/world/entity/ai/attributes/AttributeMap.java b/src/main/java/net/minecraft/world/entity/ai/attributes/AttributeMap.java
+index a2a1de65dfd420185ed0e52e28c7000fde3dd959..ebd95344e81d016464a587dfa00b49e02d4a1c41 100644
+--- a/src/main/java/net/minecraft/world/entity/ai/attributes/AttributeMap.java
++++ b/src/main/java/net/minecraft/world/entity/ai/attributes/AttributeMap.java
+@@ -20,8 +20,10 @@ import org.slf4j.Logger;
+ 
+ public class AttributeMap {
+     private static final Logger LOGGER = LogUtils.getLogger();
+-    private final Map<Attribute, AttributeInstance> attributes = Maps.newHashMap();
+-    private final Set<AttributeInstance> dirtyAttributes = Sets.newHashSet();
++    // Leaves start - replace AI attributes with optimized collections
++    private final Map<Attribute, AttributeInstance> attributes = top.leavesmc.leaves.LeavesConfig.useOptimizedCollection ? new it.unimi.dsi.fastutil.objects.Reference2ReferenceOpenHashMap<>(0) : Maps.newHashMap();
++    private final Set<AttributeInstance> dirtyAttributes = top.leavesmc.leaves.LeavesConfig.useOptimizedCollection ? new it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet<>(0) : Sets.newHashSet();
++    // Leaves end - replace AI attributes with optimized collections
+     private final AttributeSupplier supplier;
+     private final java.util.function.Function<Attribute, AttributeInstance> createInstance; // Leaves - reduce entity allocations
+ 
+diff --git a/src/main/java/net/minecraft/world/entity/ai/goal/GoalSelector.java b/src/main/java/net/minecraft/world/entity/ai/goal/GoalSelector.java
+index 38af5c7280366fd6ec077f3d914ea5f3ee77451a..4dd4dae9060694f81622f33904806584a799c04c 100644
+--- a/src/main/java/net/minecraft/world/entity/ai/goal/GoalSelector.java
++++ b/src/main/java/net/minecraft/world/entity/ai/goal/GoalSelector.java
+@@ -29,7 +29,7 @@ public class GoalSelector {
+         }
+     };
+     private final Map<Goal.Flag, WrappedGoal> lockedFlags = new EnumMap<>(Goal.Flag.class);
+-    private final Set<WrappedGoal> availableGoals = Sets.newLinkedHashSet();
++    private final Set<WrappedGoal> availableGoals = top.leavesmc.leaves.LeavesConfig.useOptimizedCollection ? new it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet<>() : Sets.newLinkedHashSet(); // Leaves - replace AI goal set with optimized collection
+     private final Supplier<ProfilerFiller> profiler;
+     private final EnumSet<Goal.Flag> disabledFlags = EnumSet.noneOf(Goal.Flag.class); // Paper unused, but dummy to prevent plugins from crashing as hard. Theyll need to support paper in a special case if this is super important, but really doesn't seem like it would be.
+     private final com.destroystokyo.paper.util.set.OptimizedSmallEnumSet<net.minecraft.world.entity.ai.goal.Goal.Flag> goalTypes = new com.destroystokyo.paper.util.set.OptimizedSmallEnumSet<>(Goal.Flag.class); // Paper - remove streams from pathfindergoalselector
+diff --git a/src/main/java/net/minecraft/world/level/GameRules.java b/src/main/java/net/minecraft/world/level/GameRules.java
+index 4a340bd1f1859e43bb58e68aee4018fdb4ca7a5a..79be9ba9d94b7fb88a7afab4e193ef9747aaae88 100644
+--- a/src/main/java/net/minecraft/world/level/GameRules.java
++++ b/src/main/java/net/minecraft/world/level/GameRules.java
+@@ -142,7 +142,7 @@ public class GameRules {
+     }
+ 
+     private GameRules(Map<GameRules.Key<?>, GameRules.Value<?>> rules) {
+-        this.rules = rules;
++        this.rules = top.leavesmc.leaves.LeavesConfig.useOptimizedCollection ? new it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap<>(rules) : rules; // Leaves - replace game rules map with optimized collection
+ 
+         // Paper start - Perf: Use array for gamerule storage
+         int arraySize = rules.keySet().stream().mapToInt(key -> key.gameRuleIndex).max().orElse(-1) + 1;
+diff --git a/src/main/java/net/minecraft/world/level/block/Block.java b/src/main/java/net/minecraft/world/level/block/Block.java
+index 10c0fdfec1fcec3f9f7897685b2c7e00dc291b2d..0950fbe3da9f166c73da8991df6619107e10542f 100644
+--- a/src/main/java/net/minecraft/world/level/block/Block.java
++++ b/src/main/java/net/minecraft/world/level/block/Block.java
+@@ -62,6 +62,7 @@ import net.minecraft.world.phys.shapes.BooleanOp;
+ import net.minecraft.world.phys.shapes.Shapes;
+ import net.minecraft.world.phys.shapes.VoxelShape;
+ import org.slf4j.Logger;
++import top.leavesmc.leaves.lithium.common.util.collections.Object2BooleanCacheTable;
+ 
+ public class Block extends BlockBehaviour implements ItemLike {
+ 
+@@ -74,6 +75,12 @@ public class Block extends BlockBehaviour implements ItemLike {
+             return !Shapes.joinIsNotEmpty(Shapes.block(), voxelshape, BooleanOp.NOT_SAME);
+         }
+     });
++    // Leaves start - replace shape full block cache with hashtable
++    private static final Object2BooleanCacheTable<VoxelShape> LITHIUM_SHAPE_FULL_BLOCK_CACHE = new Object2BooleanCacheTable<>(
++        1536,
++        shape -> !Shapes.joinIsNotEmpty(Shapes.block(), shape, BooleanOp.NOT_SAME)
++    );
++    // Leaves end - replace shape full block cache with hashtable
+     public static final int UPDATE_NEIGHBORS = 1;
+     public static final int UPDATE_CLIENTS = 2;
+     public static final int UPDATE_INVISIBLE = 4;
+diff --git a/src/main/java/top/leavesmc/leaves/lithium/common/util/collections/Object2BooleanCacheTable.java b/src/main/java/top/leavesmc/leaves/lithium/common/util/collections/Object2BooleanCacheTable.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..45232059b188b5f072e28c4cdf05929005972220
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/lithium/common/util/collections/Object2BooleanCacheTable.java
+@@ -0,0 +1,62 @@
++package top.leavesmc.leaves.lithium.common.util.collections;
++
++import it.unimi.dsi.fastutil.HashCommon;
++import net.minecraft.util.Mth;
++
++import java.util.function.Predicate;
++
++// Powered by Gale(https://github.com/GaleMC/Gale)
++
++/**
++ * A lossy hashtable implementation that stores a mapping between an object and a boolean.
++ * <p>
++ * Any hash collisions will result in an overwrite: this is safe because the correct value can always be recomputed,
++ * given that the given operator is deterministic.
++ * <p>
++ * This implementation is safe to use from multiple threads
++ */
++public final class Object2BooleanCacheTable<T> {
++
++    private final int mask;
++    private final Node<T>[] nodes;
++    private final Predicate<T> operator;
++
++    @SuppressWarnings("unchecked")
++    public Object2BooleanCacheTable(int capacity, Predicate<T> operator) {
++        int capacity1 = Mth.smallestEncompassingPowerOfTwo(capacity);
++        this.mask = capacity1 - 1;
++        this.nodes = (Node<T>[]) new Node[capacity1];
++        this.operator = operator;
++    }
++
++    private static <T> int hash(T key) {
++        return HashCommon.mix(key.hashCode());
++    }
++
++    public boolean get(T key) {
++        int idx = hash(key) & this.mask;
++
++        Node<T> node = this.nodes[idx];
++        if (node != null && key.equals(node.key)) {
++            return node.value;
++        }
++
++        boolean test = this.operator.test(key);
++        this.nodes[idx] = new Node<>(key, test);
++
++        return test;
++    }
++
++    static class Node<T> {
++
++        final T key;
++        final boolean value;
++
++        Node(T key, boolean value) {
++            this.key = key;
++            this.value = value;
++        }
++
++    }
++
++}

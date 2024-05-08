@@ -5,15 +5,19 @@ Subject: [PATCH] Disable check out-of-order command
 
 
 diff --git a/src/main/java/net/minecraft/network/chat/SignedMessageChain.java b/src/main/java/net/minecraft/network/chat/SignedMessageChain.java
-index 0af9ed92824ccf30814eceb6a2c2e5c12661c991..b007bacf311edd71ef7773e43e8aa2ddd4871bd4 100644
+index 300929a406905f5ff1ede664d5b99fb0938d4d2e..9756e8b560281796081a6ee157f9d92240bd2d56 100644
 --- a/src/main/java/net/minecraft/network/chat/SignedMessageChain.java
 +++ b/src/main/java/net/minecraft/network/chat/SignedMessageChain.java
-@@ -37,7 +37,7 @@ public class SignedMessageChain {
-                 throw new SignedMessageChain.DecodeException(Component.translatable("chat.disabled.chain_broken"), false); // Paper - diff on change (if disconnects, need a new kick event cause)
-             } else if (playerPublicKey.data().hasExpired()) {
-                 throw new SignedMessageChain.DecodeException(Component.translatable("chat.disabled.expiredProfileKey"), false, org.bukkit.event.player.PlayerKickEvent.Cause.EXPIRED_PROFILE_PUBLIC_KEY); // Paper - kick event causes
--            } else if (body.timeStamp().isBefore(this.lastTimeStamp)) {
-+            } else if (body.timeStamp().isBefore(this.lastTimeStamp) && !top.leavesmc.leaves.LeavesConfig.disableCheckOutOfOrderCommand) { // Leaves - disable check to support Velocity
-                 throw new SignedMessageChain.DecodeException(Component.translatable("multiplayer.disconnect.out_of_order_chat"), true, org.bukkit.event.player.PlayerKickEvent.Cause.OUT_OF_ORDER_CHAT); // Paper - kick event causes
-             } else {
-                 this.lastTimeStamp = body.timeStamp();
+@@ -46,8 +46,10 @@ public class SignedMessageChain {
+                     if (signedMessageLink == null) {
+                         throw new SignedMessageChain.DecodeException(SignedMessageChain.DecodeException.CHAIN_BROKEN);
+                     } else if (body.timeStamp().isBefore(SignedMessageChain.this.lastTimeStamp)) {
+-                        this.setChainBroken();
+-                        throw new SignedMessageChain.DecodeException(SignedMessageChain.DecodeException.OUT_OF_ORDER_CHAT, org.bukkit.event.player.PlayerKickEvent.Cause.OUT_OF_ORDER_CHAT); // Paper - kick event causes
++                        if (!top.leavesmc.leaves.LeavesConfig.disableCheckOutOfOrderCommand) { // Leaves - disable check to support Velocity
++                            this.setChainBroken();
++                            throw new SignedMessageChain.DecodeException(SignedMessageChain.DecodeException.OUT_OF_ORDER_CHAT, org.bukkit.event.player.PlayerKickEvent.Cause.OUT_OF_ORDER_CHAT); // Paper - kick event causes
++                        }
+                     } else {
+                         SignedMessageChain.this.lastTimeStamp = body.timeStamp();
+                         PlayerChatMessage playerChatMessage = new PlayerChatMessage(signedMessageLink, signature, body, null, FilterMask.PASS_THROUGH);

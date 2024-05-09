@@ -1,0 +1,87 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Thu, 25 Jan 2024 01:16:49 +0800
+Subject: [PATCH] Fast resume
+
+
+diff --git a/src/main/java/io/papermc/paper/chunk/system/scheduling/ChunkHolderManager.java b/src/main/java/io/papermc/paper/chunk/system/scheduling/ChunkHolderManager.java
+index c2eb3e8b019dbc0543a2308d7e88e324aa265cfe..22ffaeb54f618ccc8170d037eeaa4e25e798fc59 100644
+--- a/src/main/java/io/papermc/paper/chunk/system/scheduling/ChunkHolderManager.java
++++ b/src/main/java/io/papermc/paper/chunk/system/scheduling/ChunkHolderManager.java
+@@ -566,6 +566,56 @@ public final class ChunkHolderManager {
+         }
+     }
+ 
++    // Leaves start - add custom ticket
++    public <T> boolean addTicketAtLevelCustom(final Ticket<T> ticket, final long chunk, final boolean lock) {
++        final long removeDelay = ticket.removeDelay;
++        if (ticket.getTicketLevel() > MAX_TICKET_LEVEL) {
++            return false;
++        }
++
++        final int chunkX = CoordinateUtils.getChunkX(chunk);
++        final int chunkZ = CoordinateUtils.getChunkZ(chunk);
++        final RegionFileIOThread.ChunkCoordinate chunkCoord = new RegionFileIOThread.ChunkCoordinate(chunk);
++
++        final ReentrantAreaLock.Node ticketLock = lock ? this.ticketLockArea.lock(chunkX, chunkZ) : null;
++        try {
++            final SortedArraySet<Ticket<?>> ticketsAtChunk = this.tickets.computeIfAbsent(chunkCoord, (final RegionFileIOThread.ChunkCoordinate keyInMap) -> {
++                return SortedArraySet.create(4);
++            });
++
++            final int levelBefore = getTicketLevelAt(ticketsAtChunk);
++            final Ticket<T> current = (Ticket<T>)ticketsAtChunk.replace(ticket);
++            final int levelAfter = getTicketLevelAt(ticketsAtChunk);
++
++            if (current != ticket) {
++                final long oldRemoveDelay = current.removeDelay;
++                if (removeDelay != oldRemoveDelay) {
++                    if (oldRemoveDelay != NO_TIMEOUT_MARKER && removeDelay == NO_TIMEOUT_MARKER) {
++                        this.removeExpireCount(chunkX, chunkZ);
++                    } else if (oldRemoveDelay == NO_TIMEOUT_MARKER) {
++                        // since old != new, we have that NO_TIMEOUT_MARKER != new
++                        this.addExpireCount(chunkX, chunkZ);
++                    }
++                }
++            } else {
++                if (removeDelay != NO_TIMEOUT_MARKER) {
++                    this.addExpireCount(chunkX, chunkZ);
++                }
++            }
++
++            if (levelBefore != levelAfter) {
++                this.updateTicketLevel(chunk, levelAfter);
++            }
++
++            return current == ticket;
++        } finally {
++            if (ticketLock != null) {
++                this.ticketLockArea.unlock(ticketLock);
++            }
++        }
++    }
++    // Leaves end - add custom ticket
++
+     public <T> boolean removeTicketAtLevel(final TicketType<T> type, final ChunkPos chunkPos, final int level, final T identifier) {
+         return this.removeTicketAtLevel(type, CoordinateUtils.getChunkKey(chunkPos), level, identifier);
+     }
+diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
+index 7952507524e08afa669815561c5ff5b8782a0b44..27e88a4d468addff78a40977758e447a0ce0b227 100644
+--- a/src/main/java/net/minecraft/server/MinecraftServer.java
++++ b/src/main/java/net/minecraft/server/MinecraftServer.java
+@@ -674,6 +674,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+         }
+         // Paper end - Configurable player collision
+ 
++        top.leavesmc.leaves.util.TicketHelper.tryToLoadTickets(); // Leaves - load ticket
+         this.server.enablePlugins(org.bukkit.plugin.PluginLoadOrder.POSTWORLD);
+         this.server.getPluginManager().callEvent(new ServerLoadEvent(ServerLoadEvent.LoadType.STARTUP));
+         if (io.papermc.paper.plugin.PluginInitializerManager.instance().pluginRemapper != null) io.papermc.paper.plugin.PluginInitializerManager.instance().pluginRemapper.pluginsEnabled(); // Paper - Remap plugins
+@@ -945,6 +946,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+     // CraftBukkit end
+ 
+     public void stopServer() {
++        top.leavesmc.leaves.util.TicketHelper.tryToSaveTickets(); // Leaves - save ticket
+         // CraftBukkit start - prevent double stopping on multiple threads
+         synchronized(this.stopLock) {
+             if (this.hasStopped) return;

@@ -6,7 +6,7 @@ Subject: [PATCH] Stackable ShulkerBoxes
 This patch is Powered by fabric-carpet(https://github.com/gnembon/fabric-carpet) and plusls-carpet-addition(https://github.com/plusls/plusls-carpet-addition)
 
 diff --git a/src/main/java/net/minecraft/world/entity/item/ItemEntity.java b/src/main/java/net/minecraft/world/entity/item/ItemEntity.java
-index 8fd3845c4965843be9c37498760d93f1ebdff541..b1708271baad4309e5b10bab1194b2a4f7a1e105 100644
+index 8fd3845c4965843be9c37498760d93f1ebdff541..e8ba48f475671aced524e55e05de96acc48ae9a0 100644
 --- a/src/main/java/net/minecraft/world/entity/item/ItemEntity.java
 +++ b/src/main/java/net/minecraft/world/entity/item/ItemEntity.java
 @@ -22,10 +22,12 @@ import net.minecraft.world.entity.EntityType;
@@ -63,7 +63,7 @@ index 8fd3845c4965843be9c37498760d93f1ebdff541..b1708271baad4309e5b10bab1194b2a4
 +        if (selfStack.getItem() == otherStack.getItem()
 +            && !top.leavesmc.leaves.util.ShulkerBoxUtils.shulkerBoxHasItems(selfStack)
 +            && !top.leavesmc.leaves.util.ShulkerBoxUtils.shulkerBoxHasItems(otherStack)
-+            && Objects.equals(selfStack.getTag(), otherStack.getTag()) // empty block entity tags are cleaned up when spawning
++            && Objects.equals(selfStack.getComponents(), otherStack.getComponents()) // empty block entity tags are cleaned up when spawning
 +            && selfStack.getCount() != top.leavesmc.leaves.LeavesConfig.shulkerBoxStackSize) {
 +            int amount = Math.min(otherStack.getCount(), top.leavesmc.leaves.LeavesConfig.shulkerBoxStackSize - selfStack.getCount());
 +
@@ -255,3 +255,80 @@ index 8310d132006043e93c612890514c4c7f3eb1c74d..592b330f187fb5eca51d60911bbebbae
                  }
                  // Spigot end
                  ignoreTileUpdates = true; // Paper - Perf: Optimize Hoppers
+diff --git a/src/main/java/top/leavesmc/leaves/util/ShulkerBoxUtils.java b/src/main/java/top/leavesmc/leaves/util/ShulkerBoxUtils.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..82b4337965663ec8eccbc8c77892e3c49bff87cf
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/util/ShulkerBoxUtils.java
+@@ -0,0 +1,71 @@
++package top.leavesmc.leaves.util;
++
++import net.minecraft.nbt.CompoundTag;
++import net.minecraft.world.inventory.Slot;
++import net.minecraft.world.item.BlockItem;
++import net.minecraft.world.item.ItemStack;
++import net.minecraft.world.level.block.ShulkerBoxBlock;
++import org.jetbrains.annotations.NotNull;
++import top.leavesmc.leaves.LeavesConfig;
++
++// Powered by fabric-carpet/src/main/java/carpet/helpers/InventoryHelper.java
++public class ShulkerBoxUtils {
++    // From nbt/NbtElement.java createTag()
++    public static final int TAG_END = 0;
++    public static final int TAG_BYTE = 1;
++    public static final int TAG_SHORT = 2;
++    public static final int TAG_INT = 3;
++    public static final int TAG_LONG = 4;
++    public static final int TAG_FLOAT = 5;
++    public static final int TAG_DOUBLE = 6;
++    public static final int TAG_BYTEARRAY = 7;
++    public static final int TAG_STRING = 8;
++    public static final int TAG_LIST = 9;
++    public static final int TAG_COMPOUND = 10;
++    public static final int TAG_INTARRAY = 11;
++    public static final int TAG_LONGARRAY = 12;
++
++    public static boolean cleanUpShulkerBoxTag(@NotNull ItemStack stack) {
++        boolean changed = false;
++        CompoundTag tag = stack.getTag();
++
++        if (tag == null || !tag.contains("BlockEntityTag", TAG_COMPOUND)) return false;
++
++        CompoundTag bet = tag.getCompound("BlockEntityTag");
++        if (bet.contains("Items", TAG_LIST) && bet.getList("Items", TAG_COMPOUND).isEmpty()) {
++            bet.remove("Items");
++            changed = true;
++        }
++
++        if (bet.isEmpty() || (bet.size() == 1 && bet.getString("id").equals("minecraft:shulker_box"))) {
++            tag.remove("BlockEntityTag");
++            changed = true;
++        }
++        if (tag.isEmpty()) {
++            stack.setTag(null);
++            changed = true;
++        }
++        return changed;
++    }
++
++    public static boolean shulkerBoxHasItems(@NotNull ItemStack stack) {
++        CompoundTag tag = stack.getTag();
++
++        if (tag == null || !tag.contains("BlockEntityTag", TAG_COMPOUND)) return false;
++
++        CompoundTag bet = tag.getCompound("BlockEntityTag");
++        return bet.contains("Items", TAG_LIST) && !bet.getList("Items", TAG_COMPOUND).isEmpty();
++    }
++
++    public static int getItemStackMaxCount(ItemStack stack) {
++        if (LeavesConfig.shulkerBoxStackSize > 1 && stack.getItem() instanceof BlockItem bi &&
++            bi.getBlock() instanceof ShulkerBoxBlock && !top.leavesmc.leaves.util.ShulkerBoxUtils.shulkerBoxHasItems(stack)) {
++            return top.leavesmc.leaves.LeavesConfig.shulkerBoxStackSize;
++        }
++        return stack.getMaxStackSize();
++    }
++
++    public static boolean isStackable(ItemStack itemStack) {
++        return getItemStackMaxCount(itemStack) > 1 && (!itemStack.isDamageableItem() || !itemStack.isDamaged());
++    }
++}

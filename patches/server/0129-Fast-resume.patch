@@ -85,3 +85,188 @@ index 7952507524e08afa669815561c5ff5b8782a0b44..27e88a4d468addff78a40977758e447a
          // CraftBukkit start - prevent double stopping on multiple threads
          synchronized(this.stopLock) {
              if (this.hasStopped) return;
+diff --git a/src/main/java/top/leavesmc/leaves/util/TicketHelper.java b/src/main/java/top/leavesmc/leaves/util/TicketHelper.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..9ab241f6a3d7d57bb6a8cdc222021fd0c2b499e5
+--- /dev/null
++++ b/src/main/java/top/leavesmc/leaves/util/TicketHelper.java
+@@ -0,0 +1,179 @@
++package top.leavesmc.leaves.util;
++
++import com.google.gson.Gson;
++import com.google.gson.JsonArray;
++import com.google.gson.JsonElement;
++import com.google.gson.JsonObject;
++import io.papermc.paper.chunk.system.RegionizedPlayerChunkLoader;
++import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
++import net.minecraft.core.BlockPos;
++import net.minecraft.core.registries.Registries;
++import net.minecraft.resources.ResourceKey;
++import net.minecraft.resources.ResourceLocation;
++import net.minecraft.server.MinecraftServer;
++import net.minecraft.server.level.DistanceManager;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.server.level.Ticket;
++import net.minecraft.server.level.TicketType;
++import net.minecraft.util.SortedArraySet;
++import net.minecraft.world.level.ChunkPos;
++import net.minecraft.world.level.storage.LevelResource;
++import top.leavesmc.leaves.LeavesConfig;
++
++import java.io.BufferedReader;
++import java.io.BufferedWriter;
++import java.io.File;
++import java.io.IOException;
++import java.nio.charset.StandardCharsets;
++import java.nio.file.Files;
++import java.util.Set;
++
++public class TicketHelper {
++
++    private static final Set<TicketType<?>> NEED_SAVED = Set.of(TicketType.PLAYER, TicketType.PORTAL, TicketType.ENTITY_LOAD, TicketType.POI_LOAD);
++
++    public static void tryToLoadTickets() {
++        if (!LeavesConfig.fastResume) {
++            return;
++        }
++
++        File file = MinecraftServer.getServer().getWorldPath(LevelResource.ROOT).resolve("chunk_tickets.leaves.json").toFile();
++        if (file.isFile()) {
++            try (BufferedReader bfr = Files.newBufferedReader(file.toPath(), StandardCharsets.UTF_8)) {
++                JsonObject json = new Gson().fromJson(bfr, JsonObject.class);
++                loadSavedChunkTickets(json);
++                file.delete();
++            } catch (IOException e) {
++                e.printStackTrace();
++            }
++        }
++    }
++
++    public static void tryToSaveTickets() {
++        if (!LeavesConfig.fastResume) {
++            return;
++        }
++
++        File file = MinecraftServer.getServer().getWorldPath(LevelResource.ROOT).resolve("chunk_tickets.leaves.json").toFile();
++        if (!file.isFile()) {
++            try {
++                file.createNewFile();
++            } catch (IOException e) {
++                e.printStackTrace();
++            }
++        }
++        try (BufferedWriter bfw = Files.newBufferedWriter(file.toPath(), StandardCharsets.UTF_8)) {
++            bfw.write(new Gson().toJson(getSavedChunkTickets()));
++        } catch (IOException e) {
++            e.printStackTrace();
++        }
++    }
++
++    public static void loadSavedChunkTickets(JsonObject json) {
++        MinecraftServer server = MinecraftServer.getServer();
++        for (String worldKey : json.keySet()) {
++            ServerLevel level = server.getLevel(ResourceKey.create(Registries.DIMENSION, new ResourceLocation(worldKey)));
++            if (level == null) {
++                continue;
++            }
++
++            DistanceManager chunkDistanceManager = level.getChunkSource().chunkMap.distanceManager;
++            for (JsonElement chunkElement : json.get(worldKey).getAsJsonArray()) {
++                JsonObject chunkJson = (JsonObject) chunkElement;
++                long chunkKey = chunkJson.get("key").getAsLong();
++
++                for (JsonElement ticketElement : chunkJson.get("tickets").getAsJsonArray()) {
++                    Ticket<?> ticket = tickFormJson((JsonObject) ticketElement);
++                    chunkDistanceManager.getChunkHolderManager().addTicketAtLevelCustom(ticket, chunkKey, true);
++                }
++            }
++        }
++    }
++
++    public static JsonObject getSavedChunkTickets() {
++        JsonObject json = new JsonObject();
++
++        for (ServerLevel level : MinecraftServer.getServer().getAllLevels()) {
++            JsonArray levelArray = new JsonArray();
++            DistanceManager chunkDistanceManager = level.getChunkSource().chunkMap.distanceManager;
++
++            for (Long2ObjectMap.Entry<SortedArraySet<Ticket<?>>> chunkTickets : chunkDistanceManager.getChunkHolderManager().getTicketsCopy().long2ObjectEntrySet()) {
++                long chunkKey = chunkTickets.getLongKey();
++                JsonArray ticketArray = new JsonArray();
++                SortedArraySet<Ticket<?>> tickets = chunkTickets.getValue();
++
++                for (Ticket<?> ticket : tickets) {
++                    if (!NEED_SAVED.contains(ticket.getType())) {
++                        continue;
++                    }
++
++                    ticketArray.add(ticketToJson(ticket));
++                }
++
++                if (!ticketArray.isEmpty()) {
++                    JsonObject chunkJson = new JsonObject();
++                    chunkJson.addProperty("key", chunkKey);
++                    chunkJson.add("tickets", ticketArray);
++                    levelArray.add(chunkJson);
++                }
++            }
++
++            if (!levelArray.isEmpty()) {
++                json.add(level.dimension().location().toString(), levelArray);
++            }
++        }
++
++        return json;
++    }
++
++    private static JsonObject ticketToJson(Ticket<?> ticket) {
++        JsonObject json = new JsonObject();
++        json.addProperty("type", ticket.getType().toString());
++        json.addProperty("ticketLevel", ticket.getTicketLevel());
++        json.addProperty("removeDelay", ticket.removeDelay);
++        if (ticket.key instanceof BlockPos pos) {
++            json.addProperty("key", pos.asLong());
++        } else if (ticket.key instanceof ChunkPos pos) {
++            json.addProperty("key", pos.toLong());
++        } else if (ticket.key instanceof Long l) {
++            json.addProperty("key", l);
++        }
++        return json;
++    }
++
++    private static <T> Ticket<T> tickFormJson(JsonObject json) {
++        TicketType<?> ticketType = null;
++        Object key = null;
++        switch (json.get("type").getAsString()) {
++            case "player" -> {
++                ticketType = TicketType.PLAYER;
++                key = new ChunkPos(json.get("key").getAsLong());
++            }
++            case "portal" -> {
++                ticketType = TicketType.PORTAL;
++                key = BlockPos.of(json.get("key").getAsLong());
++            }
++            case "entity_load" -> {
++                ticketType = TicketType.ENTITY_LOAD;
++                key = json.get("key").getAsLong();
++            }
++            case "poi_load" -> {
++                ticketType = TicketType.POI_LOAD;
++                key = json.get("key").getAsLong();
++            }
++            case "region_player_ticket" -> {
++                ticketType = RegionizedPlayerChunkLoader.REGION_PLAYER_TICKET;
++                key = json.get("key").getAsLong();
++            }
++        }
++
++        if (ticketType == null) {
++            throw new IllegalArgumentException("???");
++        }
++
++        int ticketLevel = json.get("ticketLevel").getAsInt();
++        long removeDelay = json.get("removeDelay").getAsLong();
++
++        return new Ticket<T>((TicketType<T>) ticketType, ticketLevel, (T) key, removeDelay);
++    }
++}

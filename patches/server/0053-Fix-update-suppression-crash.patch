@@ -5,10 +5,10 @@ Subject: [PATCH] Fix update suppression crash
 
 
 diff --git a/src/main/java/net/minecraft/network/protocol/PacketUtils.java b/src/main/java/net/minecraft/network/protocol/PacketUtils.java
-index 070231080052ef3d0da179a8ed8b754ed6f8dd11..84530927aa4517709ba3f38d27755bb5d2eaac34 100644
+index d6daa27a8d7aca00b181e90d789f4249e8437d29..869df727d1b05d74a6830c790ad4a3ff6a703812 100644
 --- a/src/main/java/net/minecraft/network/protocol/PacketUtils.java
 +++ b/src/main/java/net/minecraft/network/protocol/PacketUtils.java
-@@ -51,6 +51,10 @@ public class PacketUtils {
+@@ -52,6 +52,10 @@ public class PacketUtils {
                  if (listener.shouldHandleMessage(packet)) {
                      try {
                          packet.handle(listener);
@@ -17,13 +17,13 @@ index 070231080052ef3d0da179a8ed8b754ed6f8dd11..84530927aa4517709ba3f38d27755bb5
 +                        top.leavesmc.leaves.LeavesLogger.LOGGER.info(exception.getMessage());
 +                    // Leaves start - update suppression crash fix
                      } catch (Exception exception) {
-                         label25:
-                         {
+                         if (exception instanceof ReportedException) {
+                             ReportedException reportedexception = (ReportedException) exception;
 diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
-index 4091c7b992d885fa14e03df7fa8c5edc0c25f76d..c5c9a9a6f42da7b71103fd754661534dbc9fc13e 100644
+index e312c93d246b868dc5a9c8f881d1ed8f02adb325..7952507524e08afa669815561c5ff5b8782a0b44 100644
 --- a/src/main/java/net/minecraft/server/MinecraftServer.java
 +++ b/src/main/java/net/minecraft/server/MinecraftServer.java
-@@ -1701,7 +1701,13 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+@@ -1757,7 +1757,13 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
              this.profiler.push("tick");
  
              try {
@@ -39,13 +39,13 @@ index 4091c7b992d885fa14e03df7fa8c5edc0c25f76d..c5c9a9a6f42da7b71103fd754661534d
                  for (final io.papermc.paper.chunk.SingleThreadChunkRegionManager regionManager : worldserver.getChunkSource().chunkMap.regionManagers) {
                      regionManager.recalculateRegions();
 diff --git a/src/main/java/net/minecraft/world/level/block/ShulkerBoxBlock.java b/src/main/java/net/minecraft/world/level/block/ShulkerBoxBlock.java
-index 62ded304c08678750ae8c56c7de876ac5f39940b..fb7cffcf77a89202cb87b347bea518cc89987afd 100644
+index 68431244432a4342041e63218cf7d1eb4eb7ebc0..4aa9800cb3f4ad0082ffe50bb38f532afd841761 100644
 --- a/src/main/java/net/minecraft/world/level/block/ShulkerBoxBlock.java
 +++ b/src/main/java/net/minecraft/world/level/block/ShulkerBoxBlock.java
-@@ -254,7 +254,17 @@ public class ShulkerBoxBlock extends BaseEntityBlock {
+@@ -231,7 +231,17 @@ public class ShulkerBoxBlock extends BaseEntityBlock {
  
      @Override
-     public int getAnalogOutputSignal(BlockState state, Level world, BlockPos pos) {
+     protected int getAnalogOutputSignal(BlockState state, Level world, BlockPos pos) {
 -        return AbstractContainerMenu.getRedstoneSignalFromBlockEntity(world.getBlockEntity(pos));
 +        // Leaves start - fix update suppression crash
 +        if (top.leavesmc.leaves.LeavesConfig.updateSuppressionCrashFix) {
@@ -62,11 +62,11 @@ index 62ded304c08678750ae8c56c7de876ac5f39940b..fb7cffcf77a89202cb87b347bea518cc
  
      @Override
 diff --git a/src/main/java/net/minecraft/world/level/redstone/NeighborUpdater.java b/src/main/java/net/minecraft/world/level/redstone/NeighborUpdater.java
-index 19faa8f5f891c1ffbed0af8391dee8202433c447..2ef9510ee382dfcc25a213684c0acdbc352811df 100644
+index e679b40b9628b0eb7152978ef641f9c918c4c8b2..2282af2dc71687c63de7893aef766dff8733110e 100644
 --- a/src/main/java/net/minecraft/world/level/redstone/NeighborUpdater.java
 +++ b/src/main/java/net/minecraft/world/level/redstone/NeighborUpdater.java
 @@ -66,9 +66,17 @@ public interface NeighborUpdater {
-             state.neighborChanged(world, pos, sourceBlock, sourcePos, notify);
+             state.handleNeighborChanged(world, pos, sourceBlock, sourcePos, notify);
              // Spigot Start
          } catch (StackOverflowError ex) {
 +            // Leaves start - fix update suppression crash

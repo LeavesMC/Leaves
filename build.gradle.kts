@@ -20,6 +20,12 @@ dependencies {
     paperclip("top.leavesmc:leavesclip:1.0.2")
 }
 
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(21))
+    }
+}
+
 subprojects {
     apply(plugin = "java")
 

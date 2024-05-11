@@ -206,6 +206,19 @@ index c39c773112fb8b534b926f2f2b47fe6fbb69fcb2..a3b306d7b0bb5a51d86d722c4c900536
      }
  
      @Nullable
+diff --git a/src/main/java/net/minecraft/world/item/ItemStack.java b/src/main/java/net/minecraft/world/item/ItemStack.java
+index 893efb2c4a07c33d41e934279dd914a9dbd4ef79..364e8ed48512dd499bf393947fd7a954c22acc0e 100644
+--- a/src/main/java/net/minecraft/world/item/ItemStack.java
++++ b/src/main/java/net/minecraft/world/item/ItemStack.java
+@@ -228,7 +228,7 @@ public final class ItemStack implements DataComponentHolder {
+     @Deprecated
+     @Nullable
+     private Item item;
+-    private PatchedDataComponentMap components;
++    public PatchedDataComponentMap components; // Leaves - stackable shulker boxes
+     @Nullable
+     private Entity entityRepresentation;
+ 
 diff --git a/src/main/java/net/minecraft/world/level/block/AbstractCauldronBlock.java b/src/main/java/net/minecraft/world/level/block/AbstractCauldronBlock.java
 index 20f2b575c8131621edea0e75fbf38a9fe20a36c4..29aaf3aaac7981fb637d00e600e2ff99a0d9c9d8 100644
 --- a/src/main/java/net/minecraft/world/level/block/AbstractCauldronBlock.java
@@ -257,19 +270,25 @@ index 8310d132006043e93c612890514c4c7f3eb1c74d..592b330f187fb5eca51d60911bbebbae
                  ignoreTileUpdates = true; // Paper - Perf: Optimize Hoppers
 diff --git a/src/main/java/top/leavesmc/leaves/util/ShulkerBoxUtils.java b/src/main/java/top/leavesmc/leaves/util/ShulkerBoxUtils.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..82b4337965663ec8eccbc8c77892e3c49bff87cf
+index 0000000000000000000000000000000000000000..f69c4f3879e41eb2aaabc157c57ed93008ecfdf9
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/util/ShulkerBoxUtils.java
-@@ -0,0 +1,71 @@
+@@ -0,0 +1,78 @@
 +package top.leavesmc.leaves.util;
 +
++import net.minecraft.core.component.DataComponentMap;
++import net.minecraft.core.component.DataComponentPatch;
++import net.minecraft.core.component.PatchedDataComponentMap;
 +import net.minecraft.nbt.CompoundTag;
 +import net.minecraft.world.inventory.Slot;
 +import net.minecraft.world.item.BlockItem;
 +import net.minecraft.world.item.ItemStack;
++import net.minecraft.world.item.component.CustomData;
 +import net.minecraft.world.level.block.ShulkerBoxBlock;
 +import org.jetbrains.annotations.NotNull;
 +import top.leavesmc.leaves.LeavesConfig;
++
++import static net.minecraft.core.component.DataComponents.BLOCK_ENTITY_DATA;
 +
 +// Powered by fabric-carpet/src/main/java/carpet/helpers/InventoryHelper.java
 +public class ShulkerBoxUtils {
@@ -290,33 +309,34 @@ index 0000000000000000000000000000000000000000..82b4337965663ec8eccbc8c77892e3c4
 +
 +    public static boolean cleanUpShulkerBoxTag(@NotNull ItemStack stack) {
 +        boolean changed = false;
-+        CompoundTag tag = stack.getTag();
++        DataComponentMap components = stack.getComponents();
 +
-+        if (tag == null || !tag.contains("BlockEntityTag", TAG_COMPOUND)) return false;
++        if (!components.has(BLOCK_ENTITY_DATA)) return false;
 +
-+        CompoundTag bet = tag.getCompound("BlockEntityTag");
++        CompoundTag bet = components.get(BLOCK_ENTITY_DATA).copyTag();
 +        if (bet.contains("Items", TAG_LIST) && bet.getList("Items", TAG_COMPOUND).isEmpty()) {
 +            bet.remove("Items");
++            stack.applyComponents(DataComponentPatch.builder().set(BLOCK_ENTITY_DATA, CustomData.of(bet)).build());
 +            changed = true;
 +        }
 +
 +        if (bet.isEmpty() || (bet.size() == 1 && bet.getString("id").equals("minecraft:shulker_box"))) {
-+            tag.remove("BlockEntityTag");
++            stack.applyComponents(DataComponentPatch.builder().remove(BLOCK_ENTITY_DATA).build());
 +            changed = true;
 +        }
-+        if (tag.isEmpty()) {
-+            stack.setTag(null);
++        if (components.isEmpty()) {
++            stack.components = (PatchedDataComponentMap.fromPatch(DataComponentMap.EMPTY, DataComponentPatch.EMPTY));
 +            changed = true;
 +        }
 +        return changed;
 +    }
 +
 +    public static boolean shulkerBoxHasItems(@NotNull ItemStack stack) {
-+        CompoundTag tag = stack.getTag();
++        DataComponentMap components = stack.getComponents();
 +
-+        if (tag == null || !tag.contains("BlockEntityTag", TAG_COMPOUND)) return false;
++        if (!components.has(BLOCK_ENTITY_DATA)) return false;
 +
-+        CompoundTag bet = tag.getCompound("BlockEntityTag");
++        CompoundTag bet = components.get(BLOCK_ENTITY_DATA).copyTag();
 +        return bet.contains("Items", TAG_LIST) && !bet.getList("Items", TAG_COMPOUND).isEmpty();
 +    }
 +

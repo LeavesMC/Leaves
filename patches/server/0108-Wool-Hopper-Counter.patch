@@ -18,17 +18,40 @@ index e314f36951e9ac15c57137e24fce8c410373130a..dd232d9e86c5bf03cfb4597d3291a172
      @Nullable
      public ItemStack[] itemStacks;
      @Nullable
+diff --git a/src/main/java/net/minecraft/world/item/crafting/RecipeManager.java b/src/main/java/net/minecraft/world/item/crafting/RecipeManager.java
+index a31326e24cb68472c81cd781c5e3041772712862..f0422a70ef79c837405284fd42a74af6c57959de 100644
+--- a/src/main/java/net/minecraft/world/item/crafting/RecipeManager.java
++++ b/src/main/java/net/minecraft/world/item/crafting/RecipeManager.java
+@@ -45,7 +45,7 @@ public class RecipeManager extends SimpleJsonResourceReloadListener {
+     private static final Logger LOGGER = LogUtils.getLogger();
+     private final HolderLookup.Provider registries;
+     public Multimap<RecipeType<?>, RecipeHolder<?>> byType = ImmutableMultimap.of();
+-    private Map<ResourceLocation, RecipeHolder<?>> byName = ImmutableMap.of();
++    public Map<ResourceLocation, RecipeHolder<?>> byName = ImmutableMap.of(); // Leaves - hopper counter
+     private boolean hasErrors;
+ 
+     public RecipeManager(HolderLookup.Provider registryLookup) {
 diff --git a/src/main/java/net/minecraft/world/level/block/entity/HopperBlockEntity.java b/src/main/java/net/minecraft/world/level/block/entity/HopperBlockEntity.java
-index c4aed4ed80ca0ed427c777e81d2cf21956888fad..1668b62910bb18adaeb54ba49119553d69bb2812 100644
+index c4aed4ed80ca0ed427c777e81d2cf21956888fad..f2fde04a6cb56c0c54edd8d48026f200a415d589 100644
 --- a/src/main/java/net/minecraft/world/level/block/entity/HopperBlockEntity.java
 +++ b/src/main/java/net/minecraft/world/level/block/entity/HopperBlockEntity.java
-@@ -433,6 +433,13 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+@@ -202,7 +202,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+ 
+                 final int fullState = getFullState(blockEntity); // Paper - Perf: Optimize Hoppers
+                 if (fullState != HOPPER_EMPTY) { // Paper - Perf: Optimize Hoppers
+-                    flag = HopperBlockEntity.ejectItems(world, pos, blockEntity);
++                    flag = HopperBlockEntity.ejectItems(world, pos, blockEntity); // Leaves - hopper counter
+                 }
+ 
+                 if (fullState != HOPPER_IS_FULL || flag) { // Paper - Perf: Optimize Hoppers
+@@ -432,7 +432,14 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+     private static final java.util.function.BiPredicate<ItemStack, Integer> IS_EMPTY_TEST = (itemstack, i) -> itemstack.isEmpty();
      // Paper end - Perf: Optimize Hoppers
  
++    // Leaves start - hopper counter
      private static boolean ejectItems(Level world, BlockPos pos, HopperBlockEntity blockEntity) {
-+        // Leaves start - hopper counter
 +        if (top.leavesmc.leaves.util.HopperCounter.isEnabled()) {
-+            if (woolHopperCounter(world, pos, blockEntity.getBlockState(), blockEntity.persistentDataContainer, blockEntity)) {
++            if (woolHopperCounter(world, pos, world.getBlockState(pos), (Container) blockEntity, blockEntity)) {
 +                return true;
 +            }
 +        }
@@ -209,7 +232,7 @@ index 0000000000000000000000000000000000000000..24eecf862f3f5fab678813de7de8d3ba
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/util/HopperCounter.java b/src/main/java/top/leavesmc/leaves/util/HopperCounter.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..3b173b175fe3412ac9f87fb1d520777182125348
+index 0000000000000000000000000000000000000000..54244e9eb3aa830bf5c90e285465662aa11b2e9c
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/util/HopperCounter.java
 @@ -0,0 +1,334 @@
@@ -394,7 +417,7 @@ index 0000000000000000000000000000000000000000..3b173b175fe3412ac9f87fb1d5207771
 +        entry(Items.POISONOUS_POTATO, Blocks.SLIME_BLOCK),
 +        entry(Items.SPIDER_EYE, Blocks.NETHERRACK),
 +        entry(Items.GUNPOWDER, Blocks.GRAY_WOOL),
-+        entry(Items.SCUTE, Blocks.LIME_WOOL),
++        entry(Items.TURTLE_SCUTE, Blocks.LIME_WOOL),
 +        entry(Items.FEATHER, Blocks.WHITE_WOOL),
 +        entry(Items.FLINT, Blocks.BLACK_WOOL),
 +        entry(Items.LEATHER, Blocks.SPRUCE_PLANKS),
@@ -492,7 +515,7 @@ index 0000000000000000000000000000000000000000..3b173b175fe3412ac9f87fb1d5207771
 +    }
 +
 +    public static List<Recipe<?>> getAllMatching(@NotNull RecipeManager manager, RecipeType<?> type, ResourceLocation output, final RegistryAccess registryAccess) {
-+        Map<ResourceLocation, RecipeHolder<?>> typeRecipes = manager.recipes.get(type);
++        Map<ResourceLocation, RecipeHolder<?>> typeRecipes = manager.byName; // Leaves - hopper counter
 +        if (typeRecipes == null) {
 +            return Collections.emptyList();
 +        }

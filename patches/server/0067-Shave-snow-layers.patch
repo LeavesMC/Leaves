@@ -5,10 +5,23 @@ Subject: [PATCH] Shave snow layers
 
 
 diff --git a/src/main/java/net/minecraft/world/item/ShovelItem.java b/src/main/java/net/minecraft/world/item/ShovelItem.java
-index 24f6a158e4759aac3be8da4cf5e0d40bd295355b..59c6c9b4d574b2c1f6c54a116c4bab43b71da7f8 100644
+index 24f6a158e4759aac3be8da4cf5e0d40bd295355b..8c6773ee217b0a69f47e82d536e1d29f067bc960 100644
 --- a/src/main/java/net/minecraft/world/item/ShovelItem.java
 +++ b/src/main/java/net/minecraft/world/item/ShovelItem.java
-@@ -12,10 +12,12 @@ import net.minecraft.world.InteractionResult;
+@@ -2,20 +2,25 @@ package net.minecraft.world.item;
+ 
+ import com.google.common.collect.Maps;
+ import com.google.common.collect.ImmutableMap.Builder;
++
+ import java.util.Map;
++
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.Direction;
+ import net.minecraft.sounds.SoundEvents;
+ import net.minecraft.sounds.SoundSource;
+ import net.minecraft.tags.BlockTags;
+ import net.minecraft.world.InteractionResult;
++import net.minecraft.world.entity.EquipmentSlot;
  import net.minecraft.world.entity.LivingEntity;
  import net.minecraft.world.entity.player.Player;
  import net.minecraft.world.item.context.UseOnContext;
@@ -21,7 +34,7 @@ index 24f6a158e4759aac3be8da4cf5e0d40bd295355b..59c6c9b4d574b2c1f6c54a116c4bab43
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.level.gameevent.GameEvent;
  
-@@ -44,6 +46,22 @@ public class ShovelItem extends DiggerItem {
+@@ -44,6 +49,24 @@ public class ShovelItem extends DiggerItem {
              return InteractionResult.PASS;
          } else {
              Player player = context.getPlayer();
@@ -32,10 +45,12 @@ index 24f6a158e4759aac3be8da4cf5e0d40bd295355b..59c6c9b4d574b2c1f6c54a116c4bab43
 +                Block.popResource(level, blockPos, new ItemStack(EnchantmentHelper.hasSilkTouch(context.getItemInHand()) ? Items.SNOW : Items.SNOWBALL));
 +                level.playSound(player, blockPos, SoundEvents.SNOW_BREAK, SoundSource.BLOCKS, 1.0F, 1.0F);
 +
-+                if(player != null) {
-+                    context.getItemInHand().hurtAndBreak(1, player, (p) -> {
-+                        p.broadcastBreakEvent(context.getHand());
-+                    });
++                if (player != null) {
++                    context.getItemInHand().hurtAndBreak(1, player.getRandom(), player, () ->
++                        player.broadcastBreakEvent(switch (context.getHand()) {
++                           case MAIN_HAND -> EquipmentSlot.MAINHAND;
++                           case OFF_HAND -> EquipmentSlot.OFFHAND;
++                        }));
 +                }
 +
 +                return InteractionResult.SUCCESS;
@@ -44,3 +59,19 @@ index 24f6a158e4759aac3be8da4cf5e0d40bd295355b..59c6c9b4d574b2c1f6c54a116c4bab43
              BlockState blockState2 = FLATTENABLES.get(blockState.getBlock());
              BlockState blockState3 = null;
              Runnable afterAction = null; // Paper
+@@ -52,11 +75,11 @@ public class ShovelItem extends DiggerItem {
+                 blockState3 = blockState2;
+             } else if (blockState.getBlock() instanceof CampfireBlock && blockState.getValue(CampfireBlock.LIT)) {
+                 afterAction = () -> { // Paper
+-                if (!level.isClientSide()) {
+-                    level.levelEvent(null, 1009, blockPos, 0);
+-                }
++                    if (!level.isClientSide()) {
++                        level.levelEvent(null, 1009, blockPos, 0);
++                    }
+ 
+-                CampfireBlock.dowse(context.getPlayer(), level, blockPos, blockState);
++                    CampfireBlock.dowse(context.getPlayer(), level, blockPos, blockState);
+                 }; // Paper
+                 blockState3 = blockState.setValue(CampfireBlock.LIT, Boolean.valueOf(false));
+             }

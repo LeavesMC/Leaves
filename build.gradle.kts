@@ -4,7 +4,7 @@ import kotlin.io.path.*
 plugins {
     java
     `maven-publish`
-    id("io.papermc.paperweight.patcher") version "1.6.3"
+    id("io.papermc.paperweight.patcher") version "1.7.1"
 }
 
 repositories {

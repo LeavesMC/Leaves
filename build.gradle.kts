@@ -9,7 +9,7 @@ plugins {
 
 repositories {
     mavenCentral()
-    maven("https://repo.leavesmc.top/releases") {
+    maven("https://repo.leavesmc.org/releases") {
         content { onlyForConfigurations("paperclip") }
     }
 }
@@ -17,7 +17,7 @@ repositories {
 dependencies {
     remapper("net.fabricmc:tiny-remapper:0.10.2:fat")
     decompiler("org.vineflower:vineflower:1.10.1")
-    paperclip("top.leavesmc:leavesclip:1.0.2")
+    paperclip("org.leavesmc:leavesclip:2.0.0")
 }
 
 java {

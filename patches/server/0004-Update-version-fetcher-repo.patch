@@ -5,38 +5,29 @@ Subject: [PATCH] Update version fetcher repo
 
 
 diff --git a/src/main/java/com/destroystokyo/paper/PaperVersionFetcher.java b/src/main/java/com/destroystokyo/paper/PaperVersionFetcher.java
-index 9d687da5bdf398bb3f6c84cdf1249a7213d09f2e..fa446ff1b7284b58ee88566cbbe39d81545121ea 100644
+index 532306cacd52579cdf37e4aca25887b1ed3ba6a1..917ffaae401f3374d07d7fb7c024234a43ee54e4 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperVersionFetcher.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperVersionFetcher.java
-@@ -38,7 +38,7 @@ public class PaperVersionFetcher implements VersionFetcher {
-         return history != null ? TextComponent.ofChildren(updateMessage, Component.newline(), history) : updateMessage;
-     }
- 
--    private static @Nullable String getMinecraftVersion() {
-+    protected static @Nullable String getMinecraftVersion() { // Leaves - private -> protected
-         if (mcVer == null) {
-             java.util.regex.Matcher matcher = VER_PATTERN.matcher(org.bukkit.Bukkit.getBukkitVersion());
-             if (matcher.find()) {
-@@ -106,7 +106,7 @@ public class PaperVersionFetcher implements VersionFetcher {
+@@ -107,7 +107,7 @@ public class PaperVersionFetcher implements VersionFetcher {
      }
  
      // Contributed by Techcable <Techcable@outlook.com> in GH-65
--    private static int fetchDistanceFromGitHub(@Nonnull String repo, @Nonnull String branch, @Nonnull String hash) {
-+    protected static int fetchDistanceFromGitHub(@Nonnull String repo, @Nonnull String branch, @Nonnull String hash) { // Leaves - private -> protected
+-    private static int fetchDistanceFromGitHub(final String repo, final String branch, final String hash) {
++    protected static int fetchDistanceFromGitHub(final String repo, final String branch, final String hash) { // Leaves - private -> protected
          try {
-             HttpURLConnection connection = (HttpURLConnection) new URL("https://api.github.com/repos/" + repo + "/compare/" + branch + "..." + hash).openConnection();
+             final HttpURLConnection connection = (HttpURLConnection) URI.create("https://api.github.com/repos/%s/compare/%s...%s".formatted(repo, branch, hash)).toURL().openConnection();
              connection.connect();
-@@ -133,7 +133,7 @@ public class PaperVersionFetcher implements VersionFetcher {
+@@ -130,7 +130,7 @@ public class PaperVersionFetcher implements VersionFetcher {
+         }
      }
  
-     @Nullable
--    private Component getHistory() {
-+    protected Component getHistory() { // Leaves - private -> protected
-         final VersionHistoryManager.VersionData data = VersionHistoryManager.INSTANCE.getVersionData();
+-    private @Nullable Component getHistory() {
++    protected @Nullable Component getHistory() { // Leaves - private -> protected
+         final VersionHistoryManager.@Nullable VersionData data = VersionHistoryManager.INSTANCE.getVersionData();
          if (data == null) {
              return null;
 diff --git a/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java b/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java
-index ddf819ebeaeb1dfdd3bfbba4b22e6176c8f63506..eb8a748a04f4111e61efa21beac76841c7f12abf 100644
+index 129aa57a01877c9339541f0e10933573bd438fe6..97af3ef9111c2252019c4af879cabea70cee4fa5 100644
 --- a/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java
 +++ b/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java
 @@ -510,7 +510,7 @@ public final class CraftMagicNumbers implements UnsafeValues {
@@ -50,10 +41,10 @@ index ddf819ebeaeb1dfdd3bfbba4b22e6176c8f63506..eb8a748a04f4111e61efa21beac76841
      @Override
 diff --git a/src/main/java/top/leavesmc/leaves/util/LeavesVersionFetcher.java b/src/main/java/top/leavesmc/leaves/util/LeavesVersionFetcher.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..18d104d4dc1da05affc67acbfc3c81c981d2a75b
+index 0000000000000000000000000000000000000000..825e59ad8565547dc6e46ce96baf6b2e78e3013b
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/util/LeavesVersionFetcher.java
-@@ -0,0 +1,78 @@
+@@ -0,0 +1,126 @@
 +package top.leavesmc.leaves.util;
 +
 +import com.destroystokyo.paper.PaperVersionFetcher;
@@ -61,74 +52,122 @@ index 0000000000000000000000000000000000000000..18d104d4dc1da05affc67acbfc3c81c9
 +import com.google.common.io.Resources;
 +import com.google.gson.Gson;
 +import com.google.gson.JsonArray;
++import com.google.gson.JsonElement;
 +import com.google.gson.JsonObject;
 +import com.google.gson.JsonSyntaxException;
++import com.mojang.logging.LogUtils;
++import io.papermc.paper.ServerBuildInfo;
 +import net.kyori.adventure.text.Component;
-+import net.kyori.adventure.text.TextComponent;
 +import net.kyori.adventure.text.event.ClickEvent;
 +import net.kyori.adventure.text.format.NamedTextColor;
++import org.checkerframework.checker.nullness.qual.Nullable;
++import org.jetbrains.annotations.NotNull;
++import org.slf4j.Logger;
 +
-+import javax.annotation.Nonnull;
-+import javax.annotation.Nullable;
 +import java.io.BufferedReader;
 +import java.io.IOException;
-+import java.net.URL;
++import java.net.URI;
++import java.util.Optional;
++import java.util.OptionalInt;
 +import java.util.stream.StreamSupport;
++
++import static net.kyori.adventure.text.Component.text;
++import static net.kyori.adventure.text.format.TextColor.color;
 +
 +public class LeavesVersionFetcher extends PaperVersionFetcher {
 +
++    private static final Logger LOGGER = LogUtils.getClassLogger();
++
++    private static final int DISTANCE_ERROR = -1;
++    private static final int DISTANCE_UNKNOWN = -2;
 +    private static final String DOWNLOAD_PAGE = "https://leavesmc.org/downloads/leaves";
-+    private static final String GITHUB_BRANCH_NAME = "master";
 +
-+    @Nonnull
++    @NotNull
 +    @Override
-+    public Component getVersionMessage(@Nonnull String serverVersion) {
-+        String[] parts = serverVersion.substring("git-Leaves-".length()).split("[-\\s]");
-+        final Component updateMessage = getUpdateStatusMessage("LeavesMC/Leaves", GITHUB_BRANCH_NAME, parts[0]);
-+        final Component history = getHistory();
++    public Component getVersionMessage(@NotNull String serverVersion) {
++        final Component updateMessage;
++        final ServerBuildInfo build = ServerBuildInfo.buildInfo();
++        if (build.buildNumber().isEmpty() && build.gitCommit().isEmpty()) {
++            updateMessage = text("You are running a development version without access to version information", color(0xFF5300));
++        } else {
++            updateMessage = getUpdateStatusMessage("LeavesMC/Leaves", build);
++        }
++        final @Nullable Component history = this.getHistory();
 +
-+        return history != null ? TextComponent.ofChildren(updateMessage, Component.newline(), history) : updateMessage;
++        return history != null ? Component.textOfChildren(updateMessage, Component.newline(), history) : updateMessage;
 +    }
 +
-+    private static int fetchDistanceFromLeavesApiV2(String mcVersion, String hash) {
++    private static Component getUpdateStatusMessage(@NotNull final String repo, @NotNull final ServerBuildInfo build) {
++        int distance = fetchDistanceFromLeavesApiV2Build(build);
++
++        if (distance == DISTANCE_ERROR) {
++            distance = fetchDistanceFromLeavesApiV2Hash(build);
++        }
++
++        if (distance == DISTANCE_ERROR) {
++            final Optional<String> gitBranch = build.gitBranch();
++            final Optional<String> gitCommit = build.gitCommit();
++            if (gitBranch.isPresent() && gitCommit.isPresent()) {
++                distance = fetchDistanceFromGitHub(repo, gitBranch.get(), gitCommit.get());
++            }
++        }
++
++        return switch (distance) {
++            case DISTANCE_ERROR -> Component.text("Error obtaining version information", NamedTextColor.YELLOW);
++            case 0 -> Component.text("You are running the latest version", NamedTextColor.GREEN);
++            case DISTANCE_UNKNOWN -> Component.text("Unknown version", NamedTextColor.YELLOW);
++            default -> Component.text("You are " + distance + " version(s) behind", NamedTextColor.YELLOW)
++                .append(Component.newline())
++                .append(Component.text("Download the new version at: ")
++                    .append(Component.text(DOWNLOAD_PAGE, NamedTextColor.GOLD)
++                        .hoverEvent(Component.text("Click to open", NamedTextColor.WHITE))
++                        .clickEvent(ClickEvent.openUrl(DOWNLOAD_PAGE))));
++        };
++    }
++
++    private static int fetchDistanceFromLeavesApiV2Build(final ServerBuildInfo build) {
++        OptionalInt buildNumber = build.buildNumber();
++        if (buildNumber.isEmpty()) {
++            return DISTANCE_ERROR;
++        }
++
++        try {
++            try (final BufferedReader reader = Resources.asCharSource(
++                URI.create("https://api.leavesmc.org/v2/projects/leaves/versions/" + build.minecraftVersionId()).toURL(),
++                Charsets.UTF_8
++            ).openBufferedStream()) {
++                final JsonObject json = new Gson().fromJson(reader, JsonObject.class);
++                final JsonArray builds = json.getAsJsonArray("builds");
++                final int latest = StreamSupport.stream(builds.spliterator(), false)
++                    .mapToInt(JsonElement::getAsInt)
++                    .max()
++                    .orElseThrow();
++                return latest - buildNumber.getAsInt();
++            } catch (final JsonSyntaxException ex) {
++                LOGGER.error("Error parsing json from Leaves's downloads API", ex);
++                return DISTANCE_ERROR;
++            }
++        } catch (final IOException e) {
++            LOGGER.error("Error while parsing version", e);
++            return DISTANCE_ERROR;
++        }
++    }
++
++    private static int fetchDistanceFromLeavesApiV2Hash(final ServerBuildInfo build) {
++        if (build.gitCommit().isEmpty()) {
++            return DISTANCE_ERROR;
++        }
++
 +        try {
 +            try (BufferedReader reader = Resources.asCharSource(
-+                new URL("https://api.leavesmc.org/v2/projects/leaves/versions/" + mcVersion + "/differ/" + hash),
++                URI.create("https://api.leavesmc.org/v2/projects/leaves/versions/" + build.minecraftVersionId() + "/differ/" + build.gitCommit()).toURL(),
 +                Charsets.UTF_8
 +            ).openBufferedStream()) {
 +                return Integer.parseInt(reader.readLine());
 +            }
 +        } catch (IOException e) {
-+            e.printStackTrace();
-+            throw new NumberFormatException();
-+        }
-+    }
-+
-+    private static Component getUpdateStatusMessage(@Nonnull String repo, @Nonnull String branch, @Nonnull String versionInfo) {
-+        int distance;
-+
-+        versionInfo = versionInfo.replace("\"", "");
-+        try {
-+            distance = fetchDistanceFromLeavesApiV2(getMinecraftVersion(), versionInfo);
-+        } catch (NumberFormatException ignored) {
-+            distance = fetchDistanceFromGitHub(repo, branch, versionInfo);
-+        }
-+
-+        switch (distance) {
-+            case -1:
-+                return Component.text("Error obtaining version information", NamedTextColor.YELLOW);
-+            case 0:
-+                return Component.text("You are running the latest version", NamedTextColor.GREEN);
-+            case -2:
-+                return Component.text("Unknown version", NamedTextColor.YELLOW);
-+            default:
-+                return Component.text("You are " + distance + " version(s) behind", NamedTextColor.YELLOW)
-+                    .append(Component.newline())
-+                    .append(Component.text("Download the new version at: ")
-+                        .append(Component.text(DOWNLOAD_PAGE, NamedTextColor.GOLD)
-+                            .hoverEvent(Component.text("Click to open", NamedTextColor.WHITE))
-+                            .clickEvent(ClickEvent.openUrl(DOWNLOAD_PAGE))));
-+
++            LOGGER.error("Error while parsing version", e);
++            return DISTANCE_ERROR;
 +        }
 +    }
 +}

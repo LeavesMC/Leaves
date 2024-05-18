@@ -7,22 +7,14 @@ plugins {
     id("io.papermc.paperweight.patcher") version "1.7.1"
 }
 
-repositories {
-    mavenCentral()
-    maven("https://repo.leavesmc.org/releases") {
-        content { onlyForConfigurations("paperclip") }
-    }
-}
+allprojects {
+    apply(plugin = "java")
+    apply(plugin = "maven-publish")
 
-dependencies {
-    remapper("net.fabricmc:tiny-remapper:0.10.2:fat")
-    decompiler("org.vineflower:vineflower:1.10.1")
-    paperclip("org.leavesmc:leavesclip:2.0.0")
-}
-
-java {
-    toolchain {
-        languageVersion.set(JavaLanguageVersion.of(21))
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(21)
+        }
     }
 }
 
@@ -59,6 +51,19 @@ subprojects {
     }
 }
 
+repositories {
+    mavenCentral()
+    maven("https://repo.leavesmc.org/releases") {
+        content { onlyForConfigurations("paperclip") }
+    }
+}
+
+dependencies {
+    remapper("net.fabricmc:tiny-remapper:0.10.2:fat")
+    decompiler("org.vineflower:vineflower:1.10.1")
+    paperclip("org.leavesmc:leavesclip:2.0.0")
+}
+
 paperweight {
     serverProject.set(project(":leaves-server"))
 
@@ -79,6 +84,20 @@ paperweight {
             upstreamDirPath = "paper-api-generator/generated"
             patchDir = layout.projectDirectory.dir("patches/generated-api")
             outputDir = layout.projectDirectory.dir("paper-api-generator/generated")
+        }
+    }
+}
+
+allprojects {
+    publishing {
+        repositories {
+            maven("https://repo.leavesmc.org/snapshots") {
+                name = "leaves"
+                credentials(PasswordCredentials::class) {
+                    username = System.getenv("LEAVES_USERNAME")
+                    password = System.getenv("LEAVES_PASSWORD")
+                }
+            }
         }
     }
 }

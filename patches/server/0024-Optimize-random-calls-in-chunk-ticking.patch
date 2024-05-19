@@ -6,7 +6,7 @@ Subject: [PATCH] Optimize random calls in chunk ticking
 This patch is Powered by Pufferfish(https://github.com/pufferfish-gg/Pufferfish)
 
 diff --git a/src/main/java/net/minecraft/server/level/ServerChunkCache.java b/src/main/java/net/minecraft/server/level/ServerChunkCache.java
-index 256ad83f10e6df5d32959d38eeabc126b9b7b190..a02661561fbac2f15fdd040a44d9314e10cb2191 100644
+index 256ad83f10e6df5d32959d38eeabc126b9b7b190..db41ee04b5dd3e162830342e4b1f2b457ffb7fed 100644
 --- a/src/main/java/net/minecraft/server/level/ServerChunkCache.java
 +++ b/src/main/java/net/minecraft/server/level/ServerChunkCache.java
 @@ -494,6 +494,11 @@ public class ServerChunkCache extends ChunkSource {
@@ -14,7 +14,7 @@ index 256ad83f10e6df5d32959d38eeabc126b9b7b190..a02661561fbac2f15fdd040a44d9314e
  
              gameprofilerfiller.push("pollingChunks");
 +            // Leaves start - reset ice & snow tick random
-+            if (top.leavesmc.leaves.LeavesConfig.optimizeChunkTicking) {
++            if (org.leavesmc.leaves.LeavesConfig.optimizeChunkTicking) {
 +                this.level.resetIceAndSnowTick();
 +            }
 +            // Leaves end - reset ice & snow tick random
@@ -22,7 +22,7 @@ index 256ad83f10e6df5d32959d38eeabc126b9b7b190..a02661561fbac2f15fdd040a44d9314e
              // Paper - optimise chunk tick iteration
  
 diff --git a/src/main/java/net/minecraft/server/level/ServerLevel.java b/src/main/java/net/minecraft/server/level/ServerLevel.java
-index 84472442e0e68c22c4ebeaaf980aee1e8a234d81..8aed439345977f8e2aef85c41cf773001d973469 100644
+index 84472442e0e68c22c4ebeaaf980aee1e8a234d81..38fcba055839fc1b5522e8a88bdaa63d6f24780d 100644
 --- a/src/main/java/net/minecraft/server/level/ServerLevel.java
 +++ b/src/main/java/net/minecraft/server/level/ServerLevel.java
 @@ -974,6 +974,13 @@ public class ServerLevel extends Level implements WorldGenLevel {
@@ -44,12 +44,12 @@ index 84472442e0e68c22c4ebeaaf980aee1e8a234d81..8aed439345977f8e2aef85c41cf77300
          final BlockPos.MutableBlockPos blockposition = this.chunkTickMutablePosition; // Paper - use mutable to reduce allocation rate, final to force compile fail on change
  
 -        if (!this.paperConfig().environment.disableThunder && flag && this.isThundering() && this.spigotConfig.thunderChance > 0 && this.random.nextInt(this.spigotConfig.thunderChance) == 0) { // Spigot // Paper - Option to disable thunder
-+        if (!this.paperConfig().environment.disableThunder && flag && this.isThundering() && this.spigotConfig.thunderChance > 0 && (top.leavesmc.leaves.LeavesConfig.optimizeChunkTicking ? chunk.shouldDoLightning(this.random) : this.random.nextInt(this.spigotConfig.thunderChance) == 0)) { // Spigot // Paper - Option to disable thunder // Leaves - replace random with shouldDoLightning
++        if (!this.paperConfig().environment.disableThunder && flag && this.isThundering() && this.spigotConfig.thunderChance > 0 && (org.leavesmc.leaves.LeavesConfig.optimizeChunkTicking ? chunk.shouldDoLightning(this.random) : this.random.nextInt(this.spigotConfig.thunderChance) == 0)) { // Spigot // Paper - Option to disable thunder // Leaves - replace random with shouldDoLightning
              blockposition.set(this.findLightningTargetAround(this.getBlockRandomPos(j, 0, k, 15))); // Paper
  
              if (this.isRainingAt(blockposition)) {
 diff --git a/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java b/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java
-index 96490c90697ad42565c465a5ed1d956fc1c73f73..8e363f2b72c7785667890878854d17e1fb593017 100644
+index 96490c90697ad42565c465a5ed1d956fc1c73f73..8b4f58dae2dba4c661dbd3de0ef65cdbf3bb861e 100644
 --- a/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java
 +++ b/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java
 @@ -88,6 +88,18 @@ public class LevelChunk extends ChunkAccess {
@@ -77,7 +77,7 @@ index 96490c90697ad42565c465a5ed1d956fc1c73f73..8e363f2b72c7785667890878854d17e1
          this.fluidTicks = fluidTickScheduler;
 +        
 +        // Leaves start - initialize lightning tick
-+        if (top.leavesmc.leaves.LeavesConfig.optimizeChunkTicking) {
++        if (org.leavesmc.leaves.LeavesConfig.optimizeChunkTicking) {
 +            this.lightningTick = this.level.getThreadUnsafeRandom().nextInt(100000) << 1;
 +        }
 +        // Leaves end - initialize lightning tick

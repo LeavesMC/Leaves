@@ -6,7 +6,7 @@ Subject: [PATCH] Use aging cache for biome temperatures
 This patch is Powered by Pufferfish(https://github.com/pufferfish-gg/Pufferfish)
 
 diff --git a/src/main/java/net/minecraft/world/level/biome/Biome.java b/src/main/java/net/minecraft/world/level/biome/Biome.java
-index 15f82c9a1ce1fef2e951d1b3c7a65e64b82061ea..722cbfa25b688199efe6b0ee956b9341a032a1e7 100644
+index 15f82c9a1ce1fef2e951d1b3c7a65e64b82061ea..0e318fd031ddb2ec95fe9479f7ad6b28171d1797 100644
 --- a/src/main/java/net/minecraft/world/level/biome/Biome.java
 +++ b/src/main/java/net/minecraft/world/level/biome/Biome.java
 @@ -63,7 +63,17 @@ public final class Biome {
@@ -16,7 +16,7 @@ index 15f82c9a1ce1fef2e951d1b3c7a65e64b82061ea..722cbfa25b688199efe6b0ee956b9341
 -    private final ThreadLocal<Long2FloatLinkedOpenHashMap> temperatureCache = ThreadLocal.withInitial(() -> Util.make(() -> {
 +    // Leaves start - use our cache
 +    private final ThreadLocal<Long2FloatLinkedOpenHashMap> temperatureCache;
-+    private final ThreadLocal<top.leavesmc.leaves.structs.Long2FloatAgingCache> temperatureAgingCache;
++    private final ThreadLocal<org.leavesmc.leaves.structs.Long2FloatAgingCache> temperatureAgingCache;
 +
 +    Biome(Biome.ClimateSettings weather, BiomeSpecialEffects effects, BiomeGenerationSettings generationSettings, MobSpawnSettings spawnSettings) {
 +        this.climateSettings = weather;
@@ -40,7 +40,7 @@ index 15f82c9a1ce1fef2e951d1b3c7a65e64b82061ea..722cbfa25b688199efe6b0ee956b9341
 -        this.specialEffects = effects;
 +        temperatureAgingCache = ThreadLocal.withInitial(() -> {
 +            return Util.make(() -> {
-+                return new top.leavesmc.leaves.structs.Long2FloatAgingCache(TEMPERATURE_CACHE_SIZE);
++                return new org.leavesmc.leaves.structs.Long2FloatAgingCache(TEMPERATURE_CACHE_SIZE);
 +            });
 +        });
      }
@@ -57,8 +57,8 @@ index 15f82c9a1ce1fef2e951d1b3c7a65e64b82061ea..722cbfa25b688199efe6b0ee956b9341
 -        if (!Float.isNaN(f)) {
 -            return f;
 +        // Leaves start - use our cache
-+        if (top.leavesmc.leaves.LeavesConfig.biomeTemperaturesUseAgingCache) {
-+            top.leavesmc.leaves.structs.Long2FloatAgingCache cache = this.temperatureAgingCache.get();
++        if (org.leavesmc.leaves.LeavesConfig.biomeTemperaturesUseAgingCache) {
++            org.leavesmc.leaves.structs.Long2FloatAgingCache cache = this.temperatureAgingCache.get();
 +            float f = cache.getValue(l);
 +            if (!Float.isNaN(f)) {
 +                return f;
@@ -91,13 +91,13 @@ index 15f82c9a1ce1fef2e951d1b3c7a65e64b82061ea..722cbfa25b688199efe6b0ee956b9341
      }
  
      public boolean shouldFreeze(LevelReader world, BlockPos blockPos) {
-diff --git a/src/main/java/top/leavesmc/leaves/structs/Long2FloatAgingCache.java b/src/main/java/top/leavesmc/leaves/structs/Long2FloatAgingCache.java
+diff --git a/src/main/java/org/leavesmc/leaves/structs/Long2FloatAgingCache.java b/src/main/java/org/leavesmc/leaves/structs/Long2FloatAgingCache.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..26f9d4d9099739d6ddc159184a20e2ae9abde5cd
+index 0000000000000000000000000000000000000000..cd8b1bbfe553c28b75ea92d344364650756e9fdd
 --- /dev/null
-+++ b/src/main/java/top/leavesmc/leaves/structs/Long2FloatAgingCache.java
++++ b/src/main/java/org/leavesmc/leaves/structs/Long2FloatAgingCache.java
 @@ -0,0 +1,121 @@
-+package top.leavesmc.leaves.structs;
++package org.leavesmc.leaves.structs;
 +
 +import it.unimi.dsi.fastutil.HashCommon;
 +

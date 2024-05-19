@@ -5,11 +5,20 @@ Subject: [PATCH] Replay Mod API
 
 This patch is Powered by ReplayMod(https://github.com/ReplayMod)
 
+diff --git a/.gitignore b/.gitignore
+index 1ad93453221244f880855b510e888e759275b640..3811c0d849a3eb028ed1a6b7a2d4747f7f570448 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -46,4 +46,3 @@ dependency-reduced-pom.xml
+ # vs code
+ /.vscode
+ /.factorypath
+-
 diff --git a/src/main/java/net/minecraft/commands/arguments/EntityArgument.java b/src/main/java/net/minecraft/commands/arguments/EntityArgument.java
-index 8d79cfa371546996ef65f94232c1d344e7c590ec..9c262c82d9ab24bdbbe03df8cee3d5d99e8f8868 100644
+index 7976885b902a6ce7d80f31e49448c99452eb9765..96acc8ba0dc49b3b500ffd362cfcbae8074385ea 100644
 --- a/src/main/java/net/minecraft/commands/arguments/EntityArgument.java
 +++ b/src/main/java/net/minecraft/commands/arguments/EntityArgument.java
-@@ -147,6 +147,7 @@ public class EntityArgument implements ArgumentType<EntitySelector> {
+@@ -146,6 +146,7 @@ public class EntityArgument implements ArgumentType<EntitySelector> {
                  if (icompletionprovider instanceof CommandSourceStack commandSourceStack && commandSourceStack.getEntity() instanceof ServerPlayer sourcePlayer) {
                      collection = new java.util.ArrayList<>();
                      for (final ServerPlayer player : commandSourceStack.getServer().getPlayerList().getPlayers()) {
@@ -94,10 +103,10 @@ index 676a1499747b071515479130875157263d3a8352..e5ef298dc1df9cc42b3d349939a966b7
                              if (((List) object).size() >= i) {
                                  return (List) object;
 diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
-index 791e6680db77d3ec464168e5225d3ab0844b5e84..7fd45603c33730e3cb8d3aa1180ecd30f253e0f5 100644
+index 04981a74175e40ed8486bb969548506878ba868b..f1ac75bb0f423738774e002ef697c0c428300807 100644
 --- a/src/main/java/net/minecraft/server/MinecraftServer.java
 +++ b/src/main/java/net/minecraft/server/MinecraftServer.java
-@@ -1606,7 +1606,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+@@ -1662,7 +1662,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
      }
  
      private ServerStatus.Players buildPlayerStatus() {
@@ -107,12 +116,12 @@ index 791e6680db77d3ec464168e5225d3ab0844b5e84..7fd45603c33730e3cb8d3aa1180ecd30
  
          if (this.hidesOnlinePlayers()) {
 diff --git a/src/main/java/net/minecraft/server/PlayerAdvancements.java b/src/main/java/net/minecraft/server/PlayerAdvancements.java
-index cb05ec292d26320562e51da96a5a28cb04ecc7e4..6cf0b94b185d901ee79f376a6d2ffd8ccfae5b84 100644
+index 8f3e7a67113026f11748981bb945479c63a5a50a..114d06c9b00ae7bc88037bc41e604648b8a73013 100644
 --- a/src/main/java/net/minecraft/server/PlayerAdvancements.java
 +++ b/src/main/java/net/minecraft/server/PlayerAdvancements.java
-@@ -223,7 +223,7 @@ public class PlayerAdvancements {
- 
-     public boolean award(AdvancementHolder advancement, String criterionName) {
+@@ -227,7 +227,7 @@ public class PlayerAdvancements {
+         }
+         // Leaves end - spectator don't get advancement
          // Leaves start - bot can't get advancement
 -        if (player instanceof top.leavesmc.leaves.bot.ServerBot) {
 +        if (player instanceof top.leavesmc.leaves.bot.ServerBot || player instanceof top.leavesmc.leaves.replay.ServerPhotographer) { // Leaves - and photographer
@@ -132,40 +141,27 @@ index e7b444a10b244828827b3c66c53465206ea8e0ec..030601fdfde2232a933b2ad7022e9909
                                          .stream()
                                          .filter(player -> !playerList.isOp(player.getGameProfile()))
                                          .map(player -> player.getGameProfile().getName()),
-diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index 2730718b162c20110145798dbb0eaad0b139e99b..7f8b5195ac50f153411eb6713c6a861864cc8886 100644
---- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-+++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-@@ -299,7 +299,7 @@ public class ServerGamePacketListenerImpl extends ServerCommonPacketListenerImpl
-         super(server, connection, clientData, player); // CraftBukkit
-         this.chunkSender = new PlayerChunkSender(connection.isMemoryConnection());
-         // Leaves start - fakeplayer
--        if (player instanceof top.leavesmc.leaves.bot.ServerBot) {
-+        if (player instanceof top.leavesmc.leaves.bot.ServerBot || player instanceof top.leavesmc.leaves.replay.ServerPhotographer) { // Leaves - and photographer
-             connection.setListenerForce(this);
-         } else {
-             connection.setListener(this);
 diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
-index 139129f0110dc656bc729ce795f012ec087641cf..dc140b2003a997c13f7bdc8f5c707f98f4d6ff17 100644
+index 9510b72bc84c067ebc98d1742a8000fecd13a824..65afcea2f497f9365869eef2b1973ae5d2f203b2 100644
 --- a/src/main/java/net/minecraft/server/players/PlayerList.java
 +++ b/src/main/java/net/minecraft/server/players/PlayerList.java
-@@ -124,6 +124,7 @@ import org.bukkit.event.player.PlayerSpawnChangeEvent;
+@@ -126,6 +126,7 @@ import org.bukkit.event.player.PlayerSpawnChangeEvent;
+ // CraftBukkit end
+ 
  import top.leavesmc.leaves.bot.ServerBot;
- import top.leavesmc.leaves.util.ReturnPortalManager; // Leaves - return portal fix
- import top.leavesmc.leaves.util.ArrayConstants;
 +import top.leavesmc.leaves.replay.ServerPhotographer;
  
  public abstract class PlayerList {
  
-@@ -156,6 +157,7 @@ public abstract class PlayerList {
-     private boolean allowCheatsForAllPlayers;
+@@ -158,6 +159,7 @@ public abstract class PlayerList {
+     private boolean allowCommandsForAllPlayers;
      private static final boolean ALLOW_LOGOUTIVATOR = false;
      private int sendAllPlayerInfoIn;
 +    public final List<ServerPlayer> realPlayers = new java.util.concurrent.CopyOnWriteArrayList(); // Leaves - replay api
  
      // CraftBukkit start
      private CraftServer cserver;
-@@ -182,6 +184,120 @@ public abstract class PlayerList {
+@@ -184,6 +186,120 @@ public abstract class PlayerList {
      }
      abstract public void loadAndSaveFiles(); // Paper - fix converting txt to json file; moved from DedicatedPlayerList constructor
  
@@ -183,13 +179,13 @@ index 139129f0110dc656bc729ce795f012ec087641cf..dc140b2003a997c13f7bdc8f5c707f98
 +        LevelData worlddata = worldserver1.getLevelData();
 +
 +        player.loadGameTypes(null);
-+        ServerGamePacketListenerImpl playerconnection = new ServerGamePacketListenerImpl(this.server, connection, player, CommonListenerCookie.createInitial(player.gameProfile));
++        ServerGamePacketListenerImpl playerconnection = new ServerGamePacketListenerImpl(this.server, connection, player, CommonListenerCookie.createInitial(player.gameProfile, false));
 +        GameRules gamerules = worldserver1.getGameRules();
 +        boolean flag = gamerules.getBoolean(GameRules.RULE_DO_IMMEDIATE_RESPAWN);
 +        boolean flag1 = gamerules.getBoolean(GameRules.RULE_REDUCEDDEBUGINFO);
 +        boolean flag2 = gamerules.getBoolean(GameRules.RULE_LIMITED_CRAFTING);
 +
-+        playerconnection.send(new ClientboundLoginPacket(player.getId(), worlddata.isHardcore(), this.server.levelKeys(), this.getMaxPlayers(), worldserver1.getWorld().getSendViewDistance(), worldserver1.getWorld().getSimulationDistance(), flag1, !flag, flag2, player.createCommonSpawnInfo(worldserver1))); // Paper - replace old player chunk management
++        playerconnection.send(new ClientboundLoginPacket(player.getId(), worlddata.isHardcore(), this.server.levelKeys(), this.getMaxPlayers(), worldserver1.getWorld().getSendViewDistance(), worldserver1.getWorld().getSimulationDistance(), flag1, !flag, flag2, player.createCommonSpawnInfo(worldserver1), this.server.enforceSecureProfile())); // Paper - replace old player chunk management
 +        player.getBukkitEntity().sendSupportedChannels(); // CraftBukkit
 +        playerconnection.send(new ClientboundChangeDifficultyPacket(worlddata.getDifficulty(), worlddata.isDifficultyLocked()));
 +        playerconnection.send(new ClientboundPlayerAbilitiesPacket(player.getAbilities()));
@@ -223,7 +219,7 @@ index 139129f0110dc656bc729ce795f012ec087641cf..dc140b2003a997c13f7bdc8f5c707f98
 +            return;
 +        }
 +
-+        top.leavesmc.leaves.protocol.core.LeavesProtocolManager.handlePlayerJoin(player); // Leaves - protocol
++        // top.leavesmc.leaves.protocol.core.LeavesProtocolManager.handlePlayerJoin(player); // Leaves - protocol
 +
 +        // Leaves start - bot support
 +        if (top.leavesmc.leaves.LeavesConfig.fakeplayerSupport) {
@@ -269,7 +265,7 @@ index 139129f0110dc656bc729ce795f012ec087641cf..dc140b2003a997c13f7bdc8f5c707f98
 +        Iterator iterator = player.getActiveEffects().iterator();
 +        while (iterator.hasNext()) {
 +            MobEffectInstance mobeffect = (MobEffectInstance) iterator.next();
-+            playerconnection.send(new ClientboundUpdateMobEffectPacket(player.getId(), mobeffect));
++            playerconnection.send(new ClientboundUpdateMobEffectPacket(player.getId(), mobeffect, false));
 +        }
 +
 +        if (player.isDeadOrDying()) {
@@ -286,7 +282,7 @@ index 139129f0110dc656bc729ce795f012ec087641cf..dc140b2003a997c13f7bdc8f5c707f98
      public void placeNewPlayer(Connection connection, ServerPlayer player, CommonListenerCookie clientData) {
          player.isRealPlayer = true; // Paper
          player.loginTime = System.currentTimeMillis(); // Paper - Replace OfflinePlayer#getLastPlayed
-@@ -328,6 +444,7 @@ public abstract class PlayerList {
+@@ -330,6 +446,7 @@ public abstract class PlayerList {
  
          // entityplayer.connection.send(ClientboundPlayerInfoUpdatePacket.createPlayerInitializing(this.players)); // CraftBukkit - replaced with loop below
          this.players.add(player);
@@ -307,7 +303,7 @@ index 139129f0110dc656bc729ce795f012ec087641cf..dc140b2003a997c13f7bdc8f5c707f98
              onlinePlayers.add(entityplayer1); // Paper - Use single player info update packet on join
          }
          // Paper start - Use single player info update packet on join
-@@ -613,6 +736,43 @@ public abstract class PlayerList {
+@@ -609,6 +732,43 @@ public abstract class PlayerList {
  
      }
  
@@ -351,7 +347,7 @@ index 139129f0110dc656bc729ce795f012ec087641cf..dc140b2003a997c13f7bdc8f5c707f98
      public net.kyori.adventure.text.Component remove(ServerPlayer entityplayer) { // CraftBukkit - return string // Paper - return Component
          // Paper start - Fix kick event leave message not being sent
          return this.remove(entityplayer, net.kyori.adventure.text.Component.translatable("multiplayer.player.left", net.kyori.adventure.text.format.NamedTextColor.YELLOW, io.papermc.paper.configuration.GlobalConfiguration.get().messages.useDisplayNameInQuitMessage ? entityplayer.getBukkitEntity().displayName() : io.papermc.paper.adventure.PaperAdventure.asAdventure(entityplayer.getDisplayName())));
-@@ -681,6 +841,7 @@ public abstract class PlayerList {
+@@ -676,6 +836,7 @@ public abstract class PlayerList {
          entityplayer.retireScheduler(); // Paper - Folia schedulers
          entityplayer.getAdvancements().stopListening();
          this.players.remove(entityplayer);
@@ -359,7 +355,7 @@ index 139129f0110dc656bc729ce795f012ec087641cf..dc140b2003a997c13f7bdc8f5c707f98
          this.playersByName.remove(entityplayer.getScoreboardName().toLowerCase(java.util.Locale.ROOT)); // Spigot
          this.server.getCustomBossEvents().onPlayerDisconnect(entityplayer);
          UUID uuid = entityplayer.getUUID();
-@@ -774,7 +935,7 @@ public abstract class PlayerList {
+@@ -770,7 +931,7 @@ public abstract class PlayerList {
              event.disallow(PlayerLoginEvent.Result.KICK_BANNED, io.papermc.paper.adventure.PaperAdventure.asAdventure(ichatmutablecomponent)); // Paper - Adventure
          } else {
              // return this.players.size() >= this.maxPlayers && !this.canBypassPlayerLimit(gameprofile) ? IChatBaseComponent.translatable("multiplayer.disconnect.server_full") : null;
@@ -369,26 +365,18 @@ index 139129f0110dc656bc729ce795f012ec087641cf..dc140b2003a997c13f7bdc8f5c707f98
              }
          }
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 79c10c26e9a27b120070b408e261a26bb66a5082..70b4f5dc96e285184bd3e676397c6bddd193db37 100644
+index 95b797be88fb64d3362cf6a95da4e8e432a344e0..a7013266ead0ccf330d7c96634782c634201c866 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -262,6 +262,7 @@ import org.yaml.snakeyaml.error.MarkedYAMLException;
- 
- import net.md_5.bungee.api.chat.BaseComponent; // Spigot
- import top.leavesmc.leaves.entity.CraftBotManager;
-+import top.leavesmc.leaves.entity.CraftPhotographerManager;
- 
- import javax.annotation.Nullable; // Paper
- import javax.annotation.Nonnull; // Paper
-@@ -309,6 +310,7 @@ public final class CraftServer implements Server {
+@@ -306,6 +306,7 @@ public final class CraftServer implements Server {
      private final io.papermc.paper.logging.SysoutCatcher sysoutCatcher = new io.papermc.paper.logging.SysoutCatcher(); // Paper
-     private final CraftPotionBrewer potionBrewer = new CraftPotionBrewer(); // Paper - Custom Potion Mixes
-     private final CraftBotManager botManager = new CraftBotManager();
-+    private final CraftPhotographerManager photographerManager = new CraftPhotographerManager();
+     private final io.papermc.paper.potion.PaperPotionBrewer potionBrewer; // Paper - Custom Potion Mixes
+     private final top.leavesmc.leaves.entity.CraftBotManager botManager = new top.leavesmc.leaves.entity.CraftBotManager(); // Leaves
++    private final top.leavesmc.leaves.entity.CraftPhotographerManager photographerManager = new top.leavesmc.leaves.entity.CraftPhotographerManager(); // Leaves
  
      // Paper start - Folia region threading API
      private final io.papermc.paper.threadedregions.scheduler.FallbackRegionScheduler regionizedScheduler = new io.papermc.paper.threadedregions.scheduler.FallbackRegionScheduler();
-@@ -390,7 +392,7 @@ public final class CraftServer implements Server {
+@@ -388,7 +389,7 @@ public final class CraftServer implements Server {
      public CraftServer(DedicatedServer console, PlayerList playerList) {
          this.console = console;
          this.playerList = (DedicatedPlayerList) playerList;
@@ -397,20 +385,20 @@ index 79c10c26e9a27b120070b408e261a26bb66a5082..70b4f5dc96e285184bd3e676397c6bdd
              @Override
              public CraftPlayer apply(ServerPlayer player) {
                  return player.getBukkitEntity();
-@@ -3279,4 +3281,11 @@ public final class CraftServer implements Server {
+@@ -3281,4 +3282,11 @@ public final class CraftServer implements Server {
          return botManager;
      }
      // Leaves end - Bot API
 +
 +    // Leaves start - replay mod api
 +    @Override
-+    public CraftPhotographerManager getPhotographerManager() {
++    public top.leavesmc.leaves.entity.CraftPhotographerManager getPhotographerManager() {
 +        return photographerManager;
 +    }
 +    // Leaves end - replay mod api
  }
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
-index 12f8ed45dc280a9ad7e975b1922cc9309c3d53b8..2254ab17bc087c2a54a15588b908c55efa01522c 100644
+index 4c3c48137482e4066992b13d27d6349b9e328e5b..abd9a6679e5546667a13c7ed9eb201080c168ae4 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
 @@ -59,6 +59,8 @@ import top.leavesmc.leaves.bot.ServerBot;
@@ -431,10 +419,10 @@ index 12f8ed45dc280a9ad7e975b1922cc9309c3d53b8..2254ab17bc087c2a54a15588b908c55e
          // Special case complex part, since there is no extra entity type for them
          if (entity instanceof EnderDragonPart complexPart) {
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
-index 44f4665db613c558078df5bb49106e4ca5679dfe..be198fa712ced7b61de16bdbc1f13acd2306cb22 100644
+index 561a7a8e96e2d91bbb87fe6230e94b5f38073d27..a392e0739682542be90be84b514ecc163b9e95c3 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
-@@ -2138,7 +2138,7 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+@@ -2223,7 +2223,7 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
  
      @Override
      public boolean canSee(Player player) {
@@ -695,17 +683,20 @@ index 0000000000000000000000000000000000000000..46a86cfce4aa859b8de7c126c22f64a9
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/replay/Recorder.java b/src/main/java/top/leavesmc/leaves/replay/Recorder.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..7626e7b1171fcf829673a5fb3c07b3d9e5de48bf
+index 0000000000000000000000000000000000000000..127945ace5b1a3c965851c88bfdd10dfa0057d2a
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/replay/Recorder.java
-@@ -0,0 +1,264 @@
+@@ -0,0 +1,289 @@
 +package top.leavesmc.leaves.replay;
 +
++import com.mojang.serialization.DynamicOps;
 +import io.netty.channel.local.LocalChannel;
 +import net.minecraft.SharedConstants;
 +import net.minecraft.core.LayeredRegistryAccess;
 +import net.minecraft.core.RegistryAccess;
 +import net.minecraft.core.RegistrySynchronization;
++import net.minecraft.nbt.NbtOps;
++import net.minecraft.nbt.Tag;
 +import net.minecraft.network.Connection;
 +import net.minecraft.network.ConnectionProtocol;
 +import net.minecraft.network.PacketSendListener;
@@ -713,10 +704,12 @@ index 0000000000000000000000000000000000000000..7626e7b1171fcf829673a5fb3c07b3d9
 +import net.minecraft.network.protocol.PacketFlow;
 +import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket;
 +import net.minecraft.network.protocol.common.ClientboundDisconnectPacket;
++import net.minecraft.network.protocol.common.ClientboundResourcePackPushPacket;
 +import net.minecraft.network.protocol.common.ClientboundUpdateTagsPacket;
 +import net.minecraft.network.protocol.common.custom.BrandPayload;
 +import net.minecraft.network.protocol.configuration.ClientboundFinishConfigurationPacket;
 +import net.minecraft.network.protocol.configuration.ClientboundRegistryDataPacket;
++import net.minecraft.network.protocol.configuration.ClientboundSelectKnownPacks;
 +import net.minecraft.network.protocol.configuration.ClientboundUpdateEnabledFeaturesPacket;
 +import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
 +import net.minecraft.network.protocol.game.ClientboundBundlePacket;
@@ -727,6 +720,8 @@ index 0000000000000000000000000000000000000000..7626e7b1171fcf829673a5fb3c07b3d9
 +import net.minecraft.network.protocol.login.ClientboundGameProfilePacket;
 +import net.minecraft.server.MinecraftServer;
 +import net.minecraft.server.RegistryLayer;
++import net.minecraft.server.network.config.ServerResourcePackConfigurationTask;
++import net.minecraft.server.packs.repository.KnownPack;
 +import net.minecraft.tags.TagNetworkSerialization;
 +import net.minecraft.world.entity.EntityType;
 +import net.minecraft.world.flag.FeatureFlags;
@@ -736,6 +731,9 @@ index 0000000000000000000000000000000000000000..7626e7b1171fcf829673a5fb3c07b3d9
 +
 +import java.io.File;
 +import java.io.IOException;
++import java.util.List;
++import java.util.Optional;
++import java.util.Set;
 +import java.util.concurrent.CompletableFuture;
 +import java.util.concurrent.CompletionException;
 +import java.util.concurrent.ExecutorService;
@@ -785,7 +783,7 @@ index 0000000000000000000000000000000000000000..7626e7b1171fcf829673a5fb3c07b3d9
 +        metaData.mcversion = SharedConstants.getCurrentVersion().getName();
 +
 +        // TODO start event
-+        savePacket(new ClientboundGameProfilePacket(photographer.getGameProfile()), ConnectionProtocol.LOGIN);
++        savePacket(new ClientboundGameProfilePacket(photographer.getGameProfile(), true), ConnectionProtocol.LOGIN);
 +        startConfiguration();
 +
 +        if (recorderOption.forceWeather != null) {
@@ -797,12 +795,27 @@ index 0000000000000000000000000000000000000000..7626e7b1171fcf829673a5fb3c07b3d9
 +        state = ConnectionProtocol.CONFIGURATION;
 +        MinecraftServer server = MinecraftServer.getServer();
 +        savePacket(new ClientboundCustomPayloadPacket(new BrandPayload(server.getServerModName())), ConnectionProtocol.CONFIGURATION);
-+        LayeredRegistryAccess<RegistryLayer> layeredregistryaccess = server.registries();
 +
 +        savePacket(new ClientboundUpdateEnabledFeaturesPacket(FeatureFlags.REGISTRY.toNames(server.getWorldData().enabledFeatures())), ConnectionProtocol.CONFIGURATION);
-+        savePacket(new ClientboundRegistryDataPacket((new RegistryAccess.ImmutableRegistryAccess(RegistrySynchronization.networkedRegistries(layeredregistryaccess))).freeze()), ConnectionProtocol.CONFIGURATION);
++
++        List<KnownPack> knownPackslist = server.getResourceManager().listPacks().flatMap((iresourcepack) -> iresourcepack.location().knownPackInfo().stream()).toList();
++        LayeredRegistryAccess<RegistryLayer> layeredregistryaccess = server.registries();
++
++        savePacket(new ClientboundSelectKnownPacks(knownPackslist));
++        DynamicOps<Tag> dynamicOps = layeredregistryaccess.compositeAccess().createSerializationContext(NbtOps.INSTANCE);
++        RegistrySynchronization.packRegistries(
++            dynamicOps,
++            layeredregistryaccess.getAccessFrom(RegistryLayer.WORLDGEN),
++            Set.copyOf(knownPackslist),
++            (key, entries) -> savePacket(new ClientboundRegistryDataPacket(key, entries), ConnectionProtocol.CONFIGURATION)
++        );
 +        savePacket(new ClientboundUpdateTagsPacket(TagNetworkSerialization.serializeTagsToNetwork(layeredregistryaccess)), ConnectionProtocol.CONFIGURATION);
-+        savePacket(new ClientboundFinishConfigurationPacket(), ConnectionProtocol.CONFIGURATION);
++
++        server.getServerResourcePack().ifPresent((info) -> {
++            savePacket(new ClientboundResourcePackPushPacket(info.id(), info.url(), info.hash(), info.isRequired(), Optional.ofNullable(info.prompt())), ConnectionProtocol.CONFIGURATION);
++        });
++
++        savePacket(ClientboundFinishConfigurationPacket.INSTANCE, ConnectionProtocol.CONFIGURATION);
 +        state = ConnectionProtocol.PLAY;
 +    }
 +
@@ -1028,10 +1041,10 @@ index 0000000000000000000000000000000000000000..06e7166336d621e1a8edb4a2ad88e2cb
 +}
 diff --git a/src/main/java/top/leavesmc/leaves/replay/ReplayFile.java b/src/main/java/top/leavesmc/leaves/replay/ReplayFile.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..8cb0f7e2c9f6b7455541c5e06acca0e1ceb60a11
+index 0000000000000000000000000000000000000000..04bc0307350ababf86e0abd866ee3825b9899e33
 --- /dev/null
 +++ b/src/main/java/top/leavesmc/leaves/replay/ReplayFile.java
-@@ -0,0 +1,178 @@
+@@ -0,0 +1,199 @@
 +package top.leavesmc.leaves.replay;
 +
 +import com.google.gson.Gson;
@@ -1041,8 +1054,17 @@ index 0000000000000000000000000000000000000000..8cb0f7e2c9f6b7455541c5e06acca0e1
 +import net.minecraft.SharedConstants;
 +import net.minecraft.network.ConnectionProtocol;
 +import net.minecraft.network.FriendlyByteBuf;
++import net.minecraft.network.ProtocolInfo;
++import net.minecraft.network.RegistryFriendlyByteBuf;
++import net.minecraft.network.codec.StreamCodec;
 +import net.minecraft.network.protocol.Packet;
 +import net.minecraft.network.protocol.PacketFlow;
++import net.minecraft.network.protocol.configuration.ConfigurationProtocols;
++import net.minecraft.network.protocol.game.GameProtocols;
++import net.minecraft.network.protocol.handshake.HandshakeProtocols;
++import net.minecraft.network.protocol.login.LoginProtocols;
++import net.minecraft.network.protocol.status.StatusProtocols;
++import net.minecraft.server.MinecraftServer;
 +import org.jetbrains.annotations.NotNull;
 +import top.leavesmc.leaves.util.UUIDSerializer;
 +
@@ -1059,6 +1081,7 @@ index 0000000000000000000000000000000000000000..8cb0f7e2c9f6b7455541c5e06acca0e1
 +import java.nio.charset.StandardCharsets;
 +import java.nio.file.Files;
 +import java.util.List;
++import java.util.Map;
 +import java.util.UUID;
 +import java.util.zip.CRC32;
 +import java.util.zip.ZipEntry;
@@ -1081,6 +1104,8 @@ index 0000000000000000000000000000000000000000..8cb0f7e2c9f6b7455541c5e06acca0e1
 +    private final File markerFile;
 +    private final File metaFile;
 +
++    private final Map<ConnectionProtocol, ProtocolInfo<?>> protocols;
++
 +    public ReplayFile(@NotNull File name) throws IOException {
 +        this.tmpDir = new File(name.getParentFile(), name.getName() + ".tmp");
 +        if (tmpDir.exists()) {
@@ -1094,18 +1119,27 @@ index 0000000000000000000000000000000000000000..8cb0f7e2c9f6b7455541c5e06acca0e1
 +        }
 +
 +        File packetFile = new File(tmpDir, RECORDING_FILE);
-+        metaFile = new File(tmpDir, META_FILE);
-+        markerFile = new File(tmpDir, MARKER_FILE);
++        this.metaFile = new File(tmpDir, META_FILE);
++        this.markerFile = new File(tmpDir, MARKER_FILE);
 +
-+        packetStream = new DataOutputStream(new DigestOutputStream(new BufferedOutputStream(new FileOutputStream(packetFile)), crc32));
++        this.packetStream = new DataOutputStream(new DigestOutputStream(new BufferedOutputStream(new FileOutputStream(packetFile)), crc32));
++
++        this.protocols = Map.of(
++            ConnectionProtocol.STATUS, StatusProtocols.CLIENTBOUND,
++            ConnectionProtocol.LOGIN, LoginProtocols.CLIENTBOUND,
++            ConnectionProtocol.CONFIGURATION, ConfigurationProtocols.CLIENTBOUND,
++            ConnectionProtocol.PLAY, GameProtocols.CLIENTBOUND.bind(RegistryFriendlyByteBuf.decorator(MinecraftServer.getServer().registryAccess()))
++        );
 +    }
 +
-+    private byte @NotNull [] getPacketBytes(Packet<?> packet, ConnectionProtocol state) {
-+        int packetID = state.codec(PacketFlow.CLIENTBOUND).packetId(packet);
++    private byte @NotNull [] getPacketBytes(Packet packet, ConnectionProtocol state) { // TODO: Fix this
++        ProtocolInfo<?> protocol = this.protocols.get(state);
++        if (protocol == null) {
++            throw new IllegalArgumentException("Unknown protocol state " + state);
++        }
++
 +        ByteBuf buf = Unpooled.buffer();
-+        FriendlyByteBuf packetBuf = new FriendlyByteBuf(buf);
-+        packetBuf.writeVarInt(packetID);
-+        packet.write(packetBuf);
++        protocol.codec().encode(buf, packet);
 +
 +        buf.readerIndex(0);
 +        byte[] ret = new byte[buf.readableBytes()];

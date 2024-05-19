@@ -4,11 +4,20 @@ Date: Thu, 14 Sep 2023 20:23:03 +0800
 Subject: [PATCH] Force Void Trade
 
 
+diff --git a/.gitignore b/.gitignore
+index 3811c0d849a3eb028ed1a6b7a2d4747f7f570448..1ad93453221244f880855b510e888e759275b640 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -46,3 +46,4 @@ dependency-reduced-pom.xml
+ # vs code
+ /.vscode
+ /.factorypath
++
 diff --git a/src/main/java/net/minecraft/world/entity/npc/AbstractVillager.java b/src/main/java/net/minecraft/world/entity/npc/AbstractVillager.java
-index fd1648546542f146ba7b866873f105ed1427ef7d..1ecbb7cb0f608e11ce84d7082bd4d3018a2bdfd5 100644
+index d323cf157f2a910916baa9ce3f7e5bc81648c47d..308638bb5dc12ac11eb7a44d05647403184f38d6 100644
 --- a/src/main/java/net/minecraft/world/entity/npc/AbstractVillager.java
 +++ b/src/main/java/net/minecraft/world/entity/npc/AbstractVillager.java
-@@ -59,6 +59,7 @@ public abstract class AbstractVillager extends AgeableMob implements InventoryCa
+@@ -66,6 +66,7 @@ public abstract class AbstractVillager extends AgeableMob implements InventoryCa
      @Nullable
      protected MerchantOffers offers;
      private final SimpleContainer inventory = new SimpleContainer(8, (org.bukkit.craftbukkit.entity.CraftAbstractVillager) this.getBukkitEntity()); // CraftBukkit add argument
@@ -16,7 +25,7 @@ index fd1648546542f146ba7b866873f105ed1427ef7d..1ecbb7cb0f608e11ce84d7082bd4d301
  
      public AbstractVillager(EntityType<? extends AbstractVillager> type, Level world) {
          super(type, world);
-@@ -150,7 +151,13 @@ public abstract class AbstractVillager extends AgeableMob implements InventoryCa
+@@ -143,7 +144,13 @@ public abstract class AbstractVillager extends AgeableMob implements InventoryCa
      @Override
      public void processTrade(MerchantOffer recipe, @Nullable io.papermc.paper.event.player.PlayerPurchaseEvent event) { // The MerchantRecipe passed in here is the one set by the PlayerPurchaseEvent
          if (event == null || event.willIncreaseTradeUses()) {
@@ -31,7 +40,7 @@ index fd1648546542f146ba7b866873f105ed1427ef7d..1ecbb7cb0f608e11ce84d7082bd4d301
          }
          if (event == null || event.isRewardingExp()) {
              this.rewardTradeXp(recipe);
-@@ -162,7 +169,7 @@ public abstract class AbstractVillager extends AgeableMob implements InventoryCa
+@@ -155,7 +162,7 @@ public abstract class AbstractVillager extends AgeableMob implements InventoryCa
      @Override
      public void notifyTrade(MerchantOffer offer) {
          // offer.increaseUses(); // Paper - Add PlayerTradeEvent and PlayerPurchaseEvent
@@ -40,16 +49,16 @@ index fd1648546542f146ba7b866873f105ed1427ef7d..1ecbb7cb0f608e11ce84d7082bd4d301
          // this.rewardTradeXp(offer); // Paper - Add PlayerTradeEvent and PlayerPurchaseEvent
          if (this.tradingPlayer instanceof ServerPlayer) {
              CriteriaTriggers.TRADE.trigger((ServerPlayer) this.tradingPlayer, this, offer.getResult());
-@@ -180,7 +187,7 @@ public abstract class AbstractVillager extends AgeableMob implements InventoryCa
+@@ -173,7 +180,7 @@ public abstract class AbstractVillager extends AgeableMob implements InventoryCa
      @Override
      public void notifyTradeUpdated(ItemStack stack) {
          if (!this.level().isClientSide && this.ambientSoundTime > -this.getAmbientSoundInterval() + 20) {
 -            this.ambientSoundTime = -this.getAmbientSoundInterval();
 +            if (!voidTrade) this.ambientSoundTime = -this.getAmbientSoundInterval(); // Leaves - force void trade
-             this.playSound(this.getTradeUpdatedSound(!stack.isEmpty()), this.getSoundVolume(), this.getVoicePitch());
+             this.makeSound(this.getTradeUpdatedSound(!stack.isEmpty()));
          }
  
-@@ -229,6 +236,12 @@ public abstract class AbstractVillager extends AgeableMob implements InventoryCa
+@@ -228,6 +235,12 @@ public abstract class AbstractVillager extends AgeableMob implements InventoryCa
      }
  
      protected void stopTrading() {
@@ -62,7 +71,7 @@ index fd1648546542f146ba7b866873f105ed1427ef7d..1ecbb7cb0f608e11ce84d7082bd4d301
          this.setTradingPlayer((Player) null);
      }
  
-@@ -308,4 +321,10 @@ public abstract class AbstractVillager extends AgeableMob implements InventoryCa
+@@ -307,4 +320,10 @@ public abstract class AbstractVillager extends AgeableMob implements InventoryCa
      public boolean isClientSide() {
          return this.level().isClientSide;
      }
@@ -74,7 +83,7 @@ index fd1648546542f146ba7b866873f105ed1427ef7d..1ecbb7cb0f608e11ce84d7082bd4d301
 +    // Leaves end - force void trade
  }
 diff --git a/src/main/java/net/minecraft/world/entity/npc/Villager.java b/src/main/java/net/minecraft/world/entity/npc/Villager.java
-index 3d770c2b47b796b628a1452e7bb2392c7e371ac0..3e54994e883ee71099daefcf87a9af64bb17fc92 100644
+index d50f65514850dba75cba67a742cbb5aa319829d0..5ca21c2b5a89ed0165f9b2dbb317f2d03472a187 100644
 --- a/src/main/java/net/minecraft/world/entity/npc/Villager.java
 +++ b/src/main/java/net/minecraft/world/entity/npc/Villager.java
 @@ -348,6 +348,7 @@ public class Villager extends AbstractVillager implements ReputationEventHandler
@@ -85,7 +94,7 @@ index 3d770c2b47b796b628a1452e7bb2392c7e371ac0..3e54994e883ee71099daefcf87a9af64
          this.updateSpecialPrices(customer);
          this.setTradingPlayer(customer);
          this.openTradingScreen(customer, this.getDisplayName(), this.getVillagerData().getLevel());
-@@ -650,8 +651,12 @@ public class Villager extends AbstractVillager implements ReputationEventHandler
+@@ -643,8 +644,12 @@ public class Villager extends AbstractVillager implements ReputationEventHandler
      protected void rewardTradeXp(MerchantOffer offer) {
          int i = 3 + this.random.nextInt(4);
  
@@ -101,7 +110,7 @@ index 3d770c2b47b796b628a1452e7bb2392c7e371ac0..3e54994e883ee71099daefcf87a9af64
              this.updateMerchantTimer = 40;
              this.increaseProfessionLevelOnUpdate = true;
 diff --git a/src/main/java/net/minecraft/world/entity/npc/WanderingTrader.java b/src/main/java/net/minecraft/world/entity/npc/WanderingTrader.java
-index 8d1cc1a644415be251f469ab1cb2ebc09fe5c3eb..57e24718fc04283b47067fc2c4cb1956d256a722 100644
+index 0854e9b7ee2e6b23b6c1ee6a324a5a253c9d4679..43d2785ee82467f0ce6c60b29d8f6f33fe65acc4 100644
 --- a/src/main/java/net/minecraft/world/entity/npc/WanderingTrader.java
 +++ b/src/main/java/net/minecraft/world/entity/npc/WanderingTrader.java
 @@ -121,6 +121,7 @@ public class WanderingTrader extends net.minecraft.world.entity.npc.AbstractVill
@@ -113,10 +122,10 @@ index 8d1cc1a644415be251f469ab1cb2ebc09fe5c3eb..57e24718fc04283b47067fc2c4cb1956
                      this.openTradingScreen(player, this.getDisplayName(), 1);
                  }
 diff --git a/src/main/java/net/minecraft/world/inventory/MerchantMenu.java b/src/main/java/net/minecraft/world/inventory/MerchantMenu.java
-index 9c17c14de888ef3fbf4139cbad3889ece1d74aa1..39855fc8858f48ea3db00fc35b2b22e66643fdf9 100644
+index 2992e86f5f83431e230162380b33721df785ba91..7ec2ef906433d7e0164ce0e5ec62fef602ba6b37 100644
 --- a/src/main/java/net/minecraft/world/inventory/MerchantMenu.java
 +++ b/src/main/java/net/minecraft/world/inventory/MerchantMenu.java
-@@ -26,7 +26,7 @@ public class MerchantMenu extends AbstractContainerMenu {
+@@ -27,7 +27,7 @@ public class MerchantMenu extends AbstractContainerMenu {
      private static final int SELLSLOT2_X = 162;
      private static final int BUYSLOT_X = 220;
      private static final int ROW_Y = 37;
@@ -126,10 +135,10 @@ index 9c17c14de888ef3fbf4139cbad3889ece1d74aa1..39855fc8858f48ea3db00fc35b2b22e6
      private int merchantLevel;
      private boolean showProgressBar;
 diff --git a/src/main/java/net/minecraft/world/item/trading/MerchantOffer.java b/src/main/java/net/minecraft/world/item/trading/MerchantOffer.java
-index 02feea12c998f37098b72becf6bfaf6b27d155de..b0ac4dcb539c3286a0c79ce7322f8cb8a2237d75 100644
+index 0efc8d997b34302c3e0a5d7ec73a11a940dbeefe..d246c9932f3f98972124089306d6ed740bb9a31b 100644
 --- a/src/main/java/net/minecraft/world/item/trading/MerchantOffer.java
 +++ b/src/main/java/net/minecraft/world/item/trading/MerchantOffer.java
-@@ -20,6 +20,7 @@ public class MerchantOffer {
+@@ -51,6 +51,7 @@ public class MerchantOffer {
      public float priceMultiplier;
      public int xp;
      public boolean ignoreDiscounts; // Paper - Add ignore discounts API
@@ -137,31 +146,15 @@ index 02feea12c998f37098b72becf6bfaf6b27d155de..b0ac4dcb539c3286a0c79ce7322f8cb8
      // CraftBukkit start
      private CraftMerchantRecipe bukkitHandle;
  
-@@ -73,6 +74,7 @@ public class MerchantOffer {
-         this.specialPriceDiff = nbt.getInt("specialPrice");
-         this.demand = nbt.getInt("demand");
-         this.ignoreDiscounts = nbt.getBoolean("Paper.IgnoreDiscounts"); // Paper - Add ignore discounts API
-+        this.voidTradeUses = 0; // Leaves - force void trade
-     }
- 
-     public MerchantOffer(ItemStack buyItem, ItemStack sellItem, int maxUses, int merchantExperience, float priceMultiplier) {
-@@ -107,6 +109,7 @@ public class MerchantOffer {
-         this.xp = merchantExperience;
+@@ -77,6 +78,7 @@ public class MerchantOffer {
          this.priceMultiplier = priceMultiplier;
-         this.demand = demandBonus;
+         this.xp = merchantExperience;
+         this.ignoreDiscounts = ignoreDiscounts; // Paper
 +        this.voidTradeUses = 0; // Leaves - force void trade
      }
  
-     private MerchantOffer(MerchantOffer offer) {
-@@ -122,6 +125,7 @@ public class MerchantOffer {
-         this.demand = offer.demand;
-         this.priceMultiplier = offer.priceMultiplier;
-         this.xp = offer.xp;
-+        this.voidTradeUses = 0; // Leaves - force void trade
-     }
- 
-     public ItemStack getBaseCostA() {
-@@ -172,6 +176,16 @@ public class MerchantOffer {
+     public MerchantOffer(ItemCost buyItem, ItemStack sellItem, int maxUses, int merchantExperience, float priceMultiplier) {
+@@ -154,6 +156,16 @@ public class MerchantOffer {
          ++this.uses;
      }
  
@@ -178,7 +171,7 @@ index 02feea12c998f37098b72becf6bfaf6b27d155de..b0ac4dcb539c3286a0c79ce7322f8cb8
      public int getDemand() {
          return this.demand;
      }
-@@ -201,7 +215,7 @@ public class MerchantOffer {
+@@ -183,7 +195,7 @@ public class MerchantOffer {
      }
  
      public boolean isOutOfStock() {
@@ -188,10 +181,10 @@ index 02feea12c998f37098b72becf6bfaf6b27d155de..b0ac4dcb539c3286a0c79ce7322f8cb8
  
      public void setToOutOfStock() {
 diff --git a/src/main/java/net/minecraft/world/level/block/entity/TheEndGatewayBlockEntity.java b/src/main/java/net/minecraft/world/level/block/entity/TheEndGatewayBlockEntity.java
-index 7b626bc319eeebff6f0165db0eb0fd6c70d8cc36..e9069275d038e7b5a15c4f85dae6dbc4851ba374 100644
+index 8809755d0e3e6199e2db6c061e53375d17753b70..9c97d7f16d919db60df42e25afba5f6304294980 100644
 --- a/src/main/java/net/minecraft/world/level/block/entity/TheEndGatewayBlockEntity.java
 +++ b/src/main/java/net/minecraft/world/level/block/entity/TheEndGatewayBlockEntity.java
-@@ -219,6 +219,16 @@ public class TheEndGatewayBlockEntity extends TheEndPortalBlockEntity {
+@@ -213,6 +213,16 @@ public class TheEndGatewayBlockEntity extends TheEndPortalBlockEntity {
                          return;
                      }
  

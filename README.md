@@ -26,11 +26,11 @@ Leaves-API:
 ```kotlin
 maven {
     name = 'leavesmc-repo'
-    url = 'https://repo.leavesmc.top/snapshots/'
+    url = 'https://repo.leavesmc.org/snapshots/'
 }
 
 dependencies {
-    compileOnly("top.leavesmc.leaves:leaves-api:1.20.4-R0.1-SNAPSHOT")
+    compileOnly("org.leavesmc.leaves:leaves-api:1.20.6-R0.1-SNAPSHOT")
 }
  ```
 
@@ -40,15 +40,15 @@ Each time you want to update your dependency, you must re-build Leaves.
 Leaves-Server:
 ```kotlin
 dependencies {
-    compileOnly("top.leavesmc.leaves:leaves:1.20.4-R0.1-SNAPSHOT")
+    compileOnly("org.leavesmc.leaves:leaves:1.20.6-R0.1-SNAPSHOT")
 }
  ```
 
 ## Building
 
-You need JDK 17 and good Internet conditions
+You need JDK 21 and good Internet conditions
 
-Clone this repo, run `./gradlew applyPatches`, then run `./gradlew createReobfBundlerJar` in your terminal.  
+Clone this repo, run `./gradlew applyPatches`, then run `./gradlew createMojmapLeavesclipJar` in your terminal.  
 
 You can find the jars in the `build/libs` directory.
 

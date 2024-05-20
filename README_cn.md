@@ -26,11 +26,11 @@ Leaves-API:
 ```kotlin
 maven {
     name = 'leavesmc-repo'
-    url = 'https://repo.leavesmc.top/snapshots/'
+    url = 'https://repo.leavesmc.org/snapshots/'
 }
 
 dependencies {
-    compileOnly("top.leavesmc.leaves:leaves-api:1.20.4-R0.1-SNAPSHOT")
+    compileOnly("org.leavesmc.leaves:leaves-api:1.20.6-R0.1-SNAPSHOT")
 }
  ```
 
@@ -39,15 +39,15 @@ dependencies {
 Leaves-Server:
 ```kotlin
 dependencies {
-    compileOnly("top.leavesmc.leaves:leaves:1.20.4-R0.1-SNAPSHOT")
+    compileOnly("org.leavesmc.leaves:leaves:1.20.6-R0.1-SNAPSHOT")
 }
  ```
 
 ## 自行构建
 
-你需要最低 JDK 17 和一个可以正常访问各种 git/maven 库的网络
+你需要最低 JDK 21 和一个可以正常访问各种 git/maven 库的网络
 
-首先克隆此储存库，然后在你的终端里依次执行 `./gradlew applyPatches` 和 `./gradlew createReobfBundlerJar`
+首先克隆此储存库，然后在你的终端里依次执行 `./gradlew applyPatches` 和 `./gradlew createMojmapLeavesclipJar`
 
 最后 你可以在 `build/libs` 文件夹里找到对应的jar文件
 

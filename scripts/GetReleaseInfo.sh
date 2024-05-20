@@ -1,3 +1,7 @@
+sha256() {
+  sha256sum $1 | awk '{print $1}'
+}
+
 sha1() {
   sha1sum $1 | awk '{print $1}'
 }
@@ -52,6 +56,7 @@ echo "| File | $jarName |" >> $releaseinfo
 echo "| ---- | ---- |" >> $releaseinfo
 echo "| MD5 | `md5 $jarName` |" >> $releaseinfo
 echo "| SHA1 | `sha1 $jarName` |" >> $releaseinfo
+echo "| SHA256 | `sha256 $jarName` |" >> $releaseinfo
 
 echo -n "{\"content\":\"Leaves New Release\",\"embeds\":[{\"title\":\"$leavesid\",\"url\":\"https://github.com/LeavesMC/Leaves/releases/tag/$tagid\",\"fields\":[{\"name\":\"Changelog\",\"value\":\"" >> $discordmes
 echo -n $(git log --oneline --pretty='> [%h] %s\\n' -$number) >> $discordmes

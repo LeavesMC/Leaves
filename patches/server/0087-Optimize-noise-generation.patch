@@ -1,0 +1,281 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Tue, 18 Jul 2023 15:27:19 +0800
+Subject: [PATCH] Optimize noise generation
+
+This patch is Powered by Gale(https://github.com/GaleMC/Gale)
+
+diff --git a/src/main/java/net/minecraft/world/level/levelgen/synth/ImprovedNoise.java b/src/main/java/net/minecraft/world/level/levelgen/synth/ImprovedNoise.java
+index 9a97e5cd23d839183ac4d243d28df92af3119fe7..6eeb8ff51a3fa519f43f17a3ced2b2080f264d7a 100644
+--- a/src/main/java/net/minecraft/world/level/levelgen/synth/ImprovedNoise.java
++++ b/src/main/java/net/minecraft/world/level/levelgen/synth/ImprovedNoise.java
+@@ -11,6 +11,27 @@ public final class ImprovedNoise {
+     public final double yo;
+     public final double zo;
+ 
++    // Leaves start - optimize noise generation
++    private static final double[] FLAT_SIMPLEX_GRAD = new double[]{
++        1, 1, 0, 0,
++        -1, 1, 0, 0,
++        1, -1, 0, 0,
++        -1, -1, 0, 0,
++        1, 0, 1, 0,
++        -1, 0, 1, 0,
++        1, 0, -1, 0,
++        -1, 0, -1, 0,
++        0, 1, 1, 0,
++        0, -1, 1, 0,
++        0, 1, -1, 0,
++        0, -1, -1, 0,
++        1, 1, 0, 0,
++        0, -1, 1, 0,
++        -1, 1, 0, 0,
++        0, -1, -1, 0,
++    };
++    // Leaves end - optimize noise generation
++
+     public ImprovedNoise(RandomSource random) {
+         this.xo = random.nextDouble() * 256.0;
+         this.yo = random.nextDouble() * 256.0;
+@@ -41,9 +62,20 @@ public final class ImprovedNoise {
+         int i = Mth.floor(d);
+         int j = Mth.floor(e);
+         int k = Mth.floor(f);
+-        double g = d - (double)i;
+-        double h = e - (double)j;
+-        double l = f - (double)k;
++        // Leaves start - optimize noise generation
++        double g;
++        double h;
++        double l;
++        if (!org.leavesmc.leaves.LeavesConfig.optimizeNoiseGeneration) {
++            g = d - (double)i;
++            h = e - (double)j;
++            l = f - (double)k;
++        } else {
++            g = d - i;
++            h = e - j;
++            l = f - k;
++        }
++        // Leaves end - optimize noise generation
+         double o;
+         if (yScale != 0.0) {
+             double m;
+@@ -53,12 +85,24 @@ public final class ImprovedNoise {
+                 m = h;
+             }
+ 
+-            o = (double)Mth.floor(m / yScale + 1.0E-7F) * yScale;
++            // Leaves start - optimize noise generation
++            if (!org.leavesmc.leaves.LeavesConfig.optimizeNoiseGeneration) {
++                o = (double)Mth.floor(m / yScale + 1.0E-7F) * yScale;
++            } else {
++                o = Math.floor(m / yScale + (double)1.0E-7F) * yScale;
++            }
++            // Leaves end - optimize noise generation
+         } else {
+             o = 0.0;
+         }
+ 
+-        return this.sampleAndLerp(i, j, k, g, h - o, l, h);
++        // Leaves start - optimize noise generation
++        if (!org.leavesmc.leaves.LeavesConfig.optimizeNoiseGeneration) {
++            return this.sampleAndLerp(i, j, k, g, h - o, l, h);
++        } else {
++            return this.sampleAndLerp((int) i, (int) j, (int) k, g, h - o, l, h);
++        }
++        // Leaves end - optimize noise generation
+     }
+ 
+     public double noiseWithDerivative(double x, double y, double z, double[] ds) {
+@@ -68,10 +112,19 @@ public final class ImprovedNoise {
+         int i = Mth.floor(d);
+         int j = Mth.floor(e);
+         int k = Mth.floor(f);
+-        double g = d - (double)i;
+-        double h = e - (double)j;
+-        double l = f - (double)k;
+-        return this.sampleWithDerivative(i, j, k, g, h, l, ds);
++        // Leaves start - optimize noise generation
++        if (!org.leavesmc.leaves.LeavesConfig.optimizeNoiseGeneration) {
++            double g = d - (double)i;
++            double h = e - (double)j;
++            double l = f - (double)k;
++            return this.sampleWithDerivative(i, j, k, g, h, l, ds);
++        } else {
++            double g = d - i;
++            double h = e - j;
++            double l = f - k;
++            return this.sampleWithDerivative((int) i, (int) j, (int) k, g, h, l, ds);
++        }
++        // Leaves end - optimize noise generation
+     }
+ 
+     private static double gradDot(int hash, double x, double y, double z) {
+@@ -83,24 +136,90 @@ public final class ImprovedNoise {
+     }
+ 
+     private double sampleAndLerp(int sectionX, int sectionY, int sectionZ, double localX, double localY, double localZ, double fadeLocalY) {
+-        int i = this.p(sectionX);
+-        int j = this.p(sectionX + 1);
+-        int k = this.p(i + sectionY);
+-        int l = this.p(i + sectionY + 1);
+-        int m = this.p(j + sectionY);
+-        int n = this.p(j + sectionY + 1);
+-        double d = gradDot(this.p(k + sectionZ), localX, localY, localZ);
+-        double e = gradDot(this.p(m + sectionZ), localX - 1.0, localY, localZ);
+-        double f = gradDot(this.p(l + sectionZ), localX, localY - 1.0, localZ);
+-        double g = gradDot(this.p(n + sectionZ), localX - 1.0, localY - 1.0, localZ);
+-        double h = gradDot(this.p(k + sectionZ + 1), localX, localY, localZ - 1.0);
+-        double o = gradDot(this.p(m + sectionZ + 1), localX - 1.0, localY, localZ - 1.0);
+-        double p = gradDot(this.p(l + sectionZ + 1), localX, localY - 1.0, localZ - 1.0);
+-        double q = gradDot(this.p(n + sectionZ + 1), localX - 1.0, localY - 1.0, localZ - 1.0);
+-        double r = Mth.smoothstep(localX);
+-        double s = Mth.smoothstep(fadeLocalY);
+-        double t = Mth.smoothstep(localZ);
+-        return Mth.lerp3(r, s, t, d, e, f, g, h, o, p, q);
++        // Leaves start - optimize noise generation
++        if (!org.leavesmc.leaves.LeavesConfig.optimizeNoiseGeneration) {
++            int i = this.p(sectionX);
++            int j = this.p(sectionX + 1);
++            int k = this.p(i + sectionY);
++            int l = this.p(i + sectionY + 1);
++            int m = this.p(j + sectionY);
++            int n = this.p(j + sectionY + 1);
++            double d = gradDot(this.p(k + sectionZ), localX, localY, localZ);
++            double e = gradDot(this.p(m + sectionZ), localX - 1.0, localY, localZ);
++            double f = gradDot(this.p(l + sectionZ), localX, localY - 1.0, localZ);
++            double g = gradDot(this.p(n + sectionZ), localX - 1.0, localY - 1.0, localZ);
++            double h = gradDot(this.p(k + sectionZ + 1), localX, localY, localZ - 1.0);
++            double o = gradDot(this.p(m + sectionZ + 1), localX - 1.0, localY, localZ - 1.0);
++            double p = gradDot(this.p(l + sectionZ + 1), localX, localY - 1.0, localZ - 1.0);
++            double q = gradDot(this.p(n + sectionZ + 1), localX - 1.0, localY - 1.0, localZ - 1.0);
++            double r = Mth.smoothstep(localX);
++            double s = Mth.smoothstep(fadeLocalY);
++            double t = Mth.smoothstep(localZ);
++            return Mth.lerp3(r, s, t, d, e, f, g, h, o, p, q);
++        } else {
++            final int var0 = sectionX & 0xFF;
++            final int var1 = (sectionX + 1) & 0xFF;
++            final int var2 = this.p[var0] & 0xFF;
++            final int var3 = this.p[var1] & 0xFF;
++            final int var4 = (var2 + sectionY) & 0xFF;
++            final int var5 = (var3 + sectionY) & 0xFF;
++            final int var6 = (var2 + sectionY + 1) & 0xFF;
++            final int var7 = (var3 + sectionY + 1) & 0xFF;
++            final int var8 = this.p[var4] & 0xFF;
++            final int var9 = this.p[var5] & 0xFF;
++            final int var10 = this.p[var6] & 0xFF;
++            final int var11 = this.p[var7] & 0xFF;
++
++            final int var12 = (var8 + sectionZ) & 0xFF;
++            final int var13 = (var9 + sectionZ) & 0xFF;
++            final int var14 = (var10 + sectionZ) & 0xFF;
++            final int var15 = (var11 + sectionZ) & 0xFF;
++            final int var16 = (var8 + sectionZ + 1) & 0xFF;
++            final int var17 = (var9 + sectionZ + 1) & 0xFF;
++            final int var18 = (var10 + sectionZ + 1) & 0xFF;
++            final int var19 = (var11 + sectionZ + 1) & 0xFF;
++            final int var20 = (this.p[var12] & 15) << 2;
++            final int var21 = (this.p[var13] & 15) << 2;
++            final int var22 = (this.p[var14] & 15) << 2;
++            final int var23 = (this.p[var15] & 15) << 2;
++            final int var24 = (this.p[var16] & 15) << 2;
++            final int var25 = (this.p[var17] & 15) << 2;
++            final int var26 = (this.p[var18] & 15) << 2;
++            final int var27 = (this.p[var19] & 15) << 2;
++            final double var60 = localX - 1.0;
++            final double var61 = localY - 1.0;
++            final double var62 = localZ - 1.0;
++            final double var87 = FLAT_SIMPLEX_GRAD[(var20) | 0] * localX + FLAT_SIMPLEX_GRAD[(var20) | 1] * localY + FLAT_SIMPLEX_GRAD[(var20) | 2] * localZ;
++            final double var88 = FLAT_SIMPLEX_GRAD[(var21) | 0] * var60 + FLAT_SIMPLEX_GRAD[(var21) | 1] * localY + FLAT_SIMPLEX_GRAD[(var21) | 2] * localZ;
++            final double var89 = FLAT_SIMPLEX_GRAD[(var22) | 0] * localX + FLAT_SIMPLEX_GRAD[(var22) | 1] * var61 + FLAT_SIMPLEX_GRAD[(var22) | 2] * localZ;
++            final double var90 = FLAT_SIMPLEX_GRAD[(var23) | 0] * var60 + FLAT_SIMPLEX_GRAD[(var23) | 1] * var61 + FLAT_SIMPLEX_GRAD[(var23) | 2] * localZ;
++            final double var91 = FLAT_SIMPLEX_GRAD[(var24) | 0] * localX + FLAT_SIMPLEX_GRAD[(var24) | 1] * localY + FLAT_SIMPLEX_GRAD[(var24) | 2] * var62;
++            final double var92 = FLAT_SIMPLEX_GRAD[(var25) | 0] * var60 + FLAT_SIMPLEX_GRAD[(var25) | 1] * localY + FLAT_SIMPLEX_GRAD[(var25) | 2] * var62;
++            final double var93 = FLAT_SIMPLEX_GRAD[(var26) | 0] * localX + FLAT_SIMPLEX_GRAD[(var26) | 1] * var61 + FLAT_SIMPLEX_GRAD[(var26) | 2] * var62;
++            final double var94 = FLAT_SIMPLEX_GRAD[(var27) | 0] * var60 + FLAT_SIMPLEX_GRAD[(var27) | 1] * var61 + FLAT_SIMPLEX_GRAD[(var27) | 2] * var62;
++
++            final double var95 = localX * 6.0 - 15.0;
++            final double var96 = fadeLocalY * 6.0 - 15.0;
++            final double var97 = localZ * 6.0 - 15.0;
++            final double var98 = localX * var95 + 10.0;
++            final double var99 = fadeLocalY * var96 + 10.0;
++            final double var100 = localZ * var97 + 10.0;
++            final double var101 = localX * localX * localX * var98;
++            final double var102 = fadeLocalY * fadeLocalY * fadeLocalY * var99;
++            final double var103 = localZ * localZ * localZ * var100;
++
++            final double var113 = var87 + var101 * (var88 - var87);
++            final double var114 = var93 + var101 * (var94 - var93);
++            final double var115 = var91 + var101 * (var92 - var91);
++            final double var116 = var89 + var101 * (var90 - var89);
++            final double var117 = var114 - var115;
++            final double var118 = var102 * (var116 - var113);
++            final double var119 = var102 * var117;
++            final double var120 = var113 + var118;
++            final double var121 = var115 + var119;
++            return var120 + (var103 * (var121 - var120));
++        }
++        // Leaves end - optimize noise generation
+     }
+ 
+     private double sampleWithDerivative(int sectionX, int sectionY, int sectionZ, double localX, double localY, double localZ, double[] ds) {
+diff --git a/src/main/java/net/minecraft/world/level/levelgen/synth/PerlinNoise.java b/src/main/java/net/minecraft/world/level/levelgen/synth/PerlinNoise.java
+index 35820670837376bcad8891241724d5b946fbd31f..cd52ee8c8ad0a3f0befc8d9d98e5afc75a802d15 100644
+--- a/src/main/java/net/minecraft/world/level/levelgen/synth/PerlinNoise.java
++++ b/src/main/java/net/minecraft/world/level/levelgen/synth/PerlinNoise.java
+@@ -26,6 +26,10 @@ public class PerlinNoise {
+     private final double lowestFreqValueFactor;
+     private final double lowestFreqInputFactor;
+     private final double maxValue;
++    // Leaves start - optimize noise generation
++    private final int octaveSamplersCount;
++    private final double [] amplitudesArray;
++    // Leaves end - optimize noise generation
+ 
+     @Deprecated
+     public static PerlinNoise createLegacyForBlendedNoise(RandomSource random, IntStream octaves) {
+@@ -127,6 +131,10 @@ public class PerlinNoise {
+         this.lowestFreqInputFactor = Math.pow(2.0, (double)(-j));
+         this.lowestFreqValueFactor = Math.pow(2.0, (double)(i - 1)) / (Math.pow(2.0, (double)i) - 1.0);
+         this.maxValue = this.edgeValue(2.0);
++        // Leaves start - optimize noise generation
++        this.octaveSamplersCount = this.noiseLevels.length;
++        this.amplitudesArray = this.amplitudes.toDoubleArray();
++        // Leaves end - optimize noise generation
+     }
+ 
+     protected double maxValue() {
+@@ -138,7 +146,30 @@ public class PerlinNoise {
+     }
+ 
+     public double getValue(double x, double y, double z) {
+-        return this.getValue(x, y, z, 0.0, 0.0, false);
++        // Leaves start - optimize noise generation
++        if (!org.leavesmc.leaves.LeavesConfig.optimizeNoiseGeneration) {
++            return this.getValue(x, y, z, 0.0, 0.0, false);
++        } else {
++            double d = 0.0;
++            double e = this.lowestFreqInputFactor;
++            double f = this.lowestFreqValueFactor;
++
++            for(int i = 0; i < this.octaveSamplersCount; ++i) {
++                ImprovedNoise perlinNoiseSampler = this.noiseLevels[i];
++                if (perlinNoiseSampler != null) {
++                    @SuppressWarnings("deprecation")
++                    double g = perlinNoiseSampler.noise(
++                        wrap(x * e), wrap(y * e), wrap(z * e), 0.0, 0.0
++                    );
++                    d += this.amplitudesArray[i] * g * f;
++                }
++
++                e *= 2.0;
++                f /= 2.0;
++            }
++            return d;
++        }
++        // Leaves end - optimize noise generation
+     }
+ 
+     @Deprecated

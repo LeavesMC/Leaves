@@ -1,0 +1,291 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Tue, 13 Sep 2022 16:59:31 +0800
+Subject: [PATCH] Leaves Server Utils
+
+
+diff --git a/src/main/java/com/destroystokyo/paper/util/misc/AreaMap.java b/src/main/java/com/destroystokyo/paper/util/misc/AreaMap.java
+index 41b9405d6759d865e0d14dd4f95163e9690e967d..67008112e1d1c059938838c544f093fa1f0a4fee 100644
+--- a/src/main/java/com/destroystokyo/paper/util/misc/AreaMap.java
++++ b/src/main/java/com/destroystokyo/paper/util/misc/AreaMap.java
+@@ -26,7 +26,7 @@ public abstract class AreaMap<E> {
+ 
+     // we use linked for better iteration.
+     // map of: coordinate to set of objects in coordinate
+-    protected final Long2ObjectOpenHashMap<PooledLinkedHashSets.PooledObjectLinkedOpenHashSet<E>> areaMap = new Long2ObjectOpenHashMap<>(1024, 0.7f);
++    protected Long2ObjectOpenHashMap<PooledLinkedHashSets.PooledObjectLinkedOpenHashSet<E>> areaMap = new Long2ObjectOpenHashMap<>(1024, 0.7f); // Leaves - not final
+     protected final PooledLinkedHashSets<E> pooledHashSets;
+ 
+     protected final ChangeCallback<E> addCallback;
+diff --git a/src/main/java/com/destroystokyo/paper/util/misc/PlayerAreaMap.java b/src/main/java/com/destroystokyo/paper/util/misc/PlayerAreaMap.java
+index 46954db7ecd35ac4018fdf476df7c8020d7ce6c8..044c51ebb058fc36074fd178929e3279335f6c99 100644
+--- a/src/main/java/com/destroystokyo/paper/util/misc/PlayerAreaMap.java
++++ b/src/main/java/com/destroystokyo/paper/util/misc/PlayerAreaMap.java
+@@ -5,7 +5,7 @@ import net.minecraft.server.level.ServerPlayer;
+ /**
+  * @author Spottedleaf
+  */
+-public final class PlayerAreaMap extends AreaMap<ServerPlayer> {
++public class PlayerAreaMap extends AreaMap<ServerPlayer> { // Leaves - not final
+ 
+     public PlayerAreaMap() {
+         super();
+diff --git a/src/main/java/net/minecraft/world/entity/Entity.java b/src/main/java/net/minecraft/world/entity/Entity.java
+index 2bc85351e6e52f90da5fdb29d8d042a06132d742..1d8be1e7b71db074b7616d0a5e0c5075f09877ac 100644
+--- a/src/main/java/net/minecraft/world/entity/Entity.java
++++ b/src/main/java/net/minecraft/world/entity/Entity.java
+@@ -426,6 +426,7 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
+     private UUID originWorld;
+     public boolean freezeLocked = false; // Paper - Freeze Tick Lock API
+     public boolean fixedPose = false; // Paper - Expand Pose API
++    private CompoundTag leavesData = new CompoundTag(); // Leaves - Leaves ex data
+ 
+     public void setOrigin(@javax.annotation.Nonnull Location location) {
+         this.origin = location.toVector();
+@@ -2555,6 +2556,7 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
+                 nbttagcompound.putBoolean("Paper.FreezeLock", true);
+             }
+             // Paper end
++            nbttagcompound.put("Leaves.Data", leavesData); // Leaves - leaves ex data
+             return nbttagcompound;
+         } catch (Throwable throwable) {
+             CrashReport crashreport = CrashReport.forThrowable(throwable, "Saving entity NBT");
+@@ -2702,6 +2704,11 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
+                 freezeLocked = nbt.getBoolean("Paper.FreezeLock");
+             }
+             // Paper end
++            // Leaves start - leaves ex data
++            if (nbt.contains("Leaves.Data")) {
++                leavesData = nbt.getCompound("Leaves.Data");
++            }
++            // Leaves end - leaves ex data
+ 
+         } catch (Throwable throwable) {
+             CrashReport crashreport = CrashReport.forThrowable(throwable, "Loading entity NBT");
+@@ -4995,4 +5002,10 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
+         return ((net.minecraft.server.level.ServerChunkCache) level.getChunkSource()).isPositionTicking(this);
+     }
+     // Paper end - Expose entity id counter
++
++    // Leaves start - leaves ex data
++    public CompoundTag getLeavesData() {
++        return leavesData;
++    }
++    // Leaves end - leaves ex data
+ }
+diff --git a/src/main/java/org/leavesmc/leaves/LeavesLogger.java b/src/main/java/org/leavesmc/leaves/LeavesLogger.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..730174b8c26375510c919fd841dc9371446ae8f2
+--- /dev/null
++++ b/src/main/java/org/leavesmc/leaves/LeavesLogger.java
+@@ -0,0 +1,16 @@
++package org.leavesmc.leaves;
++
++import org.bukkit.Bukkit;
++
++import java.util.logging.Level;
++import java.util.logging.Logger;
++
++public class LeavesLogger extends Logger {
++    public static final LeavesLogger LOGGER = new LeavesLogger();
++
++    private LeavesLogger() {
++        super("Leaves", null);
++        setParent(Bukkit.getLogger());
++        setLevel(Level.ALL);
++    }
++}
+diff --git a/src/main/java/org/leavesmc/leaves/util/AsyncExecutor.java b/src/main/java/org/leavesmc/leaves/util/AsyncExecutor.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..067e351f6e96f2ac1a46d78dc952b2e845c1efef
+--- /dev/null
++++ b/src/main/java/org/leavesmc/leaves/util/AsyncExecutor.java
+@@ -0,0 +1,76 @@
++package org.leavesmc.leaves.util;
++
++import com.google.common.collect.Queues;
++import org.leavesmc.leaves.LeavesLogger;
++
++import java.util.Queue;
++import java.util.concurrent.locks.Condition;
++import java.util.concurrent.locks.Lock;
++import java.util.concurrent.locks.ReentrantLock;
++import java.util.logging.Level;
++
++// Powered by Pufferfish(https://github.com/pufferfish-gg/Pufferfish)
++public class AsyncExecutor implements Runnable {
++
++    private final Queue<Runnable> jobs = Queues.newArrayDeque();
++    private final Lock mutex = new ReentrantLock();
++    private final Condition cond = mutex.newCondition();
++    private final Thread thread;
++    private volatile boolean killswitch = false;
++
++    public AsyncExecutor(String threadName) {
++        this.thread = new Thread(this, threadName);
++    }
++
++    public void start() {
++        thread.start();
++    }
++
++    public void kill() {
++        killswitch = true;
++        cond.signalAll();
++    }
++
++    public void submit(Runnable runnable) {
++        mutex.lock();
++        try {
++            jobs.offer(runnable);
++            cond.signalAll();
++        } finally {
++            mutex.unlock();
++        }
++    }
++
++    @Override
++    public void run() {
++        while (!killswitch) {
++            try {
++                Runnable runnable = takeRunnable();
++                if (runnable != null) {
++                    runnable.run();
++                }
++            } catch (InterruptedException e) {
++                Thread.currentThread().interrupt();
++            } catch (Exception e) {
++                LeavesLogger.LOGGER.log(Level.SEVERE, e, () -> "Failed to execute async job for thread " + thread.getName());
++            }
++        }
++    }
++
++    private Runnable takeRunnable() throws InterruptedException {
++        mutex.lock();
++        try {
++            while (jobs.isEmpty() && !killswitch) {
++                cond.await();
++            }
++
++            if (jobs.isEmpty()) {
++                return null;
++            }
++
++            return jobs.remove();
++        } finally {
++            mutex.unlock();
++        }
++    }
++}
+diff --git a/src/main/java/org/leavesmc/leaves/util/AsyncPlayerAreaMap.java b/src/main/java/org/leavesmc/leaves/util/AsyncPlayerAreaMap.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..0a2d58901b25fd771701e45aab6239626681ed4f
+--- /dev/null
++++ b/src/main/java/org/leavesmc/leaves/util/AsyncPlayerAreaMap.java
+@@ -0,0 +1,32 @@
++package org.leavesmc.leaves.util;
++
++import com.destroystokyo.paper.util.misc.PlayerAreaMap;
++import com.destroystokyo.paper.util.misc.PooledLinkedHashSets;
++import net.minecraft.server.level.ServerPlayer;
++
++import java.util.concurrent.ConcurrentHashMap;
++
++// Powered by Pufferfish(https://github.com/pufferfish-gg/Pufferfish)
++public class AsyncPlayerAreaMap extends PlayerAreaMap {
++
++    public AsyncPlayerAreaMap() {
++        super();
++        this.areaMap = new Long2ObjectOpenHashMapWrapper<>(new ConcurrentHashMap<>(1024, 0.7f));
++    }
++
++    public AsyncPlayerAreaMap(final PooledLinkedHashSets<ServerPlayer> pooledHashSets) {
++        super(pooledHashSets);
++        this.areaMap = new Long2ObjectOpenHashMapWrapper<>(new ConcurrentHashMap<>(1024, 0.7f));
++    }
++
++    public AsyncPlayerAreaMap(final PooledLinkedHashSets<ServerPlayer> pooledHashSets, final ChangeCallback<ServerPlayer> addCallback,
++                              final ChangeCallback<ServerPlayer> removeCallback) {
++        this(pooledHashSets, addCallback, removeCallback, null);
++    }
++
++    public AsyncPlayerAreaMap(final PooledLinkedHashSets<ServerPlayer> pooledHashSets, final ChangeCallback<ServerPlayer> addCallback,
++                              final ChangeCallback<ServerPlayer> removeCallback, final ChangeSourceCallback<ServerPlayer> changeSourceCallback) {
++        super(pooledHashSets, addCallback, removeCallback, changeSourceCallback);
++        this.areaMap = new Long2ObjectOpenHashMapWrapper<>(new ConcurrentHashMap<>(1024, 0.7f));
++    }
++}
+diff --git a/src/main/java/org/leavesmc/leaves/util/IterableWrapper.java b/src/main/java/org/leavesmc/leaves/util/IterableWrapper.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..a07feaf53905df87e45e8414b1dca02d4e8411d5
+--- /dev/null
++++ b/src/main/java/org/leavesmc/leaves/util/IterableWrapper.java
+@@ -0,0 +1,21 @@
++package org.leavesmc.leaves.util;
++
++import org.jetbrains.annotations.NotNull;
++
++import java.util.Iterator;
++
++// Powered by Pufferfish(https://github.com/pufferfish-gg/Pufferfish)
++public class IterableWrapper<T> implements Iterable<T> {
++
++    private final Iterator<T> iterator;
++
++    public IterableWrapper(Iterator<T> iterator) {
++        this.iterator = iterator;
++    }
++
++    @NotNull
++    @Override
++    public Iterator<T> iterator() {
++        return iterator;
++    }
++}
+diff --git a/src/main/java/org/leavesmc/leaves/util/Long2ObjectOpenHashMapWrapper.java b/src/main/java/org/leavesmc/leaves/util/Long2ObjectOpenHashMapWrapper.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..440c4d903e145229bc54eb5b6f3578fdd8bcfb84
+--- /dev/null
++++ b/src/main/java/org/leavesmc/leaves/util/Long2ObjectOpenHashMapWrapper.java
+@@ -0,0 +1,41 @@
++package org.leavesmc.leaves.util;
++
++import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
++import org.jetbrains.annotations.Nullable;
++
++import java.util.Map;
++
++public class Long2ObjectOpenHashMapWrapper<V> extends Long2ObjectOpenHashMap<V> {
++
++    private final Map<Long, V> backingMap;
++
++    public Long2ObjectOpenHashMapWrapper(Map<Long, V> map) {
++        backingMap = map;
++    }
++
++    @Override
++    public V put(Long key, V value) {
++        return backingMap.put(key, value);
++    }
++
++    @Override
++    public V get(Object key) {
++        return backingMap.get(key);
++    }
++
++    @Override
++    public V remove(Object key) {
++        return backingMap.remove(key);
++    }
++
++    @Nullable
++    @Override
++    public V putIfAbsent(Long key, V value) {
++        return backingMap.putIfAbsent(key, value);
++    }
++
++    @Override
++    public int size() {
++        return backingMap.size();
++    }
++}

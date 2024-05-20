@@ -1,0 +1,55 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Thu, 29 Jun 2023 22:40:24 +0800
+Subject: [PATCH] Spawn ignore lc
+
+
+diff --git a/src/main/java/net/minecraft/world/level/NaturalSpawner.java b/src/main/java/net/minecraft/world/level/NaturalSpawner.java
+index a9fda9cb7e8266c21aba70d5b1890b30900a5b00..083a8a7dd99e447904dbac161dd3a1de663d6011 100644
+--- a/src/main/java/net/minecraft/world/level/NaturalSpawner.java
++++ b/src/main/java/net/minecraft/world/level/NaturalSpawner.java
+@@ -38,6 +38,7 @@ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.level.chunk.ChunkAccess;
+ import net.minecraft.world.level.chunk.ChunkGenerator;
+ import net.minecraft.world.level.chunk.LevelChunk;
++import net.minecraft.world.level.chunk.LevelChunkSection;
+ import net.minecraft.world.level.levelgen.Heightmap;
+ import net.minecraft.world.level.levelgen.structure.BuiltinStructures;
+ import net.minecraft.world.level.levelgen.structure.Structure;
+@@ -199,6 +200,19 @@ public final class NaturalSpawner {
+     }
+     public static int spawnCategoryForChunk(MobCategory group, ServerLevel world, LevelChunk chunk, NaturalSpawner.SpawnPredicate checker, NaturalSpawner.AfterSpawnCallback runner, int maxSpawns, Consumer<Entity> trackEntity) {
+         // Paper end - Optional per player mob spawns
++        // Leaves start - ignore lc
++        if (org.leavesmc.leaves.LeavesConfig.ignoreLC) {
++            int spawnN = 0;
++            for (int i = chunk.getMinBuildHeight(); i < chunk.getMaxBuildHeight(); i += 16) {
++                LevelChunkSection section = chunk.getSections()[chunk.getSectionIndex(i)];
++                if (section != null && !section.hasOnlyAir()) {
++                    BlockPos pos = getRandomPosInChunk(world, chunk).offset(0, i, 0);
++                    spawnN += spawnCategoryForPosition(group, world, chunk, pos, checker, runner, maxSpawns, trackEntity);
++                }
++            }
++            return spawnN;
++        }
++        // Leaves stop - ignore lc
+         BlockPos blockposition = NaturalSpawner.getRandomPosWithin(world, chunk);
+ 
+         if (blockposition.getY() >= world.getMinBuildHeight() + 1) {
+@@ -207,6 +221,16 @@ public final class NaturalSpawner {
+         return 0; // Paper - Optional per player mob spawns
+     }
+ 
++    // Leaves start - ignore lc
++    private static BlockPos getRandomPosInChunk(Level world, LevelChunk chunk) {
++        ChunkPos chunkPos = chunk.getPos();
++        int x = chunkPos.getMinBlockX() + world.random.nextInt(16);
++        int z = chunkPos.getMinBlockZ() + world.random.nextInt(16);
++        int y = world.random.nextInt(16) + 1;
++        return new BlockPos(x, y, z);
++    }
++    // Leaves stop - ignore lc
++
+     @VisibleForDebug
+     public static void spawnCategoryForPosition(MobCategory group, ServerLevel world, BlockPos pos) {
+         NaturalSpawner.spawnCategoryForPosition(group, world, world.getChunk(pos), pos, (entitytypes, blockposition1, ichunkaccess) -> {

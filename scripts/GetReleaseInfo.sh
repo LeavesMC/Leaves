@@ -20,7 +20,7 @@ gradleVersion=$(prop version)
 preVersion=$(prop preVersion)
 tagid="$mcversion-$commitid"
 jarName="leaves-$mcversion.jar"
-leavesid="Leaves-$commitid"
+leavesid="Leaves-$BUILD_NUMBER-$commitid"
 releaseinfo="releaseinfo.md"
 discordmes="discordmes.json"
 make_latest=$([ $preVersion = "true" ] && echo "false" || echo "true")
@@ -28,7 +28,7 @@ make_latest=$([ $preVersion = "true" ] && echo "false" || echo "true")
 rm -f $discordmes
 rm -f $releaseinfo
 
-mv build/libs/Leaves-paperclip-$gradleVersion-reobf.jar $jarName
+mv build/libs/Leaves-leavesclip-$gradleVersion-reobf.jar $jarName
 echo "name=$leavesid" >> $GITHUB_ENV
 echo "tag=$tagid" >> $GITHUB_ENV
 echo "jar=$jarName" >> $GITHUB_ENV

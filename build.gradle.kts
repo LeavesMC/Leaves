@@ -119,8 +119,8 @@ tasks.register("createMojmapLeavesclipJar") {
     group = "paperweight"
     dependsOn("createMojmapPaperclipJar")
     doLast {
-        file("build/libs/leaves-paperclip-${project.version}-mojmap.jar").renameTo(
-            file("build/libs/leaves-leavesclip-${project.version}-mojmap.jar")
+        file("build/libs/Leaves-paperclip-${project.version}-mojmap.jar").renameTo(
+            file("build/libs/Leaves-leavesclip-${project.version}-mojmap.jar")
         )
     }
 }
@@ -129,8 +129,8 @@ tasks.register("createReobfLeavesclipJar") {
     group = "paperweight"
     dependsOn("createReobfPaperclipJar")
     doLast {
-        file("build/libs/leaves-paperclip-${project.version}-reobf.jar").renameTo(
-            file("build/libs/leaves-leavesclip-${project.version}-reobf.jar")
+        file("build/libs/Leaves-paperclip-${project.version}-reobf.jar").renameTo(
+            file("build/libs/Leaves-leavesclip-${project.version}-reobf.jar")
         )
     }
 }

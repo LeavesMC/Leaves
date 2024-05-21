@@ -4,21 +4,18 @@ import kotlin.io.path.*
 plugins {
     java
     `maven-publish`
-    id("com.github.johnrengelman.shadow") version "8.1.1" apply false
-    id("io.papermc.paperweight.patcher") version "1.5.13"
+    id("io.papermc.paperweight.patcher") version "1.7.1"
 }
 
-repositories {
-    mavenCentral()
-    maven("https://repo.leavesmc.top/releases") {
-        content { onlyForConfigurations("paperclip") }
+allprojects {
+    apply(plugin = "java")
+    apply(plugin = "maven-publish")
+
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(21)
+        }
     }
-}
-
-dependencies {
-    remapper("net.fabricmc:tiny-remapper:0.10.1:fat")
-    decompiler("net.minecraftforge:forgeflower:2.0.627.2")
-    paperclip("top.leavesmc:leavesclip:1.0.2")
 }
 
 subprojects {
@@ -26,13 +23,13 @@ subprojects {
 
     java {
         toolchain {
-            languageVersion.set(JavaLanguageVersion.of(17))
+            languageVersion.set(JavaLanguageVersion.of(21))
         }
     }
 
     tasks.withType<JavaCompile> {
         options.encoding = Charsets.UTF_8.name()
-        options.release.set(17)
+        options.release.set(21)
     }
     tasks.withType<Javadoc> {
         options.encoding = Charsets.UTF_8.name()
@@ -52,6 +49,19 @@ subprojects {
         maven("https://hub.spigotmc.org/nexus/content/groups/public/")
         maven("https://jitpack.io")
     }
+}
+
+repositories {
+    mavenCentral()
+    maven("https://repo.leavesmc.org/releases") {
+        content { onlyForConfigurations("paperclip") }
+    }
+}
+
+dependencies {
+    remapper("net.fabricmc:tiny-remapper:0.10.2:fat")
+    decompiler("org.vineflower:vineflower:1.10.1")
+    paperclip("org.leavesmc:leavesclip:2.0.0")
 }
 
 paperweight {
@@ -78,6 +88,20 @@ paperweight {
     }
 }
 
+allprojects {
+    publishing {
+        repositories {
+            maven("https://repo.leavesmc.org/snapshots") {
+                name = "leaves"
+                credentials(PasswordCredentials::class) {
+                    username = System.getenv("LEAVES_USERNAME")
+                    password = System.getenv("LEAVES_PASSWORD")
+                }
+            }
+        }
+    }
+}
+
 if (providers.gradleProperty("updatingMinecraft").getOrElse("false").toBoolean()) {
 
     tasks.withType<io.papermc.paperweight.tasks.CollectATsFromPatches>().configureEach {
@@ -88,5 +112,25 @@ if (providers.gradleProperty("updatingMinecraft").getOrElse("false").toBoolean()
     }
     tasks.withType<io.papermc.paperweight.tasks.RebuildGitPatches>().configureEach {
         filterPatches = false
+    }
+}
+
+tasks.register("createMojmapLeavesclipJar") {
+    group = "paperweight"
+    dependsOn("createMojmapPaperclipJar")
+    doLast {
+        file("build/libs/Leaves-paperclip-${project.version}-mojmap.jar").renameTo(
+            file("build/libs/Leaves-leavesclip-${project.version}-mojmap.jar")
+        )
+    }
+}
+
+tasks.register("createReobfLeavesclipJar") {
+    group = "paperweight"
+    dependsOn("createReobfPaperclipJar")
+    doLast {
+        file("build/libs/Leaves-paperclip-${project.version}-reobf.jar").renameTo(
+            file("build/libs/Leaves-leavesclip-${project.version}-reobf.jar")
+        )
     }
 }

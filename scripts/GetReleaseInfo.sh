@@ -1,3 +1,7 @@
+sha256() {
+  sha256sum $1 | awk '{print $1}'
+}
+
 sha1() {
   sha1sum $1 | awk '{print $1}'
 }
@@ -16,7 +20,7 @@ gradleVersion=$(prop version)
 preVersion=$(prop preVersion)
 tagid="$mcversion-$commitid"
 jarName="leaves-$mcversion.jar"
-leavesid="Leaves-$commitid"
+leavesid="Leaves-$BUILD_NUMBER-$commitid"
 releaseinfo="releaseinfo.md"
 discordmes="discordmes.json"
 make_latest=$([ $preVersion = "true" ] && echo "false" || echo "true")
@@ -24,7 +28,7 @@ make_latest=$([ $preVersion = "true" ] && echo "false" || echo "true")
 rm -f $discordmes
 rm -f $releaseinfo
 
-mv build/libs/Leaves-paperclip-$gradleVersion-reobf.jar $jarName
+mv build/libs/Leaves-leavesclip-$gradleVersion-mojmap.jar $jarName
 echo "name=$leavesid" >> $GITHUB_ENV
 echo "tag=$tagid" >> $GITHUB_ENV
 echo "jar=$jarName" >> $GITHUB_ENV
@@ -52,6 +56,7 @@ echo "| File | $jarName |" >> $releaseinfo
 echo "| ---- | ---- |" >> $releaseinfo
 echo "| MD5 | `md5 $jarName` |" >> $releaseinfo
 echo "| SHA1 | `sha1 $jarName` |" >> $releaseinfo
+echo "| SHA256 | `sha256 $jarName` |" >> $releaseinfo
 
 echo -n "{\"content\":\"Leaves New Release\",\"embeds\":[{\"title\":\"$leavesid\",\"url\":\"https://github.com/LeavesMC/Leaves/releases/tag/$tagid\",\"fields\":[{\"name\":\"Changelog\",\"value\":\"" >> $discordmes
 echo -n $(git log --oneline --pretty='> [%h] %s\\n' -$number) >> $discordmes

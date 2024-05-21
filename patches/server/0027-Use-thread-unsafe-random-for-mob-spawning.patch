@@ -1,0 +1,39 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Mon, 15 Aug 2022 08:23:51 +0800
+Subject: [PATCH] Use thread unsafe random for mob spawning
+
+This patch is Powered by Pufferfish(https://github.com/pufferfish-gg/Pufferfish)
+
+diff --git a/src/main/java/net/minecraft/world/level/NaturalSpawner.java b/src/main/java/net/minecraft/world/level/NaturalSpawner.java
+index 189a6bd4967aba72e12170e091dbb5b779e752a0..9c72271382fa0b6be5f38b45577fb1ae81ce80a3 100644
+--- a/src/main/java/net/minecraft/world/level/NaturalSpawner.java
++++ b/src/main/java/net/minecraft/world/level/NaturalSpawner.java
+@@ -408,12 +408,21 @@ public final class NaturalSpawner {
+ 
+     private static BlockPos getRandomPosWithin(Level world, LevelChunk chunk) {
+         ChunkPos chunkcoordintpair = chunk.getPos();
+-        int i = chunkcoordintpair.getMinBlockX() + world.random.nextInt(16);
+-        int j = chunkcoordintpair.getMinBlockZ() + world.random.nextInt(16);
+-        int k = chunk.getHeight(Heightmap.Types.WORLD_SURFACE, i, j) + 1;
+-        int l = Mth.randomBetweenInclusive(world.random, world.getMinBuildHeight(), k);
+-
+-        return new BlockPos(i, l, j);
++        // Leaves start - use thread unsafe random
++        if (org.leavesmc.leaves.LeavesConfig.useMoreThreadUnsafeRandom) {
++            int i = chunkcoordintpair.getMinBlockX() + world.getThreadUnsafeRandom().nextInt(16);
++            int j = chunkcoordintpair.getMinBlockZ() + world.getThreadUnsafeRandom().nextInt(16);
++            int k = chunk.getHeight(Heightmap.Types.WORLD_SURFACE, i, j) + 1;
++            int l = Mth.randomBetweenInclusive(world.getThreadUnsafeRandom(), world.getMinBuildHeight(), k);
++            return new BlockPos(i, l, j);
++        } else {
++            int i = chunkcoordintpair.getMinBlockX() + world.random.nextInt(16);
++            int j = chunkcoordintpair.getMinBlockZ() + world.random.nextInt(16);
++            int k = chunk.getHeight(Heightmap.Types.WORLD_SURFACE, i, j) + 1;
++            int l = Mth.randomBetweenInclusive(world.random, world.getMinBuildHeight(), k);
++            return new BlockPos(i, l, j);
++        }
++        // Leaves end - use thread unsafe random
+     }
+ 
+     public static boolean isValidEmptySpawnBlock(BlockGetter blockView, BlockPos pos, BlockState state, FluidState fluidState, EntityType<?> entityType) {

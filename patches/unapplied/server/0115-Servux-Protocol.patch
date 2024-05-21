@@ -1,0 +1,199 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Wed, 13 Sep 2023 19:31:20 +0800
+Subject: [PATCH] Servux Protocol
+
+
+diff --git a/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java b/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java
+index 46230b09fc176665ba1d29ab3233c3b956a07710..abef121b9882c17a200e9f0186ee12634b8f8dfc 100644
+--- a/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java
++++ b/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java
+@@ -934,6 +934,7 @@ public class LevelChunk extends ChunkAccess {
+         // Leaves start - bbor
+         if (loaded) {
+             org.leavesmc.leaves.protocol.BBORProtocol.onChunkLoaded(this);
++            org.leavesmc.leaves.protocol.ServuxProtocol.onChunkLoaded(this); // and servux
+         }
+         // Leaves end - bbor
+     }
+diff --git a/src/main/java/org/leavesmc/leaves/protocol/ServuxProtocol.java b/src/main/java/org/leavesmc/leaves/protocol/ServuxProtocol.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..f6fa9368f66de0f23d5387b38c0cff35658d3d59
+--- /dev/null
++++ b/src/main/java/org/leavesmc/leaves/protocol/ServuxProtocol.java
+@@ -0,0 +1,175 @@
++package org.leavesmc.leaves.protocol;
++
++import io.netty.buffer.Unpooled;
++import net.minecraft.core.Registry;
++import net.minecraft.core.registries.Registries;
++import net.minecraft.nbt.CompoundTag;
++import net.minecraft.nbt.ListTag;
++import net.minecraft.network.FriendlyByteBuf;
++import net.minecraft.resources.ResourceLocation;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.world.level.chunk.LevelChunk;
++import net.minecraft.world.level.levelgen.structure.BoundingBox;
++import net.minecraft.world.level.levelgen.structure.Structure;
++import net.minecraft.world.level.levelgen.structure.StructureStart;
++import net.minecraft.world.level.levelgen.structure.pieces.StructurePieceSerializationContext;
++import org.jetbrains.annotations.Contract;
++import org.jetbrains.annotations.NotNull;
++import org.leavesmc.leaves.LeavesConfig;
++import org.leavesmc.leaves.protocol.core.LeavesProtocol;
++import org.leavesmc.leaves.protocol.core.ProtocolHandler;
++import org.leavesmc.leaves.protocol.core.ProtocolUtils;
++
++import java.util.ArrayList;
++import java.util.HashMap;
++import java.util.HashSet;
++import java.util.List;
++import java.util.Map;
++import java.util.Set;
++import java.util.concurrent.ConcurrentHashMap;
++
++@LeavesProtocol(namespace = "servux")
++public class ServuxProtocol {
++
++    public static final String PROTOCOL_ID = "servux";
++
++    public static final int PROTOCOL_VERSION = 1;
++    public static final int PACKET_METADATA = 1;
++    public static final int PACKET_STRUCTURE_DATA = 2;
++
++    public static final ResourceLocation CHANNEL = id("structures");
++
++    private static final Map<Integer, ServerPlayer> players = new ConcurrentHashMap<>();
++    private static final Map<Integer, Set<BoundingBox>> playerBoundingBoxesCache = new HashMap<>();
++    private static final Map<ResourceLocation, Map<BoundingBox, CompoundTag>> dimensionCache = new ConcurrentHashMap<>();
++
++    @Contract("_ -> new")
++    public static @NotNull ResourceLocation id(String path) {
++        return new ResourceLocation(PROTOCOL_ID, path);
++    }
++
++    @ProtocolHandler.MinecraftRegister(channelId = "structures")
++    public static void onPlayerSubscribed(@NotNull ServerPlayer player) {
++        if (LeavesConfig.servuxProtocol) {
++            players.put(player.getId(), player);
++
++            CompoundTag tag = new CompoundTag();
++            tag.putInt("version", PROTOCOL_VERSION);
++            tag.putString("id", CHANNEL.toString());
++            tag.putInt("timeout", Integer.MAX_VALUE - 200);
++            sendNBTPacket(player, PACKET_METADATA, tag);
++        }
++    }
++
++    @ProtocolHandler.PlayerLeave
++    public static void onPlayerLoggedOut(@NotNull ServerPlayer player) {
++        if (LeavesConfig.servuxProtocol) {
++            players.remove(player.getId());
++            playerBoundingBoxesCache.remove(player.getId());
++        }
++    }
++
++    @ProtocolHandler.Ticker
++    public static void tick() {
++        if (LeavesConfig.servuxProtocol) {
++            for (var playerEntry : players.entrySet()) {
++                sendBoundingToPlayer(playerEntry.getKey(), playerEntry.getValue());
++            }
++        }
++    }
++
++    public static void onChunkLoaded(@NotNull LevelChunk chunk) {
++        if (LeavesConfig.servuxProtocol) {
++            List<StructureStart> structures = new ArrayList<>();
++            final Registry<Structure> structureFeatureRegistry = chunk.getLevel().registryAccess().registryOrThrow(Registries.STRUCTURE);
++            for (var es : chunk.getAllStarts().entrySet()) {
++                final var optional = structureFeatureRegistry.getResourceKey(es.getKey());
++                optional.ifPresent(key -> structures.add(es.getValue()));
++            }
++
++            if (!structures.isEmpty()) {
++                onStructuresLoaded((ServerLevel) chunk.getLevel(), structures);
++            }
++        }
++    }
++
++    public static void onStructuresLoaded(@NotNull ServerLevel level, @NotNull List<StructureStart> structures) {
++        Map<BoundingBox, CompoundTag> cache = getOrCreateCache(level.dimension().location());
++        for (StructureStart structureStart : structures) {
++            if (structureStart == null) {
++                return;
++            }
++
++            StructurePieceSerializationContext ctx = StructurePieceSerializationContext.fromLevel(level);
++
++            BoundingBox boundingBox = structureStart.getBoundingBox();
++            if (cache.containsKey(boundingBox)) {
++                return;
++            }
++
++            cache.put(boundingBox, structureStart.createTag(ctx, structureStart.getChunkPos()));
++        }
++    }
++
++    private static void sendBoundingToPlayer(int id, ServerPlayer player) {
++        Map<BoundingBox, CompoundTag> boundingBoxMap = dimensionCache.get(player.level().dimension().location());
++        if (boundingBoxMap == null) {
++            return;
++        }
++
++        Set<BoundingBox> playerBoundingBoxes = playerBoundingBoxesCache.computeIfAbsent(id, k -> new HashSet<>());
++
++        ListTag listTag = new ListTag();
++        for (BoundingBox key : boundingBoxMap.keySet()) {
++            if (listTag.size() >= 50) {
++                break;
++            }
++            if (playerBoundingBoxes.contains(key)) {
++                continue;
++            }
++
++            CompoundTag boundingBoxes = boundingBoxMap.get(key);
++            if (boundingBoxes != null) {
++                listTag.add(boundingBoxes);
++            }
++            playerBoundingBoxes.add(key);
++        }
++
++        if (!listTag.isEmpty()) {
++            CompoundTag tag = new CompoundTag();
++            tag.put("Structures", listTag);
++            sendNBTPacket(player, PACKET_STRUCTURE_DATA, tag);
++        }
++    }
++
++    private static Map<BoundingBox, CompoundTag> getOrCreateCache(ResourceLocation dimensionId) {
++        return dimensionCache.computeIfAbsent(dimensionId, dt -> new ConcurrentHashMap<>());
++    }
++
++    private static final int MAX_TOTAL_PER_PACKET_S2C = 1048576;
++    private static final int MAX_PAYLOAD_PER_PACKET_S2C = MAX_TOTAL_PER_PACKET_S2C - 5;
++
++    public static void sendNBTPacket(ServerPlayer player, int packetType, CompoundTag data) {
++        FriendlyByteBuf packet = new FriendlyByteBuf(Unpooled.buffer());
++        packet.writeVarInt(packetType);
++        packet.writeNbt(data);
++
++        int len = packet.writerIndex();
++        packet.readerIndex(0);
++
++        for (int offset = 0; offset < len; offset += MAX_PAYLOAD_PER_PACKET_S2C) {
++            int thisLen = Math.min(len - offset, MAX_PAYLOAD_PER_PACKET_S2C);
++            FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer(thisLen));
++
++            if (offset == 0) {
++                buf.writeVarInt(len);
++            }
++
++            buf.writeBytes(packet, thisLen);
++            ProtocolUtils.sendPayloadPacket(player, CHANNEL, buf1 -> buf1.writeBytes(buf));
++        }
++
++        packet.release();
++    }
++}

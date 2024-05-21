@@ -70,11 +70,14 @@ jobs:
           name: ${{ env.jar }}
           path: ${{ env.jar }}
       - name: Delete Draft Releases
+        if: "!contains(github.event.commits[0].message, '[release-skip]')"
+        continue-on-error: true
         uses: hugo19941994/delete-draft-releases@v1.0.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Create Release
         if: "!contains(github.event.commits[0].message, '[release-skip]')"
+        continue-on-error: true
         uses: ncipollo/release-action@v1
         with:
           artifacts: ${{ env.jar }}
@@ -85,21 +88,23 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           makeLatest: ${{ env.make_latest }}
       - name: Github Releases To Discord
+        if: "!contains(github.event.commits[0].message, '[release-skip]')"
         continue-on-error: true
         uses: tsickert/discord-webhook@v6.0.0
         with:
           webhook-url: ${{ secrets.DISCORD_WEBHOOK }}
           raw-data: ${{ env.discordmes }}
       - name: Upload to cloud
-       if: "!contains(github.event.commits[0].message, '[release-skip]')"
-       uses: wei/rclone@v1
-       env:
-         RCLONE_CONF: ${{ secrets.RCLONE_CONF }}
-       with:
-         args: copy ${{ env.jar }} FTP:${{ env.tag }}
-      - name: Push to API
-        continue-on-error: true
         if: "!contains(github.event.commits[0].message, '[release-skip]')"
+        continue-on-error: true
+        uses: wei/rclone@v1
+        env:
+          RCLONE_CONF: ${{ secrets.RCLONE_CONF }}
+        with:
+          args: copy ${{ env.jar }} FTP:${{ env.tag }}
+      - name: Push to API
+        if: "!contains(github.event.commits[0].message, '[release-skip]')"
+        continue-on-error: true
         env:
           secret: ${{ secrets.API_PUSH_TOKEN }}
           secret_v2: ${{ secrets.API_V2_PUSH_TOKEN }}

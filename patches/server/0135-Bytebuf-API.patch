@@ -5,7 +5,7 @@ Subject: [PATCH] Bytebuf API
 
 
 diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
-index 975062e67278614220eab0c301019a235c7953b7..cc23b30680f16ececc1843cfb132c7187c0a2fac 100644
+index 975062e67278614220eab0c301019a235c7953b7..c7623096107a2fd7efd54146b952669fc627a149 100644
 --- a/src/main/java/net/minecraft/server/players/PlayerList.java
 +++ b/src/main/java/net/minecraft/server/players/PlayerList.java
 @@ -469,7 +469,7 @@ public abstract class PlayerList {
@@ -13,35 +13,38 @@ index 975062e67278614220eab0c301019a235c7953b7..cc23b30680f16ececc1843cfb132c718
              return;
          }
 -
-+        ((org.leavesmc.leaves.bytebuf.SimpleBytebufManager) getServer().server.getBytebufManager()).injectPlayer(player.getBukkitEntity());
++        getServer().server.getBytebufHandler().injectPlayer(player);
          org.leavesmc.leaves.protocol.core.LeavesProtocolManager.handlePlayerJoin(player); // Leaves - protocol
  
          // Leaves start - bot support
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 405a04f2711e26e22d7dd091745b5b5a01d724d9..5c2484dc3aff26bbd9cbe423b33b2a3c23a70333 100644
+index 405a04f2711e26e22d7dd091745b5b5a01d724d9..dea7f028f0bd81e0811f37ce226da50dd4ed158b 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 @@ -307,6 +307,7 @@ public final class CraftServer implements Server {
      private final io.papermc.paper.potion.PaperPotionBrewer potionBrewer; // Paper - Custom Potion Mixes
      private final org.leavesmc.leaves.entity.CraftBotManager botManager = new org.leavesmc.leaves.entity.CraftBotManager(); // Leaves
      private final org.leavesmc.leaves.entity.CraftPhotographerManager photographerManager = new org.leavesmc.leaves.entity.CraftPhotographerManager(); // Leaves
-+    private final org.leavesmc.leaves.bytebuf.SimpleBytebufManager bytebufManager = new org.leavesmc.leaves.bytebuf.SimpleBytebufManager(); // Leaves
++    private final org.leavesmc.leaves.bytebuf.internal.InternalBytebufHandler internalBytebufHandler = new org.leavesmc.leaves.bytebuf.internal.InternalBytebufHandler(); // Leaves
  
      // Paper start - Folia region threading API
      private final io.papermc.paper.threadedregions.scheduler.FallbackRegionScheduler regionizedScheduler = new io.papermc.paper.threadedregions.scheduler.FallbackRegionScheduler();
-@@ -3291,4 +3292,10 @@ public final class CraftServer implements Server {
+@@ -3291,4 +3292,13 @@ public final class CraftServer implements Server {
          return photographerManager;
      }
      // Leaves end - replay mod api
 +    // Leaves start - Bytebuf API
 +    @Override
 +    public org.leavesmc.leaves.bytebuf.BytebufManager getBytebufManager() {
-+        return bytebufManager;
++        return internalBytebufHandler.getManager();
++    }
++    public org.leavesmc.leaves.bytebuf.internal.InternalBytebufHandler getBytebufHandler() {
++        return internalBytebufHandler;
 +    }
 +    // Leaves end - Bytebuf API
  }
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
-index 25a5ce110c0515f5a0ee5f287a7f3dd029a8f29f..2c14b256f470c3fbbc55a0444f5f68ba1f22785c 100644
+index 25a5ce110c0515f5a0ee5f287a7f3dd029a8f29f..1eb60f1d9bec4b11bb1d0242266d6e084e53b372 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
 @@ -3519,4 +3519,14 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
@@ -51,21 +54,168 @@ index 25a5ce110c0515f5a0ee5f287a7f3dd029a8f29f..2c14b256f470c3fbbc55a0444f5f68ba
 +    // Leaves start - Bytebuf API
 +    @Override
 +    public void sendPacket(org.leavesmc.leaves.bytebuf.packet.Packet packet) {
-+        ((org.leavesmc.leaves.bytebuf.SimpleBytebufManager) getServer().getBytebufManager()).applyPacketToPlayer(this, packet);
++        ((CraftServer) getServer()).getBytebufHandler().applyPacketToPlayer(this, packet);
 +    }
 +    @Override
 +    public void sendPacket(org.leavesmc.leaves.bytebuf.Bytebuf bytebuf, org.leavesmc.leaves.bytebuf.packet.PacketType type) {
-+        ((org.leavesmc.leaves.bytebuf.SimpleBytebufManager) getServer().getBytebufManager()).applyPacketToPlayer(this, new org.leavesmc.leaves.bytebuf.packet.Packet(type, bytebuf));
++        ((CraftServer) getServer()).getBytebufHandler().applyPacketToPlayer(this, new org.leavesmc.leaves.bytebuf.packet.Packet(type, bytebuf));
 +    }
 +    // Leaves end - Bytebuf API
  }
 diff --git a/src/main/java/org/leavesmc/leaves/bytebuf/SimpleBytebufManager.java b/src/main/java/org/leavesmc/leaves/bytebuf/SimpleBytebufManager.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..26179fcc836fcb8d1eda8ddb8a875cb9cdd421ab
+index 0000000000000000000000000000000000000000..854af9da6e27e037e022abfef241221ef1c75d0d
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bytebuf/SimpleBytebufManager.java
-@@ -0,0 +1,1008 @@
+@@ -0,0 +1,31 @@
 +package org.leavesmc.leaves.bytebuf;
++
++import io.netty.buffer.Unpooled;
++import org.bukkit.plugin.Plugin;
++import org.leavesmc.leaves.bytebuf.internal.InternalBytebufHandler;
++import org.leavesmc.leaves.bytebuf.packet.PacketListener;
++
++public class SimpleBytebufManager implements BytebufManager {
++    private final InternalBytebufHandler internal;
++    public SimpleBytebufManager(InternalBytebufHandler internal) {
++        this.internal = internal;
++    }
++    @Override
++    public void registerListener(Plugin plugin, PacketListener listener) {
++        internal.listenerMap.put(listener, plugin);
++    }
++
++    @Override
++    public void unregisterListener(Plugin plugin, PacketListener listener) {
++        internal.listenerMap.remove(listener);
++    }
++    @Override
++    public Bytebuf newBytebuf(int size) {
++        return new WrappedBytebuf(Unpooled.buffer(size));
++    }
++
++    @Override
++    public Bytebuf toBytebuf(byte[] bytes) {
++        return new WrappedBytebuf(Unpooled.wrappedBuffer(bytes));
++    }
++}
+diff --git a/src/main/java/org/leavesmc/leaves/bytebuf/WrappedBytebuf.java b/src/main/java/org/leavesmc/leaves/bytebuf/WrappedBytebuf.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..39e53a092ffd7e3e04d529edb3468ba614373165
+--- /dev/null
++++ b/src/main/java/org/leavesmc/leaves/bytebuf/WrappedBytebuf.java
+@@ -0,0 +1,104 @@
++package org.leavesmc.leaves.bytebuf;
++
++import io.netty.buffer.ByteBuf;
++import net.minecraft.network.FriendlyByteBuf;
++
++public class WrappedBytebuf implements Bytebuf {
++    private final FriendlyByteBuf buf;
++
++    public WrappedBytebuf(ByteBuf buf) {
++        this.buf = new FriendlyByteBuf(buf);
++    }
++
++    public FriendlyByteBuf getFriendlyBytebuf() {
++        return buf;
++    }
++
++    @Override
++    public byte[] toArray() {
++        return buf.array();
++    }
++
++    @Override
++    public Bytebuf skipBytes(int i) {
++        buf.skipBytes(i);
++        return this;
++    }
++
++    @Override
++    public int readerIndex() {
++        return buf.readerIndex();
++    }
++
++    @Override
++    public Bytebuf readerIndex(int i) {
++        buf.readerIndex(i);
++        return this;
++    }
++
++    @Override
++    public int writerIndex() {
++        return buf.writerIndex();
++    }
++
++    @Override
++    public Bytebuf writerIndex(int i) {
++        buf.writerIndex(i);
++        return this;
++    }
++
++    @Override
++    public Bytebuf writeByte(int i) {
++        buf.writeByte(i);
++        return this;
++    }
++
++    @Override
++    public byte readByte() {
++        return buf.readByte();
++    }
++
++    @Override
++    public Bytebuf writeShort(int i) {
++        buf.writeShort(i);
++        return this;
++    }
++
++    @Override
++    public short readShort() {
++        return buf.readShort();
++    }
++
++    @Override
++    public Bytebuf writeInt(int i) {
++        buf.writeShort(i);
++        return this;
++    }
++
++    @Override
++    public int readInt() {
++        return buf.readInt();
++    }
++
++    @Override
++    public Bytebuf writeLong(long i) {
++        buf.writeLong(i);
++        return this;
++    }
++
++    @Override
++    public long readLong() {
++        return buf.readLong();
++    }
++
++    @Override
++    public Bytebuf writeUTFString(String utf) {
++        buf.writeUtf(utf);
++        return this;
++    }
++
++    @Override
++    public String readUTFString() {
++        return buf.readUtf();
++    }
++}
+diff --git a/src/main/java/org/leavesmc/leaves/bytebuf/internal/InternalBytebufHandler.java b/src/main/java/org/leavesmc/leaves/bytebuf/internal/InternalBytebufHandler.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..1dff2f33d0c55c286a8f71652f086d5a2fab471c
+--- /dev/null
++++ b/src/main/java/org/leavesmc/leaves/bytebuf/internal/InternalBytebufHandler.java
+@@ -0,0 +1,1042 @@
++package org.leavesmc.leaves.bytebuf.internal;
 +
 +import io.netty.buffer.Unpooled;
 +import io.netty.channel.ChannelDuplexHandler;
@@ -78,9 +228,14 @@ index 0000000000000000000000000000000000000000..26179fcc836fcb8d1eda8ddb8a875cb9
 +import net.minecraft.network.protocol.common.*;
 +import net.minecraft.network.protocol.game.*;
 +import net.minecraft.server.MinecraftServer;
++import net.minecraft.server.level.ServerPlayer;
 +import org.bukkit.craftbukkit.entity.CraftPlayer;
 +import org.bukkit.entity.Player;
 +import org.bukkit.plugin.Plugin;
++import org.leavesmc.leaves.bytebuf.Bytebuf;
++import org.leavesmc.leaves.bytebuf.BytebufManager;
++import org.leavesmc.leaves.bytebuf.SimpleBytebufManager;
++import org.leavesmc.leaves.bytebuf.WrappedBytebuf;
 +import org.leavesmc.leaves.bytebuf.packet.Packet;
 +import org.leavesmc.leaves.bytebuf.packet.PacketListener;
 +import org.leavesmc.leaves.bytebuf.packet.PacketType;
@@ -88,13 +243,16 @@ index 0000000000000000000000000000000000000000..26179fcc836fcb8d1eda8ddb8a875cb9
 +import java.util.HashMap;
 +import java.util.Map;
 +
-+public class SimpleBytebufManager implements BytebufManager {
++public class InternalBytebufHandler {
++
 +    class PacketHandler extends ChannelDuplexHandler {
 +        private final static String handlerName = "leaves-bytebuf-handler";
 +        private final Player player;
++
 +        public PacketHandler(Player player) {
 +            this.player = player;
 +        }
++
 +        @Override
 +        public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
 +            if (msg instanceof BundlePacket<?> || msg instanceof BundleDelimiterPacket<?>) {
@@ -109,6 +267,7 @@ index 0000000000000000000000000000000000000000..26179fcc836fcb8d1eda8ddb8a875cb9
 +            if (msg != null) {
 +                super.channelRead(ctx, msg);
 +            }
++
 +        }
 +
 +        @Override
@@ -129,34 +288,18 @@ index 0000000000000000000000000000000000000000..26179fcc836fcb8d1eda8ddb8a875cb9
 +
 +    }
 +
++    public final Map<PacketListener, Plugin> listenerMap = new HashMap<>();
++    private final BytebufManager manager = new SimpleBytebufManager(this);
 +
-+    private final Map<PacketListener, Plugin> listenerMap = new HashMap<>();
-+    @Override
-+    public void registerListener(Plugin plugin, PacketListener listener) {
-+        listenerMap.put(listener, plugin);
++
++    public void injectPlayer(ServerPlayer player) {
++        player.connection.connection.channel.pipeline().addBefore("packet_handler", PacketHandler.handlerName, new PacketHandler(player.getBukkitEntity()));
 +    }
 +
-+    @Override
-+    public void unregisterListener(Plugin plugin, PacketListener listener) {
-+        listenerMap.remove(listener);
-+    }
-+    @Override
-+    public Bytebuf newBytebuf(int size) {
-+        return new WrappedBytebuf(Unpooled.buffer(size));
++    public BytebufManager getManager() {
++        return manager;
 +    }
 +
-+    @Override
-+    public Bytebuf toBytebuf(byte[] bytes) {
-+        return new WrappedBytebuf(Unpooled.wrappedBuffer(bytes));
-+    }
-+
-+
-+
-+    public void injectPlayer(Player player) {
-+        ((CraftPlayer) player).getHandle().connection.connection.channel.pipeline().addBefore(
-+            "packet_handler", PacketHandler.handlerName, new PacketHandler(player)
-+        );
-+    }
 +    public net.minecraft.network.protocol.Packet<?> callPacketInEvent(Player player, Packet packet) {
 +        for (PacketListener listener : listenerMap.keySet()) {
 +            if (listenerMap.get(listener).isEnabled()) {
@@ -167,6 +310,7 @@ index 0000000000000000000000000000000000000000..26179fcc836fcb8d1eda8ddb8a875cb9
 +        }
 +        return createNMSPacket(packet);
 +    }
++
 +    public net.minecraft.network.protocol.Packet<?> callPacketOutEvent(Player player, Packet packet) {
 +        for (PacketListener listener : listenerMap.keySet()) {
 +            if (listenerMap.get(listener).isEnabled()) {
@@ -177,11 +321,13 @@ index 0000000000000000000000000000000000000000..26179fcc836fcb8d1eda8ddb8a875cb9
 +        }
 +        return createNMSPacket(packet);
 +    }
++
 +    public void applyPacketToPlayer(Player player, Packet packet) {
 +        Connection sp = ((CraftPlayer) player).getHandle().connection.connection;
 +        sp.channel.writeAndFlush(createNMSPacket(packet));
 +    }
-+    private net.minecraft.network.protocol.Packet<?> createNMSPacket(Packet packet) {
++
++    public net.minecraft.network.protocol.Packet<?> createNMSPacket(Packet packet) {
 +        RegistryFriendlyByteBuf buf = new RegistryFriendlyByteBuf(((WrappedBytebuf) packet.bytebuf()).getFriendlyBytebuf(), MinecraftServer.getServer().registryAccess());
 +        PacketType type = packet.type();
 +        net.minecraft.network.protocol.Packet<?> nmsPacket = null;
@@ -197,18 +343,22 @@ index 0000000000000000000000000000000000000000..26179fcc836fcb8d1eda8ddb8a875cb9
 +            case ClientboundBlockUpdate -> nmsPacket = ClientboundBlockUpdatePacket.STREAM_CODEC.decode(buf);
 +            case ClientboundBossEvent -> nmsPacket = ClientboundBossEventPacket.STREAM_CODEC.decode(buf);
 +            case ClientboundChangeDifficulty -> nmsPacket = ClientboundChangeDifficultyPacket.STREAM_CODEC.decode(buf);
-+            case ClientboundChunkBatchFinished -> nmsPacket = ClientboundChunkBatchFinishedPacket.STREAM_CODEC.decode(buf);
++            case ClientboundChunkBatchFinished ->
++                nmsPacket = ClientboundChunkBatchFinishedPacket.STREAM_CODEC.decode(buf);
 +            case ClientboundChunkBatchStart -> nmsPacket = ClientboundChunkBatchStartPacket.STREAM_CODEC.decode(buf);
 +            case ClientboundChunksBiomes -> nmsPacket = ClientboundChunksBiomesPacket.STREAM_CODEC.decode(buf);
 +            case ClientboundClearTitles -> nmsPacket = ClientboundClearTitlesPacket.STREAM_CODEC.decode(buf);
-+            case ClientboundCommandSuggestions -> nmsPacket = ClientboundCommandSuggestionsPacket.STREAM_CODEC.decode(buf);
++            case ClientboundCommandSuggestions ->
++                nmsPacket = ClientboundCommandSuggestionsPacket.STREAM_CODEC.decode(buf);
 +            case ClientboundCommands -> nmsPacket = ClientboundCommandsPacket.STREAM_CODEC.decode(buf);
 +            case ClientboundContainerClose -> nmsPacket = ClientboundContainerClosePacket.STREAM_CODEC.decode(buf);
-+            case ClientboundContainerSetContent -> nmsPacket = ClientboundContainerSetContentPacket.STREAM_CODEC.decode(buf);
++            case ClientboundContainerSetContent ->
++                nmsPacket = ClientboundContainerSetContentPacket.STREAM_CODEC.decode(buf);
 +            case ClientboundContainerSetData -> nmsPacket = ClientboundContainerSetDataPacket.STREAM_CODEC.decode(buf);
 +            case ClientboundContainerSetSlot -> nmsPacket = ClientboundContainerSetSlotPacket.STREAM_CODEC.decode(buf);
 +            case ClientboundCooldown -> nmsPacket = ClientboundCooldownPacket.STREAM_CODEC.decode(buf);
-+            case ClientboundCustomChatCompletions -> nmsPacket = ClientboundCustomChatCompletionsPacket.STREAM_CODEC.decode(buf);
++            case ClientboundCustomChatCompletions ->
++                nmsPacket = ClientboundCustomChatCompletionsPacket.STREAM_CODEC.decode(buf);
 +            case ClientboundDamageEvent -> nmsPacket = ClientboundDamageEventPacket.STREAM_CODEC.decode(buf);
 +            case ClientboundDebugSample -> nmsPacket = ClientboundDebugSamplePacket.STREAM_CODEC.decode(buf);
 +            case ClientboundDeleteChat -> nmsPacket = ClientboundDeleteChatPacket.STREAM_CODEC.decode(buf);
@@ -220,7 +370,8 @@ index 0000000000000000000000000000000000000000..26179fcc836fcb8d1eda8ddb8a875cb9
 +            case ClientboundHorseScreenOpen -> nmsPacket = ClientboundHorseScreenOpenPacket.STREAM_CODEC.decode(buf);
 +            case ClientboundHurtAnimation -> nmsPacket = ClientboundHurtAnimationPacket.STREAM_CODEC.decode(buf);
 +            case ClientboundInitializeBorder -> nmsPacket = ClientboundInitializeBorderPacket.STREAM_CODEC.decode(buf);
-+            case ClientboundLevelChunkWithLight -> nmsPacket = ClientboundLevelChunkWithLightPacket.STREAM_CODEC.decode(buf);
++            case ClientboundLevelChunkWithLight ->
++                nmsPacket = ClientboundLevelChunkWithLightPacket.STREAM_CODEC.decode(buf);
 +            case ClientboundLevelEvent -> nmsPacket = ClientboundLevelEventPacket.STREAM_CODEC.decode(buf);
 +            case ClientboundLevelParticles -> nmsPacket = ClientboundLevelParticlesPacket.STREAM_CODEC.decode(buf);
 +            case ClientboundLightUpdate -> nmsPacket = ClientboundLightUpdatePacket.STREAM_CODEC.decode(buf);
@@ -238,7 +389,8 @@ index 0000000000000000000000000000000000000000..26179fcc836fcb8d1eda8ddb8a875cb9
 +            case ClientboundPlayerAbilities -> nmsPacket = ClientboundPlayerAbilitiesPacket.STREAM_CODEC.decode(buf);
 +            case ClientboundPlayerChat -> nmsPacket = ClientboundPlayerChatPacket.STREAM_CODEC.decode(buf);
 +            case ClientboundPlayerCombatEnd -> nmsPacket = ClientboundPlayerCombatEndPacket.STREAM_CODEC.decode(buf);
-+            case ClientboundPlayerCombatEnter -> nmsPacket = ClientboundPlayerCombatEnterPacket.STREAM_CODEC.decode(buf);
++            case ClientboundPlayerCombatEnter ->
++                nmsPacket = ClientboundPlayerCombatEnterPacket.STREAM_CODEC.decode(buf);
 +            case ClientboundPlayerCombatKill -> nmsPacket = ClientboundPlayerCombatKillPacket.STREAM_CODEC.decode(buf);
 +            case ClientboundPlayerInfoRemove -> nmsPacket = ClientboundPlayerInfoRemovePacket.STREAM_CODEC.decode(buf);
 +            case ClientboundPlayerInfoUpdate -> nmsPacket = ClientboundPlayerInfoUpdatePacket.STREAM_CODEC.decode(buf);
@@ -249,21 +401,30 @@ index 0000000000000000000000000000000000000000..26179fcc836fcb8d1eda8ddb8a875cb9
 +            case ClientboundRemoveMobEffect -> nmsPacket = ClientboundRemoveMobEffectPacket.STREAM_CODEC.decode(buf);
 +            case ClientboundRespawn -> nmsPacket = ClientboundRespawnPacket.STREAM_CODEC.decode(buf);
 +            case ClientboundRotateHead -> nmsPacket = ClientboundRotateHeadPacket.STREAM_CODEC.decode(buf);
-+            case ClientboundSectionBlocksUpdate -> nmsPacket = ClientboundSectionBlocksUpdatePacket.STREAM_CODEC.decode(buf);
-+            case ClientboundSelectAdvancementsTab -> nmsPacket = ClientboundSelectAdvancementsTabPacket.STREAM_CODEC.decode(buf);
++            case ClientboundSectionBlocksUpdate ->
++                nmsPacket = ClientboundSectionBlocksUpdatePacket.STREAM_CODEC.decode(buf);
++            case ClientboundSelectAdvancementsTab ->
++                nmsPacket = ClientboundSelectAdvancementsTabPacket.STREAM_CODEC.decode(buf);
 +            case ClientboundServerData -> nmsPacket = ClientboundServerDataPacket.STREAM_CODEC.decode(buf);
 +            case ClientboundSetActionBarText -> nmsPacket = ClientboundSetActionBarTextPacket.STREAM_CODEC.decode(buf);
 +            case ClientboundSetBorderCenter -> nmsPacket = ClientboundSetBorderCenterPacket.STREAM_CODEC.decode(buf);
-+            case ClientboundSetBorderLerpSize -> nmsPacket = ClientboundSetBorderLerpSizePacket.STREAM_CODEC.decode(buf);
++            case ClientboundSetBorderLerpSize ->
++                nmsPacket = ClientboundSetBorderLerpSizePacket.STREAM_CODEC.decode(buf);
 +            case ClientboundSetBorderSize -> nmsPacket = ClientboundSetBorderSizePacket.STREAM_CODEC.decode(buf);
-+            case ClientboundSetBorderWarningDelay -> nmsPacket = ClientboundSetBorderWarningDelayPacket.STREAM_CODEC.decode(buf);
-+            case ClientboundSetBorderWarningDistance -> nmsPacket = ClientboundSetBorderWarningDistancePacket.STREAM_CODEC.decode(buf);
++            case ClientboundSetBorderWarningDelay ->
++                nmsPacket = ClientboundSetBorderWarningDelayPacket.STREAM_CODEC.decode(buf);
++            case ClientboundSetBorderWarningDistance ->
++                nmsPacket = ClientboundSetBorderWarningDistancePacket.STREAM_CODEC.decode(buf);
 +            case ClientboundSetCamera -> nmsPacket = ClientboundSetCameraPacket.STREAM_CODEC.decode(buf);
 +            case ClientboundSetCarriedItem -> nmsPacket = ClientboundSetCarriedItemPacket.STREAM_CODEC.decode(buf);
-+            case ClientboundSetChunkCacheCenter -> nmsPacket = ClientboundSetChunkCacheCenterPacket.STREAM_CODEC.decode(buf);
-+            case ClientboundSetChunkCacheRadius -> nmsPacket = ClientboundSetChunkCacheRadiusPacket.STREAM_CODEC.decode(buf);
-+            case ClientboundSetDefaultSpawnPosition -> nmsPacket = ClientboundSetDefaultSpawnPositionPacket.STREAM_CODEC.decode(buf);
-+            case ClientboundSetDisplayObjective -> nmsPacket = ClientboundSetDisplayObjectivePacket.STREAM_CODEC.decode(buf);
++            case ClientboundSetChunkCacheCenter ->
++                nmsPacket = ClientboundSetChunkCacheCenterPacket.STREAM_CODEC.decode(buf);
++            case ClientboundSetChunkCacheRadius ->
++                nmsPacket = ClientboundSetChunkCacheRadiusPacket.STREAM_CODEC.decode(buf);
++            case ClientboundSetDefaultSpawnPosition ->
++                nmsPacket = ClientboundSetDefaultSpawnPositionPacket.STREAM_CODEC.decode(buf);
++            case ClientboundSetDisplayObjective ->
++                nmsPacket = ClientboundSetDisplayObjectivePacket.STREAM_CODEC.decode(buf);
 +            case ClientboundSetEntityData -> nmsPacket = ClientboundSetEntityDataPacket.STREAM_CODEC.decode(buf);
 +            case ClientboundSetEntityLink -> nmsPacket = ClientboundSetEntityLinkPacket.STREAM_CODEC.decode(buf);
 +            case ClientboundSetEntityMotion -> nmsPacket = ClientboundSetEntityMotionPacket.STREAM_CODEC.decode(buf);
@@ -274,42 +435,56 @@ index 0000000000000000000000000000000000000000..26179fcc836fcb8d1eda8ddb8a875cb9
 +            case ClientboundSetPassengers -> nmsPacket = ClientboundSetPassengersPacket.STREAM_CODEC.decode(buf);
 +            case ClientboundSetPlayerTeam -> nmsPacket = ClientboundSetPlayerTeamPacket.STREAM_CODEC.decode(buf);
 +            case ClientboundSetScore -> nmsPacket = ClientboundSetScorePacket.STREAM_CODEC.decode(buf);
-+            case ClientboundSetSimulationDistance -> nmsPacket = ClientboundSetSimulationDistancePacket.STREAM_CODEC.decode(buf);
++            case ClientboundSetSimulationDistance ->
++                nmsPacket = ClientboundSetSimulationDistancePacket.STREAM_CODEC.decode(buf);
 +            case ClientboundSetSubtitleText -> nmsPacket = ClientboundSetSubtitleTextPacket.STREAM_CODEC.decode(buf);
 +            case ClientboundSetTime -> nmsPacket = ClientboundSetTimePacket.STREAM_CODEC.decode(buf);
 +            case ClientboundSetTitleText -> nmsPacket = ClientboundSetTitleTextPacket.STREAM_CODEC.decode(buf);
-+            case ClientboundSetTitlesAnimation -> nmsPacket = ClientboundSetTitlesAnimationPacket.STREAM_CODEC.decode(buf);
++            case ClientboundSetTitlesAnimation ->
++                nmsPacket = ClientboundSetTitlesAnimationPacket.STREAM_CODEC.decode(buf);
 +            case ClientboundSoundEntity -> nmsPacket = ClientboundSoundEntityPacket.STREAM_CODEC.decode(buf);
 +            case ClientboundSound -> nmsPacket = ClientboundSoundPacket.STREAM_CODEC.decode(buf);
-+            case ClientboundStartConfiguration -> nmsPacket = ClientboundStartConfigurationPacket.STREAM_CODEC.decode(buf);
++            case ClientboundStartConfiguration ->
++                nmsPacket = ClientboundStartConfigurationPacket.STREAM_CODEC.decode(buf);
 +            case ClientboundStopSound -> nmsPacket = ClientboundStopSoundPacket.STREAM_CODEC.decode(buf);
 +            case ClientboundSystemChat -> nmsPacket = ClientboundSystemChatPacket.STREAM_CODEC.decode(buf);
 +            case ClientboundTabList -> nmsPacket = ClientboundTabListPacket.STREAM_CODEC.decode(buf);
 +            case ClientboundTagQuery -> nmsPacket = ClientboundTagQueryPacket.STREAM_CODEC.decode(buf);
 +            case ClientboundTakeItemEntity -> nmsPacket = ClientboundTakeItemEntityPacket.STREAM_CODEC.decode(buf);
 +            case ClientboundTeleportEntity -> nmsPacket = ClientboundTeleportEntityPacket.STREAM_CODEC.decode(buf);
-+            case ClientboundUpdateAdvancements -> nmsPacket = ClientboundUpdateAdvancementsPacket.STREAM_CODEC.decode(buf);
++            case ClientboundUpdateAdvancements ->
++                nmsPacket = ClientboundUpdateAdvancementsPacket.STREAM_CODEC.decode(buf);
 +            case ClientboundUpdateAttributes -> nmsPacket = ClientboundUpdateAttributesPacket.STREAM_CODEC.decode(buf);
 +            case ClientboundUpdateMobEffect -> nmsPacket = ClientboundUpdateMobEffectPacket.STREAM_CODEC.decode(buf);
 +            case ClientboundUpdateRecipes -> nmsPacket = ClientboundUpdateRecipesPacket.STREAM_CODEC.decode(buf);
 +            case ClientboundProjectilePower -> nmsPacket = ClientboundProjectilePowerPacket.STREAM_CODEC.decode(buf);
-+            case ServerboundAcceptTeleportation -> nmsPacket = ServerboundAcceptTeleportationPacket.STREAM_CODEC.decode(buf);
-+            case ServerboundBlockEntityTagQuery -> nmsPacket = ServerboundBlockEntityTagQueryPacket.STREAM_CODEC.decode(buf);
++            case ServerboundAcceptTeleportation ->
++                nmsPacket = ServerboundAcceptTeleportationPacket.STREAM_CODEC.decode(buf);
++            case ServerboundBlockEntityTagQuery ->
++                nmsPacket = ServerboundBlockEntityTagQueryPacket.STREAM_CODEC.decode(buf);
 +            case ServerboundChangeDifficulty -> nmsPacket = ServerboundChangeDifficultyPacket.STREAM_CODEC.decode(buf);
 +            case ServerboundChatAck -> nmsPacket = ServerboundChatAckPacket.STREAM_CODEC.decode(buf);
 +            case ServerboundChatCommand -> nmsPacket = ServerboundChatCommandPacket.STREAM_CODEC.decode(buf);
-+            case ServerboundChatCommandSigned -> nmsPacket = ServerboundChatCommandSignedPacket.STREAM_CODEC.decode(buf);
++            case ServerboundChatCommandSigned ->
++                nmsPacket = ServerboundChatCommandSignedPacket.STREAM_CODEC.decode(buf);
 +            case ServerboundChat -> nmsPacket = ServerboundChatPacket.STREAM_CODEC.decode(buf);
-+            case ServerboundChatSessionUpdate -> nmsPacket = ServerboundChatSessionUpdatePacket.STREAM_CODEC.decode(buf);
-+            case ServerboundChunkBatchReceived -> nmsPacket = ServerboundChunkBatchReceivedPacket.STREAM_CODEC.decode(buf);
++            case ServerboundChatSessionUpdate ->
++                nmsPacket = ServerboundChatSessionUpdatePacket.STREAM_CODEC.decode(buf);
++            case ServerboundChunkBatchReceived ->
++                nmsPacket = ServerboundChunkBatchReceivedPacket.STREAM_CODEC.decode(buf);
 +            case ServerboundClientCommand -> nmsPacket = ServerboundClientCommandPacket.STREAM_CODEC.decode(buf);
-+            case ServerboundCommandSuggestion -> nmsPacket = ServerboundCommandSuggestionPacket.STREAM_CODEC.decode(buf);
-+            case ServerboundConfigurationAcknowledged -> nmsPacket = ServerboundConfigurationAcknowledgedPacket.STREAM_CODEC.decode(buf);
-+            case ServerboundContainerButtonClick -> nmsPacket = ServerboundContainerButtonClickPacket.STREAM_CODEC.decode(buf);
++            case ServerboundCommandSuggestion ->
++                nmsPacket = ServerboundCommandSuggestionPacket.STREAM_CODEC.decode(buf);
++            case ServerboundConfigurationAcknowledged ->
++                nmsPacket = ServerboundConfigurationAcknowledgedPacket.STREAM_CODEC.decode(buf);
++            case ServerboundContainerButtonClick ->
++                nmsPacket = ServerboundContainerButtonClickPacket.STREAM_CODEC.decode(buf);
 +            case ServerboundContainerClick -> nmsPacket = ServerboundContainerClickPacket.STREAM_CODEC.decode(buf);
 +            case ServerboundContainerClose -> nmsPacket = ServerboundContainerClosePacket.STREAM_CODEC.decode(buf);
-+            case ServerboundContainerSlotStateChanged -> nmsPacket = ServerboundContainerSlotStateChangedPacket.STREAM_CODEC.decode(buf);
-+            case ServerboundDebugSampleSubscription -> nmsPacket = ServerboundDebugSampleSubscriptionPacket.STREAM_CODEC.decode(buf);
++            case ServerboundContainerSlotStateChanged ->
++                nmsPacket = ServerboundContainerSlotStateChangedPacket.STREAM_CODEC.decode(buf);
++            case ServerboundDebugSampleSubscription ->
++                nmsPacket = ServerboundDebugSampleSubscriptionPacket.STREAM_CODEC.decode(buf);
 +            case ServerboundEditBook -> nmsPacket = ServerboundEditBookPacket.STREAM_CODEC.decode(buf);
 +            case ServerboundEntityTagQuery -> nmsPacket = ServerboundEntityTagQueryPacket.STREAM_CODEC.decode(buf);
 +            case ServerboundInteract -> nmsPacket = ServerboundInteractPacket.STREAM_CODEC.decode(buf);
@@ -318,7 +493,8 @@ index 0000000000000000000000000000000000000000..26179fcc836fcb8d1eda8ddb8a875cb9
 +            case ServerboundMovePlayerPos -> nmsPacket = ServerboundMovePlayerPacket.Pos.STREAM_CODEC.decode(buf);
 +            case ServerboundMovePlayerPosRot -> nmsPacket = ServerboundMovePlayerPacket.PosRot.STREAM_CODEC.decode(buf);
 +            case ServerboundMovePlayerRot -> nmsPacket = ServerboundMovePlayerPacket.Rot.STREAM_CODEC.decode(buf);
-+            case ServerboundMovePlayerStatusOnly -> nmsPacket = ServerboundMovePlayerPacket.StatusOnly.STREAM_CODEC.decode(buf);
++            case ServerboundMovePlayerStatusOnly ->
++                nmsPacket = ServerboundMovePlayerPacket.StatusOnly.STREAM_CODEC.decode(buf);
 +            case ServerboundMoveVehicle -> nmsPacket = ServerboundMoveVehiclePacket.STREAM_CODEC.decode(buf);
 +            case ServerboundPaddleBoat -> nmsPacket = ServerboundPaddleBoatPacket.STREAM_CODEC.decode(buf);
 +            case ServerboundPickItem -> nmsPacket = ServerboundPickItemPacket.STREAM_CODEC.decode(buf);
@@ -327,18 +503,23 @@ index 0000000000000000000000000000000000000000..26179fcc836fcb8d1eda8ddb8a875cb9
 +            case ServerboundPlayerAction -> nmsPacket = ServerboundPlayerActionPacket.STREAM_CODEC.decode(buf);
 +            case ServerboundPlayerCommand -> nmsPacket = ServerboundPlayerCommandPacket.STREAM_CODEC.decode(buf);
 +            case ServerboundPlayerInput -> nmsPacket = ServerboundPlayerInputPacket.STREAM_CODEC.decode(buf);
-+            case ServerboundRecipeBookChangeSettings -> nmsPacket = ServerboundRecipeBookChangeSettingsPacket.STREAM_CODEC.decode(buf);
-+            case ServerboundRecipeBookSeenRecipe -> nmsPacket = ServerboundRecipeBookSeenRecipePacket.STREAM_CODEC.decode(buf);
++            case ServerboundRecipeBookChangeSettings ->
++                nmsPacket = ServerboundRecipeBookChangeSettingsPacket.STREAM_CODEC.decode(buf);
++            case ServerboundRecipeBookSeenRecipe ->
++                nmsPacket = ServerboundRecipeBookSeenRecipePacket.STREAM_CODEC.decode(buf);
 +            case ServerboundRenameItem -> nmsPacket = ServerboundRenameItemPacket.STREAM_CODEC.decode(buf);
 +            case ServerboundSeenAdvancements -> nmsPacket = ServerboundSeenAdvancementsPacket.STREAM_CODEC.decode(buf);
 +            case ServerboundSelectTrade -> nmsPacket = ServerboundSelectTradePacket.STREAM_CODEC.decode(buf);
 +            case ServerboundSetBeacon -> nmsPacket = ServerboundSetBeaconPacket.STREAM_CODEC.decode(buf);
 +            case ServerboundSetCarriedItem -> nmsPacket = ServerboundSetCarriedItemPacket.STREAM_CODEC.decode(buf);
 +            case ServerboundSetCommandBlock -> nmsPacket = ServerboundSetCommandBlockPacket.STREAM_CODEC.decode(buf);
-+            case ServerboundSetCommandMinecart -> nmsPacket = ServerboundSetCommandMinecartPacket.STREAM_CODEC.decode(buf);
-+            case ServerboundSetCreativeModeSlot -> nmsPacket = ServerboundSetCreativeModeSlotPacket.STREAM_CODEC.decode(buf);
++            case ServerboundSetCommandMinecart ->
++                nmsPacket = ServerboundSetCommandMinecartPacket.STREAM_CODEC.decode(buf);
++            case ServerboundSetCreativeModeSlot ->
++                nmsPacket = ServerboundSetCreativeModeSlotPacket.STREAM_CODEC.decode(buf);
 +            case ServerboundSetJigsawBlock -> nmsPacket = ServerboundSetJigsawBlockPacket.STREAM_CODEC.decode(buf);
-+            case ServerboundSetStructureBlock -> nmsPacket = ServerboundSetStructureBlockPacket.STREAM_CODEC.decode(buf);
++            case ServerboundSetStructureBlock ->
++                nmsPacket = ServerboundSetStructureBlockPacket.STREAM_CODEC.decode(buf);
 +            case ServerboundSignUpdate -> nmsPacket = ServerboundSignUpdatePacket.STREAM_CODEC.decode(buf);
 +            case ServerboundSwing -> nmsPacket = ServerboundSwingPacket.STREAM_CODEC.decode(buf);
 +            case ServerboundTeleportToEntity -> nmsPacket = ServerboundTeleportToEntityPacket.STREAM_CODEC.decode(buf);
@@ -355,16 +536,19 @@ index 0000000000000000000000000000000000000000..26179fcc836fcb8d1eda8ddb8a875cb9
 +            case ClientboundStoreCookie -> nmsPacket = ClientboundStoreCookiePacket.STREAM_CODEC.decode(buf);
 +            case ClientboundTransfer -> nmsPacket = ClientboundTransferPacket.STREAM_CODEC.decode(buf);
 +            case ClientboundUpdateTags -> nmsPacket = ClientboundUpdateTagsPacket.STREAM_CODEC.decode(buf);
-+            case ServerboundClientInformation -> nmsPacket = ServerboundClientInformationPacket.STREAM_CODEC.decode(buf);
++            case ServerboundClientInformation ->
++                nmsPacket = ServerboundClientInformationPacket.STREAM_CODEC.decode(buf);
 +            case ServerboundCustomPayload -> nmsPacket = ServerboundCustomPayloadPacket.STREAM_CODEC.decode(buf);
 +            case ServerboundKeepAlive -> nmsPacket = ServerboundKeepAlivePacket.STREAM_CODEC.decode(buf);
 +            case ServerboundPong -> nmsPacket = ServerboundPongPacket.STREAM_CODEC.decode(buf);
 +            case ServerboundResourcePack -> nmsPacket = ServerboundResourcePackPacket.STREAM_CODEC.decode(buf);
-+            default -> throw new UnsupportedOperationException("This feature is not completely finished yet, packet type " + type + " is not supported temporary.");
++            default ->
++                throw new UnsupportedOperationException("This feature is not completely finished yet, packet type " + type + " is not supported temporary.");
 +        }
 +        return nmsPacket;
 +    }
-+    private Packet createBytebufPacket(net.minecraft.network.protocol.Packet<?> nmsPacket) {
++
++    public Packet createBytebufPacket(net.minecraft.network.protocol.Packet<?> nmsPacket) {
 +        PacketType type;
 +        RegistryFriendlyByteBuf buf = new RegistryFriendlyByteBuf(Unpooled.buffer(8192), MinecraftServer.getServer().registryAccess());
 +        switch (nmsPacket.type().toString()) {
@@ -1071,74 +1255,5 @@ index 0000000000000000000000000000000000000000..26179fcc836fcb8d1eda8ddb8a875cb9
 +                throw new UnsupportedOperationException("This feature is not completely finished yet, packet " + nmsPacket + " is not supported temporary.");
 +        }
 +        return new Packet(type, Bytebuf.of(buf.array()));
-+    }
-+}
-diff --git a/src/main/java/org/leavesmc/leaves/bytebuf/WrappedBytebuf.java b/src/main/java/org/leavesmc/leaves/bytebuf/WrappedBytebuf.java
-new file mode 100644
-index 0000000000000000000000000000000000000000..b53641dffbe6302dfb0e7e666b0e62a3cf94a70c
---- /dev/null
-+++ b/src/main/java/org/leavesmc/leaves/bytebuf/WrappedBytebuf.java
-@@ -0,0 +1,63 @@
-+package org.leavesmc.leaves.bytebuf;
-+
-+import io.netty.buffer.ByteBuf;
-+import net.minecraft.network.FriendlyByteBuf;
-+
-+public class WrappedBytebuf implements Bytebuf {
-+    private final FriendlyByteBuf buf;
-+    public WrappedBytebuf(ByteBuf buf) {
-+        this.buf = new FriendlyByteBuf(buf);
-+    }
-+    public FriendlyByteBuf getFriendlyBytebuf() {
-+        return buf;
-+    }
-+
-+    @Override
-+    public byte[] toArray() {
-+        return buf.array();
-+    }
-+
-+    @Override
-+    public Bytebuf writeByte(int i) {
-+        buf.writeByte(i);
-+        return this;
-+    }
-+
-+    @Override
-+    public byte readByte() {
-+        return buf.readByte();
-+    }
-+
-+    @Override
-+    public Bytebuf writeShort(int i) {
-+        buf.writeShort(i);
-+        return this;
-+    }
-+
-+    @Override
-+    public short readShort() {
-+        return buf.readShort();
-+    }
-+
-+    @Override
-+    public Bytebuf writeInt(int i) {
-+        buf.writeShort(i);
-+        return this;
-+    }
-+
-+    @Override
-+    public int readInt() {
-+        return buf.readInt();
-+    }
-+
-+    @Override
-+    public Bytebuf writeLong(long i) {
-+        buf.writeLong(i);
-+        return this;
-+    }
-+
-+    @Override
-+    public long readLong() {
-+        return buf.readLong();
 +    }
 +}

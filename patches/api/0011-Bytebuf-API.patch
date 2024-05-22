@@ -1,0 +1,310 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Lumine1909 <133463833+Lumine1909@users.noreply.github.com>
+Date: Wed, 22 May 2024 10:12:04 _0800
+Subject: [PATCH] Bytebuf API
+
+
+diff --git a/src/main/java/org/bukkit/Bukkit.java b/src/main/java/org/bukkit/Bukkit.java
+index 3c2b252243c1fa0d3adcc9c860c24af73165de33..acb3d0bb285b489f19fc7b1743f0b8f8f7ff1fbc 100644
+--- a/src/main/java/org/bukkit/Bukkit.java
++++ b/src/main/java/org/bukkit/Bukkit.java
+@@ -2918,6 +2918,11 @@ public final class Bukkit {
+         return server.getPhotographerManager();
+     }
+     // Leaves end - Photographer API
++    // Leaves start - Bytebuf API
++    public static org.leavesmc.leaves.bytebuf.BytebufManager getBytebufManager() {
++        return server.getBytebufManager();
++    }
++    // Leaves end - Bytebuf API
+ 
+     @NotNull
+     public static Server.Spigot spigot() {
+diff --git a/src/main/java/org/bukkit/Server.java b/src/main/java/org/bukkit/Server.java
+index 4a03044938630e4a0e701bc481f15da5a3323115..66a3de19167e7c1052ae1ed6230aaa250e21503d 100644
+--- a/src/main/java/org/bukkit/Server.java
++++ b/src/main/java/org/bukkit/Server.java
+@@ -2564,4 +2564,7 @@ public interface Server extends PluginMessageRecipient, net.kyori.adventure.audi
+     // Leaves start - Photographer API
+     @NotNull PhotographerManager getPhotographerManager();
+     // Leaves end - Photographer API
++    // Leaves start - Bytebuf API
++    org.leavesmc.leaves.bytebuf.BytebufManager getBytebufManager();
++    // Leaves end - Bytebuf API
+ }
+diff --git a/src/main/java/org/bukkit/entity/Player.java b/src/main/java/org/bukkit/entity/Player.java
+index 6c327a07bf8a6aa11a2d7dad12b2830acc539484..939bdc02b917ad72a8b7e6640067da1966337e2a 100644
+--- a/src/main/java/org/bukkit/entity/Player.java
++++ b/src/main/java/org/bukkit/entity/Player.java
+@@ -3801,7 +3801,10 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
+      */
+     boolean isChunkSent(long chunkKey);
+     // Paper end
+-
++    // Leaves start - Bytebuf API
++    void sendPacket(org.leavesmc.leaves.bytebuf.packet.Packet packet);
++    void sendPacket(org.leavesmc.leaves.bytebuf.Bytebuf buf, org.leavesmc.leaves.bytebuf.packet.PacketType type);
++    // Leaves end - Bytebuf API
+     @NotNull
+     @Override
+     Spigot spigot();
+diff --git a/src/main/java/org/leavesmc/leaves/bytebuf/Bytebuf.java b/src/main/java/org/leavesmc/leaves/bytebuf/Bytebuf.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..fd7b6e2c31aedbb5e58bd15a9a56c30f490d78c9
+--- /dev/null
++++ b/src/main/java/org/leavesmc/leaves/bytebuf/Bytebuf.java
+@@ -0,0 +1,25 @@
++package org.leavesmc.leaves.bytebuf;
++
++import org.bukkit.Bukkit;
++
++public interface Bytebuf {
++    static Bytebuf buf(int size) {
++        return Bukkit.getBytebufManager().newBytebuf(size);
++    }
++    static Bytebuf buf() {
++        return buf(128);
++    }
++    static Bytebuf of(byte[] bytes) {
++        return Bukkit.getBytebufManager().toBytebuf(bytes);
++    }
++    byte[] toArray();
++
++    Bytebuf writeByte(int i);
++    byte readByte();
++    Bytebuf writeShort(int i);
++    short readShort();
++    Bytebuf writeInt(int i);
++    int readInt();
++    Bytebuf writeLong(long i);
++    long readLong();
++}
+diff --git a/src/main/java/org/leavesmc/leaves/bytebuf/BytebufManager.java b/src/main/java/org/leavesmc/leaves/bytebuf/BytebufManager.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..b0c759b3ea19ca10be56b232181e56d056cf3a2d
+--- /dev/null
++++ b/src/main/java/org/leavesmc/leaves/bytebuf/BytebufManager.java
+@@ -0,0 +1,11 @@
++package org.leavesmc.leaves.bytebuf;
++
++import org.bukkit.plugin.Plugin;
++import org.leavesmc.leaves.bytebuf.packet.PacketListener;
++
++public interface BytebufManager {
++    void registerListener(Plugin plugin, PacketListener listener);
++    void unregisterListener(Plugin plugin, PacketListener listener);
++    Bytebuf newBytebuf(int size);
++    Bytebuf toBytebuf(byte[] bytes);
++}
+diff --git a/src/main/java/org/leavesmc/leaves/bytebuf/packet/Packet.java b/src/main/java/org/leavesmc/leaves/bytebuf/packet/Packet.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..8bb00c16fe3e6089397cc0fcaaec4715960dd724
+--- /dev/null
++++ b/src/main/java/org/leavesmc/leaves/bytebuf/packet/Packet.java
+@@ -0,0 +1,6 @@
++package org.leavesmc.leaves.bytebuf.packet;
++
++import org.leavesmc.leaves.bytebuf.Bytebuf;
++
++public record Packet(PacketType type, Bytebuf bytebuf) {
++}
+diff --git a/src/main/java/org/leavesmc/leaves/bytebuf/packet/PacketListener.java b/src/main/java/org/leavesmc/leaves/bytebuf/packet/PacketListener.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..3a8cb462287498a8b1959f31261ebbca74b62ef5
+--- /dev/null
++++ b/src/main/java/org/leavesmc/leaves/bytebuf/packet/PacketListener.java
+@@ -0,0 +1,8 @@
++package org.leavesmc.leaves.bytebuf.packet;
++
++import org.bukkit.entity.Player;
++
++public interface PacketListener {
++    Packet onPacketIn(Player player, Packet packet);
++    Packet onPacketOut(Player player, Packet packet);
++}
+diff --git a/src/main/java/org/leavesmc/leaves/bytebuf/packet/PacketType.java b/src/main/java/org/leavesmc/leaves/bytebuf/packet/PacketType.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..604a65efc497267db126c6585f806d98bb5783a1
+--- /dev/null
++++ b/src/main/java/org/leavesmc/leaves/bytebuf/packet/PacketType.java
+@@ -0,0 +1,180 @@
++package org.leavesmc.leaves.bytebuf.packet;
++
++public enum PacketType {
++    //ClientboundBundle,
++    //ClientboundBundleDelimiter,
++    ClientboundAddEntity,
++    ClientboundAddExperienceOrb,
++    ClientboundAnimate,
++    ClientboundAwardStats,
++    ClientboundBlockChangedAck,
++    ClientboundBlockDestruction,
++    ClientboundBlockEntityData,
++    ClientboundBlockEvent,
++    ClientboundBlockUpdate,
++    ClientboundBossEvent,
++    ClientboundChangeDifficulty,
++    ClientboundChunkBatchFinished,
++    ClientboundChunkBatchStart,
++    ClientboundChunksBiomes,
++    ClientboundClearTitles,
++    ClientboundCommandSuggestions,
++    ClientboundCommands,
++    ClientboundContainerClose,
++    ClientboundContainerSetContent,
++    ClientboundContainerSetData,
++    ClientboundContainerSetSlot,
++    ClientboundCooldown,
++    ClientboundCustomChatCompletions,
++    ClientboundDamageEvent,
++    ClientboundDebugSample,
++    ClientboundDeleteChat,
++    ClientboundDisguisedChat,
++    ClientboundEntityEvent,
++    ClientboundExplode,
++    ClientboundForgetLevelChunk,
++    ClientboundGameEvent,
++    ClientboundHorseScreenOpen,
++    ClientboundHurtAnimation,
++    ClientboundInitializeBorder,
++    ClientboundLevelChunkWithLight,
++    ClientboundLevelEvent,
++    ClientboundLevelParticles,
++    ClientboundLightUpdate,
++    ClientboundLogin,
++    ClientboundMapItemData,
++    ClientboundMerchantOffers,
++    ClientboundMoveEntityPos,
++    ClientboundMoveEntityPosRot,
++    ClientboundMoveEntityRot,
++    ClientboundMoveVehicle,
++    ClientboundOpenBook,
++    ClientboundOpenScreen,
++    ClientboundOpenSignEditor,
++    ClientboundPlaceGhostRecipe,
++    ClientboundPlayerAbilities,
++    ClientboundPlayerChat,
++    ClientboundPlayerCombatEnd,
++    ClientboundPlayerCombatEnter,
++    ClientboundPlayerCombatKill,
++    ClientboundPlayerInfoRemove,
++    ClientboundPlayerInfoUpdate,
++    ClientboundPlayerLookAt,
++    ClientboundPlayerPosition,
++    ClientboundRecipe,
++    ClientboundRemoveEntities,
++    ClientboundRemoveMobEffect,
++    ClientboundRespawn,
++    ClientboundRotateHead,
++    ClientboundSectionBlocksUpdate,
++    ClientboundSelectAdvancementsTab,
++    ClientboundServerData,
++    ClientboundSetActionBarText,
++    ClientboundSetBorderCenter,
++    ClientboundSetBorderLerpSize,
++    ClientboundSetBorderSize,
++    ClientboundSetBorderWarningDelay,
++    ClientboundSetBorderWarningDistance,
++    ClientboundSetCamera,
++    ClientboundSetCarriedItem,
++    ClientboundSetChunkCacheCenter,
++    ClientboundSetChunkCacheRadius,
++    ClientboundSetDefaultSpawnPosition,
++    ClientboundSetDisplayObjective,
++    ClientboundSetEntityData,
++    ClientboundSetEntityLink,
++    ClientboundSetEntityMotion,
++    ClientboundSetEquipment,
++    ClientboundSetExperience,
++    ClientboundSetHealth,
++    ClientboundSetObjective,
++    ClientboundSetPassengers,
++    ClientboundSetPlayerTeam,
++    ClientboundSetScore,
++    ClientboundSetSimulationDistance,
++    ClientboundSetSubtitleText,
++    ClientboundSetTime,
++    ClientboundSetTitleText,
++    ClientboundSetTitlesAnimation,
++    ClientboundSoundEntity,
++    ClientboundSound,
++    ClientboundStartConfiguration,
++    ClientboundStopSound,
++    ClientboundSystemChat,
++    ClientboundTabList,
++    ClientboundTagQuery,
++    ClientboundTakeItemEntity,
++    ClientboundTeleportEntity,
++    ClientboundUpdateAdvancements,
++    ClientboundUpdateAttributes,
++    ClientboundUpdateMobEffect,
++    ClientboundUpdateRecipes,
++    ClientboundProjectilePower,
++    ServerboundAcceptTeleportation,
++    ServerboundBlockEntityTagQuery,
++    ServerboundChangeDifficulty,
++    ServerboundChatAck,
++    ServerboundChatCommand,
++    ServerboundChatCommandSigned,
++    ServerboundChat,
++    ServerboundChatSessionUpdate,
++    ServerboundChunkBatchReceived,
++    ServerboundClientCommand,
++    ServerboundCommandSuggestion,
++    ServerboundConfigurationAcknowledged,
++    ServerboundContainerButtonClick,
++    ServerboundContainerClick,
++    ServerboundContainerClose,
++    ServerboundContainerSlotStateChanged,
++    ServerboundDebugSampleSubscription,
++    ServerboundEditBook,
++    ServerboundEntityTagQuery,
++    ServerboundInteract,
++    ServerboundJigsawGenerate,
++    ServerboundLockDifficulty,
++    ServerboundMovePlayerPos,
++    ServerboundMovePlayerPosRot,
++    ServerboundMovePlayerRot,
++    ServerboundMovePlayerStatusOnly,
++    ServerboundMoveVehicle,
++    ServerboundPaddleBoat,
++    ServerboundPickItem,
++    ServerboundPlaceRecipe,
++    ServerboundPlayerAbilities,
++    ServerboundPlayerAction,
++    ServerboundPlayerCommand,
++    ServerboundPlayerInput,
++    ServerboundRecipeBookChangeSettings,
++    ServerboundRecipeBookSeenRecipe,
++    ServerboundRenameItem,
++    ServerboundSeenAdvancements,
++    ServerboundSelectTrade,
++    ServerboundSetBeacon,
++    ServerboundSetCarriedItem,
++    ServerboundSetCommandBlock,
++    ServerboundSetCommandMinecart,
++    ServerboundSetCreativeModeSlot,
++    ServerboundSetJigsawBlock,
++    ServerboundSetStructureBlock,
++    ServerboundSignUpdate,
++    ServerboundSwing,
++    ServerboundTeleportToEntity,
++    ServerboundUseItemOn,
++    ServerboundUseItem,
++    ClientboundResetScore,
++    ClientboundTickingState,
++    ClientboundTickingStep,
++    ClientboundCustomPayload,
++    ClientboundDisconnect,
++    ClientboundKeepAlive,
++    ClientboundResourcePackPop,
++    ClientboundResourcePackPush,
++    ClientboundStoreCookie,
++    ClientboundTransfer,
++    ClientboundUpdateTags,
++    ServerboundClientInformation,
++    ServerboundCustomPayload,
++    ServerboundKeepAlive,
++    ServerboundPong,
++    ServerboundResourcePack
++}

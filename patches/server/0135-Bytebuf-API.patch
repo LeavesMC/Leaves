@@ -1,0 +1,1144 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Lumine1909 <133463833+Lumine1909@users.noreply.github.com>
+Date: Wed, 22 May 2024 10:12:22 +0800
+Subject: [PATCH] Bytebuf API
+
+
+diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
+index 975062e67278614220eab0c301019a235c7953b7..cc23b30680f16ececc1843cfb132c7187c0a2fac 100644
+--- a/src/main/java/net/minecraft/server/players/PlayerList.java
++++ b/src/main/java/net/minecraft/server/players/PlayerList.java
+@@ -469,7 +469,7 @@ public abstract class PlayerList {
+         if (!player.connection.isAcceptingMessages()) {
+             return;
+         }
+-
++        ((org.leavesmc.leaves.bytebuf.SimpleBytebufManager) getServer().server.getBytebufManager()).injectPlayer(player.getBukkitEntity());
+         org.leavesmc.leaves.protocol.core.LeavesProtocolManager.handlePlayerJoin(player); // Leaves - protocol
+ 
+         // Leaves start - bot support
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index 405a04f2711e26e22d7dd091745b5b5a01d724d9..5c2484dc3aff26bbd9cbe423b33b2a3c23a70333 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -307,6 +307,7 @@ public final class CraftServer implements Server {
+     private final io.papermc.paper.potion.PaperPotionBrewer potionBrewer; // Paper - Custom Potion Mixes
+     private final org.leavesmc.leaves.entity.CraftBotManager botManager = new org.leavesmc.leaves.entity.CraftBotManager(); // Leaves
+     private final org.leavesmc.leaves.entity.CraftPhotographerManager photographerManager = new org.leavesmc.leaves.entity.CraftPhotographerManager(); // Leaves
++    private final org.leavesmc.leaves.bytebuf.SimpleBytebufManager bytebufManager = new org.leavesmc.leaves.bytebuf.SimpleBytebufManager(); // Leaves
+ 
+     // Paper start - Folia region threading API
+     private final io.papermc.paper.threadedregions.scheduler.FallbackRegionScheduler regionizedScheduler = new io.papermc.paper.threadedregions.scheduler.FallbackRegionScheduler();
+@@ -3291,4 +3292,10 @@ public final class CraftServer implements Server {
+         return photographerManager;
+     }
+     // Leaves end - replay mod api
++    // Leaves start - Bytebuf API
++    @Override
++    public org.leavesmc.leaves.bytebuf.BytebufManager getBytebufManager() {
++        return bytebufManager;
++    }
++    // Leaves end - Bytebuf API
+ }
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+index 25a5ce110c0515f5a0ee5f287a7f3dd029a8f29f..2c14b256f470c3fbbc55a0444f5f68ba1f22785c 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+@@ -3519,4 +3519,14 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+     public void setSendViewDistance(final int viewDistance) {
+         this.getHandle().setSendViewDistance(viewDistance);
+     }
++    // Leaves start - Bytebuf API
++    @Override
++    public void sendPacket(org.leavesmc.leaves.bytebuf.packet.Packet packet) {
++        ((org.leavesmc.leaves.bytebuf.SimpleBytebufManager) getServer().getBytebufManager()).applyPacketToPlayer(this, packet);
++    }
++    @Override
++    public void sendPacket(org.leavesmc.leaves.bytebuf.Bytebuf bytebuf, org.leavesmc.leaves.bytebuf.packet.PacketType type) {
++        ((org.leavesmc.leaves.bytebuf.SimpleBytebufManager) getServer().getBytebufManager()).applyPacketToPlayer(this, new org.leavesmc.leaves.bytebuf.packet.Packet(type, bytebuf));
++    }
++    // Leaves end - Bytebuf API
+ }
+diff --git a/src/main/java/org/leavesmc/leaves/bytebuf/SimpleBytebufManager.java b/src/main/java/org/leavesmc/leaves/bytebuf/SimpleBytebufManager.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..26179fcc836fcb8d1eda8ddb8a875cb9cdd421ab
+--- /dev/null
++++ b/src/main/java/org/leavesmc/leaves/bytebuf/SimpleBytebufManager.java
+@@ -0,0 +1,1008 @@
++package org.leavesmc.leaves.bytebuf;
++
++import io.netty.buffer.Unpooled;
++import io.netty.channel.ChannelDuplexHandler;
++import io.netty.channel.ChannelHandlerContext;
++import io.netty.channel.ChannelPromise;
++import net.minecraft.network.Connection;
++import net.minecraft.network.RegistryFriendlyByteBuf;
++import net.minecraft.network.protocol.BundleDelimiterPacket;
++import net.minecraft.network.protocol.BundlePacket;
++import net.minecraft.network.protocol.common.*;
++import net.minecraft.network.protocol.game.*;
++import net.minecraft.server.MinecraftServer;
++import org.bukkit.craftbukkit.entity.CraftPlayer;
++import org.bukkit.entity.Player;
++import org.bukkit.plugin.Plugin;
++import org.leavesmc.leaves.bytebuf.packet.Packet;
++import org.leavesmc.leaves.bytebuf.packet.PacketListener;
++import org.leavesmc.leaves.bytebuf.packet.PacketType;
++
++import java.util.HashMap;
++import java.util.Map;
++
++public class SimpleBytebufManager implements BytebufManager {
++    class PacketHandler extends ChannelDuplexHandler {
++        private final static String handlerName = "leaves-bytebuf-handler";
++        private final Player player;
++        public PacketHandler(Player player) {
++            this.player = player;
++        }
++        @Override
++        public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
++            if (msg instanceof BundlePacket<?> || msg instanceof BundleDelimiterPacket<?>) {
++                super.channelRead(ctx, msg);
++                return;
++            }
++            try {
++                msg = callPacketInEvent(player, createBytebufPacket((net.minecraft.network.protocol.Packet<?>) msg));
++            } catch (Exception e) {
++                MinecraftServer.LOGGER.error("Error on PacketInEvent.", e);
++            }
++            if (msg != null) {
++                super.channelRead(ctx, msg);
++            }
++        }
++
++        @Override
++        public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
++            if (msg instanceof BundlePacket<?> || msg instanceof BundleDelimiterPacket<?>) {
++                super.write(ctx, msg, promise);
++                return;
++            }
++            try {
++                msg = callPacketOutEvent(player, createBytebufPacket((net.minecraft.network.protocol.Packet<?>) msg));
++            } catch (Exception e) {
++                MinecraftServer.LOGGER.error("Error on PacketOutEvent.", e);
++            }
++            if (msg != null) {
++                super.write(ctx, msg, promise);
++            }
++        }
++
++    }
++
++
++    private final Map<PacketListener, Plugin> listenerMap = new HashMap<>();
++    @Override
++    public void registerListener(Plugin plugin, PacketListener listener) {
++        listenerMap.put(listener, plugin);
++    }
++
++    @Override
++    public void unregisterListener(Plugin plugin, PacketListener listener) {
++        listenerMap.remove(listener);
++    }
++    @Override
++    public Bytebuf newBytebuf(int size) {
++        return new WrappedBytebuf(Unpooled.buffer(size));
++    }
++
++    @Override
++    public Bytebuf toBytebuf(byte[] bytes) {
++        return new WrappedBytebuf(Unpooled.wrappedBuffer(bytes));
++    }
++
++
++
++    public void injectPlayer(Player player) {
++        ((CraftPlayer) player).getHandle().connection.connection.channel.pipeline().addBefore(
++            "packet_handler", PacketHandler.handlerName, new PacketHandler(player)
++        );
++    }
++    public net.minecraft.network.protocol.Packet<?> callPacketInEvent(Player player, Packet packet) {
++        for (PacketListener listener : listenerMap.keySet()) {
++            if (listenerMap.get(listener).isEnabled()) {
++                packet = listener.onPacketIn(player, packet);
++            } else {
++                listenerMap.remove(listener);
++            }
++        }
++        return createNMSPacket(packet);
++    }
++    public net.minecraft.network.protocol.Packet<?> callPacketOutEvent(Player player, Packet packet) {
++        for (PacketListener listener : listenerMap.keySet()) {
++            if (listenerMap.get(listener).isEnabled()) {
++                packet = listener.onPacketOut(player, packet);
++            } else {
++                listenerMap.remove(listener);
++            }
++        }
++        return createNMSPacket(packet);
++    }
++    public void applyPacketToPlayer(Player player, Packet packet) {
++        Connection sp = ((CraftPlayer) player).getHandle().connection.connection;
++        sp.channel.writeAndFlush(createNMSPacket(packet));
++    }
++    private net.minecraft.network.protocol.Packet<?> createNMSPacket(Packet packet) {
++        RegistryFriendlyByteBuf buf = new RegistryFriendlyByteBuf(((WrappedBytebuf) packet.bytebuf()).getFriendlyBytebuf(), MinecraftServer.getServer().registryAccess());
++        PacketType type = packet.type();
++        net.minecraft.network.protocol.Packet<?> nmsPacket = null;
++        switch (type) {
++            case ClientboundAddEntity -> nmsPacket = ClientboundAddEntityPacket.STREAM_CODEC.decode(buf);
++            case ClientboundAddExperienceOrb -> nmsPacket = ClientboundAddExperienceOrbPacket.STREAM_CODEC.decode(buf);
++            case ClientboundAnimate -> nmsPacket = ClientboundAnimatePacket.STREAM_CODEC.decode(buf);
++            case ClientboundAwardStats -> nmsPacket = ClientboundAwardStatsPacket.STREAM_CODEC.decode(buf);
++            case ClientboundBlockChangedAck -> nmsPacket = ClientboundBlockChangedAckPacket.STREAM_CODEC.decode(buf);
++            case ClientboundBlockDestruction -> nmsPacket = ClientboundBlockDestructionPacket.STREAM_CODEC.decode(buf);
++            case ClientboundBlockEntityData -> nmsPacket = ClientboundBlockEntityDataPacket.STREAM_CODEC.decode(buf);
++            case ClientboundBlockEvent -> nmsPacket = ClientboundBlockEventPacket.STREAM_CODEC.decode(buf);
++            case ClientboundBlockUpdate -> nmsPacket = ClientboundBlockUpdatePacket.STREAM_CODEC.decode(buf);
++            case ClientboundBossEvent -> nmsPacket = ClientboundBossEventPacket.STREAM_CODEC.decode(buf);
++            case ClientboundChangeDifficulty -> nmsPacket = ClientboundChangeDifficultyPacket.STREAM_CODEC.decode(buf);
++            case ClientboundChunkBatchFinished -> nmsPacket = ClientboundChunkBatchFinishedPacket.STREAM_CODEC.decode(buf);
++            case ClientboundChunkBatchStart -> nmsPacket = ClientboundChunkBatchStartPacket.STREAM_CODEC.decode(buf);
++            case ClientboundChunksBiomes -> nmsPacket = ClientboundChunksBiomesPacket.STREAM_CODEC.decode(buf);
++            case ClientboundClearTitles -> nmsPacket = ClientboundClearTitlesPacket.STREAM_CODEC.decode(buf);
++            case ClientboundCommandSuggestions -> nmsPacket = ClientboundCommandSuggestionsPacket.STREAM_CODEC.decode(buf);
++            case ClientboundCommands -> nmsPacket = ClientboundCommandsPacket.STREAM_CODEC.decode(buf);
++            case ClientboundContainerClose -> nmsPacket = ClientboundContainerClosePacket.STREAM_CODEC.decode(buf);
++            case ClientboundContainerSetContent -> nmsPacket = ClientboundContainerSetContentPacket.STREAM_CODEC.decode(buf);
++            case ClientboundContainerSetData -> nmsPacket = ClientboundContainerSetDataPacket.STREAM_CODEC.decode(buf);
++            case ClientboundContainerSetSlot -> nmsPacket = ClientboundContainerSetSlotPacket.STREAM_CODEC.decode(buf);
++            case ClientboundCooldown -> nmsPacket = ClientboundCooldownPacket.STREAM_CODEC.decode(buf);
++            case ClientboundCustomChatCompletions -> nmsPacket = ClientboundCustomChatCompletionsPacket.STREAM_CODEC.decode(buf);
++            case ClientboundDamageEvent -> nmsPacket = ClientboundDamageEventPacket.STREAM_CODEC.decode(buf);
++            case ClientboundDebugSample -> nmsPacket = ClientboundDebugSamplePacket.STREAM_CODEC.decode(buf);
++            case ClientboundDeleteChat -> nmsPacket = ClientboundDeleteChatPacket.STREAM_CODEC.decode(buf);
++            case ClientboundDisguisedChat -> nmsPacket = ClientboundDisguisedChatPacket.STREAM_CODEC.decode(buf);
++            case ClientboundEntityEvent -> nmsPacket = ClientboundEntityEventPacket.STREAM_CODEC.decode(buf);
++            case ClientboundExplode -> nmsPacket = ClientboundExplodePacket.STREAM_CODEC.decode(buf);
++            case ClientboundForgetLevelChunk -> nmsPacket = ClientboundForgetLevelChunkPacket.STREAM_CODEC.decode(buf);
++            case ClientboundGameEvent -> nmsPacket = ClientboundGameEventPacket.STREAM_CODEC.decode(buf);
++            case ClientboundHorseScreenOpen -> nmsPacket = ClientboundHorseScreenOpenPacket.STREAM_CODEC.decode(buf);
++            case ClientboundHurtAnimation -> nmsPacket = ClientboundHurtAnimationPacket.STREAM_CODEC.decode(buf);
++            case ClientboundInitializeBorder -> nmsPacket = ClientboundInitializeBorderPacket.STREAM_CODEC.decode(buf);
++            case ClientboundLevelChunkWithLight -> nmsPacket = ClientboundLevelChunkWithLightPacket.STREAM_CODEC.decode(buf);
++            case ClientboundLevelEvent -> nmsPacket = ClientboundLevelEventPacket.STREAM_CODEC.decode(buf);
++            case ClientboundLevelParticles -> nmsPacket = ClientboundLevelParticlesPacket.STREAM_CODEC.decode(buf);
++            case ClientboundLightUpdate -> nmsPacket = ClientboundLightUpdatePacket.STREAM_CODEC.decode(buf);
++            case ClientboundLogin -> nmsPacket = ClientboundLoginPacket.STREAM_CODEC.decode(buf);
++            case ClientboundMapItemData -> nmsPacket = ClientboundMapItemDataPacket.STREAM_CODEC.decode(buf);
++            case ClientboundMerchantOffers -> nmsPacket = ClientboundMerchantOffersPacket.STREAM_CODEC.decode(buf);
++            case ClientboundMoveEntityPos -> nmsPacket = ClientboundMoveEntityPacket.Pos.STREAM_CODEC.decode(buf);
++            case ClientboundMoveEntityPosRot -> nmsPacket = ClientboundMoveEntityPacket.PosRot.STREAM_CODEC.decode(buf);
++            case ClientboundMoveEntityRot -> nmsPacket = ClientboundMoveEntityPacket.Rot.STREAM_CODEC.decode(buf);
++            case ClientboundMoveVehicle -> nmsPacket = ClientboundMoveVehiclePacket.STREAM_CODEC.decode(buf);
++            case ClientboundOpenBook -> nmsPacket = ClientboundOpenBookPacket.STREAM_CODEC.decode(buf);
++            case ClientboundOpenScreen -> nmsPacket = ClientboundOpenScreenPacket.STREAM_CODEC.decode(buf);
++            case ClientboundOpenSignEditor -> nmsPacket = ClientboundOpenSignEditorPacket.STREAM_CODEC.decode(buf);
++            case ClientboundPlaceGhostRecipe -> nmsPacket = ClientboundPlaceGhostRecipePacket.STREAM_CODEC.decode(buf);
++            case ClientboundPlayerAbilities -> nmsPacket = ClientboundPlayerAbilitiesPacket.STREAM_CODEC.decode(buf);
++            case ClientboundPlayerChat -> nmsPacket = ClientboundPlayerChatPacket.STREAM_CODEC.decode(buf);
++            case ClientboundPlayerCombatEnd -> nmsPacket = ClientboundPlayerCombatEndPacket.STREAM_CODEC.decode(buf);
++            case ClientboundPlayerCombatEnter -> nmsPacket = ClientboundPlayerCombatEnterPacket.STREAM_CODEC.decode(buf);
++            case ClientboundPlayerCombatKill -> nmsPacket = ClientboundPlayerCombatKillPacket.STREAM_CODEC.decode(buf);
++            case ClientboundPlayerInfoRemove -> nmsPacket = ClientboundPlayerInfoRemovePacket.STREAM_CODEC.decode(buf);
++            case ClientboundPlayerInfoUpdate -> nmsPacket = ClientboundPlayerInfoUpdatePacket.STREAM_CODEC.decode(buf);
++            case ClientboundPlayerLookAt -> nmsPacket = ClientboundPlayerLookAtPacket.STREAM_CODEC.decode(buf);
++            case ClientboundPlayerPosition -> nmsPacket = ClientboundPlayerPositionPacket.STREAM_CODEC.decode(buf);
++            case ClientboundRecipe -> nmsPacket = ClientboundRecipePacket.STREAM_CODEC.decode(buf);
++            case ClientboundRemoveEntities -> nmsPacket = ClientboundRemoveEntitiesPacket.STREAM_CODEC.decode(buf);
++            case ClientboundRemoveMobEffect -> nmsPacket = ClientboundRemoveMobEffectPacket.STREAM_CODEC.decode(buf);
++            case ClientboundRespawn -> nmsPacket = ClientboundRespawnPacket.STREAM_CODEC.decode(buf);
++            case ClientboundRotateHead -> nmsPacket = ClientboundRotateHeadPacket.STREAM_CODEC.decode(buf);
++            case ClientboundSectionBlocksUpdate -> nmsPacket = ClientboundSectionBlocksUpdatePacket.STREAM_CODEC.decode(buf);
++            case ClientboundSelectAdvancementsTab -> nmsPacket = ClientboundSelectAdvancementsTabPacket.STREAM_CODEC.decode(buf);
++            case ClientboundServerData -> nmsPacket = ClientboundServerDataPacket.STREAM_CODEC.decode(buf);
++            case ClientboundSetActionBarText -> nmsPacket = ClientboundSetActionBarTextPacket.STREAM_CODEC.decode(buf);
++            case ClientboundSetBorderCenter -> nmsPacket = ClientboundSetBorderCenterPacket.STREAM_CODEC.decode(buf);
++            case ClientboundSetBorderLerpSize -> nmsPacket = ClientboundSetBorderLerpSizePacket.STREAM_CODEC.decode(buf);
++            case ClientboundSetBorderSize -> nmsPacket = ClientboundSetBorderSizePacket.STREAM_CODEC.decode(buf);
++            case ClientboundSetBorderWarningDelay -> nmsPacket = ClientboundSetBorderWarningDelayPacket.STREAM_CODEC.decode(buf);
++            case ClientboundSetBorderWarningDistance -> nmsPacket = ClientboundSetBorderWarningDistancePacket.STREAM_CODEC.decode(buf);
++            case ClientboundSetCamera -> nmsPacket = ClientboundSetCameraPacket.STREAM_CODEC.decode(buf);
++            case ClientboundSetCarriedItem -> nmsPacket = ClientboundSetCarriedItemPacket.STREAM_CODEC.decode(buf);
++            case ClientboundSetChunkCacheCenter -> nmsPacket = ClientboundSetChunkCacheCenterPacket.STREAM_CODEC.decode(buf);
++            case ClientboundSetChunkCacheRadius -> nmsPacket = ClientboundSetChunkCacheRadiusPacket.STREAM_CODEC.decode(buf);
++            case ClientboundSetDefaultSpawnPosition -> nmsPacket = ClientboundSetDefaultSpawnPositionPacket.STREAM_CODEC.decode(buf);
++            case ClientboundSetDisplayObjective -> nmsPacket = ClientboundSetDisplayObjectivePacket.STREAM_CODEC.decode(buf);
++            case ClientboundSetEntityData -> nmsPacket = ClientboundSetEntityDataPacket.STREAM_CODEC.decode(buf);
++            case ClientboundSetEntityLink -> nmsPacket = ClientboundSetEntityLinkPacket.STREAM_CODEC.decode(buf);
++            case ClientboundSetEntityMotion -> nmsPacket = ClientboundSetEntityMotionPacket.STREAM_CODEC.decode(buf);
++            case ClientboundSetEquipment -> nmsPacket = ClientboundSetEquipmentPacket.STREAM_CODEC.decode(buf);
++            case ClientboundSetExperience -> nmsPacket = ClientboundSetExperiencePacket.STREAM_CODEC.decode(buf);
++            case ClientboundSetHealth -> nmsPacket = ClientboundSetHealthPacket.STREAM_CODEC.decode(buf);
++            case ClientboundSetObjective -> nmsPacket = ClientboundSetObjectivePacket.STREAM_CODEC.decode(buf);
++            case ClientboundSetPassengers -> nmsPacket = ClientboundSetPassengersPacket.STREAM_CODEC.decode(buf);
++            case ClientboundSetPlayerTeam -> nmsPacket = ClientboundSetPlayerTeamPacket.STREAM_CODEC.decode(buf);
++            case ClientboundSetScore -> nmsPacket = ClientboundSetScorePacket.STREAM_CODEC.decode(buf);
++            case ClientboundSetSimulationDistance -> nmsPacket = ClientboundSetSimulationDistancePacket.STREAM_CODEC.decode(buf);
++            case ClientboundSetSubtitleText -> nmsPacket = ClientboundSetSubtitleTextPacket.STREAM_CODEC.decode(buf);
++            case ClientboundSetTime -> nmsPacket = ClientboundSetTimePacket.STREAM_CODEC.decode(buf);
++            case ClientboundSetTitleText -> nmsPacket = ClientboundSetTitleTextPacket.STREAM_CODEC.decode(buf);
++            case ClientboundSetTitlesAnimation -> nmsPacket = ClientboundSetTitlesAnimationPacket.STREAM_CODEC.decode(buf);
++            case ClientboundSoundEntity -> nmsPacket = ClientboundSoundEntityPacket.STREAM_CODEC.decode(buf);
++            case ClientboundSound -> nmsPacket = ClientboundSoundPacket.STREAM_CODEC.decode(buf);
++            case ClientboundStartConfiguration -> nmsPacket = ClientboundStartConfigurationPacket.STREAM_CODEC.decode(buf);
++            case ClientboundStopSound -> nmsPacket = ClientboundStopSoundPacket.STREAM_CODEC.decode(buf);
++            case ClientboundSystemChat -> nmsPacket = ClientboundSystemChatPacket.STREAM_CODEC.decode(buf);
++            case ClientboundTabList -> nmsPacket = ClientboundTabListPacket.STREAM_CODEC.decode(buf);
++            case ClientboundTagQuery -> nmsPacket = ClientboundTagQueryPacket.STREAM_CODEC.decode(buf);
++            case ClientboundTakeItemEntity -> nmsPacket = ClientboundTakeItemEntityPacket.STREAM_CODEC.decode(buf);
++            case ClientboundTeleportEntity -> nmsPacket = ClientboundTeleportEntityPacket.STREAM_CODEC.decode(buf);
++            case ClientboundUpdateAdvancements -> nmsPacket = ClientboundUpdateAdvancementsPacket.STREAM_CODEC.decode(buf);
++            case ClientboundUpdateAttributes -> nmsPacket = ClientboundUpdateAttributesPacket.STREAM_CODEC.decode(buf);
++            case ClientboundUpdateMobEffect -> nmsPacket = ClientboundUpdateMobEffectPacket.STREAM_CODEC.decode(buf);
++            case ClientboundUpdateRecipes -> nmsPacket = ClientboundUpdateRecipesPacket.STREAM_CODEC.decode(buf);
++            case ClientboundProjectilePower -> nmsPacket = ClientboundProjectilePowerPacket.STREAM_CODEC.decode(buf);
++            case ServerboundAcceptTeleportation -> nmsPacket = ServerboundAcceptTeleportationPacket.STREAM_CODEC.decode(buf);
++            case ServerboundBlockEntityTagQuery -> nmsPacket = ServerboundBlockEntityTagQueryPacket.STREAM_CODEC.decode(buf);
++            case ServerboundChangeDifficulty -> nmsPacket = ServerboundChangeDifficultyPacket.STREAM_CODEC.decode(buf);
++            case ServerboundChatAck -> nmsPacket = ServerboundChatAckPacket.STREAM_CODEC.decode(buf);
++            case ServerboundChatCommand -> nmsPacket = ServerboundChatCommandPacket.STREAM_CODEC.decode(buf);
++            case ServerboundChatCommandSigned -> nmsPacket = ServerboundChatCommandSignedPacket.STREAM_CODEC.decode(buf);
++            case ServerboundChat -> nmsPacket = ServerboundChatPacket.STREAM_CODEC.decode(buf);
++            case ServerboundChatSessionUpdate -> nmsPacket = ServerboundChatSessionUpdatePacket.STREAM_CODEC.decode(buf);
++            case ServerboundChunkBatchReceived -> nmsPacket = ServerboundChunkBatchReceivedPacket.STREAM_CODEC.decode(buf);
++            case ServerboundClientCommand -> nmsPacket = ServerboundClientCommandPacket.STREAM_CODEC.decode(buf);
++            case ServerboundCommandSuggestion -> nmsPacket = ServerboundCommandSuggestionPacket.STREAM_CODEC.decode(buf);
++            case ServerboundConfigurationAcknowledged -> nmsPacket = ServerboundConfigurationAcknowledgedPacket.STREAM_CODEC.decode(buf);
++            case ServerboundContainerButtonClick -> nmsPacket = ServerboundContainerButtonClickPacket.STREAM_CODEC.decode(buf);
++            case ServerboundContainerClick -> nmsPacket = ServerboundContainerClickPacket.STREAM_CODEC.decode(buf);
++            case ServerboundContainerClose -> nmsPacket = ServerboundContainerClosePacket.STREAM_CODEC.decode(buf);
++            case ServerboundContainerSlotStateChanged -> nmsPacket = ServerboundContainerSlotStateChangedPacket.STREAM_CODEC.decode(buf);
++            case ServerboundDebugSampleSubscription -> nmsPacket = ServerboundDebugSampleSubscriptionPacket.STREAM_CODEC.decode(buf);
++            case ServerboundEditBook -> nmsPacket = ServerboundEditBookPacket.STREAM_CODEC.decode(buf);
++            case ServerboundEntityTagQuery -> nmsPacket = ServerboundEntityTagQueryPacket.STREAM_CODEC.decode(buf);
++            case ServerboundInteract -> nmsPacket = ServerboundInteractPacket.STREAM_CODEC.decode(buf);
++            case ServerboundJigsawGenerate -> nmsPacket = ServerboundJigsawGeneratePacket.STREAM_CODEC.decode(buf);
++            case ServerboundLockDifficulty -> nmsPacket = ServerboundLockDifficultyPacket.STREAM_CODEC.decode(buf);
++            case ServerboundMovePlayerPos -> nmsPacket = ServerboundMovePlayerPacket.Pos.STREAM_CODEC.decode(buf);
++            case ServerboundMovePlayerPosRot -> nmsPacket = ServerboundMovePlayerPacket.PosRot.STREAM_CODEC.decode(buf);
++            case ServerboundMovePlayerRot -> nmsPacket = ServerboundMovePlayerPacket.Rot.STREAM_CODEC.decode(buf);
++            case ServerboundMovePlayerStatusOnly -> nmsPacket = ServerboundMovePlayerPacket.StatusOnly.STREAM_CODEC.decode(buf);
++            case ServerboundMoveVehicle -> nmsPacket = ServerboundMoveVehiclePacket.STREAM_CODEC.decode(buf);
++            case ServerboundPaddleBoat -> nmsPacket = ServerboundPaddleBoatPacket.STREAM_CODEC.decode(buf);
++            case ServerboundPickItem -> nmsPacket = ServerboundPickItemPacket.STREAM_CODEC.decode(buf);
++            case ServerboundPlaceRecipe -> nmsPacket = ServerboundPlaceRecipePacket.STREAM_CODEC.decode(buf);
++            case ServerboundPlayerAbilities -> nmsPacket = ServerboundPlayerAbilitiesPacket.STREAM_CODEC.decode(buf);
++            case ServerboundPlayerAction -> nmsPacket = ServerboundPlayerActionPacket.STREAM_CODEC.decode(buf);
++            case ServerboundPlayerCommand -> nmsPacket = ServerboundPlayerCommandPacket.STREAM_CODEC.decode(buf);
++            case ServerboundPlayerInput -> nmsPacket = ServerboundPlayerInputPacket.STREAM_CODEC.decode(buf);
++            case ServerboundRecipeBookChangeSettings -> nmsPacket = ServerboundRecipeBookChangeSettingsPacket.STREAM_CODEC.decode(buf);
++            case ServerboundRecipeBookSeenRecipe -> nmsPacket = ServerboundRecipeBookSeenRecipePacket.STREAM_CODEC.decode(buf);
++            case ServerboundRenameItem -> nmsPacket = ServerboundRenameItemPacket.STREAM_CODEC.decode(buf);
++            case ServerboundSeenAdvancements -> nmsPacket = ServerboundSeenAdvancementsPacket.STREAM_CODEC.decode(buf);
++            case ServerboundSelectTrade -> nmsPacket = ServerboundSelectTradePacket.STREAM_CODEC.decode(buf);
++            case ServerboundSetBeacon -> nmsPacket = ServerboundSetBeaconPacket.STREAM_CODEC.decode(buf);
++            case ServerboundSetCarriedItem -> nmsPacket = ServerboundSetCarriedItemPacket.STREAM_CODEC.decode(buf);
++            case ServerboundSetCommandBlock -> nmsPacket = ServerboundSetCommandBlockPacket.STREAM_CODEC.decode(buf);
++            case ServerboundSetCommandMinecart -> nmsPacket = ServerboundSetCommandMinecartPacket.STREAM_CODEC.decode(buf);
++            case ServerboundSetCreativeModeSlot -> nmsPacket = ServerboundSetCreativeModeSlotPacket.STREAM_CODEC.decode(buf);
++            case ServerboundSetJigsawBlock -> nmsPacket = ServerboundSetJigsawBlockPacket.STREAM_CODEC.decode(buf);
++            case ServerboundSetStructureBlock -> nmsPacket = ServerboundSetStructureBlockPacket.STREAM_CODEC.decode(buf);
++            case ServerboundSignUpdate -> nmsPacket = ServerboundSignUpdatePacket.STREAM_CODEC.decode(buf);
++            case ServerboundSwing -> nmsPacket = ServerboundSwingPacket.STREAM_CODEC.decode(buf);
++            case ServerboundTeleportToEntity -> nmsPacket = ServerboundTeleportToEntityPacket.STREAM_CODEC.decode(buf);
++            case ServerboundUseItemOn -> nmsPacket = ServerboundUseItemOnPacket.STREAM_CODEC.decode(buf);
++            case ServerboundUseItem -> nmsPacket = ServerboundUseItemPacket.STREAM_CODEC.decode(buf);
++            case ClientboundResetScore -> nmsPacket = ClientboundResetScorePacket.STREAM_CODEC.decode(buf);
++            case ClientboundTickingState -> nmsPacket = ClientboundTickingStatePacket.STREAM_CODEC.decode(buf);
++            case ClientboundTickingStep -> nmsPacket = ClientboundTickingStepPacket.STREAM_CODEC.decode(buf);
++            //case ClientboundCustomPayload -> nmsPacket = ClientboundCustomPayloadPacket.STREAM_CODEC.decode(buf);
++            case ClientboundDisconnect -> nmsPacket = ClientboundDisconnectPacket.STREAM_CODEC.decode(buf);
++            case ClientboundKeepAlive -> nmsPacket = ClientboundKeepAlivePacket.STREAM_CODEC.decode(buf);
++            case ClientboundResourcePackPop -> nmsPacket = ClientboundResourcePackPopPacket.STREAM_CODEC.decode(buf);
++            case ClientboundResourcePackPush -> nmsPacket = ClientboundResourcePackPushPacket.STREAM_CODEC.decode(buf);
++            case ClientboundStoreCookie -> nmsPacket = ClientboundStoreCookiePacket.STREAM_CODEC.decode(buf);
++            case ClientboundTransfer -> nmsPacket = ClientboundTransferPacket.STREAM_CODEC.decode(buf);
++            case ClientboundUpdateTags -> nmsPacket = ClientboundUpdateTagsPacket.STREAM_CODEC.decode(buf);
++            case ServerboundClientInformation -> nmsPacket = ServerboundClientInformationPacket.STREAM_CODEC.decode(buf);
++            case ServerboundCustomPayload -> nmsPacket = ServerboundCustomPayloadPacket.STREAM_CODEC.decode(buf);
++            case ServerboundKeepAlive -> nmsPacket = ServerboundKeepAlivePacket.STREAM_CODEC.decode(buf);
++            case ServerboundPong -> nmsPacket = ServerboundPongPacket.STREAM_CODEC.decode(buf);
++            case ServerboundResourcePack -> nmsPacket = ServerboundResourcePackPacket.STREAM_CODEC.decode(buf);
++            default -> throw new UnsupportedOperationException("This feature is not completely finished yet, packet type " + type + " is not supported temporary.");
++        }
++        return nmsPacket;
++    }
++    private Packet createBytebufPacket(net.minecraft.network.protocol.Packet<?> nmsPacket) {
++        PacketType type;
++        RegistryFriendlyByteBuf buf = new RegistryFriendlyByteBuf(Unpooled.buffer(8192), MinecraftServer.getServer().registryAccess());
++        switch (nmsPacket.type().toString()) {
++            case "clientbound/minecraft:add_entity" -> {
++                type = PacketType.ClientboundAddEntity;
++                ClientboundAddEntityPacket.STREAM_CODEC.encode(buf, (ClientboundAddEntityPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:add_experience_orb" -> {
++                type = PacketType.ClientboundAddExperienceOrb;
++                ClientboundAddExperienceOrbPacket.STREAM_CODEC.encode(buf, (ClientboundAddExperienceOrbPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:animate" -> {
++                type = PacketType.ClientboundAnimate;
++                ClientboundAnimatePacket.STREAM_CODEC.encode(buf, (ClientboundAnimatePacket) nmsPacket);
++            }
++            case "clientbound/minecraft:award_stats" -> {
++                type = PacketType.ClientboundAwardStats;
++                ClientboundAwardStatsPacket.STREAM_CODEC.encode(buf, (ClientboundAwardStatsPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:block_changed_ack" -> {
++                type = PacketType.ClientboundBlockChangedAck;
++                ClientboundBlockChangedAckPacket.STREAM_CODEC.encode(buf, (ClientboundBlockChangedAckPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:block_destruction" -> {
++                type = PacketType.ClientboundBlockDestruction;
++                ClientboundBlockDestructionPacket.STREAM_CODEC.encode(buf, (ClientboundBlockDestructionPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:block_entity_data" -> {
++                type = PacketType.ClientboundBlockEntityData;
++                ClientboundBlockEntityDataPacket.STREAM_CODEC.encode(buf, (ClientboundBlockEntityDataPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:block_event" -> {
++                type = PacketType.ClientboundBlockEvent;
++                ClientboundBlockEventPacket.STREAM_CODEC.encode(buf, (ClientboundBlockEventPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:block_update" -> {
++                type = PacketType.ClientboundBlockUpdate;
++                ClientboundBlockUpdatePacket.STREAM_CODEC.encode(buf, (ClientboundBlockUpdatePacket) nmsPacket);
++            }
++            case "clientbound/minecraft:boss_event" -> {
++                type = PacketType.ClientboundBossEvent;
++                ClientboundBossEventPacket.STREAM_CODEC.encode(buf, (ClientboundBossEventPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:change_difficulty" -> {
++                type = PacketType.ClientboundChangeDifficulty;
++                ClientboundChangeDifficultyPacket.STREAM_CODEC.encode(buf, (ClientboundChangeDifficultyPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:chunk_batch_finished" -> {
++                type = PacketType.ClientboundChunkBatchFinished;
++                ClientboundChunkBatchFinishedPacket.STREAM_CODEC.encode(buf, (ClientboundChunkBatchFinishedPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:chunk_batch_start" -> {
++                type = PacketType.ClientboundChunkBatchStart;
++                ClientboundChunkBatchStartPacket.STREAM_CODEC.encode(buf, (ClientboundChunkBatchStartPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:chunks_biomes" -> {
++                type = PacketType.ClientboundChunksBiomes;
++                ClientboundChunksBiomesPacket.STREAM_CODEC.encode(buf, (ClientboundChunksBiomesPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:clear_titles" -> {
++                type = PacketType.ClientboundClearTitles;
++                ClientboundClearTitlesPacket.STREAM_CODEC.encode(buf, (ClientboundClearTitlesPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:command_suggestions" -> {
++                type = PacketType.ClientboundCommandSuggestions;
++                ClientboundCommandSuggestionsPacket.STREAM_CODEC.encode(buf, (ClientboundCommandSuggestionsPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:commands" -> {
++                type = PacketType.ClientboundCommands;
++                ClientboundCommandsPacket.STREAM_CODEC.encode(buf, (ClientboundCommandsPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:container_close" -> {
++                type = PacketType.ClientboundContainerClose;
++                ClientboundContainerClosePacket.STREAM_CODEC.encode(buf, (ClientboundContainerClosePacket) nmsPacket);
++            }
++            case "clientbound/minecraft:container_set_content" -> {
++                type = PacketType.ClientboundContainerSetContent;
++                ClientboundContainerSetContentPacket.STREAM_CODEC.encode(buf, (ClientboundContainerSetContentPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:container_set_data" -> {
++                type = PacketType.ClientboundContainerSetData;
++                ClientboundContainerSetDataPacket.STREAM_CODEC.encode(buf, (ClientboundContainerSetDataPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:container_set_slot" -> {
++                type = PacketType.ClientboundContainerSetSlot;
++                ClientboundContainerSetSlotPacket.STREAM_CODEC.encode(buf, (ClientboundContainerSetSlotPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:cooldown" -> {
++                type = PacketType.ClientboundCooldown;
++                ClientboundCooldownPacket.STREAM_CODEC.encode(buf, (ClientboundCooldownPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:custom_chat_completions" -> {
++                type = PacketType.ClientboundCustomChatCompletions;
++                ClientboundCustomChatCompletionsPacket.STREAM_CODEC.encode(buf, (ClientboundCustomChatCompletionsPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:damage_event" -> {
++                type = PacketType.ClientboundDamageEvent;
++                ClientboundDamageEventPacket.STREAM_CODEC.encode(buf, (ClientboundDamageEventPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:debug_sample" -> {
++                type = PacketType.ClientboundDebugSample;
++                ClientboundDebugSamplePacket.STREAM_CODEC.encode(buf, (ClientboundDebugSamplePacket) nmsPacket);
++            }
++            case "clientbound/minecraft:delete_chat" -> {
++                type = PacketType.ClientboundDeleteChat;
++                ClientboundDeleteChatPacket.STREAM_CODEC.encode(buf, (ClientboundDeleteChatPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:disguised_chat" -> {
++                type = PacketType.ClientboundDisguisedChat;
++                ClientboundDisguisedChatPacket.STREAM_CODEC.encode(buf, (ClientboundDisguisedChatPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:entity_event" -> {
++                type = PacketType.ClientboundEntityEvent;
++                ClientboundEntityEventPacket.STREAM_CODEC.encode(buf, (ClientboundEntityEventPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:explode" -> {
++                type = PacketType.ClientboundExplode;
++                ClientboundExplodePacket.STREAM_CODEC.encode(buf, (ClientboundExplodePacket) nmsPacket);
++            }
++            case "clientbound/minecraft:forget_level_chunk" -> {
++                type = PacketType.ClientboundForgetLevelChunk;
++                ClientboundForgetLevelChunkPacket.STREAM_CODEC.encode(buf, (ClientboundForgetLevelChunkPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:game_event" -> {
++                type = PacketType.ClientboundGameEvent;
++                ClientboundGameEventPacket.STREAM_CODEC.encode(buf, (ClientboundGameEventPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:horse_screen_open" -> {
++                type = PacketType.ClientboundHorseScreenOpen;
++                ClientboundHorseScreenOpenPacket.STREAM_CODEC.encode(buf, (ClientboundHorseScreenOpenPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:hurt_animation" -> {
++                type = PacketType.ClientboundHurtAnimation;
++                ClientboundHurtAnimationPacket.STREAM_CODEC.encode(buf, (ClientboundHurtAnimationPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:initialize_border" -> {
++                type = PacketType.ClientboundInitializeBorder;
++                ClientboundInitializeBorderPacket.STREAM_CODEC.encode(buf, (ClientboundInitializeBorderPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:level_chunk_with_light" -> {
++                type = PacketType.ClientboundLevelChunkWithLight;
++                ClientboundLevelChunkWithLightPacket.STREAM_CODEC.encode(buf, (ClientboundLevelChunkWithLightPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:level_event" -> {
++                type = PacketType.ClientboundLevelEvent;
++                ClientboundLevelEventPacket.STREAM_CODEC.encode(buf, (ClientboundLevelEventPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:level_particles" -> {
++                type = PacketType.ClientboundLevelParticles;
++                ClientboundLevelParticlesPacket.STREAM_CODEC.encode(buf, (ClientboundLevelParticlesPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:light_update" -> {
++                type = PacketType.ClientboundLightUpdate;
++                ClientboundLightUpdatePacket.STREAM_CODEC.encode(buf, (ClientboundLightUpdatePacket) nmsPacket);
++            }
++            case "clientbound/minecraft:login" -> {
++                type = PacketType.ClientboundLogin;
++                ClientboundLoginPacket.STREAM_CODEC.encode(buf, (ClientboundLoginPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:map_item_data" -> {
++                type = PacketType.ClientboundMapItemData;
++                ClientboundMapItemDataPacket.STREAM_CODEC.encode(buf, (ClientboundMapItemDataPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:merchant_offers" -> {
++                type = PacketType.ClientboundMerchantOffers;
++                ClientboundMerchantOffersPacket.STREAM_CODEC.encode(buf, (ClientboundMerchantOffersPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:move_entity_pos" -> {
++                type = PacketType.ClientboundMoveEntityPos;
++                ClientboundMoveEntityPacket.Pos.STREAM_CODEC.encode(buf, (ClientboundMoveEntityPacket.Pos) nmsPacket);
++            }
++            case "clientbound/minecraft:move_entity_pos_rot" -> {
++                type = PacketType.ClientboundMoveEntityPosRot;
++                ClientboundMoveEntityPacket.PosRot.STREAM_CODEC.encode(buf, (ClientboundMoveEntityPacket.PosRot) nmsPacket);
++            }
++            case "clientbound/minecraft:move_entity_rot" -> {
++                type = PacketType.ClientboundMoveEntityRot;
++                ClientboundMoveEntityPacket.Rot.STREAM_CODEC.encode(buf, (ClientboundMoveEntityPacket.Rot) nmsPacket);
++            }
++            case "clientbound/minecraft:move_vehicle" -> {
++                type = PacketType.ClientboundMoveVehicle;
++                ClientboundMoveVehiclePacket.STREAM_CODEC.encode(buf, (ClientboundMoveVehiclePacket) nmsPacket);
++            }
++            case "clientbound/minecraft:open_book" -> {
++                type = PacketType.ClientboundOpenBook;
++                ClientboundOpenBookPacket.STREAM_CODEC.encode(buf, (ClientboundOpenBookPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:open_screen" -> {
++                type = PacketType.ClientboundOpenScreen;
++                ClientboundOpenScreenPacket.STREAM_CODEC.encode(buf, (ClientboundOpenScreenPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:open_sign_editor" -> {
++                type = PacketType.ClientboundOpenSignEditor;
++                ClientboundOpenSignEditorPacket.STREAM_CODEC.encode(buf, (ClientboundOpenSignEditorPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:place_ghost_recipe" -> {
++                type = PacketType.ClientboundPlaceGhostRecipe;
++                ClientboundPlaceGhostRecipePacket.STREAM_CODEC.encode(buf, (ClientboundPlaceGhostRecipePacket) nmsPacket);
++            }
++            case "clientbound/minecraft:player_abilities" -> {
++                type = PacketType.ClientboundPlayerAbilities;
++                ClientboundPlayerAbilitiesPacket.STREAM_CODEC.encode(buf, (ClientboundPlayerAbilitiesPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:player_chat" -> {
++                type = PacketType.ClientboundPlayerChat;
++                ClientboundPlayerChatPacket.STREAM_CODEC.encode(buf, (ClientboundPlayerChatPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:player_combat_end" -> {
++                type = PacketType.ClientboundPlayerCombatEnd;
++                ClientboundPlayerCombatEndPacket.STREAM_CODEC.encode(buf, (ClientboundPlayerCombatEndPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:player_combat_enter" -> {
++                type = PacketType.ClientboundPlayerCombatEnter;
++                ClientboundPlayerCombatEnterPacket.STREAM_CODEC.encode(buf, (ClientboundPlayerCombatEnterPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:player_combat_kill" -> {
++                type = PacketType.ClientboundPlayerCombatKill;
++                ClientboundPlayerCombatKillPacket.STREAM_CODEC.encode(buf, (ClientboundPlayerCombatKillPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:player_info_remove" -> {
++                type = PacketType.ClientboundPlayerInfoRemove;
++                ClientboundPlayerInfoRemovePacket.STREAM_CODEC.encode(buf, (ClientboundPlayerInfoRemovePacket) nmsPacket);
++            }
++            case "clientbound/minecraft:player_info_update" -> {
++                type = PacketType.ClientboundPlayerInfoUpdate;
++                ClientboundPlayerInfoUpdatePacket.STREAM_CODEC.encode(buf, (ClientboundPlayerInfoUpdatePacket) nmsPacket);
++            }
++            case "clientbound/minecraft:player_look_at" -> {
++                type = PacketType.ClientboundPlayerLookAt;
++                ClientboundPlayerLookAtPacket.STREAM_CODEC.encode(buf, (ClientboundPlayerLookAtPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:player_position" -> {
++                type = PacketType.ClientboundPlayerPosition;
++                ClientboundPlayerPositionPacket.STREAM_CODEC.encode(buf, (ClientboundPlayerPositionPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:recipe" -> {
++                type = PacketType.ClientboundRecipe;
++                ClientboundRecipePacket.STREAM_CODEC.encode(buf, (ClientboundRecipePacket) nmsPacket);
++            }
++            case "clientbound/minecraft:remove_entities" -> {
++                type = PacketType.ClientboundRemoveEntities;
++                ClientboundRemoveEntitiesPacket.STREAM_CODEC.encode(buf, (ClientboundRemoveEntitiesPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:remove_mob_effect" -> {
++                type = PacketType.ClientboundRemoveMobEffect;
++                ClientboundRemoveMobEffectPacket.STREAM_CODEC.encode(buf, (ClientboundRemoveMobEffectPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:respawn" -> {
++                type = PacketType.ClientboundRespawn;
++                ClientboundRespawnPacket.STREAM_CODEC.encode(buf, (ClientboundRespawnPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:rotate_head" -> {
++                type = PacketType.ClientboundRotateHead;
++                ClientboundRotateHeadPacket.STREAM_CODEC.encode(buf, (ClientboundRotateHeadPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:section_blocks_update" -> {
++                type = PacketType.ClientboundSectionBlocksUpdate;
++                ClientboundSectionBlocksUpdatePacket.STREAM_CODEC.encode(buf, (ClientboundSectionBlocksUpdatePacket) nmsPacket);
++            }
++            case "clientbound/minecraft:select_advancements_tab" -> {
++                type = PacketType.ClientboundSelectAdvancementsTab;
++                ClientboundSelectAdvancementsTabPacket.STREAM_CODEC.encode(buf, (ClientboundSelectAdvancementsTabPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:server_data" -> {
++                type = PacketType.ClientboundServerData;
++                ClientboundServerDataPacket.STREAM_CODEC.encode(buf, (ClientboundServerDataPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:set_action_bar_text" -> {
++                type = PacketType.ClientboundSetActionBarText;
++                ClientboundSetActionBarTextPacket.STREAM_CODEC.encode(buf, (ClientboundSetActionBarTextPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:set_border_center" -> {
++                type = PacketType.ClientboundSetBorderCenter;
++                ClientboundSetBorderCenterPacket.STREAM_CODEC.encode(buf, (ClientboundSetBorderCenterPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:set_border_lerp_size" -> {
++                type = PacketType.ClientboundSetBorderLerpSize;
++                ClientboundSetBorderLerpSizePacket.STREAM_CODEC.encode(buf, (ClientboundSetBorderLerpSizePacket) nmsPacket);
++            }
++            case "clientbound/minecraft:set_border_size" -> {
++                type = PacketType.ClientboundSetBorderSize;
++                ClientboundSetBorderSizePacket.STREAM_CODEC.encode(buf, (ClientboundSetBorderSizePacket) nmsPacket);
++            }
++            case "clientbound/minecraft:set_border_warning_delay" -> {
++                type = PacketType.ClientboundSetBorderWarningDelay;
++                ClientboundSetBorderWarningDelayPacket.STREAM_CODEC.encode(buf, (ClientboundSetBorderWarningDelayPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:set_border_warning_distance" -> {
++                type = PacketType.ClientboundSetBorderWarningDistance;
++                ClientboundSetBorderWarningDistancePacket.STREAM_CODEC.encode(buf, (ClientboundSetBorderWarningDistancePacket) nmsPacket);
++            }
++            case "clientbound/minecraft:set_camera" -> {
++                type = PacketType.ClientboundSetCamera;
++                ClientboundSetCameraPacket.STREAM_CODEC.encode(buf, (ClientboundSetCameraPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:set_carried_item" -> {
++                type = PacketType.ClientboundSetCarriedItem;
++                ClientboundSetCarriedItemPacket.STREAM_CODEC.encode(buf, (ClientboundSetCarriedItemPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:set_chunk_cache_center" -> {
++                type = PacketType.ClientboundSetChunkCacheCenter;
++                ClientboundSetChunkCacheCenterPacket.STREAM_CODEC.encode(buf, (ClientboundSetChunkCacheCenterPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:set_chunk_cache_radius" -> {
++                type = PacketType.ClientboundSetChunkCacheRadius;
++                ClientboundSetChunkCacheRadiusPacket.STREAM_CODEC.encode(buf, (ClientboundSetChunkCacheRadiusPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:set_default_spawn_position" -> {
++                type = PacketType.ClientboundSetDefaultSpawnPosition;
++                ClientboundSetDefaultSpawnPositionPacket.STREAM_CODEC.encode(buf, (ClientboundSetDefaultSpawnPositionPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:set_display_objective" -> {
++                type = PacketType.ClientboundSetDisplayObjective;
++                ClientboundSetDisplayObjectivePacket.STREAM_CODEC.encode(buf, (ClientboundSetDisplayObjectivePacket) nmsPacket);
++            }
++            case "clientbound/minecraft:set_entity_data" -> {
++                type = PacketType.ClientboundSetEntityData;
++                ClientboundSetEntityDataPacket.STREAM_CODEC.encode(buf, (ClientboundSetEntityDataPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:set_entity_link" -> {
++                type = PacketType.ClientboundSetEntityLink;
++                ClientboundSetEntityLinkPacket.STREAM_CODEC.encode(buf, (ClientboundSetEntityLinkPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:set_entity_motion" -> {
++                type = PacketType.ClientboundSetEntityMotion;
++                ClientboundSetEntityMotionPacket.STREAM_CODEC.encode(buf, (ClientboundSetEntityMotionPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:set_equipment" -> {
++                type = PacketType.ClientboundSetEquipment;
++                ClientboundSetEquipmentPacket.STREAM_CODEC.encode(buf, (ClientboundSetEquipmentPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:set_experience" -> {
++                type = PacketType.ClientboundSetExperience;
++                ClientboundSetExperiencePacket.STREAM_CODEC.encode(buf, (ClientboundSetExperiencePacket) nmsPacket);
++            }
++            case "clientbound/minecraft:set_health" -> {
++                type = PacketType.ClientboundSetHealth;
++                ClientboundSetHealthPacket.STREAM_CODEC.encode(buf, (ClientboundSetHealthPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:set_objective" -> {
++                type = PacketType.ClientboundSetObjective;
++                ClientboundSetObjectivePacket.STREAM_CODEC.encode(buf, (ClientboundSetObjectivePacket) nmsPacket);
++            }
++            case "clientbound/minecraft:set_passengers" -> {
++                type = PacketType.ClientboundSetPassengers;
++                ClientboundSetPassengersPacket.STREAM_CODEC.encode(buf, (ClientboundSetPassengersPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:set_player_team" -> {
++                type = PacketType.ClientboundSetPlayerTeam;
++                ClientboundSetPlayerTeamPacket.STREAM_CODEC.encode(buf, (ClientboundSetPlayerTeamPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:set_score" -> {
++                type = PacketType.ClientboundSetScore;
++                ClientboundSetScorePacket.STREAM_CODEC.encode(buf, (ClientboundSetScorePacket) nmsPacket);
++            }
++            case "clientbound/minecraft:set_simulation_distance" -> {
++                type = PacketType.ClientboundSetSimulationDistance;
++                ClientboundSetSimulationDistancePacket.STREAM_CODEC.encode(buf, (ClientboundSetSimulationDistancePacket) nmsPacket);
++            }
++            case "clientbound/minecraft:set_subtitle_text" -> {
++                type = PacketType.ClientboundSetSubtitleText;
++                ClientboundSetSubtitleTextPacket.STREAM_CODEC.encode(buf, (ClientboundSetSubtitleTextPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:set_time" -> {
++                type = PacketType.ClientboundSetTime;
++                ClientboundSetTimePacket.STREAM_CODEC.encode(buf, (ClientboundSetTimePacket) nmsPacket);
++            }
++            case "clientbound/minecraft:set_title_text" -> {
++                type = PacketType.ClientboundSetTitleText;
++                ClientboundSetTitleTextPacket.STREAM_CODEC.encode(buf, (ClientboundSetTitleTextPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:set_titles_animation" -> {
++                type = PacketType.ClientboundSetTitlesAnimation;
++                ClientboundSetTitlesAnimationPacket.STREAM_CODEC.encode(buf, (ClientboundSetTitlesAnimationPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:sound_entity" -> {
++                type = PacketType.ClientboundSoundEntity;
++                ClientboundSoundEntityPacket.STREAM_CODEC.encode(buf, (ClientboundSoundEntityPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:sound" -> {
++                type = PacketType.ClientboundSound;
++                ClientboundSoundPacket.STREAM_CODEC.encode(buf, (ClientboundSoundPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:start_configuration" -> {
++                type = PacketType.ClientboundStartConfiguration;
++                ClientboundStartConfigurationPacket.STREAM_CODEC.encode(buf, (ClientboundStartConfigurationPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:stop_sound" -> {
++                type = PacketType.ClientboundStopSound;
++                ClientboundStopSoundPacket.STREAM_CODEC.encode(buf, (ClientboundStopSoundPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:system_chat" -> {
++                type = PacketType.ClientboundSystemChat;
++                ClientboundSystemChatPacket.STREAM_CODEC.encode(buf, (ClientboundSystemChatPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:tab_list" -> {
++                type = PacketType.ClientboundTabList;
++                ClientboundTabListPacket.STREAM_CODEC.encode(buf, (ClientboundTabListPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:tag_query" -> {
++                type = PacketType.ClientboundTagQuery;
++                ClientboundTagQueryPacket.STREAM_CODEC.encode(buf, (ClientboundTagQueryPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:take_item_entity" -> {
++                type = PacketType.ClientboundTakeItemEntity;
++                ClientboundTakeItemEntityPacket.STREAM_CODEC.encode(buf, (ClientboundTakeItemEntityPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:teleport_entity" -> {
++                type = PacketType.ClientboundTeleportEntity;
++                ClientboundTeleportEntityPacket.STREAM_CODEC.encode(buf, (ClientboundTeleportEntityPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:update_advancements" -> {
++                type = PacketType.ClientboundUpdateAdvancements;
++                ClientboundUpdateAdvancementsPacket.STREAM_CODEC.encode(buf, (ClientboundUpdateAdvancementsPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:update_attributes" -> {
++                type = PacketType.ClientboundUpdateAttributes;
++                ClientboundUpdateAttributesPacket.STREAM_CODEC.encode(buf, (ClientboundUpdateAttributesPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:update_mob_effect" -> {
++                type = PacketType.ClientboundUpdateMobEffect;
++                ClientboundUpdateMobEffectPacket.STREAM_CODEC.encode(buf, (ClientboundUpdateMobEffectPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:update_recipes" -> {
++                type = PacketType.ClientboundUpdateRecipes;
++                ClientboundUpdateRecipesPacket.STREAM_CODEC.encode(buf, (ClientboundUpdateRecipesPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:projectile_power" -> {
++                type = PacketType.ClientboundProjectilePower;
++                ClientboundProjectilePowerPacket.STREAM_CODEC.encode(buf, (ClientboundProjectilePowerPacket) nmsPacket);
++            }
++            case "serverbound/minecraft:accept_teleportation" -> {
++                type = PacketType.ServerboundAcceptTeleportation;
++                ServerboundAcceptTeleportationPacket.STREAM_CODEC.encode(buf, (ServerboundAcceptTeleportationPacket) nmsPacket);
++            }
++            case "serverbound/minecraft:block_entity_tag_query" -> {
++                type = PacketType.ServerboundBlockEntityTagQuery;
++                ServerboundBlockEntityTagQueryPacket.STREAM_CODEC.encode(buf, (ServerboundBlockEntityTagQueryPacket) nmsPacket);
++            }
++            case "serverbound/minecraft:change_difficulty" -> {
++                type = PacketType.ServerboundChangeDifficulty;
++                ServerboundChangeDifficultyPacket.STREAM_CODEC.encode(buf, (ServerboundChangeDifficultyPacket) nmsPacket);
++            }
++            case "serverbound/minecraft:chat_ack" -> {
++                type = PacketType.ServerboundChatAck;
++                ServerboundChatAckPacket.STREAM_CODEC.encode(buf, (ServerboundChatAckPacket) nmsPacket);
++            }
++            case "serverbound/minecraft:chat_command" -> {
++                type = PacketType.ServerboundChatCommand;
++                ServerboundChatCommandPacket.STREAM_CODEC.encode(buf, (ServerboundChatCommandPacket) nmsPacket);
++            }
++            case "serverbound/minecraft:chat_command_signed" -> {
++                type = PacketType.ServerboundChatCommandSigned;
++                ServerboundChatCommandSignedPacket.STREAM_CODEC.encode(buf, (ServerboundChatCommandSignedPacket) nmsPacket);
++            }
++            case "serverbound/minecraft:chat" -> {
++                type = PacketType.ServerboundChat;
++                ServerboundChatPacket.STREAM_CODEC.encode(buf, (ServerboundChatPacket) nmsPacket);
++            }
++            case "serverbound/minecraft:chat_session_update" -> {
++                type = PacketType.ServerboundChatSessionUpdate;
++                ServerboundChatSessionUpdatePacket.STREAM_CODEC.encode(buf, (ServerboundChatSessionUpdatePacket) nmsPacket);
++            }
++            case "serverbound/minecraft:chunk_batch_received" -> {
++                type = PacketType.ServerboundChunkBatchReceived;
++                ServerboundChunkBatchReceivedPacket.STREAM_CODEC.encode(buf, (ServerboundChunkBatchReceivedPacket) nmsPacket);
++            }
++            case "serverbound/minecraft:client_command" -> {
++                type = PacketType.ServerboundClientCommand;
++                ServerboundClientCommandPacket.STREAM_CODEC.encode(buf, (ServerboundClientCommandPacket) nmsPacket);
++            }
++            case "serverbound/minecraft:command_suggestion" -> {
++                type = PacketType.ServerboundCommandSuggestion;
++                ServerboundCommandSuggestionPacket.STREAM_CODEC.encode(buf, (ServerboundCommandSuggestionPacket) nmsPacket);
++            }
++            case "serverbound/minecraft:configuration_acknowledged" -> {
++                type = PacketType.ServerboundConfigurationAcknowledged;
++                ServerboundConfigurationAcknowledgedPacket.STREAM_CODEC.encode(buf, (ServerboundConfigurationAcknowledgedPacket) nmsPacket);
++            }
++            case "serverbound/minecraft:container_button_click" -> {
++                type = PacketType.ServerboundContainerButtonClick;
++                ServerboundContainerButtonClickPacket.STREAM_CODEC.encode(buf, (ServerboundContainerButtonClickPacket) nmsPacket);
++            }
++            case "serverbound/minecraft:container_click" -> {
++                type = PacketType.ServerboundContainerClick;
++                ServerboundContainerClickPacket.STREAM_CODEC.encode(buf, (ServerboundContainerClickPacket) nmsPacket);
++            }
++            case "serverbound/minecraft:container_close" -> {
++                type = PacketType.ServerboundContainerClose;
++                ServerboundContainerClosePacket.STREAM_CODEC.encode(buf, (ServerboundContainerClosePacket) nmsPacket);
++            }
++            case "serverbound/minecraft:container_slot_state_changed" -> {
++                type = PacketType.ServerboundContainerSlotStateChanged;
++                ServerboundContainerSlotStateChangedPacket.STREAM_CODEC.encode(buf, (ServerboundContainerSlotStateChangedPacket) nmsPacket);
++            }
++            case "serverbound/minecraft:debug_sample_subscription" -> {
++                type = PacketType.ServerboundDebugSampleSubscription;
++                ServerboundDebugSampleSubscriptionPacket.STREAM_CODEC.encode(buf, (ServerboundDebugSampleSubscriptionPacket) nmsPacket);
++            }
++            case "serverbound/minecraft:edit_book" -> {
++                type = PacketType.ServerboundEditBook;
++                ServerboundEditBookPacket.STREAM_CODEC.encode(buf, (ServerboundEditBookPacket) nmsPacket);
++            }
++            case "serverbound/minecraft:entity_tag_query" -> {
++                type = PacketType.ServerboundEntityTagQuery;
++                ServerboundEntityTagQueryPacket.STREAM_CODEC.encode(buf, (ServerboundEntityTagQueryPacket) nmsPacket);
++            }
++            case "serverbound/minecraft:interact" -> {
++                type = PacketType.ServerboundInteract;
++                ServerboundInteractPacket.STREAM_CODEC.encode(buf, (ServerboundInteractPacket) nmsPacket);
++            }
++            case "serverbound/minecraft:jigsaw_generate" -> {
++                type = PacketType.ServerboundJigsawGenerate;
++                ServerboundJigsawGeneratePacket.STREAM_CODEC.encode(buf, (ServerboundJigsawGeneratePacket) nmsPacket);
++            }
++            case "serverbound/minecraft:lock_difficulty" -> {
++                type = PacketType.ServerboundLockDifficulty;
++                ServerboundLockDifficultyPacket.STREAM_CODEC.encode(buf, (ServerboundLockDifficultyPacket) nmsPacket);
++            }
++            case "serverbound/minecraft:move_player_pos" -> {
++                type = PacketType.ServerboundMovePlayerPos;
++                ServerboundMovePlayerPacket.Pos.STREAM_CODEC.encode(buf, (ServerboundMovePlayerPacket.Pos) nmsPacket);
++            }
++            case "serverbound/minecraft:move_player_pos_rot" -> {
++                type = PacketType.ServerboundMovePlayerPosRot;
++                ServerboundMovePlayerPacket.PosRot.STREAM_CODEC.encode(buf, (ServerboundMovePlayerPacket.PosRot) nmsPacket);
++            }
++            case "serverbound/minecraft:move_player_rot" -> {
++                type = PacketType.ServerboundMovePlayerRot;
++                ServerboundMovePlayerPacket.Rot.STREAM_CODEC.encode(buf, (ServerboundMovePlayerPacket.Rot) nmsPacket);
++            }
++            case "serverbound/minecraft:move_player_status_only" -> {
++                type = PacketType.ServerboundMovePlayerStatusOnly;
++                ServerboundMovePlayerPacket.StatusOnly.STREAM_CODEC.encode(buf, (ServerboundMovePlayerPacket.StatusOnly) nmsPacket);
++            }
++            case "serverbound/minecraft:move_vehicle" -> {
++                type = PacketType.ServerboundMoveVehicle;
++                ServerboundMoveVehiclePacket.STREAM_CODEC.encode(buf, (ServerboundMoveVehiclePacket) nmsPacket);
++            }
++            case "serverbound/minecraft:paddle_boat" -> {
++                type = PacketType.ServerboundPaddleBoat;
++                ServerboundPaddleBoatPacket.STREAM_CODEC.encode(buf, (ServerboundPaddleBoatPacket) nmsPacket);
++            }
++            case "serverbound/minecraft:pick_item" -> {
++                type = PacketType.ServerboundPickItem;
++                ServerboundPickItemPacket.STREAM_CODEC.encode(buf, (ServerboundPickItemPacket) nmsPacket);
++            }
++            case "serverbound/minecraft:place_recipe" -> {
++                type = PacketType.ServerboundPlaceRecipe;
++                ServerboundPlaceRecipePacket.STREAM_CODEC.encode(buf, (ServerboundPlaceRecipePacket) nmsPacket);
++            }
++            case "serverbound/minecraft:player_abilities" -> {
++                type = PacketType.ServerboundPlayerAbilities;
++                ServerboundPlayerAbilitiesPacket.STREAM_CODEC.encode(buf, (ServerboundPlayerAbilitiesPacket) nmsPacket);
++            }
++            case "serverbound/minecraft:player_action" -> {
++                type = PacketType.ServerboundPlayerAction;
++                ServerboundPlayerActionPacket.STREAM_CODEC.encode(buf, (ServerboundPlayerActionPacket) nmsPacket);
++            }
++            case "serverbound/minecraft:player_command" -> {
++                type = PacketType.ServerboundPlayerCommand;
++                ServerboundPlayerCommandPacket.STREAM_CODEC.encode(buf, (ServerboundPlayerCommandPacket) nmsPacket);
++            }
++            case "serverbound/minecraft:player_input" -> {
++                type = PacketType.ServerboundPlayerInput;
++                ServerboundPlayerInputPacket.STREAM_CODEC.encode(buf, (ServerboundPlayerInputPacket) nmsPacket);
++            }
++            case "serverbound/minecraft:recipe_book_change_settings" -> {
++                type = PacketType.ServerboundRecipeBookChangeSettings;
++                ServerboundRecipeBookChangeSettingsPacket.STREAM_CODEC.encode(buf, (ServerboundRecipeBookChangeSettingsPacket) nmsPacket);
++            }
++            case "serverbound/minecraft:recipe_book_seen_recipe" -> {
++                type = PacketType.ServerboundRecipeBookSeenRecipe;
++                ServerboundRecipeBookSeenRecipePacket.STREAM_CODEC.encode(buf, (ServerboundRecipeBookSeenRecipePacket) nmsPacket);
++            }
++            case "serverbound/minecraft:rename_item" -> {
++                type = PacketType.ServerboundRenameItem;
++                ServerboundRenameItemPacket.STREAM_CODEC.encode(buf, (ServerboundRenameItemPacket) nmsPacket);
++            }
++            case "serverbound/minecraft:seen_advancements" -> {
++                type = PacketType.ServerboundSeenAdvancements;
++                ServerboundSeenAdvancementsPacket.STREAM_CODEC.encode(buf, (ServerboundSeenAdvancementsPacket) nmsPacket);
++            }
++            case "serverbound/minecraft:select_trade" -> {
++                type = PacketType.ServerboundSelectTrade;
++                ServerboundSelectTradePacket.STREAM_CODEC.encode(buf, (ServerboundSelectTradePacket) nmsPacket);
++            }
++            case "serverbound/minecraft:set_beacon" -> {
++                type = PacketType.ServerboundSetBeacon;
++                ServerboundSetBeaconPacket.STREAM_CODEC.encode(buf, (ServerboundSetBeaconPacket) nmsPacket);
++            }
++            case "serverbound/minecraft:set_carried_item" -> {
++                type = PacketType.ServerboundSetCarriedItem;
++                ServerboundSetCarriedItemPacket.STREAM_CODEC.encode(buf, (ServerboundSetCarriedItemPacket) nmsPacket);
++            }
++            case "serverbound/minecraft:set_command_block" -> {
++                type = PacketType.ServerboundSetCommandBlock;
++                ServerboundSetCommandBlockPacket.STREAM_CODEC.encode(buf, (ServerboundSetCommandBlockPacket) nmsPacket);
++            }
++            case "serverbound/minecraft:set_command_minecart" -> {
++                type = PacketType.ServerboundSetCommandMinecart;
++                ServerboundSetCommandMinecartPacket.STREAM_CODEC.encode(buf, (ServerboundSetCommandMinecartPacket) nmsPacket);
++            }
++            case "serverbound/minecraft:set_creative_mode_slot" -> {
++                type = PacketType.ServerboundSetCreativeModeSlot;
++                ServerboundSetCreativeModeSlotPacket.STREAM_CODEC.encode(buf, (ServerboundSetCreativeModeSlotPacket) nmsPacket);
++            }
++            case "serverbound/minecraft:set_jigsaw_block" -> {
++                type = PacketType.ServerboundSetJigsawBlock;
++                ServerboundSetJigsawBlockPacket.STREAM_CODEC.encode(buf, (ServerboundSetJigsawBlockPacket) nmsPacket);
++            }
++            case "serverbound/minecraft:set_structure_block" -> {
++                type = PacketType.ServerboundSetStructureBlock;
++                ServerboundSetStructureBlockPacket.STREAM_CODEC.encode(buf, (ServerboundSetStructureBlockPacket) nmsPacket);
++            }
++            case "serverbound/minecraft:sign_update" -> {
++                type = PacketType.ServerboundSignUpdate;
++                ServerboundSignUpdatePacket.STREAM_CODEC.encode(buf, (ServerboundSignUpdatePacket) nmsPacket);
++            }
++            case "serverbound/minecraft:swing" -> {
++                type = PacketType.ServerboundSwing;
++                ServerboundSwingPacket.STREAM_CODEC.encode(buf, (ServerboundSwingPacket) nmsPacket);
++            }
++            case "serverbound/minecraft:teleport_to_entity" -> {
++                type = PacketType.ServerboundTeleportToEntity;
++                ServerboundTeleportToEntityPacket.STREAM_CODEC.encode(buf, (ServerboundTeleportToEntityPacket) nmsPacket);
++            }
++            case "serverbound/minecraft:use_item_on" -> {
++                type = PacketType.ServerboundUseItemOn;
++                ServerboundUseItemOnPacket.STREAM_CODEC.encode(buf, (ServerboundUseItemOnPacket) nmsPacket);
++            }
++            case "serverbound/minecraft:use_item" -> {
++                type = PacketType.ServerboundUseItem;
++                ServerboundUseItemPacket.STREAM_CODEC.encode(buf, (ServerboundUseItemPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:reset_score" -> {
++                type = PacketType.ClientboundResetScore;
++                ClientboundResetScorePacket.STREAM_CODEC.encode(buf, (ClientboundResetScorePacket) nmsPacket);
++            }
++            case "clientbound/minecraft:ticking_state" -> {
++                type = PacketType.ClientboundTickingState;
++                ClientboundTickingStatePacket.STREAM_CODEC.encode(buf, (ClientboundTickingStatePacket) nmsPacket);
++            }
++            case "clientbound/minecraft:ticking_step" -> {
++                type = PacketType.ClientboundTickingStep;
++                ClientboundTickingStepPacket.STREAM_CODEC.encode(buf, (ClientboundTickingStepPacket) nmsPacket);
++            }
++            /*
++            case "clientbound/minecraft:custom_payload" -> {
++                type = PacketType.ClientboundCustomPayload;
++                ClientboundCustomPayloadPacket.STREAM_CODEC.encode(buf, (ClientboundCustomPayloadPacket) nmsPacket);
++            }
++
++             */
++            case "clientbound/minecraft:disconnect" -> {
++                type = PacketType.ClientboundDisconnect;
++                ClientboundDisconnectPacket.STREAM_CODEC.encode(buf, (ClientboundDisconnectPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:keep_alive" -> {
++                type = PacketType.ClientboundKeepAlive;
++                ClientboundKeepAlivePacket.STREAM_CODEC.encode(buf, (ClientboundKeepAlivePacket) nmsPacket);
++            }
++            case "clientbound/minecraft:resource_pack_pop" -> {
++                type = PacketType.ClientboundResourcePackPop;
++                ClientboundResourcePackPopPacket.STREAM_CODEC.encode(buf, (ClientboundResourcePackPopPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:resource_pack_push" -> {
++                type = PacketType.ClientboundResourcePackPush;
++                ClientboundResourcePackPushPacket.STREAM_CODEC.encode(buf, (ClientboundResourcePackPushPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:store_cookie" -> {
++                type = PacketType.ClientboundStoreCookie;
++                ClientboundStoreCookiePacket.STREAM_CODEC.encode(buf, (ClientboundStoreCookiePacket) nmsPacket);
++            }
++            case "clientbound/minecraft:transfer" -> {
++                type = PacketType.ClientboundTransfer;
++                ClientboundTransferPacket.STREAM_CODEC.encode(buf, (ClientboundTransferPacket) nmsPacket);
++            }
++            case "clientbound/minecraft:update_tags" -> {
++                type = PacketType.ClientboundUpdateTags;
++                ClientboundUpdateTagsPacket.STREAM_CODEC.encode(buf, (ClientboundUpdateTagsPacket) nmsPacket);
++            }
++            case "serverbound/minecraft:client_information" -> {
++                type = PacketType.ServerboundClientInformation;
++                ServerboundClientInformationPacket.STREAM_CODEC.encode(buf, (ServerboundClientInformationPacket) nmsPacket);
++            }
++            case "serverbound/minecraft:custom_payload" -> {
++                type = PacketType.ServerboundCustomPayload;
++                ServerboundCustomPayloadPacket.STREAM_CODEC.encode(buf, (ServerboundCustomPayloadPacket) nmsPacket);
++            }
++            case "serverbound/minecraft:keep_alive" -> {
++                type = PacketType.ServerboundKeepAlive;
++                ServerboundKeepAlivePacket.STREAM_CODEC.encode(buf, (ServerboundKeepAlivePacket) nmsPacket);
++            }
++            case "serverbound/minecraft:pong" -> {
++                type = PacketType.ServerboundPong;
++                ServerboundPongPacket.STREAM_CODEC.encode(buf, (ServerboundPongPacket) nmsPacket);
++            }
++            case "serverbound/minecraft:resource_pack" -> {
++                type = PacketType.ServerboundResourcePack;
++                ServerboundResourcePackPacket.STREAM_CODEC.encode(buf, (ServerboundResourcePackPacket) nmsPacket);
++            }
++            default ->
++                throw new UnsupportedOperationException("This feature is not completely finished yet, packet " + nmsPacket + " is not supported temporary.");
++        }
++        return new Packet(type, Bytebuf.of(buf.array()));
++    }
++}
+diff --git a/src/main/java/org/leavesmc/leaves/bytebuf/WrappedBytebuf.java b/src/main/java/org/leavesmc/leaves/bytebuf/WrappedBytebuf.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..b53641dffbe6302dfb0e7e666b0e62a3cf94a70c
+--- /dev/null
++++ b/src/main/java/org/leavesmc/leaves/bytebuf/WrappedBytebuf.java
+@@ -0,0 +1,63 @@
++package org.leavesmc.leaves.bytebuf;
++
++import io.netty.buffer.ByteBuf;
++import net.minecraft.network.FriendlyByteBuf;
++
++public class WrappedBytebuf implements Bytebuf {
++    private final FriendlyByteBuf buf;
++    public WrappedBytebuf(ByteBuf buf) {
++        this.buf = new FriendlyByteBuf(buf);
++    }
++    public FriendlyByteBuf getFriendlyBytebuf() {
++        return buf;
++    }
++
++    @Override
++    public byte[] toArray() {
++        return buf.array();
++    }
++
++    @Override
++    public Bytebuf writeByte(int i) {
++        buf.writeByte(i);
++        return this;
++    }
++
++    @Override
++    public byte readByte() {
++        return buf.readByte();
++    }
++
++    @Override
++    public Bytebuf writeShort(int i) {
++        buf.writeShort(i);
++        return this;
++    }
++
++    @Override
++    public short readShort() {
++        return buf.readShort();
++    }
++
++    @Override
++    public Bytebuf writeInt(int i) {
++        buf.writeShort(i);
++        return this;
++    }
++
++    @Override
++    public int readInt() {
++        return buf.readInt();
++    }
++
++    @Override
++    public Bytebuf writeLong(long i) {
++        buf.writeLong(i);
++        return this;
++    }
++
++    @Override
++    public long readLong() {
++        return buf.readLong();
++    }
++}

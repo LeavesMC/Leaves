@@ -8,7 +8,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    if: github.event.pull_request.merged || github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     steps:
       - name: Get repository
         uses: actions/checkout@v4
@@ -28,7 +27,7 @@ jobs:
       - name: Setup Git Config
         run: |
           git config --global user.email "ci@leavesmc.org"
-          git config --global user.name "Leaves CI"
+          git config --global user.name "LeavesMC CI"
       - name: Get Build Number
         run: bash scripts/GetBuildNumber.sh
       - name: Apply Patches
@@ -37,7 +36,7 @@ jobs:
         run: ./gradlew createMojmapLeavesclipJar
         env:
           BUILD_NUMBER: ${{ env.BUILD_NUMBER }}
-      - name: Publish API
+      - name: Publish to Maven repo
         continue-on-error: true
         run: ./gradlew publish
         env:
@@ -65,8 +64,20 @@ jobs:
         run: sh scripts/GetReleaseInfo.sh
         env:
           BUILD_NUMBER: ${{ env.BUILD_NUMBER }}
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.jar }}
+          path: ${{ env.jar }}
+      - name: Delete Draft Releases
+        if: "!contains(github.event.commits[0].message, '[release-skip]')"
+        continue-on-error: true
+        uses: hugo19941994/delete-draft-releases@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Create Release
         if: "!contains(github.event.commits[0].message, '[release-skip]')"
+        continue-on-error: true
         uses: ncipollo/release-action@v1
         with:
           artifacts: ${{ env.jar }}
@@ -76,24 +87,24 @@ jobs:
           prerelease: ${{ env.pre }}
           token: ${{ secrets.GITHUB_TOKEN }}
           makeLatest: ${{ env.make_latest }}
-      - name: Delete Draft Releases
-        uses: hugo19941994/delete-draft-releases@v1.0.1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Github Releases To Discord
+        if: "!contains(github.event.commits[0].message, '[release-skip]')"
         continue-on-error: true
         uses: tsickert/discord-webhook@v6.0.0
         with:
           webhook-url: ${{ secrets.DISCORD_WEBHOOK }}
           raw-data: ${{ env.discordmes }}
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.jar }}
-          path: ${{ env.jar }}
-      - name: Push to Api
-        continue-on-error: true
+      - name: Upload to cloud
         if: "!contains(github.event.commits[0].message, '[release-skip]')"
+        continue-on-error: true
+        uses: wei/rclone@v1
+        env:
+          RCLONE_CONF: ${{ secrets.RCLONE_CONF }}
+        with:
+          args: copy ${{ env.jar }} FTP:${{ env.tag }}
+      - name: Push to API
+        if: "!contains(github.event.commits[0].message, '[release-skip]')"
+        continue-on-error: true
         env:
           secret: ${{ secrets.API_PUSH_TOKEN }}
           secret_v2: ${{ secrets.API_V2_PUSH_TOKEN }}

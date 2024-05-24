@@ -4,21 +4,38 @@ Date: Wed, 22 May 2024 10:12:22 +0800
 Subject: [PATCH] Bytebuf API
 
 
+diff --git a/src/main/java/net/minecraft/network/chat/Component.java b/src/main/java/net/minecraft/network/chat/Component.java
+index 6dcade427f19771b08e04cfa036dedcfac30b5cd..3306d9f5aefe5863cff79374c75cc309c1699c3f 100644
+--- a/src/main/java/net/minecraft/network/chat/Component.java
++++ b/src/main/java/net/minecraft/network/chat/Component.java
+@@ -291,7 +291,7 @@ public interface Component extends Message, FormattedText, Iterable<Component> {
+             return (MutableComponent) ComponentSerialization.CODEC.parse(registries.createSerializationContext(JsonOps.INSTANCE), json).getOrThrow(JsonParseException::new);
+         }
+ 
+-        static JsonElement serialize(Component text, HolderLookup.Provider registries) {
++        public static JsonElement serialize(Component text, HolderLookup.Provider registries) { // Leaves - package -> public
+             return (JsonElement) ComponentSerialization.CODEC.encodeStart(registries.createSerializationContext(JsonOps.INSTANCE), text).getOrThrow(JsonParseException::new);
+         }
+ 
 diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
-index 975062e67278614220eab0c301019a235c7953b7..c7623096107a2fd7efd54146b952669fc627a149 100644
+index 975062e67278614220eab0c301019a235c7953b7..810d92c033b556e8ae3a5e133a4e471e561eef2c 100644
 --- a/src/main/java/net/minecraft/server/players/PlayerList.java
 +++ b/src/main/java/net/minecraft/server/players/PlayerList.java
-@@ -469,7 +469,7 @@ public abstract class PlayerList {
-         if (!player.connection.isAcceptingMessages()) {
+@@ -470,6 +470,12 @@ public abstract class PlayerList {
              return;
          }
--
-+        getServer().server.getBytebufHandler().injectPlayer(player);
+ 
++        // Leaves start - Bytebuf API
++        if (!(player instanceof ServerBot)) {
++            this.cserver.getBytebufHandler().injectPlayer(player);
++        }
++        // Leaves end - Bytebuf API
++
          org.leavesmc.leaves.protocol.core.LeavesProtocolManager.handlePlayerJoin(player); // Leaves - protocol
  
          // Leaves start - bot support
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 405a04f2711e26e22d7dd091745b5b5a01d724d9..dea7f028f0bd81e0811f37ce226da50dd4ed158b 100644
+index 405a04f2711e26e22d7dd091745b5b5a01d724d9..68a0a3a792c998a9cc67ec4269e8821817394cfa 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 @@ -307,6 +307,7 @@ public final class CraftServer implements Server {
@@ -29,36 +46,40 @@ index 405a04f2711e26e22d7dd091745b5b5a01d724d9..dea7f028f0bd81e0811f37ce226da50d
  
      // Paper start - Folia region threading API
      private final io.papermc.paper.threadedregions.scheduler.FallbackRegionScheduler regionizedScheduler = new io.papermc.paper.threadedregions.scheduler.FallbackRegionScheduler();
-@@ -3291,4 +3292,13 @@ public final class CraftServer implements Server {
+@@ -3291,4 +3292,15 @@ public final class CraftServer implements Server {
          return photographerManager;
      }
      // Leaves end - replay mod api
++
 +    // Leaves start - Bytebuf API
 +    @Override
 +    public org.leavesmc.leaves.bytebuf.BytebufManager getBytebufManager() {
 +        return internalBytebufHandler.getManager();
 +    }
++
 +    public org.leavesmc.leaves.bytebuf.internal.InternalBytebufHandler getBytebufHandler() {
 +        return internalBytebufHandler;
 +    }
 +    // Leaves end - Bytebuf API
  }
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
-index 25a5ce110c0515f5a0ee5f287a7f3dd029a8f29f..1eb60f1d9bec4b11bb1d0242266d6e084e53b372 100644
+index 25a5ce110c0515f5a0ee5f287a7f3dd029a8f29f..fb65a871d7cff135f0c8bc262b0666a3556fbfb0 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
-@@ -3519,4 +3519,14 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+@@ -3519,4 +3519,16 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
      public void setSendViewDistance(final int viewDistance) {
          this.getHandle().setSendViewDistance(viewDistance);
      }
++
 +    // Leaves start - Bytebuf API
 +    @Override
 +    public void sendPacket(org.leavesmc.leaves.bytebuf.packet.Packet packet) {
-+        ((CraftServer) getServer()).getBytebufHandler().applyPacketToPlayer(this, packet);
++        this.server.getBytebufHandler().applyPacketToPlayer(this, packet);
 +    }
++
 +    @Override
 +    public void sendPacket(org.leavesmc.leaves.bytebuf.Bytebuf bytebuf, org.leavesmc.leaves.bytebuf.packet.PacketType type) {
-+        ((CraftServer) getServer()).getBytebufHandler().applyPacketToPlayer(this, new org.leavesmc.leaves.bytebuf.packet.Packet(type, bytebuf));
++        this.server.getBytebufHandler().applyPacketToPlayer(this, new org.leavesmc.leaves.bytebuf.packet.Packet(type, bytebuf));
 +    }
 +    // Leaves end - Bytebuf API
  }
@@ -105,30 +126,37 @@ index 0000000000000000000000000000000000000000..443f7f6e0b8d40eaafb8009b3b7e405c
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bytebuf/WrappedBytebuf.java b/src/main/java/org/leavesmc/leaves/bytebuf/WrappedBytebuf.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..1f4aca3138487ef69e674d27a6bbba033e56c4f1
+index 0000000000000000000000000000000000000000..d9277d14b8df71600196ab434b0d4c7f549eb84b
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bytebuf/WrappedBytebuf.java
-@@ -0,0 +1,163 @@
+@@ -0,0 +1,255 @@
 +package org.leavesmc.leaves.bytebuf;
 +
++import com.google.gson.JsonElement;
 +import io.netty.buffer.ByteBuf;
-+import io.netty.buffer.Unpooled;
 +import net.minecraft.core.RegistryAccess;
 +import net.minecraft.network.FriendlyByteBuf;
 +import net.minecraft.network.RegistryFriendlyByteBuf;
 +import net.minecraft.network.chat.Component;
 +import net.minecraft.network.chat.ComponentSerialization;
++import net.minecraft.server.MinecraftServer;
++import org.bukkit.inventory.ItemStack;
++import org.bukkit.craftbukkit.inventory.CraftItemStack;
++
++import java.util.UUID;
 +
 +public class WrappedBytebuf implements Bytebuf {
 +
 +    private final FriendlyByteBuf buf;
++    private final RegistryFriendlyByteBuf registryBuf;
 +
 +    public WrappedBytebuf(ByteBuf buf) {
 +        this.buf = new FriendlyByteBuf(buf);
++        this.registryBuf = new RegistryFriendlyByteBuf(this.buf, MinecraftServer.getServer().registryAccess());
 +    }
 +
-+    public FriendlyByteBuf getFriendlyBytebuf() {
-+        return buf;
++    public RegistryFriendlyByteBuf getRegistryBuf() {
++        return registryBuf;
 +    }
 +
 +    @Override
@@ -199,6 +227,28 @@ index 0000000000000000000000000000000000000000..1f4aca3138487ef69e674d27a6bbba03
 +    }
 +
 +    @Override
++    public Bytebuf writeFloat(float f) {
++        buf.writeFloat(f);
++        return this;
++    }
++
++    @Override
++    public float readFloat() {
++        return buf.readFloat();
++    }
++
++    @Override
++    public Bytebuf writeDouble(double d) {
++        buf.writeDouble(d);
++        return this;
++    }
++
++    @Override
++    public double readDouble() {
++        return buf.readDouble();
++    }
++
++    @Override
 +    public Bytebuf writeShort(int i) {
 +        buf.writeShort(i);
 +        return this;
@@ -232,6 +282,50 @@ index 0000000000000000000000000000000000000000..1f4aca3138487ef69e674d27a6bbba03
 +    }
 +
 +    @Override
++    public Bytebuf writeVarInt(int i) {
++        this.buf.writeVarInt(i);
++        return this;
++    }
++
++    @Override
++    public int readVarInt() {
++        return this.buf.readVarInt();
++    }
++
++    @Override
++    public Bytebuf writeVarLong(long i) {
++        this.buf.writeVarLong(i);
++        return this;
++    }
++
++    @Override
++    public long readVarLong() {
++        return this.buf.readVarLong();
++    }
++
++    @Override
++    public Bytebuf writeUUID(UUID uuid) {
++        this.buf.writeUUID(uuid);
++        return this;
++    }
++
++    @Override
++    public UUID readUUID() {
++        return this.buf.readUUID();
++    }
++
++    @Override
++    public Bytebuf writeEnum(Enum<?> instance) {
++        this.buf.writeEnum(instance);
++        return this;
++    }
++
++    @Override
++    public <T extends Enum<T>> T readEnum(Class<T> enumClass) {
++        return this.buf.readEnum(enumClass);
++    }
++
++    @Override
 +    public Bytebuf writeUTFString(String utf) {
 +        buf.writeUtf(utf);
 +        return this;
@@ -244,9 +338,7 @@ index 0000000000000000000000000000000000000000..1f4aca3138487ef69e674d27a6bbba03
 +
 +    @Override
 +    public Bytebuf writeComponentPlain(String str) {
-+        RegistryFriendlyByteBuf regBuf = new RegistryFriendlyByteBuf(Unpooled.buffer(), RegistryAccess.EMPTY);
-+        ComponentSerialization.STREAM_CODEC.encode(regBuf, Component.literal(str));
-+        buf.writeBytes(regBuf.array());
++        ComponentSerialization.STREAM_CODEC.encode(new RegistryFriendlyByteBuf(this.buf, RegistryAccess.EMPTY), Component.literal(str));
 +        return this;
 +    }
 +
@@ -256,30 +348,53 @@ index 0000000000000000000000000000000000000000..1f4aca3138487ef69e674d27a6bbba03
 +    }
 +
 +    @Override
-+    public Bytebuf writeComponentJson(String json) {
++    public Bytebuf writeComponentJson(JsonElement json) {
 +        Component component = Component.Serializer.fromJson(json, RegistryAccess.EMPTY);
 +        if (component == null) {
-+            throw new IllegalArgumentException("The String " + json + " can not be serialize to Minecraft chat component");
++            throw new IllegalArgumentException("Null can not be serialize to Minecraft chat component");
 +        }
-+        RegistryFriendlyByteBuf regBuf = new RegistryFriendlyByteBuf(Unpooled.buffer(), RegistryAccess.EMPTY);
-+        ComponentSerialization.STREAM_CODEC.encode(regBuf, component);
-+        buf.writeBytes(regBuf.array());
++        ComponentSerialization.STREAM_CODEC.encode(new RegistryFriendlyByteBuf(buf, RegistryAccess.EMPTY), component);
 +        return this;
 +    }
 +
 +    @Override
-+    public String readComponentJson() {
-+        return Component.Serializer.toJson(ComponentSerialization.STREAM_CODEC.decode(new RegistryFriendlyByteBuf(buf, RegistryAccess.EMPTY)), RegistryAccess.EMPTY);
++    public JsonElement readComponentJson() {
++        return Component.Serializer.serialize(ComponentSerialization.STREAM_CODEC.decode(new RegistryFriendlyByteBuf(buf, RegistryAccess.EMPTY)), RegistryAccess.EMPTY);
++    }
++
++    @Override
++    public Bytebuf writeItemStack(ItemStack itemStack) {
++        net.minecraft.world.item.ItemStack nmsItem = CraftItemStack.unwrap(itemStack);
++        net.minecraft.world.item.ItemStack.OPTIONAL_STREAM_CODEC.encode(this.registryBuf, nmsItem);
++        return this;
++    }
++
++    @Override
++    public ItemStack readItemStack() {
++        net.minecraft.world.item.ItemStack nmsItem = net.minecraft.world.item.ItemStack.OPTIONAL_STREAM_CODEC.decode(this.registryBuf);
++        return nmsItem.asBukkitMirror();
++    }
++
++    @Override
++    public Bytebuf copy() {
++        return new WrappedBytebuf(this.buf.copy());
++    }
++
++    @Override
++    public boolean release() {
++        return this.buf.release();
 +    }
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bytebuf/internal/InternalBytebufHandler.java b/src/main/java/org/leavesmc/leaves/bytebuf/internal/InternalBytebufHandler.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..35d66678dfe391dcde4061775f5735d68a6b8e0f
+index 0000000000000000000000000000000000000000..0e8fd87ca5159dd0367f8cc59dd4a3ef13eb37b8
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bytebuf/internal/InternalBytebufHandler.java
-@@ -0,0 +1,193 @@
+@@ -0,0 +1,200 @@
 +package org.leavesmc.leaves.bytebuf.internal;
 +
++import com.google.common.cache.Cache;
++import com.google.common.cache.CacheBuilder;
 +import com.google.common.collect.ImmutableMap;
 +import io.netty.buffer.Unpooled;
 +import io.netty.channel.ChannelDuplexHandler;
@@ -308,12 +423,13 @@ index 0000000000000000000000000000000000000000..35d66678dfe391dcde4061775f5735d6
 +import java.lang.reflect.Field;
 +import java.util.HashMap;
 +import java.util.Map;
++import java.util.concurrent.ExecutionException;
 +
 +import static org.leavesmc.leaves.bytebuf.packet.PacketType.*;
 +
 +public class InternalBytebufHandler {
 +
-+    class PacketHandler extends ChannelDuplexHandler {
++    private class PacketHandler extends ChannelDuplexHandler {
 +
 +        private final static String handlerName = "leaves-bytebuf-handler";
 +        private final Player player;
@@ -359,11 +475,12 @@ index 0000000000000000000000000000000000000000..35d66678dfe391dcde4061775f5735d6
 +    public final Map<PacketListener, Plugin> listenerMap = new HashMap<>();
 +    private final BytebufManager manager = new SimpleBytebufManager(this);
 +    private final ImmutableMap<PacketType, StreamCodec> type2CodecMap;
++    private final Cache<net.minecraft.network.protocol.PacketType<?>, PacketType> resultCache = CacheBuilder.newBuilder().build();
 +
 +    public InternalBytebufHandler() {
 +        ImmutableMap.Builder<PacketType, StreamCodec> builder = ImmutableMap.builder();
 +        for (PacketType packet : PacketType.values()) {
-+            Class<?> packetClass = null;
++            Class<?> packetClass;
 +            try {
 +                packetClass = Class.forName("net.minecraft.network.protocol.game." + packet.name() + "Packet");
 +            } catch (ClassNotFoundException e) {
@@ -379,6 +496,7 @@ index 0000000000000000000000000000000000000000..35d66678dfe391dcde4061775f5735d6
 +            } catch (Exception ignored) {
 +            }
 +        }
++
 +        builder.put(ClientboundMoveEntityPos, ClientboundMoveEntityPacket.Pos.STREAM_CODEC);
 +        builder.put(ClientboundMoveEntityPosRot, ClientboundMoveEntityPacket.PosRot.STREAM_CODEC);
 +        builder.put(ClientboundMoveEntityRot, ClientboundMoveEntityPacket.Rot.STREAM_CODEC);
@@ -386,6 +504,7 @@ index 0000000000000000000000000000000000000000..35d66678dfe391dcde4061775f5735d6
 +        builder.put(ServerboundMovePlayerPosRot, ServerboundMovePlayerPacket.PosRot.STREAM_CODEC);
 +        builder.put(ServerboundMovePlayerRot, ServerboundMovePlayerPacket.Rot.STREAM_CODEC);
 +        builder.put(ServerboundMovePlayerStatusOnly, ServerboundMovePlayerPacket.StatusOnly.STREAM_CODEC);
++
 +        type2CodecMap = builder.build();
 +    }
 +
@@ -427,35 +546,36 @@ index 0000000000000000000000000000000000000000..35d66678dfe391dcde4061775f5735d6
 +    }
 +
 +    public net.minecraft.network.protocol.Packet<?> createNMSPacket(Packet packet) {
-+        RegistryFriendlyByteBuf buf = new RegistryFriendlyByteBuf(((WrappedBytebuf) packet.bytebuf()).getFriendlyBytebuf(), MinecraftServer.getServer().registryAccess());
 +        StreamCodec<FriendlyByteBuf, net.minecraft.network.protocol.Packet<?>> codec = type2CodecMap.get(packet.type());
 +        if (codec == null) {
 +            throw new UnsupportedOperationException("This feature is not completely finished yet, packet type " + packet.type() + " is not supported temporary.");
 +        }
-+        return codec.decode(buf);
++        return codec.decode(((WrappedBytebuf) packet.bytebuf()).getRegistryBuf());
 +    }
 +
 +    private PacketType toEnumType(net.minecraft.network.protocol.PacketType<?> type) {
-+        StringBuilder builder = new StringBuilder();
-+        String bound = type.toString().split("/")[0];
-+        String name = type.toString().split(":")[1];
-+        builder.append(bound.substring(0, 1).toUpperCase()).append(bound.substring(1));
-+        boolean flag = true;
-+        for (int i = 0; i < name.length(); i++) {
-+            if (flag) {
-+                builder.append(name.substring(i, i + 1).toUpperCase());
-+                flag = false;
-+                continue;
-+            }
-+            if (name.charAt(i) == '_') {
-+                flag = true;
-+            } else {
-+                builder.append(name.charAt(i));
-+            }
-+        }
 +        try {
-+            return PacketType.valueOf(builder.toString());
-+        } catch (IllegalArgumentException e) {
++            return this.resultCache.get(type, () -> {
++                StringBuilder builder = new StringBuilder();
++                String bound = type.toString().split("/")[0];
++                String name = type.toString().split(":")[1];
++                builder.append(bound.substring(0, 1).toUpperCase()).append(bound.substring(1));
++                boolean flag = true;
++                for (int i = 0; i < name.length(); i++) {
++                    if (flag) {
++                        builder.append(name.substring(i, i + 1).toUpperCase());
++                        flag = false;
++                        continue;
++                    }
++                    if (name.charAt(i) == '_') {
++                        flag = true;
++                    } else {
++                        builder.append(name.charAt(i));
++                    }
++                }
++                return PacketType.valueOf(builder.toString());
++            });
++        } catch (ExecutionException e) {
 +            throw new RuntimeException(e);
 +        }
 +    }

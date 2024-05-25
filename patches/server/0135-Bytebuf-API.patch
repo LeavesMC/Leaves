@@ -63,7 +63,7 @@ index a1990679c3c3ce173bfe446cb810a80ab1ebb27c..f2e32d17d7bd7279061e827bc175410b
 +    // Leaves end - Bytebuf API
  }
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
-index 264d431ea5d6cbed560fe0f025b1d402877d7d66..b4029f2eca197cf603eb5e78e7c8262c8422cf9e 100644
+index 264d431ea5d6cbed560fe0f025b1d402877d7d66..909f55976c035e2aa8903e988924bba53cd07e5c 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
 @@ -3519,4 +3519,16 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
@@ -74,12 +74,12 @@ index 264d431ea5d6cbed560fe0f025b1d402877d7d66..b4029f2eca197cf603eb5e78e7c8262c
 +    // Leaves start - Bytebuf API
 +    @Override
 +    public void sendPacket(org.leavesmc.leaves.bytebuf.packet.Packet packet) {
-+        this.server.getBytebufHandler().applyPacketToPlayer(this, packet);
++        this.server.getBytebufHandler().applyPacketToPlayer(this.getHandle(), packet);
 +    }
 +
 +    @Override
 +    public void sendPacket(org.leavesmc.leaves.bytebuf.Bytebuf bytebuf, org.leavesmc.leaves.bytebuf.packet.PacketType type) {
-+        this.server.getBytebufHandler().applyPacketToPlayer(this, new org.leavesmc.leaves.bytebuf.packet.Packet(type, bytebuf));
++        this.server.getBytebufHandler().applyPacketToPlayer(this.getHandle(), new org.leavesmc.leaves.bytebuf.packet.Packet(type, bytebuf));
 +    }
 +    // Leaves end - Bytebuf API
  }
@@ -126,10 +126,10 @@ index 0000000000000000000000000000000000000000..443f7f6e0b8d40eaafb8009b3b7e405c
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bytebuf/WrappedBytebuf.java b/src/main/java/org/leavesmc/leaves/bytebuf/WrappedBytebuf.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..d9277d14b8df71600196ab434b0d4c7f549eb84b
+index 0000000000000000000000000000000000000000..707d784cf17926e869481c39b0da908eab501708
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bytebuf/WrappedBytebuf.java
-@@ -0,0 +1,255 @@
+@@ -0,0 +1,260 @@
 +package org.leavesmc.leaves.bytebuf;
 +
 +import com.google.gson.JsonElement;
@@ -151,8 +151,13 @@ index 0000000000000000000000000000000000000000..d9277d14b8df71600196ab434b0d4c7f
 +    private final RegistryFriendlyByteBuf registryBuf;
 +
 +    public WrappedBytebuf(ByteBuf buf) {
-+        this.buf = new FriendlyByteBuf(buf);
-+        this.registryBuf = new RegistryFriendlyByteBuf(this.buf, MinecraftServer.getServer().registryAccess());
++        if (buf instanceof RegistryFriendlyByteBuf) {
++            this.buf = (FriendlyByteBuf) buf;
++            this.registryBuf = (RegistryFriendlyByteBuf) buf;
++        } else {
++            this.buf = new FriendlyByteBuf(buf);
++            this.registryBuf = new RegistryFriendlyByteBuf(this.buf, MinecraftServer.getServer().registryAccess());
++        }
 +    }
 +
 +    public RegistryFriendlyByteBuf getRegistryBuf() {
@@ -387,10 +392,10 @@ index 0000000000000000000000000000000000000000..d9277d14b8df71600196ab434b0d4c7f
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bytebuf/internal/InternalBytebufHandler.java b/src/main/java/org/leavesmc/leaves/bytebuf/internal/InternalBytebufHandler.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..0e8fd87ca5159dd0367f8cc59dd4a3ef13eb37b8
+index 0000000000000000000000000000000000000000..c9c649b997283fc28e84660e49f128ab8aabaa7e
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bytebuf/internal/InternalBytebufHandler.java
-@@ -0,0 +1,200 @@
+@@ -0,0 +1,221 @@
 +package org.leavesmc.leaves.bytebuf.internal;
 +
 +import com.google.common.cache.Cache;
@@ -406,13 +411,14 @@ index 0000000000000000000000000000000000000000..0e8fd87ca5159dd0367f8cc59dd4a3ef
 +import net.minecraft.network.codec.StreamCodec;
 +import net.minecraft.network.protocol.BundleDelimiterPacket;
 +import net.minecraft.network.protocol.BundlePacket;
++import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket;
 +import net.minecraft.network.protocol.game.*;
 +import net.minecraft.server.MinecraftServer;
 +import net.minecraft.server.level.ServerPlayer;
-+import org.bukkit.craftbukkit.entity.CraftPlayer;
 +import org.bukkit.entity.Player;
 +import org.bukkit.plugin.Plugin;
-+import org.leavesmc.leaves.bytebuf.Bytebuf;
++import org.jetbrains.annotations.Nullable;
++import org.leavesmc.leaves.LeavesConfig;
 +import org.leavesmc.leaves.bytebuf.BytebufManager;
 +import org.leavesmc.leaves.bytebuf.SimpleBytebufManager;
 +import org.leavesmc.leaves.bytebuf.WrappedBytebuf;
@@ -444,15 +450,21 @@ index 0000000000000000000000000000000000000000..0e8fd87ca5159dd0367f8cc59dd4a3ef
 +                super.channelRead(ctx, msg);
 +                return;
 +            }
-+            try {
-+                msg = callPacketInEvent(player, createBytebufPacket((net.minecraft.network.protocol.Packet<?>) msg));
-+            } catch (Exception e) {
-+                MinecraftServer.LOGGER.error("Error on PacketInEvent.", e);
++
++            if (msg instanceof net.minecraft.network.protocol.Packet<?> nmsPacket) {
++                PacketType type = toEnumType(nmsPacket.type());
++                if (type != null) {
++                    try {
++                        msg = callPacketInEvent(player, createBytebufPacket(type, nmsPacket));
++                    } catch (Exception e) {
++                        MinecraftServer.LOGGER.error("Error on PacketInEvent.", e);
++                    }
++                }
 +            }
++
 +            if (msg != null) {
 +                super.channelRead(ctx, msg);
 +            }
-+
 +        }
 +
 +        @Override
@@ -461,11 +473,18 @@ index 0000000000000000000000000000000000000000..0e8fd87ca5159dd0367f8cc59dd4a3ef
 +                super.write(ctx, msg, promise);
 +                return;
 +            }
-+            try {
-+                msg = callPacketOutEvent(player, createBytebufPacket((net.minecraft.network.protocol.Packet<?>) msg));
-+            } catch (Exception e) {
-+                MinecraftServer.LOGGER.error("Error on PacketOutEvent.", e);
++
++            if (msg instanceof net.minecraft.network.protocol.Packet<?> nmsPacket) {
++                PacketType type = toEnumType(nmsPacket.type());
++                if (type != null) {
++                    try {
++                        msg = callPacketOutEvent(player, createBytebufPacket(type, nmsPacket));
++                    } catch (Exception e) {
++                        MinecraftServer.LOGGER.error("Error on PacketInEvent.", e);
++                    }
++                }
 +            }
++
 +            if (msg != null) {
 +                super.write(ctx, msg, promise);
 +            }
@@ -486,7 +505,7 @@ index 0000000000000000000000000000000000000000..0e8fd87ca5159dd0367f8cc59dd4a3ef
 +            } catch (ClassNotFoundException e) {
 +                try {
 +                    packetClass = Class.forName("net.minecraft.network.protocol.common." + packet.name() + "Packet");
-+                } catch (ClassNotFoundException e2) {
++                } catch (ClassNotFoundException ignored) {
 +                    continue;
 +                }
 +            }
@@ -504,12 +523,15 @@ index 0000000000000000000000000000000000000000..0e8fd87ca5159dd0367f8cc59dd4a3ef
 +        builder.put(ServerboundMovePlayerPosRot, ServerboundMovePlayerPacket.PosRot.STREAM_CODEC);
 +        builder.put(ServerboundMovePlayerRot, ServerboundMovePlayerPacket.Rot.STREAM_CODEC);
 +        builder.put(ServerboundMovePlayerStatusOnly, ServerboundMovePlayerPacket.StatusOnly.STREAM_CODEC);
++        builder.put(ClientboundCustomPayload, ClientboundCustomPayloadPacket.GAMEPLAY_STREAM_CODEC);
 +
 +        type2CodecMap = builder.build();
 +    }
 +
 +    public void injectPlayer(ServerPlayer player) {
-+        player.connection.connection.channel.pipeline().addBefore("packet_handler", PacketHandler.handlerName, new PacketHandler(player.getBukkitEntity()));
++        if (LeavesConfig.leavesPacketEvent) {
++            player.connection.connection.channel.pipeline().addBefore("packet_handler", PacketHandler.handlerName, new PacketHandler(player.getBukkitEntity()));
++        }
 +    }
 +
 +    public BytebufManager getManager() {
@@ -540,8 +562,8 @@ index 0000000000000000000000000000000000000000..0e8fd87ca5159dd0367f8cc59dd4a3ef
 +        return createNMSPacket(packet);
 +    }
 +
-+    public void applyPacketToPlayer(Player player, Packet packet) {
-+        Connection sp = ((CraftPlayer) player).getHandle().connection.connection;
++    public void applyPacketToPlayer(ServerPlayer player, Packet packet) {
++        Connection sp = player.connection.connection;
 +        sp.send(createNMSPacket(packet));
 +    }
 +
@@ -553,6 +575,7 @@ index 0000000000000000000000000000000000000000..0e8fd87ca5159dd0367f8cc59dd4a3ef
 +        return codec.decode(((WrappedBytebuf) packet.bytebuf()).getRegistryBuf());
 +    }
 +
++    @Nullable
 +    private PacketType toEnumType(net.minecraft.network.protocol.PacketType<?> type) {
 +        try {
 +            return this.resultCache.get(type, () -> {
@@ -573,21 +596,24 @@ index 0000000000000000000000000000000000000000..0e8fd87ca5159dd0367f8cc59dd4a3ef
 +                        builder.append(name.charAt(i));
 +                    }
 +                }
-+                return PacketType.valueOf(builder.toString());
++                try {
++                    return PacketType.valueOf(builder.toString());
++                } catch (IllegalArgumentException ignored) {
++                    return null;
++                }
 +            });
-+        } catch (ExecutionException e) {
-+            throw new RuntimeException(e);
++        } catch (ExecutionException ignore) {
++            return null;
 +        }
 +    }
 +
-+    public Packet createBytebufPacket(net.minecraft.network.protocol.Packet<?> nmsPacket) {
-+        PacketType type = toEnumType(nmsPacket.type());
++    public Packet createBytebufPacket(PacketType type, net.minecraft.network.protocol.Packet<?> nmsPacket) {
 +        RegistryFriendlyByteBuf buf = new RegistryFriendlyByteBuf(Unpooled.buffer(8192), MinecraftServer.getServer().registryAccess());
 +        StreamCodec<FriendlyByteBuf, net.minecraft.network.protocol.Packet<?>> codec = type2CodecMap.get(type);
 +        if (codec == null) {
 +            throw new UnsupportedOperationException("This feature is not completely finished yet, packet type " + type + " is not supported temporary.");
 +        }
 +        codec.encode(buf, nmsPacket);
-+        return new Packet(type, Bytebuf.of(buf.array()));
++        return new Packet(type, new WrappedBytebuf(buf));
 +    }
 +}

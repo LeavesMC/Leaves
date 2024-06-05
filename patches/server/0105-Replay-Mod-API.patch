@@ -674,23 +674,23 @@ index 0000000000000000000000000000000000000000..0e8cd7e878ec1294d6cb830a004eeefd
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/replay/Recorder.java b/src/main/java/org/leavesmc/leaves/replay/Recorder.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..94bda07ec3eafb902023801a4f10e294a12d4cf1
+index 0000000000000000000000000000000000000000..49cf69a916eed2ec4753f286e3a53cc8d0429a41
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/replay/Recorder.java
-@@ -0,0 +1,289 @@
+@@ -0,0 +1,288 @@
 +package org.leavesmc.leaves.replay;
 +
 +import com.mojang.serialization.DynamicOps;
 +import io.netty.channel.local.LocalChannel;
 +import net.minecraft.SharedConstants;
 +import net.minecraft.core.LayeredRegistryAccess;
-+import net.minecraft.core.RegistryAccess;
 +import net.minecraft.core.RegistrySynchronization;
 +import net.minecraft.nbt.NbtOps;
 +import net.minecraft.nbt.Tag;
 +import net.minecraft.network.Connection;
 +import net.minecraft.network.ConnectionProtocol;
 +import net.minecraft.network.PacketSendListener;
++import net.minecraft.network.protocol.BundlePacket;
 +import net.minecraft.network.protocol.Packet;
 +import net.minecraft.network.protocol.PacketFlow;
 +import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket;
@@ -703,7 +703,6 @@ index 0000000000000000000000000000000000000000..94bda07ec3eafb902023801a4f10e294
 +import net.minecraft.network.protocol.configuration.ClientboundSelectKnownPacks;
 +import net.minecraft.network.protocol.configuration.ClientboundUpdateEnabledFeaturesPacket;
 +import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
-+import net.minecraft.network.protocol.game.ClientboundBundlePacket;
 +import net.minecraft.network.protocol.game.ClientboundGameEventPacket;
 +import net.minecraft.network.protocol.game.ClientboundPlayerChatPacket;
 +import net.minecraft.network.protocol.game.ClientboundSetTimePacket;
@@ -711,7 +710,6 @@ index 0000000000000000000000000000000000000000..94bda07ec3eafb902023801a4f10e294
 +import net.minecraft.network.protocol.login.ClientboundGameProfilePacket;
 +import net.minecraft.server.MinecraftServer;
 +import net.minecraft.server.RegistryLayer;
-+import net.minecraft.server.network.config.ServerResourcePackConfigurationTask;
 +import net.minecraft.server.packs.repository.KnownPack;
 +import net.minecraft.tags.TagNetworkSerialization;
 +import net.minecraft.world.entity.EntityType;
@@ -792,7 +790,7 @@ index 0000000000000000000000000000000000000000..94bda07ec3eafb902023801a4f10e294
 +        List<KnownPack> knownPackslist = server.getResourceManager().listPacks().flatMap((iresourcepack) -> iresourcepack.location().knownPackInfo().stream()).toList();
 +        LayeredRegistryAccess<RegistryLayer> layeredregistryaccess = server.registries();
 +
-+        savePacket(new ClientboundSelectKnownPacks(knownPackslist));
++        savePacket(new ClientboundSelectKnownPacks(knownPackslist), ConnectionProtocol.CONFIGURATION);
 +        DynamicOps<Tag> dynamicOps = layeredregistryaccess.compositeAccess().createSerializationContext(NbtOps.INSTANCE);
 +        RegistrySynchronization.packRegistries(
 +            dynamicOps,
@@ -856,10 +854,11 @@ index 0000000000000000000000000000000000000000..94bda07ec3eafb902023801a4f10e294
 +    @Override
 +    public void send(@NotNull Packet<?> packet, @Nullable PacketSendListener callbacks, boolean flush) {
 +        if (!stopped) {
-+            if (packet instanceof ClientboundBundlePacket packet1) {
++            if (packet instanceof BundlePacket<?> packet1) {
 +                packet1.subPackets().forEach(subPacket -> {
 +                    send(subPacket, null);
 +                });
++                return;
 +            }
 +
 +            if (packet instanceof ClientboundAddEntityPacket packet1) {

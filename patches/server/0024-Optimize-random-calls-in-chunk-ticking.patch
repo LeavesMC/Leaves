@@ -1,0 +1,86 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Sun, 14 Aug 2022 11:01:17 +0800
+Subject: [PATCH] Optimize random calls in chunk ticking
+
+This patch is Powered by Pufferfish(https://github.com/pufferfish-gg/Pufferfish)
+
+diff --git a/src/main/java/net/minecraft/server/level/ServerChunkCache.java b/src/main/java/net/minecraft/server/level/ServerChunkCache.java
+index 24cac0a5c6c724409559b5c98067e0baf8b4602d..dbf06dde3d54ae5b1430c01ee054eb81674c8b84 100644
+--- a/src/main/java/net/minecraft/server/level/ServerChunkCache.java
++++ b/src/main/java/net/minecraft/server/level/ServerChunkCache.java
+@@ -412,6 +412,11 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+             ProfilerFiller gameprofilerfiller = this.level.getProfiler();
+ 
+             gameprofilerfiller.push("pollingChunks");
++            // Leaves start - reset ice & snow tick random
++            if (org.leavesmc.leaves.LeavesConfig.optimizeChunkTicking) {
++                this.level.resetIceAndSnowTick();
++            }
++            // Leaves end - reset ice & snow tick random
+             gameprofilerfiller.push("filteringLoadedChunks");
+             List<ServerChunkCache.ChunkAndHolder> list = Lists.newArrayListWithCapacity(this.chunkMap.size());
+             Iterator iterator = this.chunkMap.getChunks().iterator();
+diff --git a/src/main/java/net/minecraft/server/level/ServerLevel.java b/src/main/java/net/minecraft/server/level/ServerLevel.java
+index 322b254d3cfaa363164d56fbd7d56665bd72c7b1..6dc26888bfb4f4428ca98c7d4a5a525ec463df9e 100644
+--- a/src/main/java/net/minecraft/server/level/ServerLevel.java
++++ b/src/main/java/net/minecraft/server/level/ServerLevel.java
+@@ -784,6 +784,13 @@ public class ServerLevel extends Level implements WorldGenLevel, ca.spottedleaf.
+         });
+     }
+ 
++    // Leaves start - reset ice & snow tick random
++    private int currentIceAndSnowTick = 0;
++    protected void resetIceAndSnowTick() {
++        this.currentIceAndSnowTick = this.randomTickRandom.nextInt(16);
++    }
++    // Leaves end - reset ice & snow tick random
++
+     public void tickChunk(LevelChunk chunk, int randomTickSpeed) {
+         ChunkPos chunkcoordintpair = chunk.getPos();
+         boolean flag = this.isRaining();
+@@ -792,7 +799,7 @@ public class ServerLevel extends Level implements WorldGenLevel, ca.spottedleaf.
+         ProfilerFiller gameprofilerfiller = this.getProfiler();
+ 
+         gameprofilerfiller.push("thunder");
+-        if (!this.paperConfig().environment.disableThunder && flag && this.isThundering() && this.spigotConfig.thunderChance > 0 && this.random.nextInt(this.spigotConfig.thunderChance) == 0) { // Spigot // Paper - Option to disable thunder
++        if (!this.paperConfig().environment.disableThunder && flag && this.isThundering() && this.spigotConfig.thunderChance > 0 && (org.leavesmc.leaves.LeavesConfig.optimizeChunkTicking ? chunk.shouldDoLightning(this.random) : this.random.nextInt(this.spigotConfig.thunderChance) == 0)) { // Spigot // Paper - Option to disable thunder // Leaves - replace random with shouldDoLightning
+             BlockPos blockposition = this.findLightningTargetAround(this.getBlockRandomPos(j, 0, k, 15));
+ 
+             if (this.isRainingAt(blockposition)) {
+diff --git a/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java b/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java
+index bfed0a72280631e6f20e6b5d493515c9b589db97..cacc2c442b738b24eb3093af863bd7c75f86d1ba 100644
+--- a/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java
++++ b/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java
+@@ -86,6 +86,18 @@ public class LevelChunk extends ChunkAccess implements ca.spottedleaf.moonrise.p
+     private final LevelChunkTicks<Block> blockTicks;
+     private final LevelChunkTicks<Fluid> fluidTicks;
+ 
++    // Leaves start - instead of using a random every time the chunk is ticked, define when lightning strikes preemptively
++    private int lightningTick;
++    // shouldDoLightning compiles down to 29 bytes, which with the default of 35 byte inlining should guarantee an inline
++    public final boolean shouldDoLightning(net.minecraft.util.RandomSource random) {
++        if (this.lightningTick-- <= 0) {
++            this.lightningTick = random.nextInt(this.level.spigotConfig.thunderChance) << 1;
++            return true;
++        }
++        return false;
++    }
++    // Leaves end - instead of using a random every time the chunk is ticked, define when lightning strikes preemptively
++
+     public LevelChunk(Level world, ChunkPos pos) {
+         this(world, pos, UpgradeData.EMPTY, new LevelChunkTicks<>(), new LevelChunkTicks<>(), 0L, (LevelChunkSection[]) null, (LevelChunk.PostLoadProcessor) null, (BlendingData) null);
+     }
+@@ -109,6 +121,12 @@ public class LevelChunk extends ChunkAccess implements ca.spottedleaf.moonrise.p
+         this.postLoad = entityLoader;
+         this.blockTicks = blockTickScheduler;
+         this.fluidTicks = fluidTickScheduler;
++        
++        // Leaves start - initialize lightning tick
++        if (org.leavesmc.leaves.LeavesConfig.optimizeChunkTicking) {
++            this.lightningTick = this.level.getThreadUnsafeRandom().nextInt(100000) << 1;
++        }
++        // Leaves end - initialize lightning tick
+     }
+ 
+     // CraftBukkit start

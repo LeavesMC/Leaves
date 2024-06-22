@@ -1,0 +1,43 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Sun, 21 Aug 2022 08:29:15 +0800
+Subject: [PATCH] Reduce chunk loading & lookups
+
+This patch is Powered by Pufferfish(https://github.com/pufferfish-gg/Pufferfish)
+
+diff --git a/src/main/java/net/minecraft/world/entity/monster/EnderMan.java b/src/main/java/net/minecraft/world/entity/monster/EnderMan.java
+index 828c51477cd8f35d591367b30bf4feef6a250292..17a71bb3b65cc1030b70c931b1dc998d06713231 100644
+--- a/src/main/java/net/minecraft/world/entity/monster/EnderMan.java
++++ b/src/main/java/net/minecraft/world/entity/monster/EnderMan.java
+@@ -320,11 +320,28 @@ public class EnderMan extends Monster implements NeutralMob {
+     private boolean teleport(double x, double y, double z) {
+         BlockPos.MutableBlockPos blockposition_mutableblockposition = new BlockPos.MutableBlockPos(x, y, z);
+ 
+-        while (blockposition_mutableblockposition.getY() > this.level().getMinBuildHeight() && !this.level().getBlockState(blockposition_mutableblockposition).blocksMotion()) {
+-            blockposition_mutableblockposition.move(Direction.DOWN);
++        // Leaves start - single chunk lookup
++        BlockState iblockdata;
++        if (org.leavesmc.leaves.LeavesConfig.reduceChuckLoadAndLookup) {
++            net.minecraft.world.level.chunk.LevelChunk chunk = this.level().getChunkIfLoaded(blockposition_mutableblockposition);
++            if (chunk == null) {
++                return false;
++            }
++
++            while (blockposition_mutableblockposition.getY() > this.level().getMinBuildHeight() && !chunk.getBlockState(blockposition_mutableblockposition).blocksMotion()) {
++                blockposition_mutableblockposition.move(Direction.DOWN);
++            }
++
++            iblockdata = chunk.getBlockState(blockposition_mutableblockposition);
++        } else {
++            while (blockposition_mutableblockposition.getY() > this.level().getMinBuildHeight() && !this.level().getBlockState(blockposition_mutableblockposition).blocksMotion()) {
++                blockposition_mutableblockposition.move(Direction.DOWN);
++            }
++
++            iblockdata = this.level().getBlockState(blockposition_mutableblockposition);
+         }
++        // Leaves end - single chunk lookup
+ 
+-        BlockState iblockdata = this.level().getBlockState(blockposition_mutableblockposition);
+         boolean flag = iblockdata.blocksMotion();
+         boolean flag1 = iblockdata.getFluidState().is(FluidTags.WATER);
+ 

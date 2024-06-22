@@ -1,10 +1,7 @@
-import io.papermc.paperweight.util.*
-import kotlin.io.path.*
-
 plugins {
     java
     `maven-publish`
-    id("io.papermc.paperweight.patcher") version "1.7.1"
+    id("org.leavesmc.leavesweight.patcher") version "1.0.0-SNAPSHOT"
 }
 
 allprojects {
@@ -54,14 +51,14 @@ subprojects {
 repositories {
     mavenCentral()
     maven("https://repo.leavesmc.org/releases") {
-        content { onlyForConfigurations("paperclip") }
+        content { onlyForConfigurations("leavesclip") }
     }
 }
 
 dependencies {
-    remapper("net.fabricmc:tiny-remapper:0.10.2:fat")
+    remapper("net.fabricmc:tiny-remapper:0.10.3:fat")
     decompiler("org.vineflower:vineflower:1.10.1")
-    paperclip("org.leavesmc:leavesclip:2.0.0")
+    leavesclip("org.leavesmc:leavesclip:2.0.0")
 }
 
 paperweight {
@@ -99,38 +96,5 @@ allprojects {
                 }
             }
         }
-    }
-}
-
-if (providers.gradleProperty("updatingMinecraft").getOrElse("false").toBoolean()) {
-
-    tasks.withType<io.papermc.paperweight.tasks.CollectATsFromPatches>().configureEach {
-        val dir = layout.projectDirectory.dir("patches/unapplied")
-        if (dir.path.isDirectory()) {
-            extraPatchDir = dir
-        }
-    }
-    tasks.withType<io.papermc.paperweight.tasks.RebuildGitPatches>().configureEach {
-        filterPatches = false
-    }
-}
-
-tasks.register("createMojmapLeavesclipJar") {
-    group = "paperweight"
-    dependsOn("createMojmapPaperclipJar")
-    doLast {
-        file("build/libs/Leaves-paperclip-${project.version}-mojmap.jar").renameTo(
-            file("build/libs/Leaves-leavesclip-${project.version}-mojmap.jar")
-        )
-    }
-}
-
-tasks.register("createReobfLeavesclipJar") {
-    group = "paperweight"
-    dependsOn("createReobfPaperclipJar")
-    doLast {
-        file("build/libs/Leaves-paperclip-${project.version}-reobf.jar").renameTo(
-            file("build/libs/Leaves-leavesclip-${project.version}-reobf.jar")
-        )
     }
 }

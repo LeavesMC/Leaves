@@ -5,36 +5,30 @@ Subject: [PATCH] Fast resume
 
 
 diff --git a/src/main/java/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/ChunkHolderManager.java b/src/main/java/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/ChunkHolderManager.java
-index 3d902f382977a194e09986419391c3ca1568885c..5299a56ed170b819f7f54fda91f4847823236f3a 100644
+index 3d902f382977a194e09986419391c3ca1568885c..37201582d1bb3ed109f0efc6830a76173fc066a9 100644
 --- a/src/main/java/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/ChunkHolderManager.java
 +++ b/src/main/java/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/ChunkHolderManager.java
-@@ -581,6 +581,56 @@ public final class ChunkHolderManager {
+@@ -581,6 +581,49 @@ public final class ChunkHolderManager {
          }
      }
  
 +    // Leaves start - add custom ticket
-+    public <T> boolean addTicketAtLevelCustom(final Ticket<T> ticket, final long chunk, final boolean lock) {
-+        final long removeDelay = ticket.removeDelay;
-+        if (ticket.getTicketLevel() > MAX_TICKET_LEVEL) {
-+            return false;
-+        }
++    public <T> void addTicketAtLevelCustom(final Ticket<T> ticket, final long chunk, final boolean lock) {
++        final long removeDelay = ticket.moonrise$getRemoveDelay();
 +
 +        final int chunkX = CoordinateUtils.getChunkX(chunk);
 +        final int chunkZ = CoordinateUtils.getChunkZ(chunk);
-+        final RegionFileIOThread.ChunkCoordinate chunkCoord = new RegionFileIOThread.ChunkCoordinate(chunk);
 +
 +        final ReentrantAreaLock.Node ticketLock = lock ? this.ticketLockArea.lock(chunkX, chunkZ) : null;
 +        try {
-+            final SortedArraySet<Ticket<?>> ticketsAtChunk = this.tickets.computeIfAbsent(chunkCoord, (final RegionFileIOThread.ChunkCoordinate keyInMap) -> {
-+                return SortedArraySet.create(4);
-+            });
++            final SortedArraySet<Ticket<?>> ticketsAtChunk = this.tickets.computeIfAbsent(chunk, (final long keyInMap) -> SortedArraySet.create(4));
 +
 +            final int levelBefore = getTicketLevelAt(ticketsAtChunk);
-+            final Ticket<T> current = (Ticket<T>)ticketsAtChunk.replace(ticket);
++            final Ticket<T> current = (Ticket<T>)((ChunkSystemSortedArraySet<Ticket<?>>)ticketsAtChunk).moonrise$replace(ticket);
 +            final int levelAfter = getTicketLevelAt(ticketsAtChunk);
 +
 +            if (current != ticket) {
-+                final long oldRemoveDelay = current.removeDelay;
++                final long oldRemoveDelay = ((ChunkSystemTicket<T>) current).moonrise$getRemoveDelay();
 +                if (removeDelay != oldRemoveDelay) {
 +                    if (oldRemoveDelay != NO_TIMEOUT_MARKER && removeDelay == NO_TIMEOUT_MARKER) {
 +                        this.removeExpireCount(chunkX, chunkZ);
@@ -53,7 +47,6 @@ index 3d902f382977a194e09986419391c3ca1568885c..5299a56ed170b819f7f54fda91f48478
 +                this.updateTicketLevel(chunk, levelAfter);
 +            }
 +
-+            return current == ticket;
 +        } finally {
 +            if (ticketLock != null) {
 +                this.ticketLockArea.unlock(ticketLock);
@@ -87,17 +80,17 @@ index 6a5650024b8d6aca49aa98d69af68195d6d43bb0..e6ecf893bf5dcf7c3f9346c15df45516
              if (this.hasStopped) return;
 diff --git a/src/main/java/org/leavesmc/leaves/util/TicketHelper.java b/src/main/java/org/leavesmc/leaves/util/TicketHelper.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..47154500a4375ee8bfd45d5dbe372425774e9d11
+index 0000000000000000000000000000000000000000..7f0f29dafd9a1262f76e068683256c494da3e886
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/util/TicketHelper.java
-@@ -0,0 +1,179 @@
+@@ -0,0 +1,174 @@
 +package org.leavesmc.leaves.util;
 +
++import ca.spottedleaf.moonrise.patches.chunk_system.player.RegionizedPlayerChunkLoader;
 +import com.google.gson.Gson;
 +import com.google.gson.JsonArray;
 +import com.google.gson.JsonElement;
 +import com.google.gson.JsonObject;
-+import io.papermc.paper.chunk.system.RegionizedPlayerChunkLoader;
 +import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 +import net.minecraft.core.BlockPos;
 +import net.minecraft.core.registries.Registries;
@@ -112,6 +105,7 @@ index 0000000000000000000000000000000000000000..47154500a4375ee8bfd45d5dbe372425
 +import net.minecraft.world.level.ChunkPos;
 +import net.minecraft.world.level.storage.LevelResource;
 +import org.leavesmc.leaves.LeavesConfig;
++import org.leavesmc.leaves.LeavesLogger;
 +
 +import java.io.BufferedReader;
 +import java.io.BufferedWriter;
@@ -123,7 +117,7 @@ index 0000000000000000000000000000000000000000..47154500a4375ee8bfd45d5dbe372425
 +
 +public class TicketHelper {
 +
-+    private static final Set<TicketType<?>> NEED_SAVED = Set.of(TicketType.PLAYER, TicketType.PORTAL, TicketType.ENTITY_LOAD, TicketType.POI_LOAD);
++    private static final Set<TicketType<?>> NEED_SAVED = Set.of(TicketType.PLAYER, TicketType.PORTAL, RegionizedPlayerChunkLoader.PLAYER_TICKET);
 +
 +    public static void tryToLoadTickets() {
 +        if (!LeavesConfig.fastResume) {
@@ -135,9 +129,11 @@ index 0000000000000000000000000000000000000000..47154500a4375ee8bfd45d5dbe372425
 +            try (BufferedReader bfr = Files.newBufferedReader(file.toPath(), StandardCharsets.UTF_8)) {
 +                JsonObject json = new Gson().fromJson(bfr, JsonObject.class);
 +                loadSavedChunkTickets(json);
-+                file.delete();
++                if (!file.delete()) {
++                    throw new IOException();
++                }
 +            } catch (IOException e) {
-+                e.printStackTrace();
++                LeavesLogger.LOGGER.severe("Failed to load saved chunk tickets file", e);
 +            }
 +        }
 +    }
@@ -148,24 +144,22 @@ index 0000000000000000000000000000000000000000..47154500a4375ee8bfd45d5dbe372425
 +        }
 +
 +        File file = MinecraftServer.getServer().getWorldPath(LevelResource.ROOT).resolve("chunk_tickets.leaves.json").toFile();
-+        if (!file.isFile()) {
-+            try {
-+                file.createNewFile();
-+            } catch (IOException e) {
-+                e.printStackTrace();
-+            }
-+        }
 +        try (BufferedWriter bfw = Files.newBufferedWriter(file.toPath(), StandardCharsets.UTF_8)) {
 +            bfw.write(new Gson().toJson(getSavedChunkTickets()));
 +        } catch (IOException e) {
-+            e.printStackTrace();
++            LeavesLogger.LOGGER.severe("Failed to save chunk tickets file", e);
 +        }
 +    }
 +
 +    public static void loadSavedChunkTickets(JsonObject json) {
 +        MinecraftServer server = MinecraftServer.getServer();
 +        for (String worldKey : json.keySet()) {
-+            ServerLevel level = server.getLevel(ResourceKey.create(Registries.DIMENSION, new ResourceLocation(worldKey)));
++            ResourceLocation dimensionKey = ResourceLocation.tryParse(worldKey);
++            if (dimensionKey == null) {
++                continue;
++            }
++
++            ServerLevel level = server.getLevel(ResourceKey.create(Registries.DIMENSION, dimensionKey));
 +            if (level == null) {
 +                continue;
 +            }
@@ -223,7 +217,7 @@ index 0000000000000000000000000000000000000000..47154500a4375ee8bfd45d5dbe372425
 +        JsonObject json = new JsonObject();
 +        json.addProperty("type", ticket.getType().toString());
 +        json.addProperty("ticketLevel", ticket.getTicketLevel());
-+        json.addProperty("removeDelay", ticket.removeDelay);
++        json.addProperty("removeDelay", ticket.moonrise$getRemoveDelay());
 +        if (ticket.key instanceof BlockPos pos) {
 +            json.addProperty("key", pos.asLong());
 +        } else if (ticket.key instanceof ChunkPos pos) {
@@ -246,16 +240,8 @@ index 0000000000000000000000000000000000000000..47154500a4375ee8bfd45d5dbe372425
 +                ticketType = TicketType.PORTAL;
 +                key = BlockPos.of(json.get("key").getAsLong());
 +            }
-+            case "entity_load" -> {
-+                ticketType = TicketType.ENTITY_LOAD;
-+                key = json.get("key").getAsLong();
-+            }
-+            case "poi_load" -> {
-+                ticketType = TicketType.POI_LOAD;
-+                key = json.get("key").getAsLong();
-+            }
-+            case "region_player_ticket" -> {
-+                ticketType = RegionizedPlayerChunkLoader.REGION_PLAYER_TICKET;
++            case "player_ticket" -> {
++                ticketType = RegionizedPlayerChunkLoader.PLAYER_TICKET;
 +                key = json.get("key").getAsLong();
 +            }
 +        }
@@ -266,7 +252,9 @@ index 0000000000000000000000000000000000000000..47154500a4375ee8bfd45d5dbe372425
 +
 +        int ticketLevel = json.get("ticketLevel").getAsInt();
 +        long removeDelay = json.get("removeDelay").getAsLong();
++        Ticket<T> ticket = new Ticket<>((TicketType<T>) ticketType, ticketLevel, (T) key);
++        ticket.moonrise$setRemoveDelay(removeDelay);
 +
-+        return new Ticket<T>((TicketType<T>) ticketType, ticketLevel, (T) key, removeDelay);
++        return ticket;
 +    }
 +}

@@ -6,7 +6,7 @@ Subject: [PATCH] Linear region file format
 This patch is Powered by LinearPurpur(https://github.com/StupidCraft/LinearPurpur)
 
 diff --git a/build.gradle.kts b/build.gradle.kts
-index 369d3cf80e4f86a7d30c45befd0e10a594236dd5..ec0e49de0fe578c2bdbf9594ab44c39d64774741 100644
+index 369d3cf80e4f86a7d30c45befd0e10a594236dd5..9a6ed88e2c117dee378dfe8b20c8548a6b56c22c 100644
 --- a/build.gradle.kts
 +++ b/build.gradle.kts
 @@ -30,6 +30,10 @@ dependencies {
@@ -14,12 +14,27 @@ index 369d3cf80e4f86a7d30c45befd0e10a594236dd5..ec0e49de0fe578c2bdbf9594ab44c39d
      implementation("io.netty:netty-codec-haproxy:4.1.97.Final") // Paper - Add support for proxy protocol
      // Paper end
 +    // Leaves start - Linear format
-+    implementation("com.github.luben:zstd-jni:1.5.5-11")
++    implementation("com.github.luben:zstd-jni:1.5.6-3")
 +    implementation("org.lz4:lz4-java:1.8.0")
 +    // Leaves end - Linear format
      implementation("org.apache.logging.log4j:log4j-iostreams:2.22.1") // Paper - remove exclusion
      implementation("org.ow2.asm:asm-commons:9.7")
      implementation("org.spongepowered:configurate-yaml:4.2.0-SNAPSHOT") // Paper - config files
+diff --git a/src/main/java/ca/spottedleaf/moonrise/patches/chunk_system/io/ChunkSystemRegionFileStorage.java b/src/main/java/ca/spottedleaf/moonrise/patches/chunk_system/io/ChunkSystemRegionFileStorage.java
+index 73df26b27146bbad2106d57b22dd3c792ed3dd1d..f3bd1488da34ea796c8205088e83d4c5dbd9f6bc 100644
+--- a/src/main/java/ca/spottedleaf/moonrise/patches/chunk_system/io/ChunkSystemRegionFileStorage.java
++++ b/src/main/java/ca/spottedleaf/moonrise/patches/chunk_system/io/ChunkSystemRegionFileStorage.java
+@@ -7,8 +7,8 @@ public interface ChunkSystemRegionFileStorage {
+ 
+     public boolean moonrise$doesRegionFileNotExistNoIO(final int chunkX, final int chunkZ);
+ 
+-    public RegionFile moonrise$getRegionFileIfLoaded(final int chunkX, final int chunkZ);
++    public org.leavesmc.leaves.region.AbstractRegionFile moonrise$getRegionFileIfLoaded(final int chunkX, final int chunkZ);
+ 
+-    public RegionFile moonrise$getRegionFileIfExists(final int chunkX, final int chunkZ) throws IOException;
++    public org.leavesmc.leaves.region.AbstractRegionFile moonrise$getRegionFileIfExists(final int chunkX, final int chunkZ) throws IOException;
+ 
+ }
 diff --git a/src/main/java/ca/spottedleaf/moonrise/patches/chunk_system/io/RegionFileIOThread.java b/src/main/java/ca/spottedleaf/moonrise/patches/chunk_system/io/RegionFileIOThread.java
 index c833f78d083b8f661087471c35bc90f65af1b525..8a00fd8c05df53ac99f214254e4dd9bd71858162 100644
 --- a/src/main/java/ca/spottedleaf/moonrise/patches/chunk_system/io/RegionFileIOThread.java
@@ -49,7 +64,7 @@ index c833f78d083b8f661087471c35bc90f65af1b525..8a00fd8c05df53ac99f214254e4dd9bd
              synchronized (cache) {
                  regionFile = ((ChunkSystemRegionFileStorage)(Object)cache).moonrise$getRegionFileIfLoaded(chunkX, chunkZ);
 diff --git a/src/main/java/net/minecraft/util/worldupdate/WorldUpgrader.java b/src/main/java/net/minecraft/util/worldupdate/WorldUpgrader.java
-index 0382b6597a130d746f8954a93a756a9d1ac81d50..a382c2ba675256ff1ee5962596e9705e2ae649b5 100644
+index 0382b6597a130d746f8954a93a756a9d1ac81d50..256d0541394e24a039f1f670e3d894ac039e212d 100644
 --- a/src/main/java/net/minecraft/util/worldupdate/WorldUpgrader.java
 +++ b/src/main/java/net/minecraft/util/worldupdate/WorldUpgrader.java
 @@ -76,7 +76,7 @@ public class WorldUpgrader {
@@ -70,8 +85,35 @@ index 0382b6597a130d746f8954a93a756a9d1ac81d50..a382c2ba675256ff1ee5962596e9705e
              });
  
              if (afile == null) {
+@@ -414,7 +414,7 @@ public class WorldUpgrader {
+                         List<ChunkPos> list1 = Lists.newArrayList();
+ 
+                         try {
+-                            RegionFile regionfile = new RegionFile(key, file.toPath(), regionDirectory, true);
++                            org.leavesmc.leaves.region.AbstractRegionFile regionfile = org.leavesmc.leaves.region.AbstractRegionFileFactory.getAbstractRegionFile(key, file.toPath(), regionDirectory, true); // Leaves
+ 
+                             try {
+                                 for (int i1 = 0; i1 < 32; ++i1) {
+@@ -477,7 +477,7 @@ public class WorldUpgrader {
+ 
+         protected abstract boolean tryProcessOnePosition(T storage, ChunkPos chunkPos, ResourceKey<Level> worldKey);
+ 
+-        private void onFileFinished(RegionFile regionFile) {
++        private void onFileFinished(org.leavesmc.leaves.region.AbstractRegionFile regionFile) { // Leaves
+             if (WorldUpgrader.this.recreateRegionFiles) {
+                 if (this.previousWriteFuture != null) {
+                     this.previousWriteFuture.join();
+@@ -502,7 +502,7 @@ public class WorldUpgrader {
+         }
+     }
+ 
+-    static record FileToUpgrade(RegionFile file, List<ChunkPos> chunksToUpgrade) {
++    static record FileToUpgrade(org.leavesmc.leaves.region.AbstractRegionFile file, List<ChunkPos> chunksToUpgrade) { // Leaves
+ 
+     }
+ 
 diff --git a/src/main/java/net/minecraft/world/level/chunk/storage/RegionFile.java b/src/main/java/net/minecraft/world/level/chunk/storage/RegionFile.java
-index e761b63eebc1e76b2bb1cb887d83d0b63ad6ec90..75695153e9620b2f3db0a2ef34e4cc3fc53ce97a 100644
+index e761b63eebc1e76b2bb1cb887d83d0b63ad6ec90..2fefc69cc1df01a5ede2e5f2642adec6238e6368 100644
 --- a/src/main/java/net/minecraft/world/level/chunk/storage/RegionFile.java
 +++ b/src/main/java/net/minecraft/world/level/chunk/storage/RegionFile.java
 @@ -28,7 +28,7 @@ import net.minecraft.nbt.NbtIo; // Paper
@@ -83,24 +125,7 @@ index e761b63eebc1e76b2bb1cb887d83d0b63ad6ec90..75695153e9620b2f3db0a2ef34e4cc3f
  
      private static final Logger LOGGER = LogUtils.getLogger();
      private static final int SECTOR_BYTES = 4096;
-@@ -52,6 +52,16 @@ public class RegionFile implements AutoCloseable {
-     @VisibleForTesting
-     protected final RegionBitmap usedSectors;
- 
-+    // Leaves start - Abstract getters
-+    public Path getRegionFile() {
-+        return this.path;
-+    }
-+
-+    public java.util.concurrent.locks.ReentrantLock getFileLock() {
-+        return this.fileLock;
-+    }
-+    // Leaves end
-+
-     public RegionFile(RegionStorageInfo storageKey, Path directory, Path path, boolean dsync) throws IOException {
-         this(storageKey, directory, path, RegionFileVersion.getCompressionFormat(), dsync); // Paper - Configurable region compression format
-     }
-@@ -465,10 +475,10 @@ public class RegionFile implements AutoCloseable {
+@@ -465,10 +465,10 @@ public class RegionFile implements AutoCloseable {
      private static int getChunkIndex(int x, int z) {
          return (x & 31) + (z & 31) * 32;
      }
@@ -113,7 +138,7 @@ index e761b63eebc1e76b2bb1cb887d83d0b63ad6ec90..75695153e9620b2f3db0a2ef34e4cc3f
          final int offset = getChunkIndex(x, z);
          boolean previous = this.oversized[offset] == 1;
          this.oversized[offset] = (byte) (oversized ? 1 : 0);
-@@ -507,7 +517,7 @@ public class RegionFile implements AutoCloseable {
+@@ -507,7 +507,7 @@ public class RegionFile implements AutoCloseable {
          return this.path.getParent().resolve(this.path.getFileName().toString().replaceAll("\\.mca$", "") + "_oversized_" + x + "_" + z + ".nbt");
      }
  
@@ -123,10 +148,10 @@ index e761b63eebc1e76b2bb1cb887d83d0b63ad6ec90..75695153e9620b2f3db0a2ef34e4cc3f
          try (DataInputStream out = new DataInputStream(new java.io.BufferedInputStream(new InflaterInputStream(Files.newInputStream(file))))) {
              return NbtIo.read((java.io.DataInput) out);
 diff --git a/src/main/java/net/minecraft/world/level/chunk/storage/RegionFileStorage.java b/src/main/java/net/minecraft/world/level/chunk/storage/RegionFileStorage.java
-index 0615fd82b71efb9a397de01615050e6d906c2844..90affc33e40cc9e07b3ee5e18ded356f85bf43c9 100644
+index 0615fd82b71efb9a397de01615050e6d906c2844..fd46492faadcccaaf5256ce37230ff07c22d682f 100644
 --- a/src/main/java/net/minecraft/world/level/chunk/storage/RegionFileStorage.java
 +++ b/src/main/java/net/minecraft/world/level/chunk/storage/RegionFileStorage.java
-@@ -21,10 +21,14 @@ public class RegionFileStorage implements AutoCloseable, ca.spottedleaf.moonrise
+@@ -21,7 +21,7 @@ public class RegionFileStorage implements AutoCloseable, ca.spottedleaf.moonrise
  
      public static final String ANVIL_EXTENSION = ".mca";
      private static final int MAX_CACHE_SIZE = 256;
@@ -135,25 +160,53 @@ index 0615fd82b71efb9a397de01615050e6d906c2844..90affc33e40cc9e07b3ee5e18ded356f
      private final RegionStorageInfo info;
      private final Path folder;
      private final boolean sync;
-+    // Leaves start - region format
-+    public final org.leavesmc.leaves.region.RegionFileFormat format;
-+    public final int linearCompression;
-+    // Leaves end
- 
-     // Paper start - rewrite chunk system
-     private static final int REGION_SHIFT = 5;
-@@ -110,6 +114,10 @@ public class RegionFileStorage implements AutoCloseable, ca.spottedleaf.moonrise
-         this.folder = directory;
-         this.sync = dsync;
-         this.info = storageKey;
-+        // Leaves start
-+        this.format = org.leavesmc.leaves.LeavesConfig.regionFormatName;
-+        this.linearCompression = org.leavesmc.leaves.LeavesConfig.linearCompressionLevel;
-+        // Leaves end
+@@ -31,7 +31,7 @@ public class RegionFileStorage implements AutoCloseable, ca.spottedleaf.moonrise
+     private static final int MAX_NON_EXISTING_CACHE = 1024 * 64;
+     private final it.unimi.dsi.fastutil.longs.LongLinkedOpenHashSet nonExistingRegionFiles = new it.unimi.dsi.fastutil.longs.LongLinkedOpenHashSet(MAX_NON_EXISTING_CACHE+1);
+     private static String getRegionFileName(final int chunkX, final int chunkZ) {
+-        return "r." + (chunkX >> REGION_SHIFT) + "." + (chunkZ >> REGION_SHIFT) + ".mca";
++        return "r." + (chunkX >> REGION_SHIFT) + "." + (chunkZ >> REGION_SHIFT) + (org.leavesmc.leaves.LeavesConfig.regionFormatName != org.leavesmc.leaves.region.RegionFileFormat.LINEAR ? ".mca" : ".linear"); // Leaves
      }
  
-     public RegionFile getRegionFile(ChunkPos chunkcoordintpair, boolean existingOnly) throws IOException { // CraftBukkit // Paper - public
-@@ -149,7 +157,7 @@ public class RegionFileStorage implements AutoCloseable, ca.spottedleaf.moonrise
+     private boolean doesRegionFilePossiblyExist(final long position) {
+@@ -66,15 +66,15 @@ public class RegionFileStorage implements AutoCloseable, ca.spottedleaf.moonrise
+     }
+ 
+     @Override
+-    public synchronized final RegionFile moonrise$getRegionFileIfLoaded(final int chunkX, final int chunkZ) {
++    public synchronized final org.leavesmc.leaves.region.AbstractRegionFile moonrise$getRegionFileIfLoaded(final int chunkX, final int chunkZ) { // Leaves
+         return this.regionCache.getAndMoveToFirst(ChunkPos.asLong(chunkX >> REGION_SHIFT, chunkZ >> REGION_SHIFT));
+     }
+ 
+     @Override
+-    public synchronized final RegionFile moonrise$getRegionFileIfExists(final int chunkX, final int chunkZ) throws IOException {
++    public synchronized final org.leavesmc.leaves.region.AbstractRegionFile moonrise$getRegionFileIfExists(final int chunkX, final int chunkZ) throws IOException { // Leaves
+         final long key = ChunkPos.asLong(chunkX >> REGION_SHIFT, chunkZ >> REGION_SHIFT);
+ 
+-        RegionFile ret = this.regionCache.getAndMoveToFirst(key);
++        org.leavesmc.leaves.region.AbstractRegionFile ret = this.regionCache.getAndMoveToFirst(key); // Leaves
+         if (ret != null) {
+             return ret;
+         }
+@@ -112,7 +112,7 @@ public class RegionFileStorage implements AutoCloseable, ca.spottedleaf.moonrise
+         this.info = storageKey;
+     }
+ 
+-    public RegionFile getRegionFile(ChunkPos chunkcoordintpair, boolean existingOnly) throws IOException { // CraftBukkit // Paper - public
++    public org.leavesmc.leaves.region.AbstractRegionFile getRegionFile(ChunkPos chunkcoordintpair, boolean existingOnly) throws IOException { // CraftBukkit // Paper - public // Leaves
+         // Paper start - rewrite chunk system
+         if (existingOnly) {
+             return this.moonrise$getRegionFileIfExists(chunkcoordintpair.x, chunkcoordintpair.z);
+@@ -120,7 +120,7 @@ public class RegionFileStorage implements AutoCloseable, ca.spottedleaf.moonrise
+         synchronized (this) {
+             final long key = ChunkPos.asLong(chunkcoordintpair.x >> REGION_SHIFT, chunkcoordintpair.z >> REGION_SHIFT);
+ 
+-            RegionFile ret = this.regionCache.getAndMoveToFirst(key);
++            org.leavesmc.leaves.region.AbstractRegionFile ret = this.regionCache.getAndMoveToFirst(key); // Leaves
+             if (ret != null) {
+                 return ret;
+             }
+@@ -149,7 +149,7 @@ public class RegionFileStorage implements AutoCloseable, ca.spottedleaf.moonrise
          org.apache.logging.log4j.LogManager.getLogger().fatal(msg + " (" + file.toString().replaceAll(".+[\\\\/]", "") + " - " + x + "," + z + ") Go clean it up to remove this message. /minecraft:tp " + (x<<4)+" 128 "+(z<<4) + " - DO NOT REPORT THIS TO PAPER - You may ask for help on Discord, but do not file an issue. These error messages can not be removed.");
      }
  
@@ -162,7 +215,7 @@ index 0615fd82b71efb9a397de01615050e6d906c2844..90affc33e40cc9e07b3ee5e18ded356f
          synchronized (regionfile) {
              try (DataInputStream datainputstream = regionfile.getChunkDataInputStream(chunkCoordinate)) {
                  CompoundTag oversizedData = regionfile.getOversizedData(chunkCoordinate.x, chunkCoordinate.z);
-@@ -184,7 +192,7 @@ public class RegionFileStorage implements AutoCloseable, ca.spottedleaf.moonrise
+@@ -184,7 +184,7 @@ public class RegionFileStorage implements AutoCloseable, ca.spottedleaf.moonrise
      @Nullable
      public CompoundTag read(ChunkPos pos) throws IOException {
          // CraftBukkit start - SPIGOT-5680: There's no good reason to preemptively create files on read, save that for writing
@@ -171,16 +224,7 @@ index 0615fd82b71efb9a397de01615050e6d906c2844..90affc33e40cc9e07b3ee5e18ded356f
          if (regionfile == null) {
              return null;
          }
-@@ -193,7 +201,7 @@ public class RegionFileStorage implements AutoCloseable, ca.spottedleaf.moonrise
- 
-         // Paper start
-         if (regionfile.isOversized(pos.x, pos.z)) {
--            printOversizedLog("Loading Oversized Chunk!", regionfile.getPath(), pos.x, pos.z);
-+            printOversizedLog("Loading Oversized Chunk!", regionfile.getRegionFile(), pos.x, pos.z); // Leaves
-             return readOversizedChunk(regionfile, pos);
-         }
-         // Paper end
-@@ -235,7 +243,7 @@ public class RegionFileStorage implements AutoCloseable, ca.spottedleaf.moonrise
+@@ -235,7 +235,7 @@ public class RegionFileStorage implements AutoCloseable, ca.spottedleaf.moonrise
  
      public void scanChunk(ChunkPos chunkPos, StreamTagVisitor scanner) throws IOException {
          // CraftBukkit start - SPIGOT-5680: There's no good reason to preemptively create files on read, save that for writing
@@ -189,16 +233,16 @@ index 0615fd82b71efb9a397de01615050e6d906c2844..90affc33e40cc9e07b3ee5e18ded356f
          if (regionfile == null) {
              return;
          }
-@@ -265,7 +273,7 @@ public class RegionFileStorage implements AutoCloseable, ca.spottedleaf.moonrise
+@@ -265,7 +265,7 @@ public class RegionFileStorage implements AutoCloseable, ca.spottedleaf.moonrise
      }
  
      public void write(ChunkPos pos, @Nullable CompoundTag nbt) throws IOException { // Paper - public
 -        RegionFile regionfile = this.getRegionFile(pos, nbt == null); // CraftBukkit // Paper - rewrite chunk system
-+        org.leavesmc.leaves.region.AbstractRegionFile regionfile = this.getRegionFile(pos, nbt == null); // CraftBukkit // Paper - rewrite chunk system
++        org.leavesmc.leaves.region.AbstractRegionFile regionfile = this.getRegionFile(pos, nbt == null); // CraftBukkit // Paper - rewrite chunk system // Leaves
          // Paper start - rewrite chunk system
          if (regionfile == null) {
              // if the RegionFile doesn't exist, no point in deleting from it
-@@ -281,8 +289,33 @@ public class RegionFileStorage implements AutoCloseable, ca.spottedleaf.moonrise
+@@ -281,8 +281,33 @@ public class RegionFileStorage implements AutoCloseable, ca.spottedleaf.moonrise
          if (nbt == null) {
              regionfile.clear(pos);
          } else {
@@ -206,8 +250,8 @@ index 0615fd82b71efb9a397de01615050e6d906c2844..90affc33e40cc9e07b3ee5e18ded356f
 +            // Leaves start - auto convert anvil to linear
 +            DataOutputStream dataoutputstream;
 +
-+            if(regionfile instanceof RegionFile && org.leavesmc.leaves.LeavesConfig.regionFormatName == org.leavesmc.leaves.region.RegionFileFormat.LINEAR && org.leavesmc.leaves.LeavesConfig.autoConvertAnvilToLinear) {
-+                Path linearFilePath = Path.of(regionfile.getRegionFile().toString().replaceAll(".mca", ".linear"));
++            if (regionfile instanceof RegionFile && org.leavesmc.leaves.LeavesConfig.regionFormatName == org.leavesmc.leaves.region.RegionFileFormat.LINEAR && org.leavesmc.leaves.LeavesConfig.autoConvertAnvilToLinear) {
++                Path linearFilePath = Path.of(regionfile.getPath().toString().replaceAll(".mca", ".linear"));
 +                try (org.leavesmc.leaves.region.LinearRegionFile linearRegionFile = new org.leavesmc.leaves.region.LinearRegionFile(linearFilePath, org.leavesmc.leaves.LeavesConfig.linearCompressionLevel)) {
 +                    DataInputStream regionDataInputStream = regionfile.getChunkDataInputStream(pos);
 +                    if (regionDataInputStream == null) {
@@ -218,12 +262,12 @@ index 0615fd82b71efb9a397de01615050e6d906c2844..90affc33e40cc9e07b3ee5e18ded356f
 +                    try (DataOutputStream linearDataOutputStream = linearRegionFile.getChunkDataOutputStream(pos)) {
 +                        NbtIo.write(compoundTag, linearDataOutputStream);
 +                    }
-+
-+                    linearRegionFile.flush();
-+                    if(java.nio.file.Files.isRegularFile(regionfile.getRegionFile())) {
-+                        java.nio.file.Files.delete(regionfile.getRegionFile());
-+                    }
  
++                    linearRegionFile.flush();
++                    if(java.nio.file.Files.isRegularFile(regionfile.getPath())) {
++                        java.nio.file.Files.delete(regionfile.getPath());
++                    }
++
 +                    dataoutputstream = linearRegionFile.getChunkDataOutputStream(pos);
 +                }
 +            } else {
@@ -233,21 +277,30 @@ index 0615fd82b71efb9a397de01615050e6d906c2844..90affc33e40cc9e07b3ee5e18ded356f
              try {
                  NbtIo.write(nbt, (DataOutput) dataoutputstream);
                  regionfile.setOversized(pos.x, pos.z, false); // Paper - We don't do this anymore, mojang stores differently, but clear old meta flag if it exists to get rid of our own meta file once last oversized is gone
-@@ -341,7 +374,7 @@ public class RegionFileStorage implements AutoCloseable, ca.spottedleaf.moonrise
+@@ -324,7 +349,7 @@ public class RegionFileStorage implements AutoCloseable, ca.spottedleaf.moonrise
          // Paper start - rewrite chunk system
          synchronized (this) {
              final ExceptionCollector<IOException> exceptionCollector = new ExceptionCollector<>();
 -            for (final RegionFile regionFile : this.regionCache.values()) {
-+            for (final org.leavesmc.leaves.region.AbstractRegionFile regionFile : this.regionCache.values()) {
++            for (final org.leavesmc.leaves.region.AbstractRegionFile regionFile : this.regionCache.values()) { // Leaves
+                 try {
+                     regionFile.close();
+                 } catch (final IOException ex) {
+@@ -341,7 +366,7 @@ public class RegionFileStorage implements AutoCloseable, ca.spottedleaf.moonrise
+         // Paper start - rewrite chunk system
+         synchronized (this) {
+             final ExceptionCollector<IOException> exceptionCollector = new ExceptionCollector<>();
+-            for (final RegionFile regionFile : this.regionCache.values()) {
++            for (final org.leavesmc.leaves.region.AbstractRegionFile regionFile : this.regionCache.values()) { // Leaves
                  try {
                      regionFile.flush();
                  } catch (final IOException ex) {
 diff --git a/src/main/java/org/leavesmc/leaves/region/AbstractRegionFile.java b/src/main/java/org/leavesmc/leaves/region/AbstractRegionFile.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..2116a2e7e10e64aad1373171c6efde65de6ca198
+index 0000000000000000000000000000000000000000..e5439ece2a33a8d88df6423eca22a895129fdbf4
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/region/AbstractRegionFile.java
-@@ -0,0 +1,45 @@
+@@ -0,0 +1,37 @@
 +package org.leavesmc.leaves.region;
 +
 +import net.minecraft.nbt.CompoundTag;
@@ -262,95 +315,81 @@ index 0000000000000000000000000000000000000000..2116a2e7e10e64aad1373171c6efde65
 +
 +public interface AbstractRegionFile {
 +
-+    void flush() throws IOException;
-+
-+    void clear(ChunkPos pos) throws IOException;
-+
-+    void close() throws IOException;
-+
-+    void setStatus(int x, int z, ChunkStatus status);
-+
-+    void setOversized(int x, int z, boolean b) throws IOException;
-+
-+    boolean hasChunk(ChunkPos pos);
-+
-+    boolean doesChunkExist(ChunkPos pos) throws Exception;
-+
-+    boolean isOversized(int x, int z);
-+
-+    boolean recalculateHeader() throws IOException;
-+
-+    DataOutputStream getChunkDataOutputStream(ChunkPos pos) throws IOException;
++    Path getPath();
 +
 +    DataInputStream getChunkDataInputStream(ChunkPos pos) throws IOException;
 +
++    DataOutputStream getChunkDataOutputStream(ChunkPos pos) throws IOException;
++
 +    CompoundTag getOversizedData(int x, int z) throws IOException;
 +
-+    ChunkStatus getStatusIfCached(int x, int z);
++    boolean hasChunk(ChunkPos pos);
 +
-+    ReentrantLock getFileLock();
++    boolean doesChunkExist(ChunkPos pos);
 +
-+    Path getRegionFile();
++    boolean isOversized(int x, int z);
++
++    void flush() throws IOException;
++
++    void close() throws IOException;
++
++    void clear(ChunkPos pos) throws IOException;
++
++    void setOversized(int x, int z, boolean oversized) throws IOException;
 +}
 +
 diff --git a/src/main/java/org/leavesmc/leaves/region/AbstractRegionFileFactory.java b/src/main/java/org/leavesmc/leaves/region/AbstractRegionFileFactory.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..8050b23fd624d2462200b621a6d711b144b2b46b
+index 0000000000000000000000000000000000000000..72f4507aa10f2ecad545199ccb88038fd49dbe35
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/region/AbstractRegionFileFactory.java
-@@ -0,0 +1,31 @@
+@@ -0,0 +1,24 @@
 +package org.leavesmc.leaves.region;
 +
 +import net.minecraft.world.level.chunk.storage.RegionFile;
 +import net.minecraft.world.level.chunk.storage.RegionFileVersion;
 +import net.minecraft.world.level.chunk.storage.RegionStorageInfo;
++import org.leavesmc.leaves.LeavesConfig;
 +
 +import java.io.IOException;
 +import java.nio.file.Path;
 +
 +public class AbstractRegionFileFactory {
 +
-+    public static AbstractRegionFile getAbstractRegionFile(int linearCompression, RegionStorageInfo storageKey, Path file, Path directory, boolean dsync) throws IOException {
-+        return getAbstractRegionFile(linearCompression, storageKey, file, directory, RegionFileVersion.VERSION_DEFLATE, dsync);
++    public static AbstractRegionFile getAbstractRegionFile(RegionStorageInfo storageKey, Path directory, Path path, boolean dsync) throws IOException {
++        return getAbstractRegionFile(storageKey, directory, path, RegionFileVersion.getCompressionFormat(), dsync);
 +    }
 +
-+    public static AbstractRegionFile getAbstractRegionFile(int linearCompression, RegionStorageInfo storageKey, Path file, Path directory, boolean dsync, boolean canRecalcHeader) throws IOException {
-+        return getAbstractRegionFile(linearCompression, storageKey, file, directory, RegionFileVersion.VERSION_DEFLATE, dsync, canRecalcHeader);
-+    }
-+
-+    public static AbstractRegionFile getAbstractRegionFile(int linearCompression, RegionStorageInfo storageKey, Path file, Path directory, RegionFileVersion outputChunkStreamVersion, boolean dsync) throws IOException {
-+        return getAbstractRegionFile(linearCompression, storageKey, file, directory, outputChunkStreamVersion, dsync, false);
-+    }
-+
-+    public static AbstractRegionFile getAbstractRegionFile(int linearCompression, RegionStorageInfo storageKey, Path file, Path directory, RegionFileVersion outputChunkStreamVersion, boolean dsync, boolean canRecalcHeader) throws IOException {
-+        if (file.toString().endsWith(".linear")) {
-+            return new LinearRegionFile(file, linearCompression);
++    public static AbstractRegionFile getAbstractRegionFile(RegionStorageInfo storageKey, Path path, Path directory, RegionFileVersion compressionFormat, boolean dsync) throws IOException {
++        if (path.toString().endsWith(".linear")) {
++            return new LinearRegionFile(path, LeavesConfig.linearCompressionLevel);
 +        } else {
-+            return new RegionFile(storageKey, file, directory, outputChunkStreamVersion, dsync, canRecalcHeader);
++            return new RegionFile(storageKey, path, directory, compressionFormat, dsync);
 +        }
 +    }
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/region/LinearRegionFile.java b/src/main/java/org/leavesmc/leaves/region/LinearRegionFile.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..dd57eea25d8a52b298c49e47f06108cbf8150160
+index 0000000000000000000000000000000000000000..0c0ccc4d1848ee3c440fbe4b924aead09c9947dc
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/region/LinearRegionFile.java
-@@ -0,0 +1,330 @@
+@@ -0,0 +1,314 @@
 +package org.leavesmc.leaves.region;
 +
 +import com.github.luben.zstd.ZstdInputStream;
 +import com.github.luben.zstd.ZstdOutputStream;
 +import com.mojang.logging.LogUtils;
-+import net.jpountz.lz4.LZ4Compressor;
-+import net.jpountz.lz4.LZ4Factory;
-+import net.jpountz.lz4.LZ4FastDecompressor;
-+import net.minecraft.nbt.CompoundTag;
-+import net.minecraft.world.level.ChunkPos;
-+import net.minecraft.world.level.chunk.status.ChunkStatus;
-+import org.slf4j.Logger;
 +
-+import javax.annotation.Nullable;
-+import java.io.*;
++import java.io.BufferedOutputStream;
++import java.io.ByteArrayInputStream;
++import java.io.ByteArrayOutputStream;
++import java.io.DataInputStream;
++import java.io.DataOutputStream;
++import java.io.File;
++import java.io.FileInputStream;
++import java.io.FileOutputStream;
++import java.io.IOException;
++import java.io.InputStream;
 +import java.nio.ByteBuffer;
 +import java.nio.file.Files;
 +import java.nio.file.Path;
@@ -359,7 +398,14 @@ index 0000000000000000000000000000000000000000..dd57eea25d8a52b298c49e47f06108cb
 +import java.util.Arrays;
 +import java.util.List;
 +import java.util.concurrent.atomic.AtomicBoolean;
-+import java.util.concurrent.locks.ReentrantLock;
++import javax.annotation.Nullable;
++
++import net.jpountz.lz4.LZ4Compressor;
++import net.jpountz.lz4.LZ4Factory;
++import net.jpountz.lz4.LZ4FastDecompressor;
++import net.minecraft.nbt.CompoundTag;
++import net.minecraft.world.level.ChunkPos;
++import org.slf4j.Logger;
 +
 +// Powered by LinearPurpur(https://github.com/StupidCraft/LinearPurpur)
 +public class LinearRegionFile implements AbstractRegionFile, AutoCloseable {
@@ -371,19 +417,12 @@ index 0000000000000000000000000000000000000000..dd57eea25d8a52b298c49e47f06108cb
 +    private static final Logger LOGGER = LogUtils.getLogger();
 +    private static final List<Byte> SUPPORTED_VERSIONS = Arrays.asList((byte) 1, (byte) 2);
 +    private static final LinearRegionFileFlusher linearRegionFileFlusher = new LinearRegionFileFlusher();
-+
 +    private final byte[][] buffer = new byte[1024][];
 +    private final int[] bufferUncompressedSize = new int[1024];
-+
 +    private final int[] chunkTimestamps = new int[1024];
-+    private final ChunkStatus[] statuses = new ChunkStatus[1024];
-+
 +    private final LZ4Compressor compressor;
 +    private final LZ4FastDecompressor decompressor;
-+
-+    public final ReentrantLock fileLock = new ReentrantLock(true);
 +    private final int compressionLevel;
-+
 +    private final AtomicBoolean markedToSave = new AtomicBoolean(false);
 +    public boolean closed = false;
 +    public Path path;
@@ -462,12 +501,16 @@ index 0000000000000000000000000000000000000000..dd57eea25d8a52b298c49e47f06108cb
 +        }
 +    }
 +
-+    public Path getRegionFile() {
-+        return this.path;
++    private static int getChunkIndex(int x, int z) {
++        return (x & 31) + ((z & 31) << 5);
 +    }
 +
-+    public ReentrantLock getFileLock() {
-+        return this.fileLock;
++    private static int getTimestamp() {
++        return (int) (System.currentTimeMillis() / 1000L);
++    }
++
++    public Path getPath() {
++        return this.path;
 +    }
 +
 +    public void flush() throws IOException {
@@ -487,12 +530,12 @@ index 0000000000000000000000000000000000000000..dd57eea25d8a52b298c49e47f06108cb
 +        try {
 +            save();
 +        } catch (IOException e) {
-+            LOGGER.error("Failed to flush region file " + path.toAbsolutePath(), e);
++            LOGGER.error("Failed to flush region file {}", path.toAbsolutePath(), e);
 +        }
 +    }
 +
-+    public boolean doesChunkExist(ChunkPos pos) throws Exception {
-+        throw new Exception("doesChunkExist is a stub");
++    public boolean doesChunkExist(ChunkPos pos) {
++        return false;
 +    }
 +
 +    private synchronized void save() throws IOException {
@@ -552,11 +595,6 @@ index 0000000000000000000000000000000000000000..dd57eea25d8a52b298c49e47f06108cb
 +        Files.move(tempFile.toPath(), this.path, StandardCopyOption.REPLACE_EXISTING);
 +    }
 +
-+
-+    public void setStatus(int x, int z, ChunkStatus status) {
-+        this.statuses[getChunkIndex(x, z)] = status;
-+    }
-+
 +    public synchronized void write(ChunkPos pos, ByteBuffer buffer) {
 +        try {
 +            byte[] b = toByteArray(new ByteArrayInputStream(buffer.array()));
@@ -573,28 +611,13 @@ index 0000000000000000000000000000000000000000..dd57eea25d8a52b298c49e47f06108cb
 +            this.chunkTimestamps[index] = getTimestamp();
 +            this.bufferUncompressedSize[getChunkIndex(pos.x, pos.z)] = uncompressedSize;
 +        } catch (IOException e) {
-+            LOGGER.error("Chunk write IOException " + e + " " + this.path);
++            LOGGER.error("Chunk write IOException {} {}", e, this.path);
 +        }
 +        markToSave();
 +    }
 +
 +    public DataOutputStream getChunkDataOutputStream(ChunkPos pos) {
 +        return new DataOutputStream(new BufferedOutputStream(new ChunkBuffer(pos)));
-+    }
-+
-+    private class ChunkBuffer extends ByteArrayOutputStream {
-+
-+        private final ChunkPos pos;
-+
-+        public ChunkBuffer(ChunkPos chunkcoordintpair) {
-+            super();
-+            this.pos = chunkcoordintpair;
-+        }
-+
-+        public void close() {
-+            ByteBuffer bytebuffer = ByteBuffer.wrap(this.buf, 0, this.count);
-+            LinearRegionFile.this.write(this.pos, bytebuffer);
-+        }
 +    }
 +
 +    private byte[] toByteArray(InputStream in) throws IOException {
@@ -619,10 +642,6 @@ index 0000000000000000000000000000000000000000..dd57eea25d8a52b298c49e47f06108cb
 +        return null;
 +    }
 +
-+    public ChunkStatus getStatusIfCached(int x, int z) {
-+        return this.statuses[getChunkIndex(x, z)];
-+    }
-+
 +    public void clear(ChunkPos pos) {
 +        int i = getChunkIndex(pos.x, pos.z);
 +        this.buffer[i] = null;
@@ -639,20 +658,9 @@ index 0000000000000000000000000000000000000000..dd57eea25d8a52b298c49e47f06108cb
 +        if (closed) {
 +            return;
 +        }
++
 +        closed = true;
 +        flush(); // sync
-+    }
-+
-+    private static int getChunkIndex(int x, int z) {
-+        return (x & 31) + ((z & 31) << 5);
-+    }
-+
-+    private static int getTimestamp() {
-+        return (int) (System.currentTimeMillis() / 1000L);
-+    }
-+
-+    public boolean recalculateHeader() {
-+        return false;
 +    }
 +
 +    public void setOversized(int x, int z, boolean something) {
@@ -665,26 +673,44 @@ index 0000000000000000000000000000000000000000..dd57eea25d8a52b298c49e47f06108cb
 +    public boolean isOversized(int x, int z) {
 +        return false;
 +    }
++
++    private class ChunkBuffer extends ByteArrayOutputStream {
++        private final ChunkPos pos;
++
++        public ChunkBuffer(ChunkPos chunkcoordintpair) {
++            super();
++            this.pos = chunkcoordintpair;
++        }
++
++        public void close() {
++            ByteBuffer bytebuffer = ByteBuffer.wrap(this.buf, 0, this.count);
++            LinearRegionFile.this.write(this.pos, bytebuffer);
++        }
++    }
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/region/LinearRegionFileFlusher.java b/src/main/java/org/leavesmc/leaves/region/LinearRegionFileFlusher.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..d452d704c54b211be6becd41d12862ba33553c1f
+index 0000000000000000000000000000000000000000..93a1f8594dd02e012c1e8ffbe6e819927bd47389
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/region/LinearRegionFileFlusher.java
-@@ -0,0 +1,53 @@
+@@ -0,0 +1,56 @@
 +package org.leavesmc.leaves.region;
 +
 +import com.google.common.util.concurrent.ThreadFactoryBuilder;
 +
 +import java.util.Queue;
-+import java.util.concurrent.*;
++import java.util.concurrent.ExecutorService;
++import java.util.concurrent.Executors;
++import java.util.concurrent.LinkedBlockingQueue;
++import java.util.concurrent.ScheduledExecutorService;
++import java.util.concurrent.TimeUnit;
 +
-+import org.bukkit.Bukkit;
 +import org.leavesmc.leaves.LeavesConfig;
 +import org.leavesmc.leaves.LeavesLogger;
 +
 +// Powered by LinearPurpur(https://github.com/StupidCraft/LinearPurpur)
 +public class LinearRegionFileFlusher {
++
 +    private final Queue<LinearRegionFile> savingQueue = new LinkedBlockingQueue<>();
 +    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(
 +        new ThreadFactoryBuilder()
@@ -692,14 +718,14 @@ index 0000000000000000000000000000000000000000..d452d704c54b211be6becd41d12862ba
 +            .build()
 +    );
 +    private final ExecutorService executor = Executors.newFixedThreadPool(
-+        LeavesConfig.getLinearFlushThreads(),
++        LeavesConfig.linearFlushThreads,
 +        new ThreadFactoryBuilder()
 +            .setNameFormat("linear-flusher-%d")
 +            .build()
 +    );
 +
 +    public LinearRegionFileFlusher() {
-+        LeavesLogger.LOGGER.info("Using " + LeavesConfig.getLinearFlushThreads() + " threads for linear region flushing.");
++        LeavesLogger.LOGGER.info("Using " + LeavesConfig.linearFlushThreads + " threads for linear region flushing.");
 +        scheduler.scheduleAtFixedRate(this::pollAndFlush, 0L, LeavesConfig.linearFlushFrequency, TimeUnit.SECONDS);
 +    }
 +
@@ -724,7 +750,6 @@ index 0000000000000000000000000000000000000000..d452d704c54b211be6becd41d12862ba
 +        scheduler.shutdown();
 +    }
 +}
-+
 diff --git a/src/main/java/org/leavesmc/leaves/region/RegionFileFormat.java b/src/main/java/org/leavesmc/leaves/region/RegionFileFormat.java
 new file mode 100644
 index 0000000000000000000000000000000000000000..3651246acf3dd786eb6a85c7a846a248962cdd7f

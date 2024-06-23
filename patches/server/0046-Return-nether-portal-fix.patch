@@ -6,7 +6,7 @@ Subject: [PATCH] Return nether portal fix
 This patch is powered by NetherPortalFix(https://github.com/TwelveIterationMods/NetherPortalFix)
 
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-index 636c79ab0bab81812d879301b02eb25f3868eeef..209f1a577d01385f942ed8d2fd48d633cc87e234 100644
+index 636c79ab0bab81812d879301b02eb25f3868eeef..c6905ad01218ce5491fc87d83f80b39c3e25db18 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
 @@ -17,6 +17,8 @@ import java.util.OptionalInt;
@@ -18,15 +18,7 @@ index 636c79ab0bab81812d879301b02eb25f3868eeef..209f1a577d01385f942ed8d2fd48d633
  import net.minecraft.ChatFormatting;
  import net.minecraft.CrashReport;
  import net.minecraft.CrashReportCategory;
-@@ -161,6 +163,7 @@ import net.minecraft.world.phys.Vec3;
- import net.minecraft.world.scores.PlayerTeam;
- import net.minecraft.world.scores.ScoreAccess;
- import net.minecraft.world.scores.ScoreHolder;
-+import org.leavesmc.leaves.util.ReturnPortalManager;
- import org.slf4j.Logger;
- import net.minecraft.world.Container;
- import net.minecraft.world.InteractionHand;
-@@ -1437,6 +1440,24 @@ public class ServerPlayer extends net.minecraft.world.entity.player.Player imple
+@@ -1437,6 +1439,21 @@ public class ServerPlayer extends net.minecraft.world.entity.player.Player imple
                  PlayerChangedWorldEvent changeEvent = new PlayerChangedWorldEvent(this.getBukkitEntity(), worldserver1.getWorld());
                  this.level().getCraftServer().getPluginManager().callEvent(changeEvent);
                  // CraftBukkit end
@@ -37,13 +29,10 @@ index 636c79ab0bab81812d879301b02eb25f3868eeef..209f1a577d01385f942ed8d2fd48d633
 +                    final ResourceKey<Level> OVERWORLD = Level.OVERWORLD;
 +                    final ResourceKey<Level> THE_NETHER = Level.NETHER;
 +                    if (!((fromDim != OVERWORLD || toDim != THE_NETHER) && (fromDim != THE_NETHER || toDim != OVERWORLD))) {
-+                        BlockPos lastPos = this.lastPos;
-+                        if (lastPos != null) {
-+                            BlockUtil.FoundRectangle fromPortal = ReturnPortalManager.findPortalAt(this, fromDim, lastPos);
-+                            BlockPos toPos = this.blockPosition();
-+                            if (fromPortal != null) {
-+                                ReturnPortalManager.storeReturnPortal(this, toDim, toPos, fromPortal);
-+                            }
++                        BlockPos fromPortal = org.leavesmc.leaves.util.ReturnPortalManager.findPortalAt(this, fromDim, lastPos);
++                        BlockPos toPos = this.blockPosition();
++                        if (fromPortal != null) {
++                            org.leavesmc.leaves.util.ReturnPortalManager.storeReturnPortal(this, toDim, toPos, fromPortal);
 +                        }
 +                    }
 +                }
@@ -52,18 +41,10 @@ index 636c79ab0bab81812d879301b02eb25f3868eeef..209f1a577d01385f942ed8d2fd48d633
                  if (this.isBlocking()) {
                      this.stopUsingItem();
 diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
-index 6720c50a21a3a93267f3ebf21d85db2f1b676d72..64435a682eaa98dc1feb3ba397be209ff0646ce5 100644
+index 6720c50a21a3a93267f3ebf21d85db2f1b676d72..d7dae3b138c30461c498ac7321a5377f62b72e1b 100644
 --- a/src/main/java/net/minecraft/server/players/PlayerList.java
 +++ b/src/main/java/net/minecraft/server/players/PlayerList.java
-@@ -26,6 +26,7 @@ import java.util.function.Predicate;
- import javax.annotation.Nullable;
- import net.minecraft.ChatFormatting;
- import net.minecraft.FileUtil;
-+import org.leavesmc.leaves.util.ReturnPortalManager; // Leaves - return portal fix
- import net.minecraft.commands.CommandSourceStack;
- import net.minecraft.core.BlockPos;
- import net.minecraft.core.LayeredRegistryAccess;
-@@ -939,6 +940,24 @@ public abstract class PlayerList {
+@@ -939,6 +939,24 @@ public abstract class PlayerList {
          if (fromWorld != worldserver) {
              PlayerChangedWorldEvent event = new PlayerChangedWorldEvent(entityplayer.getBukkitEntity(), fromWorld.getWorld());
              this.server.server.getPluginManager().callEvent(event);
@@ -101,15 +82,38 @@ index 4c38bfe300fb7da9d2080784b64101f94d77f20c..4f2ce8295977bfb8e9b6e98ca5405ecb
      private Optional<BlockPos> lastClimbablePos;
      @Nullable
      private DamageSource lastDamageSource;
+diff --git a/src/main/java/net/minecraft/world/level/block/NetherPortalBlock.java b/src/main/java/net/minecraft/world/level/block/NetherPortalBlock.java
+index a530276b0123dee5680d7e09ad3d2f0414909c91..e9b17c57c7bb8ad70f0e747d43aa0a2999c0c3f5 100644
+--- a/src/main/java/net/minecraft/world/level/block/NetherPortalBlock.java
++++ b/src/main/java/net/minecraft/world/level/block/NetherPortalBlock.java
+@@ -171,7 +171,18 @@ public class NetherPortalBlock extends Block implements Portal {
+ 
+     @Nullable
+     private DimensionTransition getExitPortal(ServerLevel worldserver, Entity entity, BlockPos blockposition, BlockPos blockposition1, boolean flag, WorldBorder worldborder, int searchRadius, boolean canCreatePortal, int createRadius) {
+-        Optional<BlockPos> optional = worldserver.getPortalForcer().findClosestPortalPosition(blockposition1, worldborder, searchRadius);
++        // Leaves start - fix return portal
++        Optional<BlockPos> optional = Optional.empty();
++        if (org.leavesmc.leaves.LeavesConfig.netherPortalFix && entity instanceof net.minecraft.server.level.ServerPlayer player) {
++            org.leavesmc.leaves.util.ReturnPortalManager.ReturnPortal portal = org.leavesmc.leaves.util.ReturnPortalManager.findReturnPortal(player, entity.level().dimension(), entity.blockPosition());
++            if (portal != null && worldserver.getBlockState(portal.pos()).is(Blocks.NETHER_PORTAL)) {
++                optional = Optional.of(portal.pos());
++            }
++        }
++        if (optional.isEmpty()) {
++            optional = worldserver.getPortalForcer().findClosestPortalPosition(blockposition1, worldborder, searchRadius);
++        }
++        // Leaves end - fix return portal
+         BlockUtil.FoundRectangle blockutil_rectangle;
+         DimensionTransition.PostDimensionTransition dimensiontransition_a;
+ 
 diff --git a/src/main/java/org/leavesmc/leaves/util/ReturnPortalManager.java b/src/main/java/org/leavesmc/leaves/util/ReturnPortalManager.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..d7066d268e7a3b4b2c1b1ef28491078997989d4c
+index 0000000000000000000000000000000000000000..67eb48e5b30d1dfa93aacbeb31f1b650b5ecb763
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/util/ReturnPortalManager.java
-@@ -0,0 +1,105 @@
+@@ -0,0 +1,98 @@
 +package org.leavesmc.leaves.util;
 +
-+import net.minecraft.BlockUtil;
 +import net.minecraft.core.BlockPos;
 +import net.minecraft.core.registries.Registries;
 +import net.minecraft.nbt.CompoundTag;
@@ -135,17 +139,15 @@ index 0000000000000000000000000000000000000000..d7066d268e7a3b4b2c1b1ef284910789
 +    private static final String RETURN_PORTAL_UID = "UID";
 +    private static final String FROM_DIM = "FromDim";
 +    private static final String FROM_POS = "FromPos";
-+    private static final String TO_MIN_CORNER = "ToMinCorner";
-+    private static final String TO_AXIS_1_SIZE = "ToAxis1Size";
-+    private static final String TO_AXIS_2_SIZE = "ToAxis2Size";
++    private static final String TO_POS = "ToPos";
 +
-+    public static BlockUtil.FoundRectangle findPortalAt(Player player, ResourceKey<Level> dim, BlockPos pos) {
++    public static BlockPos findPortalAt(Player player, ResourceKey<Level> dim, BlockPos pos) {
 +        MinecraftServer server = player.level().getServer();
 +        if (server != null) {
 +            ServerLevel fromWorld = server.getLevel(dim);
 +            if (fromWorld != null) {
 +                PortalForcer portalForcer = fromWorld.getPortalForcer();
-+                return portalForcer.findPortalAround(pos, false, fromWorld.getWorldBorder()).orElse(null);
++                return portalForcer.findClosestPortalPosition(pos, false, fromWorld.getWorldBorder()).orElse(null);
 +            }
 +        }
 +
@@ -164,15 +166,13 @@ index 0000000000000000000000000000000000000000..d7066d268e7a3b4b2c1b1ef284910789
 +        ListTag portalList = getPlayerPortalList(player);
 +        for (Tag entry : portalList) {
 +            CompoundTag portal = (CompoundTag) entry;
-+            ResourceKey<Level> entryFromDim = ResourceKey.create(Registries.DIMENSION, new ResourceLocation(portal.getString(FROM_DIM)));
++            ResourceKey<Level> entryFromDim = ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(portal.getString(FROM_DIM)));
 +            if (entryFromDim == fromDim) {
 +                BlockPos portalTrigger = BlockPos.of(portal.getLong(FROM_POS));
 +                if (portalTrigger.distSqr(fromPos) <= MAX_PORTAL_DISTANCE_SQ) {
-+                    UUID uid = portal.hasUUID(RETURN_PORTAL_UID) ? portal.getUUID(RETURN_PORTAL_UID) : UUID.randomUUID();
-+                    BlockPos minCorner = BlockPos.of(portal.getLong(TO_MIN_CORNER));
-+                    int axis1Size = portal.getInt(TO_AXIS_1_SIZE);
-+                    int axis2Size = portal.getInt(TO_AXIS_2_SIZE);
-+                    return new ReturnPortal(uid, new BlockUtil.FoundRectangle(minCorner, axis1Size, axis2Size));
++                    final var uid = portal.hasUUID(RETURN_PORTAL_UID) ? portal.getUUID(RETURN_PORTAL_UID) : UUID.randomUUID();
++                    final var pos = BlockPos.of(portal.getLong(TO_POS));
++                    return new ReturnPortal(uid, pos);
 +                }
 +            }
 +        }
@@ -180,7 +180,7 @@ index 0000000000000000000000000000000000000000..d7066d268e7a3b4b2c1b1ef284910789
 +        return null;
 +    }
 +
-+    public static void storeReturnPortal(ServerPlayer player, ResourceKey<Level> fromDim, BlockPos fromPos, BlockUtil.FoundRectangle toPortal) {
++    public static void storeReturnPortal(ServerPlayer player, ResourceKey<Level> fromDim, BlockPos fromPos, BlockPos toPos) {
 +        ListTag portalList = getPlayerPortalList(player);
 +        ReturnPortal returnPortal = findReturnPortal(player, fromDim, fromPos);
 +        if (returnPortal != null) {
@@ -191,9 +191,7 @@ index 0000000000000000000000000000000000000000..d7066d268e7a3b4b2c1b1ef284910789
 +        portalCompound.putUUID(RETURN_PORTAL_UID, UUID.randomUUID());
 +        portalCompound.putString(FROM_DIM, String.valueOf(fromDim.location()));
 +        portalCompound.putLong(FROM_POS, fromPos.asLong());
-+        portalCompound.putLong(TO_MIN_CORNER, toPortal.minCorner.asLong());
-+        portalCompound.putInt(TO_AXIS_1_SIZE, toPortal.axis1Size);
-+        portalCompound.putInt(TO_AXIS_2_SIZE, toPortal.axis2Size);
++        portalCompound.putLong(TO_POS, toPos.asLong());
 +        portalList.add(portalCompound);
 +    }
 +
@@ -202,13 +200,13 @@ index 0000000000000000000000000000000000000000..d7066d268e7a3b4b2c1b1ef284910789
 +        ListTag portalList = getPlayerPortalList(player);
 +        for (int i = 0; i < portalList.size(); i++) {
 +            CompoundTag entry = (CompoundTag) portalList.get(i);
-+            if (entry.hasUUID(RETURN_PORTAL_UID) && entry.getUUID(RETURN_PORTAL_UID).equals(portal.uid())) {
++            if (entry.hasUUID(RETURN_PORTAL_UID) && entry.getUUID(RETURN_PORTAL_UID).equals(portal.uid)) {
 +                portalList.remove(i);
 +                break;
 +            }
 +        }
 +    }
 +
-+    public record ReturnPortal(UUID uid, BlockUtil.FoundRectangle rectangle) {
++    public record ReturnPortal(UUID uid, BlockPos pos) {
 +    }
 +}

@@ -1318,10 +1318,10 @@ index 0000000000000000000000000000000000000000..0db337866c71283464d026a4f230016b
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/ServerBot.java b/src/main/java/org/leavesmc/leaves/bot/ServerBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..bba57a2d72ab3051aacd4f4defa3e7377511c36b
+index 0000000000000000000000000000000000000000..549fd54c35c8283200562d678fa4bba593878c62
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/ServerBot.java
-@@ -0,0 +1,716 @@
+@@ -0,0 +1,725 @@
 +package org.leavesmc.leaves.bot;
 +
 +import com.google.common.collect.Lists;
@@ -1337,7 +1337,6 @@ index 0000000000000000000000000000000000000000..bba57a2d72ab3051aacd4f4defa3e737
 +import net.minecraft.network.PacketSendListener;
 +import net.minecraft.network.protocol.Packet;
 +import net.minecraft.network.protocol.PacketFlow;
-+import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
 +import net.minecraft.network.protocol.game.ClientboundPlayerInfoRemovePacket;
 +import net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket;
 +import net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket;
@@ -1345,6 +1344,7 @@ index 0000000000000000000000000000000000000000..bba57a2d72ab3051aacd4f4defa3e737
 +import net.minecraft.network.syncher.EntityDataAccessor;
 +import net.minecraft.network.syncher.EntityDataSerializers;
 +import net.minecraft.server.MinecraftServer;
++import net.minecraft.server.level.ChunkMap;
 +import net.minecraft.server.level.ClientInformation;
 +import net.minecraft.server.level.ServerLevel;
 +import net.minecraft.server.level.ServerPlayer;
@@ -1365,6 +1365,7 @@ index 0000000000000000000000000000000000000000..bba57a2d72ab3051aacd4f4defa3e737
 +import net.minecraft.world.inventory.ChestMenu;
 +import net.minecraft.world.level.block.state.BlockState;
 +import net.minecraft.world.level.gameevent.GameEvent;
++import net.minecraft.world.level.portal.DimensionTransition;
 +import net.minecraft.world.level.storage.LevelResource;
 +import net.minecraft.world.phys.AABB;
 +import net.minecraft.world.phys.Vec3;
@@ -1377,7 +1378,9 @@ index 0000000000000000000000000000000000000000..bba57a2d72ab3051aacd4f4defa3e737
 +import org.bukkit.event.entity.CreatureSpawnEvent;
 +import org.bukkit.util.Vector;
 +import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
 +import org.leavesmc.leaves.LeavesConfig;
++import org.leavesmc.leaves.LeavesLogger;
 +import org.leavesmc.leaves.bot.agent.BotAction;
 +import org.leavesmc.leaves.bot.agent.actions.StopAction;
 +import org.leavesmc.leaves.entity.Bot;
@@ -1387,7 +1390,6 @@ index 0000000000000000000000000000000000000000..bba57a2d72ab3051aacd4f4defa3e737
 +import org.leavesmc.leaves.event.bot.BotJoinEvent;
 +import org.leavesmc.leaves.util.MathUtils;
 +
-+import javax.annotation.Nullable;
 +import java.io.BufferedReader;
 +import java.io.BufferedWriter;
 +import java.io.File;
@@ -1548,13 +1550,20 @@ index 0000000000000000000000000000000000000000..bba57a2d72ab3051aacd4f4defa3e737
 +    }
 +
 +    public void sendFakeData(ServerPlayerConnection playerConnection, boolean login) {
-+        playerConnection.send(new ClientboundAddEntityPacket(this));
++        ChunkMap.TrackedEntity entityTracker = ((ServerLevel) this.level()).getChunkSource().chunkMap.entityMap.get(this.getId());
++
++        if (entityTracker == null) {
++            LeavesLogger.LOGGER.warning("Fakeplayer cant get entity tracker for " + this.getId());
++            return;
++        }
++
++        playerConnection.send(this.getAddEntityPacket(entityTracker.serverEntity));
 +        if (login) {
 +            Bukkit.getScheduler().runTaskLater(CraftScheduler.MINECRAFT, () -> {
-+                connection.send(new ClientboundRotateHeadPacket(this, (byte) ((getYRot() * 256f) / 360f)));
++                playerConnection.send(new ClientboundRotateHeadPacket(this, (byte) ((getYRot() * 256f) / 360f)));
 +            }, 10);
 +        } else {
-+            connection.send(new ClientboundRotateHeadPacket(this, (byte) ((getYRot() * 256f) / 360f)));
++            playerConnection.send(new ClientboundRotateHeadPacket(this, (byte) ((getYRot() * 256f) / 360f)));
 +        }
 +    }
 +
@@ -1597,7 +1606,7 @@ index 0000000000000000000000000000000000000000..bba57a2d72ab3051aacd4f4defa3e737
 +
 +    @Nullable
 +    @Override
-+    public Entity changeDimension(@NotNull ServerLevel destination) {
++    public Entity changeDimension(@NotNull DimensionTransition teleportTarget) {
 +        return null; // disable dimension change
 +    }
 +

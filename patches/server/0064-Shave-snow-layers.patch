@@ -1,0 +1,53 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Tue, 27 Jun 2023 14:07:00 +0800
+Subject: [PATCH] Shave snow layers
+
+
+diff --git a/src/main/java/net/minecraft/world/item/ShovelItem.java b/src/main/java/net/minecraft/world/item/ShovelItem.java
+index 24f6a158e4759aac3be8da4cf5e0d40bd295355b..97c3a9281ef10c88947febf152a005b0cd05cc64 100644
+--- a/src/main/java/net/minecraft/world/item/ShovelItem.java
++++ b/src/main/java/net/minecraft/world/item/ShovelItem.java
+@@ -44,6 +44,26 @@ public class ShovelItem extends DiggerItem {
+             return InteractionResult.PASS;
+         } else {
+             Player player = context.getPlayer();
++            // Leaves start - shaveSnowLayers
++            if (org.leavesmc.leaves.LeavesConfig.shaveSnowLayers && blockState.is(Blocks.SNOW)) {
++                int layers = blockState.getValue(net.minecraft.world.level.block.SnowLayerBlock.LAYERS);
++                ItemStack tool = context.getItemInHand();
++                boolean hasSilkTouch = net.minecraft.world.item.enchantment.EnchantmentHelper.getItemEnchantmentLevel(level.registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT).getHolder(net.minecraft.world.item.enchantment.Enchantments.SILK_TOUCH).get(), tool) > 0;
++                BlockState shavedBlockState = layers > 1 ? blockState.setValue(net.minecraft.world.level.block.SnowLayerBlock.LAYERS, layers - 1) : Blocks.AIR.defaultBlockState();
++
++                level.setBlock(blockPos, shavedBlockState, Block.UPDATE_ALL_IMMEDIATE);
++                level.gameEvent(GameEvent.BLOCK_CHANGE, blockPos, GameEvent.Context.of(player, shavedBlockState));
++
++                Block.popResource(level, blockPos, new ItemStack(hasSilkTouch ? Items.SNOW : Items.SNOWBALL));
++                level.playSound(player, blockPos, SoundEvents.SNOW_BREAK, SoundSource.BLOCKS, 1.0F, 1.0F);
++
++                if (player != null) {
++                    tool.hurtAndBreak(1, player, LivingEntity.getSlotForHand(context.getHand()));
++                }
++
++                return InteractionResult.SUCCESS;
++            }
++            // Leaves end -  shaveSnowLayers
+             BlockState blockState2 = FLATTENABLES.get(blockState.getBlock());
+             BlockState blockState3 = null;
+             Runnable afterAction = null; // Paper
+@@ -52,11 +72,11 @@ public class ShovelItem extends DiggerItem {
+                 blockState3 = blockState2;
+             } else if (blockState.getBlock() instanceof CampfireBlock && blockState.getValue(CampfireBlock.LIT)) {
+                 afterAction = () -> { // Paper
+-                if (!level.isClientSide()) {
+-                    level.levelEvent(null, 1009, blockPos, 0);
+-                }
++                    if (!level.isClientSide()) {
++                        level.levelEvent(null, 1009, blockPos, 0);
++                    }
+ 
+-                CampfireBlock.dowse(context.getPlayer(), level, blockPos, blockState);
++                    CampfireBlock.dowse(context.getPlayer(), level, blockPos, blockState);
+                 }; // Paper
+                 blockState3 = blockState.setValue(CampfireBlock.LIT, Boolean.valueOf(false));
+             }

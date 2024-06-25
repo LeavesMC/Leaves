@@ -6,10 +6,10 @@ Subject: [PATCH] Player operation limiter
 This patch is Powered by plusls-carpet-addition(https://github.com/plusls/plusls-carpet-addition)
 
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-index ba8e8120313cd371065f471fcc49a79d46b55dff..e6bdb42c8cf69e56d9fd81250b8e89ebe7001c4a 100644
+index 5afef331ec117adae0c29f5c4b9f43b7be7cdd4c..a873d07351f8909f71805eec16a2e8dc22de3bb4 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-@@ -302,6 +302,10 @@ public class ServerPlayer extends net.minecraft.world.entity.player.Player imple
+@@ -301,6 +301,10 @@ public class ServerPlayer extends net.minecraft.world.entity.player.Player imple
      public com.destroystokyo.paper.event.entity.PlayerNaturallySpawnCreaturesEvent playerNaturallySpawnedEvent; // Paper - PlayerNaturallySpawnCreaturesEvent
      public @Nullable String clientBrandName = null; // Paper - Brand support
      public org.bukkit.event.player.PlayerQuitEvent.QuitReason quitReason = null; // Paper - Add API for quit reason; there are a lot of changes to do if we change all methods leading to the event
@@ -20,7 +20,7 @@ index ba8e8120313cd371065f471fcc49a79d46b55dff..e6bdb42c8cf69e56d9fd81250b8e89eb
  
      // Paper start - rewrite chunk system
      private ca.spottedleaf.moonrise.patches.chunk_system.player.RegionizedPlayerChunkLoader.PlayerChunkLoaderData chunkLoader;
-@@ -765,6 +769,7 @@ public class ServerPlayer extends net.minecraft.world.entity.player.Player imple
+@@ -764,6 +768,7 @@ public class ServerPlayer extends net.minecraft.world.entity.player.Player imple
              this.joining = false;
          }
          // CraftBukkit end
@@ -28,7 +28,7 @@ index ba8e8120313cd371065f471fcc49a79d46b55dff..e6bdb42c8cf69e56d9fd81250b8e89eb
          this.gameMode.tick();
          this.wardenSpawnTracker.tick();
          --this.spawnInvulnerableTime;
-@@ -2946,5 +2951,32 @@ public class ServerPlayer extends net.minecraft.world.entity.player.Player imple
+@@ -2945,5 +2950,32 @@ public class ServerPlayer extends net.minecraft.world.entity.player.Player imple
      public CraftPlayer getBukkitEntity() {
          return (CraftPlayer) super.getBukkitEntity();
      }
@@ -62,18 +62,10 @@ index ba8e8120313cd371065f471fcc49a79d46b55dff..e6bdb42c8cf69e56d9fd81250b8e89eb
      // CraftBukkit end
  }
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayerGameMode.java b/src/main/java/net/minecraft/server/level/ServerPlayerGameMode.java
-index 24b1715397ba8e6f5e9841a030d0e3d964356f89..7731bc9648838beb7c7968e85da12a32a06273e4 100644
+index 24b1715397ba8e6f5e9841a030d0e3d964356f89..c0d29abf5a21015a4a0334549c0fd9b9f585f834 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayerGameMode.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayerGameMode.java
-@@ -45,6 +45,7 @@ import org.bukkit.event.Event;
- import org.bukkit.event.block.Action;
- import org.bukkit.event.player.PlayerGameModeChangeEvent;
- import org.bukkit.event.player.PlayerInteractEvent;
-+import org.leavesmc.leaves.event.player.PlayerOperationLimitEvent;
- // CraftBukkit end
- 
- public class ServerPlayerGameMode {
-@@ -339,6 +340,19 @@ public class ServerPlayerGameMode {
+@@ -339,6 +339,19 @@ public class ServerPlayerGameMode {
      }
  
      public void destroyAndAck(BlockPos pos, int sequence, String reason) {
@@ -82,7 +74,7 @@ index 24b1715397ba8e6f5e9841a030d0e3d964356f89..7731bc9648838beb7c7968e85da12a32
 +            if (reason.equals("insta mine")) {
 +                player.addInstaBreakCountPerTick();
 +                if (!player.allowOperation()) {
-+                    MinecraftServer.getServer().server.getPluginManager().callEvent(new PlayerOperationLimitEvent(player.getBukkitEntity(), PlayerOperationLimitEvent.Operation.MINE, CraftBlock.at(level, pos)));
++                    MinecraftServer.getServer().server.getPluginManager().callEvent(new org.leavesmc.leaves.event.player.PlayerOperationLimitEvent(player.getBukkitEntity(), org.leavesmc.leaves.event.player.PlayerOperationLimitEvent.Operation.MINE, CraftBlock.at(level, pos)));
 +                    this.player.connection.send(new ClientboundBlockUpdatePacket(pos, this.level.getBlockState(pos)));
 +                    this.debugLogging(pos, false, sequence, reason);
 +                    return;
@@ -94,22 +86,10 @@ index 24b1715397ba8e6f5e9841a030d0e3d964356f89..7731bc9648838beb7c7968e85da12a32
              this.debugLogging(pos, true, sequence, reason);
          } else {
 diff --git a/src/main/java/net/minecraft/world/item/BlockItem.java b/src/main/java/net/minecraft/world/item/BlockItem.java
-index 7632d5ac83c84e943654477b3f36e6605e28c9a7..c21a65d9637739f1040dd27b096101a7a7adc0df 100644
+index 7632d5ac83c84e943654477b3f36e6605e28c9a7..b040844893a242280c4e8d1b2ae4af649c659b5c 100644
 --- a/src/main/java/net/minecraft/world/item/BlockItem.java
 +++ b/src/main/java/net/minecraft/world/item/BlockItem.java
-@@ -32,8 +32,11 @@ import net.minecraft.world.level.block.state.BlockState;
- import net.minecraft.world.level.gameevent.GameEvent;
- import net.minecraft.world.phys.shapes.CollisionContext;
- import org.bukkit.craftbukkit.block.CraftBlock;
-+import org.bukkit.craftbukkit.block.CraftBlockState;
-+import org.bukkit.craftbukkit.CraftServer;
- import org.bukkit.craftbukkit.block.data.CraftBlockData;
- import org.bukkit.event.block.BlockCanBuildEvent;
-+import org.leavesmc.leaves.event.player.PlayerOperationLimitEvent;
- // CraftBukkit end
- 
- public class BlockItem extends Item {
-@@ -80,6 +83,20 @@ public class BlockItem extends Item {
+@@ -80,6 +80,20 @@ public class BlockItem extends Item {
                  final org.bukkit.block.BlockState oldBlockstate = blockstate != null ? blockstate : org.bukkit.craftbukkit.block.CraftBlockStates.getBlockState(blockactioncontext1.getLevel(), blockactioncontext1.getClickedPos()); // Paper - Reset placed block on exception
                  // CraftBukkit end
  
@@ -120,7 +100,7 @@ index 7632d5ac83c84e943654477b3f36e6605e28c9a7..c21a65d9637739f1040dd27b096101a7
 +                        player.addPlaceBlockCountPerTick();
 +                        if (!player.allowOperation()) {
 +                            if (blockstate != null) {
-+                                MinecraftServer.getServer().server.getPluginManager().callEvent(new PlayerOperationLimitEvent(player.getBukkitEntity(), PlayerOperationLimitEvent.Operation.PLACE, blockstate.getBlock()));
++                                MinecraftServer.getServer().server.getPluginManager().callEvent(new org.leavesmc.leaves.event.player.PlayerOperationLimitEvent(player.getBukkitEntity(), org.leavesmc.leaves.event.player.PlayerOperationLimitEvent.Operation.PLACE, blockstate.getBlock()));
 +                            }
 +                            return InteractionResult.FAIL;
 +                        }

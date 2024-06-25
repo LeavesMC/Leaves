@@ -33,25 +33,6 @@ index 35772110e9318df46a2729dbc0b5879b290011b7..f26989a44cdda9baabf337d573436c6c
          PlayerAdvancements playerAdvancements = player.getAdvancements();
          Set<CriterionTrigger.Listener<T>> set = (Set) playerAdvancements.criterionData.get(this); // Paper - fix AdvancementDataPlayer leak
          if (set != null && !set.isEmpty()) {
-diff --git a/src/main/java/net/minecraft/network/Connection.java b/src/main/java/net/minecraft/network/Connection.java
-index 90a2c61c42cba7e38f167eccdd7a951a947963c4..fa661b224eb658b444ab0e587f26dc91dc0d3ad7 100644
---- a/src/main/java/net/minecraft/network/Connection.java
-+++ b/src/main/java/net/minecraft/network/Connection.java
-@@ -400,6 +400,14 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
-         }
-     }
- 
-+    // Leaves start - fakeplayer
-+    public void setListenerForce(PacketListener packetListener) {
-+        Validate.notNull(packetListener, "packetListener");
-+        this.packetListener = packetListener;
-+        this.disconnectListener = null;
-+    }
-+    // Leaves end - fakeplayer
-+
-     public void setListenerForServerboundHandshake(PacketListener packetListener) {
-         if (this.packetListener != null) {
-             throw new IllegalStateException("Listener already set");
 diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
 index 307c5a0b4b7c68fe2c7d1cf77ff23c766335882d..803d0b817e5d0acb1e4c6601d4784cc5cbd5e612 100644
 --- a/src/main/java/net/minecraft/server/MinecraftServer.java
@@ -108,18 +89,10 @@ index 85b76c5da9eea5bae0dd55f5b7ac1eb1a0211944..c6eeb3324fbf58eb7a6eb61aa7a8dfdc
  
              }
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-index 89ed20e9c629cf39a24c7a0ce5c4fee41fc64fd5..ba8e8120313cd371065f471fcc49a79d46b55dff 100644
+index 89ed20e9c629cf39a24c7a0ce5c4fee41fc64fd5..5afef331ec117adae0c29f5c4b9f43b7be7cdd4c 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-@@ -197,6 +197,7 @@ import org.bukkit.event.player.PlayerTeleportEvent;
- import org.bukkit.event.player.PlayerTeleportEvent.TeleportCause;
- import org.bukkit.event.player.PlayerToggleSneakEvent;
- import org.bukkit.inventory.MainHand;
-+import org.leavesmc.leaves.bot.ServerBot;
- // CraftBukkit end
- 
- public class ServerPlayer extends net.minecraft.world.entity.player.Player implements ca.spottedleaf.moonrise.patches.chunk_system.player.ChunkSystemServerPlayer { // Paper - rewrite chunk system
-@@ -210,7 +211,7 @@ public class ServerPlayer extends net.minecraft.world.entity.player.Player imple
+@@ -210,7 +210,7 @@ public class ServerPlayer extends net.minecraft.world.entity.player.Player imple
      private static final AttributeModifier CREATIVE_ENTITY_INTERACTION_RANGE_MODIFIER = new AttributeModifier(ResourceLocation.withDefaultNamespace("creative_mode_entity_range"), 2.0D, AttributeModifier.Operation.ADD_VALUE);
      public ServerGamePacketListenerImpl connection;
      public final MinecraftServer server;
@@ -128,7 +101,7 @@ index 89ed20e9c629cf39a24c7a0ce5c4fee41fc64fd5..ba8e8120313cd371065f471fcc49a79d
      private final PlayerAdvancements advancements;
      private final ServerStatsCounter stats;
      private float lastRecordedHealthAndAbsorption = Float.MIN_VALUE;
-@@ -771,16 +772,20 @@ public class ServerPlayer extends net.minecraft.world.entity.player.Player imple
+@@ -771,16 +771,20 @@ public class ServerPlayer extends net.minecraft.world.entity.player.Player imple
              --this.invulnerableTime;
          }
  
@@ -142,7 +115,7 @@ index 89ed20e9c629cf39a24c7a0ce5c4fee41fc64fd5..ba8e8120313cd371065f471fcc49a79d
 -            this.closeContainer(org.bukkit.event.inventory.InventoryCloseEvent.Reason.CANT_USE); // Paper - Inventory close reason
 -            this.containerMenu = this.inventoryMenu;
 +        // Leaves start - skip bot
-+        if (!(this instanceof ServerBot)) {
++        if (!(this instanceof org.leavesmc.leaves.bot.ServerBot)) {
 +            // Paper start - Configurable container update tick rate
 +            if (--containerUpdateDelay <= 0) {
 +                this.containerMenu.broadcastChanges();
@@ -158,31 +131,31 @@ index 89ed20e9c629cf39a24c7a0ce5c4fee41fc64fd5..ba8e8120313cd371065f471fcc49a79d
  
          Entity entity = this.getCamera();
  
-@@ -796,7 +801,7 @@ public class ServerPlayer extends net.minecraft.world.entity.player.Player imple
+@@ -796,7 +800,7 @@ public class ServerPlayer extends net.minecraft.world.entity.player.Player imple
              }
          }
  
 -        CriteriaTriggers.TICK.trigger(this);
-+        if (!(this instanceof ServerBot)) CriteriaTriggers.TICK.trigger(this); // Leaves - skip bot
++        if (!(this instanceof org.leavesmc.leaves.bot.ServerBot)) CriteriaTriggers.TICK.trigger(this); // Leaves - skip bot
          if (this.levitationStartPos != null) {
              CriteriaTriggers.LEVITATION.trigger(this, this.levitationStartPos, this.tickCount - this.levitationStartTime);
          }
-@@ -1016,7 +1021,7 @@ public class ServerPlayer extends net.minecraft.world.entity.player.Player imple
+@@ -1016,7 +1020,7 @@ public class ServerPlayer extends net.minecraft.world.entity.player.Player imple
          List<DefaultDrop> loot = new java.util.ArrayList<>(this.getInventory().getContainerSize()); // Paper - Restore vanilla drops behavior
          boolean keepInventory = this.level().getGameRules().getBoolean(GameRules.RULE_KEEPINVENTORY) || this.isSpectator();
  
 -        if (!keepInventory) {
-+        if (!keepInventory || this instanceof ServerBot) { // Leaves - skip bot
++        if (!keepInventory || this instanceof org.leavesmc.leaves.bot.ServerBot) { // Leaves - skip bot
              for (ItemStack item : this.getInventory().getContents()) {
                  if (!item.isEmpty() && !EnchantmentHelper.has(item, EnchantmentEffectComponents.PREVENT_EQUIPMENT_DROP)) {
                      loot.add(new DefaultDrop(item, stack -> this.drop(stack, true, false, false))); // Paper - Restore vanilla drops behavior; drop function taken from Inventory#dropAll (don't fire drop event)
-@@ -1416,6 +1421,13 @@ public class ServerPlayer extends net.minecraft.world.entity.player.Player imple
+@@ -1416,6 +1420,13 @@ public class ServerPlayer extends net.minecraft.world.entity.player.Player imple
                  this.lastSentHealth = -1.0F;
                  this.lastSentFood = -1;
  
 +                // Leaves start - bot support
 +                if (org.leavesmc.leaves.LeavesConfig.fakeplayerSupport) {
-+                    ServerBot.getBots().forEach(bot1 ->
++                    org.leavesmc.leaves.bot.ServerBot.getBots().forEach(bot1 ->
 +                        bot1.sendFakeDataIfNeed(this, true)); // Leaves - render bot
 +                }
 +                // Leaves end - bot support
@@ -275,7 +248,7 @@ index 9dcaa944134f21a86b3fe1ffa24048e273e23317..1500faf18c8b0eb2231d400aa560c306
 +    // Leaves end - fakeplayer support
  }
 diff --git a/src/main/java/net/minecraft/world/entity/Entity.java b/src/main/java/net/minecraft/world/entity/Entity.java
-index ba365cd594276b4876856799f793ed0b55cc9d2c..7405805d869dbfe239a9979aa4679cc4a071ad59 100644
+index bbfe8457119b76abb60653360fc272aa4580b349..9daadeeeb7bf1156fa8dc28136100f170a8e0f5c 100644
 --- a/src/main/java/net/minecraft/world/entity/Entity.java
 +++ b/src/main/java/net/minecraft/world/entity/Entity.java
 @@ -1392,7 +1392,7 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
@@ -377,23 +350,14 @@ index cb4922442cb696e587d07022e152c4fd9a21ca6f..d7f373bae76e14ce20515ec22bf48c40
 +    // Leaves end - Bot API
  }
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
-index 2cde808bfa797256409879505ba205a71f381981..25761c04b17a1e3f2a48a04796f78c2811d44920 100644
+index 2cde808bfa797256409879505ba205a71f381981..a007beca6c00bce4514889935b1762a37826c75a 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
-@@ -57,6 +57,8 @@ import org.bukkit.plugin.Plugin;
- import org.bukkit.util.BoundingBox;
- import org.bukkit.util.NumberConversions;
- import org.bukkit.util.Vector;
-+import org.leavesmc.leaves.bot.ServerBot;
-+import org.leavesmc.leaves.entity.CraftBot;
- 
- import net.md_5.bungee.api.chat.BaseComponent; // Spigot
- 
-@@ -94,6 +96,8 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
+@@ -94,6 +94,8 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
              return new CraftHumanEntity(server, (net.minecraft.world.entity.player.Player) entity);
          }
  
-+        if (entity instanceof ServerBot) { return new CraftBot(server, (ServerBot) entity); }
++        if (entity instanceof org.leavesmc.leaves.bot.ServerBot bot) { return new org.leavesmc.leaves.entity.CraftBot(server, bot); }
 +
          // Special case complex part, since there is no extra entity type for them
          if (entity instanceof EnderDragonPart complexPart) {
@@ -411,23 +375,6 @@ index bb9383f1a457433f9db3e78d7913616280925200..55b41ca7630db143d70137324a9de871
      /**
       * The start ID for the counter.
       */
-diff --git a/src/main/java/org/leavesmc/leaves/LeavesConfig.java b/src/main/java/org/leavesmc/leaves/LeavesConfig.java
-index 5809475f59efe62e18a0905532810e54d5a395d6..161870271e000effffe87c55c4d1d3e242e19c57 100644
---- a/src/main/java/org/leavesmc/leaves/LeavesConfig.java
-+++ b/src/main/java/org/leavesmc/leaves/LeavesConfig.java
-@@ -204,6 +204,12 @@ public final class LeavesConfig {
-         }
-     }
- 
-+    @GlobalConfig(name = "use-action", category = {"modify", "fakeplayer"})
-+    public static boolean fakeplayerUseAction = true;
-+
-+    @GlobalConfig(name = "modify-config", category = {"modify", "fakeplayer"})
-+    public static boolean fakeplayerModifyConfig = false;
-+
-     // Leaves end - modify - fakeplayer
- 
-     // Leaves start - modify - minecraft-old
 diff --git a/src/main/java/org/leavesmc/leaves/bot/BotCommand.java b/src/main/java/org/leavesmc/leaves/bot/BotCommand.java
 new file mode 100644
 index 0000000000000000000000000000000000000000..4b31cd0407d46c3405506470f70568a1c6162262
@@ -3245,33 +3192,6 @@ index 0000000000000000000000000000000000000000..46c8dad4a6205e3e460b82f8ce5617f8
 +        return false;
 +    }
 +}
-diff --git a/src/main/java/org/leavesmc/leaves/command/CommandArgument.java b/src/main/java/org/leavesmc/leaves/command/CommandArgument.java
-index 381cd8b33137a5b7dc688306b56805f35c57012a..2f0e6671dd8bfe4f320eab92c5f5bbc10abc3b05 100644
---- a/src/main/java/org/leavesmc/leaves/command/CommandArgument.java
-+++ b/src/main/java/org/leavesmc/leaves/command/CommandArgument.java
-@@ -32,6 +32,12 @@ public class CommandArgument {
-         return this;
-     }
- 
-+    public CommandArgument setAllTabComplete(List<List<String>> tabComplete) {
-+        this.tabComplete.clear();
-+        this.tabComplete.addAll(tabComplete);
-+        return this;
-+    }
-+
-     public CommandArgumentResult parse(int index, String @NotNull [] args) {
-         Object[] result = new Object[argumentTypes.size()];
-         Arrays.fill(result, null);
-diff --git a/src/main/java/org/leavesmc/leaves/command/CommandArgumentResult.java b/src/main/java/org/leavesmc/leaves/command/CommandArgumentResult.java
-index e50ca0473ab4d40e2623ab15f8566276cc14f4e7..6549037cf0bb8460fef8bef41d2335be079b9e9b 100644
---- a/src/main/java/org/leavesmc/leaves/command/CommandArgumentResult.java
-+++ b/src/main/java/org/leavesmc/leaves/command/CommandArgumentResult.java
-@@ -58,5 +58,4 @@ public class CommandArgumentResult {
-             return null;
-         }
-     }
--
- }
 diff --git a/src/main/java/org/leavesmc/leaves/entity/CraftBot.java b/src/main/java/org/leavesmc/leaves/entity/CraftBot.java
 new file mode 100644
 index 0000000000000000000000000000000000000000..fe1df01906f15e130cf947bbecb5df4bddf98c7c
@@ -3442,89 +3362,5 @@ index 0000000000000000000000000000000000000000..3995912855a612f09567027138f855ec
 +    @Override
 +    public boolean unregisterCustomBotAction(String name) {
 +        return Actions.unregister(name);
-+    }
-+}
-diff --git a/src/main/java/org/leavesmc/leaves/util/MathUtils.java b/src/main/java/org/leavesmc/leaves/util/MathUtils.java
-new file mode 100644
-index 0000000000000000000000000000000000000000..6c42b029d98ed293645f06dde6838761f87f20bb
---- /dev/null
-+++ b/src/main/java/org/leavesmc/leaves/util/MathUtils.java
-@@ -0,0 +1,78 @@
-+package org.leavesmc.leaves.util;
-+
-+import org.bukkit.util.NumberConversions;
-+import org.bukkit.util.Vector;
-+
-+import java.util.regex.Pattern;
-+
-+public class MathUtils {
-+    // Lag ?
-+    public static void clean(Vector vector) {
-+        if (!NumberConversions.isFinite(vector.getX())) vector.setX(0);
-+        if (!NumberConversions.isFinite(vector.getY())) vector.setY(0);
-+        if (!NumberConversions.isFinite(vector.getZ())) vector.setZ(0);
-+    }
-+
-+    private static final Pattern numericPattern = Pattern.compile("^-?[1-9]\\d*$|^0$");
-+    public static boolean isNumeric(String str){
-+        return numericPattern.matcher(str).matches();
-+    }
-+
-+    public static float[] fetchYawPitch(Vector dir) {
-+        double x = dir.getX();
-+        double z = dir.getZ();
-+
-+        float[] out = new float[2];
-+
-+        if (x == 0.0D && z == 0.0D) {
-+            out[1] = (float) (dir.getY() > 0.0D ? -90 : 90);
-+        }
-+
-+        else {
-+            double theta = Math.atan2(-x, z);
-+            out[0] = (float) Math.toDegrees((theta + 6.283185307179586D) % 6.283185307179586D);
-+
-+            double x2 = NumberConversions.square(x);
-+            double z2 = NumberConversions.square(z);
-+            double xz = Math.sqrt(x2 + z2);
-+            out[1] = (float) Math.toDegrees(Math.atan(-dir.getY() / xz));
-+        }
-+
-+        return out;
-+    }
-+
-+    public static float fetchPitch(Vector dir) {
-+        double x = dir.getX();
-+        double z = dir.getZ();
-+
-+        float result;
-+
-+        if (x == 0.0D && z == 0.0D) {
-+            result = (float) (dir.getY() > 0.0D ? -90 : 90);
-+        }
-+
-+        else {
-+            double x2 = NumberConversions.square(x);
-+            double z2 = NumberConversions.square(z);
-+            double xz = Math.sqrt(x2 + z2);
-+            result = (float) Math.toDegrees(Math.atan(-dir.getY() / xz));
-+        }
-+
-+        return result;
-+    }
-+
-+    public static Vector getDirection(double rotX, double rotY) {
-+        Vector vector = new Vector();
-+
-+        rotX = Math.toRadians(rotX);
-+        rotY = Math.toRadians(rotY);
-+
-+        double xz = Math.abs(Math.cos(rotY));
-+
-+        vector.setX(-Math.sin(rotX) * xz);
-+        vector.setZ(Math.cos(rotX) * xz);
-+        vector.setY(-Math.sin(rotY));
-+
-+        return vector;
 +    }
 +}

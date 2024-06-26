@@ -1,22 +1,17 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: violetc <58360096+s-yh-china@users.noreply.github.com>
 Date: Mon, 31 Jul 2023 17:42:25 +0800
-Subject: [PATCH] Leaves update command
+Subject: [PATCH] Leaves Updater
 
+---------
+
+Co-authored-by: MC_XiaoHei <xiaohei.xor7studio@foxmail.com>
 
 diff --git a/src/main/java/org/leavesmc/leaves/command/LeavesCommand.java b/src/main/java/org/leavesmc/leaves/command/LeavesCommand.java
-index b9e2bdb034dcd5119680ddea44a1eda11a0189b2..facd180da9b7025cf7ae192cbe91317ff4b70472 100644
+index ebd62b1d3a60d3e22e3849047293e1f62533eae7..e964f05c5c0f2d1d9b4c0a3459076e4b95f0f4e8 100644
 --- a/src/main/java/org/leavesmc/leaves/command/LeavesCommand.java
 +++ b/src/main/java/org/leavesmc/leaves/command/LeavesCommand.java
-@@ -13,6 +13,7 @@ import org.bukkit.plugin.PluginManager;
- import org.checkerframework.checker.nullness.qual.Nullable;
- import org.jetbrains.annotations.NotNull;
- import org.leavesmc.leaves.command.subcommands.ConfigCommand;
-+import org.leavesmc.leaves.command.subcommands.UpdateCommand;
- 
- import java.util.ArrayList;
- import java.util.Arrays;
-@@ -33,6 +34,7 @@ public final class LeavesCommand extends Command {
+@@ -33,6 +33,7 @@ public final class LeavesCommand extends Command {
      private static final Map<String, LeavesSubcommand> SUBCOMMANDS = Util.make(() -> {
          final Map<Set<String>, LeavesSubcommand> commands = new HashMap<>();
          commands.put(Set.of("config"), new ConfigCommand());
@@ -53,10 +48,10 @@ index 0000000000000000000000000000000000000000..7f94df607e8ffd48ab2cb7c90d520c2b
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/util/LeavesUpdateHelper.java b/src/main/java/org/leavesmc/leaves/util/LeavesUpdateHelper.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..06ca57f0cb319a254ca1511e60f05e5ca151beea
+index 0000000000000000000000000000000000000000..8620305f3330a856ad7445259f565bf8e281ea52
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/util/LeavesUpdateHelper.java
-@@ -0,0 +1,240 @@
+@@ -0,0 +1,268 @@
 +package org.leavesmc.leaves.util;
 +
 +import com.google.common.base.Charsets;
@@ -68,6 +63,7 @@ index 0000000000000000000000000000000000000000..06ca57f0cb319a254ca1511e60f05e5c
 +import net.minecraft.Util;
 +import org.bukkit.Bukkit;
 +import org.jetbrains.annotations.NotNull;
++import org.leavesmc.leaves.LeavesConfig;
 +import org.leavesmc.leaves.LeavesLogger;
 +
 +import java.io.BufferedReader;
@@ -78,6 +74,8 @@ index 0000000000000000000000000000000000000000..06ca57f0cb319a254ca1511e60f05e5c
 +import java.io.IOException;
 +import java.io.InputStreamReader;
 +import java.net.HttpURLConnection;
++import java.net.URI;
++import java.net.URISyntaxException;
 +import java.net.URL;
 +import java.nio.channels.Channels;
 +import java.nio.channels.FileChannel;
@@ -85,6 +83,11 @@ index 0000000000000000000000000000000000000000..06ca57f0cb319a254ca1511e60f05e5c
 +import java.nio.file.Files;
 +import java.nio.file.Path;
 +import java.security.MessageDigest;
++import java.time.Duration;
++import java.time.LocalTime;
++import java.util.concurrent.Executors;
++import java.util.concurrent.ScheduledExecutorService;
++import java.util.concurrent.TimeUnit;
 +import java.util.concurrent.locks.ReentrantLock;
 +
 +import static java.nio.file.StandardOpenOption.CREATE;
@@ -99,24 +102,50 @@ index 0000000000000000000000000000000000000000..06ca57f0cb319a254ca1511e60f05e5c
 +    private final static ReentrantLock updateLock = new ReentrantLock();
 +    private static boolean updateTaskStarted = false;
 +
-+    public static void initAutoUpdate() {
++    private static final ScheduledExecutorService autoUpdateExecutor = Executors.newScheduledThreadPool(1);
++
++    public static void init() {
 +        File workingDirFile = new File(autoUpdateDir);
 +        if (!workingDirFile.exists()) {
-+            workingDirFile.mkdir();
++            if (!workingDirFile.mkdir()) {
++                LeavesLogger.LOGGER.warning("Failed to create working directory: " + autoUpdateDir);
++            }
 +        }
 +
 +        File corePathFile = new File(corePathFileName);
 +        if (!corePathFile.exists()) {
 +            try {
-+                corePathFile.createNewFile();
++                if (!corePathFile.createNewFile()) {
++                    throw new IOException();
++                }
 +            } catch (IOException e) {
-+                e.printStackTrace();
++                LeavesLogger.LOGGER.severe("Failed to create core path file: " + corePathFileName, e);
 +            }
 +        }
 +
 +        File leavesUpdateDir = new File(autoUpdateDir + File.separator + "leaves");
 +        if (!leavesUpdateDir.exists()) {
-+            leavesUpdateDir.mkdir();
++            if (!leavesUpdateDir.mkdir()) {
++                LeavesLogger.LOGGER.warning("Failed to create leaves update directory: " + leavesUpdateDir);
++            }
++        }
++
++        if (LeavesConfig.autoUpdate) {
++            LocalTime currentTime = LocalTime.now();
++            long dailyTaskPeriod = 24 * 60 * 60 * 1000;
++
++            for (String time : LeavesConfig.autoUpdateTime) {
++                try {
++                    LocalTime taskTime = LocalTime.of(Integer.parseInt(time.split(":")[0]), Integer.parseInt(time.split(":")[1]));
++                    Duration task = Duration.between(currentTime, taskTime);
++                    if (task.isNegative()) {
++                        task = task.plusDays(1);
++                    }
++                    autoUpdateExecutor.scheduleAtFixedRate(LeavesUpdateHelper::tryUpdateLeaves, task.toMillis(), dailyTaskPeriod, TimeUnit.MILLISECONDS);
++                } catch (Exception ignored) {
++                    LeavesLogger.LOGGER.warning("Illegal auto-update time ignored: " + time);
++                }
++            }
 +        }
 +    }
 +
@@ -125,12 +154,7 @@ index 0000000000000000000000000000000000000000..06ca57f0cb319a254ca1511e60f05e5c
 +        try {
 +            if (!updateTaskStarted) {
 +                updateTaskStarted = true;
-+                new Thread(new Runnable() {
-+                    @Override
-+                    public void run() {
-+                        downloadLeaves();
-+                    }
-+                }).start();
++                new Thread(LeavesUpdateHelper::downloadLeaves).start();
 +            }
 +        } finally {
 +            updateLock.unlock();
@@ -142,7 +166,7 @@ index 0000000000000000000000000000000000000000..06ca57f0cb319a254ca1511e60f05e5c
 +        String version = Bukkit.getVersion();
 +
 +        if (version.startsWith("null")) {
-+            LeavesLogger.LOGGER.info("IDE?");
++            LeavesLogger.LOGGER.info("IDE? Can not update!");
 +            updateTaskStarted = false;
 +            return;
 +        }
@@ -165,7 +189,7 @@ index 0000000000000000000000000000000000000000..06ca57f0cb319a254ca1511e60f05e5c
 +                Files.deleteIfExists(outFile);
 +
 +                boolean downloadFlag = false;
-+                URL cdnUrl = new URL(buildInfo.cdnUrl);
++                URL cdnUrl = new URI(buildInfo.cdnUrl).toURL();
 +                try (
 +                    final ReadableByteChannel source = Channels.newChannel(cdnUrl.openStream());
 +                    final FileChannel fileChannel = FileChannel.open(outFile, CREATE, WRITE, TRUNCATE_EXISTING)
@@ -177,17 +201,16 @@ index 0000000000000000000000000000000000000000..06ca57f0cb319a254ca1511e60f05e5c
 +                }
 +
 +                if (!downloadFlag) {
-+                    URL githubUrl = new URL(buildInfo.githubUrl);
++                    URL githubUrl = new URI(buildInfo.githubUrl).toURL();
 +                    try (
 +                        final ReadableByteChannel source = Channels.newChannel(githubUrl.openStream());
 +                        final FileChannel fileChannel = FileChannel.open(outFile, CREATE, WRITE, TRUNCATE_EXISTING)
 +                    ) {
 +                        fileChannel.transferFrom(source, 0, Long.MAX_VALUE);
 +                    } catch (final IOException e) {
-+                        LeavesLogger.LOGGER.warning("Download " + buildInfo.fileName + " failed.");
++                        LeavesLogger.LOGGER.warning("Download " + buildInfo.fileName + " failed.", e);
 +                        Files.deleteIfExists(outFile);
 +                        updateTaskStarted = false;
-+                        e.printStackTrace();
 +                        return;
 +                    }
 +                }
@@ -207,14 +230,14 @@ index 0000000000000000000000000000000000000000..06ca57f0cb319a254ca1511e60f05e5c
 +                try (BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(corePathFileName))) {
 +                    bufferedWriter.write(autoUpdateDir + File.separator + "leaves" + File.separator + buildInfo.fileName);
 +                } catch (IOException e) {
-+                    e.printStackTrace();
++                    LeavesLogger.LOGGER.warning("Fail to download leaves core", e);
 +                    updateTaskStarted = false;
 +                    return;
 +                }
 +
 +                LeavesLogger.LOGGER.info("Leaves update completed, please restart your server.");
 +            } catch (Exception e) {
-+                e.printStackTrace();
++                LeavesLogger.LOGGER.severe("Leaves update failed", e);
 +            }
 +        } else {
 +            LeavesLogger.LOGGER.warning("Can't get build info, stopping update.");
@@ -233,7 +256,7 @@ index 0000000000000000000000000000000000000000..06ca57f0cb319a254ca1511e60f05e5c
 +
 +            return toHexString(md5.digest()).equals(hash);
 +        } catch (Exception e) {
-+            e.printStackTrace();
++            LeavesLogger.LOGGER.warning("Fail to validate file " + file, e);
 +        }
 +        return false;
 +    }
@@ -249,14 +272,14 @@ index 0000000000000000000000000000000000000000..06ca57f0cb319a254ca1511e60f05e5c
 +
 +    private static LeavesBuildInfo getLatestBuildInfo(String mcVersion, String gitHash) {
 +        try {
-+            HttpURLConnection connection = (HttpURLConnection) new URL("https://api.leavesmc.org/projects/leaves/versions/" + mcVersion + "/builds/latest").openConnection();
++            HttpURLConnection connection = (HttpURLConnection) new URI("https://api.leavesmc.org/projects/leaves/versions/" + mcVersion + "/builds/latest").toURL().openConnection();
 +            connection.connect();
 +            boolean useApiV2 = false;
-+            if (connection.getResponseCode() / 100 != 2){
-+                connection = (HttpURLConnection) new URL("https://api.leavesmc.org/v2/projects/leaves/versions/" + mcVersion + "/builds/latest").openConnection();
++            if (connection.getResponseCode() / 100 != 2) {
++                connection = (HttpURLConnection) new URI("https://api.leavesmc.org/v2/projects/leaves/versions/" + mcVersion + "/builds/latest").toURL().openConnection();
 +                connection.connect();
 +                useApiV2 = true;
-+            };
++            }
 +            if (connection.getResponseCode() == HttpURLConnection.HTTP_NOT_FOUND) return LeavesBuildInfo.NULL;
 +            try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream(), Charsets.UTF_8))) {
 +                JsonObject obj = new Gson().fromJson(reader, JsonObject.class);
@@ -265,7 +288,7 @@ index 0000000000000000000000000000000000000000..06ca57f0cb319a254ca1511e60f05e5c
 +                if (channel.equals("default")) {
 +                    int build = obj.get("build").getAsInt();
 +
-+                    JsonArray changes =  obj.get("changes").getAsJsonArray();
++                    JsonArray changes = obj.get("changes").getAsJsonArray();
 +                    boolean needUpdate = true;
 +                    for (JsonElement change : changes) {
 +                        if (change.getAsJsonObject().get("commit").getAsString().startsWith(gitHash)) {
@@ -284,11 +307,11 @@ index 0000000000000000000000000000000000000000..06ca57f0cb319a254ca1511e60f05e5c
 +                    return LeavesBuildInfo.NULL;
 +                }
 +            } catch (JsonSyntaxException | NumberFormatException e) {
-+                e.printStackTrace();
++                LeavesLogger.LOGGER.warning("Fail to get latest build info", e);
 +                return LeavesBuildInfo.NULL;
 +            }
-+        } catch (IOException e) {
-+            e.printStackTrace();
++        } catch (IOException | URISyntaxException e) {
++            LeavesLogger.LOGGER.warning("Fail to get latest build info", e);
 +            return LeavesBuildInfo.NULL;
 +        }
 +    }

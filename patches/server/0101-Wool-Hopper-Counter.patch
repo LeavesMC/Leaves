@@ -18,32 +18,10 @@ index e314f36951e9ac15c57137e24fce8c410373130a..dd232d9e86c5bf03cfb4597d3291a172
      @Nullable
      public ItemStack[] itemStacks;
      @Nullable
-diff --git a/src/main/java/net/minecraft/world/item/crafting/RecipeManager.java b/src/main/java/net/minecraft/world/item/crafting/RecipeManager.java
-index de7c77c1b25680ecc65f0f43f2391aff269a974f..3ee6ee42a2bed5c211577f6cc47a5f7bab7c32ed 100644
---- a/src/main/java/net/minecraft/world/item/crafting/RecipeManager.java
-+++ b/src/main/java/net/minecraft/world/item/crafting/RecipeManager.java
-@@ -45,7 +45,7 @@ public class RecipeManager extends SimpleJsonResourceReloadListener {
-     private static final Logger LOGGER = LogUtils.getLogger();
-     private final HolderLookup.Provider registries;
-     public Multimap<RecipeType<?>, RecipeHolder<?>> byType = ImmutableMultimap.of();
--    public Map<ResourceLocation, RecipeHolder<?>> byName = ImmutableMap.of();
-+    public Map<ResourceLocation, RecipeHolder<?>> byName = ImmutableMap.of(); // Leaves - hopper counter
-     private boolean hasErrors;
- 
-     public RecipeManager(HolderLookup.Provider registryLookup) {
 diff --git a/src/main/java/net/minecraft/world/level/block/entity/HopperBlockEntity.java b/src/main/java/net/minecraft/world/level/block/entity/HopperBlockEntity.java
-index b08b7ffbcfbc6a12d74cadf878fd069f7a1345cb..741ab2ffc8e4f40f43e24fed3b6d55580a3fdaca 100644
+index b08b7ffbcfbc6a12d74cadf878fd069f7a1345cb..c096c9f8fc7a7e42b250306c8c35bc2c206b68ac 100644
 --- a/src/main/java/net/minecraft/world/level/block/entity/HopperBlockEntity.java
 +++ b/src/main/java/net/minecraft/world/level/block/entity/HopperBlockEntity.java
-@@ -202,7 +202,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
- 
-                 final int fullState = getFullState(blockEntity); // Paper - Perf: Optimize Hoppers
-                 if (fullState != HOPPER_EMPTY) { // Paper - Perf: Optimize Hoppers
--                    flag = HopperBlockEntity.ejectItems(world, pos, blockEntity);
-+                    flag = HopperBlockEntity.ejectItems(world, pos, blockEntity); // Leaves - hopper counter
-                 }
- 
-                 if (fullState != HOPPER_IS_FULL || flag) { // Paper - Perf: Optimize Hoppers
 @@ -432,7 +432,14 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
      private static final java.util.function.BiPredicate<ItemStack, Integer> IS_EMPTY_TEST = (itemstack, i) -> itemstack.isEmpty();
      // Paper end - Perf: Optimize Hoppers
@@ -84,18 +62,10 @@ index b08b7ffbcfbc6a12d74cadf878fd069f7a1345cb..741ab2ffc8e4f40f43e24fed3b6d5558
          if (inventory instanceof WorldlyContainer iworldinventory) {
              return iworldinventory.getSlotsForFace(side);
 diff --git a/src/main/java/org/leavesmc/leaves/command/LeavesCommand.java b/src/main/java/org/leavesmc/leaves/command/LeavesCommand.java
-index 2d871fafff90e2dbc8c4141f92cdb1544ccdce43..31473e5a257276d1feb37e98cf52477cd9523712 100644
+index b28ca267a841f33ba18fff5587a6b0e677dc1ea1..f9a1f2d7f319c22178c2254347bcdc15f19badd9 100644
 --- a/src/main/java/org/leavesmc/leaves/command/LeavesCommand.java
 +++ b/src/main/java/org/leavesmc/leaves/command/LeavesCommand.java
-@@ -13,6 +13,7 @@ import org.bukkit.plugin.PluginManager;
- import org.checkerframework.checker.nullness.qual.Nullable;
- import org.jetbrains.annotations.NotNull;
- import org.leavesmc.leaves.command.subcommands.ConfigCommand;
-+import org.leavesmc.leaves.command.subcommands.CounterCommand;
- import org.leavesmc.leaves.command.subcommands.PeacefulModeSwitchCommand;
- import org.leavesmc.leaves.command.subcommands.UpdateCommand;
- 
-@@ -37,6 +38,7 @@ public final class LeavesCommand extends Command {
+@@ -35,6 +35,7 @@ public final class LeavesCommand extends Command {
          commands.put(Set.of("config"), new ConfigCommand());
          commands.put(Set.of("update"), new UpdateCommand());
          commands.put(Set.of("peaceful"), new PeacefulModeSwitchCommand());
@@ -232,10 +202,10 @@ index 0000000000000000000000000000000000000000..358780d37600220d132ae8e2e6c594fc
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/util/HopperCounter.java b/src/main/java/org/leavesmc/leaves/util/HopperCounter.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..1551feb2e2787ccf15dbe6a027e7fff21f762c7a
+index 0000000000000000000000000000000000000000..1a83b3918bc040ab32e648b54b498e9a556c17a3
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/util/HopperCounter.java
-@@ -0,0 +1,334 @@
+@@ -0,0 +1,338 @@
 +package org.leavesmc.leaves.util;
 +
 +import it.unimi.dsi.fastutil.objects.Object2LongLinkedOpenHashMap;
@@ -269,6 +239,7 @@ index 0000000000000000000000000000000000000000..1551feb2e2787ccf15dbe6a027e7fff2
 +import net.minecraft.world.level.material.MapColor;
 +import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
++import org.leavesmc.leaves.LeavesConfig;
 +
 +import java.util.ArrayList;
 +import java.util.Arrays;
@@ -277,8 +248,6 @@ index 0000000000000000000000000000000000000000..1551feb2e2787ccf15dbe6a027e7fff2
 +import java.util.EnumMap;
 +import java.util.List;
 +import java.util.Map;
-+import java.util.Objects;
-+import java.util.stream.Collectors;
 +
 +import static java.util.Map.entry;
 +
@@ -418,6 +387,7 @@ index 0000000000000000000000000000000000000000..1551feb2e2787ccf15dbe6a027e7fff2
 +        entry(Items.SPIDER_EYE, Blocks.NETHERRACK),
 +        entry(Items.GUNPOWDER, Blocks.GRAY_WOOL),
 +        entry(Items.TURTLE_SCUTE, Blocks.LIME_WOOL),
++        entry(Items.ARMADILLO_SCUTE, Blocks.ANCIENT_DEBRIS),
 +        entry(Items.FEATHER, Blocks.WHITE_WOOL),
 +        entry(Items.FLINT, Blocks.BLACK_WOOL),
 +        entry(Items.LEATHER, Blocks.SPRUCE_PLANKS),
@@ -515,17 +485,21 @@ index 0000000000000000000000000000000000000000..1551feb2e2787ccf15dbe6a027e7fff2
 +    }
 +
 +    public static List<Recipe<?>> getAllMatching(@NotNull RecipeManager manager, RecipeType<?> type, ResourceLocation output, final RegistryAccess registryAccess) {
-+        Map<ResourceLocation, RecipeHolder<?>> typeRecipes = manager.byName; // Leaves - hopper counter
-+        if (typeRecipes == null) {
-+            return Collections.emptyList();
++        RecipeHolder<?> recipe = manager.byName.get(output);
++        if (recipe != null && recipe.value().getType().equals(type)) {
++            return List.of(recipe.value());
 +        }
-+        if (typeRecipes.containsKey(output)) {
-+            return Collections.singletonList(typeRecipes.get(output).value());
++        if (!manager.byType.containsKey(type)) {
++            return List.of();
 +        }
-+        final Registry<Item> regs = registryAccess.registryOrThrow(Registries.ITEM);
-+        return typeRecipes.values().stream()
-+            .filter(r -> Objects.equals(regs.getKey(r.value().getResultItem(registryAccess).getItem()), output))
-+            .map(RecipeHolder::value).collect(Collectors.toList());
++
++        Collection<RecipeHolder<?>> typeRecipes = manager.byType.get(type);
++        Registry<Item> regs = registryAccess.registryOrThrow(Registries.ITEM);
++        Item item = regs.get(output);
++        return typeRecipes.stream()
++            .<Recipe<?>>map(RecipeHolder::value)
++            .filter(r -> r.getResultItem(registryAccess).getItem() == item)
++            .toList();
 +    }
 +
 +    public static List<Collection<ItemStack>> getRecipeStacks(@NotNull Ingredient ingredient) {
@@ -567,7 +541,7 @@ index 0000000000000000000000000000000000000000..1551feb2e2787ccf15dbe6a027e7fff2
 +    }
 +
 +    public static boolean isEnabled() {
-+        return enabled;
++        return LeavesConfig.hopperCounter && enabled;
 +    }
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/util/WoolUtils.java b/src/main/java/org/leavesmc/leaves/util/WoolUtils.java

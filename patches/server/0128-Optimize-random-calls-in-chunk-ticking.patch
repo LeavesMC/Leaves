@@ -1,0 +1,51 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Thu, 27 Jun 2024 20:15:05 +0800
+Subject: [PATCH] Optimize random calls in chunk ticking
+
+This patch is Powered by Pufferfish(https://github.com/pufferfish-gg/Pufferfish)
+
+diff --git a/src/main/java/net/minecraft/server/level/ServerLevel.java b/src/main/java/net/minecraft/server/level/ServerLevel.java
+index be09ee31a7f75990907e8efe071cd341ce64b487..66a4d6b7ed44d44c3afc96c4058fdc391d6ac9f9 100644
+--- a/src/main/java/net/minecraft/server/level/ServerLevel.java
++++ b/src/main/java/net/minecraft/server/level/ServerLevel.java
+@@ -809,7 +809,7 @@ public class ServerLevel extends Level implements WorldGenLevel, ca.spottedleaf.
+         ProfilerFiller gameprofilerfiller = this.getProfiler();
+ 
+         gameprofilerfiller.push("thunder");
+-        if (!this.paperConfig().environment.disableThunder && flag && this.isThundering() && this.spigotConfig.thunderChance > 0 && this.random.nextInt(this.spigotConfig.thunderChance) == 0) { // Spigot // Paper - Option to disable thunder
++        if (!this.paperConfig().environment.disableThunder && flag && this.isThundering() && this.spigotConfig.thunderChance > 0 && (org.leavesmc.leaves.LeavesConfig.optimizeChunkTicking ? chunk.shouldDoLightning(this.random) : this.random.nextInt(this.spigotConfig.thunderChance) == 0)) { // Spigot // Paper - Option to disable thunder // Leaves - replace random with shouldDoLightning
+             BlockPos blockposition = this.findLightningTargetAround(this.getBlockRandomPos(j, 0, k, 15));
+ 
+             if (this.isRainingAt(blockposition)) {
+diff --git a/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java b/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java
+index 58456b07d4d9e53602cff24c45bd85ee5c1a6663..a071e41a6b9fa87217ce0b8b4d04ab25366db843 100644
+--- a/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java
++++ b/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java
+@@ -86,6 +86,17 @@ public class LevelChunk extends ChunkAccess implements ca.spottedleaf.moonrise.p
+     private final LevelChunkTicks<Block> blockTicks;
+     private final LevelChunkTicks<Fluid> fluidTicks;
+ 
++    // Leaves start - instead of using a random every time the chunk is ticked, define when lightning strikes preemptively
++    private int lightningTick;
++    public final boolean shouldDoLightning(net.minecraft.util.RandomSource random) {
++        if (this.lightningTick-- <= 0) {
++            this.lightningTick = random.nextInt(this.level.spigotConfig.thunderChance) << 1;
++            return true;
++        }
++        return false;
++    }
++    // Leaves end
++
+     public LevelChunk(Level world, ChunkPos pos) {
+         this(world, pos, UpgradeData.EMPTY, new LevelChunkTicks<>(), new LevelChunkTicks<>(), 0L, (LevelChunkSection[]) null, (LevelChunk.PostLoadProcessor) null, (BlendingData) null);
+     }
+@@ -109,6 +120,8 @@ public class LevelChunk extends ChunkAccess implements ca.spottedleaf.moonrise.p
+         this.postLoad = entityLoader;
+         this.blockTicks = blockTickScheduler;
+         this.fluidTicks = fluidTickScheduler;
++
++        if (org.leavesmc.leaves.LeavesConfig.optimizeChunkTicking) this.lightningTick = this.level.random.nextInt(100000) << 1; // Leaves - initialize lightning tick TODO UnsafeRandom
+     }
+ 
+     // CraftBukkit start

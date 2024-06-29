@@ -23,18 +23,6 @@ index 5025c5df3ee6ed84106782e3f9228874bebe63ca..268193499b9f1fae0c01963e8004a3e7
  tasks.registerRunTask("runBundler") {
      description = "Spin up a test server from the Mojang mapped bundler jar"
      classpath(rootProject.tasks.named<io.papermc.paperweight.tasks.CreateBundlerJar>("createMojmapBundlerJar").flatMap { it.outputZip })
-diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
-index 41ed8d64963616fc97d382b6cd0b9cc154fd84c6..1b8f7ff3b0ccef6ce3ac99eecf98622fb13f9269 100644
---- a/src/main/java/net/minecraft/server/MinecraftServer.java
-+++ b/src/main/java/net/minecraft/server/MinecraftServer.java
-@@ -1168,6 +1168,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
-             LOGGER.info("Done ({})! For help, type \"help\"", doneTime);
-             // Paper end
- 
-+			org.leavesmc.leaves.LeavesConfig.createWorldSections = false; // Leaves - dont let plugin create worlds fill our config
-             org.spigotmc.WatchdogThread.tick(); // Paper
-             org.spigotmc.WatchdogThread.hasStarted = true; // Paper
-             Arrays.fill( this.recentTps, 20 );
 diff --git a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
 index 29d61b407762504dffc26f3048a17327592d9b4a..ec9ade19778c71561b4045ade5ab6cd090768547 100644
 --- a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
@@ -97,10 +85,10 @@ index 459f47244bdfeab63b5f16d780b0291d36310de8..a872421bc3e67fdcc929f104f4b085fb
                          .withRequiredArg()
 diff --git a/src/main/java/org/leavesmc/leaves/LeavesConfig.java b/src/main/java/org/leavesmc/leaves/LeavesConfig.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..2a7f9d9fdb72786b08b3cb216f5aa5e5eac3c967
+index 0000000000000000000000000000000000000000..afe13ae207eaa294e3299f15874d28df3a55e32d
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/LeavesConfig.java
-@@ -0,0 +1,922 @@
+@@ -0,0 +1,888 @@
 +package org.leavesmc.leaves;
 +
 +import com.destroystokyo.paper.util.SneakyThrow;
@@ -121,24 +109,23 @@ index 0000000000000000000000000000000000000000..2a7f9d9fdb72786b08b3cb216f5aa5e5
 +import java.io.IOException;
 +import java.util.Collections;
 +import java.util.List;
++import java.util.Locale;
 +import java.util.logging.Level;
 +import java.util.Random;
 +
 +import org.leavesmc.leaves.protocol.CarpetServerProtocol.CarpetRule;
 +import org.leavesmc.leaves.protocol.CarpetServerProtocol.CarpetRules;
 +
-+//import org.leavesmc.leaves.protocol.bladeren.BladerenProtocol.LeavesFeatureSet; // Leaves - remove protocol temporarily
-+//import org.leavesmc.leaves.protocol.bladeren.BladerenProtocol.LeavesFeature; // Leaves - remove protocol temporarily
++import org.leavesmc.leaves.protocol.bladeren.BladerenProtocol.LeavesFeatureSet;
++import org.leavesmc.leaves.protocol.bladeren.BladerenProtocol.LeavesFeature;
 +
 +public final class LeavesConfig {
 +
 +    public static final String CONFIG_HEADER = "Configuration file for Leaves.";
-+    public static final int CURRENT_CONFIG_VERSION = 5;
++    public static final int CURRENT_CONFIG_VERSION = 6;
 +
 +    private static File configFile;
 +    public static YamlConfiguration config;
-+    private static int configVersion;
-+    public static boolean createWorldSections = true;
 +
 +    public static void init(final File file) {
 +        LeavesConfig.configFile = file;
@@ -165,10 +152,7 @@ index 0000000000000000000000000000000000000000..2a7f9d9fdb72786b08b3cb216f5aa5e5
 +            }
 +        }
 +
-+        LeavesConfig.configVersion = LeavesConfig.config.getInt("config-version", CURRENT_CONFIG_VERSION);
 +        LeavesConfig.config.set("config-version", CURRENT_CONFIG_VERSION);
-+
-+        updateConfigVersion(config);
 +
 +        GlobalConfigManager.init();
 +
@@ -183,68 +167,13 @@ index 0000000000000000000000000000000000000000..2a7f9d9fdb72786b08b3cb216f5aa5e5
 +        }
 +    }
 +
-+    @SuppressWarnings("all")
-+    @Deprecated(forRemoval = true)
-+    private static void updateConfigVersion(final YamlConfiguration config) {
-+        if (configVersion < CURRENT_CONFIG_VERSION) {
-+            switch (configVersion) {
-+                case 1 -> {
-+                    snowballAndEggCanKnockback = config.getBoolean("settings.snowball-and-egg-can-knockback-player", snowballAndEggCanKnockback);
-+                    fakeplayerSupport = config.getBoolean("settings.fakeplayer.enable", fakeplayerSupport);
-+                    unableFakeplayerNames = (List<String>) config.getList("settings.fakeplayer.unable-fakeplayer-names", unableFakeplayerNames);
-+                    shearsInDispenserCanZeroAmount = config.getBoolean("settings.shears-in-dispenser-can-zero-amount", shearsInDispenserCanZeroAmount);
-+                    redstoneShearsWrench = config.getBoolean("settings.redstone-shears-wrench", redstoneShearsWrench);
-+                    buddingAmethystCanPushByPiston = config.getBoolean("settings.budding-amethyst-can-push-by-piston", buddingAmethystCanPushByPiston);
-+                    spectatorDontGetAdvancement = config.getBoolean("settings.spectator-dont-get-advancement", spectatorDontGetAdvancement);
-+                    stickChangeArmorStandArmStatus = config.getBoolean("settings.stick-change-armorstand-arm-status", stickChangeArmorStandArmStatus);
-+                    noChatSign = config.getBoolean("settings.no-chat-sign", noChatSign);
-+
-+                    config.set("settings.snowball-and-egg-can-knockback-player", null);
-+                    config.set("settings.player-can-edit-sign", null);
-+                    config.set("settings.fakeplayer", null);
-+                    config.set("settings.shears-in-dispenser-can-zero-amount", null);
-+                    config.set("settings.redstone-shears-wrench", null);
-+                    config.set("settings.budding-amethyst-can-push-by-piston", null);
-+                    config.set("settings.spectator-dont-get-advancement", null);
-+                    config.set("settings.stick-change-armorstand-arm-status", null);
-+                    config.set("settings.no-chat-sign", null);
-+                }
-+
-+                case 2 -> {
-+                    config.set("settings.modify.player-can-edit-sign", null);
-+                    config.set("settings.performance.skip-clone-loot-parameters", null);
-+                }
-+
-+                case 3 -> {
-+                    boolean carpetAlternative = config.getBoolean("settings.protocol.carpet-alternative-block-placement", false);
-+                    alternativeBlockPlacement = carpetAlternative ? AlternativePlaceType.CARPET : AlternativePlaceType.NONE;
-+                    config.set("settings.protocol.carpet-alternative-block-placement", null);
-+                }
-+
-+                case 4 -> {
-+                    shearsInDispenserCanZeroAmount = config.getBoolean("settings.modify.shears-in-dispenser-can-zero-amount", shearsInDispenserCanZeroAmount);
-+                    instantBlockUpdaterReintroduced = config.getBoolean("settings.modify.instant-block-updater-reintroduced", instantBlockUpdaterReintroduced);
-+                    redstoneDontCantOnTrapDoor = config.getBoolean("settings.modify.redstone-wire-dont-connect-if-on-trapdoor", redstoneDontCantOnTrapDoor);
-+                    mendingCompatibilityInfinity = config.getBoolean("settings.modify.mending-compatibility-infinity", mendingCompatibilityInfinity);
-+                    zeroTickPlants = config.getBoolean("settings.modify.zero-tick-plants", zeroTickPlants);
-+
-+                    config.set("settings.modify.shears-in-dispenser-can-zero-amount", null);
-+                    config.set("settings.modify.instant-block-updater-reintroduced", null);
-+                    config.set("settings.modify.redstone-wire-dont-connect-if-on-trapdoor", null);
-+                    config.set("settings.modify.mending-compatibility-infinity", null);
-+                    config.set("settings.modify.zero-tick-plants", null);
-+                }
-+            }
-+        }
-+    }
-+
 +    public static void registerCommand(String name, Command command) {
 +        MinecraftServer.getServer().server.getCommandMap().register(name, "leaves", command);
 +        MinecraftServer.getServer().server.syncCommands();
 +    }
 +
 +    public static void unregisterCommand(String name) {
-+        name = name.toLowerCase(java.util.Locale.ENGLISH).trim();
++        name = name.toLowerCase(Locale.ENGLISH).trim();
 +        MinecraftServer.getServer().server.getCommandMap().getKnownCommands().remove(name);
 +        MinecraftServer.getServer().server.getCommandMap().getKnownCommands().remove("leaves:" + name);
 +        MinecraftServer.getServer().server.syncCommands();
@@ -254,6 +183,7 @@ index 0000000000000000000000000000000000000000..2a7f9d9fdb72786b08b3cb216f5aa5e5
 +
 +    // Leaves start - modify - fakeplayer
 +
++    @RemovedConfig(name = "enable", category = "fakeplayer", transform = true)
 +    @GlobalConfig(name = "enable", category = {"modify", "fakeplayer"}, verify = FakeplayerVerify.class)
 +    public static boolean fakeplayerSupport = true;
 +
@@ -270,6 +200,7 @@ index 0000000000000000000000000000000000000000..2a7f9d9fdb72786b08b3cb216f5aa5e5
 +        }
 +    }
 +
++    @RemovedConfig(name = "unable-fakeplayer-names", category = "fakeplayer", transform = true)
 +    @GlobalConfig(name = "unable-fakeplayer-names", category = {"modify", "fakeplayer"}, verify = ConfigVerify.ListConfigVerify.class)
 +    public static List<String> unableFakeplayerNames = List.of("player-name");
 +
@@ -317,9 +248,12 @@ index 0000000000000000000000000000000000000000..2a7f9d9fdb72786b08b3cb216f5aa5e5
 +
 +    // Leaves start - modify - minecraft-old
 +
++    @RemovedConfig(name = "shears-in-dispenser-can-zero-amount", category = {}, transform = true)
++    @RemovedConfig(name = "shears-in-dispenser-can-zero-amount", category = "modify", transform = true)
 +    @GlobalConfig(name = "shears-in-dispenser-can-zero-amount", category = {"modify", "minecraft-old"})
 +    public static boolean shearsInDispenserCanZeroAmount = false;
 +
++    @RemovedConfig(name = "instant-block-updater-reintroduced", category = "modify", transform = true)
 +    @GlobalConfig(name = "instant-block-updater-reintroduced", category = {"modify", "minecraft-old"}, lock = true)
 +    public static boolean instantBlockUpdaterReintroduced = false;
 +
@@ -346,12 +280,11 @@ index 0000000000000000000000000000000000000000..2a7f9d9fdb72786b08b3cb216f5aa5e5
 +    @GlobalConfig(name = "crafter-1gt-delay", category = {"modify", "minecraft-old"})
 +    public static boolean crafter1gt = false;
 +
++    @RemovedConfig(name = "redstone-wire-dont-connect-if-on-trapdoor", category = "modify", transform = true)
 +    @GlobalConfig(name = "redstone-wire-dont-connect-if-on-trapdoor", category = {"modify", "minecraft-old"})
 +    public static boolean redstoneDontCantOnTrapDoor = false;
 +
-+    @GlobalConfig(name = "mending-compatibility-infinity", category = {"modify", "minecraft-old"})
-+    public static boolean mendingCompatibilityInfinity = false;
-+
++    @RemovedConfig(name = "zero-tick-plants", category = "modify", transform = true)
 +    @GlobalConfig(name = "zero-tick-plants", category = {"modify", "minecraft-old"})
 +    public static boolean zeroTickPlants = false;
 +
@@ -362,13 +295,16 @@ index 0000000000000000000000000000000000000000..2a7f9d9fdb72786b08b3cb216f5aa5e5
 +    private static class RNGFishingVerify extends ConfigVerify.BooleanConfigVerify {
 +        @Override
 +        public String check(Boolean old, Boolean value) {
-+//            LeavesFeatureSet.register(LeavesFeature.of("rng_fishing", value)); // Leaves - remove protocol temporarily
++            LeavesFeatureSet.register(LeavesFeature.of("rng_fishing", value));
 +            return null;
 +        }
 +    }
 +
-+    @GlobalConfig(name = "protection-stacking", category = {"modify", "minecraft-old"})
-+    public static boolean protectionStacking = false;
++    @GlobalConfig(name = "allow-grindstone-overstacking", category = {"modify", "minecraft-old"})
++    public static boolean allowGrindstoneOverstacking = false;
++
++    @GlobalConfig(name = "allow-entity-portal-with-passenger", category = {"modify", "minecraft-old"})
++    public static boolean allowEntityPortalWithPassenger = true;
 +
 +    // Leaves end - modify - minecraft-old
 +
@@ -394,18 +330,23 @@ index 0000000000000000000000000000000000000000..2a7f9d9fdb72786b08b3cb216f5aa5e5
 +
 +    // Leaves end - modify - elytra-aeronautics
 +
++    @RemovedConfig(name = "redstone-shears-wrench", category = {}, transform = true)
 +    @GlobalConfig(name = "redstone-shears-wrench", category = "modify")
 +    public static boolean redstoneShearsWrench = true;
 +
++    @RemovedConfig(name = "budding-amethyst-can-push-by-piston", category = {}, transform = true)
 +    @GlobalConfig(name = "budding-amethyst-can-push-by-piston", category = "modify")
 +    public static boolean buddingAmethystCanPushByPiston = false;
 +
++    @RemovedConfig(name = "spectator-dont-get-advancement", category = {}, transform = true)
 +    @GlobalConfig(name = "spectator-dont-get-advancement", category = "modify")
 +    public static boolean spectatorDontGetAdvancement = false;
 +
++    @RemovedConfig(name = "stick-change-armorstand-arm-status", category = {}, transform = true)
 +    @GlobalConfig(name = "stick-change-armorstand-arm-status", category = "modify")
 +    public static boolean stickChangeArmorStandArmStatus = true;
 +
++    @RemovedConfig(name = "snowball-and-egg-can-knockback-player", category = {}, transform = true)
 +    @GlobalConfig(name = "snowball-and-egg-can-knockback-player", category = "modify")
 +    public static boolean snowballAndEggCanKnockback = true;
 +
@@ -466,7 +407,7 @@ index 0000000000000000000000000000000000000000..2a7f9d9fdb72786b08b3cb216f5aa5e5
 +    private static class UseVanillaRandomVerify extends ConfigVerify.BooleanConfigVerify {
 +        @Override
 +        public String check(Boolean old, Boolean value) {
-+//            LeavesFeatureSet.register(LeavesFeature.of("use_vanilla_random", value)); // Leaves - remove protocol temporarily
++            LeavesFeatureSet.register(LeavesFeature.of("use_vanilla_random", value));
 +            return null;
 +        }
 +    }
@@ -518,7 +459,7 @@ index 0000000000000000000000000000000000000000..2a7f9d9fdb72786b08b3cb216f5aa5e5
 +    private static class LavaRiptideVerify extends ConfigVerify.BooleanConfigVerify {
 +        @Override
 +        public String check(Boolean old, Boolean value) {
-+//            LeavesFeatureSet.register(LeavesFeature.of("lava_riptide", value)); // Leaves - remove protocol temporarily
++            LeavesFeatureSet.register(LeavesFeature.of("lava_riptide", value));
 +            return null;
 +        }
 +    }
@@ -616,6 +557,15 @@ index 0000000000000000000000000000000000000000..2a7f9d9fdb72786b08b3cb216f5aa5e5
 +    @RemovedConfig(name = "tick-command", category = "modify")
 +    public static boolean tickCommand = false;
 +
++    @RemovedConfig(name = "player-can-edit-sign", category = "modify")
++    public static boolean playerCanEditSign = false;
++
++    @RemovedConfig(name = "mending-compatibility-infinity", category = {"modify", "minecraft-old"})
++    public static boolean mendingCompatibilityInfinity = false;
++
++    @RemovedConfig(name = "protection-stacking", category = {"modify", "minecraft-old"})
++    public static boolean protectionStacking = false;
++
 +    // Leaves end - modify - removed
 +
 +    // Leaves end - modify
@@ -629,9 +579,6 @@ index 0000000000000000000000000000000000000000..2a7f9d9fdb72786b08b3cb216f5aa5e5
 +
 +    @GlobalConfig(name = "inventory-contains-iterators", category = {"performance", "remove"})
 +    public static boolean removeInventoryContainsIterators = true;
-+
-+    @RemovedConfig(name = "get-nearby-players-streams", category = {"performance", "remove"})
-+    public static boolean removeGetNearPlayerStreams = true;
 +
 +    @GlobalConfig(name = "range-check-streams-and-iterators", category = {"performance", "remove"})
 +    public static boolean removeRangeCheckStreams = true;
@@ -653,17 +600,11 @@ index 0000000000000000000000000000000000000000..2a7f9d9fdb72786b08b3cb216f5aa5e5
 +    @GlobalConfig(name = "enable-suffocation-optimization", category = "performance")
 +    public static boolean enableSuffocationOptimization = true;
 +
-+    @RemovedConfig(name = "strip-raytracing-for-entity", category = "performance")
-+    public static boolean entityStripRaytracing = true;
-+
 +    @GlobalConfig(name = "check-spooky-season-once-an-hour", category = "performance")
 +    public static boolean checkSpookySeasonOnceAnHour = true;
 +
 +    @GlobalConfig(name = "optimize-chunk-ticking", category = "performance", lock = true)
 +    public static boolean optimizeChunkTicking = true;
-+
-+    @RemovedConfig(name = "skip-poi-find-in-vehicle", category = "performance")
-+    public static boolean skipPOIFindingInVehicle = true;
 +
 +    @GlobalConfig(name = "entity-target-find-optimization", category = "performance")
 +    public static boolean entityTargetFindingOptimization = true;
@@ -697,9 +638,6 @@ index 0000000000000000000000000000000000000000..2a7f9d9fdb72786b08b3cb216f5aa5e5
 +
 +    @GlobalConfig(name = "faster-chunk-serialization", category = "performance")
 +    public static boolean fasterChunkSerialization = true;
-+
-+    @GlobalConfig(name = "optimize-world-generation-and-block-access", category = "performance")
-+    public static boolean optimizeWorldGenerationAccess = true;
 +
 +    @GlobalConfig(name = "cache-world-generator-sea-level", category = "performance")
 +    public static boolean cacheWorldGeneratorSeaLevel = true;
@@ -763,6 +701,21 @@ index 0000000000000000000000000000000000000000..2a7f9d9fdb72786b08b3cb216f5aa5e5
 +    @RemovedConfig(name = "fix-paper-9372", category = {"performance", "fix"})
 +    public static boolean fixPaper9372 = true;
 +
++    @RemovedConfig(name = "skip-clone-loot-parameters", category = "performance")
++    public static boolean skipCloneLootParameters = true;
++
++    @RemovedConfig(name = "skip-poi-find-in-vehicle", category = "performance")
++    public static boolean skipPOIFindingInVehicle = true;
++
++    @RemovedConfig(name = "strip-raytracing-for-entity", category = "performance")
++    public static boolean entityStripRaytracing = true;
++
++    @RemovedConfig(name = "get-nearby-players-streams", category = {"performance", "remove"})
++    public static boolean removeGetNearPlayerStreams = true;
++
++    @RemovedConfig(name = "optimize-world-generation-and-block-access", category = "performance")
++    public static boolean optimizeWorldGenerationAccess = true;
++
 +    // Leaves end - performance - removed
 +
 +    // Leaves end - performance
@@ -780,7 +733,7 @@ index 0000000000000000000000000000000000000000..2a7f9d9fdb72786b08b3cb216f5aa5e5
 +    private static class MSPTSyncVerify extends ConfigVerify.BooleanConfigVerify {
 +        @Override
 +        public String check(Boolean old, Boolean value) {
-+//            LeavesFeatureSet.register(LeavesFeature.of("mspt_sync", value)); // Leaves - remove protocol temporarily
++            LeavesFeatureSet.register(LeavesFeature.of("mspt_sync", value));
 +            return null;
 +        }
 +    }
@@ -812,7 +765,7 @@ index 0000000000000000000000000000000000000000..2a7f9d9fdb72786b08b3cb216f5aa5e5
 +        @Override
 +        public String check(Boolean old, Boolean value) {
 +            if (value) {
-+//                org.leavesmc.leaves.protocol.syncmatica.SyncmaticaProtocol.init(); // Leaves - remove protocol temporarily
++                org.leavesmc.leaves.protocol.syncmatica.SyncmaticaProtocol.init();
 +            }
 +            return null;
 +        }
@@ -928,6 +881,7 @@ index 0000000000000000000000000000000000000000..2a7f9d9fdb72786b08b3cb216f5aa5e5
 +    @GlobalConfig(name = "disable-method-profiler", category = "misc")
 +    public static boolean disableMethodProfiler = true;
 +
++    @RemovedConfig(name = "no-chat-sign", category = {}, transform = true)
 +    @GlobalConfig(name = "no-chat-sign", category = "misc")
 +    public static boolean noChatSign = true;
 +
@@ -1626,10 +1580,10 @@ index 0000000000000000000000000000000000000000..67d4365d25714c3732274e5ab21981a3
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/config/GlobalConfigManager.java b/src/main/java/org/leavesmc/leaves/config/GlobalConfigManager.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..828bbd8b048df8e48ef007d2c1eefe1458b4b2c3
+index 0000000000000000000000000000000000000000..0addf5a2f5e015b73b8a02e8f3eef79790eb4587
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/config/GlobalConfigManager.java
-@@ -0,0 +1,188 @@
+@@ -0,0 +1,192 @@
 +package org.leavesmc.leaves.config;
 +
 +import org.bukkit.Bukkit;
@@ -1658,8 +1612,7 @@ index 0000000000000000000000000000000000000000..828bbd8b048df8e48ef007d2c1eefe14
 +            if (Modifier.isStatic(field.getModifiers())) {
 +                field.setAccessible(true);
 +
-+                RemovedConfig removedConfig = field.getAnnotation(RemovedConfig.class);
-+                if (removedConfig != null) {
++                for (RemovedConfig removedConfig : field.getAnnotationsByType(RemovedConfig.class)) {
 +                    RemovedVerifiedConfig verifiedConfig = RemovedVerifiedConfig.build(removedConfig, field);
 +                    verifiedConfig.run();
 +                }
@@ -1682,7 +1635,7 @@ index 0000000000000000000000000000000000000000..828bbd8b048df8e48ef007d2c1eefe14
 +
 +                        try {
 +                            Object savedValue = LeavesConfig.config.get(verifiedConfig.path);
-+                            if (isEnumConfig) {
++                            if (isEnumConfig && savedValue != null) {
 +                                savedValue = verify.convert(savedValue.toString());
 +                            }
 +                            String checkInfo = verify.check(null, savedValue);
@@ -1724,18 +1677,23 @@ index 0000000000000000000000000000000000000000..828bbd8b048df8e48ef007d2c1eefe14
 +        public void run() {
 +            if (config.transform()) {
 +                if (LeavesConfig.config.contains(path)) {
-+                    String string = LeavesConfig.config.get(path).toString();
-+                    try {
-+                        Object object = convert.convert(string);
-+                        field.set(null, object);
-+                    } catch (Exception e) {
-+                        e.printStackTrace();
++                    Object savedValue = LeavesConfig.config.get(path);
++                    if (savedValue != null) {
++                        try {
++                            Object object = convert.convert(savedValue.toString());
++                            field.set(null, object);
++                        } catch (Exception e) {
++                            LeavesLogger.LOGGER.warning("Failure to load leaves config" + path, e);
++                        }
++                    } else {
++                        LeavesLogger.LOGGER.warning("Failed to convert saved value for " + path + ", reset to default");
 +                    }
 +                }
 +            }
 +            LeavesConfig.config.set(path, null);
 +        }
 +
++        @SuppressWarnings("all")
 +        public static RemovedVerifiedConfig build(RemovedConfig config, Field field) {
 +            StringBuilder path = new StringBuilder("settings.");
 +            for (int i = 0; i < config.category().length; i++) {
@@ -1749,7 +1707,7 @@ index 0000000000000000000000000000000000000000..828bbd8b048df8e48ef007d2c1eefe14
 +                constructor.setAccessible(true);
 +                configConvert = constructor.newInstance();
 +            } catch (Exception e) {
-+                e.printStackTrace();
++                LeavesLogger.LOGGER.warning("Failure to load leaves config" + path, e);
 +            }
 +
 +            return new RemovedVerifiedConfig(config, configConvert, field, path.toString());
@@ -1797,6 +1755,7 @@ index 0000000000000000000000000000000000000000..828bbd8b048df8e48ef007d2c1eefe14
 +            }
 +        }
 +
++        @SuppressWarnings("all")
 +        public static VerifiedConfig build(GlobalConfig config, Field field) {
 +            StringBuilder path = new StringBuilder("settings.");
 +            for (int i = 0; i < config.category().length; i++) {
@@ -1810,9 +1769,8 @@ index 0000000000000000000000000000000000000000..828bbd8b048df8e48ef007d2c1eefe14
 +                constructor.setAccessible(true);
 +                configVerify = constructor.newInstance();
 +            } catch (Exception e) {
-+                e.printStackTrace();
++                LeavesLogger.LOGGER.warning("Failure to load leaves config" + path, e);
 +            }
-+
 +
 +            return new VerifiedConfig(config, configVerify, field, path.toString());
 +        }
@@ -1820,19 +1778,21 @@ index 0000000000000000000000000000000000000000..828bbd8b048df8e48ef007d2c1eefe14
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/config/RemovedConfig.java b/src/main/java/org/leavesmc/leaves/config/RemovedConfig.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..90137a284acaf9036334ee2fe6ab34025acb4f4d
+index 0000000000000000000000000000000000000000..df9af9e3561ad9eb77f75a6250327e6428d21d1e
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/config/RemovedConfig.java
-@@ -0,0 +1,19 @@
+@@ -0,0 +1,21 @@
 +package org.leavesmc.leaves.config;
 +
 +import java.lang.annotation.ElementType;
++import java.lang.annotation.Repeatable;
 +import java.lang.annotation.Retention;
 +import java.lang.annotation.RetentionPolicy;
 +import java.lang.annotation.Target;
 +
 +@Target(ElementType.FIELD)
 +@Retention(RetentionPolicy.RUNTIME)
++@Repeatable(RemovedConfigs.class)
 +public @interface RemovedConfig {
 +
 +    String name();
@@ -1842,4 +1802,22 @@ index 0000000000000000000000000000000000000000..90137a284acaf9036334ee2fe6ab3402
 +    boolean transform() default false;
 +
 +    Class<? extends ConfigConvert<?>> convert() default ConfigVerify.BooleanConfigVerify.class;
++}
+diff --git a/src/main/java/org/leavesmc/leaves/config/RemovedConfigs.java b/src/main/java/org/leavesmc/leaves/config/RemovedConfigs.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..b1ab6db328b562a8ab7d2091b47b81cee739adf1
+--- /dev/null
++++ b/src/main/java/org/leavesmc/leaves/config/RemovedConfigs.java
+@@ -0,0 +1,12 @@
++package org.leavesmc.leaves.config;
++
++import java.lang.annotation.ElementType;
++import java.lang.annotation.Retention;
++import java.lang.annotation.RetentionPolicy;
++import java.lang.annotation.Target;
++
++@Target(ElementType.FIELD)
++@Retention(RetentionPolicy.RUNTIME)
++public @interface RemovedConfigs {
++    RemovedConfig[] value();
 +}

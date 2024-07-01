@@ -10,7 +10,7 @@ Leaves
 
 > Fork of [Paper](https://github.com/PaperMC/Paper) aims at repairing broken vanilla properties.
 
-> You can see what we modify and fix at [here](https://github.com/LeavesMC/Leaves/blob/master/docs/MODIFICATION.md)
+> You can see what we modify and fix at [here](https://docs.leavesmc.org/en/leaves/reference/configuration)
 
 ## How To (Server Admins)
 Leaves use the same paperclip jar system that Paper uses.

@@ -377,10 +377,10 @@ index bb9383f1a457433f9db3e78d7913616280925200..55b41ca7630db143d70137324a9de871
       */
 diff --git a/src/main/java/org/leavesmc/leaves/bot/BotCommand.java b/src/main/java/org/leavesmc/leaves/bot/BotCommand.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..54b5d2911b35964d95b9f2b46f80041141a92169
+index 0000000000000000000000000000000000000000..ee53eb3bc9a0299f8438d8a650ce39b80f35192b
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/BotCommand.java
-@@ -0,0 +1,405 @@
+@@ -0,0 +1,407 @@
 +package org.leavesmc.leaves.bot;
 +
 +import org.bukkit.Bukkit;
@@ -404,6 +404,8 @@ index 0000000000000000000000000000000000000000..54b5d2911b35964d95b9f2b46f800411
 +import org.leavesmc.leaves.entity.Bot;
 +import org.leavesmc.leaves.event.bot.BotActionEvent;
 +import org.leavesmc.leaves.event.bot.BotConfigModifyEvent;
++import org.leavesmc.leaves.event.bot.BotCreateEvent;
++import org.leavesmc.leaves.event.bot.BotRemoveEvent;
 +
 +import java.util.ArrayList;
 +import java.util.HashMap;
@@ -522,7 +524,7 @@ index 0000000000000000000000000000000000000000..54b5d2911b35964d95b9f2b46f800411
 +
 +        if (canCreate(sender, args[1])) {
 +            if (sender instanceof Player player) {
-+                new ServerBot.BotCreateState(player.getLocation(), args[1], args.length < 3 ? args[1] : args[2], org.leavesmc.leaves.event.bot.BotCreateEvent.CreateReason.COMMAND, player).createAsync(bot -> bot.createPlayer = player.getUniqueId());
++                new ServerBot.BotCreateState(player.getLocation(), args[1], args.length < 3 ? args[1] : args[2], BotCreateEvent.CreateReason.COMMAND, player).createAsync(bot -> bot.createPlayer = player.getUniqueId());
 +            } else if (sender instanceof ConsoleCommandSender csender) {
 +                if (args.length < 6) {
 +                    sender.sendMessage(ChatColor.RED + "Use /bot create <name> <skin_name> <bukkit_world_name> <x> <y> <z> to create a fakeplayer");
@@ -536,7 +538,7 @@ index 0000000000000000000000000000000000000000..54b5d2911b35964d95b9f2b46f800411
 +                    double z = Double.parseDouble(args[6]);
 +
 +                    if (world != null) {
-+                        new ServerBot.BotCreateState(new Location(world, x, y, z), args[1], args[2], org.leavesmc.leaves.event.bot.BotCreateEvent.CreateReason.COMMAND, csender).createAsync(null);
++                        new ServerBot.BotCreateState(new Location(world, x, y, z), args[1], args[2], BotCreateEvent.CreateReason.COMMAND, csender).createAsync(null);
 +                    }
 +                } catch (Exception e) {
 +                    e.printStackTrace();
@@ -582,7 +584,7 @@ index 0000000000000000000000000000000000000000..54b5d2911b35964d95b9f2b46f800411
 +            return;
 +        }
 +
-+        bot.onRemove(org.leavesmc.leaves.event.bot.BotRemoveEvent.RemoveReason.COMMAND, sender);
++        bot.onRemove(BotRemoveEvent.RemoveReason.COMMAND, sender);
 +    }
 +
 +    private void onAction(CommandSender sender, String @NotNull [] args) {
@@ -1265,10 +1267,10 @@ index 0000000000000000000000000000000000000000..0db337866c71283464d026a4f230016b
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/ServerBot.java b/src/main/java/org/leavesmc/leaves/bot/ServerBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..5dd6778347c121f0b0817e2395b335941348d151
+index 0000000000000000000000000000000000000000..dd1b8974825781fb34be6faae1da4bb35a1edfe6
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/ServerBot.java
-@@ -0,0 +1,743 @@
+@@ -0,0 +1,745 @@
 +package org.leavesmc.leaves.bot;
 +
 +import com.google.common.collect.Lists;
@@ -1320,6 +1322,7 @@ index 0000000000000000000000000000000000000000..5dd6778347c121f0b0817e2395b33594
 +import org.bukkit.ChatColor;
 +import org.bukkit.Location;
 +import org.bukkit.Material;
++import org.bukkit.command.CommandSender;
 +import org.bukkit.craftbukkit.CraftWorld;
 +import org.bukkit.craftbukkit.scheduler.CraftScheduler;
 +import org.bukkit.event.entity.CreatureSpawnEvent;
@@ -1335,6 +1338,7 @@ index 0000000000000000000000000000000000000000..5dd6778347c121f0b0817e2395b33594
 +import org.leavesmc.leaves.event.bot.BotCreateEvent;
 +import org.leavesmc.leaves.event.bot.BotInventoryOpenEvent;
 +import org.leavesmc.leaves.event.bot.BotJoinEvent;
++import org.leavesmc.leaves.event.bot.BotRemoveEvent;
 +import org.leavesmc.leaves.util.MathUtils;
 +
 +import java.io.BufferedReader;
@@ -1525,16 +1529,16 @@ index 0000000000000000000000000000000000000000..5dd6778347c121f0b0817e2395b33594
 +    public void die(@NotNull DamageSource damageSource) {
 +        super.die(damageSource);
 +        if (removeOnDeath) {
-+            onRemove(org.leavesmc.leaves.event.bot.BotRemoveEvent.RemoveReason.DEATH);
++            onRemove(BotRemoveEvent.RemoveReason.DEATH);
 +        }
 +    }
 +
-+    public void onRemove(org.leavesmc.leaves.event.bot.BotRemoveEvent.RemoveReason reason) {
++    public void onRemove(BotRemoveEvent.RemoveReason reason) {
 +        onRemove(reason, null);
 +    }
 +
-+    public void onRemove(org.leavesmc.leaves.event.bot.BotRemoveEvent.RemoveReason reason, @Nullable org.bukkit.command.CommandSender remover) {
-+        if (!new org.leavesmc.leaves.event.bot.BotRemoveEvent(this.getBukkitPlayer(), reason, remover).callEvent()) {
++    public void onRemove(BotRemoveEvent.RemoveReason reason, @Nullable CommandSender remover) {
++        if (!new BotRemoveEvent(this.getBukkitPlayer(), reason, remover).callEvent()) {
 +            return;
 +        }
 +        bots.remove(this);
@@ -1890,7 +1894,7 @@ index 0000000000000000000000000000000000000000..5dd6778347c121f0b0817e2395b33594
 +                e.printStackTrace();
 +            }
 +        } else {
-+            removeAllBot(org.leavesmc.leaves.event.bot.BotRemoveEvent.RemoveReason.INTERNAL);
++            removeAllBot(BotRemoveEvent.RemoveReason.INTERNAL);
 +        }
 +    }
 +
@@ -1913,7 +1917,7 @@ index 0000000000000000000000000000000000000000..5dd6778347c121f0b0817e2395b33594
 +        }
 +    }
 +
-+    public static boolean removeAllBot(org.leavesmc.leaves.event.bot.BotRemoveEvent.RemoveReason reason) {
++    public static boolean removeAllBot(BotRemoveEvent.RemoveReason reason) {
 +        Iterator<ServerBot> iterator = bots.iterator();
 +        while (iterator.hasNext()) {
 +            ServerBot bot = iterator.next();
@@ -1950,12 +1954,12 @@ index 0000000000000000000000000000000000000000..5dd6778347c121f0b0817e2395b33594
 +        private String realName;
 +        private String name;
 +
-+        public org.leavesmc.leaves.event.bot.BotCreateEvent.CreateReason createReason;
-+        public org.bukkit.command.CommandSender creator;
++        public BotCreateEvent.CreateReason createReason;
++        public CommandSender creator;
 +
 +        public boolean async;
 +
-+        public BotCreateState(Location loc, String realName, String skinName, org.leavesmc.leaves.event.bot.BotCreateEvent.CreateReason createReason, org.bukkit.command.CommandSender creator) {
++        public BotCreateState(Location loc, String realName, String skinName, BotCreateEvent.CreateReason createReason, CommandSender creator) {
 +            this.loc = loc;
 +            this.skinName = skinName;
 +            this.setRealName(realName);
@@ -1963,7 +1967,7 @@ index 0000000000000000000000000000000000000000..5dd6778347c121f0b0817e2395b33594
 +            this.creator = creator;
 +        }
 +
-+        public BotCreateState(Location loc, String name, String realName, String skinName, String[] skin,  org.leavesmc.leaves.event.bot.BotCreateEvent.CreateReason createReason, org.bukkit.command.CommandSender creator) {
++        public BotCreateState(Location loc, String name, String realName, String skinName, String[] skin,  BotCreateEvent.CreateReason createReason, CommandSender creator) {
 +            this.loc = loc;
 +            this.skinName = skinName;
 +            this.skin = skin;

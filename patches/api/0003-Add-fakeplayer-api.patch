@@ -439,36 +439,47 @@ index 0000000000000000000000000000000000000000..5e55759fd3d7891e8e1d5d6a306dc814
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/event/bot/BotCreateEvent.java b/src/main/java/org/leavesmc/leaves/event/bot/BotCreateEvent.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..c093f68e5f1749c792255220f39bdbdffb78f0f9
+index 0000000000000000000000000000000000000000..2ce7e91bf86df8630ba928409f0fc2ef5d359376
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/event/bot/BotCreateEvent.java
-@@ -0,0 +1,106 @@
+@@ -0,0 +1,119 @@
 +package org.leavesmc.leaves.event.bot;
 +
 +import org.bukkit.Location;
++import org.bukkit.command.CommandSender;
 +import org.bukkit.event.Cancellable;
 +import org.bukkit.event.Event;
 +import org.bukkit.event.HandlerList;
 +import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
 +
++import java.util.Optional;
++
 +/**
 + * Call when a fakeplayer creates a server
 + */
 +public class BotCreateEvent extends Event implements Cancellable {
++    public enum CreateReason {
++        COMMAND,
++        PLUGIN,
++        INTERNAL
++    }
 +    private static final HandlerList handlers = new HandlerList();
 +
 +    private final String bot;
 +    private final String skin;
-+    private String joinMessage;
++    private final CreateReason reason;
++    private final Optional<CommandSender> creator;
 +    private Location createLocation;
 +    private boolean cancel = false;
 +
-+    public BotCreateEvent(@NotNull final String who, @NotNull final String skin, @NotNull final Location createLocation, @Nullable final String joinMessage) {
++    public BotCreateEvent(@NotNull final String who, @NotNull final String skin, @NotNull final Location createLocation, @NotNull CreateReason reason, @Nullable CommandSender creator, boolean async) {
++        super(async);
 +        this.bot = who;
 +        this.skin = skin;
-+        this.joinMessage = joinMessage;
 +        this.createLocation = createLocation;
++        this.reason = reason;
++        this.creator = Optional.ofNullable(creator);
 +    }
 +
 +    /**
@@ -478,25 +489,6 @@ index 0000000000000000000000000000000000000000..c093f68e5f1749c792255220f39bdbdf
 +     */
 +    public String getBot() {
 +        return bot;
-+    }
-+
-+    /**
-+     * Gets the join message to send to all online players
-+     *
-+     * @return string join message. Can be null
-+     */
-+    @Nullable
-+    public String getJoinMessage() {
-+        return joinMessage;
-+    }
-+
-+    /**
-+     * Sets the join message to send to all online players
-+     *
-+     * @param joinMessage join message. If null, no message will be sent
-+     */
-+    public void setJoinMessage(@Nullable String joinMessage) {
-+        this.joinMessage = joinMessage;
 +    }
 +
 +    /**
@@ -526,6 +518,27 @@ index 0000000000000000000000000000000000000000..c093f68e5f1749c792255220f39bdbdf
 +    @Nullable
 +    public String getSkin() {
 +        return skin;
++    }
++
++    /**
++     * Gets the create reason of the bot
++     *
++     * @return create reason
++     */
++    @NotNull
++    public CreateReason getReason() {
++        return reason;
++    }
++
++    /**
++     * Gets the creator of the bot
++     * if the create reason is not COMMAND, the creator might be Optional.empty()
++     *
++     * @return An optional of creator
++     */
++    @NotNull
++    public Optional<CommandSender> getCreator() {
++        return creator;
 +    }
 +
 +    @Override
@@ -640,14 +653,15 @@ index 0000000000000000000000000000000000000000..a369b468d4793b36dd0944a1368a70e0
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/event/bot/BotJoinEvent.java b/src/main/java/org/leavesmc/leaves/event/bot/BotJoinEvent.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..7500652b01a4ed3c8d59ca003a644a9e024f6512
+index 0000000000000000000000000000000000000000..e2e0b9fe697ab3b89373264d20d013cb9f65dd40
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/event/bot/BotJoinEvent.java
-@@ -0,0 +1,27 @@
+@@ -0,0 +1,51 @@
 +package org.leavesmc.leaves.event.bot;
 +
 +import org.bukkit.event.HandlerList;
 +import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
 +import org.leavesmc.leaves.entity.Bot;
 +
 +/**
@@ -656,8 +670,116 @@ index 0000000000000000000000000000000000000000..7500652b01a4ed3c8d59ca003a644a9e
 +public class BotJoinEvent extends BotEvent {
 +    private static final HandlerList handlers = new HandlerList();
 +
-+    public BotJoinEvent(@NotNull Bot who) {
++    private String joinMessage;
++
++    public BotJoinEvent(@NotNull Bot who, @Nullable final String joinMessage) {
 +        super(who);
++        this.joinMessage = joinMessage;
++    }
++
++    @Override
++    @NotNull
++    public HandlerList getHandlers() {
++        return handlers;
++    }
++
++    @NotNull
++    public static HandlerList getHandlerList() {
++        return handlers;
++    }
++
++
++    /**
++     * Gets the join message to send to all online players
++     *
++     * @return string join message. Can be null
++     */
++    @Nullable
++    public String getJoinMessage() {
++        return joinMessage;
++    }
++
++    /**
++     * Sets the join message to send to all online players
++     *
++     * @param joinMessage join message. If null, no message will be sent
++     */
++    public void setJoinMessage(@Nullable String joinMessage) {
++        this.joinMessage = joinMessage;
++    }
++}
+diff --git a/src/main/java/org/leavesmc/leaves/event/bot/BotRemoveEvent.java b/src/main/java/org/leavesmc/leaves/event/bot/BotRemoveEvent.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..6aee942d7db322196504d386a009e22e2aa16230
+--- /dev/null
++++ b/src/main/java/org/leavesmc/leaves/event/bot/BotRemoveEvent.java
+@@ -0,0 +1,79 @@
++package org.leavesmc.leaves.event.bot;
++
++import org.bukkit.command.CommandSender;
++import org.bukkit.event.Cancellable;
++import org.bukkit.event.HandlerList;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++import org.leavesmc.leaves.entity.Bot;
++
++import java.util.Optional;
++
++/**
++ * Call when a fakeplayer creates a server
++ */
++public class BotRemoveEvent extends BotEvent implements Cancellable {
++    public enum RemoveReason {
++        COMMAND,
++        PLUGIN,
++        DEATH,
++        INTERNAL
++    }
++    private static final HandlerList handlers = new HandlerList();
++
++    private final RemoveReason reason;
++    private final Optional<CommandSender> remover;
++    private boolean cancel = false;
++
++    public BotRemoveEvent(@NotNull final Bot who, @NotNull RemoveReason reason) {
++        this(who, reason, null);
++    }
++
++    public BotRemoveEvent(@NotNull final Bot who, @NotNull RemoveReason reason, @Nullable CommandSender remover) {
++        super(who);
++        this.reason = reason;
++        this.remover = Optional.ofNullable(remover);
++    }
++
++    /**
++     * Gets the remove reason of the bot
++     *
++     * @return remove reason
++     */
++    @NotNull
++    public RemoveReason getReason() {
++        return reason;
++    }
++
++    /**
++     * Gets the remover of the bot
++     * if the remove reason is not COMMAND, the creator might be Optional.empty()
++     *
++     * @return An optional of remover
++     */
++    @NotNull
++    public Optional<CommandSender> getRemover() {
++        return remover;
++    }
++
++    @Override
++    public boolean isCancelled() {
++        return cancel;
++    }
++
++    @Override
++    public void setCancelled(boolean cancel) {
++        this.cancel = cancel;
 +    }
 +
 +    @Override

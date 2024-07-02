@@ -10,7 +10,7 @@ Leaves
 
 > 一个致力于修复原版服务端被破坏特性的 [Paper](https://github.com/PaperMC/Paper) 分支
 
-> 你可以在 [这里](https://github.com/LeavesMC/Leaves/blob/master/docs/MODIFICATION_cn.md) 查看所有的修改和修复内容
+> 你可以在 [这里](https://docs.leavesmc.org/zh_Hans/leaves/reference/configuration) 查看所有的修改和修复内容
 
 ## 对于服务器管理员
 此分支使用与 Paper 一致的 paperclip 分发

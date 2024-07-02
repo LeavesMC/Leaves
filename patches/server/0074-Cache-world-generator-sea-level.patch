@@ -1,0 +1,45 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Tue, 18 Jul 2023 14:22:06 +0800
+Subject: [PATCH] Cache world generator sea level
+
+This patch is Powered by Gale(https://github.com/GaleMC/Gale)
+
+diff --git a/src/main/java/net/minecraft/world/level/levelgen/NoiseBasedChunkGenerator.java b/src/main/java/net/minecraft/world/level/levelgen/NoiseBasedChunkGenerator.java
+index 68be0d51aa64b5d917fb53dbbbdf8966d4f4abd8..4adac668fb3d02ed43a89da446a71503d0380c73 100644
+--- a/src/main/java/net/minecraft/world/level/levelgen/NoiseBasedChunkGenerator.java
++++ b/src/main/java/net/minecraft/world/level/levelgen/NoiseBasedChunkGenerator.java
+@@ -61,12 +61,17 @@ public final class NoiseBasedChunkGenerator extends ChunkGenerator {
+     private static final BlockState AIR = Blocks.AIR.defaultBlockState();
+     public final Holder<NoiseGeneratorSettings> settings;
+     private final Supplier<Aquifer.FluidPicker> globalFluidPicker;
++    private int cachedSeaLevel; // Leaves - cache world generator sea level
+ 
+     public NoiseBasedChunkGenerator(BiomeSource biomeSource, Holder<NoiseGeneratorSettings> settings) {
+         super(biomeSource);
+         this.settings = settings;
+         this.globalFluidPicker = Suppliers.memoize(() -> {
+-            return NoiseBasedChunkGenerator.createFluidPicker((NoiseGeneratorSettings) settings.value());
++            // Leaves start - cache world generator sea level
++            var fluidPicker = NoiseBasedChunkGenerator.createFluidPicker((NoiseGeneratorSettings) settings.value());
++            this.cachedSeaLevel = settings.value().seaLevel();
++            return fluidPicker;
++            // Leaves end - cache world generator sea level
+         });
+     }
+ 
+@@ -409,7 +414,13 @@ public final class NoiseBasedChunkGenerator extends ChunkGenerator {
+ 
+     @Override
+     public int getSeaLevel() {
+-        return ((NoiseGeneratorSettings) this.settings.value()).seaLevel();
++        // Leaves start - cache world generator sea level
++        if (!org.leavesmc.leaves.LeavesConfig.cacheWorldGeneratorSeaLevel) {
++            return ((NoiseGeneratorSettings) this.settings.value()).seaLevel();
++        } else {
++            return cachedSeaLevel;
++        }
++        // Leaves end - cache world generator sea level
+     }
+ 
+     @Override

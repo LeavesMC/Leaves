@@ -126,10 +126,10 @@ index 0de0d0d290625ad4f6cacc1d6374a5d0eb66ca86..cb4922442cb696e587d07022e152c4fd
  
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/core/LeavesCustomPayload.java b/src/main/java/org/leavesmc/leaves/protocol/core/LeavesCustomPayload.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..243a8d77d67b9634d6442b60e481d18831367a74
+index 0000000000000000000000000000000000000000..b09a7bfe4cbff89acfaf4aec498a5b4e5f911cf6
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/core/LeavesCustomPayload.java
-@@ -0,0 +1,26 @@
+@@ -0,0 +1,29 @@
 +package org.leavesmc.leaves.protocol.core;
 +
 +import net.minecraft.network.FriendlyByteBuf;
@@ -137,11 +137,14 @@ index 0000000000000000000000000000000000000000..243a8d77d67b9634d6442b60e481d188
 +import net.minecraft.resources.ResourceLocation;
 +import org.jetbrains.annotations.NotNull;
 +
++import java.lang.annotation.ElementType;
 +import java.lang.annotation.Retention;
 +import java.lang.annotation.RetentionPolicy;
++import java.lang.annotation.Target;
 +
 +public interface LeavesCustomPayload<T extends LeavesCustomPayload<T>> extends CustomPacketPayload {
 +
++    @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
 +    @Retention(RetentionPolicy.RUNTIME)
 +    @interface New {
 +    }
@@ -176,10 +179,10 @@ index 0000000000000000000000000000000000000000..986d2a6641ff8017dddf3e5f2655adfc
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/core/LeavesProtocolManager.java b/src/main/java/org/leavesmc/leaves/protocol/core/LeavesProtocolManager.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..87fe53e19b66ece66dc0654fb79923418210aa4a
+index 0000000000000000000000000000000000000000..53b42f150d4bcca3bed444216d848fdf714102bf
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/core/LeavesProtocolManager.java
-@@ -0,0 +1,366 @@
+@@ -0,0 +1,384 @@
 +package org.leavesmc.leaves.protocol.core;
 +
 +import net.minecraft.network.FriendlyByteBuf;
@@ -194,6 +197,7 @@ index 0000000000000000000000000000000000000000..87fe53e19b66ece66dc0654fb7992341
 +import java.io.File;
 +import java.io.IOException;
 +import java.lang.reflect.Constructor;
++import java.lang.reflect.Executable;
 +import java.lang.reflect.InvocationTargetException;
 +import java.lang.reflect.Method;
 +import java.lang.reflect.Modifier;
@@ -216,9 +220,11 @@ index 0000000000000000000000000000000000000000..87fe53e19b66ece66dc0654fb7992341
 +
 +public class LeavesProtocolManager {
 +
++    private static final Class<?>[] PAYLOAD_PARAMETER_TYPES = {ResourceLocation.class, FriendlyByteBuf.class};
++
 +    private static final LeavesLogger LOGGER = LeavesLogger.LOGGER;
 +
-+    private static final Map<LeavesProtocol, Map<ProtocolHandler.PayloadReceiver, Constructor<? extends LeavesCustomPayload<?>>>> KNOWN_TYPES = new HashMap<>();
++    private static final Map<LeavesProtocol, Map<ProtocolHandler.PayloadReceiver, Executable>> KNOWN_TYPES = new HashMap<>();
 +    private static final Map<LeavesProtocol, Map<ProtocolHandler.PayloadReceiver, Method>> KNOW_RECEIVERS = new HashMap<>();
 +
 +    private static final List<Method> TICKERS = new ArrayList<>();
@@ -243,7 +249,7 @@ index 0000000000000000000000000000000000000000..87fe53e19b66ece66dc0654fb7992341
 +                    return;
 +                }
 +
-+                Map<ProtocolHandler.PayloadReceiver, Constructor<? extends LeavesCustomPayload<?>>> map = KNOWN_TYPES.getOrDefault(protocol, new HashMap<>());
++                Map<ProtocolHandler.PayloadReceiver, Executable> map = KNOWN_TYPES.getOrDefault(protocol, new HashMap<>());
 +                for (final Method method : methods) {
 +                    if (method.isBridge() || method.isSynthetic() || !Modifier.isStatic(method.getModifiers())) {
 +                        continue;
@@ -264,14 +270,25 @@ index 0000000000000000000000000000000000000000..87fe53e19b66ece66dc0654fb7992341
 +                    final ProtocolHandler.PayloadReceiver receiver = method.getAnnotation(ProtocolHandler.PayloadReceiver.class);
 +                    if (receiver != null) {
 +                        try {
-+                            Constructor<? extends LeavesCustomPayload<?>> constructor = receiver.payload().getConstructor(ResourceLocation.class, FriendlyByteBuf.class);
-+                            constructor.setAccessible(true);
-+
-+                            if (constructor.getAnnotation(LeavesCustomPayload.New.class) == null) {
-+                                LOGGER.warning("Failed to find new annotation for " + receiver.payload().getName());
++                            boolean found = false;
++                            for (Method payloadMethod : receiver.payload().getDeclaredMethods()) {
++                                if (payloadMethod.isAnnotationPresent(LeavesCustomPayload.New.class)) {
++                                    if (payloadMethod.getParameterTypes() == PAYLOAD_PARAMETER_TYPES && payloadMethod.getReturnType() == receiver.payload() && Modifier.isStatic(payloadMethod.getModifiers())) {
++                                        payloadMethod.setAccessible(true);
++                                        map.put(receiver, payloadMethod);
++                                        found = true;
++                                        break;
++                                    }
++                                }
 +                            }
 +
-+                            map.put(receiver, constructor);
++                            if (!found) {
++                                Constructor<? extends LeavesCustomPayload<?>> constructor = receiver.payload().getConstructor(PAYLOAD_PARAMETER_TYPES);
++                                if (constructor.isAnnotationPresent(LeavesCustomPayload.New.class)) {
++                                    map.put(receiver, constructor);
++                                    constructor.setAccessible(true);
++                                }
++                            }
 +                        } catch (NoSuchMethodException exception) {
 +                            LOGGER.severe("Failed to find constructor for " + receiver.payload().getName() + ", " + exception.getCause() + ": " + exception.getMessage());
 +                            continue;
@@ -329,11 +346,15 @@ index 0000000000000000000000000000000000000000..87fe53e19b66ece66dc0654fb7992341
 +                continue;
 +            }
 +
-+            Map<ProtocolHandler.PayloadReceiver, Constructor<? extends LeavesCustomPayload<?>>> map = KNOWN_TYPES.get(protocol);
++            Map<ProtocolHandler.PayloadReceiver, Executable> map = KNOWN_TYPES.get(protocol);
 +            for (ProtocolHandler.PayloadReceiver receiver : map.keySet()) {
 +                if (receiver.ignoreId() || ArrayUtils.contains(receiver.payloadId(), id.getPath())) {
 +                    try {
-+                        return map.get(receiver).newInstance(id, buf);
++                        if (map.get(receiver) instanceof Constructor<?> constructor) {
++                            return (LeavesCustomPayload<?>) constructor.newInstance(id, buf);
++                        } else if (map.get(receiver) instanceof Method method) {
++                            return (LeavesCustomPayload<?>) method.invoke(null, id, buf);
++                        }
 +                    } catch (InvocationTargetException | InstantiationException | IllegalAccessException exception) {
 +                        LOGGER.warning("Failed to create payload for " + id + " in " + ArrayUtils.toString(protocol.namespace()) + ", " + exception.getCause() + ": " + exception.getMessage());
 +                        buf.readBytes(buf.readableBytes());
@@ -441,7 +462,7 @@ index 0000000000000000000000000000000000000000..87fe53e19b66ece66dc0654fb7992341
 +    }
 +
 +    public static Set<Class<?>> getClasses(String pack) {
-+        Set<Class<?>> classes = new LinkedHashSet<Class<?>>();
++        Set<Class<?>> classes = new LinkedHashSet<>();
 +        String packageDirName = pack.replace('.', '/');
 +        Enumeration<URL> dirs;
 +        try {
@@ -523,7 +544,7 @@ index 0000000000000000000000000000000000000000..87fe53e19b66ece66dc0654fb7992341
 +
 +    public record EmptyPayload(ResourceLocation id) implements LeavesCustomPayload<EmptyPayload> {
 +
-+        @LeavesCustomPayload.New
++        @New
 +        public EmptyPayload(ResourceLocation location, FriendlyByteBuf buf) {
 +            this(location);
 +        }
@@ -535,7 +556,7 @@ index 0000000000000000000000000000000000000000..87fe53e19b66ece66dc0654fb7992341
 +
 +    public record LeavesPayload(FriendlyByteBuf data, ResourceLocation id) implements LeavesCustomPayload<LeavesPayload> {
 +
-+        @LeavesCustomPayload.New
++        @New
 +        public LeavesPayload(ResourceLocation location, FriendlyByteBuf buf) {
 +            this(new FriendlyByteBuf(buf.readBytes(buf.readableBytes())), location);
 +        }

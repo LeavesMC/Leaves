@@ -31,10 +31,10 @@ index 46954db7ecd35ac4018fdf476df7c8020d7ce6c8..044c51ebb058fc36074fd178929e3279
      public PlayerAreaMap() {
          super();
 diff --git a/src/main/java/net/minecraft/world/entity/Entity.java b/src/main/java/net/minecraft/world/entity/Entity.java
-index 7ef9f67d27cc240191dd5d07e8dcf5fbdebe1049..864e6d223de55f42122485bf6a3c84bbb636479c 100644
+index 83f3ffdd8fa901b3de580d2359cdb5ead0d762cb..9729b3a7ce3027ff4eb02fcb908768d24f74a5f8 100644
 --- a/src/main/java/net/minecraft/world/entity/Entity.java
 +++ b/src/main/java/net/minecraft/world/entity/Entity.java
-@@ -425,6 +425,7 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
+@@ -430,6 +430,7 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
      private UUID originWorld;
      public boolean freezeLocked = false; // Paper - Freeze Tick Lock API
      public boolean fixedPose = false; // Paper - Expand Pose API
@@ -42,7 +42,7 @@ index 7ef9f67d27cc240191dd5d07e8dcf5fbdebe1049..864e6d223de55f42122485bf6a3c84bb
  
      public void setOrigin(@javax.annotation.Nonnull Location location) {
          this.origin = location.toVector();
-@@ -2554,6 +2555,7 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
+@@ -2453,6 +2454,7 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
                  nbttagcompound.putBoolean("Paper.FreezeLock", true);
              }
              // Paper end
@@ -50,7 +50,7 @@ index 7ef9f67d27cc240191dd5d07e8dcf5fbdebe1049..864e6d223de55f42122485bf6a3c84bb
              return nbttagcompound;
          } catch (Throwable throwable) {
              CrashReport crashreport = CrashReport.forThrowable(throwable, "Saving entity NBT");
-@@ -2701,6 +2703,11 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
+@@ -2600,6 +2602,11 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
                  freezeLocked = nbt.getBoolean("Paper.FreezeLock");
              }
              // Paper end
@@ -62,7 +62,7 @@ index 7ef9f67d27cc240191dd5d07e8dcf5fbdebe1049..864e6d223de55f42122485bf6a3c84bb
  
          } catch (Throwable throwable) {
              CrashReport crashreport = CrashReport.forThrowable(throwable, "Loading entity NBT");
-@@ -5000,4 +5007,10 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
+@@ -4821,4 +4828,10 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
          return ((net.minecraft.server.level.ServerChunkCache) level.getChunkSource()).isPositionTicking(this);
      }
      // Paper end - Expose entity id counter
@@ -75,10 +75,10 @@ index 7ef9f67d27cc240191dd5d07e8dcf5fbdebe1049..864e6d223de55f42122485bf6a3c84bb
  }
 diff --git a/src/main/java/org/leavesmc/leaves/LeavesLogger.java b/src/main/java/org/leavesmc/leaves/LeavesLogger.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..730174b8c26375510c919fd841dc9371446ae8f2
+index 0000000000000000000000000000000000000000..47347a3bdab2ff9818bf8198291d2dabec7da8c6
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/LeavesLogger.java
-@@ -0,0 +1,16 @@
+@@ -0,0 +1,24 @@
 +package org.leavesmc.leaves;
 +
 +import org.bukkit.Bukkit;
@@ -93,6 +93,14 @@ index 0000000000000000000000000000000000000000..730174b8c26375510c919fd841dc9371
 +        super("Leaves", null);
 +        setParent(Bukkit.getLogger());
 +        setLevel(Level.ALL);
++    }
++
++    public void severe(String msg, Exception exception) {
++        this.severe(msg + ", " + exception.getCause() + ": " + exception.getMessage());
++    }
++
++    public void warning(String msg, Exception exception) {
++        this.warning(msg + ", " + exception.getCause() + ": " + exception.getMessage());
 +    }
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/util/AsyncExecutor.java b/src/main/java/org/leavesmc/leaves/util/AsyncExecutor.java
@@ -287,5 +295,111 @@ index 0000000000000000000000000000000000000000..440c4d903e145229bc54eb5b6f3578fd
 +    @Override
 +    public int size() {
 +        return backingMap.size();
++    }
++}
+diff --git a/src/main/java/org/leavesmc/leaves/util/MathUtils.java b/src/main/java/org/leavesmc/leaves/util/MathUtils.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..a6a4fd61644815a7fb01ab1a5844a34f39e57e6d
+--- /dev/null
++++ b/src/main/java/org/leavesmc/leaves/util/MathUtils.java
+@@ -0,0 +1,100 @@
++package org.leavesmc.leaves.util;
++
++import org.bukkit.util.NumberConversions;
++import org.bukkit.util.Vector;
++
++import java.util.regex.Pattern;
++
++public class MathUtils {
++    // Lag ?
++    public static void clean(Vector vector) {
++        if (!NumberConversions.isFinite(vector.getX())) vector.setX(0);
++        if (!NumberConversions.isFinite(vector.getY())) vector.setY(0);
++        if (!NumberConversions.isFinite(vector.getZ())) vector.setZ(0);
++    }
++
++    private static final Pattern numericPattern = Pattern.compile("^-?[1-9]\\d*$|^0$");
++
++    public static boolean isNumeric(String str) {
++        return numericPattern.matcher(str).matches();
++    }
++
++    public static float[] fetchYawPitch(Vector dir) {
++        double x = dir.getX();
++        double z = dir.getZ();
++
++        float[] out = new float[2];
++
++        if (x == 0.0D && z == 0.0D) {
++            out[1] = (float) (dir.getY() > 0.0D ? -90 : 90);
++        } else {
++            double theta = Math.atan2(-x, z);
++            out[0] = (float) Math.toDegrees((theta + 6.283185307179586D) % 6.283185307179586D);
++
++            double x2 = NumberConversions.square(x);
++            double z2 = NumberConversions.square(z);
++            double xz = Math.sqrt(x2 + z2);
++            out[1] = (float) Math.toDegrees(Math.atan(-dir.getY() / xz));
++        }
++
++        return out;
++    }
++
++    public static float fetchPitch(Vector dir) {
++        double x = dir.getX();
++        double z = dir.getZ();
++
++        float result;
++
++        if (x == 0.0D && z == 0.0D) {
++            result = (float) (dir.getY() > 0.0D ? -90 : 90);
++        } else {
++            double x2 = NumberConversions.square(x);
++            double z2 = NumberConversions.square(z);
++            double xz = Math.sqrt(x2 + z2);
++            result = (float) Math.toDegrees(Math.atan(-dir.getY() / xz));
++        }
++
++        return result;
++    }
++
++    public static Vector getDirection(double rotX, double rotY) {
++        Vector vector = new Vector();
++
++        rotX = Math.toRadians(rotX);
++        rotY = Math.toRadians(rotY);
++
++        double xz = Math.abs(Math.cos(rotY));
++
++        vector.setX(-Math.sin(rotX) * xz);
++        vector.setZ(Math.cos(rotX) * xz);
++        vector.setY(-Math.sin(rotY));
++
++        return vector;
++    }
++
++    private static final int[] MULTIPLY_DE_BRUIJN_BIT_POSITION = new int[]{0, 1, 28, 2, 29, 14, 24, 3, 30, 22, 20, 15, 25, 17, 4, 8, 31, 27, 13, 23, 21, 19, 16, 7, 26, 12, 18, 6, 11, 5, 10, 9};
++
++    public static int floorLog2(int value) {
++        return ceilLog2(value) - (isPowerOfTwo(value) ? 0 : 1);
++    }
++
++    public static int ceilLog2(int value) {
++        value = isPowerOfTwo(value) ? value : smallestEncompassingPowerOfTwo(value);
++        return MULTIPLY_DE_BRUIJN_BIT_POSITION[(int) ((long) value * 125613361L >> 27) & 31];
++    }
++
++    public static boolean isPowerOfTwo(int value) {
++        return value != 0 && (value & value - 1) == 0;
++    }
++
++    public static int smallestEncompassingPowerOfTwo(int value) {
++        int i = value - 1;
++        i |= i >> 1;
++        i |= i >> 2;
++        i |= i >> 4;
++        i |= i >> 8;
++        i |= i >> 16;
++        return i + 1;
 +    }
 +}

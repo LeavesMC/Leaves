@@ -6,10 +6,10 @@ Subject: [PATCH] Move ThreadUnsafeRandom Initialization
 This patch is Powered by Pufferfish(https://github.com/pufferfish-gg/Pufferfish)
 
 diff --git a/src/main/java/net/minecraft/server/level/ServerLevel.java b/src/main/java/net/minecraft/server/level/ServerLevel.java
-index c93d0fbb921309a63c21ba7775fdf44aaa7985c4..84472442e0e68c22c4ebeaaf980aee1e8a234d81 100644
+index 9ac697d12ec670e2f67d11d94a09de50c7bd0b9e..cef5f66db297a68d74cbb7ca538b30d3d362be30 100644
 --- a/src/main/java/net/minecraft/server/level/ServerLevel.java
 +++ b/src/main/java/net/minecraft/server/level/ServerLevel.java
-@@ -971,7 +971,7 @@ public class ServerLevel extends Level implements WorldGenLevel {
+@@ -802,7 +802,7 @@ public class ServerLevel extends Level implements WorldGenLevel, ca.spottedleaf.
      }
      // Paper start - optimise random block ticking
      private final BlockPos.MutableBlockPos chunkTickMutablePosition = new BlockPos.MutableBlockPos();
@@ -19,20 +19,42 @@ index c93d0fbb921309a63c21ba7775fdf44aaa7985c4..84472442e0e68c22c4ebeaaf980aee1e
  
      public void tickChunk(LevelChunk chunk, int randomTickSpeed) {
 diff --git a/src/main/java/net/minecraft/world/level/Level.java b/src/main/java/net/minecraft/world/level/Level.java
-index 6a1adbc426a8c79c3fefc5a17509d9097ac9f3db..f7823ed9b293b040e38c517d6b96789c7ebba276 100644
+index 41acb79ec31f6f53589d698d1d4547485f0adc71..42206013ca0790f1366319669fe433640a74798c 100644
 --- a/src/main/java/net/minecraft/world/level/Level.java
 +++ b/src/main/java/net/minecraft/world/level/Level.java
-@@ -204,6 +204,8 @@ public abstract class Level implements LevelAccessor, AutoCloseable {
+@@ -203,11 +203,13 @@ public abstract class Level implements LevelAccessor, AutoCloseable, ca.spottedl
+     }
+     // Paper end
  
-     public abstract ResourceKey<LevelStem> getTypeKey();
- 
+-    public abstract ResourceKey<LevelStem> getTypeKey();
 +    protected final io.papermc.paper.util.math.ThreadUnsafeRandom randomTickRandom = new io.papermc.paper.util.math.ThreadUnsafeRandom(java.util.concurrent.ThreadLocalRandom.current().nextLong()); // Leaves - move thread unsafe random initialization
+ 
++    public abstract ResourceKey<LevelStem> getTypeKey();
+     // Paper start - rewrite chunk system
+     private ca.spottedleaf.moonrise.patches.chunk_system.level.entity.EntityLookup entityLookup;
+ 
 +
-     protected Level(WritableLevelData worlddatamutable, ResourceKey<Level> resourcekey, RegistryAccess iregistrycustom, Holder<DimensionType> holder, Supplier<ProfilerFiller> supplier, boolean flag, boolean flag1, long i, int j, org.bukkit.generator.ChunkGenerator gen, org.bukkit.generator.BiomeProvider biomeProvider, org.bukkit.World.Environment env, java.util.function.Function<org.spigotmc.SpigotWorldConfig, io.papermc.paper.configuration.WorldConfiguration> paperWorldConfigCreator, java.util.concurrent.Executor executor) { // Paper - create paper world config; Async-Anti-Xray: Pass executor
+     @Override
+     public final ca.spottedleaf.moonrise.patches.chunk_system.level.entity.EntityLookup moonrise$getEntityLookup() {
+         return this.entityLookup;
+@@ -255,14 +257,13 @@ public abstract class Level implements LevelAccessor, AutoCloseable, ca.spottedl
+     public ChunkAccess moonrise$getSpecificChunkIfLoaded(final int chunkX, final int chunkZ, final ChunkStatus leastStatus) {
+         return this.getChunkSource().getChunk(chunkX, chunkZ, leastStatus, false);
+     }
+-
+     @Override
+     public void moonrise$midTickTasks() {
+         // no-op on ClientLevel
+     }
+     // Paper end - rewrite chunk system
+ 
+-    protected Level(WritableLevelData worlddatamutable, ResourceKey<Level> resourcekey, RegistryAccess iregistrycustom, Holder<DimensionType> holder, Supplier<ProfilerFiller> supplier, boolean flag, boolean flag1, long i, int j, org.bukkit.generator.ChunkGenerator gen, org.bukkit.generator.BiomeProvider biomeProvider, org.bukkit.World.Environment env, java.util.function.Function<org.spigotmc.SpigotWorldConfig, io.papermc.paper.configuration.WorldConfiguration> paperWorldConfigCreator, java.util.concurrent.Executor executor) { // Paper - create paper world config & Anti-Xray
++    protected Level(WritableLevelData worlddatamutable, ResourceKey<Level> resourcekey, RegistryAccess iregistrycustom, Holder<DimensionType> holder, Supplier<ProfilerFiller> supplier, boolean flag, boolean flag1, long i, int j, org.bukkit.generator.ChunkGenerator gen, org.bukkit.generator.BiomeProvider biomeProvider, org.bukkit.World.Environment env, java.util.function.Function<org.spigotmc.SpigotWorldConfig, io.papermc.paper.configuration.WorldConfiguration> paperWorldConfigCreator, java.util.concurrent.Executor executor) { // Paper - create paper world config; Async-Anti-Xray: Pass executor
          this.spigotConfig = new org.spigotmc.SpigotWorldConfig(((net.minecraft.world.level.storage.PrimaryLevelData) worlddatamutable).getLevelName()); // Spigot
          this.paperConfig = paperWorldConfigCreator.apply(this.spigotConfig); // Paper - create paper world config
-@@ -292,6 +294,12 @@ public abstract class Level implements LevelAccessor, AutoCloseable {
-         // Paper end - optimise collisions
+         this.generator = gen;
+@@ -347,6 +348,12 @@ public abstract class Level implements LevelAccessor, AutoCloseable, ca.spottedl
+         this.chunkPacketBlockController = this.paperConfig().anticheat.antiXray.enabled ? new com.destroystokyo.paper.antixray.ChunkPacketBlockControllerAntiXray(this, executor) : com.destroystokyo.paper.antixray.ChunkPacketBlockController.NO_OPERATION_INSTANCE; // Paper - Anti-Xray
      }
  
 +    // Leaves start - thread unsafe random get

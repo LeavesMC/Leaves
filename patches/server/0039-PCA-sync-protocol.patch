@@ -1,0 +1,692 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Mon, 28 Nov 2022 15:34:15 +0800
+Subject: [PATCH] PCA sync protocol
+
+This patch is Powered by plusls-carpet-addition(https://github.com/plusls/plusls-carpet-addition)
+
+diff --git a/src/main/java/net/minecraft/world/entity/animal/horse/AbstractHorse.java b/src/main/java/net/minecraft/world/entity/animal/horse/AbstractHorse.java
+index 1f5ed236fb7c0c1b0181675747d25d233f534284..08559ff5409d362bc674f63d6e46ced6c0474601 100644
+--- a/src/main/java/net/minecraft/world/entity/animal/horse/AbstractHorse.java
++++ b/src/main/java/net/minecraft/world/entity/animal/horse/AbstractHorse.java
+@@ -436,6 +436,11 @@ public abstract class AbstractHorse extends Animal implements ContainerListener,
+ 
+     @Override
+     public void containerChanged(Container sender) {
++        // Leaves start - pca
++        if (org.leavesmc.leaves.LeavesConfig.pcaSyncProtocol) {
++            org.leavesmc.leaves.protocol.PcaSyncProtocol.syncEntityToClient(this);
++        }
++        // Leaves end - pca
+         boolean flag = this.isSaddled();
+ 
+         this.syncSaddleToClients();
+diff --git a/src/main/java/net/minecraft/world/entity/npc/AbstractVillager.java b/src/main/java/net/minecraft/world/entity/npc/AbstractVillager.java
+index 49b35fab8ee98a384ee12d36bbe2ac813342f1d6..915b44434eebdd200bef38b4e5e8fcdf5cdcf5ad 100644
+--- a/src/main/java/net/minecraft/world/entity/npc/AbstractVillager.java
++++ b/src/main/java/net/minecraft/world/entity/npc/AbstractVillager.java
+@@ -71,6 +71,15 @@ public abstract class AbstractVillager extends AgeableMob implements InventoryCa
+         super(type, world);
+         this.setPathfindingMalus(PathType.DANGER_FIRE, 16.0F);
+         this.setPathfindingMalus(PathType.DAMAGE_FIRE, -1.0F);
++        // Leaves start - pca
++        if (!this.level().isClientSide()) {
++            this.inventory.addListener(inventory -> {
++                if (org.leavesmc.leaves.LeavesConfig.pcaSyncProtocol) {
++                    org.leavesmc.leaves.protocol.PcaSyncProtocol.syncEntityToClient(this);
++                }
++            });
++        }
++        // Leaves end - pca
+     }
+ 
+     @Override
+diff --git a/src/main/java/net/minecraft/world/entity/vehicle/AbstractMinecartContainer.java b/src/main/java/net/minecraft/world/entity/vehicle/AbstractMinecartContainer.java
+index 9549eee0d92f322bd5232abd7e695213660c2e22..6044de3b76e236e22d4d00f80dae0380ba82d354 100644
+--- a/src/main/java/net/minecraft/world/entity/vehicle/AbstractMinecartContainer.java
++++ b/src/main/java/net/minecraft/world/entity/vehicle/AbstractMinecartContainer.java
+@@ -126,7 +126,13 @@ public abstract class AbstractMinecartContainer extends AbstractMinecart impleme
+     }
+ 
+     @Override
+-    public void setChanged() {}
++    public void setChanged() {
++        // Leaves start - pca
++        if (org.leavesmc.leaves.LeavesConfig.pcaSyncProtocol) {
++            org.leavesmc.leaves.protocol.PcaSyncProtocol.syncEntityToClient(this);
++        }
++        // Leaves end - pca
++    }
+ 
+     @Override
+     public boolean stillValid(Player player) {
+diff --git a/src/main/java/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java b/src/main/java/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java
+index 730aca233f6e7564d4cb85b5b628d23c4f01d2f4..9ad4600ebee09d81b1785103ad17de47cf1f2ede 100644
+--- a/src/main/java/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java
++++ b/src/main/java/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java
+@@ -558,6 +558,16 @@ public abstract class AbstractFurnaceBlockEntity extends BaseContainerBlockEntit
+ 
+     }
+ 
++    // Leaves start - pca
++    @Override
++    public void setChanged() {
++        super.setChanged();
++        if (org.leavesmc.leaves.LeavesConfig.pcaSyncProtocol) {
++            org.leavesmc.leaves.protocol.PcaSyncProtocol.syncBlockEntityToClient(this);
++        }
++    }
++    // Leaves end - pca
++
+     @Override
+     public boolean canPlaceItem(int slot, ItemStack stack) {
+         if (slot == 2) {
+diff --git a/src/main/java/net/minecraft/world/level/block/entity/BarrelBlockEntity.java b/src/main/java/net/minecraft/world/level/block/entity/BarrelBlockEntity.java
+index 6186e55014bbb9d5bedaa0e9d196879c55339d42..956c39ab508c2d8a7b9156aa53d655624db91f3d 100644
+--- a/src/main/java/net/minecraft/world/level/block/entity/BarrelBlockEntity.java
++++ b/src/main/java/net/minecraft/world/level/block/entity/BarrelBlockEntity.java
+@@ -132,6 +132,16 @@ public class BarrelBlockEntity extends RandomizableContainerBlockEntity {
+         this.items = inventory;
+     }
+ 
++    // Leaves start - pca
++    @Override
++    public void setChanged() {
++        super.setChanged();
++        if (org.leavesmc.leaves.LeavesConfig.pcaSyncProtocol) {
++            org.leavesmc.leaves.protocol.PcaSyncProtocol.syncBlockEntityToClient(this);
++        }
++    }
++    // Leaves end - pca
++
+     @Override
+     protected Component getDefaultName() {
+         return Component.translatable("container.barrel");
+diff --git a/src/main/java/net/minecraft/world/level/block/entity/BeehiveBlockEntity.java b/src/main/java/net/minecraft/world/level/block/entity/BeehiveBlockEntity.java
+index 7b263fab4f0014400b3b8e7e33db32f9a125f6ba..cb9d6f3f57192675dc18d9fa80b22498b29da368 100644
+--- a/src/main/java/net/minecraft/world/level/block/entity/BeehiveBlockEntity.java
++++ b/src/main/java/net/minecraft/world/level/block/entity/BeehiveBlockEntity.java
+@@ -143,6 +143,11 @@ public class BeehiveBlockEntity extends BlockEntity {
+             super.setChanged();
+         }
+ 
++        // Leaves start - pca
++        if (org.leavesmc.leaves.LeavesConfig.pcaSyncProtocol) {
++            org.leavesmc.leaves.protocol.PcaSyncProtocol.syncBlockEntityToClient(this);
++        }
++        // Leaves end - pca
+         return list;
+     }
+ 
+@@ -197,6 +202,12 @@ public class BeehiveBlockEntity extends BlockEntity {
+                 this.level.gameEvent((Holder) GameEvent.BLOCK_CHANGE, blockposition, GameEvent.Context.of(entity, this.getBlockState()));
+             }
+ 
++            // Leaves start - pca
++            if (org.leavesmc.leaves.LeavesConfig.pcaSyncProtocol) {
++                org.leavesmc.leaves.protocol.PcaSyncProtocol.syncBlockEntityToClient(this);
++            }
++            // Leaves end - pca
++
+             entity.discard(EntityRemoveEvent.Cause.ENTER_BLOCK); // CraftBukkit - add Bukkit remove cause
+             super.setChanged();
+         }
+@@ -312,6 +323,11 @@ public class BeehiveBlockEntity extends BlockEntity {
+                 if (BeehiveBlockEntity.releaseOccupant(world, pos, state, tileentitybeehive_hivebee.toOccupant(), (List) null, tileentitybeehive_releasestatus, flowerPos)) {
+                     flag = true;
+                     iterator.remove();
++                    // Leaves start - pca
++                    if (org.leavesmc.leaves.LeavesConfig.pcaSyncProtocol) {
++                        org.leavesmc.leaves.protocol.PcaSyncProtocol.syncBlockEntityToClient(Objects.requireNonNull(world.getBlockEntity(pos)));
++                    }
++                    // Leaves end - pca
+                     // CraftBukkit start
+                 } else {
+                     tileentitybeehive_hivebee.exitTickCounter = tileentitybeehive_hivebee.occupant.minTicksInHive / 2; // Not strictly Vanilla behaviour in cases where bees cannot spawn but still reasonable // Paper - Fix bees aging inside hives; use exitTickCounter to keep actual bee life
+@@ -357,6 +373,11 @@ public class BeehiveBlockEntity extends BlockEntity {
+             this.maxBees = nbt.getInt("Bukkit.MaxEntities");
+         }
+         // CraftBukkit end
++        // Leaves start - pca
++        if (org.leavesmc.leaves.LeavesConfig.pcaSyncProtocol) {
++            org.leavesmc.leaves.protocol.PcaSyncProtocol.syncBlockEntityToClient(this);
++        }
++        // Leaves end - pca
+     }
+ 
+     @Override
+diff --git a/src/main/java/net/minecraft/world/level/block/entity/BrewingStandBlockEntity.java b/src/main/java/net/minecraft/world/level/block/entity/BrewingStandBlockEntity.java
+index a2fafef89d5354e2cb02f5672810909950a57777..54c18c771b96b30167cb5fb4ff1b0c9c63607d47 100644
+--- a/src/main/java/net/minecraft/world/level/block/entity/BrewingStandBlockEntity.java
++++ b/src/main/java/net/minecraft/world/level/block/entity/BrewingStandBlockEntity.java
+@@ -334,6 +334,16 @@ public class BrewingStandBlockEntity extends BaseContainerBlockEntity implements
+         return this.canPlaceItem(slot, stack);
+     }
+ 
++    // Leaves start - pca
++    @Override
++    public void setChanged() {
++        super.setChanged();
++        if (org.leavesmc.leaves.LeavesConfig.pcaSyncProtocol) {
++            org.leavesmc.leaves.protocol.PcaSyncProtocol.syncBlockEntityToClient(this);
++        }
++    }
++    // Leaves end - pca
++
+     @Override
+     public boolean canTakeItemThroughFace(int slot, ItemStack stack, Direction dir) {
+         return slot == 3 ? stack.is(Items.GLASS_BOTTLE) : true;
+diff --git a/src/main/java/net/minecraft/world/level/block/entity/ChestBlockEntity.java b/src/main/java/net/minecraft/world/level/block/entity/ChestBlockEntity.java
+index b88aa184cd06a0485146f58a5b61a56a50911209..4d4485f1007341a5303374b3facd033c87b887b3 100644
+--- a/src/main/java/net/minecraft/world/level/block/entity/ChestBlockEntity.java
++++ b/src/main/java/net/minecraft/world/level/block/entity/ChestBlockEntity.java
+@@ -191,6 +191,16 @@ public class ChestBlockEntity extends RandomizableContainerBlockEntity implement
+         this.items = inventory;
+     }
+ 
++    // Leaves start - pca
++    @Override
++    public void setChanged() {
++        super.setChanged();
++        if (org.leavesmc.leaves.LeavesConfig.pcaSyncProtocol) {
++            org.leavesmc.leaves.protocol.PcaSyncProtocol.syncBlockEntityToClient(this);
++        }
++    }
++    // Leaves end - pca
++
+     @Override
+     public float getOpenNess(float tickDelta) {
+         return this.chestLidController.getOpenness(tickDelta);
+diff --git a/src/main/java/net/minecraft/world/level/block/entity/ComparatorBlockEntity.java b/src/main/java/net/minecraft/world/level/block/entity/ComparatorBlockEntity.java
+index 7ea490a61321830c41dfa1bbd5480217dc62f478..d037adbe784d1b9e620d3c0798bc8b86061c5701 100644
+--- a/src/main/java/net/minecraft/world/level/block/entity/ComparatorBlockEntity.java
++++ b/src/main/java/net/minecraft/world/level/block/entity/ComparatorBlockEntity.java
+@@ -24,6 +24,16 @@ public class ComparatorBlockEntity extends BlockEntity {
+         this.output = nbt.getInt("OutputSignal");
+     }
+ 
++    // Leaves start - pca
++    @Override
++    public void setChanged() {
++        super.setChanged();
++        if (org.leavesmc.leaves.LeavesConfig.pcaSyncProtocol) {
++            org.leavesmc.leaves.protocol.PcaSyncProtocol.syncBlockEntityToClient(this);
++        }
++    }
++    // Leaves end - pca
++
+     public int getOutputSignal() {
+         return this.output;
+     }
+diff --git a/src/main/java/net/minecraft/world/level/block/entity/DispenserBlockEntity.java b/src/main/java/net/minecraft/world/level/block/entity/DispenserBlockEntity.java
+index 431fb6a658c6aac43b6f9dbd1f578b83f261a4e3..138c045dc694c596083bc2f23831ca22e9484297 100644
+--- a/src/main/java/net/minecraft/world/level/block/entity/DispenserBlockEntity.java
++++ b/src/main/java/net/minecraft/world/level/block/entity/DispenserBlockEntity.java
+@@ -109,6 +109,16 @@ public class DispenserBlockEntity extends RandomizableContainerBlockEntity {
+         return stack;
+     }
+ 
++    // Leaves start - pca
++    @Override
++    public void setChanged() {
++        super.setChanged();
++        if (org.leavesmc.leaves.LeavesConfig.pcaSyncProtocol) {
++            org.leavesmc.leaves.protocol.PcaSyncProtocol.syncBlockEntityToClient(this);
++        }
++    }
++    // Leaves end - pca
++
+     @Override
+     protected Component getDefaultName() {
+         return Component.translatable("container.dispenser");
+diff --git a/src/main/java/net/minecraft/world/level/block/entity/HopperBlockEntity.java b/src/main/java/net/minecraft/world/level/block/entity/HopperBlockEntity.java
+index 8310d132006043e93c612890514c4c7f3eb1c74d..f523f888f2a0ac04f25b30e18cdd765c395cfc18 100644
+--- a/src/main/java/net/minecraft/world/level/block/entity/HopperBlockEntity.java
++++ b/src/main/java/net/minecraft/world/level/block/entity/HopperBlockEntity.java
+@@ -134,6 +134,16 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+         this.facing = (Direction) state.getValue(HopperBlock.FACING);
+     }
+ 
++    // Leaves start - pca
++    @Override
++    public void setChanged() {
++        super.setChanged();
++        if (org.leavesmc.leaves.LeavesConfig.pcaSyncProtocol) {
++            org.leavesmc.leaves.protocol.PcaSyncProtocol.syncBlockEntityToClient(this);
++        }
++    }
++    // Leaves end - pca
++
+     @Override
+     protected Component getDefaultName() {
+         return Component.translatable("container.hopper");
+@@ -212,6 +222,11 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+                 if (flag) {
+                     blockEntity.setCooldown(world.spigotConfig.hopperTransfer); // Spigot
+                     setChanged(world, pos, state);
++                    // Leaves start - pca
++                    if (org.leavesmc.leaves.LeavesConfig.pcaSyncProtocol) {
++                        org.leavesmc.leaves.protocol.PcaSyncProtocol.syncBlockEntityToClient(blockEntity);
++                    }
++                    // Leaves end - pca
+                     return true;
+                 }
+             }
+diff --git a/src/main/java/net/minecraft/world/level/block/entity/ShulkerBoxBlockEntity.java b/src/main/java/net/minecraft/world/level/block/entity/ShulkerBoxBlockEntity.java
+index 0d68db20f5fbe5e834f12c1e8fd429099a44e4b6..5b62860cd64b5e6dc02dadb4651824ac04b00024 100644
+--- a/src/main/java/net/minecraft/world/level/block/entity/ShulkerBoxBlockEntity.java
++++ b/src/main/java/net/minecraft/world/level/block/entity/ShulkerBoxBlockEntity.java
+@@ -270,6 +270,16 @@ public class ShulkerBoxBlockEntity extends RandomizableContainerBlockEntity impl
+         this.itemStacks = inventory;
+     }
+ 
++    // Leaves start - pca
++    @Override
++    public void setChanged() {
++        super.setChanged();
++        if (org.leavesmc.leaves.LeavesConfig.pcaSyncProtocol) {
++            org.leavesmc.leaves.protocol.PcaSyncProtocol.syncBlockEntityToClient(this);
++        }
++    }
++    // Leaves end - pca
++
+     @Override
+     public int[] getSlotsForFace(Direction side) {
+         return ShulkerBoxBlockEntity.SLOTS;
+diff --git a/src/main/java/org/leavesmc/leaves/protocol/PcaSyncProtocol.java b/src/main/java/org/leavesmc/leaves/protocol/PcaSyncProtocol.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..7a86bdc3ddbed0399cdb909cb294d8f8bb5a894f
+--- /dev/null
++++ b/src/main/java/org/leavesmc/leaves/protocol/PcaSyncProtocol.java
+@@ -0,0 +1,391 @@
++package org.leavesmc.leaves.protocol;
++
++import net.minecraft.core.BlockPos;
++import net.minecraft.nbt.CompoundTag;
++import net.minecraft.network.FriendlyByteBuf;
++import net.minecraft.resources.ResourceLocation;
++import net.minecraft.server.MinecraftServer;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.world.entity.Entity;
++import net.minecraft.world.entity.player.Player;
++import net.minecraft.world.level.Level;
++import net.minecraft.world.level.block.ChestBlock;
++import net.minecraft.world.level.block.entity.BlockEntity;
++import net.minecraft.world.level.block.state.BlockState;
++import net.minecraft.world.level.block.state.properties.ChestType;
++import org.apache.commons.lang3.tuple.ImmutablePair;
++import org.apache.commons.lang3.tuple.MutablePair;
++import org.apache.commons.lang3.tuple.Pair;
++import org.jetbrains.annotations.Contract;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++import org.leavesmc.leaves.LeavesConfig;
++import org.leavesmc.leaves.LeavesLogger;
++import org.leavesmc.leaves.bot.ServerBot;
++import org.leavesmc.leaves.protocol.core.LeavesCustomPayload;
++import org.leavesmc.leaves.protocol.core.LeavesProtocol;
++import org.leavesmc.leaves.protocol.core.ProtocolHandler;
++import org.leavesmc.leaves.protocol.core.ProtocolUtils;
++
++import java.util.HashMap;
++import java.util.HashSet;
++import java.util.Map;
++import java.util.Set;
++import java.util.concurrent.locks.ReentrantLock;
++
++import static org.leavesmc.leaves.protocol.core.LeavesProtocolManager.EmptyPayload;
++
++@LeavesProtocol(namespace = "pca")
++public class PcaSyncProtocol {
++
++    public static final String PROTOCOL_ID = "pca";
++
++    public static final ReentrantLock lock = new ReentrantLock(true);
++    public static final ReentrantLock pairLock = new ReentrantLock(true);
++
++    // send
++    private static final ResourceLocation ENABLE_PCA_SYNC_PROTOCOL = id("enable_pca_sync_protocol");
++    private static final ResourceLocation DISABLE_PCA_SYNC_PROTOCOL = id("disable_pca_sync_protocol");
++    private static final ResourceLocation UPDATE_ENTITY = id("update_entity");
++    private static final ResourceLocation UPDATE_BLOCK_ENTITY = id("update_block_entity");
++
++    private static final Map<ServerPlayer, Pair<ResourceLocation, BlockPos>> playerWatchBlockPos = new HashMap<>();
++    private static final Map<ServerPlayer, Pair<ResourceLocation, Entity>> playerWatchEntity = new HashMap<>();
++    private static final Map<Pair<ResourceLocation, BlockPos>, Set<ServerPlayer>> blockPosWatchPlayerSet = new HashMap<>();
++    private static final Map<Pair<ResourceLocation, Entity>, Set<ServerPlayer>> entityWatchPlayerSet = new HashMap<>();
++    private static final MutablePair<ResourceLocation, Entity> ResourceLocationEntityPair = new MutablePair<>();
++    private static final MutablePair<ResourceLocation, BlockPos> ResourceLocationBlockPosPair = new MutablePair<>();
++
++    @Contract("_ -> new")
++    public static @NotNull ResourceLocation id(String path) {
++        return new ResourceLocation(PROTOCOL_ID, path);
++    }
++
++    @ProtocolHandler.PlayerJoin
++    private static void onJoin(ServerPlayer player) {
++        if (LeavesConfig.pcaSyncProtocol) {
++            enablePcaSyncProtocol(player);
++        }
++    }
++
++    @ProtocolHandler.ReloadServer
++    private static void onServerReload() {
++        if (LeavesConfig.pcaSyncProtocol) {
++            enablePcaSyncProtocolGlobal();
++        } else {
++            disablePcaSyncProtocolGlobal();
++        }
++    }
++
++    @ProtocolHandler.PayloadReceiver(payload = EmptyPayload.class, payloadId = "cancel_sync_block_entity")
++    private static void cancelSyncBlockEntityHandler(ServerPlayer player, EmptyPayload payload) {
++        if (!LeavesConfig.pcaSyncProtocol) {
++            return;
++        }
++        PcaSyncProtocol.clearPlayerWatchBlock(player);
++    }
++
++    @ProtocolHandler.PayloadReceiver(payload = EmptyPayload.class, payloadId = "cancel_sync_entity")
++    private static void cancelSyncEntityHandler(ServerPlayer player, EmptyPayload payload) {
++        if (!LeavesConfig.pcaSyncProtocol) {
++            return;
++        }
++        PcaSyncProtocol.clearPlayerWatchEntity(player);
++    }
++
++    @ProtocolHandler.PayloadReceiver(payload = SyncBlockEntityPayload.class, payloadId = "sync_block_entity")
++    private static void syncBlockEntityHandler(ServerPlayer player, SyncBlockEntityPayload payload) {
++        if (!LeavesConfig.pcaSyncProtocol) {
++            return;
++        }
++        MinecraftServer server = MinecraftServer.getServer();
++        BlockPos pos = payload.pos;
++        ServerLevel world = player.serverLevel();
++
++        server.execute(() -> {
++            BlockState blockState = world.getBlockState(pos);
++            clearPlayerWatchData(player);
++
++            BlockEntity blockEntityAdj = null;
++            if (blockState.getBlock() instanceof ChestBlock) {
++                if (blockState.getValue(ChestBlock.TYPE) != ChestType.SINGLE) {
++                    BlockPos posAdj = pos.offset(ChestBlock.getConnectedDirection(blockState).getNormal());
++                    // The method in World now checks that the caller is from the same thread...
++                    blockEntityAdj = world.getChunk(posAdj).getBlockEntity(posAdj);
++                }
++            }
++
++            if (blockEntityAdj != null) {
++                updateBlockEntity(player, blockEntityAdj);
++            }
++
++            // The method in World now checks that the caller is from the same thread...
++            BlockEntity blockEntity = world.getChunk(pos).getBlockEntity(pos);
++            if (blockEntity != null) {
++                updateBlockEntity(player, blockEntity);
++            }
++
++            Pair<ResourceLocation, BlockPos> pair = new ImmutablePair<>(player.level().dimension().location(), pos);
++            lock.lock();
++            playerWatchBlockPos.put(player, pair);
++            if (!blockPosWatchPlayerSet.containsKey(pair)) {
++                blockPosWatchPlayerSet.put(pair, new HashSet<>());
++            }
++            blockPosWatchPlayerSet.get(pair).add(player);
++            lock.unlock();
++        });
++    }
++
++    @ProtocolHandler.PayloadReceiver(payload = SyncEntityPayload.class, payloadId = "sync_entity")
++    private static void syncEntityHandler(ServerPlayer player, SyncEntityPayload payload) {
++        if (!LeavesConfig.pcaSyncProtocol) {
++            return;
++        }
++        MinecraftServer server = MinecraftServer.getServer();
++        int entityId = payload.entityId;
++        ServerLevel world = player.serverLevel();
++        server.execute(() -> {
++            Entity entity = world.getEntity(entityId);
++            if (entity != null) {
++                clearPlayerWatchData(player);
++                if (entity instanceof Player) {
++                    if (LeavesConfig.pcaSyncPlayerEntity.equals("NOBODY")) {
++                        return;
++                    } else if (LeavesConfig.pcaSyncPlayerEntity.equals("BOT")) {
++                        if (!(entity instanceof ServerBot)) {
++                            return;
++                        }
++                    } else if (LeavesConfig.pcaSyncPlayerEntity.equals("OPS")) {
++                        if (!(entity instanceof ServerBot) && server.getProfilePermissions(player.getGameProfile()) < 2) {
++                            return;
++                        }
++                    } else if (LeavesConfig.pcaSyncPlayerEntity.equals("OPS_AND_SELF")) {
++                        if (!(entity instanceof ServerBot) &&
++                            server.getProfilePermissions(player.getGameProfile()) < 2 &&
++                            entity != player) {
++                            return;
++                        }
++                    } else if (!LeavesConfig.pcaSyncPlayerEntity.equals("EVERYONE")) {
++                        // wtf????
++                        LeavesLogger.LOGGER.warning("pcaSyncPlayerEntity wtf???");
++                        return;
++                    }
++                }
++                updateEntity(player, entity);
++
++                Pair<ResourceLocation, Entity> pair = new ImmutablePair<>(entity.level().dimension().location(), entity);
++                lock.lock();
++                playerWatchEntity.put(player, pair);
++                if (!entityWatchPlayerSet.containsKey(pair)) {
++                    entityWatchPlayerSet.put(pair, new HashSet<>());
++                }
++                entityWatchPlayerSet.get(pair).add(player);
++                lock.unlock();
++            }
++        });
++    }
++
++    public static void enablePcaSyncProtocol(@NotNull ServerPlayer player) {
++        ProtocolUtils.sendEmptyPayloadPacket(player, ENABLE_PCA_SYNC_PROTOCOL);
++    }
++
++    public static void disablePcaSyncProtocol(@NotNull ServerPlayer player) {
++        ProtocolUtils.sendEmptyPayloadPacket(player, DISABLE_PCA_SYNC_PROTOCOL);
++    }
++
++    public static void updateEntity(@NotNull ServerPlayer player, @NotNull Entity entity) {
++        CompoundTag nbt = entity.saveWithoutId(new CompoundTag());
++        ProtocolUtils.sendPayloadPacket(player, UPDATE_ENTITY, buf -> {
++            buf.writeResourceLocation(entity.level().dimension().location());
++            buf.writeInt(entity.getId());
++            buf.writeNbt(nbt);
++        });
++    }
++
++    public static void updateBlockEntity(@NotNull ServerPlayer player, @NotNull BlockEntity blockEntity) {
++        Level world = blockEntity.getLevel();
++
++        if (world == null) {
++            return;
++        }
++
++        ProtocolUtils.sendPayloadPacket(player, UPDATE_BLOCK_ENTITY, buf -> {
++            buf.writeResourceLocation(world.dimension().location());
++            buf.writeBlockPos(blockEntity.getBlockPos());
++            buf.writeNbt(blockEntity.saveWithId(blockEntity.getLevel().registryAccess()));
++        });
++    }
++
++    private static MutablePair<ResourceLocation, Entity> getResourceLocationEntityPair(ResourceLocation ResourceLocation, Entity entity) {
++        pairLock.lock();
++        ResourceLocationEntityPair.setLeft(ResourceLocation);
++        ResourceLocationEntityPair.setRight(entity);
++        pairLock.unlock();
++        return ResourceLocationEntityPair;
++    }
++
++    private static MutablePair<ResourceLocation, BlockPos> getResourceLocationBlockPosPair(ResourceLocation ResourceLocation, BlockPos pos) {
++        pairLock.lock();
++        ResourceLocationBlockPosPair.setLeft(ResourceLocation);
++        ResourceLocationBlockPosPair.setRight(pos);
++        pairLock.unlock();
++        return ResourceLocationBlockPosPair;
++    }
++
++    private static @Nullable Set<ServerPlayer> getWatchPlayerList(@NotNull Entity entity) {
++        return entityWatchPlayerSet.get(getResourceLocationEntityPair(entity.level().dimension().location(), entity));
++    }
++
++    private static @Nullable Set<ServerPlayer> getWatchPlayerList(@NotNull Level world, @NotNull BlockPos blockPos) {
++        return blockPosWatchPlayerSet.get(getResourceLocationBlockPosPair(world.dimension().location(), blockPos));
++    }
++
++    public static boolean syncEntityToClient(@NotNull Entity entity) {
++        if (entity.level().isClientSide()) {
++            return false;
++        }
++        lock.lock();
++        Set<ServerPlayer> playerList = getWatchPlayerList(entity);
++        boolean ret = false;
++        if (playerList != null) {
++            for (ServerPlayer player : playerList) {
++                updateEntity(player, entity);
++                ret = true;
++            }
++        }
++        lock.unlock();
++        return ret;
++    }
++
++    public static boolean syncBlockEntityToClient(@NotNull BlockEntity blockEntity) {
++        boolean ret = false;
++        Level world = blockEntity.getLevel();
++        BlockPos pos = blockEntity.getBlockPos();
++        if (world != null) {
++            if (world.isClientSide()) {
++                return false;
++            }
++            BlockState blockState = world.getBlockState(pos);
++            lock.lock();
++            Set<ServerPlayer> playerList = getWatchPlayerList(world, blockEntity.getBlockPos());
++
++            Set<ServerPlayer> playerListAdj = null;
++
++            if (blockState.getBlock() instanceof ChestBlock) {
++                if (blockState.getValue(ChestBlock.TYPE) != ChestType.SINGLE) {
++                    BlockPos posAdj = pos.offset(ChestBlock.getConnectedDirection(blockState).getNormal());
++                    playerListAdj = getWatchPlayerList(world, posAdj);
++                }
++            }
++            if (playerListAdj != null) {
++                if (playerList == null) {
++                    playerList = playerListAdj;
++                } else {
++                    playerList.addAll(playerListAdj);
++                }
++            }
++
++            if (playerList != null) {
++                for (ServerPlayer player : playerList) {
++                    updateBlockEntity(player, blockEntity);
++                    ret = true;
++                }
++            }
++            lock.unlock();
++        }
++        return ret;
++    }
++
++    private static void clearPlayerWatchEntity(ServerPlayer player) {
++        lock.lock();
++        Pair<ResourceLocation, Entity> pair = playerWatchEntity.get(player);
++        if (pair != null) {
++            Set<ServerPlayer> playerSet = entityWatchPlayerSet.get(pair);
++            playerSet.remove(player);
++            if (playerSet.isEmpty()) {
++                entityWatchPlayerSet.remove(pair);
++            }
++            playerWatchEntity.remove(player);
++        }
++        lock.unlock();
++    }
++
++    private static void clearPlayerWatchBlock(ServerPlayer player) {
++        lock.lock();
++        Pair<ResourceLocation, BlockPos> pair = playerWatchBlockPos.get(player);
++        if (pair != null) {
++            Set<ServerPlayer> playerSet = blockPosWatchPlayerSet.get(pair);
++            playerSet.remove(player);
++            if (playerSet.isEmpty()) {
++                blockPosWatchPlayerSet.remove(pair);
++            }
++            playerWatchBlockPos.remove(player);
++        }
++        lock.unlock();
++    }
++
++    public static void disablePcaSyncProtocolGlobal() {
++        lock.lock();
++        playerWatchBlockPos.clear();
++        playerWatchEntity.clear();
++        blockPosWatchPlayerSet.clear();
++        entityWatchPlayerSet.clear();
++        lock.unlock();
++        for (ServerPlayer player : MinecraftServer.getServer().getPlayerList().getPlayers()) {
++            disablePcaSyncProtocol(player);
++        }
++    }
++
++    public static void enablePcaSyncProtocolGlobal() {
++        for (ServerPlayer player : MinecraftServer.getServer().getPlayerList().getPlayers()) {
++            enablePcaSyncProtocol(player);
++        }
++    }
++
++
++    public static void clearPlayerWatchData(ServerPlayer player) {
++        PcaSyncProtocol.clearPlayerWatchBlock(player);
++        PcaSyncProtocol.clearPlayerWatchEntity(player);
++    }
++
++    public record SyncBlockEntityPayload(BlockPos pos) implements LeavesCustomPayload<SyncBlockEntityPayload> {
++
++        public static final ResourceLocation SYNC_BLOCK_ENTITY = PcaSyncProtocol.id("sync_block_entity");
++
++        @New
++        public SyncBlockEntityPayload(ResourceLocation id, FriendlyByteBuf buf) {
++            this(buf.readBlockPos());
++        }
++
++        @Override
++        public void write(FriendlyByteBuf buf) {
++            buf.writeBlockPos(pos);
++        }
++
++        @Override
++        public @NotNull ResourceLocation id() {
++            return SYNC_BLOCK_ENTITY;
++        }
++    }
++
++    public record SyncEntityPayload(int entityId) implements LeavesCustomPayload<SyncEntityPayload> {
++
++        public static final ResourceLocation SYNC_ENTITY = PcaSyncProtocol.id("sync_entity");
++
++        @New
++        public SyncEntityPayload(ResourceLocation id, FriendlyByteBuf buf) {
++            this(buf.readInt());
++        }
++
++        @Override
++        public void write(FriendlyByteBuf buf) {
++            buf.writeInt(entityId);
++        }
++
++        @Override
++        public @NotNull ResourceLocation id() {
++            return SYNC_ENTITY;
++        }
++    }
++}

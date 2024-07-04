@@ -1,0 +1,262 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Fri, 16 Dec 2022 07:45:51 +0800
+Subject: [PATCH] Improve fluid direction caching
+
+This patch is Powered by Pufferfish
+(https://github.com/pufferfish-gg/Pufferfish)
+
+diff --git a/src/main/java/net/minecraft/world/level/material/FlowingFluid.java b/src/main/java/net/minecraft/world/level/material/FlowingFluid.java
+index 1c0712295695727ee9c4d430d4157b8e17cbd71f..1687ab4965433459219bb5d8aaf5ec8e5baeb605 100644
+--- a/src/main/java/net/minecraft/world/level/material/FlowingFluid.java
++++ b/src/main/java/net/minecraft/world/level/material/FlowingFluid.java
+@@ -53,6 +53,11 @@ public abstract class FlowingFluid extends Fluid {
+         object2bytelinkedopenhashmap.defaultReturnValue((byte) 127);
+         return object2bytelinkedopenhashmap;
+     });
++    // Leaves start - use our own cache
++    private static final ThreadLocal<org.leavesmc.leaves.structs.FluidDirectionCache<Block.BlockStatePairKey>> localFluidDirectionCache = ThreadLocal.withInitial(() -> {
++        return new org.leavesmc.leaves.structs.FluidDirectionCache<>(2048);
++    });
++    // Leaves end - use our own cache
+     private final Map<FluidState, VoxelShape> shapes = Maps.newIdentityHashMap();
+ 
+     public FlowingFluid() {}
+@@ -240,40 +245,70 @@ public abstract class FlowingFluid extends Fluid {
+     }
+ 
+     private boolean canPassThroughWall(Direction face, BlockGetter world, BlockPos pos, BlockState state, BlockPos fromPos, BlockState fromState) {
+-        Object2ByteLinkedOpenHashMap object2bytelinkedopenhashmap;
++        // Leaves end - cache
++        if (!org.leavesmc.leaves.LeavesConfig.improveFluidDirectionCaching) {
++            Object2ByteLinkedOpenHashMap object2bytelinkedopenhashmap;
++
++            if (!state.getBlock().hasDynamicShape() && !fromState.getBlock().hasDynamicShape()) {
++                object2bytelinkedopenhashmap = (Object2ByteLinkedOpenHashMap) FlowingFluid.OCCLUSION_CACHE.get();
++            } else {
++                object2bytelinkedopenhashmap = null;
++            }
+ 
+-        if (!state.getBlock().hasDynamicShape() && !fromState.getBlock().hasDynamicShape()) {
+-            object2bytelinkedopenhashmap = (Object2ByteLinkedOpenHashMap) FlowingFluid.OCCLUSION_CACHE.get();
+-        } else {
+-            object2bytelinkedopenhashmap = null;
+-        }
++            Block.BlockStatePairKey block_a;
++
++            if (object2bytelinkedopenhashmap != null) {
++                block_a = new Block.BlockStatePairKey(state, fromState, face);
++                byte b0 = object2bytelinkedopenhashmap.getAndMoveToFirst(block_a);
++
++                if (b0 != 127) {
++                    return b0 != 0;
++                }
++            } else {
++                block_a = null;
++            }
+ 
+-        Block.BlockStatePairKey block_a;
++            VoxelShape voxelshape = state.getCollisionShape(world, pos);
++            VoxelShape voxelshape1 = fromState.getCollisionShape(world, fromPos);
++            boolean flag = !Shapes.mergedFaceOccludes(voxelshape, voxelshape1, face);
+ 
+-        if (object2bytelinkedopenhashmap != null) {
+-            block_a = new Block.BlockStatePairKey(state, fromState, face);
+-            byte b0 = object2bytelinkedopenhashmap.getAndMoveToFirst(block_a);
++            if (object2bytelinkedopenhashmap != null) {
++                if (object2bytelinkedopenhashmap.size() == 200) {
++                    object2bytelinkedopenhashmap.removeLastByte();
++                }
+ 
+-            if (b0 != 127) {
+-                return b0 != 0;
++                object2bytelinkedopenhashmap.putAndMoveToFirst(block_a, (byte) (flag ? 1 : 0));
+             }
++
++            return flag;
+         } else {
+-            block_a = null;
+-        }
++            org.leavesmc.leaves.structs.FluidDirectionCache<Block.BlockStatePairKey> cache = null;
++            if (!state.getBlock().hasDynamicShape() && !fromState.getBlock().hasDynamicShape()) {
++                cache = localFluidDirectionCache.get();
++            }
+ 
+-        VoxelShape voxelshape = state.getCollisionShape(world, pos);
+-        VoxelShape voxelshape1 = fromState.getCollisionShape(world, fromPos);
+-        boolean flag = !Shapes.mergedFaceOccludes(voxelshape, voxelshape1, face);
++            Block.BlockStatePairKey block_a;
++            if (cache != null) {
++                block_a = new Block.BlockStatePairKey(state, fromState, face);
++                Boolean flag = cache.getValue(block_a);
++                if (flag != null) {
++                    return flag;
++                }
++            } else {
++                block_a = null;
++            }
+ 
+-        if (object2bytelinkedopenhashmap != null) {
+-            if (object2bytelinkedopenhashmap.size() == 200) {
+-                object2bytelinkedopenhashmap.removeLastByte();
++            VoxelShape voxelshape = state.getCollisionShape(world, pos);
++            VoxelShape voxelshape1 = fromState.getCollisionShape(world, fromPos);
++            boolean flag = !Shapes.mergedFaceOccludes(voxelshape, voxelshape1, face);
++
++            if (cache != null) {
++                cache.putValue(block_a, flag);
+             }
+ 
+-            object2bytelinkedopenhashmap.putAndMoveToFirst(block_a, (byte) (flag ? 1 : 0));
++            return flag;
+         }
+-
+-        return flag;
++        // Leaves start - cache
+     }
+ 
+     public abstract Fluid getFlowing();
+diff --git a/src/main/java/org/leavesmc/leaves/structs/FluidDirectionCache.java b/src/main/java/org/leavesmc/leaves/structs/FluidDirectionCache.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..e07a7c68d6d552767a77ffc507e6023b77daeac5
+--- /dev/null
++++ b/src/main/java/org/leavesmc/leaves/structs/FluidDirectionCache.java
+@@ -0,0 +1,138 @@
++package org.leavesmc.leaves.structs;
++
++import it.unimi.dsi.fastutil.HashCommon;
++
++// Powered by Pufferfish(https://github.com/pufferfish-gg/Pufferfish)
++
++/**
++ * This is a replacement for the cache used in FluidTypeFlowing.
++ * The requirements for the previous cache were:
++ * - Store 200 entries
++ * - Look for the flag in the cache
++ * - If it exists, move to front of cache
++ * - If it doesn't exist, remove last entry in cache and insert in front
++ * <p>
++ * This class accomplishes something similar, however has a few different
++ * requirements put into place to make this more optimize:
++ * <p>
++ * - maxDistance is the most amount of entries to be checked, instead
++ * of having to check the entire list.
++ * - In combination with that, entries are all tracked by age and how
++ * frequently they're used. This enables us to remove old entries,
++ * without constantly shifting any around.
++ * <p>
++ * Usage of the previous map would have to reset the head every single usage,
++ * shifting the entire map. Here, nothing happens except an increment when
++ * the cache is hit, and when it needs to replace an old element only a single
++ * element is modified.
++ */
++public class FluidDirectionCache<T> {
++
++    private static class FluidDirectionEntry<T> {
++        private final T data;
++        private final boolean flag;
++        private int uses = 0;
++        private int age = 0;
++
++        private FluidDirectionEntry(T data, boolean flag) {
++            this.data = data;
++            this.flag = flag;
++        }
++
++        public int getValue() {
++            return this.uses - (this.age >> 1); // age isn't as important as uses
++        }
++
++        public void incrementUses() {
++            this.uses = this.uses + 1 & Integer.MAX_VALUE;
++        }
++
++        public void incrementAge() {
++            this.age = this.age + 1 & Integer.MAX_VALUE;
++        }
++    }
++
++    private final FluidDirectionEntry[] entries;
++    private final int mask;
++    private final int maxDistance; // the most amount of entries to check for a value
++
++    public FluidDirectionCache(int size) {
++        int arraySize = HashCommon.nextPowerOfTwo(size);
++        this.entries = new FluidDirectionEntry[arraySize];
++        this.mask = arraySize - 1;
++        this.maxDistance = Math.min(arraySize, 4);
++    }
++
++    public Boolean getValue(T data) {
++        FluidDirectionEntry curr;
++        int pos;
++
++        if ((curr = this.entries[pos = HashCommon.mix(data.hashCode()) & this.mask]) == null) {
++            return null;
++        } else if (data.equals(curr.data)) {
++            curr.incrementUses();
++            return curr.flag;
++        }
++
++        int checked = 1; // start at 1 because we already checked the first spot above
++
++        while ((curr = this.entries[pos = (pos + 1) & this.mask]) != null) {
++            if (data.equals(curr.data)) {
++                curr.incrementUses();
++                return curr.flag;
++            } else if (++checked >= this.maxDistance) {
++                break;
++            }
++        }
++
++        return null;
++    }
++
++    public void putValue(T data, boolean flag) {
++        FluidDirectionEntry<T> curr;
++        int pos;
++
++        if ((curr = this.entries[pos = HashCommon.mix(data.hashCode()) & this.mask]) == null) {
++            this.entries[pos] = new FluidDirectionEntry<>(data, flag); // add
++            return;
++        } else if (data.equals(curr.data)) {
++            curr.incrementUses();
++            return;
++        }
++
++        int checked = 1; // start at 1 because we already checked the first spot above
++
++        while ((curr = this.entries[pos = (pos + 1) & this.mask]) != null) {
++            if (data.equals(curr.data)) {
++                curr.incrementUses();
++                return;
++            } else if (++checked >= this.maxDistance) {
++                this.forceAdd(data, flag);
++                return;
++            }
++        }
++
++        this.entries[pos] = new FluidDirectionEntry<>(data, flag); // add
++    }
++
++    private void forceAdd(T data, boolean flag) {
++        int expectedPos = HashCommon.mix(data.hashCode()) & this.mask;
++
++        int toRemovePos = expectedPos;
++        FluidDirectionEntry entryToRemove = this.entries[toRemovePos];
++
++        for (int i = expectedPos + 1; i < expectedPos + this.maxDistance; i++) {
++            int pos = i & this.mask;
++            FluidDirectionEntry entry = this.entries[pos];
++            if (entry.getValue() < entryToRemove.getValue()) {
++                toRemovePos = pos;
++                entryToRemove = entry;
++            }
++
++            entry.incrementAge(); // use this as a mechanism to age the other entries
++        }
++
++        // remove the least used/oldest entry
++        this.entries[toRemovePos] = new FluidDirectionEntry(data, flag);
++    }
++}

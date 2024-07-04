@@ -9,15 +9,34 @@ MasaGadget(https://github.com/plusls/MasaGadget)
 litematica(https://github.com/maruohon/litematica)
 
 diff --git a/src/main/java/net/minecraft/world/item/BlockItem.java b/src/main/java/net/minecraft/world/item/BlockItem.java
-index 96fb69ec6db2e7c8c728435f0c537b076259b2fb..7632d5ac83c84e943654477b3f36e6605e28c9a7 100644
+index 96fb69ec6db2e7c8c728435f0c537b076259b2fb..29f38a0a87cb7e27ac18c09dd59e774cfd874592 100644
 --- a/src/main/java/net/minecraft/world/item/BlockItem.java
 +++ b/src/main/java/net/minecraft/world/item/BlockItem.java
-@@ -162,7 +162,7 @@ public class BlockItem extends Item {
- 
+@@ -163,6 +163,27 @@ public class BlockItem extends Item {
      @Nullable
      protected BlockState getPlacementState(BlockPlaceContext context) {
--        BlockState iblockdata = this.getBlock().getStateForPlacement(context);
-+        BlockState iblockdata = this.getBlock().getRealStateForPlacement(context); // Leaves - alternativeBlockPlacement
+         BlockState iblockdata = this.getBlock().getStateForPlacement(context);
++        // Leaves start - alternativeBlockPlacement
++        switch (org.leavesmc.leaves.LeavesConfig.alternativeBlockPlacement) {
++            case CARPET -> {
++                BlockState tryState = org.leavesmc.leaves.protocol.CarpetAlternativeBlockPlacement.alternativeBlockPlacement(getBlock(), context);
++                if (tryState != null) {
++                    iblockdata = tryState;
++                }
++            }
++            case CARPET_FIX -> {
++                BlockState tryState = org.leavesmc.leaves.protocol.CarpetAlternativeBlockPlacement.alternativeBlockPlacementFix(getBlock(), context);
++                if (tryState != null) {
++                    iblockdata = tryState;
++                }
++            }
++            case LITEMATICA -> {
++                if (iblockdata != null && this.canPlace(context, iblockdata)) {
++                    return org.leavesmc.leaves.protocol.LitematicaEasyPlaceProtocol.applyPlacementProtocol(iblockdata, context);
++                }
++            }
++        }
++        // Leaves end - alternativeBlockPlacement
  
          return iblockdata != null && this.canPlace(context, iblockdata) ? iblockdata : null;
      }
@@ -83,10 +102,10 @@ index 992c778f4a826be8d7a5a5d96bf7968b741f490e..9fa6c828471bfba2209bd4903e7240e0
          return this.defaultBlockState();
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/CarpetAlternativeBlockPlacement.java b/src/main/java/org/leavesmc/leaves/protocol/CarpetAlternativeBlockPlacement.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..100356d5b0f62b62e1bcb02ca515225179fc0cc6
+index 0000000000000000000000000000000000000000..03978356d2716296f8c5e4173d10862db57a3193
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/CarpetAlternativeBlockPlacement.java
-@@ -0,0 +1,161 @@
+@@ -0,0 +1,162 @@
 +package org.leavesmc.leaves.protocol;
 +
 +import net.minecraft.core.BlockPos;
@@ -127,8 +146,9 @@ index 0000000000000000000000000000000000000000..100356d5b0f62b62e1bcb02ca5152251
 +        BlockPos blockPos = context.getClickedPos();
 +        double relativeHitX = hitPos.x - blockPos.getX();
 +        BlockState state = block.getStateForPlacement(context);
++        Player player = context.getPlayer();
 +
-+        if (relativeHitX < 2 || state == null) {
++        if (relativeHitX < 2 || state == null || player == null) {
 +            return null;
 +        }
 +
@@ -147,7 +167,7 @@ index 0000000000000000000000000000000000000000..100356d5b0f62b62e1bcb02ca5152251
 +            }
 +
 +            if (!directionProp.getPossibleValues().contains(facing)) {
-+                facing = context.getPlayer().getDirection().getOpposite();
++                facing = player.getDirection().getOpposite();
 +            }
 +
 +            if (facing != origFacing && directionProp.getPossibleValues().contains(facing)) {
@@ -250,15 +270,16 @@ index 0000000000000000000000000000000000000000..100356d5b0f62b62e1bcb02ca5152251
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/LitematicaEasyPlaceProtocol.java b/src/main/java/org/leavesmc/leaves/protocol/LitematicaEasyPlaceProtocol.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..7a49e2591e1eabf9d9444d530f631f038a7a47aa
+index 0000000000000000000000000000000000000000..affe9b0aa16968ad8832d94af06fd84323830cbb
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/LitematicaEasyPlaceProtocol.java
-@@ -0,0 +1,214 @@
+@@ -0,0 +1,195 @@
 +package org.leavesmc.leaves.protocol;
 +
 +import com.google.common.collect.ImmutableSet;
 +import net.minecraft.core.BlockPos;
 +import net.minecraft.core.Direction;
++import net.minecraft.util.Mth;
 +import net.minecraft.world.InteractionHand;
 +import net.minecraft.world.entity.LivingEntity;
 +import net.minecraft.world.item.context.BlockPlaceContext;
@@ -271,7 +292,6 @@ index 0000000000000000000000000000000000000000..7a49e2591e1eabf9d9444d530f631f03
 +import net.minecraft.world.level.block.state.properties.SlabType;
 +import net.minecraft.world.phys.Vec3;
 +import org.leavesmc.leaves.LeavesLogger;
-+import org.leavesmc.leaves.util.MathUtils;
 +
 +import javax.annotation.Nullable;
 +import java.util.ArrayList;
@@ -281,42 +301,31 @@ index 0000000000000000000000000000000000000000..7a49e2591e1eabf9d9444d530f631f03
 +public class LitematicaEasyPlaceProtocol {
 +
 +    public static final ImmutableSet<Property<?>> WHITELISTED_PROPERTIES = ImmutableSet.of(
-+        // BooleanProperty:
-+        // INVERTED - DaylightDetector
-+        // OPEN - Barrel, Door, FenceGate, Trapdoor
-+        // PERSISTENT - Leaves
 +        BlockStateProperties.INVERTED,
 +        BlockStateProperties.OPEN,
 +        BlockStateProperties.PERSISTENT,
-+        // EnumProperty:
-+        // AXIS - Pillar
-+        // BLOCK_HALF - Stairs, Trapdoor
-+        // CHEST_TYPE - Chest
-+        // COMPARATOR_MODE - Comparator
-+        // DOOR_HINGE - Door
-+        // SLAB_TYPE - Slab - PARTIAL ONLY: TOP and BOTTOM, not DOUBLE
-+        // STAIR_SHAPE - Stairs (needed to get the correct state, otherwise the player facing would be a factor)
-+        // WALL_MOUNT_LOCATION - Button, Grindstone, Lever
++        BlockStateProperties.CAN_SUMMON,
++        BlockStateProperties.BELL_ATTACHMENT,
 +        BlockStateProperties.AXIS,
++        BlockStateProperties.BED_PART,
 +        BlockStateProperties.HALF,
++        BlockStateProperties.ATTACH_FACE,
 +        BlockStateProperties.CHEST_TYPE,
 +        BlockStateProperties.MODE_COMPARATOR,
 +        BlockStateProperties.DOOR_HINGE,
++        BlockStateProperties.DOUBLE_BLOCK_HALF,
++        BlockStateProperties.ORIENTATION,
++        BlockStateProperties.RAIL_SHAPE,
++        BlockStateProperties.RAIL_SHAPE_STRAIGHT,
 +        BlockStateProperties.SLAB_TYPE,
 +        BlockStateProperties.STAIRS_SHAPE,
-+        BlockStateProperties.ATTACH_FACE,
-+        // IntProperty:
-+        // BITES - Cake
-+        // DELAY - Repeater
-+        // NOTE - NoteBlock
-+        // ROTATION - Banner, Sign, Skull
 +        BlockStateProperties.BITES,
 +        BlockStateProperties.DELAY,
 +        BlockStateProperties.NOTE,
 +        BlockStateProperties.ROTATION_16
 +    );
 +
-+    public static <T extends Comparable<T>> BlockState applyPlacementProtocol(BlockState state, BlockPlaceContext context) {
++    public static BlockState applyPlacementProtocol(BlockState state, BlockPlaceContext context) {
 +        return applyPlacementProtocolV3(state, UseContext.from(context, context.getHand()));
 +    }
 +
@@ -326,7 +335,7 @@ index 0000000000000000000000000000000000000000..7a49e2591e1eabf9d9444d530f631f03
 +            return state;
 +        }
 +
-+        @Nullable DirectionProperty property = getFirstDirectionProperty(state);
++        @Nullable DirectionProperty property = CarpetAlternativeBlockPlacement.getFirstDirectionProperty(state);
 +
 +        if (property != null && property != BlockStateProperties.VERTICAL_DIRECTION) {
 +            state = applyDirectionProperty(state, context, property, protocolValue);
@@ -346,15 +355,16 @@ index 0000000000000000000000000000000000000000..7a49e2591e1eabf9d9444d530f631f03
 +        try {
 +            for (Property<?> p : propList) {
 +                if (!(p instanceof DirectionProperty) && WHITELISTED_PROPERTIES.contains(p)) {
-+                    @SuppressWarnings("unchecked") Property<T> prop = (Property<T>) p;
++                    @SuppressWarnings("unchecked")
++                    Property<T> prop = (Property<T>) p;
 +                    List<T> list = new ArrayList<>(prop.getPossibleValues());
 +                    list.sort(Comparable::compareTo);
 +
-+                    int requiredBits = MathUtils.floorLog2(MathUtils.smallestEncompassingPowerOfTwo(list.size()));
++                    int requiredBits = Mth.log2(Mth.smallestEncompassingPowerOfTwo(list.size()));
 +                    int bitMask = ~(0xFFFFFFFF << requiredBits);
 +                    int valueIndex = protocolValue & bitMask;
 +
-+                    if (valueIndex >= 0 && valueIndex < list.size()) {
++                    if (valueIndex < list.size()) {
 +                        T value = list.get(valueIndex);
 +
 +                        if (!state.getValue(prop).equals(value) && value != SlabType.DOUBLE) {
@@ -379,7 +389,7 @@ index 0000000000000000000000000000000000000000..7a49e2591e1eabf9d9444d530f631f03
 +
 +        if (decodedFacingIndex == 6) {
 +            facing = facing.getOpposite();
-+        } else if (decodedFacingIndex >= 0 && decodedFacingIndex <= 5) {
++        } else if (decodedFacingIndex <= 5) {
 +            facing = Direction.from3DDataValue(decodedFacingIndex);
 +
 +            if (!property.getPossibleValues().contains(facing)) {
@@ -401,15 +411,6 @@ index 0000000000000000000000000000000000000000..7a49e2591e1eabf9d9444d530f631f03
 +        }
 +
 +        return state;
-+    }
-+
-+    private static DirectionProperty getFirstDirectionProperty(BlockState state) {
-+        for (Property<?> prop : state.getProperties()) {
-+            if (prop instanceof DirectionProperty) {
-+                return (DirectionProperty) prop;
-+            }
-+        }
-+        return null;
 +    }
 +
 +    public static class UseContext {

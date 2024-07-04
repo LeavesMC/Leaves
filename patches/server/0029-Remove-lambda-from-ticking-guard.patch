@@ -1,0 +1,36 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Wed, 17 Aug 2022 10:56:49 +0800
+Subject: [PATCH] Remove lambda from ticking guard
+
+This patch is Powered by Pufferfish(https://github.com/pufferfish-gg/Pufferfish)
+
+diff --git a/src/main/java/net/minecraft/server/level/ServerLevel.java b/src/main/java/net/minecraft/server/level/ServerLevel.java
+index cef5f66db297a68d74cbb7ca538b30d3d362be30..1ff888bdc9c83a7e84393711ff50c96e78a1d55a 100644
+--- a/src/main/java/net/minecraft/server/level/ServerLevel.java
++++ b/src/main/java/net/minecraft/server/level/ServerLevel.java
+@@ -739,7 +739,23 @@ public class ServerLevel extends Level implements WorldGenLevel, ca.spottedleaf.
+                             }
+ 
+                             gameprofilerfiller.push("tick");
+-                            this.guardEntityTick(this::tickNonPassenger, entity);
++                            // Leaves start - copied from this.guardEntityTick
++                            if (org.leavesmc.leaves.LeavesConfig.removeTickGuardLambda) {
++                                try {
++                                    this.tickNonPassenger(entity); // Leaves - changed
++                                } catch (Throwable throwable) {
++                                    if (throwable instanceof ThreadDeath) throw throwable; // Paper
++                                    // Paper start - Prevent block entity and entity crashes
++                                    final String msg = String.format("Entity threw exception at %s:%s,%s,%s", entity.level().getWorld().getName(), entity.getX(), entity.getY(), entity.getZ());
++                                    MinecraftServer.LOGGER.error(msg, throwable);
++                                    getCraftServer().getPluginManager().callEvent(new com.destroystokyo.paper.event.server.ServerExceptionEvent(new com.destroystokyo.paper.exception.ServerInternalException(msg, throwable))); // Paper - ServerExceptionEvent
++                                    entity.discard(org.bukkit.event.entity.EntityRemoveEvent.Cause.DISCARD);
++                                    // Paper end - Prevent block entity and entity crashes
++                                }
++                            } else {
++                                this.guardEntityTick(this::tickNonPassenger, entity);
++                            }
++                            // Leaves end - copied from this.guardEntityTick
+                             gameprofilerfiller.pop();
+                         }
+                     }

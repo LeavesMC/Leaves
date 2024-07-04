@@ -6,18 +6,18 @@ Leaves
 [![Discord](https://badgen.net/discord/online-members/5hgtU72w33?icon=discord&label=Discord&list=what)](https://discord.gg/5hgtU72w33)
 [![QQ](https://img.shields.io/badge/QQ_Unofficial-815857713-blue)](http://qm.qq.com/cgi-bin/qm/qr?_wv=1027&k=nisbmnCFeEJCcYWBQ10th4Fu99XWklH4&authKey=8VlUxSdrFCIwmIpxFQIGR8%2BXvIQ2II%2Bx2JfxuQ8amr9UKgINh%2BdXjudQfc%2FIeTO5&noverify=0&group_code=815857713)
 
-[English](https://github.com/LeavesMC/Leaves/blob/master/README.md) | **中文**
+[English](README.md) | **中文**
 
 > 一个致力于修复原版服务端被破坏特性的 [Paper](https://github.com/PaperMC/Paper) 分支
 
 > 你可以在 [这里](https://docs.leavesmc.org/zh_Hans/leaves/reference/configuration) 查看所有的修改和修复内容
 
 ## 对于服务器管理员
-此分支使用与 Paper 一致的 paperclip 分发
+此分支使用与 Paper 一致的 leavesclip(paperclip的分支) 分发
 
-你可以从 [此处](https://github.com/LeavesMC/Leaves/releases/latest) 下载最新的构建结果 (1.20.x)
+你可以从 [此处](https://github.com/LeavesMC/Leaves/releases/latest) 下载最新的构建结果 (1.21.x)
 
-也可以通过 [此处](https://github.com/LeavesMC/Leaves/blob/master/README_cn.md#自行构建) 的指南自行构建
+也可以通过 [此处](#自行构建) 的指南自行构建
 
 如果你想要获得更多信息，那么你可以访问我们的 [文档](https://docs.leavesmc.org/zh_Hans/leaves/guides/getting-started)
 
@@ -25,21 +25,21 @@ Leaves
 Leaves-API:
 ```kotlin
 maven {
-    name = 'leavesmc-repo'
-    url = 'https://repo.leavesmc.org/snapshots/'
+    name = "leavesmc-repo"
+    url = "https://repo.leavesmc.org/snapshots/"
 }
 
 dependencies {
-    compileOnly("org.leavesmc.leaves:leaves-api:1.20.6-R0.1-SNAPSHOT")
+    compileOnly("org.leavesmc.leaves:leaves-api:1.21-R0.1-SNAPSHOT")
 }
  ```
 
-如果你要将 Leaves 作为依赖,那么你必须进行 [自行构建](https://github.com/LeavesMC/Leaves/blob/master/README_cn.md#自行构建)
+如果你要将 Leaves 作为依赖,那么你必须进行 [自行构建](#自行构建)
 
 Leaves-Server:
 ```kotlin
 dependencies {
-    compileOnly("org.leavesmc.leaves:leaves:1.20.6-R0.1-SNAPSHOT")
+    compileOnly("org.leavesmc.leaves:leaves:1.21R0.1-SNAPSHOT")
 }
  ```
 
@@ -53,10 +53,10 @@ dependencies {
 
 ## 对于想要出一份力的开发者
 
-可查看 [Contributing](https://github.com/LeavesMC/Leaves/blob/master/docs/CONTRIBUTING_cn.md)
+可查看 [贡献须知](docs/CONTRIBUTING_cn.md)
 
 ## 特别感谢
 
 [<img src="https://user-images.githubusercontent.com/21148213/121807008-8ffc6700-cc52-11eb-96a7-2f6f260f8fda.png" alt="" width="150">](https://www.jetbrains.com)
 
-[JetBrains](https://www.jetbrains.com/)，IntelliJ IDEA的创造者，为Leaves提供了 [开源许可证](https://www.jetbrains.com/opensource/)。我们极力推荐使用IntelliJ IDEA作为你的IDE。
+[JetBrains](https://www.jetbrains.com/)，IntelliJ IDEA 的创造者，为 Leaves 提供了 [开源许可证](https://www.jetbrains.com/opensource/)。我们极力推荐使用 IntelliJ IDEA 作为你的 IDE。

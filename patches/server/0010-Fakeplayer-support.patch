@@ -88,6 +88,63 @@ index 85b76c5da9eea5bae0dd55f5b7ac1eb1a0211944..c6eeb3324fbf58eb7a6eb61aa7a8dfdc
                  }
  
              }
+diff --git a/src/main/java/net/minecraft/server/level/ServerLevel.java b/src/main/java/net/minecraft/server/level/ServerLevel.java
+index 9ac697d12ec670e2f67d11d94a09de50c7bd0b9e..81ebb247a8d5c5cd77a3d4ce729146c9fbfa3668 100644
+--- a/src/main/java/net/minecraft/server/level/ServerLevel.java
++++ b/src/main/java/net/minecraft/server/level/ServerLevel.java
+@@ -228,6 +228,7 @@ public class ServerLevel extends Level implements WorldGenLevel, ca.spottedleaf.
+     public boolean hasPhysicsEvent = true; // Paper - BlockPhysicsEvent
+     public boolean hasEntityMoveEvent; // Paper - Add EntityMoveEvent
+     private final alternate.current.wire.WireHandler wireHandler = new alternate.current.wire.WireHandler(this); // Paper - optimize redstone (Alternate Current)
++    final List<ServerPlayer> realPlayers; // Leaves - skip
+ 
+     public LevelChunk getChunkIfLoaded(int x, int z) {
+         return this.chunkSource.getChunkAtIfLoadedImmediately(x, z); // Paper - Use getChunkIfLoadedImmediately
+@@ -605,6 +606,7 @@ public class ServerLevel extends Level implements WorldGenLevel, ca.spottedleaf.
+         this.chunkTaskScheduler = new ca.spottedleaf.moonrise.patches.chunk_system.scheduling.ChunkTaskScheduler((ServerLevel)(Object)this, ca.spottedleaf.moonrise.common.util.MoonriseCommon.WORKER_POOL);
+         // Paper end - rewrite chunk system
+         this.getCraftServer().addWorld(this.getWorld()); // CraftBukkit
++        this.realPlayers = Lists.newArrayList(); // Leaves - skip
+     }
+ 
+     // Paper start
+@@ -1977,6 +1979,12 @@ public class ServerLevel extends Level implements WorldGenLevel, ca.spottedleaf.
+         return this.players;
+     }
+ 
++    // Leaves start - fakeplayer skip
++    public List<ServerPlayer> realPlayers() {
++        return this.realPlayers;
++    }
++    // Leaves end - fakeplayer skip
++
+     @Override
+     public void onBlockStateChange(BlockPos pos, BlockState oldBlock, BlockState newBlock) {
+         Optional<Holder<PoiType>> optional = PoiTypes.forState(oldBlock);
+@@ -2448,6 +2456,11 @@ public class ServerLevel extends Level implements WorldGenLevel, ca.spottedleaf.
+             // ServerLevel.this.getChunkSource().addEntity(entity); // Paper - ignore and warn about illegal addEntity calls instead of crashing server; moved down below valid=true
+             if (entity instanceof ServerPlayer entityplayer) {
+                 ServerLevel.this.players.add(entityplayer);
++                // Leaves start - skip
++                if (!(entityplayer instanceof org.leavesmc.leaves.bot.ServerBot)) {
++                    ServerLevel.this.realPlayers.add(entityplayer);
++                }
++                // Leaves end - skip
+                 ServerLevel.this.updateSleepingPlayerList();
+             }
+ 
+@@ -2525,6 +2538,11 @@ public class ServerLevel extends Level implements WorldGenLevel, ca.spottedleaf.
+             ServerLevel.this.getChunkSource().removeEntity(entity);
+             if (entity instanceof ServerPlayer entityplayer) {
+                 ServerLevel.this.players.remove(entityplayer);
++                // Leaves start - skip
++                if (!(entityplayer instanceof org.leavesmc.leaves.bot.ServerBot)) {
++                    ServerLevel.this.realPlayers.remove(entityplayer);
++                }
++                // Leaves end - skip
+                 ServerLevel.this.updateSleepingPlayerList();
+             }
+ 
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
 index 89ed20e9c629cf39a24c7a0ce5c4fee41fc64fd5..5afef331ec117adae0c29f5c4b9f43b7be7cdd4c 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
@@ -326,7 +383,7 @@ index 1b1b475ca27e799e251d6f8a8c9fe1a4fd8bae83..bb9d8cb957f5be517d3ae2959e0406af
                                      if (randomsource.nextInt(j) >= world.paperConfig().entities.behavior.playerInsomniaStartTicks) { // Paper - Ability to control player's insomnia and phantoms
                                          BlockPos blockposition1 = blockposition.above(20 + randomsource.nextInt(15)).east(-10 + randomsource.nextInt(21)).south(-10 + randomsource.nextInt(21));
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index cb4922442cb696e587d07022e152c4fd9a21ca6f..d7f373bae76e14ce20515ec22bf48c40a2054f92 100644
+index cb4922442cb696e587d07022e152c4fd9a21ca6f..1c7c0e4c5e78b9b4c0046345d71bade4acb730e9 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 @@ -309,6 +309,7 @@ public final class CraftServer implements Server {
@@ -337,6 +394,15 @@ index cb4922442cb696e587d07022e152c4fd9a21ca6f..d7f373bae76e14ce20515ec22bf48c40
  
      // Paper start - Folia region threading API
      private final io.papermc.paper.threadedregions.scheduler.FallbackRegionScheduler regionizedScheduler = new io.papermc.paper.threadedregions.scheduler.FallbackRegionScheduler();
+@@ -1450,7 +1451,7 @@ public final class CraftServer implements Server {
+             return false;
+         }
+ 
+-        if (handle.players().size() > 0) {
++        if (handle.realPlayers().size() > 0) { // Leaves - skip
+             return false;
+         }
+ 
 @@ -3216,4 +3217,11 @@ public final class CraftServer implements Server {
          return this.potionBrewer;
      }
@@ -349,6 +415,58 @@ index cb4922442cb696e587d07022e152c4fd9a21ca6f..d7f373bae76e14ce20515ec22bf48c40
 +    }
 +    // Leaves end - Bot API
  }
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+index 8045d6c9398d1c88595da6e41aa1ed27fb6fbad0..74f4938c88b547c326c335aac09ab47fed3ea588 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+@@ -210,7 +210,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
+ 
+     @Override
+     public int getPlayerCount() {
+-        return world.players().size();
++        return world.realPlayers().size(); // Leaves - skip
+     }
+ 
+     @Override
+@@ -1247,9 +1247,9 @@ public class CraftWorld extends CraftRegionAccessor implements World {
+ 
+     @Override
+     public List<Player> getPlayers() {
+-        List<Player> list = new ArrayList<Player>(this.world.players().size());
++        List<Player> list = new ArrayList<Player>(this.world.realPlayers().size()); // Leaves - skip
+ 
+-        for (net.minecraft.world.entity.player.Player human : this.world.players()) {
++        for (net.minecraft.world.entity.player.Player human : this.world.realPlayers()) { // Leaves - skip
+             HumanEntity bukkitEntity = human.getBukkitEntity();
+ 
+             if ((bukkitEntity != null) && (bukkitEntity instanceof Player)) {
+@@ -1934,7 +1934,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
+     public void playSound(final net.kyori.adventure.sound.Sound sound) {
+         org.spigotmc.AsyncCatcher.catchOp("play sound"); // Paper
+         final long seed = sound.seed().orElseGet(this.world.getRandom()::nextLong);
+-        for (ServerPlayer player : this.getHandle().players()) {
++        for (ServerPlayer player : this.getHandle().realPlayers()) { // Leaves - skip
+             player.connection.send(io.papermc.paper.adventure.PaperAdventure.asSoundPacket(sound, player.getX(), player.getY(), player.getZ(), seed, null));
+         }
+     }
+@@ -1950,7 +1950,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
+         org.spigotmc.AsyncCatcher.catchOp("play sound"); // Paper
+         final long seed = sound.seed().orElseGet(this.getHandle().getRandom()::nextLong);
+         if (emitter == net.kyori.adventure.sound.Sound.Emitter.self()) {
+-            for (ServerPlayer player : this.getHandle().players()) {
++            for (ServerPlayer player : this.getHandle().realPlayers()) { // Leaves - skip
+                 player.connection.send(io.papermc.paper.adventure.PaperAdventure.asSoundPacket(sound, player, seed, null));
+             }
+         } else if (emitter instanceof CraftEntity craftEntity) {
+@@ -2171,7 +2171,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
+             Preconditions.checkArgument(particle.getDataType().isInstance(data), "data (%s) should be %s", data.getClass(), particle.getDataType());
+         }
+         this.getHandle().sendParticles(
+-                receivers == null ? this.getHandle().players() : receivers.stream().map(player -> ((CraftPlayer) player).getHandle()).collect(java.util.stream.Collectors.toList()), // Paper -  Particle API
++                receivers == null ? this.getHandle().realPlayers() : receivers.stream().map(player -> ((CraftPlayer) player).getHandle()).collect(java.util.stream.Collectors.toList()), // Paper -  Particle API // Leaves - skip
+                 sender != null ? ((CraftPlayer) sender).getHandle() : null, // Sender // Paper - Particle API
+                 CraftParticle.createParticleParam(particle, data), // Particle
+                 x, y, z, // Position
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
 index 2cde808bfa797256409879505ba205a71f381981..a007beca6c00bce4514889935b1762a37826c75a 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java

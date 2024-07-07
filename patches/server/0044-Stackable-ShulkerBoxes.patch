@@ -5,6 +5,45 @@ Subject: [PATCH] Stackable ShulkerBoxes
 
 This patch is Powered by fabric-carpet(https://github.com/gnembon/fabric-carpet) and plusls-carpet-addition(https://github.com/plusls/plusls-carpet-addition)
 
+diff --git a/src/main/java/net/minecraft/world/Container.java b/src/main/java/net/minecraft/world/Container.java
+index 5db5ba026462ca642dcee718af732f80fadabef5..bca47bc78a444011b7e549aba949fea799e50c99 100644
+--- a/src/main/java/net/minecraft/world/Container.java
++++ b/src/main/java/net/minecraft/world/Container.java
+@@ -35,6 +35,12 @@ public interface Container extends Clearable {
+         return Math.min(this.getMaxStackSize(), stack.getMaxStackSize());
+     }
+ 
++    // Leaves start - stackable shulker boxes
++    default int getMaxStackLeaves(ItemStack stack) {
++        return Math.min(this.getMaxStackSize(), org.leavesmc.leaves.util.ShulkerBoxUtils.getItemStackMaxCount(stack));
++    }
++    // Leaves end - stackable shulker boxes
++
+     void setChanged();
+ 
+     boolean stillValid(Player player);
+diff --git a/src/main/java/net/minecraft/world/SimpleContainer.java b/src/main/java/net/minecraft/world/SimpleContainer.java
+index d04bf7d06855022c973073fb84c5d3d65f2553e1..9bedd76330e71ca7f3feecf0b90ec960c35d1a6f 100644
+--- a/src/main/java/net/minecraft/world/SimpleContainer.java
++++ b/src/main/java/net/minecraft/world/SimpleContainer.java
+@@ -222,7 +222,7 @@ public class SimpleContainer implements Container, StackedContentsCompatible {
+     @Override
+     public void setItem(int slot, ItemStack stack) {
+         this.items.set(slot, stack);
+-        stack.limitSize(this.getMaxStackSize(stack));
++        stack.limitSize(this.getMaxStackLeaves(stack));
+         this.setChanged();
+     }
+ 
+@@ -318,7 +318,7 @@ public class SimpleContainer implements Container, StackedContentsCompatible {
+     }
+ 
+     private void moveItemsBetweenStacks(ItemStack source, ItemStack target) {
+-        int i = this.getMaxStackSize(target);
++        int i = this.getMaxStackLeaves(target); // Leaves - stackable shulker boxes
+         int j = Math.min(source.getCount(), i - target.getCount());
+ 
+         if (j > 0) {
 diff --git a/src/main/java/net/minecraft/world/entity/item/ItemEntity.java b/src/main/java/net/minecraft/world/entity/item/ItemEntity.java
 index ea0d9335446b20073b9aafb9de453097355db79c..38c2e27343d68d016621cf953222b915b56a0df2 100644
 --- a/src/main/java/net/minecraft/world/entity/item/ItemEntity.java
@@ -128,8 +167,21 @@ index eb11482f48c9f330b7fa62a278fd6f07d3a642e1..8631f3a5ce5aa24f195d5031dad6d289
  
                      if (this.add(i, stack.split(j)) && notifiesClient && this.player instanceof ServerPlayer) {
                          ((ServerPlayer) this.player).connection.send(new ClientboundContainerSetSlotPacket(-2, 0, i, this.getItem(i)));
+diff --git a/src/main/java/net/minecraft/world/entity/vehicle/ContainerEntity.java b/src/main/java/net/minecraft/world/entity/vehicle/ContainerEntity.java
+index 845eff7401b811c179dc9dee70eca0d724be5c80..c88b98bd4ebec40649b9cfcf47ca20359ea2fb52 100644
+--- a/src/main/java/net/minecraft/world/entity/vehicle/ContainerEntity.java
++++ b/src/main/java/net/minecraft/world/entity/vehicle/ContainerEntity.java
+@@ -162,7 +162,7 @@ public interface ContainerEntity extends Container, MenuProvider {
+     default void setChestVehicleItem(int slot, ItemStack stack) {
+         this.unpackChestVehicleLootTable(null);
+         this.getItemStacks().set(slot, stack);
+-        stack.limitSize(this.getMaxStackSize(stack));
++        stack.limitSize(this.getMaxStackLeaves(stack)); // Leaves - stackable shulker boxes
+     }
+ 
+     default SlotAccess getChestVehicleSlot(int slot) {
 diff --git a/src/main/java/net/minecraft/world/inventory/AbstractContainerMenu.java b/src/main/java/net/minecraft/world/inventory/AbstractContainerMenu.java
-index 961a7193fda00fa62acea9c39fda1c93f7fbe412..c66eb0f17299e8be4403ecf2483b83471d533525 100644
+index 961a7193fda00fa62acea9c39fda1c93f7fbe412..7126fd4cf1f27aa75b6876051c3e884b79db8410 100644
 --- a/src/main/java/net/minecraft/world/inventory/AbstractContainerMenu.java
 +++ b/src/main/java/net/minecraft/world/inventory/AbstractContainerMenu.java
 @@ -456,7 +456,7 @@ public abstract class AbstractContainerMenu {
@@ -193,6 +245,28 @@ index 961a7193fda00fa62acea9c39fda1c93f7fbe412..c66eb0f17299e8be4403ecf2483b8347
  
                      if (l <= i1) {
                          stack.setCount(0);
+@@ -875,7 +875,7 @@ public abstract class AbstractContainerMenu {
+                 }
+                 // Paper end - Add PlayerTradeEvent and PlayerPurchaseEvent
+                 if (itemstack1.isEmpty() && slot.mayPlace(stack)) {
+-                    l = slot.getMaxStackSize(stack);
++                    l = org.leavesmc.leaves.util.ShulkerBoxUtils.getItemStackMaxCount(itemstack1); // Leaves - stackable shulker boxes
+                     // Paper start - Add PlayerTradeEvent and PlayerPurchaseEvent
+                     if (isCheck) {
+                         stack.shrink(Math.min(stack.getCount(), l));
+diff --git a/src/main/java/net/minecraft/world/inventory/MerchantContainer.java b/src/main/java/net/minecraft/world/inventory/MerchantContainer.java
+index 9140fab07aab32065f7a3b5d13dd17d61dc6d646..210b88b5d87fad641188cf5907c54824d21163ce 100644
+--- a/src/main/java/net/minecraft/world/inventory/MerchantContainer.java
++++ b/src/main/java/net/minecraft/world/inventory/MerchantContainer.java
+@@ -130,7 +130,7 @@ public class MerchantContainer implements Container {
+     @Override
+     public void setItem(int slot, ItemStack stack) {
+         this.itemStacks.set(slot, stack);
+-        stack.limitSize(this.getMaxStackSize(stack));
++        stack.limitSize(this.getMaxStackLeaves(stack)); // Leaves - stackable shulker boxes
+         if (this.isPaymentSlot(slot)) {
+             this.updateSellItem();
+         }
 diff --git a/src/main/java/net/minecraft/world/inventory/Slot.java b/src/main/java/net/minecraft/world/inventory/Slot.java
 index c39c773112fb8b534b926f2f2b47fe6fbb69fcb2..ae9338b8a5598e7a257b469adae72858fed95c39 100644
 --- a/src/main/java/net/minecraft/world/inventory/Slot.java
@@ -252,10 +326,45 @@ index 20f2b575c8131621edea0e75fbf38a9fe20a36c4..812856b02cab1c437550ba9c706da318
      @Override
      protected VoxelShape getShape(BlockState state, BlockGetter world, BlockPos pos, CollisionContext context) {
          return SHAPE;
+diff --git a/src/main/java/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java b/src/main/java/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java
+index 9ad4600ebee09d81b1785103ad17de47cf1f2ede..7092a4d4a583f4e01cc02bca17f3bd1bd32677a0 100644
+--- a/src/main/java/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java
++++ b/src/main/java/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java
+@@ -549,7 +549,7 @@ public abstract class AbstractFurnaceBlockEntity extends BaseContainerBlockEntit
+         boolean flag = !stack.isEmpty() && ItemStack.isSameItemSameComponents(itemstack1, stack);
+ 
+         this.items.set(slot, stack);
+-        stack.limitSize(this.getMaxStackSize(stack));
++        stack.limitSize(this.getMaxStackLeaves(stack)); // Leaves - stackable shulker boxes
+         if (slot == 0 && !flag) {
+             this.cookingTotalTime = AbstractFurnaceBlockEntity.getTotalCookTime(this.level, this.recipeType, this, this.cookSpeedMultiplier); // Paper - cook speed multiplier API
+             this.cookingProgress = 0;
+diff --git a/src/main/java/net/minecraft/world/level/block/entity/BaseContainerBlockEntity.java b/src/main/java/net/minecraft/world/level/block/entity/BaseContainerBlockEntity.java
+index 15fd1fe1b55b6421d2c09e8385c9f69fa0152e56..f9b8604470e5d50448b83cdcb33ec826e9944857 100644
+--- a/src/main/java/net/minecraft/world/level/block/entity/BaseContainerBlockEntity.java
++++ b/src/main/java/net/minecraft/world/level/block/entity/BaseContainerBlockEntity.java
+@@ -158,7 +158,7 @@ public abstract class BaseContainerBlockEntity extends BlockEntity implements Co
+     @Override
+     public void setItem(int slot, ItemStack stack) {
+         this.getItems().set(slot, stack);
+-        stack.limitSize(this.getMaxStackSize(stack));
++        stack.limitSize(this.getMaxStackLeaves(stack)); // Leaves - stackable shulker boxes
+         this.setChanged();
+     }
+ 
 diff --git a/src/main/java/net/minecraft/world/level/block/entity/HopperBlockEntity.java b/src/main/java/net/minecraft/world/level/block/entity/HopperBlockEntity.java
-index f523f888f2a0ac04f25b30e18cdd765c395cfc18..d9421224778c72f8f9db3c9044bc28c2423bb09d 100644
+index f523f888f2a0ac04f25b30e18cdd765c395cfc18..364a7bd1f449784b63041b82089673d8c6286f58 100644
 --- a/src/main/java/net/minecraft/world/level/block/entity/HopperBlockEntity.java
 +++ b/src/main/java/net/minecraft/world/level/block/entity/HopperBlockEntity.java
+@@ -125,7 +125,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+     public void setItem(int slot, ItemStack stack) {
+         this.unpackLootTable((Player) null);
+         this.getItems().set(slot, stack);
+-        stack.limitSize(this.getMaxStackSize(stack));
++        stack.limitSize(this.getMaxStackLeaves(stack)); // Leaves - stackable shulker boxes
+     }
+ 
+     @Override
 @@ -743,9 +743,9 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
              if (itemstack1.isEmpty()) {
                  // Spigot start - SPIGOT-6693, InventorySubcontainer#setItem

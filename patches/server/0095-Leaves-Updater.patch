@@ -48,10 +48,10 @@ index 0000000000000000000000000000000000000000..7f94df607e8ffd48ab2cb7c90d520c2b
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/util/LeavesUpdateHelper.java b/src/main/java/org/leavesmc/leaves/util/LeavesUpdateHelper.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..8620305f3330a856ad7445259f565bf8e281ea52
+index 0000000000000000000000000000000000000000..d5e6e6eacabf97ed63a84ea6dcb849f5574a8c67
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/util/LeavesUpdateHelper.java
-@@ -0,0 +1,268 @@
+@@ -0,0 +1,257 @@
 +package org.leavesmc.leaves.util;
 +
 +import com.google.common.base.Charsets;
@@ -85,6 +85,7 @@ index 0000000000000000000000000000000000000000..8620305f3330a856ad7445259f565bf8
 +import java.security.MessageDigest;
 +import java.time.Duration;
 +import java.time.LocalTime;
++import java.util.Map;
 +import java.util.concurrent.Executors;
 +import java.util.concurrent.ScheduledExecutorService;
 +import java.util.concurrent.TimeUnit;
@@ -163,20 +164,21 @@ index 0000000000000000000000000000000000000000..8620305f3330a856ad7445259f565bf8
 +
 +    private static void downloadLeaves() {
 +        String minecraftVersion = Bukkit.getMinecraftVersion();
-+        String version = Bukkit.getVersion();
-+
-+        if (version.startsWith("null")) {
++        String version = LeavesUpdateHelper.class.getPackage().getImplementationVersion();
++        if (version == null) {
 +            LeavesLogger.LOGGER.info("IDE? Can not update!");
 +            updateTaskStarted = false;
 +            return;
 +        }
++        String[] versionSplit = version.split("-");
 +
-+        String gitHash = version.substring("git-Leaves-".length()).split("[-\\s]")[0].replaceAll("\"", "");
++        String gitHash = versionSplit[2];
++        LeavesLogger.LOGGER.info("Now gitHash: " + gitHash);
 +
 +        LeavesLogger.LOGGER.info("Trying to get latest build info.");
 +        LeavesBuildInfo buildInfo = getLatestBuildInfo(minecraftVersion, gitHash);
 +
-+        if (buildInfo != LeavesBuildInfo.NULL) {
++        if (buildInfo != LeavesBuildInfo.ERROR) {
 +            if (!buildInfo.needUpdate) {
 +                LeavesLogger.LOGGER.warning("You are running the latest version, stopping update.");
 +                updateTaskStarted = false;
@@ -188,34 +190,21 @@ index 0000000000000000000000000000000000000000..8620305f3330a856ad7445259f565bf8
 +                Path outFile = Path.of(autoUpdateDir, "leaves", buildInfo.fileName + ".cache");
 +                Files.deleteIfExists(outFile);
 +
-+                boolean downloadFlag = false;
-+                URL cdnUrl = new URI(buildInfo.cdnUrl).toURL();
 +                try (
-+                    final ReadableByteChannel source = Channels.newChannel(cdnUrl.openStream());
++                    final ReadableByteChannel source = Channels.newChannel(new URI(
++                        buildInfo.url + LeavesConfig.autoUpdateSource).toURL().openStream()
++                    );
 +                    final FileChannel fileChannel = FileChannel.open(outFile, CREATE, WRITE, TRUNCATE_EXISTING)
 +                ) {
 +                    fileChannel.transferFrom(source, 0, Long.MAX_VALUE);
-+                    downloadFlag = true;
++                    LeavesLogger.LOGGER.info("Download " + buildInfo.fileName + " completed.");
 +                } catch (final IOException e) {
++                    LeavesLogger.LOGGER.warning("Download " + buildInfo.fileName + " failed.", e);
 +                    Files.deleteIfExists(outFile);
++                    updateTaskStarted = false;
++                    return;
 +                }
 +
-+                if (!downloadFlag) {
-+                    URL githubUrl = new URI(buildInfo.githubUrl).toURL();
-+                    try (
-+                        final ReadableByteChannel source = Channels.newChannel(githubUrl.openStream());
-+                        final FileChannel fileChannel = FileChannel.open(outFile, CREATE, WRITE, TRUNCATE_EXISTING)
-+                    ) {
-+                        fileChannel.transferFrom(source, 0, Long.MAX_VALUE);
-+                    } catch (final IOException e) {
-+                        LeavesLogger.LOGGER.warning("Download " + buildInfo.fileName + " failed.", e);
-+                        Files.deleteIfExists(outFile);
-+                        updateTaskStarted = false;
-+                        return;
-+                    }
-+                }
-+
-+                LeavesLogger.LOGGER.info("Download " + buildInfo.fileName + " completed.");
 +                if (!isFileValid(outFile, buildInfo.sha256)) {
 +                    LeavesLogger.LOGGER.warning("Hash check failed for downloaded file " + buildInfo.fileName);
 +                    Files.deleteIfExists(outFile);
@@ -240,7 +229,7 @@ index 0000000000000000000000000000000000000000..8620305f3330a856ad7445259f565bf8
 +                LeavesLogger.LOGGER.severe("Leaves update failed", e);
 +            }
 +        } else {
-+            LeavesLogger.LOGGER.warning("Can't get build info, stopping update.");
++            LeavesLogger.LOGGER.warning("Stopping update.");
 +        }
 +        updateTaskStarted = false;
 +    }
@@ -272,51 +261,51 @@ index 0000000000000000000000000000000000000000..8620305f3330a856ad7445259f565bf8
 +
 +    private static LeavesBuildInfo getLatestBuildInfo(String mcVersion, String gitHash) {
 +        try {
-+            HttpURLConnection connection = (HttpURLConnection) new URI("https://api.leavesmc.org/projects/leaves/versions/" + mcVersion + "/builds/latest").toURL().openConnection();
++            HttpURLConnection connection = (HttpURLConnection) new URI(
++                "https://api.leavesmc.org/v2/projects/leaves/versions/" + mcVersion + "/builds/latest"
++            ).toURL().openConnection();
 +            connection.connect();
-+            boolean useApiV2 = false;
-+            if (connection.getResponseCode() / 100 != 2) {
-+                connection = (HttpURLConnection) new URI("https://api.leavesmc.org/v2/projects/leaves/versions/" + mcVersion + "/builds/latest").toURL().openConnection();
-+                connection.connect();
-+                useApiV2 = true;
++            if (connection.getResponseCode() == HttpURLConnection.HTTP_NOT_FOUND) {
++                return LeavesBuildInfo.ERROR;
 +            }
-+            if (connection.getResponseCode() == HttpURLConnection.HTTP_NOT_FOUND) return LeavesBuildInfo.NULL;
 +            try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream(), Charsets.UTF_8))) {
 +                JsonObject obj = new Gson().fromJson(reader, JsonObject.class);
 +                String channel = obj.get("channel").getAsString();
-+
-+                if (channel.equals("default")) {
-+                    int build = obj.get("build").getAsInt();
-+
-+                    JsonArray changes = obj.get("changes").getAsJsonArray();
-+                    boolean needUpdate = true;
-+                    for (JsonElement change : changes) {
-+                        if (change.getAsJsonObject().get("commit").getAsString().startsWith(gitHash)) {
-+                            needUpdate = false;
-+                            break;
-+                        }
-+                    }
-+
-+                    JsonObject downloadInfo = obj.get("downloads").getAsJsonObject().get("application").getAsJsonObject();
-+                    String name = downloadInfo.get("name").getAsString();
-+                    String sha256 = downloadInfo.get("sha256").getAsString();
-+                    String githubUrl = useApiV2 ? "https://api.leavesmc.org/v2/projects/leaves/versions/" + mcVersion + "/builds/" + build + "/downloads/" + name : downloadInfo.get("url").getAsString();
-+                    String cdnUrl = useApiV2 ? "https://cdn.leavesmc.z0z0r4.top/cache/" + name : downloadInfo.get("cdn_url").getAsString();
-+                    return new LeavesBuildInfo(build, name, sha256, needUpdate, cdnUrl, githubUrl);
-+                } else {
-+                    return LeavesBuildInfo.NULL;
++                if ("experimental".equals(channel) && !LeavesConfig.autoUpdateAllowExperimental) {
++                    LeavesLogger.LOGGER.warning("Experimental version is not allowed to update for default, if you really want to update, please set misc.auto-update.allow-experimental to true in leaves.yml");
++                    return LeavesBuildInfo.ERROR;
 +                }
++                int build = obj.get("build").getAsInt();
++
++                JsonArray changes = obj.get("changes").getAsJsonArray();
++                boolean needUpdate = true;
++                for (JsonElement change : changes) {
++                    if (change.getAsJsonObject().get("commit").getAsString().startsWith(gitHash)) {
++                        needUpdate = false;
++                        break;
++                    }
++                }
++
++                JsonObject downloadInfo = obj.get("downloads").getAsJsonObject().get("application").getAsJsonObject();
++                String fileName = downloadInfo.get("name").getAsString();
++                String sha256 = downloadInfo.get("sha256").getAsString();
++                String url = "https://api.leavesmc.org/v2/projects/leaves/versions/" + mcVersion + "/builds/" + build + "/downloads/";
++                return new LeavesBuildInfo(build, fileName, sha256, needUpdate, url);
 +            } catch (JsonSyntaxException | NumberFormatException e) {
 +                LeavesLogger.LOGGER.warning("Fail to get latest build info", e);
-+                return LeavesBuildInfo.NULL;
++                return LeavesBuildInfo.ERROR;
 +            }
 +        } catch (IOException | URISyntaxException e) {
 +            LeavesLogger.LOGGER.warning("Fail to get latest build info", e);
-+            return LeavesBuildInfo.NULL;
++            return LeavesBuildInfo.ERROR;
 +        }
 +    }
 +
-+    private record LeavesBuildInfo(int build, String fileName, String sha256, boolean needUpdate, String cdnUrl, String githubUrl) {
-+        public static LeavesBuildInfo NULL = new LeavesBuildInfo(-1, null, null, false, null, null);
++    private record LeavesBuildInfo(int build,
++                                   String fileName,
++                                   String sha256,
++                                   boolean needUpdate,
++                                   String url) {
++        public static LeavesBuildInfo ERROR = null;
 +    }
 +}

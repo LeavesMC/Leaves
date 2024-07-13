@@ -48,10 +48,10 @@ index 0000000000000000000000000000000000000000..7f94df607e8ffd48ab2cb7c90d520c2b
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/util/LeavesUpdateHelper.java b/src/main/java/org/leavesmc/leaves/util/LeavesUpdateHelper.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..d5e6e6eacabf97ed63a84ea6dcb849f5574a8c67
+index 0000000000000000000000000000000000000000..f72e8bca8c2978abaf1acab30ca0853d484c1e6f
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/util/LeavesUpdateHelper.java
-@@ -0,0 +1,257 @@
+@@ -0,0 +1,249 @@
 +package org.leavesmc.leaves.util;
 +
 +import com.google.common.base.Charsets;
@@ -60,8 +60,8 @@ index 0000000000000000000000000000000000000000..d5e6e6eacabf97ed63a84ea6dcb849f5
 +import com.google.gson.JsonElement;
 +import com.google.gson.JsonObject;
 +import com.google.gson.JsonSyntaxException;
++import io.papermc.paper.ServerBuildInfo;
 +import net.minecraft.Util;
-+import org.bukkit.Bukkit;
 +import org.jetbrains.annotations.NotNull;
 +import org.leavesmc.leaves.LeavesConfig;
 +import org.leavesmc.leaves.LeavesLogger;
@@ -163,20 +163,16 @@ index 0000000000000000000000000000000000000000..d5e6e6eacabf97ed63a84ea6dcb849f5
 +    }
 +
 +    private static void downloadLeaves() {
-+        String minecraftVersion = Bukkit.getMinecraftVersion();
-+        String version = LeavesUpdateHelper.class.getPackage().getImplementationVersion();
-+        if (version == null) {
-+            LeavesLogger.LOGGER.info("IDE? Can not update!");
++        ServerBuildInfo version = ServerBuildInfo.buildInfo();
++        if (version.gitCommit().isEmpty() || version.buildNumber().isEmpty()) {
++            LeavesLogger.LOGGER.info("IDE, custom build? Can not update!");
 +            updateTaskStarted = false;
 +            return;
 +        }
-+        String[] versionSplit = version.split("-");
 +
-+        String gitHash = versionSplit[2];
-+        LeavesLogger.LOGGER.info("Now gitHash: " + gitHash);
-+
++        LeavesLogger.LOGGER.info("Now gitHash: " + version.gitCommit().get());
 +        LeavesLogger.LOGGER.info("Trying to get latest build info.");
-+        LeavesBuildInfo buildInfo = getLatestBuildInfo(minecraftVersion, gitHash);
++        LeavesBuildInfo buildInfo = getLatestBuildInfo(version.minecraftVersionId(), version.gitCommit().get());
 +
 +        if (buildInfo != LeavesBuildInfo.ERROR) {
 +            if (!buildInfo.needUpdate) {
@@ -191,10 +187,10 @@ index 0000000000000000000000000000000000000000..d5e6e6eacabf97ed63a84ea6dcb849f5
 +                Files.deleteIfExists(outFile);
 +
 +                try (
-+                    final ReadableByteChannel source = Channels.newChannel(new URI(
-+                        buildInfo.url + LeavesConfig.autoUpdateSource).toURL().openStream()
-+                    );
-+                    final FileChannel fileChannel = FileChannel.open(outFile, CREATE, WRITE, TRUNCATE_EXISTING)
++                        final ReadableByteChannel source = Channels.newChannel(new URI(
++                                buildInfo.url + LeavesConfig.autoUpdateSource).toURL().openStream()
++                        );
++                        final FileChannel fileChannel = FileChannel.open(outFile, CREATE, WRITE, TRUNCATE_EXISTING)
 +                ) {
 +                    fileChannel.transferFrom(source, 0, Long.MAX_VALUE);
 +                    LeavesLogger.LOGGER.info("Download " + buildInfo.fileName + " completed.");
@@ -262,7 +258,7 @@ index 0000000000000000000000000000000000000000..d5e6e6eacabf97ed63a84ea6dcb849f5
 +    private static LeavesBuildInfo getLatestBuildInfo(String mcVersion, String gitHash) {
 +        try {
 +            HttpURLConnection connection = (HttpURLConnection) new URI(
-+                "https://api.leavesmc.org/v2/projects/leaves/versions/" + mcVersion + "/builds/latest"
++                    "https://api.leavesmc.org/v2/projects/leaves/versions/" + mcVersion + "/builds/latest"
 +            ).toURL().openConnection();
 +            connection.connect();
 +            if (connection.getResponseCode() == HttpURLConnection.HTTP_NOT_FOUND) {
@@ -301,11 +297,7 @@ index 0000000000000000000000000000000000000000..d5e6e6eacabf97ed63a84ea6dcb849f5
 +        }
 +    }
 +
-+    private record LeavesBuildInfo(int build,
-+                                   String fileName,
-+                                   String sha256,
-+                                   boolean needUpdate,
-+                                   String url) {
++    private record LeavesBuildInfo(int build, String fileName, String sha256, boolean needUpdate,  String url) {
 +        public static LeavesBuildInfo ERROR = null;
 +    }
 +}

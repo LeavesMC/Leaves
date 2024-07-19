@@ -6,7 +6,7 @@ Subject: [PATCH] Use aging cache for biome temperatures
 This patch is Powered by Pufferfish(https://github.com/pufferfish-gg/Pufferfish)
 
 diff --git a/src/main/java/net/minecraft/world/level/biome/Biome.java b/src/main/java/net/minecraft/world/level/biome/Biome.java
-index 15f82c9a1ce1fef2e951d1b3c7a65e64b82061ea..0e318fd031ddb2ec95fe9479f7ad6b28171d1797 100644
+index 90c165c890a2d998e3b0af9b4310e3995ede6f64..6db6f96af0058d5eaf725e743d3019e3a3b8604c 100644
 --- a/src/main/java/net/minecraft/world/level/biome/Biome.java
 +++ b/src/main/java/net/minecraft/world/level/biome/Biome.java
 @@ -63,7 +63,17 @@ public final class Biome {
@@ -48,14 +48,12 @@ index 15f82c9a1ce1fef2e951d1b3c7a65e64b82061ea..0e318fd031ddb2ec95fe9479f7ad6b28
  
      public int getSkyColor() {
          return this.specialEffects.getSkyColor();
-@@ -112,19 +122,32 @@ public final class Biome {
+@@ -111,7 +121,33 @@ public final class Biome {
+ 
      @Deprecated
      public float getTemperature(BlockPos blockPos) {
-         long l = blockPos.asLong();
--        Long2FloatLinkedOpenHashMap long2FloatLinkedOpenHashMap = this.temperatureCache.get();
--        float f = long2FloatLinkedOpenHashMap.get(l);
--        if (!Float.isNaN(f)) {
--            return f;
+-        return this.getHeightAdjustedTemperature(blockPos); // Paper - optimise random ticking
++        long l = blockPos.asLong();
 +        // Leaves start - use our cache
 +        if (org.leavesmc.leaves.LeavesConfig.biomeTemperaturesUseAgingCache) {
 +            org.leavesmc.leaves.structs.Long2FloatAgingCache cache = this.temperatureAgingCache.get();
@@ -67,10 +65,7 @@ index 15f82c9a1ce1fef2e951d1b3c7a65e64b82061ea..0e318fd031ddb2ec95fe9479f7ad6b28
 +                cache.putValue(l, g);
 +                return g;
 +            }
-         } else {
--            float g = this.getHeightAdjustedTemperature(blockPos);
--            if (long2FloatLinkedOpenHashMap.size() == 1024) {
--                long2FloatLinkedOpenHashMap.removeFirstFloat();
++        } else {
 +            Long2FloatLinkedOpenHashMap long2FloatLinkedOpenHashMap = this.temperatureCache.get();
 +            float f = long2FloatLinkedOpenHashMap.get(l);
 +            if (!Float.isNaN(f)) {
@@ -82,15 +77,36 @@ index 15f82c9a1ce1fef2e951d1b3c7a65e64b82061ea..0e318fd031ddb2ec95fe9479f7ad6b28
 +                }
 +                long2FloatLinkedOpenHashMap.put(l, g);
 +                return g;
-             }
--
--            long2FloatLinkedOpenHashMap.put(l, g);
--            return g;
-         }
++            }
++        }
 +        // Leaves end - use our cache
      }
  
      public boolean shouldFreeze(LevelReader world, BlockPos blockPos) {
+@@ -139,6 +175,7 @@ public final class Biome {
+ 
+             return false;
+         }
++        // Leaves end - use our cache
+     }
+ 
+     public boolean coldEnoughToSnow(BlockPos pos) {
+@@ -166,6 +203,7 @@ public final class Biome {
+ 
+             return false;
+         }
++        // Leaves end - use our cache
+     }
+ 
+     public BiomeGenerationSettings getGenerationSettings() {
+@@ -317,6 +355,7 @@ public final class Biome {
+                 + this.generationSettings
+                 + ",\n}";
+         }
++        // Leaves end - use our cache
+     }
+ 
+     public static record ClimateSettings(boolean hasPrecipitation, float temperature, Biome.TemperatureModifier temperatureModifier, float downfall) {
 diff --git a/src/main/java/org/leavesmc/leaves/structs/Long2FloatAgingCache.java b/src/main/java/org/leavesmc/leaves/structs/Long2FloatAgingCache.java
 new file mode 100644
 index 0000000000000000000000000000000000000000..cd8b1bbfe553c28b75ea92d344364650756e9fdd

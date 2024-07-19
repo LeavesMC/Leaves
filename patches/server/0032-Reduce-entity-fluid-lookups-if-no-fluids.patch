@@ -6,7 +6,7 @@ Subject: [PATCH] Reduce entity fluid lookups if no fluids
 This patch is Powered by Pufferfish(https://github.com/pufferfish-gg/Pufferfish)
 
 diff --git a/src/main/java/net/minecraft/world/entity/Entity.java b/src/main/java/net/minecraft/world/entity/Entity.java
-index 804f1ab4642e94127a00b305b37fec4c20d4250a..d3453751012d0ebfda1f4e93187820603bb27f08 100644
+index 2563e077ceaf6c21e20f00c59341abcca39c91eb..decc1d6be70eb501ebf75dd5907fabfbc2584928 100644
 --- a/src/main/java/net/minecraft/world/entity/Entity.java
 +++ b/src/main/java/net/minecraft/world/entity/Entity.java
 @@ -4455,16 +4455,18 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
@@ -46,8 +46,8 @@ index 804f1ab4642e94127a00b305b37fec4c20d4250a..d3453751012d0ebfda1f4e9318782060
 -                        FluidState fluid = this.level().getFluidState(blockposition_mutableblockposition);
 +            // Leaves start - based off CollisionUtil.getCollisionsForBlocksOrWorldBorder
 +            if (org.leavesmc.leaves.LeavesConfig.reduceEntityFluidLookup) {
-+                final int minSection = io.papermc.paper.util.WorldUtil.getMinSection(this.level);
-+                final int maxSection = io.papermc.paper.util.WorldUtil.getMaxSection(this.level);
++                final int minSection = this.level.getMinSection() - 1;
++                final int maxSection = this.level.getMaxSection() - 1;
 +                final int minBlock = minSection << 4;
 +                final int maxBlock = (maxSection << 4) | 15;
  
@@ -181,18 +181,18 @@ index 804f1ab4642e94127a00b305b37fec4c20d4250a..d3453751012d0ebfda1f4e9318782060
              if (vec3d.length() > 0.0D) {
                  if (k1 > 0) {
 diff --git a/src/main/java/net/minecraft/world/level/chunk/LevelChunkSection.java b/src/main/java/net/minecraft/world/level/chunk/LevelChunkSection.java
-index d4bd71f70f80ea74947e6d478ff636be2ab7d432..598e714120c9d6cfcf870cbb23f2e9f7432588eb 100644
+index c3b1caa352b988ec44fa2b2eb0536517711f5460..95921cc65ebb0d41a52a662130e0e265b4f5afa6 100644
 --- a/src/main/java/net/minecraft/world/level/chunk/LevelChunkSection.java
 +++ b/src/main/java/net/minecraft/world/level/chunk/LevelChunkSection.java
-@@ -25,6 +25,7 @@ public class LevelChunkSection implements ca.spottedleaf.moonrise.patches.collis
+@@ -25,6 +25,7 @@ public class LevelChunkSection implements ca.spottedleaf.moonrise.patches.block_
      public final PalettedContainer<BlockState> states;
      // CraftBukkit start - read/write
      private PalettedContainer<Holder<Biome>> biomes;
 +    public short fluidStateCount; // Leaves
  
-     // Paper start - optimise collisions
-     private int specialCollidingBlocks;
-@@ -91,6 +92,7 @@ public class LevelChunkSection implements ca.spottedleaf.moonrise.patches.collis
+     // Paper start - block counting
+     private static final it.unimi.dsi.fastutil.ints.IntArrayList FULL_LIST = new it.unimi.dsi.fastutil.ints.IntArrayList(16*16*16);
+@@ -104,6 +105,7 @@ public class LevelChunkSection implements ca.spottedleaf.moonrise.patches.block_
  
          if (!fluid.isEmpty()) {
              --this.tickingFluidCount;
@@ -200,15 +200,15 @@ index d4bd71f70f80ea74947e6d478ff636be2ab7d432..598e714120c9d6cfcf870cbb23f2e9f7
          }
  
          if (!state.isAir()) {
-@@ -102,6 +104,7 @@ public class LevelChunkSection implements ca.spottedleaf.moonrise.patches.collis
+@@ -115,6 +117,7 @@ public class LevelChunkSection implements ca.spottedleaf.moonrise.patches.block_
  
          if (!fluid1.isEmpty()) {
              ++this.tickingFluidCount;
 +            --this.fluidStateCount; // Leaves
          }
  
-         // Paper start - optimise collisions
-@@ -181,6 +184,7 @@ public class LevelChunkSection implements ca.spottedleaf.moonrise.patches.collis
+         // Paper start - block counting
+@@ -208,6 +211,7 @@ public class LevelChunkSection implements ca.spottedleaf.moonrise.patches.block_
                      if (fluid.isRandomlyTicking()) {
                          this.tickingFluidCount += paletteCount;
                      }

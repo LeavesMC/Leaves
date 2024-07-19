@@ -6,7 +6,7 @@ Subject: [PATCH] Faster chunk serialization
 This patch is Powered by Gale(https://github.com/GaleMC/Gale)
 
 diff --git a/src/main/java/net/minecraft/util/BitStorage.java b/src/main/java/net/minecraft/util/BitStorage.java
-index 68648c5a5e3ff079f832092af0f2f801c42d1ede..0e4555ef99d150b28cabb79fc997b72935fb7ba5 100644
+index 19661e106612b8e4e152085fb398db7bd06acc23..b0eebd6f35bcf5dac99b9efe13ae6b2c03fce4a1 100644
 --- a/src/main/java/net/minecraft/util/BitStorage.java
 +++ b/src/main/java/net/minecraft/util/BitStorage.java
 @@ -1,5 +1,7 @@
@@ -16,17 +16,18 @@ index 68648c5a5e3ff079f832092af0f2f801c42d1ede..0e4555ef99d150b28cabb79fc997b729
 +
  import java.util.function.IntConsumer;
  
- public interface BitStorage {
-@@ -20,4 +22,7 @@ public interface BitStorage {
-     void unpack(int[] out);
+ public interface BitStorage extends ca.spottedleaf.moonrise.patches.block_counting.BlockCountingBitStorage { // Paper - block counting
+@@ -21,6 +23,8 @@ public interface BitStorage extends ca.spottedleaf.moonrise.patches.block_counti
  
      BitStorage copy();
-+
-+
+ 
 +    <T> void compact(Palette<T> srcPalette, Palette<T> dstPalette, short[] out); // Leaves - faster chunk serialization
- }
++
+     // Paper start - block counting
+     // provide default impl in case mods implement this...
+     @Override
 diff --git a/src/main/java/net/minecraft/util/SimpleBitStorage.java b/src/main/java/net/minecraft/util/SimpleBitStorage.java
-index 9f438d9c6eb05e43d24e4af68188a3d4c46a938c..0958c753227b327af2390249212d11ddaccc527e 100644
+index 8acf2f2491a8d9d13392c5e89b2bd5c9918285e1..eccef53172ed8cd7d7903c7e128908e2cb87fd08 100644
 --- a/src/main/java/net/minecraft/util/SimpleBitStorage.java
 +++ b/src/main/java/net/minecraft/util/SimpleBitStorage.java
 @@ -3,6 +3,7 @@ package net.minecraft.util;
@@ -37,7 +38,7 @@ index 9f438d9c6eb05e43d24e4af68188a3d4c46a938c..0958c753227b327af2390249212d11dd
  
  public class SimpleBitStorage implements BitStorage {
      private static final int[] MAGIC = new int[]{
-@@ -367,4 +368,44 @@ public class SimpleBitStorage implements BitStorage {
+@@ -401,4 +402,44 @@ public class SimpleBitStorage implements BitStorage {
              super(message);
          }
      }
@@ -83,7 +84,7 @@ index 9f438d9c6eb05e43d24e4af68188a3d4c46a938c..0958c753227b327af2390249212d11dd
 +    // Leaves end - faster chunk serialization
  }
 diff --git a/src/main/java/net/minecraft/util/ZeroBitStorage.java b/src/main/java/net/minecraft/util/ZeroBitStorage.java
-index 50040c497a819cd1229042ab3cb057d34a32cacc..33cba55d41b305bf193268c04b93b742711231dd 100644
+index 15c5164d0ef41a978c16ee317fa73e97f2480207..93d1416cf2eaeb10e24c69a28a1d9e576ca7dbdc 100644
 --- a/src/main/java/net/minecraft/util/ZeroBitStorage.java
 +++ b/src/main/java/net/minecraft/util/ZeroBitStorage.java
 @@ -3,6 +3,7 @@ package net.minecraft.util;
@@ -94,13 +95,15 @@ index 50040c497a819cd1229042ab3cb057d34a32cacc..33cba55d41b305bf193268c04b93b742
  
  public class ZeroBitStorage implements BitStorage {
      public static final long[] RAW = new long[0];
-@@ -62,4 +63,6 @@ public class ZeroBitStorage implements BitStorage {
-     public BitStorage copy() {
+@@ -63,6 +64,8 @@ public class ZeroBitStorage implements BitStorage {
          return this;
      }
-+
+ 
 +    @Override public <T> void compact(Palette<T> srcPalette, Palette<T> dstPalette, short[] out) {}  // Leaves - faster chunk serialization
- }
++
+     // Paper start - block counting
+     @Override
+     public final it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap<it.unimi.dsi.fastutil.ints.IntArrayList> moonrise$countEntries() {
 diff --git a/src/main/java/net/minecraft/world/level/chunk/PaletteResize.java b/src/main/java/net/minecraft/world/level/chunk/PaletteResize.java
 index acae3eb30e0689048937f479dc3070f0688abdad..029b62acf1d9f8479ab64a55c12f00ba467249e3 100644
 --- a/src/main/java/net/minecraft/world/level/chunk/PaletteResize.java

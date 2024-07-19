@@ -5,27 +5,10 @@ Subject: [PATCH] Elytra aeronautics no chunk load
 
 
 diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
-index 0c2755e890bc5ca8a761614640d0c5443b15bd68..34fb3b4e991cf7bb7016e3b32bb8200a4914e947 100644
+index d9c36827706776e143fccd72b53c12a9ac455475..59c023076a7a64049ba478aa049f19103aeb70ee 100644
 --- a/src/main/java/net/minecraft/server/level/ChunkMap.java
 +++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
-@@ -169,14 +169,14 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
-     // Paper start - distance maps
-     private final com.destroystokyo.paper.util.misc.PooledLinkedHashSets<ServerPlayer> pooledLinkedPlayerHashSets = new com.destroystokyo.paper.util.misc.PooledLinkedHashSets<>();
- 
--    void addPlayerToDistanceMaps(ServerPlayer player) {
-+    public void addPlayerToDistanceMaps(ServerPlayer player) { // Leaves - package -> public
-         int chunkX = io.papermc.paper.util.MCUtil.getChunkCoordinate(player.getX());
-         int chunkZ = io.papermc.paper.util.MCUtil.getChunkCoordinate(player.getZ());
-         // Note: players need to be explicitly added to distance maps before they can be updated
-         this.nearbyPlayers.addPlayer(player);
-     }
- 
--    void removePlayerFromDistanceMaps(ServerPlayer player) {
-+    public void removePlayerFromDistanceMaps(ServerPlayer player) { // Leaves - package -> public
-         int chunkX = io.papermc.paper.util.MCUtil.getChunkCoordinate(player.getX());
-         int chunkZ = io.papermc.paper.util.MCUtil.getChunkCoordinate(player.getZ());
-         // Note: players need to be explicitly added to distance maps before they can be updated
-@@ -782,7 +782,8 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+@@ -749,7 +749,8 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
      }
  
      private boolean skipPlayer(ServerPlayer player) {
@@ -35,7 +18,7 @@ index 0c2755e890bc5ca8a761614640d0c5443b15bd68..34fb3b4e991cf7bb7016e3b32bb8200a
      }
  
      void updatePlayerStatus(ServerPlayer player, boolean added) {
-@@ -820,6 +821,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+@@ -787,6 +788,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
      }
  
      public void move(ServerPlayer player) {
@@ -57,7 +40,7 @@ index 51a1be78de7a794d13b64db6958977e2e9d20553..31ad4e4aaf321ab3c3909145e36a6774
                          !worldserver.areChunksLoadedForMove(entity.getBoundingBox().expandTowards(new Vec3(toX, toY, toZ).subtract(entity.position())))
                      )) {
 diff --git a/src/main/java/net/minecraft/world/entity/Entity.java b/src/main/java/net/minecraft/world/entity/Entity.java
-index 2a37944ffb6a253428c0474d24b258e791a8cce0..c9784715419c407821d3b30b0881ffa8c5866f35 100644
+index 993efcba5c43e2ba6d8fd2eb61215ed67c9c6a6b..3ea0530917fbd347691427cd44344b4659fc6e09 100644
 --- a/src/main/java/net/minecraft/world/entity/Entity.java
 +++ b/src/main/java/net/minecraft/world/entity/Entity.java
 @@ -1136,7 +1136,13 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
@@ -97,12 +80,13 @@ index c566031782c4e1401e1c9f5223c62420c4fba87a..0ee227c0f7d54ed7c686a830873fab6c
      public boolean fauxSleeping;
 diff --git a/src/main/java/org/leavesmc/leaves/util/ElytraAeronauticsHelper.java b/src/main/java/org/leavesmc/leaves/util/ElytraAeronauticsHelper.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..3b0e805b3ac9dc40280f9daa1302b1b358bd8083
+index 0000000000000000000000000000000000000000..0a9cde390476a728dd43f017e3eac3c923709b72
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/util/ElytraAeronauticsHelper.java
-@@ -0,0 +1,39 @@
+@@ -0,0 +1,40 @@
 +package org.leavesmc.leaves.util;
 +
++import ca.spottedleaf.moonrise.common.util.ChunkSystem;
 +import net.minecraft.core.SectionPos;
 +import net.minecraft.network.chat.Component;
 +import net.minecraft.server.level.ServerLevel;
@@ -116,14 +100,14 @@ index 0000000000000000000000000000000000000000..3b0e805b3ac9dc40280f9daa1302b1b3
 +    public static void flightBehaviour(Player player, Vec3 velocity) {
 +        if (LeavesConfig.elytraAeronauticsNoChunk) {
 +            if ((LeavesConfig.elytraAeronauticsNoChunkSpeed <= 0.0D || velocity.horizontalDistanceSqr() >= LeavesConfig.elytraAeronauticsNoChunkSpeed)
-+                && (LeavesConfig.elytraAeronauticsNoChunkHeight <= 0.0D || player.getY() >= LeavesConfig.elytraAeronauticsNoChunkHeight)) {
++                    && (LeavesConfig.elytraAeronauticsNoChunkHeight <= 0.0D || player.getY() >= LeavesConfig.elytraAeronauticsNoChunkHeight)) {
 +                if (!player.elytraAeronauticsNoChunk) {
 +                    player.elytraAeronauticsNoChunk = true;
 +                    ServerPlayer serverPlayer = (ServerPlayer) player;
 +                    if (LeavesConfig.elytraAeronauticsNoChunkMes) {
 +                        serverPlayer.sendSystemMessage(Component.literal(LeavesConfig.elytraAeronauticsNoChunkStartMes), true);
 +                    }
-+                    ((ServerLevel) serverPlayer.level()).chunkSource.chunkMap.removePlayerFromDistanceMaps(serverPlayer);
++                    ChunkSystem.removePlayerFromDistanceMaps((ServerLevel) serverPlayer.level(), serverPlayer);
 +                    ((ServerLevel) serverPlayer.level()).chunkSource.chunkMap.getDistanceManager().removePlayer(serverPlayer.getLastSectionPos(), serverPlayer);
 +                }
 +            } else {
@@ -133,7 +117,7 @@ index 0000000000000000000000000000000000000000..3b0e805b3ac9dc40280f9daa1302b1b3
 +                    if (LeavesConfig.elytraAeronauticsNoChunkMes) {
 +                        serverPlayer.sendSystemMessage(Component.literal(LeavesConfig.elytraAeronauticsNoChunkEndMes), true);
 +                    }
-+                    ((ServerLevel) serverPlayer.level()).chunkSource.chunkMap.addPlayerToDistanceMaps(serverPlayer);
++                    ChunkSystem.addPlayerToDistanceMaps((ServerLevel) serverPlayer.level(), serverPlayer);
 +                    ((ServerLevel) serverPlayer.level()).chunkSource.chunkMap.getDistanceManager().addPlayer(SectionPos.of(serverPlayer), serverPlayer);
 +                }
 +            }

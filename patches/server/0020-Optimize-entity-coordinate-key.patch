@@ -5,27 +5,8 @@ Subject: [PATCH] Optimize entity coordinate key
 
 This patch is Powered by Pufferfish(https://github.com/pufferfish-gg/Pufferfish)
 
-diff --git a/src/main/java/io/papermc/paper/util/MCUtil.java b/src/main/java/io/papermc/paper/util/MCUtil.java
-index 02d6c98b7a2212b13ffd9859ebfdc0a8357ebe65..8add631c0614879d24455a96d94bc6711456f223 100644
---- a/src/main/java/io/papermc/paper/util/MCUtil.java
-+++ b/src/main/java/io/papermc/paper/util/MCUtil.java
-@@ -199,7 +199,13 @@ public final class MCUtil {
-     }
- 
-     public static long getCoordinateKey(final Entity entity) {
--        return ((long)(MCUtil.fastFloor(entity.getZ()) >> 4) << 32) | ((MCUtil.fastFloor(entity.getX()) >> 4) & 0xFFFFFFFFL);
-+        // Leaves start - eliminate double -> long cast in hotpath
-+        if (org.leavesmc.leaves.LeavesConfig.optimizeEntityCoordinateKey) {
-+            return ((long)(entity.blockPosition.getZ() >> 4) << 32) | ((entity.blockPosition.getX() >> 4) & 0xFFFFFFFFL);
-+        } else {
-+            return ((long)(MCUtil.fastFloor(entity.getZ()) >> 4) << 32) | ((MCUtil.fastFloor(entity.getX()) >> 4) & 0xFFFFFFFFL);
-+        }
-+        // Leaves end - eliminate double -> long cast in hotpath
-     }
- 
-     public static long getCoordinateKey(final ChunkPos pair) {
 diff --git a/src/main/java/net/minecraft/world/entity/Entity.java b/src/main/java/net/minecraft/world/entity/Entity.java
-index 2dc27d27908a50101e5671809d1331db0cb2a96c..9e984f4bad722244d70d8b45755ca3abd0a22d4a 100644
+index 36577e641ef0cdc5bf273389ae92f0b83d13d78f..2563e077ceaf6c21e20f00c59341abcca39c91eb 100644
 --- a/src/main/java/net/minecraft/world/entity/Entity.java
 +++ b/src/main/java/net/minecraft/world/entity/Entity.java
 @@ -316,7 +316,7 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess

@@ -5,6 +5,19 @@ Subject: [PATCH] Stackable ShulkerBoxes
 
 This patch is Powered by fabric-carpet(https://github.com/gnembon/fabric-carpet) and plusls-carpet-addition(https://github.com/plusls/plusls-carpet-addition)
 
+diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index 7796e191747be545e744564a2b0b65790f69114d..7cab641e609cabdb56dc6a9d1efe2e20c1e0f5d2 100644
+--- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -3313,7 +3313,7 @@ public class ServerGamePacketListenerImpl extends ServerCommonPacketListenerImpl
+             }
+ 
+             boolean flag1 = packet.slotNum() >= 1 && packet.slotNum() <= 45;
+-            boolean flag2 = itemstack.isEmpty() || itemstack.getCount() <= itemstack.getMaxStackSize();
++            boolean flag2 = itemstack.isEmpty() || itemstack.getCount() <= org.leavesmc.leaves.util.ShulkerBoxUtils.getItemStackMaxCount(itemstack); // Leaves - stackable shulker boxes
+             if (flag || (flag1 && !ItemStack.matches(this.player.inventoryMenu.getSlot(packet.slotNum()).getItem(), packet.itemStack()))) { // Insist on valid slot
+                 // CraftBukkit start - Call click event
+                 InventoryView inventory = this.player.inventoryMenu.getBukkitView();
 diff --git a/src/main/java/net/minecraft/world/Container.java b/src/main/java/net/minecraft/world/Container.java
 index 5db5ba026462ca642dcee718af732f80fadabef5..bca47bc78a444011b7e549aba949fea799e50c99 100644
 --- a/src/main/java/net/minecraft/world/Container.java
@@ -45,7 +58,7 @@ index d04bf7d06855022c973073fb84c5d3d65f2553e1..9bedd76330e71ca7f3feecf0b90ec960
  
          if (j > 0) {
 diff --git a/src/main/java/net/minecraft/world/entity/item/ItemEntity.java b/src/main/java/net/minecraft/world/entity/item/ItemEntity.java
-index ea0d9335446b20073b9aafb9de453097355db79c..9f86b2c5af580f27f7216b4184acb72b54fee550 100644
+index ea0d9335446b20073b9aafb9de453097355db79c..a2b9e996fa606d91b153979eefae8974f7ffdf4e 100644
 --- a/src/main/java/net/minecraft/world/entity/item/ItemEntity.java
 +++ b/src/main/java/net/minecraft/world/entity/item/ItemEntity.java
 @@ -22,10 +22,12 @@ import net.minecraft.world.entity.EntityType;
@@ -86,8 +99,8 @@ index ea0d9335446b20073b9aafb9de453097355db79c..9f86b2c5af580f27f7216b4184acb72b
 +
 +        ItemStack otherStack = other.getItem();
 +        if (selfStack.getItem() == otherStack.getItem()
-+            && !org.leavesmc.leaves.util.ShulkerBoxUtils.shulkerBoxHasItems(selfStack)
-+            && !org.leavesmc.leaves.util.ShulkerBoxUtils.shulkerBoxHasItems(otherStack)
++            && org.leavesmc.leaves.util.ShulkerBoxUtils.shulkerBoxNoItem(selfStack)
++            && org.leavesmc.leaves.util.ShulkerBoxUtils.shulkerBoxNoItem(otherStack)
 +            && Objects.equals(selfStack.getComponents(), otherStack.getComponents()) // empty block entity tags are cleaned up when spawning
 +            && selfStack.getCount() != org.leavesmc.leaves.LeavesConfig.shulkerBoxStackSize) {
 +            int amount = Math.min(otherStack.getCount(), org.leavesmc.leaves.LeavesConfig.shulkerBoxStackSize - selfStack.getCount());
@@ -363,7 +376,7 @@ index 5b7eedaa4f52ac72da417358034f3f457d6a2b45..b6a419ab08a8ee1ddffa234ddc07027c
                  ignoreTileUpdates = true; // Paper - Perf: Optimize Hoppers
 diff --git a/src/main/java/org/leavesmc/leaves/util/ShulkerBoxUtils.java b/src/main/java/org/leavesmc/leaves/util/ShulkerBoxUtils.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..cde26081e8324742ab648bcefc64723bf95023c5
+index 0000000000000000000000000000000000000000..eb31cd1dc9598f3915f25b6920a80fa2ebccdf62
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/util/ShulkerBoxUtils.java
 @@ -0,0 +1,28 @@
@@ -379,13 +392,13 @@ index 0000000000000000000000000000000000000000..cde26081e8324742ab648bcefc64723b
 +
 +public class ShulkerBoxUtils {
 +
-+    public static boolean shulkerBoxHasItems(@NotNull ItemStack stack) {
++    public static boolean shulkerBoxNoItem(@NotNull ItemStack stack) {
 +        return stack.getComponents().getOrDefault(DataComponents.CONTAINER, ItemContainerContents.EMPTY).stream().findAny().isEmpty();
 +    }
 +
 +    public static int getItemStackMaxCount(ItemStack stack) {
 +        if (LeavesConfig.shulkerBoxStackSize > 1 && stack.getItem() instanceof BlockItem bi &&
-+                bi.getBlock() instanceof ShulkerBoxBlock && !org.leavesmc.leaves.util.ShulkerBoxUtils.shulkerBoxHasItems(stack)) {
++                bi.getBlock() instanceof ShulkerBoxBlock && org.leavesmc.leaves.util.ShulkerBoxUtils.shulkerBoxNoItem(stack)) {
 +            return org.leavesmc.leaves.LeavesConfig.shulkerBoxStackSize;
 +        }
 +        return stack.getMaxStackSize();

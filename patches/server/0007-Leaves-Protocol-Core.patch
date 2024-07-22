@@ -179,12 +179,13 @@ index 0000000000000000000000000000000000000000..986d2a6641ff8017dddf3e5f2655adfc
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/core/LeavesProtocolManager.java b/src/main/java/org/leavesmc/leaves/protocol/core/LeavesProtocolManager.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..4fd8e06c8d2d3016ccc0baf1c43d77d87ea1dca5
+index 0000000000000000000000000000000000000000..e5eb67c0bbdf4953ed0ccc3281f06eda26a7956e
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/core/LeavesProtocolManager.java
-@@ -0,0 +1,386 @@
+@@ -0,0 +1,435 @@
 +package org.leavesmc.leaves.protocol.core;
 +
++import com.google.common.collect.ImmutableSet;
 +import net.minecraft.network.FriendlyByteBuf;
 +import net.minecraft.network.chat.Component;
 +import net.minecraft.resources.ResourceLocation;
@@ -211,6 +212,7 @@ index 0000000000000000000000000000000000000000..4fd8e06c8d2d3016ccc0baf1c43d77d8
 +import java.util.Enumeration;
 +import java.util.HashMap;
 +import java.util.HashSet;
++import java.util.Iterator;
 +import java.util.LinkedHashSet;
 +import java.util.List;
 +import java.util.Map;
@@ -226,6 +228,7 @@ index 0000000000000000000000000000000000000000..4fd8e06c8d2d3016ccc0baf1c43d77d8
 +
 +    private static final Map<LeavesProtocol, Map<ProtocolHandler.PayloadReceiver, Executable>> KNOWN_TYPES = new HashMap<>();
 +    private static final Map<LeavesProtocol, Map<ProtocolHandler.PayloadReceiver, Method>> KNOW_RECEIVERS = new HashMap<>();
++    private static Set<ResourceLocation> ALL_KNOWN_ID = new HashSet<>();
 +
 +    private static final List<Method> TICKERS = new ArrayList<>();
 +    private static final List<Method> PLAYER_JOIN = new ArrayList<>();
@@ -340,6 +343,20 @@ index 0000000000000000000000000000000000000000..4fd8e06c8d2d3016ccc0baf1c43d77d8
 +                KNOWN_TYPES.put(protocol, map);
 +            }
 +        }
++
++        for (LeavesProtocol protocol : KNOWN_TYPES.keySet()) {
++            Map<ProtocolHandler.PayloadReceiver, Executable> map = KNOWN_TYPES.get(protocol);
++            for (ProtocolHandler.PayloadReceiver receiver : map.keySet()) {
++                if (receiver.sendFabricRegister() && !receiver.ignoreId()) {
++                    for (String payloadId : receiver.payloadId()) {
++                        for (String namespace : protocol.namespace()) {
++                            ALL_KNOWN_ID.add(new ResourceLocation(namespace, payloadId));
++                        }
++                    }
++                }
++            }
++        }
++        ALL_KNOWN_ID = ImmutableSet.copyOf(ALL_KNOWN_ID);
 +    }
 +
 +    public static LeavesCustomPayload<?> decode(ResourceLocation id, FriendlyByteBuf buf) {
@@ -416,6 +433,8 @@ index 0000000000000000000000000000000000000000..4fd8e06c8d2d3016ccc0baf1c43d77d8
 +                LOGGER.warning("Failed to handle player join, " + exception.getCause() + ": " + exception.getMessage());
 +            }
 +        }
++
++        ProtocolUtils.sendPayloadPacket(player, new FabricRegisterPayload(ALL_KNOWN_ID));
 +    }
 +
 +    public static void handlePlayerLeave(ServerPlayer player) {
@@ -452,7 +471,7 @@ index 0000000000000000000000000000000000000000..4fd8e06c8d2d3016ccc0baf1c43d77d8
 +            Map<ProtocolHandler.MinecraftRegister, Method> map = MINECRAFT_REGISTER.get(protocol);
 +            for (ProtocolHandler.MinecraftRegister register : map.keySet()) {
 +                if (register.ignoreId() || register.channelId().equals(channel[1]) ||
-+                    ArrayUtils.contains(register.channelIds(), channel[1])) {
++                        ArrayUtils.contains(register.channelIds(), channel[1])) {
 +                    try {
 +                        map.get(register).invoke(null, player);
 +                    } catch (InvocationTargetException | IllegalAccessException exception) {
@@ -568,13 +587,43 @@ index 0000000000000000000000000000000000000000..4fd8e06c8d2d3016ccc0baf1c43d77d8
 +            buf.writeBytes(data);
 +        }
 +    }
++
++    public record FabricRegisterPayload(Set<ResourceLocation> channels) implements LeavesCustomPayload<FabricRegisterPayload> {
++
++        public static final ResourceLocation CHANNEL = ResourceLocation.withDefaultNamespace("register");
++
++        @New
++        public FabricRegisterPayload(ResourceLocation location, FriendlyByteBuf buf) {
++            this(buf.readCollection(HashSet::new, FriendlyByteBuf::readResourceLocation));
++        }
++
++        @Override
++        public void write(FriendlyByteBuf buf) {
++            boolean first = true;
++
++            ResourceLocation channel;
++            for (Iterator<ResourceLocation> var3 = this.channels.iterator(); var3.hasNext(); buf.writeBytes(channel.toString().getBytes(StandardCharsets.US_ASCII))) {
++                channel = var3.next();
++                if (first) {
++                    first = false;
++                } else {
++                    buf.writeByte(0);
++                }
++            }
++        }
++
++        @Override
++        public ResourceLocation id() {
++            return CHANNEL;
++        }
++    }
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/core/ProtocolHandler.java b/src/main/java/org/leavesmc/leaves/protocol/core/ProtocolHandler.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..f941f095184cf4b7af284d1357ea1a85815e8a66
+index 0000000000000000000000000000000000000000..9d71f8e6af24301bedf60f5c87e0bb3c1697d5e3
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/core/ProtocolHandler.java
-@@ -0,0 +1,61 @@
+@@ -0,0 +1,63 @@
 +package org.leavesmc.leaves.protocol.core;
 +
 +import java.lang.annotation.ElementType;
@@ -599,6 +648,8 @@ index 0000000000000000000000000000000000000000..f941f095184cf4b7af284d1357ea1a85
 +        String[] payloadId() default "";
 +
 +        boolean ignoreId() default false;
++
++        boolean sendFabricRegister() default true;
 +    }
 +
 +    @Target(ElementType.METHOD)

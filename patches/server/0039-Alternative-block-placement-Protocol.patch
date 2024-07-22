@@ -270,10 +270,10 @@ index 0000000000000000000000000000000000000000..03978356d2716296f8c5e4173d10862d
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/LitematicaEasyPlaceProtocol.java b/src/main/java/org/leavesmc/leaves/protocol/LitematicaEasyPlaceProtocol.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..affe9b0aa16968ad8832d94af06fd84323830cbb
+index 0000000000000000000000000000000000000000..92f90ebf04f00341360e9e0ba1da5e0a4688f9eb
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/LitematicaEasyPlaceProtocol.java
-@@ -0,0 +1,195 @@
+@@ -0,0 +1,209 @@
 +package org.leavesmc.leaves.protocol;
 +
 +import com.google.common.collect.ImmutableSet;
@@ -301,28 +301,25 @@ index 0000000000000000000000000000000000000000..affe9b0aa16968ad8832d94af06fd843
 +public class LitematicaEasyPlaceProtocol {
 +
 +    public static final ImmutableSet<Property<?>> WHITELISTED_PROPERTIES = ImmutableSet.of(
-+        BlockStateProperties.INVERTED,
-+        BlockStateProperties.OPEN,
-+        BlockStateProperties.PERSISTENT,
-+        BlockStateProperties.CAN_SUMMON,
-+        BlockStateProperties.BELL_ATTACHMENT,
-+        BlockStateProperties.AXIS,
-+        BlockStateProperties.BED_PART,
-+        BlockStateProperties.HALF,
-+        BlockStateProperties.ATTACH_FACE,
-+        BlockStateProperties.CHEST_TYPE,
-+        BlockStateProperties.MODE_COMPARATOR,
-+        BlockStateProperties.DOOR_HINGE,
-+        BlockStateProperties.DOUBLE_BLOCK_HALF,
-+        BlockStateProperties.ORIENTATION,
-+        BlockStateProperties.RAIL_SHAPE,
-+        BlockStateProperties.RAIL_SHAPE_STRAIGHT,
-+        BlockStateProperties.SLAB_TYPE,
-+        BlockStateProperties.STAIRS_SHAPE,
-+        BlockStateProperties.BITES,
-+        BlockStateProperties.DELAY,
-+        BlockStateProperties.NOTE,
-+        BlockStateProperties.ROTATION_16
++            BlockStateProperties.INVERTED,
++            BlockStateProperties.OPEN,
++            BlockStateProperties.BELL_ATTACHMENT,
++            BlockStateProperties.AXIS,
++            BlockStateProperties.BED_PART,
++            BlockStateProperties.HALF,
++            BlockStateProperties.ATTACH_FACE,
++            BlockStateProperties.CHEST_TYPE,
++            BlockStateProperties.MODE_COMPARATOR,
++            BlockStateProperties.DOOR_HINGE,
++            BlockStateProperties.ORIENTATION,
++            BlockStateProperties.RAIL_SHAPE,
++            BlockStateProperties.RAIL_SHAPE_STRAIGHT,
++            BlockStateProperties.SLAB_TYPE,
++            BlockStateProperties.STAIRS_SHAPE,
++            BlockStateProperties.BITES,
++            BlockStateProperties.DELAY,
++            BlockStateProperties.NOTE,
++            BlockStateProperties.ROTATION_16
 +    );
 +
 +    public static BlockState applyPlacementProtocol(BlockState state, BlockPlaceContext context) {
@@ -331,8 +328,9 @@ index 0000000000000000000000000000000000000000..affe9b0aa16968ad8832d94af06fd843
 +
 +    private static <T extends Comparable<T>> BlockState applyPlacementProtocolV3(BlockState state, UseContext context) {
 +        int protocolValue = (int) (context.getHitVec().x - (double) context.getPos().getX()) - 2;
++        BlockState oldState = state;
 +        if (protocolValue < 0) {
-+            return state;
++            return oldState;
 +        }
 +
 +        @Nullable DirectionProperty property = CarpetAlternativeBlockPlacement.getFirstDirectionProperty(state);
@@ -342,6 +340,12 @@ index 0000000000000000000000000000000000000000..affe9b0aa16968ad8832d94af06fd843
 +
 +            if (state == null) {
 +                return null;
++            }
++
++            if (state.canSurvive(context.getWorld(), context.getPos())) {
++                oldState = state;
++            } else {
++                state = oldState;
 +            }
 +
 +            protocolValue >>>= 3;
@@ -369,6 +373,12 @@ index 0000000000000000000000000000000000000000..affe9b0aa16968ad8832d94af06fd843
 +
 +                        if (!state.getValue(prop).equals(value) && value != SlabType.DOUBLE) {
 +                            state = state.setValue(prop, value);
++
++                            if (state.canSurvive(context.getWorld(), context.getPos())) {
++                                oldState = state;
++                            } else {
++                                state = oldState;
++                            }
 +                        }
 +
 +                        protocolValue >>>= requiredBits;
@@ -379,7 +389,11 @@ index 0000000000000000000000000000000000000000..affe9b0aa16968ad8832d94af06fd843
 +            LeavesLogger.LOGGER.warning("Exception trying to apply placement protocol value");
 +        }
 +
-+        return state;
++        if (state.canSurvive(context.getWorld(), context.getPos())) {
++            return state;
++        } else {
++            return null;
++        }
 +    }
 +
 +    private static BlockState applyDirectionProperty(BlockState state, UseContext context, DirectionProperty property, int protocolValue) {

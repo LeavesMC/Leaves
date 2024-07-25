@@ -107,6 +107,45 @@ index c8d39e6e1c570c9219f6066da273dc0130920519..96a074281d16a7f64058619da4b102f3
                              ((List) object).add(entityplayer2);
                              if (((List) object).size() >= i) {
                                  return (List) object;
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundSetEntityDataPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundSetEntityDataPacket.java
+index 56bde49e6b7790155b032d0be40961d566ab89e9..3345350f5fbd24575a6f8330b7fba3a81daf5df2 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundSetEntityDataPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundSetEntityDataPacket.java
+@@ -12,6 +12,9 @@ public record ClientboundSetEntityDataPacket(int id, List<SynchedEntityData.Data
+     public static final StreamCodec<RegistryFriendlyByteBuf, ClientboundSetEntityDataPacket> STREAM_CODEC = Packet.codec(
+         ClientboundSetEntityDataPacket::write, ClientboundSetEntityDataPacket::new
+     );
++    public static final StreamCodec<RegistryFriendlyByteBuf, ClientboundSetEntityDataPacket> THREAD_SAFE_STREAM_CODEC = Packet.codec( // Leaves - Fix CME on Replay API
++            ClientboundSetEntityDataPacket::safeWrite, ClientboundSetEntityDataPacket::new
++    );
+     public static final int EOF_MARKER = 255;
+ 
+     private ClientboundSetEntityDataPacket(RegistryFriendlyByteBuf buf) {
+@@ -44,6 +47,24 @@ public record ClientboundSetEntityDataPacket(int id, List<SynchedEntityData.Data
+         pack(this.packedItems, buf);
+     }
+ 
++    // Leaves start - Fix CMI on Replay API
++    private static void safePack(List<SynchedEntityData.DataValue<?>> trackedValues, RegistryFriendlyByteBuf buf) {
++        final List<SynchedEntityData.DataValue<?>> values = new ArrayList<>(trackedValues);
++        try (var ignored = io.papermc.paper.util.DataSanitizationUtil.start(true)) { // Paper - data sanitization
++            for (SynchedEntityData.DataValue<?> dataValue : values) {
++                dataValue.write(buf);
++            }
++        } // Paper - data sanitization
++
++        buf.writeByte(255);
++    }
++
++    private void safeWrite(RegistryFriendlyByteBuf buf) {
++        buf.writeVarInt(this.id);
++        safePack(this.packedItems, buf);
++    }
++    // Leaves end
++
+     @Override
+     public PacketType<ClientboundSetEntityDataPacket> type() {
+         return GamePacketTypes.CLIENTBOUND_SET_ENTITY_DATA;
 diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
 index d45c979b37b157482f7ad04b4fe2b2d26f1581f0..8d07bfa8709bb1d522672df739ea8c794c4cfe05 100644
 --- a/src/main/java/net/minecraft/server/MinecraftServer.java
@@ -1058,10 +1097,10 @@ index 0000000000000000000000000000000000000000..8978fe0c7ed092334618e27892f940ee
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/replay/ReplayFile.java b/src/main/java/org/leavesmc/leaves/replay/ReplayFile.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..331ced8677b28827c277c64ae0b31d4d9ecd1d9b
+index 0000000000000000000000000000000000000000..32951801d1749d82f4f8cdd30e3ad70ce2d78f26
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/replay/ReplayFile.java
-@@ -0,0 +1,199 @@
+@@ -0,0 +1,209 @@
 +package org.leavesmc.leaves.replay;
 +
 +import com.google.gson.Gson;
@@ -1077,6 +1116,8 @@ index 0000000000000000000000000000000000000000..331ced8677b28827c277c64ae0b31d4d
 +import net.minecraft.network.protocol.Packet;
 +import net.minecraft.network.protocol.PacketFlow;
 +import net.minecraft.network.protocol.configuration.ConfigurationProtocols;
++import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
++import net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket;
 +import net.minecraft.network.protocol.game.GameProtocols;
 +import net.minecraft.network.protocol.handshake.HandshakeProtocols;
 +import net.minecraft.network.protocol.login.LoginProtocols;
@@ -1147,6 +1188,7 @@ index 0000000000000000000000000000000000000000..331ced8677b28827c277c64ae0b31d4d
 +            ConnectionProtocol.CONFIGURATION, ConfigurationProtocols.CLIENTBOUND,
 +            ConnectionProtocol.PLAY, GameProtocols.CLIENTBOUND_TEMPLATE.bind(RegistryFriendlyByteBuf.decorator(MinecraftServer.getServer().registryAccess()))
 +        );
++
 +    }
 +
 +    private byte @NotNull [] getPacketBytes(Packet packet, ConnectionProtocol state) { // TODO: Fix this
@@ -1155,8 +1197,15 @@ index 0000000000000000000000000000000000000000..331ced8677b28827c277c64ae0b31d4d
 +            throw new IllegalArgumentException("Unknown protocol state " + state);
 +        }
 +
-+        ByteBuf buf = Unpooled.buffer();
-+        protocol.codec().encode(buf, packet);
++        // Extremely ugly implementation, needs discussion and optimization
++        ByteBuf buf;
++        if (packet instanceof ClientboundSetEntityDataPacket setEntityDataPacket) {
++            buf = new RegistryFriendlyByteBuf(Unpooled.buffer(), MinecraftServer.getServer().registryAccess());
++            ClientboundSetEntityDataPacket.THREAD_SAFE_STREAM_CODEC.encode((RegistryFriendlyByteBuf) buf, setEntityDataPacket);
++        } else {
++            buf = Unpooled.buffer();
++            protocol.codec().encode(buf, packet);
++        }
 +
 +        buf.readerIndex(0);
 +        byte[] ret = new byte[buf.readableBytes()];

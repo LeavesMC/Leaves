@@ -536,10 +536,10 @@ index 22f1ed383313829b8af4badda9ef8dc85cae8fd1..03af280bffbd2070abaf1de4b0c96389
       */
 diff --git a/src/main/java/org/leavesmc/leaves/bot/BotCommand.java b/src/main/java/org/leavesmc/leaves/bot/BotCommand.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..b9d4431b8994f79a4569bd267a6f5680b9650bff
+index 0000000000000000000000000000000000000000..b64361c4151659d5e3f8884562cb811d60776c38
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/BotCommand.java
-@@ -0,0 +1,407 @@
+@@ -0,0 +1,472 @@
 +package org.leavesmc.leaves.bot;
 +
 +import org.bukkit.Bukkit;
@@ -550,6 +550,7 @@ index 0000000000000000000000000000000000000000..b9d4431b8994f79a4569bd267a6f5680
 +import org.bukkit.command.CommandSender;
 +import org.bukkit.command.ConsoleCommandSender;
 +import org.bukkit.craftbukkit.entity.CraftPlayer;
++import org.bukkit.craftbukkit.scheduler.CraftScheduler;
 +import org.bukkit.entity.Player;
 +import org.bukkit.generator.WorldInfo;
 +import org.bukkit.permissions.Permission;
@@ -566,11 +567,7 @@ index 0000000000000000000000000000000000000000..b9d4431b8994f79a4569bd267a6f5680
 +import org.leavesmc.leaves.event.bot.BotCreateEvent;
 +import org.leavesmc.leaves.event.bot.BotRemoveEvent;
 +
-+import java.util.ArrayList;
-+import java.util.HashMap;
-+import java.util.List;
-+import java.util.Locale;
-+import java.util.Map;
++import java.util.*;
 +import java.util.stream.Stream;
 +
 +public class BotCommand extends Command {
@@ -618,6 +615,7 @@ index 0000000000000000000000000000000000000000..b9d4431b8994f79a4569bd267a6f5680
 +                }
 +                case "create" -> list.add("<BotSkinName>");
 +                case "config" -> list.addAll(acceptConfig);
++                case "remove" -> list.addAll(List.of("cancel", "[hour]"));
 +            }
 +        }
 +
@@ -633,6 +631,16 @@ index 0000000000000000000000000000000000000000..b9d4431b8994f79a4569bd267a6f5680
 +                        list.add("false");
 +                    }
 +                }
++                case "remove" -> {
++                    if (!Objects.equals(args[3], "cancel")) {
++                        list.add("[minute]");
++                    }
++                }
++            }
++        }
++        if (args.length == 5 && args[0].equals("remove")) {
++            if (!Objects.equals(args[3], "cancel")) {
++                list.add("[second]");
 +            }
 +        }
 +
@@ -731,8 +739,8 @@ index 0000000000000000000000000000000000000000..b9d4431b8994f79a4569bd267a6f5680
 +    }
 +
 +    private void onRemove(CommandSender sender, String @NotNull [] args) {
-+        if (args.length < 2) {
-+            sender.sendMessage(ChatColor.RED + "Use /bot remove <name> to remove a fakeplayer");
++        if (args.length < 2 || args.length > 5) {
++            sender.sendMessage(ChatColor.RED + "Use /bot remove <name> [hour] [minute] [second] to remove a fakeplayer");
 +            return;
 +        }
 +
@@ -740,6 +748,63 @@ index 0000000000000000000000000000000000000000..b9d4431b8994f79a4569bd267a6f5680
 +
 +        if (bot == null) {
 +            sender.sendMessage(ChatColor.RED + "This fakeplayer is not in server");
++            return;
++        }
++
++        if (args.length > 2) {
++            if (args[2].equals("cancel")) {
++                if (bot.removeTaskId == -1) {
++                    sender.sendMessage(ChatColor.RED + "This fakeplayer is not scheduled to be removed");
++                    return;
++                }
++                Bukkit.getScheduler().cancelTask(bot.removeTaskId);
++                bot.removeTaskId = -1;
++                sender.sendMessage("Remove cancel");
++                return;
++            }
++
++            long time = 0;
++            int h; // Preventing out-of-range
++            long s = 0;
++            long m = 0;
++
++            try {
++                h = Integer.parseInt(args[2]);
++                if (h < 0) {
++                    throw new NumberFormatException();
++                }
++                time += ((long) h) * 3600 * 20;
++                if (args.length > 3) {
++                    m = Long.parseLong(args[3]);
++                    if (m > 59 || m < 0) {
++                        throw new NumberFormatException();
++                    }
++                    time += m * 60 * 20;
++                }
++                if (args.length > 4) {
++                    s = Long.parseLong(args[4]);
++                    if (s > 59 || s < 0) {
++                        throw new NumberFormatException();
++                    }
++                    time += s * 20;
++                }
++            } catch (NumberFormatException e) {
++                sender.sendMessage(ChatColor.RED + "This fakeplayer is not scheduled to be removed");
++                return;
++            }
++
++            boolean isReschedule = bot.removeTaskId != -1;
++
++            if (isReschedule) {
++                Bukkit.getScheduler().cancelTask(bot.removeTaskId);
++            }
++            bot.removeTaskId = Bukkit.getScheduler().runTaskLater(CraftScheduler.MINECRAFT, () -> {
++                bot.removeTaskId = -1;
++                bot.onRemove(BotRemoveEvent.RemoveReason.COMMAND, sender);
++            }, time).getTaskId();
++
++            sender.sendMessage("This fakeplayer will be removed in " + h + "h " + m + "m " + s + "s" + (isReschedule ? " (rescheduled)" : ""));
++
 +            return;
 +        }
 +
@@ -1426,10 +1491,10 @@ index 0000000000000000000000000000000000000000..0db337866c71283464d026a4f230016b
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/ServerBot.java b/src/main/java/org/leavesmc/leaves/bot/ServerBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..0cb04bf5c5da387b295897997ae0692eb8baab6e
+index 0000000000000000000000000000000000000000..c2c88ec8e7ef937af9c014d6511988fce1eb13f5
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/ServerBot.java
-@@ -0,0 +1,745 @@
+@@ -0,0 +1,751 @@
 +package org.leavesmc.leaves.bot;
 +
 +import com.google.common.collect.Lists;
@@ -1540,6 +1605,8 @@ index 0000000000000000000000000000000000000000..0cb04bf5c5da387b295897997ae0692e
 +    public boolean spawnPhantom;
 +    public int notSleepTicks;
 +    public boolean alwaysSendData;
++
++    public int removeTaskId = -1;
 +
 +    private ServerBot(MinecraftServer server, ServerLevel world, GameProfile profile) {
 +        super(server, world, profile, ClientInformation.createDefault());
@@ -1699,6 +1766,10 @@ index 0000000000000000000000000000000000000000..0cb04bf5c5da387b295897997ae0692e
 +    public void onRemove(BotRemoveEvent.RemoveReason reason, @Nullable CommandSender remover) {
 +        if (!new BotRemoveEvent(this.getBukkitPlayer(), reason, remover).callEvent()) {
 +            return;
++        }
++        if (this.removeTaskId != -1) {
++            Bukkit.getScheduler().cancelTask(this.removeTaskId);
++            this.removeTaskId = -1;
 +        }
 +        bots.remove(this);
 +        server.getPlayerList().removeBot(this);

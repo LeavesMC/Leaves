@@ -58,7 +58,7 @@ repositories {
 dependencies {
     remapper("net.fabricmc:tiny-remapper:0.10.3:fat")
     decompiler("org.vineflower:vineflower:1.10.1")
-    leavesclip("org.leavesmc:leavesclip:2.0.0")
+    leavesclip("org.leavesmc:leavesclip:2.0.1")
 }
 
 paperweight {

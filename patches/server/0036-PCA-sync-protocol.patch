@@ -295,10 +295,10 @@ index 0d68db20f5fbe5e834f12c1e8fd429099a44e4b6..5b62860cd64b5e6dc02dadb4651824ac
          return ShulkerBoxBlockEntity.SLOTS;
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/PcaSyncProtocol.java b/src/main/java/org/leavesmc/leaves/protocol/PcaSyncProtocol.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..7a86bdc3ddbed0399cdb909cb294d8f8bb5a894f
+index 0000000000000000000000000000000000000000..7126ec4b6e0a1bfa16d97fd21d7ae8955a66565c
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/PcaSyncProtocol.java
-@@ -0,0 +1,391 @@
+@@ -0,0 +1,432 @@
 +package org.leavesmc.leaves.protocol;
 +
 +import net.minecraft.core.BlockPos;
@@ -348,8 +348,6 @@ index 0000000000000000000000000000000000000000..7a86bdc3ddbed0399cdb909cb294d8f8
 +    // send
 +    private static final ResourceLocation ENABLE_PCA_SYNC_PROTOCOL = id("enable_pca_sync_protocol");
 +    private static final ResourceLocation DISABLE_PCA_SYNC_PROTOCOL = id("disable_pca_sync_protocol");
-+    private static final ResourceLocation UPDATE_ENTITY = id("update_entity");
-+    private static final ResourceLocation UPDATE_BLOCK_ENTITY = id("update_block_entity");
 +
 +    private static final Map<ServerPlayer, Pair<ResourceLocation, BlockPos>> playerWatchBlockPos = new HashMap<>();
 +    private static final Map<ServerPlayer, Pair<ResourceLocation, Entity>> playerWatchEntity = new HashMap<>();
@@ -367,15 +365,6 @@ index 0000000000000000000000000000000000000000..7a86bdc3ddbed0399cdb909cb294d8f8
 +    private static void onJoin(ServerPlayer player) {
 +        if (LeavesConfig.pcaSyncProtocol) {
 +            enablePcaSyncProtocol(player);
-+        }
-+    }
-+
-+    @ProtocolHandler.ReloadServer
-+    private static void onServerReload() {
-+        if (LeavesConfig.pcaSyncProtocol) {
-+            enablePcaSyncProtocolGlobal();
-+        } else {
-+            disablePcaSyncProtocolGlobal();
 +        }
 +    }
 +
@@ -400,6 +389,7 @@ index 0000000000000000000000000000000000000000..7a86bdc3ddbed0399cdb909cb294d8f8
 +        if (!LeavesConfig.pcaSyncProtocol) {
 +            return;
 +        }
++
 +        MinecraftServer server = MinecraftServer.getServer();
 +        BlockPos pos = payload.pos;
 +        ServerLevel world = player.serverLevel();
@@ -411,7 +401,7 @@ index 0000000000000000000000000000000000000000..7a86bdc3ddbed0399cdb909cb294d8f8
 +            BlockEntity blockEntityAdj = null;
 +            if (blockState.getBlock() instanceof ChestBlock) {
 +                if (blockState.getValue(ChestBlock.TYPE) != ChestType.SINGLE) {
-+                    BlockPos posAdj = pos.offset(ChestBlock.getConnectedDirection(blockState).getNormal());
++                    BlockPos posAdj = pos.relative(ChestBlock.getConnectedDirection(blockState));
 +                    // The method in World now checks that the caller is from the same thread...
 +                    blockEntityAdj = world.getChunk(posAdj).getBlockEntity(posAdj);
 +                }
@@ -443,34 +433,39 @@ index 0000000000000000000000000000000000000000..7a86bdc3ddbed0399cdb909cb294d8f8
 +        if (!LeavesConfig.pcaSyncProtocol) {
 +            return;
 +        }
++
 +        MinecraftServer server = MinecraftServer.getServer();
 +        int entityId = payload.entityId;
 +        ServerLevel world = player.serverLevel();
++
 +        server.execute(() -> {
 +            Entity entity = world.getEntity(entityId);
++
 +            if (entity != null) {
 +                clearPlayerWatchData(player);
++
 +                if (entity instanceof Player) {
-+                    if (LeavesConfig.pcaSyncPlayerEntity.equals("NOBODY")) {
-+                        return;
-+                    } else if (LeavesConfig.pcaSyncPlayerEntity.equals("BOT")) {
-+                        if (!(entity instanceof ServerBot)) {
++                    switch (LeavesConfig.pcaSyncPlayerEntity) {
++                        case NOBODY -> {
 +                            return;
 +                        }
-+                    } else if (LeavesConfig.pcaSyncPlayerEntity.equals("OPS")) {
-+                        if (!(entity instanceof ServerBot) && server.getProfilePermissions(player.getGameProfile()) < 2) {
-+                            return;
++                        case BOT -> {
++                            if (!(entity instanceof ServerBot)) {
++                                return;
++                            }
 +                        }
-+                    } else if (LeavesConfig.pcaSyncPlayerEntity.equals("OPS_AND_SELF")) {
-+                        if (!(entity instanceof ServerBot) &&
-+                            server.getProfilePermissions(player.getGameProfile()) < 2 &&
-+                            entity != player) {
-+                            return;
++                        case OPS -> {
++                            if (!(entity instanceof ServerBot) && server.getPlayerList().isOp(player.gameProfile)) {
++                                return;
++                            }
 +                        }
-+                    } else if (!LeavesConfig.pcaSyncPlayerEntity.equals("EVERYONE")) {
-+                        // wtf????
-+                        LeavesLogger.LOGGER.warning("pcaSyncPlayerEntity wtf???");
-+                        return;
++                        case OPS_AND_SELF -> {
++                            if (!(entity instanceof ServerBot) && server.getPlayerList().isOp(player.gameProfile) && entity != player) {
++                                return;
++                            }
++                        }
++                        case EVERYONE -> {}
++                        case null -> LeavesLogger.LOGGER.warning("pcaSyncPlayerEntity wtf???");
 +                    }
 +                }
 +                updateEntity(player, entity);
@@ -487,8 +482,18 @@ index 0000000000000000000000000000000000000000..7a86bdc3ddbed0399cdb909cb294d8f8
 +        });
 +    }
 +
++    public static void onConfigModify(boolean enable) {
++        if (enable) {
++            enablePcaSyncProtocolGlobal();
++        } else {
++            disablePcaSyncProtocolGlobal();
++        }
++    }
++
 +    public static void enablePcaSyncProtocol(@NotNull ServerPlayer player) {
 +        ProtocolUtils.sendEmptyPayloadPacket(player, ENABLE_PCA_SYNC_PROTOCOL);
++        lock.lock();
++        lock.unlock();
 +    }
 +
 +    public static void disablePcaSyncProtocol(@NotNull ServerPlayer player) {
@@ -497,11 +502,7 @@ index 0000000000000000000000000000000000000000..7a86bdc3ddbed0399cdb909cb294d8f8
 +
 +    public static void updateEntity(@NotNull ServerPlayer player, @NotNull Entity entity) {
 +        CompoundTag nbt = entity.saveWithoutId(new CompoundTag());
-+        ProtocolUtils.sendPayloadPacket(player, UPDATE_ENTITY, buf -> {
-+            buf.writeResourceLocation(entity.level().dimension().location());
-+            buf.writeInt(entity.getId());
-+            buf.writeNbt(nbt);
-+        });
++        ProtocolUtils.sendPayloadPacket(player, new UpdateEntityPayload(entity.level().dimension().location(), entity.getId(), nbt));
 +    }
 +
 +    public static void updateBlockEntity(@NotNull ServerPlayer player, @NotNull BlockEntity blockEntity) {
@@ -511,11 +512,7 @@ index 0000000000000000000000000000000000000000..7a86bdc3ddbed0399cdb909cb294d8f8
 +            return;
 +        }
 +
-+        ProtocolUtils.sendPayloadPacket(player, UPDATE_BLOCK_ENTITY, buf -> {
-+            buf.writeResourceLocation(world.dimension().location());
-+            buf.writeBlockPos(blockEntity.getBlockPos());
-+            buf.writeNbt(blockEntity.saveWithId(blockEntity.getLevel().registryAccess()));
-+        });
++        ProtocolUtils.sendPayloadPacket(player, new UpdateBlockEntityPayload(world.dimension().location(), blockEntity.getBlockPos(), blockEntity.saveWithoutMetadata(world.registryAccess())));
 +    }
 +
 +    private static MutablePair<ResourceLocation, Entity> getResourceLocationEntityPair(ResourceLocation ResourceLocation, Entity entity) {
@@ -575,7 +572,7 @@ index 0000000000000000000000000000000000000000..7a86bdc3ddbed0399cdb909cb294d8f8
 +
 +            if (blockState.getBlock() instanceof ChestBlock) {
 +                if (blockState.getValue(ChestBlock.TYPE) != ChestType.SINGLE) {
-+                    BlockPos posAdj = pos.offset(ChestBlock.getConnectedDirection(blockState).getNormal());
++                    BlockPos posAdj = pos.relative(ChestBlock.getConnectedDirection(blockState));
 +                    playerListAdj = getWatchPlayerList(world, posAdj);
 +                }
 +            }
@@ -650,17 +647,61 @@ index 0000000000000000000000000000000000000000..7a86bdc3ddbed0399cdb909cb294d8f8
 +        PcaSyncProtocol.clearPlayerWatchEntity(player);
 +    }
 +
++    public record UpdateEntityPayload(ResourceLocation dimension, int entityId, CompoundTag tag) implements LeavesCustomPayload<UpdateEntityPayload> {
++
++        public static final ResourceLocation UPDATE_ENTITY = PcaSyncProtocol.id("update_entity");
++
++        @New
++        public UpdateEntityPayload(ResourceLocation location, FriendlyByteBuf byteBuf) {
++            this(byteBuf.readResourceLocation(), byteBuf.readInt(), byteBuf.readNbt());
++        }
++
++        @Override
++        public void write(@NotNull FriendlyByteBuf buf) {
++            buf.writeResourceLocation(this.dimension);
++            buf.writeInt(this.entityId);
++            buf.writeNbt(this.tag);
++        }
++
++        @Override
++        public ResourceLocation id() {
++            return UPDATE_ENTITY;
++        }
++    }
++
++    public record UpdateBlockEntityPayload(ResourceLocation dimension, BlockPos blockPos, CompoundTag tag) implements LeavesCustomPayload<UpdateBlockEntityPayload> {
++
++        private static final ResourceLocation UPDATE_BLOCK_ENTITY = PcaSyncProtocol.id("update_block_entity");
++
++        @New
++        public UpdateBlockEntityPayload(ResourceLocation location, @NotNull FriendlyByteBuf byteBuf) {
++            this(byteBuf.readResourceLocation(), byteBuf.readBlockPos(), byteBuf.readNbt());
++        }
++
++        @Override
++        public void write(@NotNull FriendlyByteBuf buf) {
++            buf.writeResourceLocation(this.dimension);
++            buf.writeBlockPos(this.blockPos);
++            buf.writeNbt(this.tag);
++        }
++
++        @Override
++        public ResourceLocation id() {
++            return UPDATE_BLOCK_ENTITY;
++        }
++    }
++
 +    public record SyncBlockEntityPayload(BlockPos pos) implements LeavesCustomPayload<SyncBlockEntityPayload> {
 +
 +        public static final ResourceLocation SYNC_BLOCK_ENTITY = PcaSyncProtocol.id("sync_block_entity");
 +
 +        @New
-+        public SyncBlockEntityPayload(ResourceLocation id, FriendlyByteBuf buf) {
++        public SyncBlockEntityPayload(ResourceLocation id, @NotNull FriendlyByteBuf buf) {
 +            this(buf.readBlockPos());
 +        }
 +
 +        @Override
-+        public void write(FriendlyByteBuf buf) {
++        public void write(@NotNull FriendlyByteBuf buf) {
 +            buf.writeBlockPos(pos);
 +        }
 +
@@ -675,12 +716,12 @@ index 0000000000000000000000000000000000000000..7a86bdc3ddbed0399cdb909cb294d8f8
 +        public static final ResourceLocation SYNC_ENTITY = PcaSyncProtocol.id("sync_entity");
 +
 +        @New
-+        public SyncEntityPayload(ResourceLocation id, FriendlyByteBuf buf) {
++        public SyncEntityPayload(ResourceLocation id, @NotNull FriendlyByteBuf buf) {
 +            this(buf.readInt());
 +        }
 +
 +        @Override
-+        public void write(FriendlyByteBuf buf) {
++        public void write(@NotNull FriendlyByteBuf buf) {
 +            buf.writeInt(entityId);
 +        }
 +

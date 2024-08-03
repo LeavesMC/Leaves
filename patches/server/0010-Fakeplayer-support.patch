@@ -1510,10 +1510,10 @@ index 0000000000000000000000000000000000000000..0db337866c71283464d026a4f230016b
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/ServerBot.java b/src/main/java/org/leavesmc/leaves/bot/ServerBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..c2c88ec8e7ef937af9c014d6511988fce1eb13f5
+index 0000000000000000000000000000000000000000..f04bd729fbabbf51c432d3d8eb39f059740fd157
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/ServerBot.java
-@@ -0,0 +1,751 @@
+@@ -0,0 +1,766 @@
 +package org.leavesmc.leaves.bot;
 +
 +import com.google.common.collect.Lists;
@@ -1560,6 +1560,7 @@ index 0000000000000000000000000000000000000000..c2c88ec8e7ef937af9c014d6511988fc
 +import net.minecraft.world.level.portal.DimensionTransition;
 +import net.minecraft.world.level.storage.LevelResource;
 +import net.minecraft.world.phys.AABB;
++import net.minecraft.world.phys.EntityHitResult;
 +import net.minecraft.world.phys.Vec3;
 +import org.bukkit.Bukkit;
 +import org.bukkit.ChatColor;
@@ -1599,6 +1600,7 @@ index 0000000000000000000000000000000000000000..c2c88ec8e7ef937af9c014d6511988fc
 +import java.util.UUID;
 +import java.util.concurrent.CopyOnWriteArrayList;
 +import java.util.function.Consumer;
++import java.util.function.Predicate;
 +
 +// TODO remake all
 +public class ServerBot extends ServerPlayer {
@@ -1724,10 +1726,10 @@ index 0000000000000000000000000000000000000000..c2c88ec8e7ef937af9c014d6511988fc
 +
 +    public void renderAll() {
 +        MinecraftServer.getServer().getPlayerList().getPlayers().forEach(
-+            player -> {
-+                this.sendPlayerInfo(player);
-+                this.sendFakeData(player.connection, false);
-+            }
++                player -> {
++                    this.sendPlayerInfo(player);
++                    this.sendFakeData(player.connection, false);
++                }
 +        );
 +    }
 +
@@ -1765,7 +1767,7 @@ index 0000000000000000000000000000000000000000..c2c88ec8e7ef937af9c014d6511988fc
 +
 +    private void sendPacket(Packet<?> packet) {
 +        MinecraftServer.getServer().getPlayerList().getPlayers().forEach(
-+            player -> player.connection.send(packet)
++                player -> player.connection.send(packet)
 +        );
 +    }
 +
@@ -1925,6 +1927,19 @@ index 0000000000000000000000000000000000000000..c2c88ec8e7ef937af9c014d6511988fc
 +                entry.getValue().tryTick(this);
 +            }
 +        }
++    }
++
++    public Entity getTargetEntity(int maxDistance, Predicate<? super Entity> predicate) {
++        List<Entity> entities = this.level().getEntities((Entity) null, this.getBoundingBox(), (e -> e != this && (predicate == null || predicate.test(e))));
++        if (entities.isEmpty()) {
++            return entities.getFirst();
++        } else {
++            EntityHitResult result = this.getBukkitEntity().rayTraceEntity(3, false);
++            if (result != null && (predicate == null || predicate.test(result.getEntity()))) {
++                return result.getEntity();
++            }
++        }
++        return null;
 +    }
 +
 +    private void touch(@NotNull Entity entity) {
@@ -2214,7 +2229,7 @@ index 0000000000000000000000000000000000000000..c2c88ec8e7ef937af9c014d6511988fc
 +            this.creator = creator;
 +        }
 +
-+        public BotCreateState(Location loc, String name, String realName, String skinName, String[] skin,  BotCreateEvent.CreateReason createReason, CommandSender creator) {
++        public BotCreateState(Location loc, String name, String realName, String skinName, String[] skin, BotCreateEvent.CreateReason createReason, CommandSender creator) {
 +            this.loc = loc;
 +            this.skinName = skinName;
 +            this.skin = skin;
@@ -2582,15 +2597,14 @@ index 0000000000000000000000000000000000000000..9abcb8852ac031abaa991881a7cd6b33
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/actions/AttackAction.java b/src/main/java/org/leavesmc/leaves/bot/agent/actions/AttackAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..b230e8896f3cfe9ef714a0a4a0bfc49be5f2aa4f
+index 0000000000000000000000000000000000000000..1366939121876902669b264f2ffa05c039cbc4af
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/agent/actions/AttackAction.java
-@@ -0,0 +1,43 @@
+@@ -0,0 +1,36 @@
 +package org.leavesmc.leaves.bot.agent.actions;
 +
 +import net.minecraft.server.level.ServerPlayer;
 +import net.minecraft.world.entity.Entity;
-+import net.minecraft.world.phys.EntityHitResult;
 +import org.jetbrains.annotations.NotNull;
 +import org.leavesmc.leaves.bot.ServerBot;
 +import org.leavesmc.leaves.bot.agent.BotAction;
@@ -2615,16 +2629,10 @@ index 0000000000000000000000000000000000000000..b230e8896f3cfe9ef714a0a4a0bfc49b
 +
 +    @Override
 +    public boolean doTick(@NotNull ServerBot bot) {
-+        List<Entity> entities = bot.level().getEntities((Entity) null, bot.getBoundingBox(), (entity -> entity != bot));
-+        if (!entities.isEmpty()) {
-+            bot.attack(entities.getFirst());
++        Entity entity = bot.getTargetEntity(3, Entity::isAttackable);
++        if (entity != null) {
++            bot.attack(entity);
 +            return true;
-+        } else {
-+            EntityHitResult result = bot.getTargetEntity(3);
-+            if (result != null) {
-+                bot.attack(result.getEntity());
-+                return true;
-+            }
 +        }
 +        return false;
 +    }
@@ -3338,7 +3346,7 @@ index 0000000000000000000000000000000000000000..a69ede01e5e5df31a144f98e98711837
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/actions/UseItemToAction.java b/src/main/java/org/leavesmc/leaves/bot/agent/actions/UseItemToAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..e961c89510a676a04305f0aa2749620a96054d67
+index 0000000000000000000000000000000000000000..0dbe7fd2e63cd47f892e383d71fdbff1c0d8d2ab
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/agent/actions/UseItemToAction.java
 @@ -0,0 +1,38 @@
@@ -3346,7 +3354,7 @@ index 0000000000000000000000000000000000000000..e961c89510a676a04305f0aa2749620a
 +
 +import net.minecraft.server.level.ServerPlayer;
 +import net.minecraft.world.InteractionHand;
-+import net.minecraft.world.phys.EntityHitResult;
++import net.minecraft.world.entity.Entity;
 +import org.jetbrains.annotations.NotNull;
 +import org.leavesmc.leaves.bot.ServerBot;
 +import org.leavesmc.leaves.bot.agent.BotAction;
@@ -3371,18 +3379,18 @@ index 0000000000000000000000000000000000000000..e961c89510a676a04305f0aa2749620a
 +
 +    @Override
 +    public boolean doTick(@NotNull ServerBot bot) {
-+        EntityHitResult result = bot.getTargetEntity(3);
-+        if (result != null) {
++        Entity entity = bot.getTargetEntity(3, null);
++        if (entity != null) {
 +            bot.swing(InteractionHand.MAIN_HAND);
 +            bot.updateItemInHand(InteractionHand.MAIN_HAND);
-+            return bot.interactOn(result.getEntity(), InteractionHand.MAIN_HAND).consumesAction();
++            return bot.interactOn(entity, InteractionHand.MAIN_HAND).consumesAction();
 +        }
 +        return false;
 +    }
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/actions/UseItemToOffhandAction.java b/src/main/java/org/leavesmc/leaves/bot/agent/actions/UseItemToOffhandAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..46c8dad4a6205e3e460b82f8ce5617f832381806
+index 0000000000000000000000000000000000000000..0e3895073bcfb5944c7147395338d750137e1386
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/agent/actions/UseItemToOffhandAction.java
 @@ -0,0 +1,38 @@
@@ -3390,7 +3398,7 @@ index 0000000000000000000000000000000000000000..46c8dad4a6205e3e460b82f8ce5617f8
 +
 +import net.minecraft.server.level.ServerPlayer;
 +import net.minecraft.world.InteractionHand;
-+import net.minecraft.world.phys.EntityHitResult;
++import net.minecraft.world.entity.Entity;
 +import org.jetbrains.annotations.NotNull;
 +import org.leavesmc.leaves.bot.ServerBot;
 +import org.leavesmc.leaves.bot.agent.BotAction;
@@ -3415,11 +3423,11 @@ index 0000000000000000000000000000000000000000..46c8dad4a6205e3e460b82f8ce5617f8
 +
 +    @Override
 +    public boolean doTick(@NotNull ServerBot bot) {
-+        EntityHitResult result = bot.getTargetEntity(3);
-+        if (result != null) {
++        Entity entity = bot.getTargetEntity(3, null);
++        if (entity != null) {
 +            bot.swing(InteractionHand.OFF_HAND);
 +            bot.updateItemInHand(InteractionHand.OFF_HAND);
-+            return bot.interactOn(result.getEntity(), InteractionHand.OFF_HAND).consumesAction();
++            return bot.interactOn(entity, InteractionHand.OFF_HAND).consumesAction();
 +        }
 +        return false;
 +    }

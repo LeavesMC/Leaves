@@ -1555,10 +1555,10 @@ index 0000000000000000000000000000000000000000..0db337866c71283464d026a4f230016b
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/ServerBot.java b/src/main/java/org/leavesmc/leaves/bot/ServerBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..2ab3ca511b62ef89a655b59481089ba2a9bac762
+index 0000000000000000000000000000000000000000..f05e769328ee4b32c0cb21da65f8502d7167353b
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/ServerBot.java
-@@ -0,0 +1,754 @@
+@@ -0,0 +1,757 @@
 +package org.leavesmc.leaves.bot;
 +
 +import com.google.common.collect.Lists;
@@ -1736,7 +1736,6 @@ index 0000000000000000000000000000000000000000..2ab3ca511b62ef89a655b59481089ba2
 +
 +        bot.teleportTo(location.getX(), location.getY(), location.getZ());
 +        bot.setRot(location.getYaw(), location.getPitch());
-+        bot.getBukkitEntity().setRotation(location.getYaw(), location.getPitch());
 +        world.addFreshEntity(bot, CreatureSpawnEvent.SpawnReason.COMMAND);
 +
 +        bot.renderAll();
@@ -2084,7 +2083,11 @@ index 0000000000000000000000000000000000000000..2ab3ca511b62ef89a655b59481089ba2
 +            sendPacket(new ClientboundRotateHeadPacket(this, (byte) (yaw * 256 / 360f)));
 +        }
 +
-+        setRot(yaw, pitch);
++        this.setRot(yaw, pitch);
++    }
++
++    @Override
++    public void setRot(float yaw, float pitch) {
 +        this.getBukkitEntity().setRotation(yaw, pitch);
 +    }
 +
@@ -2460,10 +2463,10 @@ index 0000000000000000000000000000000000000000..d626ac47af400d01993c358fa5a93671
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/Actions.java b/src/main/java/org/leavesmc/leaves/bot/agent/Actions.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..5555d5fc7bc169cd08f6760b296a83d9d9853118
+index 0000000000000000000000000000000000000000..15cbf363f587a27d55f4bc7ec897787158a7d534
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/agent/Actions.java
-@@ -0,0 +1,65 @@
+@@ -0,0 +1,66 @@
 +package org.leavesmc.leaves.bot.agent;
 +
 +import org.jetbrains.annotations.Contract;
@@ -2496,6 +2499,7 @@ index 0000000000000000000000000000000000000000..5555d5fc7bc169cd08f6760b296a83d9
 +        register(new UseItemOffHandAction());
 +        register(new UseItemOnOffhandAction());
 +        register(new UseItemToOffhandAction());
++        register(new RotationAction());
 +    }
 +
 +    public static boolean register(@NotNull BotAction action) {
@@ -3075,6 +3079,56 @@ index 0000000000000000000000000000000000000000..fe872cad0cbf9ede825e0561cdb4ecb2
 +    @Override
 +    public boolean doTick(@NotNull ServerBot bot) {
 +        bot.faceLocation(player.getBukkitEntity().getLocation());
++        return true;
++    }
++}
+diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/actions/RotationAction.java b/src/main/java/org/leavesmc/leaves/bot/agent/actions/RotationAction.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..6983bf8555058cb715328f761df80d0b89c0b8f0
+--- /dev/null
++++ b/src/main/java/org/leavesmc/leaves/bot/agent/actions/RotationAction.java
+@@ -0,0 +1,44 @@
++package org.leavesmc.leaves.bot.agent.actions;
++
++import net.minecraft.server.level.ServerPlayer;
++import org.jetbrains.annotations.NotNull;
++import org.leavesmc.leaves.bot.ServerBot;
++import org.leavesmc.leaves.bot.agent.BotAction;
++import org.leavesmc.leaves.command.CommandArgument;
++import org.leavesmc.leaves.command.CommandArgumentResult;
++import org.leavesmc.leaves.command.CommandArgumentType;
++
++import java.util.List;
++
++public class RotationAction extends BotAction {
++
++    public RotationAction() {
++        super("rotation", new CommandArgument(CommandArgumentType.FLOAT, CommandArgumentType.FLOAT));
++        setTabComplete(0, List.of("<yaw>"));
++        setTabComplete(1, List.of("<pitch>"));
++    }
++
++    @Override
++    public BotAction getNew(@NotNull ServerPlayer player, @NotNull CommandArgumentResult result) {
++        return new RotationAction().setYaw(result.readFloat(player.getYRot())).setPitch(result.readFloat(player.getXRot())).setTickDelay(0).setNumber(1);
++    }
++
++    private float yaw;
++    private float pitch;
++
++    public RotationAction setYaw(float yaw) {
++        this.yaw = yaw;
++        return this;
++    }
++
++    public RotationAction setPitch(float pitch) {
++        this.pitch = pitch;
++        return this;
++    }
++
++    @Override
++    public boolean doTick(@NotNull ServerBot bot) {
++        bot.setRot(yaw, pitch);
 +        return true;
 +    }
 +}

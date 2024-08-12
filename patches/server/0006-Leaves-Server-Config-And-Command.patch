@@ -85,7 +85,7 @@ index c2c421b1caf76b40542fdc436801accbe97a38cb..29f139fb4d70a9a362ac0a30579eb0b4
                          .withRequiredArg()
 diff --git a/src/main/java/org/leavesmc/leaves/LeavesConfig.java b/src/main/java/org/leavesmc/leaves/LeavesConfig.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..5009708d8875f2a88e76f4a48c180d616c2547a6
+index 0000000000000000000000000000000000000000..f554b8e61a31c307bb46fa007c54f2b842be4dfc
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/LeavesConfig.java
 @@ -0,0 +1,939 @@
@@ -201,7 +201,7 @@ index 0000000000000000000000000000000000000000..5009708d8875f2a88e76f4a48c180d61
 +    }
 +
 +    @RemovedConfig(name = "unable-fakeplayer-names", category = "fakeplayer", transform = true)
-+    @GlobalConfig(name = "unable-fakeplayer-names", category = {"modify", "fakeplayer"}, verify = ConfigVerify.ListConfigVerify.class)
++    @GlobalConfig(name = "unable-fakeplayer-names", category = {"modify", "fakeplayer"}, verify = ConfigVerify.ListConfigVerify.STRING.class)
 +    public static List<String> unableFakeplayerNames = List.of("player-name");
 +
 +    @GlobalConfig(name = "limit", category = {"modify", "fakeplayer"}, verify = ConfigVerify.IntConfigVerify.class)
@@ -892,7 +892,7 @@ index 0000000000000000000000000000000000000000..5009708d8875f2a88e76f4a48c180d61
 +    @GlobalConfig(name = "allow-experimental", category = {"misc", "auto-update"})
 +    public static Boolean autoUpdateAllowExperimental = false;
 +
-+    @GlobalConfig(name = "time", category = {"misc", "auto-update"}, lock = true, verify = ConfigVerify.ListConfigVerify.class)
++    @GlobalConfig(name = "time", category = {"misc", "auto-update"}, lock = true, verify = ConfigVerify.ListConfigVerify.STRING.class)
 +    public static List<String> autoUpdateTime = List.of("14:00", "2:00");
 +
 +    // Leaves end - misc - auto-update
@@ -916,13 +916,13 @@ index 0000000000000000000000000000000000000000..5009708d8875f2a88e76f4a48c180d61
 +    @GlobalConfig(name = "login-protect", category = {"misc", "extra-yggdrasil-service"})
 +    public static boolean extraYggdrasilLoginProtect = false;
 +
-+    @GlobalConfig(name = "urls", category = {"misc", "extra-yggdrasil-service"}, verify = ExtraYggdrasilUrlsVerify.class)
++    @GlobalConfig(name = "urls", category = {"misc", "extra-yggdrasil-service"}, lock = true, verify = ExtraYggdrasilUrlsVerify.class)
 +    public static List<String> extraYggdrasilServiceList = List.of("https://url.with.authlib-injector-yggdrasil");
 +
-+    public static class ExtraYggdrasilUrlsVerify extends ConfigVerify.ListConfigVerify {
++    public static class ExtraYggdrasilUrlsVerify extends ConfigVerify.ListConfigVerify<String> {
 +        @Override
-+        public String check(List<?> old, List<?> value) {
-+            org.leavesmc.leaves.profile.LeavesMinecraftSessionService.initExtraYggdrasilList();
++        public String check(List<String> old, List<String> value) {
++            org.leavesmc.leaves.profile.LeavesMinecraftSessionService.initExtraYggdrasilList(value);
 +            return null;
 +        }
 +    }
@@ -1463,10 +1463,10 @@ index 0000000000000000000000000000000000000000..3ddeff82e31178c9c1bb1737c9a28a81
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/config/ConfigVerify.java b/src/main/java/org/leavesmc/leaves/config/ConfigVerify.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..08ffa951d8fd835f075c45021f56cec19f03e7fc
+index 0000000000000000000000000000000000000000..e3cfc606222f27f029ff8e4d1fd370685e76e325
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/config/ConfigVerify.java
-@@ -0,0 +1,90 @@
+@@ -0,0 +1,93 @@
 +package org.leavesmc.leaves.config;
 +
 +import java.lang.reflect.ParameterizedType;
@@ -1522,9 +1522,12 @@ index 0000000000000000000000000000000000000000..08ffa951d8fd835f075c45021f56cec1
 +        }
 +    }
 +
-+    class ListConfigVerify implements ConfigVerify<List<?>> {
++    abstract class ListConfigVerify<E> implements ConfigVerify<List<E>> {
++        public static class STRING extends ListConfigVerify<String> {
++        }
++
 +        @Override
-+        public List<?> convert(String value) {
++        public List<E> convert(String value) {
 +            throw new IllegalArgumentException("not support"); // TODO
 +        }
 +    }
@@ -1539,7 +1542,7 @@ index 0000000000000000000000000000000000000000..08ffa951d8fd835f075c45021f56cec1
 +            Type genericSuperclass = getClass().getGenericSuperclass();
 +            Type[] typeArguments = ((ParameterizedType) genericSuperclass).getActualTypeArguments();
 +            this.enumClass = (Class<E>) typeArguments[0];
-+            this.enumValues = new ArrayList<>(){{
++            this.enumValues = new ArrayList<>() {{
 +                for (E e : enumClass.getEnumConstants()) {
 +                    add(e.name().toLowerCase(Locale.ROOT));
 +                }

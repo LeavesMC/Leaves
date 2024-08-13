@@ -38,7 +38,7 @@ index a108ebfe472c908e86e0af2cfd9cb63083f58eb5..f97b2cb3ea855e6e250cabf357a050cd
  
          this.setPvpAllowed(dedicatedserverproperties.pvp);
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index c8b82bc41f2042bb4b067f06265a3a22e51f7629..a02aafe76e1bd09e0f62a4b0bed648553ef92d47 100644
+index f6de1c6e8fd9086b7bd725f75ee2606583591d6a..a45a6fa9a2338626ba0d08061f327d41ac457f14 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 @@ -1098,6 +1098,7 @@ public final class CraftServer implements Server {
@@ -65,7 +65,7 @@ index c8b82bc41f2042bb4b067f06265a3a22e51f7629..a02aafe76e1bd09e0f62a4b0bed64855
          @Override
          public void restart() {
 diff --git a/src/main/java/org/bukkit/craftbukkit/Main.java b/src/main/java/org/bukkit/craftbukkit/Main.java
-index c2c421b1caf76b40542fdc436801accbe97a38cb..29f139fb4d70a9a362ac0a30579eb0b47676cbf6 100644
+index d97771ecaf06b92d92b5ca0224ae0866e36703a6..439305bb4f5ce232aa6237276c121d53054ab2a7 100644
 --- a/src/main/java/org/bukkit/craftbukkit/Main.java
 +++ b/src/main/java/org/bukkit/craftbukkit/Main.java
 @@ -168,6 +168,14 @@ public class Main {
@@ -85,10 +85,10 @@ index c2c421b1caf76b40542fdc436801accbe97a38cb..29f139fb4d70a9a362ac0a30579eb0b4
                          .withRequiredArg()
 diff --git a/src/main/java/org/leavesmc/leaves/LeavesConfig.java b/src/main/java/org/leavesmc/leaves/LeavesConfig.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..f554b8e61a31c307bb46fa007c54f2b842be4dfc
+index 0000000000000000000000000000000000000000..abba58d7b3711db8372ffa3de1c47a13b23a284f
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/LeavesConfig.java
-@@ -0,0 +1,939 @@
+@@ -0,0 +1,944 @@
 +package org.leavesmc.leaves;
 +
 +import com.destroystokyo.paper.util.SneakyThrow;
@@ -314,6 +314,9 @@ index 0000000000000000000000000000000000000000..f554b8e61a31c307bb46fa007c54f2b8
 +
 +    @GlobalConfig(name = "fix-fortress-mob-spawn", category = {"modify", "minecraft-old"})
 +    public static boolean fixFortressMobSpawn = false;
++
++    @GlobalConfig(name = "old-block-entity-behaviour", category = {"modify", "minecraft-old"})
++    public static boolean oldBlockEntityBehaviour = false;
 +
 +    // Leaves end - modify - minecraft-old
 +
@@ -832,7 +835,7 @@ index 0000000000000000000000000000000000000000..f554b8e61a31c307bb46fa007c54f2b8
 +
 +    private static class AlternativePlaceVerify extends ConfigVerify.EnumConfigVerify<AlternativePlaceType> {
 +        @Override
-+        public void runAfterLoader(Enum<AlternativePlaceType> value) {
++        public void runAfterLoader(Enum<AlternativePlaceType> value, boolean firstLoad) {
 +            if (value != AlternativePlaceType.NONE) {
 +                disableDistanceCheckForUseItem = true;
 +            }
@@ -869,15 +872,17 @@ index 0000000000000000000000000000000000000000..f554b8e61a31c307bb46fa007c54f2b8
 +
 +    private static class AutoUpdateVerify extends ConfigVerify.BooleanConfigVerify {
 +        @Override
-+        public void runAfterLoader(Boolean value) {
-+            org.leavesmc.leaves.util.LeavesUpdateHelper.init();
-+            if (value) {
-+                LeavesLogger.LOGGER.warning("Auto-Update is not completely safe. Enabling it may cause data security problems!");
++        public void runAfterLoader(Boolean value, boolean firstLoad) {
++            if (firstLoad) {
++                org.leavesmc.leaves.util.LeavesUpdateHelper.init();
++                if (value) {
++                    LeavesLogger.LOGGER.warning("Auto-Update is not completely safe. Enabling it may cause data security problems!");
++                }
 +            }
 +        }
 +    }
 +
-+    @GlobalConfig(name = "download-source", category = {"misc", "auto-update"}, verify = DownloadSourceVerify.class)
++    @GlobalConfig(name = "download-source", category = {"misc", "auto-update"}, lock = true, verify = DownloadSourceVerify.class)
 +    public static String autoUpdateSource = "application";
 +
 +    public static class DownloadSourceVerify extends ConfigVerify.StringConfigVerify {
@@ -1463,7 +1468,7 @@ index 0000000000000000000000000000000000000000..3ddeff82e31178c9c1bb1737c9a28a81
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/config/ConfigVerify.java b/src/main/java/org/leavesmc/leaves/config/ConfigVerify.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..e3cfc606222f27f029ff8e4d1fd370685e76e325
+index 0000000000000000000000000000000000000000..4594434e120f2a42481112c4c68ab53b844fba6f
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/config/ConfigVerify.java
 @@ -0,0 +1,93 @@
@@ -1485,7 +1490,7 @@ index 0000000000000000000000000000000000000000..e3cfc606222f27f029ff8e4d1fd37068
 +        return List.of("<value>");
 +    }
 +
-+    default void runAfterLoader(E value) {
++    default void runAfterLoader(E value, boolean firstLoad) {
 +    }
 +
 +    class BooleanConfigVerify implements ConfigVerify<Boolean> {
@@ -1649,7 +1654,7 @@ index 0000000000000000000000000000000000000000..67d4365d25714c3732274e5ab21981a3
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/config/GlobalConfigManager.java b/src/main/java/org/leavesmc/leaves/config/GlobalConfigManager.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..0addf5a2f5e015b73b8a02e8f3eef79790eb4587
+index 0000000000000000000000000000000000000000..b77e7d9e0870f6a72795cee32e779548989e85b0
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/config/GlobalConfigManager.java
 @@ -0,0 +1,192 @@
@@ -1727,7 +1732,7 @@ index 0000000000000000000000000000000000000000..0addf5a2f5e015b73b8a02e8f3eef797
 +            }
 +        }
 +
-+        verifiedConfigs.forEach((path, config) -> config.verify.runAfterLoader(config.get()));
++        verifiedConfigs.forEach((path, config) -> config.verify.runAfterLoader(config.get(), firstLoad));
 +
 +        firstLoad = false;
 +        LeavesConfig.save();

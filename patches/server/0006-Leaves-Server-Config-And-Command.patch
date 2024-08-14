@@ -85,10 +85,10 @@ index d97771ecaf06b92d92b5ca0224ae0866e36703a6..439305bb4f5ce232aa6237276c121d53
                          .withRequiredArg()
 diff --git a/src/main/java/org/leavesmc/leaves/LeavesConfig.java b/src/main/java/org/leavesmc/leaves/LeavesConfig.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..abba58d7b3711db8372ffa3de1c47a13b23a284f
+index 0000000000000000000000000000000000000000..a45b71149dc76503e82238ba9dfc8af4cfd3eb9d
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/LeavesConfig.java
-@@ -0,0 +1,944 @@
+@@ -0,0 +1,922 @@
 +package org.leavesmc.leaves;
 +
 +import com.destroystokyo.paper.util.SneakyThrow;
@@ -99,7 +99,7 @@ index 0000000000000000000000000000000000000000..abba58d7b3711db8372ffa3de1c47a13
 +import org.bukkit.command.Command;
 +import org.bukkit.configuration.file.YamlConfiguration;
 +import org.leavesmc.leaves.command.LeavesCommand;
-+import org.leavesmc.leaves.config.ConfigVerify;
++import org.leavesmc.leaves.config.ConfigVerifyImpl;
 +import org.leavesmc.leaves.config.GlobalConfig;
 +import org.leavesmc.leaves.config.GlobalConfigManager;
 +import org.leavesmc.leaves.config.RemovedConfig;
@@ -187,30 +187,29 @@ index 0000000000000000000000000000000000000000..abba58d7b3711db8372ffa3de1c47a13
 +    @GlobalConfig(name = "enable", category = {"modify", "fakeplayer"}, verify = FakeplayerVerify.class)
 +    public static boolean fakeplayerSupport = true;
 +
-+    private static class FakeplayerVerify extends ConfigVerify.BooleanConfigVerify {
++    private static class FakeplayerVerify extends ConfigVerifyImpl.BooleanConfigVerify {
 +        @Override
-+        public String check(Boolean old, Boolean value) {
++        public void check(Boolean old, Boolean value) throws IllegalArgumentException {
 +            if (value) {
 +                registerCommand("bot", new org.leavesmc.leaves.bot.BotCommand("bot"));
 +                org.leavesmc.leaves.bot.agent.Actions.registerAll();
 +            } else {
 +                unregisterCommand("bot");
 +            }
-+            return null;
 +        }
 +    }
 +
 +    @RemovedConfig(name = "unable-fakeplayer-names", category = "fakeplayer", transform = true)
-+    @GlobalConfig(name = "unable-fakeplayer-names", category = {"modify", "fakeplayer"}, verify = ConfigVerify.ListConfigVerify.STRING.class)
++    @GlobalConfig(name = "unable-fakeplayer-names", category = {"modify", "fakeplayer"}, verify = ConfigVerifyImpl.ListConfigVerify.STRING.class)
 +    public static List<String> unableFakeplayerNames = List.of("player-name");
 +
-+    @GlobalConfig(name = "limit", category = {"modify", "fakeplayer"}, verify = ConfigVerify.IntConfigVerify.class)
++    @GlobalConfig(name = "limit", category = {"modify", "fakeplayer"}, verify = ConfigVerifyImpl.IntConfigVerify.class)
 +    public static int fakeplayerLimit = 10;
 +
-+    @GlobalConfig(name = "prefix", category = {"modify", "fakeplayer"}, verify = ConfigVerify.StringConfigVerify.class)
++    @GlobalConfig(name = "prefix", category = {"modify", "fakeplayer"}, verify = ConfigVerifyImpl.StringConfigVerify.class)
 +    public static String fakeplayerPrefix = "";
 +
-+    @GlobalConfig(name = "suffix", category = {"modify", "fakeplayer"}, verify = ConfigVerify.StringConfigVerify.class)
++    @GlobalConfig(name = "suffix", category = {"modify", "fakeplayer"}, verify = ConfigVerifyImpl.StringConfigVerify.class)
 +    public static String fakeplayerSuffix = "";
 +
 +    @GlobalConfig(name = "always-send-data", category = {"modify", "fakeplayer"})
@@ -231,10 +230,12 @@ index 0000000000000000000000000000000000000000..abba58d7b3711db8372ffa3de1c47a13
 +    @GlobalConfig(name = "regen-amount", category = {"modify", "fakeplayer"}, verify = RegenAmountVerify.class)
 +    public static double fakeplayerRegenAmount = 0.010;
 +
-+    private static class RegenAmountVerify extends ConfigVerify.DoubleConfigVerify {
++    private static class RegenAmountVerify extends ConfigVerifyImpl.DoubleConfigVerify {
 +        @Override
-+        public String check(Double old, Double value) {
-+            return value > 0.0 ? null : "regen-amount need > 0.0f";
++        public void check(Double old, Double value) throws IllegalArgumentException {
++            if (value <= 0.0) {
++                throw new IllegalArgumentException("regen-amount need > 0.0f");
++            }
 +        }
 +    }
 +
@@ -266,11 +267,10 @@ index 0000000000000000000000000000000000000000..abba58d7b3711db8372ffa3de1c47a13
 +    @GlobalConfig(name = "villager-infinite-discounts", category = {"modify", "minecraft-old"}, verify = VillagerInfiniteDiscountsVerify.class)
 +    public static boolean villagerInfiniteDiscounts = false;
 +
-+    private static class VillagerInfiniteDiscountsVerify extends ConfigVerify.BooleanConfigVerify {
++    private static class VillagerInfiniteDiscountsVerify extends ConfigVerifyImpl.BooleanConfigVerify {
 +        @Override
-+        public String check(Boolean old, Boolean value) {
++        public void check(Boolean old, Boolean value) throws IllegalArgumentException {
 +            org.leavesmc.leaves.util.VillagerInfiniteDiscountHelper.doVillagerInfiniteDiscount(value);
-+            return null;
 +        }
 +    }
 +
@@ -292,11 +292,10 @@ index 0000000000000000000000000000000000000000..abba58d7b3711db8372ffa3de1c47a13
 +    @GlobalConfig(name = "rng-fishing", category = {"modify", "minecraft-old"}, lock = true, verify = RNGFishingVerify.class)
 +    public static boolean rngFishing = false;
 +
-+    private static class RNGFishingVerify extends ConfigVerify.BooleanConfigVerify {
++    private static class RNGFishingVerify extends ConfigVerifyImpl.BooleanConfigVerify {
 +        @Override
-+        public String check(Boolean old, Boolean value) {
++        public void check(Boolean old, Boolean value) throws IllegalArgumentException {
 +            LeavesFeatureSet.register(LeavesFeature.of("rng_fishing", value));
-+            return null;
 +        }
 +    }
 +
@@ -325,19 +324,19 @@ index 0000000000000000000000000000000000000000..abba58d7b3711db8372ffa3de1c47a13
 +    @GlobalConfig(name = "no-chunk-load", category = {"modify", "elytra-aeronautics"})
 +    public static boolean elytraAeronauticsNoChunk = false;
 +
-+    @GlobalConfig(name = "no-chunk-height", category = {"modify", "elytra-aeronautics"}, verify = ConfigVerify.DoubleConfigVerify.class)
++    @GlobalConfig(name = "no-chunk-height", category = {"modify", "elytra-aeronautics"}, verify = ConfigVerifyImpl.DoubleConfigVerify.class)
 +    public static double elytraAeronauticsNoChunkHeight = 500.0D;
 +
-+    @GlobalConfig(name = "no-chunk-speed", category = {"modify", "elytra-aeronautics"}, verify = ConfigVerify.DoubleConfigVerify.class)
++    @GlobalConfig(name = "no-chunk-speed", category = {"modify", "elytra-aeronautics"}, verify = ConfigVerifyImpl.DoubleConfigVerify.class)
 +    public static double elytraAeronauticsNoChunkSpeed = -1.0D;
 +
 +    @GlobalConfig(name = "message", category = {"modify", "elytra-aeronautics"})
 +    public static boolean elytraAeronauticsNoChunkMes = true;
 +
-+    @GlobalConfig(name = "message-start", category = {"modify", "elytra-aeronautics"}, verify = ConfigVerify.StringConfigVerify.class)
++    @GlobalConfig(name = "message-start", category = {"modify", "elytra-aeronautics"}, verify = ConfigVerifyImpl.StringConfigVerify.class)
 +    public static String elytraAeronauticsNoChunkStartMes = "Flight enter cruise mode";
 +
-+    @GlobalConfig(name = "message-end", category = {"modify", "elytra-aeronautics"}, verify = ConfigVerify.StringConfigVerify.class)
++    @GlobalConfig(name = "message-end", category = {"modify", "elytra-aeronautics"}, verify = ConfigVerifyImpl.StringConfigVerify.class)
 +    public static String elytraAeronauticsNoChunkEndMes = "Flight exit cruise mode";
 +
 +    // Leaves end - modify - elytra-aeronautics
@@ -371,10 +370,12 @@ index 0000000000000000000000000000000000000000..abba58d7b3711db8372ffa3de1c47a13
 +    @GlobalConfig(name = "renewable-elytra", category = "modify", verify = RenewableElytraVerify.class)
 +    public static double renewableElytra = -1.0F;
 +
-+    private static class RenewableElytraVerify extends ConfigVerify.DoubleConfigVerify {
++    private static class RenewableElytraVerify extends ConfigVerifyImpl.DoubleConfigVerify {
 +        @Override
-+        public String check(Double old, Double value) {
-+            return value <= 1.0 ? null : "renewable-elytra need <= 1.0f";
++        public void check(Double old, Double value) throws IllegalArgumentException {
++            if (value > 1.0) {
++                throw new IllegalArgumentException("renewable-elytra need <= 1.0f");
++            }
 +        }
 +    }
 +
@@ -382,12 +383,11 @@ index 0000000000000000000000000000000000000000..abba58d7b3711db8372ffa3de1c47a13
 +    @GlobalConfig(name = "stackable-shulker-boxes", category = "modify", verify = StackableShulkerVerify.class)
 +    private static String stackableShulkerBoxes = "false";
 +
-+    private static class StackableShulkerVerify extends ConfigVerify.StringConfigVerify {
++    private static class StackableShulkerVerify extends ConfigVerifyImpl.StringConfigVerify {
 +        @Override
-+        public String check(String old, String value) {
++        public void check(String old, String value) throws IllegalArgumentException {
 +            String realValue = MathUtils.isNumeric(value) ? value : value.equals("true") ? "2" : "1";
 +            shulkerBoxStackSize = Integer.parseInt(realValue);
-+            return null;
 +        }
 +    }
 +
@@ -400,13 +400,12 @@ index 0000000000000000000000000000000000000000..abba58d7b3711db8372ffa3de1c47a13
 +    @GlobalConfig(name = "mc-technical-survival-mode", category = "modify", verify = McTechnicalModeVerify.class, lock = true)
 +    public static boolean mcTechnicalMode = true;
 +
-+    private static class McTechnicalModeVerify extends ConfigVerify.BooleanConfigVerify {
++    private static class McTechnicalModeVerify extends ConfigVerifyImpl.BooleanConfigVerify {
 +        @Override
-+        public String check(Boolean old, Boolean value) {
++        public void check(Boolean old, Boolean value) throws IllegalArgumentException {
 +            if (value) {
 +                org.leavesmc.leaves.util.McTechnicalModeHelper.doMcTechnicalMode();
 +            }
-+            return null;
 +        }
 +    }
 +
@@ -416,11 +415,10 @@ index 0000000000000000000000000000000000000000..abba58d7b3711db8372ffa3de1c47a13
 +    @GlobalConfig(name = "use-vanilla-random", category = "modify", lock = true, verify = UseVanillaRandomVerify.class)
 +    public static boolean useVanillaRandom = false;
 +
-+    private static class UseVanillaRandomVerify extends ConfigVerify.BooleanConfigVerify {
++    private static class UseVanillaRandomVerify extends ConfigVerifyImpl.BooleanConfigVerify {
 +        @Override
-+        public String check(Boolean old, Boolean value) {
++        public void check(Boolean old, Boolean value) throws IllegalArgumentException {
 +            LeavesFeatureSet.register(LeavesFeature.of("use_vanilla_random", value));
-+            return null;
 +        }
 +    }
 +
@@ -433,13 +431,12 @@ index 0000000000000000000000000000000000000000..abba58d7b3711db8372ffa3de1c47a13
 +    @GlobalConfig(name = "disable-distance-check-for-use-item", category = "modify", verify = DisableDistanceCheckForUseItemVerify.class)
 +    public static boolean disableDistanceCheckForUseItem = false;
 +
-+    private static class DisableDistanceCheckForUseItemVerify extends ConfigVerify.BooleanConfigVerify {
++    private static class DisableDistanceCheckForUseItemVerify extends ConfigVerifyImpl.BooleanConfigVerify {
 +        @Override
-+        public String check(Boolean old, Boolean value) {
++        public void check(Boolean old, Boolean value) throws IllegalArgumentException {
 +            if (alternativeBlockPlacement != AlternativePlaceType.NONE && !value) {
-+                return "alternative-block-placement is enable, disable-distance-check-for-use-item always need true";
++                throw new IllegalArgumentException("alternative-block-placement is enable, disable-distance-check-for-use-item always need true");
 +            }
-+            return null;
 +        }
 +    }
 +
@@ -458,11 +455,10 @@ index 0000000000000000000000000000000000000000..abba58d7b3711db8372ffa3de1c47a13
 +    @GlobalConfig(name = "creative-no-clip", category = "modify", verify = CreativeNoClipVerify.class)
 +    public static boolean creativeNoClip = false;
 +
-+    private static class CreativeNoClipVerify extends ConfigVerify.BooleanConfigVerify {
++    private static class CreativeNoClipVerify extends ConfigVerifyImpl.BooleanConfigVerify {
 +        @Override
-+        public String check(Boolean old, Boolean value) {
++        public void check(Boolean old, Boolean value) throws IllegalArgumentException {
 +            CarpetRules.register(CarpetRule.of("carpet", "creativeNoClip", value));
-+            return null;
 +        }
 +    }
 +
@@ -478,11 +474,10 @@ index 0000000000000000000000000000000000000000..abba58d7b3711db8372ffa3de1c47a13
 +    @GlobalConfig(name = "lava-riptide", category = "modify", verify = LavaRiptideVerify.class)
 +    public static boolean lavaRiptide = false;
 +
-+    private static class LavaRiptideVerify extends ConfigVerify.BooleanConfigVerify {
++    private static class LavaRiptideVerify extends ConfigVerifyImpl.BooleanConfigVerify {
 +        @Override
-+        public String check(Boolean old, Boolean value) {
++        public void check(Boolean old, Boolean value) throws IllegalArgumentException {
 +            LeavesFeatureSet.register(LeavesFeature.of("lava_riptide", value));
-+            return null;
 +        }
 +    }
 +
@@ -492,15 +487,14 @@ index 0000000000000000000000000000000000000000..abba58d7b3711db8372ffa3de1c47a13
 +    @GlobalConfig(name = "no-tnt-place-update", category = "modify")
 +    public static boolean noTNTPlaceUpdate = false;
 +
-+    private static class NoBlockUpdateVerify extends ConfigVerify.BooleanConfigVerify {
++    private static class NoBlockUpdateVerify extends ConfigVerifyImpl.BooleanConfigVerify {
 +        @Override
-+        public String check(Boolean old, Boolean value) {
++        public void check(Boolean old, Boolean value) throws IllegalArgumentException {
 +            if (value) {
 +                registerCommand("blockupdate", new org.leavesmc.leaves.command.NoBlockUpdateCommand("blockupdate"));
 +            } else {
 +                unregisterCommand("blockupdate");
 +            }
-+            return null;
 +        }
 +    }
 +
@@ -513,11 +507,10 @@ index 0000000000000000000000000000000000000000..abba58d7b3711db8372ffa3de1c47a13
 +    @GlobalConfig(name = "avoid-anvil-too-expensive", category = "modify", verify = AnvilNotExpensiveVerify.class)
 +    public static boolean avoidAnvilTooExpensive = false;
 +
-+    private static class AnvilNotExpensiveVerify extends ConfigVerify.BooleanConfigVerify {
++    private static class AnvilNotExpensiveVerify extends ConfigVerifyImpl.BooleanConfigVerify {
 +        @Override
-+        public String check(Boolean old, Boolean value) {
++        public void check(Boolean old, Boolean value) throws IllegalArgumentException {
 +            CarpetRules.register(CarpetRule.of("pca", "avoidAnvilTooExpensive", value));
-+            return null;
 +        }
 +    }
 +
@@ -530,10 +523,12 @@ index 0000000000000000000000000000000000000000..abba58d7b3711db8372ffa3de1c47a13
 +    @GlobalConfig(name = "spider-jockeys-drop-gapples", category = "modify", verify = JockeysDropGAppleVerify.class)
 +    public static double spiderJockeysDropGapples = -1.0;
 +
-+    private static class JockeysDropGAppleVerify extends ConfigVerify.DoubleConfigVerify {
++    private static class JockeysDropGAppleVerify extends ConfigVerifyImpl.DoubleConfigVerify {
 +        @Override
-+        public String check(Double old, Double value) {
-+            return value <= 1.0 ? null : "spider-jockeys-drop-gapples need <= 1.0f";
++        public void check(Double old, Double value) throws IllegalArgumentException {
++            if (value > 1.0) {
++                throw new IllegalArgumentException("spider-jockeys-drop-gapples need <= 1.0f");
++            }
 +        }
 +    }
 +
@@ -550,11 +545,10 @@ index 0000000000000000000000000000000000000000..abba58d7b3711db8372ffa3de1c47a13
 +        FALSE, TRUE, EXPANDED
 +    }
 +
-+    private static class RenewableCoralVerify extends ConfigVerify.EnumConfigVerify<RenewableCoralType> {
++    private static class RenewableCoralVerify extends ConfigVerifyImpl.EnumConfigVerify<RenewableCoralType> {
 +        @Override
-+        public String check(Enum<RenewableCoralType> old, Enum<RenewableCoralType> value) {
++        public void check(RenewableCoralType old, RenewableCoralType value) throws IllegalArgumentException {
 +            CarpetRules.register(CarpetRule.of("carpet", "renewableCoral", value));
-+            return null;
 +        }
 +    }
 +
@@ -564,13 +558,12 @@ index 0000000000000000000000000000000000000000..abba58d7b3711db8372ffa3de1c47a13
 +    @GlobalConfig(name = "force-peaceful-mode", category = "modify", verify = ForcePeacefulModeVerify.class)
 +    public static int forcePeacefulMode = -1;
 +
-+    private static class ForcePeacefulModeVerify extends ConfigVerify.IntConfigVerify {
++    private static class ForcePeacefulModeVerify extends ConfigVerifyImpl.IntConfigVerify {
 +        @Override
-+        public String check(Integer old, Integer value) {
++        public void check(Integer old, Integer value) throws IllegalArgumentException {
 +            for (ServerLevel level : MinecraftServer.getServer().getAllLevels()) {
 +                level.chunkSource.peacefulModeSwitchTick = value;
 +            }
-+            return null;
 +        }
 +    }
 +
@@ -752,21 +745,22 @@ index 0000000000000000000000000000000000000000..abba58d7b3711db8372ffa3de1c47a13
 +    @GlobalConfig(name = "mspt-sync-protocol", category = {"protocol", "bladeren"}, verify = MSPTSyncVerify.class)
 +    public static boolean msptSyncProtocol = false;
 +
-+    private static class MSPTSyncVerify extends ConfigVerify.BooleanConfigVerify {
++    private static class MSPTSyncVerify extends ConfigVerifyImpl.BooleanConfigVerify {
 +        @Override
-+        public String check(Boolean old, Boolean value) {
++        public void check(Boolean old, Boolean value) throws IllegalArgumentException {
 +            LeavesFeatureSet.register(LeavesFeature.of("mspt_sync", value));
-+            return null;
 +        }
 +    }
 +
 +    @GlobalConfig(name = "mspt-sync-tick-interval", category = {"protocol", "bladeren"}, verify = MSPTSyncIntervalVerify.class)
 +    public static int msptSyncTickInterval = 20;
 +
-+    private static class MSPTSyncIntervalVerify extends ConfigVerify.IntConfigVerify {
++    private static class MSPTSyncIntervalVerify extends ConfigVerifyImpl.IntConfigVerify {
 +        @Override
-+        public String check(Integer old, Integer value) {
-+            return value > 0 ? null : "mspt-sync-tick-interval need > 0";
++        public void check(Integer old, Integer value) throws IllegalArgumentException {
++            if (value <= 0) {
++                throw new IllegalArgumentException("mspt-sync-tick-interval need > 0");
++            }
 +        }
 +    }
 +
@@ -780,16 +774,15 @@ index 0000000000000000000000000000000000000000..abba58d7b3711db8372ffa3de1c47a13
 +    @GlobalConfig(name = "quota", category = {"protocol", "syncmatica"})
 +    public static boolean syncmaticaQuota = false;
 +
-+    @GlobalConfig(name = "quota-limit", category = {"protocol", "syncmatica"}, verify = ConfigVerify.IntConfigVerify.class)
++    @GlobalConfig(name = "quota-limit", category = {"protocol", "syncmatica"}, verify = ConfigVerifyImpl.IntConfigVerify.class)
 +    public static int syncmaticaQuotaLimit = 40000000;
 +
-+    public static class SyncmaticaVerify extends ConfigVerify.BooleanConfigVerify {
++    public static class SyncmaticaVerify extends ConfigVerifyImpl.BooleanConfigVerify {
 +        @Override
-+        public String check(Boolean old, Boolean value) {
++        public void check(Boolean old, Boolean value) throws IllegalArgumentException {
 +            if (value) {
 +                org.leavesmc.leaves.protocol.syncmatica.SyncmaticaProtocol.init();
 +            }
-+            return null;
 +        }
 +    }
 +
@@ -799,13 +792,12 @@ index 0000000000000000000000000000000000000000..abba58d7b3711db8372ffa3de1c47a13
 +    @GlobalConfig(name = "pca-sync-protocol", category = {"protocol", "pca"}, verify = PcaVerify.class)
 +    public static boolean pcaSyncProtocol = false;
 +
-+    public static class PcaVerify extends ConfigVerify.BooleanConfigVerify {
++    public static class PcaVerify extends ConfigVerifyImpl.BooleanConfigVerify {
 +        @Override
-+        public String check(Boolean old, Boolean value) {
++        public void check(Boolean old, Boolean value) throws IllegalArgumentException {
 +            if (old != null && old != value) {
 +                org.leavesmc.leaves.protocol.PcaSyncProtocol.onConfigModify(value);
 +            }
-+            return null;
 +        }
 +    }
 +
@@ -817,7 +809,7 @@ index 0000000000000000000000000000000000000000..abba58d7b3711db8372ffa3de1c47a13
 +        NOBODY, BOT, OPS, OPS_AND_SELF, EVERYONE
 +    }
 +
-+    private static class PcaPlayerEntityVerify extends ConfigVerify.EnumConfigVerify<PcaPlayerEntityType> {
++    private static class PcaPlayerEntityVerify extends ConfigVerifyImpl.EnumConfigVerify<PcaPlayerEntityType> {
 +    }
 +
 +    @GlobalConfig(name = "bbor-protocol", category = "protocol")
@@ -833,9 +825,9 @@ index 0000000000000000000000000000000000000000..abba58d7b3711db8372ffa3de1c47a13
 +        NONE, CARPET, CARPET_FIX, LITEMATICA
 +    }
 +
-+    private static class AlternativePlaceVerify extends ConfigVerify.EnumConfigVerify<AlternativePlaceType> {
++    private static class AlternativePlaceVerify extends ConfigVerifyImpl.EnumConfigVerify<AlternativePlaceType> {
 +        @Override
-+        public void runAfterLoader(Enum<AlternativePlaceType> value, boolean firstLoad) {
++        public void runAfterLoader(AlternativePlaceType value, boolean firstLoad) {
 +            if (value != AlternativePlaceType.NONE) {
 +                disableDistanceCheckForUseItem = true;
 +            }
@@ -848,7 +840,7 @@ index 0000000000000000000000000000000000000000..abba58d7b3711db8372ffa3de1c47a13
 +    @GlobalConfig(name = "xaero-map-protocol", category = "protocol")
 +    public static boolean xaeroMapProtocol = false;
 +
-+    @GlobalConfig(name = "xaero-map-server-id", category = "protocol", verify = ConfigVerify.IntConfigVerify.class)
++    @GlobalConfig(name = "xaero-map-server-id", category = "protocol", verify = ConfigVerifyImpl.IntConfigVerify.class)
 +    public static int xaeroMapServerID = new Random().nextInt();
 +
 +    @RemovedConfig(name = "servux-protocol", category = "protocol", transform = true)
@@ -870,7 +862,7 @@ index 0000000000000000000000000000000000000000..abba58d7b3711db8372ffa3de1c47a13
 +    @GlobalConfig(name = "enable", category = {"misc", "auto-update"}, lock = true, verify = AutoUpdateVerify.class)
 +    public static boolean autoUpdate = false;
 +
-+    private static class AutoUpdateVerify extends ConfigVerify.BooleanConfigVerify {
++    private static class AutoUpdateVerify extends ConfigVerifyImpl.BooleanConfigVerify {
 +        @Override
 +        public void runAfterLoader(Boolean value, boolean firstLoad) {
 +            if (firstLoad) {
@@ -885,7 +877,7 @@ index 0000000000000000000000000000000000000000..abba58d7b3711db8372ffa3de1c47a13
 +    @GlobalConfig(name = "download-source", category = {"misc", "auto-update"}, lock = true, verify = DownloadSourceVerify.class)
 +    public static String autoUpdateSource = "application";
 +
-+    public static class DownloadSourceVerify extends ConfigVerify.StringConfigVerify {
++    public static class DownloadSourceVerify extends ConfigVerifyImpl.StringConfigVerify {
 +        private static final List<String> suggestSourceList = List.of("application", "ghproxy", "cloud");
 +
 +        @Override
@@ -897,7 +889,7 @@ index 0000000000000000000000000000000000000000..abba58d7b3711db8372ffa3de1c47a13
 +    @GlobalConfig(name = "allow-experimental", category = {"misc", "auto-update"})
 +    public static Boolean autoUpdateAllowExperimental = false;
 +
-+    @GlobalConfig(name = "time", category = {"misc", "auto-update"}, lock = true, verify = ConfigVerify.ListConfigVerify.STRING.class)
++    @GlobalConfig(name = "time", category = {"misc", "auto-update"}, lock = true, verify = ConfigVerifyImpl.ListConfigVerify.STRING.class)
 +    public static List<String> autoUpdateTime = List.of("14:00", "2:00");
 +
 +    // Leaves end - misc - auto-update
@@ -907,14 +899,13 @@ index 0000000000000000000000000000000000000000..abba58d7b3711db8372ffa3de1c47a13
 +    @GlobalConfig(name = "enable", category = {"misc", "extra-yggdrasil-service"}, verify = ExtraYggdrasilVerify.class)
 +    public static boolean extraYggdrasilService = false;
 +
-+    public static class ExtraYggdrasilVerify extends ConfigVerify.BooleanConfigVerify {
++    public static class ExtraYggdrasilVerify extends ConfigVerifyImpl.BooleanConfigVerify {
 +        @Override
-+        public String check(Boolean old, Boolean value) {
++        public void check(Boolean old, Boolean value) throws IllegalArgumentException {
 +            if (value) {
 +                LeavesLogger.LOGGER.warning("extra-yggdrasil-service is an unofficial support. Enabling it may cause data security problems!");
 +                GlobalConfiguration.get().unsupportedSettings.performUsernameValidation = true; // always check username
 +            }
-+            return null;
 +        }
 +    }
 +
@@ -924,11 +915,10 @@ index 0000000000000000000000000000000000000000..abba58d7b3711db8372ffa3de1c47a13
 +    @GlobalConfig(name = "urls", category = {"misc", "extra-yggdrasil-service"}, lock = true, verify = ExtraYggdrasilUrlsVerify.class)
 +    public static List<String> extraYggdrasilServiceList = List.of("https://url.with.authlib-injector-yggdrasil");
 +
-+    public static class ExtraYggdrasilUrlsVerify extends ConfigVerify.ListConfigVerify<String> {
++    public static class ExtraYggdrasilUrlsVerify extends ConfigVerifyImpl.ListConfigVerify<String> {
 +        @Override
-+        public String check(List<String> old, List<String> value) {
++        public void check(List<String> old, List<String> value) throws IllegalArgumentException {
 +            org.leavesmc.leaves.profile.LeavesMinecraftSessionService.initExtraYggdrasilList(value);
-+            return null;
 +        }
 +    }
 +
@@ -947,19 +937,18 @@ index 0000000000000000000000000000000000000000..abba58d7b3711db8372ffa3de1c47a13
 +    @GlobalConfig(name = "server-lang", category = "misc", lock = true, verify = ServerLangVerify.class)
 +    public static String serverLang = "en_us";
 +
-+    private static class ServerLangVerify extends ConfigVerify.StringConfigVerify {
++    private static class ServerLangVerify extends ConfigVerifyImpl.StringConfigVerify {
 +        private static final List<String> supportLang = List.of("en_us", "zh_cn");
 +
 +        @Override
-+        public String check(String old, String value) {
++        public void check(String old, String value) throws IllegalArgumentException {
 +            if (!supportLang.contains(value)) {
-+                return "server-lang value error";
++                throw new IllegalArgumentException("lang " + value + " not supported");
 +            }
-+            return null;
 +        }
 +    }
 +
-+    @GlobalConfig(name = "server-mod-name", category = "misc", verify = ConfigVerify.StringConfigVerify.class)
++    @GlobalConfig(name = "server-mod-name", category = "misc", verify = ConfigVerifyImpl.StringConfigVerify.class)
 +    public static String serverModName = "Leaves";
 +
 +    @GlobalConfig(name = "bstats-privacy-mode", category = "misc")
@@ -975,29 +964,19 @@ index 0000000000000000000000000000000000000000..abba58d7b3711db8372ffa3de1c47a13
 +
 +    // Leaves start - region
 +
-+    public static org.leavesmc.leaves.region.RegionFileFormat regionFormatName = org.leavesmc.leaves.region.RegionFileFormat.ANVIL;
 +    @GlobalConfig(name = "format", category = "region", lock = true, verify = RegionFormatVerify.class)
-+    public static String regionFormat = "ANVIL";
++    public static org.leavesmc.leaves.region.RegionFileFormat regionFormat = org.leavesmc.leaves.region.RegionFileFormat.ANVIL;
 +
-+    private static class RegionFormatVerify extends ConfigVerify.StringConfigVerify {
-+        @Override
-+        public String check(String old, String value) {
-+            org.leavesmc.leaves.region.RegionFileFormat format = org.leavesmc.leaves.region.RegionFileFormat.fromString(value);
-+            if (format == org.leavesmc.leaves.region.RegionFileFormat.INVALID) {
-+                return "Unknown region format " + value;
-+            }
-+            regionFormatName = format;
-+            return null;
-+        }
++    private static class RegionFormatVerify extends ConfigVerifyImpl.EnumConfigVerify<org.leavesmc.leaves.region.RegionFileFormat> {
 +    }
 +
-+    @GlobalConfig(name = "flush-frequency", category = {"region", "linear"}, lock = true, verify = ConfigVerify.IntConfigVerify.class)
++    @GlobalConfig(name = "flush-frequency", category = {"region", "linear"}, lock = true, verify = ConfigVerifyImpl.IntConfigVerify.class)
 +    public static int linearFlushFrequency = 10;
 +
 +    @GlobalConfig(name = "auto-convert-anvil-to-linear", category = {"region", "linear"}, lock = true)
 +    public static boolean autoConvertAnvilToLinear = false;
 +
-+    @GlobalConfig(name = "flush-max-threads", category = {"region", "linear"}, lock = true, verify = ConfigVerify.IntConfigVerify.class)
++    @GlobalConfig(name = "flush-max-threads", category = {"region", "linear"}, lock = true, verify = ConfigVerifyImpl.IntConfigVerify.class)
 +    public static int linearFlushThreads = 1;
 +
 +    public static int getLinearFlushThreads() {
@@ -1011,13 +990,12 @@ index 0000000000000000000000000000000000000000..abba58d7b3711db8372ffa3de1c47a13
 +    @GlobalConfig(name = "compression-level", category = {"region", "linear"}, lock = true, verify = LinearCompressVerify.class)
 +    public static int linearCompressionLevel = 1;
 +
-+    private static class LinearCompressVerify extends ConfigVerify.IntConfigVerify {
++    private static class LinearCompressVerify extends ConfigVerifyImpl.IntConfigVerify {
 +        @Override
-+        public String check(Integer old, Integer value) {
++        public void check(Integer old, Integer value) throws IllegalArgumentException {
 +            if (value < 1 || value > 22) {
-+                return "linear.compression-level need between 1 and 22";
++                throw new IllegalArgumentException("linear.compression-level need between 1 and 22");
 +            }
-+            return null;
 +        }
 +    }
 +
@@ -1363,10 +1341,10 @@ index 0000000000000000000000000000000000000000..4b61fccc71d98a7b69bb7f88fb88ea0a
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/command/subcommands/ConfigCommand.java b/src/main/java/org/leavesmc/leaves/command/subcommands/ConfigCommand.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..4b937f9626e89f2de1ae990151ca241573380e46
+index 0000000000000000000000000000000000000000..e24d89294707e53dd54027133087a439748546d5
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/command/subcommands/ConfigCommand.java
-@@ -0,0 +1,86 @@
+@@ -0,0 +1,83 @@
 +package org.leavesmc.leaves.command.subcommands;
 +
 +import io.papermc.paper.command.CommandUtil;
@@ -1440,9 +1418,6 @@ index 0000000000000000000000000000000000000000..4b937f9626e89f2de1ae990151ca2415
 +            case 2 -> {
 +                GlobalConfigManager.VerifiedConfig verifiedConfig = GlobalConfigManager.getVerifiedConfig(args[0]);
 +                if (verifiedConfig != null) {
-+                    if (verifiedConfig.config().lock()) {
-+                        return Collections.singletonList("<LOCKED CONFIG>");
-+                    }
 +                    return CommandUtil.getListMatchingLast(sender, args, verifiedConfig.verify().valueSuggest());
 +                } else {
 +                    return Collections.singletonList("<ERROR CONFIG>");
@@ -1455,35 +1430,43 @@ index 0000000000000000000000000000000000000000..4b937f9626e89f2de1ae990151ca2415
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/config/ConfigConvert.java b/src/main/java/org/leavesmc/leaves/config/ConfigConvert.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..3ddeff82e31178c9c1bb1737c9a28a81e70f71e5
+index 0000000000000000000000000000000000000000..2ce05259acfeb2e28895502b72afd66938bf520b
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/config/ConfigConvert.java
-@@ -0,0 +1,7 @@
+@@ -0,0 +1,20 @@
 +package org.leavesmc.leaves.config;
 +
 +public interface ConfigConvert<E> {
 +
-+    E convert(String value);
++    E convert(String value) throws IllegalArgumentException;
 +
++    default E loadConvert(Object value) throws IllegalArgumentException {
++        try {
++            return (E) value;
++        } catch (ClassCastException e) {
++            throw new IllegalArgumentException(e);
++        }
++    }
++
++    default Object saveConvert(E value) {
++        return value;
++    }
++
++    Class<E> getFieldClass();
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/config/ConfigVerify.java b/src/main/java/org/leavesmc/leaves/config/ConfigVerify.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..4594434e120f2a42481112c4c68ab53b844fba6f
+index 0000000000000000000000000000000000000000..b77b9648829268d7fa591e059ddbc584a38ebd49
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/config/ConfigVerify.java
-@@ -0,0 +1,93 @@
+@@ -0,0 +1,16 @@
 +package org.leavesmc.leaves.config;
 +
-+import java.lang.reflect.ParameterizedType;
-+import java.lang.reflect.Type;
-+import java.util.ArrayList;
 +import java.util.List;
-+import java.util.Locale;
 +
 +public interface ConfigVerify<E> extends ConfigConvert<E> {
 +
-+    default String check(E old, E value) {
-+        return null;
++    default void check(E old, E value) throws IllegalArgumentException {
 +    }
 +
 +    default List<String> valueSuggest() {
@@ -1492,11 +1475,47 @@ index 0000000000000000000000000000000000000000..4594434e120f2a42481112c4c68ab53b
 +
 +    default void runAfterLoader(E value, boolean firstLoad) {
 +    }
++}
+diff --git a/src/main/java/org/leavesmc/leaves/config/ConfigVerifyImpl.java b/src/main/java/org/leavesmc/leaves/config/ConfigVerifyImpl.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..b0a71eaaeebb9887ee74f3a06fe46fc9ff41c7cb
+--- /dev/null
++++ b/src/main/java/org/leavesmc/leaves/config/ConfigVerifyImpl.java
+@@ -0,0 +1,117 @@
++package org.leavesmc.leaves.config;
 +
-+    class BooleanConfigVerify implements ConfigVerify<Boolean> {
++import org.jetbrains.annotations.NotNull;
++
++import java.lang.reflect.ParameterizedType;
++import java.lang.reflect.Type;
++import java.util.ArrayList;
++import java.util.List;
++import java.util.Locale;
++
++public abstract class ConfigVerifyImpl<E> implements ConfigVerify<E> {
++
++    private Class<E> fieldClass;
++
++    @SuppressWarnings("unchecked")
++    public ConfigVerifyImpl() {
++        Type superClass = getClass().getGenericSuperclass();
++        if (superClass instanceof ParameterizedType) {
++            Type[] actualTypeArguments = ((ParameterizedType) superClass).getActualTypeArguments();
++            if (actualTypeArguments[0] instanceof Class) {
++                this.fieldClass = (Class<E>) actualTypeArguments[0];
++            }
++        }
++    }
++
++    @Override
++    public Class<E> getFieldClass() {
++        return fieldClass;
++    }
++
++    public static class BooleanConfigVerify extends ConfigVerifyImpl<Boolean> {
 +
 +        @Override
-+        public Boolean convert(String value) {
++        public Boolean convert(String value) throws IllegalArgumentException {
 +            return Boolean.parseBoolean(value);
 +        }
 +
@@ -1506,38 +1525,38 @@ index 0000000000000000000000000000000000000000..4594434e120f2a42481112c4c68ab53b
 +        }
 +    }
 +
-+    class IntConfigVerify implements ConfigVerify<Integer> {
++    public static class IntConfigVerify extends ConfigVerifyImpl<Integer> {
 +        @Override
-+        public Integer convert(String value) {
++        public Integer convert(String value) throws IllegalArgumentException {
 +            return Integer.parseInt(value);
 +        }
 +    }
 +
-+    class StringConfigVerify implements ConfigVerify<String> {
++    public static class StringConfigVerify extends ConfigVerifyImpl<String> {
 +        @Override
-+        public String convert(String value) {
++        public String convert(String value) throws IllegalArgumentException {
 +            return value;
 +        }
 +    }
 +
-+    class DoubleConfigVerify implements ConfigVerify<Double> {
++    public static class DoubleConfigVerify extends ConfigVerifyImpl<Double> {
 +        @Override
-+        public Double convert(String value) {
++        public Double convert(String value) throws IllegalArgumentException {
 +            return Double.parseDouble(value);
 +        }
 +    }
 +
-+    abstract class ListConfigVerify<E> implements ConfigVerify<List<E>> {
++    public abstract static class ListConfigVerify<E> extends ConfigVerifyImpl<List<E>> {
 +        public static class STRING extends ListConfigVerify<String> {
 +        }
 +
 +        @Override
-+        public List<E> convert(String value) {
++        public List<E> convert(String value) throws IllegalArgumentException {
 +            throw new IllegalArgumentException("not support"); // TODO
 +        }
 +    }
 +
-+    class EnumConfigVerify<E extends Enum<E>> implements ConfigVerify<Enum<E>> {
++    public abstract static class EnumConfigVerify<E extends Enum<E>> extends ConfigVerifyImpl<E> {
 +
 +        private final Class<E> enumClass;
 +        private final List<String> enumValues;
@@ -1555,19 +1574,34 @@ index 0000000000000000000000000000000000000000..4594434e120f2a42481112c4c68ab53b
 +        }
 +
 +        @Override
-+        public Enum<E> convert(String value) {
++        public E convert(@NotNull String value) throws IllegalArgumentException {
 +            return Enum.valueOf(enumClass, value.toUpperCase(Locale.ROOT));
++        }
++
++        @Override
++        public E loadConvert(@NotNull Object value) throws IllegalArgumentException {
++            return this.convert(value.toString());
++        }
++
++        @Override
++        public Object saveConvert(@NotNull E value) {
++            return value.toString().toUpperCase(Locale.ROOT);
 +        }
 +
 +        @Override
 +        public List<String> valueSuggest() {
 +            return enumValues;
 +        }
++
++        @Override
++        public Class<E> getFieldClass() {
++            return enumClass;
++        }
 +    }
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/config/GlobalConfig.java b/src/main/java/org/leavesmc/leaves/config/GlobalConfig.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..1f18e2a32b937c71ddf68546c10a298b9baf8e1a
+index 0000000000000000000000000000000000000000..d55ffed5026edfa1d37e310edbb74ac56b0d0c81
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/config/GlobalConfig.java
 @@ -0,0 +1,19 @@
@@ -1588,11 +1622,11 @@ index 0000000000000000000000000000000000000000..1f18e2a32b937c71ddf68546c10a298b
 +
 +    boolean lock() default false;
 +
-+    Class<? extends ConfigVerify<?>> verify() default ConfigVerify.BooleanConfigVerify.class;
++    Class<? extends ConfigVerify<?>> verify() default ConfigVerifyImpl.BooleanConfigVerify.class;
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/config/GlobalConfigCreator.java b/src/main/java/org/leavesmc/leaves/config/GlobalConfigCreator.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..67d4365d25714c3732274e5ab21981a31e0299a6
+index 0000000000000000000000000000000000000000..26304b8d8fcfbe68325b686fe37171e2851dbd81
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/config/GlobalConfigCreator.java
 @@ -0,0 +1,56 @@
@@ -1627,7 +1661,7 @@ index 0000000000000000000000000000000000000000..67d4365d25714c3732274e5ab21981a3
 +                        GlobalConfigManager.VerifiedConfig verifiedConfig = GlobalConfigManager.VerifiedConfig.build(globalConfig, field);
 +
 +                        ConfigVerify<? super Object> verify = verifiedConfig.verify();
-+                        boolean isEnumConfig = verify instanceof ConfigVerify.EnumConfigVerify;
++                        boolean isEnumConfig = verify instanceof ConfigVerifyImpl.EnumConfigVerify;
 +
 +                        Object defValue = isEnumConfig ? field.get(null).toString() : field.get(null);
 +                        config.set(verifiedConfig.path(), defValue);
@@ -1654,10 +1688,10 @@ index 0000000000000000000000000000000000000000..67d4365d25714c3732274e5ab21981a3
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/config/GlobalConfigManager.java b/src/main/java/org/leavesmc/leaves/config/GlobalConfigManager.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..b77e7d9e0870f6a72795cee32e779548989e85b0
+index 0000000000000000000000000000000000000000..7eb14d1725bb250f8a5983bad1f4641dc51aa939
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/config/GlobalConfigManager.java
-@@ -0,0 +1,192 @@
+@@ -0,0 +1,204 @@
 +package org.leavesmc.leaves.config;
 +
 +import org.bukkit.Bukkit;
@@ -1668,7 +1702,6 @@ index 0000000000000000000000000000000000000000..b77e7d9e0870f6a72795cee32e779548
 +import java.lang.reflect.Field;
 +import java.lang.reflect.Modifier;
 +import java.util.HashMap;
-+import java.util.Locale;
 +import java.util.Map;
 +import java.util.Set;
 +import java.util.logging.Level;
@@ -1702,23 +1735,23 @@ index 0000000000000000000000000000000000000000..b77e7d9e0870f6a72795cee32e779548
 +                        }
 +
 +                        ConfigVerify<? super Object> verify = verifiedConfig.verify;
-+                        boolean isEnumConfig = verify instanceof ConfigVerify.EnumConfigVerify;
 +
-+                        Object defValue = isEnumConfig ? field.get(null).toString() : field.get(null);
++                        Object defValue = verify.saveConvert(field.get(null));
 +                        LeavesConfig.config.addDefault(verifiedConfig.path, defValue);
 +
 +                        try {
 +                            Object savedValue = LeavesConfig.config.get(verifiedConfig.path);
-+                            if (isEnumConfig && savedValue != null) {
-+                                savedValue = verify.convert(savedValue.toString());
++                            if (savedValue == null) {
++                                throw new IllegalArgumentException("?");
 +                            }
-+                            String checkInfo = verify.check(null, savedValue);
 +
-+                            if (checkInfo == null) {
-+                                field.set(null, savedValue);
-+                            } else {
-+                                throw new IllegalArgumentException(checkInfo);
++                            if (savedValue.getClass() != verify.getFieldClass()) {
++                                savedValue = verify.loadConvert(savedValue);
 +                            }
++
++                            verify.check(null, savedValue);
++
++                            field.set(null, savedValue);
 +                        } catch (IllegalArgumentException | ClassCastException e) {
 +                            LeavesConfig.config.set(verifiedConfig.path, defValue);
 +                            LeavesLogger.LOGGER.warning(e.getMessage() + ", reset to " + defValue);
@@ -1754,9 +1787,11 @@ index 0000000000000000000000000000000000000000..b77e7d9e0870f6a72795cee32e779548
 +                    Object savedValue = LeavesConfig.config.get(path);
 +                    if (savedValue != null) {
 +                        try {
-+                            Object object = convert.convert(savedValue.toString());
-+                            field.set(null, object);
-+                        } catch (Exception e) {
++                            if (savedValue.getClass() != convert.getFieldClass()) {
++                                savedValue = convert.loadConvert(savedValue);
++                            }
++                            field.set(null, savedValue);
++                        } catch (IllegalAccessException | IllegalArgumentException e) {
 +                            LeavesLogger.LOGGER.warning("Failure to load leaves config" + path, e);
 +                        }
 +                    } else {
@@ -1791,33 +1826,44 @@ index 0000000000000000000000000000000000000000..b77e7d9e0870f6a72795cee32e779548
 +    public record VerifiedConfig(GlobalConfig config, ConfigVerify<? super Object> verify, Field field, String path) {
 +
 +        public void set(String realValue) throws IllegalArgumentException {
-+            if (config.lock()) {
-+                throw new IllegalArgumentException("locked");
-+            }
-+
 +            Object value;
 +            try {
 +                value = verify.convert(realValue);
-+            } catch (Exception e) {
++            } catch (IllegalArgumentException e) {
 +                throw new IllegalArgumentException("value parse error: " + e.getMessage());
 +            }
 +
-+            String checkInfo = verify.check(this.get(), value);
-+            if (checkInfo != null) {
-+                throw new IllegalArgumentException(checkInfo);
-+            }
++            verify.check(this.get(), value);
 +
 +            try {
-+                field.set(null, value);
-+                LeavesConfig.config.set(path, verify instanceof ConfigVerify.EnumConfigVerify ? realValue.toUpperCase(Locale.ROOT) : value);
++                LeavesConfig.config.set(path, verify.saveConvert(value));
 +                LeavesConfig.save();
++                if (config.lock()) {
++                    throw new IllegalArgumentException("locked, will load after restart");
++                }
++                field.set(null, value);
 +            } catch (IllegalAccessException e) {
-+                throw new IllegalArgumentException("?");
++                throw new IllegalArgumentException(e.getMessage());
 +            }
 +        }
 +
 +        public String getString() {
-+            return this.get().toString();
++            Object value = this.get();
++
++            Object savedValue = LeavesConfig.config.get(path);
++            try {
++                if (savedValue != null) {
++                    if (verify.getFieldClass() != savedValue.getClass()) {
++                        savedValue = verify.loadConvert(savedValue);
++                    }
++
++                    if (!savedValue.equals(value)) {
++                        return value.toString() + "(" + savedValue + " after restart)";
++                    }
++                }
++            } catch (IllegalArgumentException ignore) {
++            }
++            return value.toString();
 +        }
 +
 +        public Object get() {
@@ -1852,7 +1898,7 @@ index 0000000000000000000000000000000000000000..b77e7d9e0870f6a72795cee32e779548
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/config/RemovedConfig.java b/src/main/java/org/leavesmc/leaves/config/RemovedConfig.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..df9af9e3561ad9eb77f75a6250327e6428d21d1e
+index 0000000000000000000000000000000000000000..a0f222d0fe7bbc09d3b894e121ad5b303c29375f
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/config/RemovedConfig.java
 @@ -0,0 +1,21 @@
@@ -1875,7 +1921,7 @@ index 0000000000000000000000000000000000000000..df9af9e3561ad9eb77f75a6250327e64
 +
 +    boolean transform() default false;
 +
-+    Class<? extends ConfigConvert<?>> convert() default ConfigVerify.BooleanConfigVerify.class;
++    Class<? extends ConfigConvert<?>> convert() default ConfigVerifyImpl.BooleanConfigVerify.class;
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/config/RemovedConfigs.java b/src/main/java/org/leavesmc/leaves/config/RemovedConfigs.java
 new file mode 100644

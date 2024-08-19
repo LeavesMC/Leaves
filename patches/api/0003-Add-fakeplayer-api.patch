@@ -669,12 +669,14 @@ index 0000000000000000000000000000000000000000..a369b468d4793b36dd0944a1368a70e0
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/event/bot/BotJoinEvent.java b/src/main/java/org/leavesmc/leaves/event/bot/BotJoinEvent.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..e2e0b9fe697ab3b89373264d20d013cb9f65dd40
+index 0000000000000000000000000000000000000000..07f6d81c4cd897230bbd6712dac09b8995431104
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/event/bot/BotJoinEvent.java
-@@ -0,0 +1,51 @@
+@@ -0,0 +1,66 @@
 +package org.leavesmc.leaves.event.bot;
 +
++import net.kyori.adventure.text.Component;
++import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 +import org.bukkit.event.HandlerList;
 +import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
@@ -686,11 +688,44 @@ index 0000000000000000000000000000000000000000..e2e0b9fe697ab3b89373264d20d013cb
 +public class BotJoinEvent extends BotEvent {
 +    private static final HandlerList handlers = new HandlerList();
 +
-+    private String joinMessage;
++    private Component joinMessage;
 +
-+    public BotJoinEvent(@NotNull Bot who, @Nullable final String joinMessage) {
++    public BotJoinEvent(@NotNull final Bot who, @Nullable final Component joinMessage) {
 +        super(who);
 +        this.joinMessage = joinMessage;
++    }
++
++    public BotJoinEvent(@NotNull final Bot who, @Nullable final String joinMessage) {
++        super(who);
++        this.joinMessage = joinMessage != null ? LegacyComponentSerializer.legacySection().deserialize(joinMessage) : null;
++    }
++
++    public void joinMessage(@Nullable final Component joinMessage) {
++        this.joinMessage = joinMessage;
++    }
++
++    @Nullable
++    public Component joinMessage() {
++        return joinMessage;
++    }
++
++    /**
++     * Gets the join message to send to all online players
++     *
++     * @return string join message. Can be null
++     */
++    @Nullable
++    public String getJoinMessage() {
++        return this.joinMessage == null ? null : LegacyComponentSerializer.legacySection().serialize(this.joinMessage);
++    }
++
++    /**
++     * Sets the join message to send to all online players
++     *
++     * @param joinMessage join message. If null, no message will be sent
++     */
++    public void setJoinMessage(@Nullable String joinMessage) {
++        this.joinMessage = joinMessage != null ? LegacyComponentSerializer.legacySection().deserialize(joinMessage) : null;
 +    }
 +
 +    @Override
@@ -703,35 +738,17 @@ index 0000000000000000000000000000000000000000..e2e0b9fe697ab3b89373264d20d013cb
 +    public static HandlerList getHandlerList() {
 +        return handlers;
 +    }
-+
-+
-+    /**
-+     * Gets the join message to send to all online players
-+     *
-+     * @return string join message. Can be null
-+     */
-+    @Nullable
-+    public String getJoinMessage() {
-+        return joinMessage;
-+    }
-+
-+    /**
-+     * Sets the join message to send to all online players
-+     *
-+     * @param joinMessage join message. If null, no message will be sent
-+     */
-+    public void setJoinMessage(@Nullable String joinMessage) {
-+        this.joinMessage = joinMessage;
-+    }
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/event/bot/BotRemoveEvent.java b/src/main/java/org/leavesmc/leaves/event/bot/BotRemoveEvent.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..6aee942d7db322196504d386a009e22e2aa16230
+index 0000000000000000000000000000000000000000..7af990a5ee020dfdbec2efc6aecf6393a4223730
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/event/bot/BotRemoveEvent.java
-@@ -0,0 +1,79 @@
+@@ -0,0 +1,105 @@
 +package org.leavesmc.leaves.event.bot;
 +
++import net.kyori.adventure.text.Component;
++import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 +import org.bukkit.command.CommandSender;
 +import org.bukkit.event.Cancellable;
 +import org.bukkit.event.HandlerList;
@@ -751,10 +768,12 @@ index 0000000000000000000000000000000000000000..6aee942d7db322196504d386a009e22e
 +        DEATH,
 +        INTERNAL
 +    }
++
 +    private static final HandlerList handlers = new HandlerList();
 +
 +    private final RemoveReason reason;
 +    private final Optional<CommandSender> remover;
++    private Component removeMessage;
 +    private boolean cancel = false;
 +
 +    public BotRemoveEvent(@NotNull final Bot who, @NotNull RemoveReason reason) {
@@ -762,9 +781,14 @@ index 0000000000000000000000000000000000000000..6aee942d7db322196504d386a009e22e
 +    }
 +
 +    public BotRemoveEvent(@NotNull final Bot who, @NotNull RemoveReason reason, @Nullable CommandSender remover) {
++        this(who, reason, remover, null);
++    }
++
++    public BotRemoveEvent(@NotNull final Bot who, @NotNull RemoveReason reason, @Nullable CommandSender remover, @Nullable Component removeMessage) {
 +        super(who);
 +        this.reason = reason;
 +        this.remover = Optional.ofNullable(remover);
++        this.removeMessage = removeMessage;
 +    }
 +
 +    /**
@@ -786,6 +810,23 @@ index 0000000000000000000000000000000000000000..6aee942d7db322196504d386a009e22e
 +    @NotNull
 +    public Optional<CommandSender> getRemover() {
 +        return remover;
++    }
++
++    public Component removeMessage() {
++        return removeMessage;
++    }
++
++    public void removeMessage(Component removeMessage) {
++        this.removeMessage = removeMessage;
++    }
++
++    @Nullable
++    public String getRemoveMessage() {
++        return this.removeMessage == null ? null : LegacyComponentSerializer.legacySection().serialize(this.removeMessage);
++    }
++
++    public void setRemoveMessage(@Nullable String removeMessage) {
++        this.removeMessage = removeMessage != null ? LegacyComponentSerializer.legacySection().deserialize(removeMessage) : null;
 +    }
 +
 +    @Override

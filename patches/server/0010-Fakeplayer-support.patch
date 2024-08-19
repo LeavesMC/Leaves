@@ -1555,10 +1555,10 @@ index 0000000000000000000000000000000000000000..0db337866c71283464d026a4f230016b
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/ServerBot.java b/src/main/java/org/leavesmc/leaves/bot/ServerBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..f05e769328ee4b32c0cb21da65f8502d7167353b
+index 0000000000000000000000000000000000000000..31de3025586331839870796ad9191738b96b4ef8
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/ServerBot.java
-@@ -0,0 +1,757 @@
+@@ -0,0 +1,772 @@
 +package org.leavesmc.leaves.bot;
 +
 +import com.google.common.collect.Lists;
@@ -1567,11 +1567,13 @@ index 0000000000000000000000000000000000000000..f05e769328ee4b32c0cb21da65f8502d
 +import com.google.gson.JsonObject;
 +import com.mojang.authlib.GameProfile;
 +import com.mojang.authlib.properties.Property;
++import io.papermc.paper.adventure.PaperAdventure;
 +import io.papermc.paper.event.entity.EntityKnockbackEvent;
 +import net.minecraft.Util;
 +import net.minecraft.core.BlockPos;
 +import net.minecraft.network.Connection;
 +import net.minecraft.network.PacketSendListener;
++import net.minecraft.network.chat.Component;
 +import net.minecraft.network.protocol.Packet;
 +import net.minecraft.network.protocol.PacketFlow;
 +import net.minecraft.network.protocol.game.ClientboundPlayerInfoRemovePacket;
@@ -1608,7 +1610,6 @@ index 0000000000000000000000000000000000000000..f05e769328ee4b32c0cb21da65f8502d
 +import net.minecraft.world.phys.EntityHitResult;
 +import net.minecraft.world.phys.Vec3;
 +import org.bukkit.Bukkit;
-+import org.bukkit.ChatColor;
 +import org.bukkit.Location;
 +import org.bukkit.Material;
 +import org.bukkit.command.CommandSender;
@@ -1742,11 +1743,12 @@ index 0000000000000000000000000000000000000000..f05e769328ee4b32c0cb21da65f8502d
 +        server.getPlayerList().addNewBot(bot);
 +        bots.add(bot);
 +
-+        BotJoinEvent event1 = new BotJoinEvent(bot.getBukkitPlayer(), ChatColor.YELLOW + state.name + " joined the game");
++        BotJoinEvent event1 = new BotJoinEvent(bot.getBukkitPlayer(), PaperAdventure.asAdventure(Component.translatable("multiplayer.player.joined", bot.getDisplayName())));
 +        server.server.getPluginManager().callEvent(event1);
 +
-+        if (event1.getJoinMessage() != null) {
-+            Bukkit.broadcastMessage(event1.getJoinMessage());
++        net.kyori.adventure.text.Component joinMessage = event1.joinMessage();
++        if (joinMessage != null && !joinMessage.equals(net.kyori.adventure.text.Component.empty())) {
++            server.getPlayerList().broadcastSystemMessage(PaperAdventure.asVanilla(joinMessage), false);
 +        }
 +
 +        return bot;
@@ -1828,20 +1830,28 @@ index 0000000000000000000000000000000000000000..f05e769328ee4b32c0cb21da65f8502d
 +    }
 +
 +    public void onRemove(BotRemoveEvent.RemoveReason reason, @Nullable CommandSender remover) {
-+        if (!new BotRemoveEvent(this.getBukkitPlayer(), reason, remover).callEvent()) {
++        BotRemoveEvent event = new BotRemoveEvent(this.getBukkitPlayer(), reason, remover, PaperAdventure.asAdventure(Component.translatable("multiplayer.player.left", this.getDisplayName())));
++        this.server.server.getPluginManager().callEvent(event);
++
++        if (event.isCancelled()) {
 +            return;
 +        }
-+        dropAll();
++
++        this.dropAll();
 +        if (this.removeTaskId != -1) {
 +            Bukkit.getScheduler().cancelTask(this.removeTaskId);
 +            this.removeTaskId = -1;
 +        }
 +        bots.remove(this);
-+        server.getPlayerList().removeBot(this);
-+        remove(RemovalReason.DISCARDED);
++        this.server.getPlayerList().removeBot(this);
++        this.remove(RemovalReason.DISCARDED);
 +        this.setDead();
 +        this.removeTab();
-+        Bukkit.broadcastMessage(ChatColor.YELLOW + this.getName().getString() + " left the game"); // TODO i18n
++
++        net.kyori.adventure.text.Component removeMessage = event.removeMessage();
++        if (removeMessage != null && !removeMessage.equals(net.kyori.adventure.text.Component.empty())) {
++            server.getPlayerList().broadcastSystemMessage(PaperAdventure.asVanilla(removeMessage), false);
++        }
 +    }
 +
 +    private void removeTab() {
@@ -2147,7 +2157,8 @@ index 0000000000000000000000000000000000000000..f05e769328ee4b32c0cb21da65f8502d
 +                BotInventoryOpenEvent event = new BotInventoryOpenEvent(this.getBukkitEntity(), player1.getBukkitEntity());
 +                server.server.getPluginManager().callEvent(event);
 +                if (!event.isCancelled()) {
-+                    player.openMenu(new SimpleMenuProvider((i, inventory, p) -> ChestMenu.sixRows(i, inventory, container), getDisplayName()));
++                    Component menuName = this.getDisplayName();
++                    player.openMenu(new SimpleMenuProvider((i, inventory, p) -> ChestMenu.sixRows(i, inventory, container), menuName != null ? menuName : Component.literal(this.createState.name)));
 +                    return InteractionResult.SUCCESS;
 +                }
 +            }
@@ -2195,15 +2206,18 @@ index 0000000000000000000000000000000000000000..f05e769328ee4b32c0cb21da65f8502d
 +            File file = MinecraftServer.getServer().getWorldPath(LevelResource.ROOT).resolve("fake_player.leaves.json").toFile();
 +            if (!file.isFile()) {
 +                try {
-+                    file.createNewFile();
++                    if (!file.createNewFile()) {
++                        throw new IOException("Failed to create fakeplayer file: " + file);
++                    }
 +                } catch (IOException e) {
-+                    e.printStackTrace();
++                    LeavesLogger.LOGGER.severe("Failed to save fakeplayer", e);
++                    return;
 +                }
 +            }
 +            try (BufferedWriter bfw = Files.newBufferedWriter(file.toPath(), StandardCharsets.UTF_8)) {
 +                bfw.write(new Gson().toJson(fakePlayerList));
 +            } catch (IOException e) {
-+                e.printStackTrace();
++                LeavesLogger.LOGGER.severe("Failed to save fakeplayer", e);
 +            }
 +        } else {
 +            removeAllBot(BotRemoveEvent.RemoveReason.INTERNAL);
@@ -2220,22 +2234,23 @@ index 0000000000000000000000000000000000000000..f05e769328ee4b32c0cb21da65f8502d
 +            try (BufferedReader bfr = Files.newBufferedReader(file.toPath(), StandardCharsets.UTF_8)) {
 +                fakePlayerList = new Gson().fromJson(bfr, JsonObject.class);
 +            } catch (IOException e) {
-+                e.printStackTrace();
++                LeavesLogger.LOGGER.severe("Failed to load fakeplayer", e);
 +            }
 +            for (Map.Entry<String, JsonElement> entry : fakePlayerList.entrySet()) {
 +                BotUtil.loadBot(entry);
 +            }
-+            file.delete();
++            if (!file.delete()) {
++                LeavesLogger.LOGGER.warning("Failed to delete " + file);
++            }
 +        }
 +    }
 +
-+    public static boolean removeAllBot(BotRemoveEvent.RemoveReason reason) {
++    public static void removeAllBot(BotRemoveEvent.RemoveReason reason) {
 +        Iterator<ServerBot> iterator = bots.iterator();
 +        while (iterator.hasNext()) {
 +            ServerBot bot = iterator.next();
 +            bot.onRemove(reason);
 +        }
-+        return true;
 +    }
 +
 +    public static List<ServerBot> getBots() {

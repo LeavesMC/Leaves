@@ -555,7 +555,7 @@ index 22f1ed383313829b8af4badda9ef8dc85cae8fd1..1c47e320e464af9651953ff308a2583f
                      // Paper end
 diff --git a/src/main/java/org/leavesmc/leaves/bot/BotCommand.java b/src/main/java/org/leavesmc/leaves/bot/BotCommand.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..b64361c4151659d5e3f8884562cb811d60776c38
+index 0000000000000000000000000000000000000000..918cdffedddba7cebb8013600bf3a2f5ce1e32c0
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/BotCommand.java
 @@ -0,0 +1,472 @@
@@ -710,7 +710,7 @@ index 0000000000000000000000000000000000000000..b64361c4151659d5e3f8884562cb811d
 +
 +        if (canCreate(sender, args[1])) {
 +            if (sender instanceof Player player) {
-+                new ServerBot.BotCreateState(player.getLocation(), args[1], args.length < 3 ? args[1] : args[2], BotCreateEvent.CreateReason.COMMAND, player).create(bot -> bot.createPlayer = player.getUniqueId());
++                new ServerBot.BotCreateState(player.getLocation(), args[1], args.length < 3 ? args[1] : args[2], BotCreateEvent.CreateReason.COMMAND, player).create(null);
 +            } else if (sender instanceof ConsoleCommandSender csender) {
 +                if (args.length < 6) {
 +                    sender.sendMessage(ChatColor.RED + "Use /bot create <name> <skin_name> <bukkit_world_name> <x> <y> <z> to create a fakeplayer");
@@ -1555,10 +1555,10 @@ index 0000000000000000000000000000000000000000..0db337866c71283464d026a4f230016b
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/ServerBot.java b/src/main/java/org/leavesmc/leaves/bot/ServerBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..31de3025586331839870796ad9191738b96b4ef8
+index 0000000000000000000000000000000000000000..b40a327289485c76d4637d3ae7c73671d225276e
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/ServerBot.java
-@@ -0,0 +1,772 @@
+@@ -0,0 +1,775 @@
 +package org.leavesmc.leaves.bot;
 +
 +import com.google.common.collect.Lists;
@@ -1734,6 +1734,9 @@ index 0000000000000000000000000000000000000000..31de3025586331839870796ad9191738
 +        }, bot, CommonListenerCookie.createInitial(profile, false));
 +        bot.isRealPlayer = true;
 +        bot.createState = state;
++        if (event.getCreator().isPresent() && event.getCreator().get() instanceof org.bukkit.entity.Player player) {
++            bot.createPlayer = player.getUniqueId();
++        }
 +
 +        bot.teleportTo(location.getX(), location.getY(), location.getZ());
 +        bot.setRot(location.getYaw(), location.getPitch());
@@ -3246,12 +3249,13 @@ index 0000000000000000000000000000000000000000..c91ca987eb5922b8dbcd271deb33f80b
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/actions/UseItemAction.java b/src/main/java/org/leavesmc/leaves/bot/agent/actions/UseItemAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..acc28becb88b691ecfb8cd15d86031086cba3ba3
+index 0000000000000000000000000000000000000000..11c8aabc8fd6b005958b7ef96d5ce6bdbd94644f
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/agent/actions/UseItemAction.java
-@@ -0,0 +1,33 @@
+@@ -0,0 +1,38 @@
 +package org.leavesmc.leaves.bot.agent.actions;
 +
++import net.minecraft.core.component.DataComponents;
 +import net.minecraft.server.level.ServerPlayer;
 +import net.minecraft.world.InteractionHand;
 +import org.jetbrains.annotations.NotNull;
@@ -3280,7 +3284,11 @@ index 0000000000000000000000000000000000000000..acc28becb88b691ecfb8cd15d8603108
 +    public boolean doTick(@NotNull ServerBot bot) {
 +        bot.swing(InteractionHand.MAIN_HAND);
 +        bot.updateItemInHand(InteractionHand.MAIN_HAND);
-+        return bot.gameMode.useItem(bot, bot.level(), bot.getItemInHand(InteractionHand.MAIN_HAND), InteractionHand.MAIN_HAND).consumesAction();
++        boolean success = bot.gameMode.useItem(bot, bot.level(), bot.getItemInHand(InteractionHand.MAIN_HAND), InteractionHand.MAIN_HAND).consumesAction();
++        if (success && (bot.getItemInHand(InteractionHand.MAIN_HAND).getComponents().has(DataComponents.FOOD) || bot.getItemInHand(InteractionHand.MAIN_HAND).getComponents().has(DataComponents.POTION_CONTENTS))) {
++            bot.completeUsingItem();
++        }
++        return success;
 +    }
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/actions/UseItemOffHandAction.java b/src/main/java/org/leavesmc/leaves/bot/agent/actions/UseItemOffHandAction.java

@@ -1555,10 +1555,10 @@ index 0000000000000000000000000000000000000000..0db337866c71283464d026a4f230016b
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/ServerBot.java b/src/main/java/org/leavesmc/leaves/bot/ServerBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..b40a327289485c76d4637d3ae7c73671d225276e
+index 0000000000000000000000000000000000000000..99803680553d04ee2ae6664bb6d5e937ef3aac6f
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/ServerBot.java
-@@ -0,0 +1,775 @@
+@@ -0,0 +1,777 @@
 +package org.leavesmc.leaves.bot;
 +
 +import com.google.common.collect.Lists;
@@ -1569,6 +1569,8 @@ index 0000000000000000000000000000000000000000..b40a327289485c76d4637d3ae7c73671
 +import com.mojang.authlib.properties.Property;
 +import io.papermc.paper.adventure.PaperAdventure;
 +import io.papermc.paper.event.entity.EntityKnockbackEvent;
++import net.kyori.adventure.text.format.NamedTextColor;
++import net.kyori.adventure.text.format.Style;
 +import net.minecraft.Util;
 +import net.minecraft.core.BlockPos;
 +import net.minecraft.network.Connection;
@@ -1746,7 +1748,7 @@ index 0000000000000000000000000000000000000000..b40a327289485c76d4637d3ae7c73671
 +        server.getPlayerList().addNewBot(bot);
 +        bots.add(bot);
 +
-+        BotJoinEvent event1 = new BotJoinEvent(bot.getBukkitPlayer(), PaperAdventure.asAdventure(Component.translatable("multiplayer.player.joined", bot.getDisplayName())));
++        BotJoinEvent event1 = new BotJoinEvent(bot.getBukkitPlayer(), PaperAdventure.asAdventure(Component.translatable("multiplayer.player.joined", bot.getDisplayName())).style(Style.style(NamedTextColor.YELLOW)));
 +        server.server.getPluginManager().callEvent(event1);
 +
 +        net.kyori.adventure.text.Component joinMessage = event1.joinMessage();
@@ -1833,7 +1835,7 @@ index 0000000000000000000000000000000000000000..b40a327289485c76d4637d3ae7c73671
 +    }
 +
 +    public void onRemove(BotRemoveEvent.RemoveReason reason, @Nullable CommandSender remover) {
-+        BotRemoveEvent event = new BotRemoveEvent(this.getBukkitPlayer(), reason, remover, PaperAdventure.asAdventure(Component.translatable("multiplayer.player.left", this.getDisplayName())));
++        BotRemoveEvent event = new BotRemoveEvent(this.getBukkitPlayer(), reason, remover, PaperAdventure.asAdventure(Component.translatable("multiplayer.player.left", this.getDisplayName())).style(Style.style(NamedTextColor.YELLOW)));
 +        this.server.server.getPluginManager().callEvent(event);
 +
 +        if (event.isCancelled()) {
@@ -2481,10 +2483,10 @@ index 0000000000000000000000000000000000000000..d626ac47af400d01993c358fa5a93671
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/Actions.java b/src/main/java/org/leavesmc/leaves/bot/agent/Actions.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..15cbf363f587a27d55f4bc7ec897787158a7d534
+index 0000000000000000000000000000000000000000..f24e403a7398fa8fcd978073286f9fc54aae0427
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/agent/Actions.java
-@@ -0,0 +1,66 @@
+@@ -0,0 +1,68 @@
 +package org.leavesmc.leaves.bot.agent;
 +
 +import org.jetbrains.annotations.Contract;
@@ -2518,6 +2520,8 @@ index 0000000000000000000000000000000000000000..15cbf363f587a27d55f4bc7ec8977871
 +        register(new UseItemOnOffhandAction());
 +        register(new UseItemToOffhandAction());
 +        register(new RotationAction());
++        register(new ConsumeAction());
++        register(new ConsumeOffhandAction());
 +    }
 +
 +    public static boolean register(@NotNull BotAction action) {
@@ -2801,6 +2805,119 @@ index 0000000000000000000000000000000000000000..adcce8f8c39b0a1e445f5552ce744360
 +        }
 +
 +        return f;
++    }
++}
+diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/actions/ConsumeAction.java b/src/main/java/org/leavesmc/leaves/bot/agent/actions/ConsumeAction.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..b3d2885e1d4df1e74c8d100ac42883767d3de013
+--- /dev/null
++++ b/src/main/java/org/leavesmc/leaves/bot/agent/actions/ConsumeAction.java
+@@ -0,0 +1,51 @@
++package org.leavesmc.leaves.bot.agent.actions;
++
++import net.minecraft.core.component.DataComponents;
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.world.InteractionHand;
++import net.minecraft.world.item.ItemStack;
++import org.bukkit.Bukkit;
++import org.bukkit.craftbukkit.scheduler.CraftScheduler;
++import org.jetbrains.annotations.NotNull;
++import org.leavesmc.leaves.bot.ServerBot;
++import org.leavesmc.leaves.bot.agent.BotAction;
++import org.leavesmc.leaves.command.CommandArgument;
++import org.leavesmc.leaves.command.CommandArgumentResult;
++import org.leavesmc.leaves.command.CommandArgumentType;
++
++import java.util.List;
++import java.util.concurrent.atomic.AtomicInteger;
++
++public class ConsumeAction extends BotAction {
++
++    public ConsumeAction() {
++        super("consume", new CommandArgument(CommandArgumentType.INTEGER, CommandArgumentType.INTEGER));
++        setTabComplete(0, List.of("[TickDelay]"));
++        setTabComplete(1, List.of("[DoNumber]"));
++    }
++
++    @Override
++    public BotAction getNew(@NotNull ServerPlayer player, @NotNull CommandArgumentResult result) {
++        return new ConsumeAction().setTickDelay(result.readInt(20)).setNumber(result.readInt(-1));
++    }
++
++    @Override
++    public boolean doTick(@NotNull ServerBot bot) {
++
++        ItemStack itemStack = bot.getItemInHand(InteractionHand.MAIN_HAND);
++        if (itemStack.get(DataComponents.FOOD) == null && itemStack.get(DataComponents.POTION_CONTENTS) == null) {
++            return false;
++        }
++        int consumeTick = itemStack.getUseDuration(bot);
++        bot.startUsingItem(InteractionHand.MAIN_HAND);
++        AtomicInteger count = new AtomicInteger(0);
++        Bukkit.getScheduler().runTaskTimer(CraftScheduler.MINECRAFT,  task -> {
++            if (count.getAndIncrement() > consumeTick) {
++                bot.completeUsingItem();
++                task.cancel();
++            }
++            bot.updateItemInHand(InteractionHand.MAIN_HAND);
++        }, 0, 1);
++        return true;
++    }
++}
+diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/actions/ConsumeOffhandAction.java b/src/main/java/org/leavesmc/leaves/bot/agent/actions/ConsumeOffhandAction.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..a27276715c7064d94f7147285f1c5bf61b7fac70
+--- /dev/null
++++ b/src/main/java/org/leavesmc/leaves/bot/agent/actions/ConsumeOffhandAction.java
+@@ -0,0 +1,50 @@
++package org.leavesmc.leaves.bot.agent.actions;
++
++import net.minecraft.core.component.DataComponents;
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.world.InteractionHand;
++import net.minecraft.world.item.ItemStack;
++import org.bukkit.Bukkit;
++import org.bukkit.craftbukkit.scheduler.CraftScheduler;
++import org.jetbrains.annotations.NotNull;
++import org.leavesmc.leaves.bot.ServerBot;
++import org.leavesmc.leaves.bot.agent.BotAction;
++import org.leavesmc.leaves.command.CommandArgument;
++import org.leavesmc.leaves.command.CommandArgumentResult;
++import org.leavesmc.leaves.command.CommandArgumentType;
++
++import java.util.List;
++import java.util.concurrent.atomic.AtomicInteger;
++
++public class ConsumeOffhandAction extends BotAction {
++
++    public ConsumeOffhandAction() {
++        super("consume_offhand", new CommandArgument(CommandArgumentType.INTEGER, CommandArgumentType.INTEGER));
++        setTabComplete(0, List.of("[TickDelay]"));
++        setTabComplete(1, List.of("[DoNumber]"));
++    }
++
++    @Override
++    public BotAction getNew(@NotNull ServerPlayer player, @NotNull CommandArgumentResult result) {
++        return new ConsumeOffhandAction().setTickDelay(result.readInt(20)).setNumber(result.readInt(-1));
++    }
++
++    @Override
++    public boolean doTick(@NotNull ServerBot bot) {
++        ItemStack itemStack = bot.getItemInHand(InteractionHand.OFF_HAND);
++        if (itemStack.get(DataComponents.FOOD) == null && itemStack.get(DataComponents.POTION_CONTENTS) == null) {
++            return false;
++        }
++        int consumeTick = itemStack.getUseDuration(bot);
++        bot.startUsingItem(InteractionHand.OFF_HAND);
++        AtomicInteger count = new AtomicInteger(0);
++        Bukkit.getScheduler().runTaskTimer(CraftScheduler.MINECRAFT,  task -> {
++            if (count.getAndIncrement() > consumeTick) {
++                bot.completeUsingItem();
++                task.cancel();
++            }
++            bot.updateItemInHand(InteractionHand.OFF_HAND);
++        }, 0, 1);
++        return true;
 +    }
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/actions/CraftCustomBotAction.java b/src/main/java/org/leavesmc/leaves/bot/agent/actions/CraftCustomBotAction.java
@@ -3249,10 +3366,10 @@ index 0000000000000000000000000000000000000000..c91ca987eb5922b8dbcd271deb33f80b
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/actions/UseItemAction.java b/src/main/java/org/leavesmc/leaves/bot/agent/actions/UseItemAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..11c8aabc8fd6b005958b7ef96d5ce6bdbd94644f
+index 0000000000000000000000000000000000000000..cf56fbdd461ae7f3a00043dbe979421a1dd3b5a4
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/agent/actions/UseItemAction.java
-@@ -0,0 +1,38 @@
+@@ -0,0 +1,34 @@
 +package org.leavesmc.leaves.bot.agent.actions;
 +
 +import net.minecraft.core.component.DataComponents;
@@ -3284,11 +3401,7 @@ index 0000000000000000000000000000000000000000..11c8aabc8fd6b005958b7ef96d5ce6bd
 +    public boolean doTick(@NotNull ServerBot bot) {
 +        bot.swing(InteractionHand.MAIN_HAND);
 +        bot.updateItemInHand(InteractionHand.MAIN_HAND);
-+        boolean success = bot.gameMode.useItem(bot, bot.level(), bot.getItemInHand(InteractionHand.MAIN_HAND), InteractionHand.MAIN_HAND).consumesAction();
-+        if (success && (bot.getItemInHand(InteractionHand.MAIN_HAND).getComponents().has(DataComponents.FOOD) || bot.getItemInHand(InteractionHand.MAIN_HAND).getComponents().has(DataComponents.POTION_CONTENTS))) {
-+            bot.completeUsingItem();
-+        }
-+        return success;
++        return bot.gameMode.useItem(bot, bot.level(), bot.getItemInHand(InteractionHand.MAIN_HAND), InteractionHand.MAIN_HAND).consumesAction();
 +    }
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/actions/UseItemOffHandAction.java b/src/main/java/org/leavesmc/leaves/bot/agent/actions/UseItemOffHandAction.java

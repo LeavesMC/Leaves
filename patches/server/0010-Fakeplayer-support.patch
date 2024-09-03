@@ -657,7 +657,7 @@ index 22f1ed383313829b8af4badda9ef8dc85cae8fd1..1c47e320e464af9651953ff308a2583f
                      // Paper end
 diff --git a/src/main/java/org/leavesmc/leaves/bot/BotCommand.java b/src/main/java/org/leavesmc/leaves/bot/BotCommand.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..0b2a39dbb4c2bd5c606976df7a2497812c591ace
+index 0000000000000000000000000000000000000000..1ba8de1c551066713043d1b4d63fe4d417ecc84c
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/BotCommand.java
 @@ -0,0 +1,427 @@
@@ -829,7 +829,7 @@ index 0000000000000000000000000000000000000000..0b2a39dbb4c2bd5c606976df7a249781
 +                }
 +            }
 +
-+            builder.buildAsyncWithSkin(null);
++            builder.createAsyncWithSkin(null);
 +        }
 +    }
 +
@@ -1090,10 +1090,10 @@ index 0000000000000000000000000000000000000000..0b2a39dbb4c2bd5c606976df7a249781
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/BotCreateState.java b/src/main/java/org/leavesmc/leaves/bot/BotCreateState.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..7f68e2a5b45d2284af90c057ac66f98dfba1706e
+index 0000000000000000000000000000000000000000..8d168c5698454bac37b22c8cb1fbb3af2a04ab42
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/BotCreateState.java
-@@ -0,0 +1,105 @@
+@@ -0,0 +1,115 @@
 +package org.leavesmc.leaves.bot;
 +
 +import net.minecraft.server.MinecraftServer;
@@ -1111,12 +1111,10 @@ index 0000000000000000000000000000000000000000..7f68e2a5b45d2284af90c057ac66f98d
 +
 +public record BotCreateState(String realName, String name, String skinName, String[] skin, Location location, BotCreateEvent.CreateReason createReason, CommandSender creator) {
 +
-+    public ServerBot createNow(Consumer<ServerBot> consumer) {
-+        ServerBot bot = MinecraftServer.getServer().getBotList().createNewBot(this);
-+        if (bot != null && consumer != null) {
-+            consumer.accept(bot);
-+        }
-+        return bot;
++    private static final MinecraftServer server = MinecraftServer.getServer();
++
++    public ServerBot createNow() {
++        return server.getBotList().createNewBot(this);
 +    }
 +
 +    @NotNull
@@ -1167,6 +1165,13 @@ index 0000000000000000000000000000000000000000..7f68e2a5b45d2284af90c057ac66f98d
 +            return this;
 +        }
 +
++        public Builder mojangAPISkin() {
++            if (skinName != null) {
++                this.skin = MojangAPI.getSkin(skinName);
++            }
++            return this;
++        }
++
 +        public Builder location(@NotNull Location location) {
 +            Objects.requireNonNull(location);
 +            this.location = location;
@@ -1184,18 +1189,23 @@ index 0000000000000000000000000000000000000000..7f68e2a5b45d2284af90c057ac66f98d
 +            return this;
 +        }
 +
-+        public void buildAsyncWithSkin(Consumer<ServerBot> consumer) {
-+            Bukkit.getScheduler().runTaskAsynchronously(CraftScheduler.MINECRAFT, () -> {
-+                if (skin == null && skinName != null) {
-+                    this.skin = MojangAPI.getSkin(skinName);
-+                }
-+
-+                Bukkit.getScheduler().runTask(CraftScheduler.MINECRAFT, () -> this.build().createNow(consumer));
-+            });
-+        }
-+
 +        public BotCreateState build() {
 +            return new BotCreateState(realName, name, skinName, skin, location, createReason, creator);
++        }
++
++        public void createAsyncWithSkin(Consumer<ServerBot> consumer) {
++            Bukkit.getScheduler().runTaskAsynchronously(CraftScheduler.MINECRAFT, () -> this.mojangAPISkin().create(consumer));
++        }
++
++        public void create(Consumer<ServerBot> consumer) {
++            if (!server.isSameThread()) {
++                server.executeIfPossible(() -> this.create(consumer));
++            } else {
++                ServerBot bot = this.build().createNow();
++                if (bot != null && consumer != null) {
++                    consumer.accept(bot);
++                }
++            }
 +        }
 +    }
 +}
@@ -1871,10 +1881,10 @@ index 0000000000000000000000000000000000000000..a4ef20e51872ad98f4bca6d7e27c3669
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/MojangAPI.java b/src/main/java/org/leavesmc/leaves/bot/MojangAPI.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..0db337866c71283464d026a4f230016b31d1a8cd
+index 0000000000000000000000000000000000000000..6cb1817831bf38f3bfe656d0e3a530a1b9d6003c
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/MojangAPI.java
-@@ -0,0 +1,41 @@
+@@ -0,0 +1,40 @@
 +package org.leavesmc.leaves.bot;
 +
 +import com.google.gson.JsonObject;
@@ -1882,7 +1892,7 @@ index 0000000000000000000000000000000000000000..0db337866c71283464d026a4f230016b
 +
 +import java.io.IOException;
 +import java.io.InputStreamReader;
-+import java.net.URL;
++import java.net.URI;
 +import java.util.HashMap;
 +import java.util.Map;
 +
@@ -1905,23 +1915,22 @@ index 0000000000000000000000000000000000000000..0db337866c71283464d026a4f230016b
 +    // Laggggggggggggggggggggggggggggggggggggggggg
 +    public static String[] pullFromAPI(String name) {
 +        try {
-+            String uuid = new JsonParser().parse(new InputStreamReader(new URL("https://api.mojang.com/users/profiles/minecraft/" + name)
-+                .openStream())).getAsJsonObject().get("id").getAsString();
-+            JsonObject property = new JsonParser()
-+                .parse(new InputStreamReader(new URL("https://sessionserver.mojang.com/session/minecraft/profile/" + uuid + "?unsigned=false")
-+                    .openStream())).getAsJsonObject().get("properties").getAsJsonArray().get(0).getAsJsonObject();
-+            return new String[] {property.get("value").getAsString(), property.get("signature").getAsString()};
-+        } catch (IOException | IllegalStateException e) {
++            String uuid = JsonParser.parseReader(new InputStreamReader(URI.create("https://api.mojang.com/users/profiles/minecraft/" + name).toURL().openStream()))
++                    .getAsJsonObject().get("id").getAsString();
++            JsonObject property = JsonParser.parseReader(new InputStreamReader(URI.create("https://sessionserver.mojang.com/session/minecraft/profile/" + uuid + "?unsigned=false").toURL().openStream()))
++                    .getAsJsonObject().get("properties").getAsJsonArray().get(0).getAsJsonObject();
++            return new String[]{property.get("value").getAsString(), property.get("signature").getAsString()};
++        } catch (IOException | IllegalStateException | IllegalArgumentException e) {
 +            return null;
 +        }
 +    }
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/ServerBot.java b/src/main/java/org/leavesmc/leaves/bot/ServerBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..d84b15b6e366e158a9ca99a63c05417f087e7c27
+index 0000000000000000000000000000000000000000..af413002a1dca1b5aec5d75c03f54fb9b3360346
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/ServerBot.java
-@@ -0,0 +1,543 @@
+@@ -0,0 +1,528 @@
 +package org.leavesmc.leaves.bot;
 +
 +import com.google.common.collect.ImmutableMap;
@@ -1989,17 +1998,17 @@ index 0000000000000000000000000000000000000000..d84b15b6e366e158a9ca99a63c05417f
 +import java.util.UUID;
 +import java.util.function.Predicate;
 +
-+// TODO remake all
++// TODO test
 +public class ServerBot extends ServerPlayer {
 +
 +    private final Map<Configs<?>, BotConfig<?>> configs;
 +    private final Map<String, BotAction> actions;
-+    private final int tracingRange;
 +
 +    public BotCreateState createState;
 +    public boolean waterSwim;
 +    public UUID createPlayer;
 +
++    private final int tracingRange;
 +    private final ServerStatsCounter stats;
 +    private final BotInventoryContainer container;
 +
@@ -2160,17 +2169,17 @@ index 0000000000000000000000000000000000000000..d84b15b6e366e158a9ca99a63c05417f
 +            this.setHealth(amount);
 +        }
 +
-+        // this.checkFallDamage(vec3d1.y, this.onGround(), iblockdata, blockposition);
-+
-+        Iterator<Map.Entry<String, BotAction>> iterator = actions.entrySet().iterator();
-+        while (iterator.hasNext()) {
-+            Map.Entry<String, BotAction> entry = iterator.next();
-+            if (entry.getValue().isCancel()) {
-+                iterator.remove();
-+            } else {
-+                entry.getValue().tryTick(this);
++        this.server.tell(this.server.wrapRunnable(() -> {
++            Iterator<Map.Entry<String, BotAction>> iterator = actions.entrySet().iterator();
++            while (iterator.hasNext()) {
++                Map.Entry<String, BotAction> entry = iterator.next();
++                if (entry.getValue().isCancel()) {
++                    iterator.remove();
++                } else {
++                    entry.getValue().tryTick(this);
++                }
 +            }
-+        }
++        }));
 +    }
 +
 +    public Entity getTargetEntity(int maxDistance, Predicate<? super Entity> predicate) {
@@ -2247,9 +2256,8 @@ index 0000000000000000000000000000000000000000..d84b15b6e366e158a9ca99a63c05417f
 +
 +        this.updateIsUnderwater();
 +        this.addDeltaMovement(knockback);
-+        knockback = Vec3.ZERO;
++        this.knockback = Vec3.ZERO;
 +        this.livingEntityTick();
-+        // this.moveCloak();
 +
 +        this.foodData.tick(this);
 +
@@ -2280,26 +2288,12 @@ index 0000000000000000000000000000000000000000..d84b15b6e366e158a9ca99a63c05417f
 +    public void knockback(double strength, double x, double z, @Nullable Entity attacker, @NotNull EntityKnockbackEvent.Cause cause) {
 +        strength *= 1.0D - this.getAttributeValue(Attributes.KNOCKBACK_RESISTANCE);
 +        if (strength > 0.0D) {
-+            this.hasImpulse = true;
 +            Vec3 vec3d = this.getDeltaMovement();
 +            Vec3 vec3d1 = (new Vec3(x, 0.0D, z)).normalize().scale(strength);
-+            knockback = new Vec3(vec3d.x / 2.0D - vec3d1.x, this.onGround() ? Math.min(0.4D, vec3d.y / 2.0D + strength) : vec3d.y, vec3d.z / 2.0D - vec3d1.z);
++            this.hasImpulse = true;
++            this.knockback = new Vec3(vec3d.x / 2.0D - vec3d1.x, this.onGround() ? Math.min(0.4D, vec3d.y / 2.0D + strength) : vec3d.y, vec3d.z / 2.0D - vec3d1.z).subtract(vec3d);
 +        }
 +    }
-+
-+    /*
-+    private void updateLocation() {
-+        this.velocity = new Vec3(this.xxa, this.yya, this.zza);
-+
-+        if (waterSwim && isInWater()) {
-+            this.addDeltaMovement(new Vec3(0, 0.05, 0));
-+        }
-+        this.addDeltaMovement(knockback);
-+        knockback = Vec3.ZERO;
-+
-+        this.travel(this.velocity);
-+    }
-+     */
 +
 +    public void faceLocation(@NotNull Location loc) {
 +        this.look(loc.toVector().subtract(getLocation().toVector()), false);

@@ -657,14 +657,15 @@ index 22f1ed383313829b8af4badda9ef8dc85cae8fd1..1c47e320e464af9651953ff308a2583f
                      // Paper end
 diff --git a/src/main/java/org/leavesmc/leaves/bot/BotCommand.java b/src/main/java/org/leavesmc/leaves/bot/BotCommand.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..1ba8de1c551066713043d1b4d63fe4d417ecc84c
+index 0000000000000000000000000000000000000000..6b3e4c2697d30fae1a4b1facaf3129851ba48d59
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/BotCommand.java
-@@ -0,0 +1,427 @@
+@@ -0,0 +1,453 @@
 +package org.leavesmc.leaves.bot;
 +
++import net.kyori.adventure.text.Component;
++import net.kyori.adventure.text.format.NamedTextColor;
 +import org.bukkit.Bukkit;
-+import org.bukkit.ChatColor;
 +import org.bukkit.Location;
 +import org.bukkit.World;
 +import org.bukkit.command.Command;
@@ -679,6 +680,7 @@ index 0000000000000000000000000000000000000000..1ba8de1c551066713043d1b4d63fe4d4
 +import org.bukkit.plugin.PluginManager;
 +import org.jetbrains.annotations.NotNull;
 +import org.leavesmc.leaves.LeavesConfig;
++import org.leavesmc.leaves.LeavesLogger;
 +import org.leavesmc.leaves.bot.agent.Actions;
 +import org.leavesmc.leaves.bot.agent.BotAction;
 +import org.leavesmc.leaves.bot.agent.BotConfig;
@@ -693,12 +695,17 @@ index 0000000000000000000000000000000000000000..1ba8de1c551066713043d1b4d63fe4d4
 +
 +import java.util.*;
 +
++import static net.kyori.adventure.text.Component.text;
++
 +public class BotCommand extends Command {
++
++    private final Component unknownMessage;
 +
 +    public BotCommand(String name) {
 +        super(name);
 +        this.description = "FakePlayer Command";
 +        this.usageMessage = "/bot [create | remove | action | list | config]";
++        this.unknownMessage = text("Usage: " + usageMessage, NamedTextColor.RED);
 +        this.setPermission("bukkit.command.bot");
 +        final PluginManager pluginManager = Bukkit.getServer().getPluginManager();
 +        if (pluginManager.getPermission("bukkit.command.bot") == null) {
@@ -708,7 +715,7 @@ index 0000000000000000000000000000000000000000..1ba8de1c551066713043d1b4d63fe4d4
 +
 +    @Override
 +    public @NotNull List<String> tabComplete(@NotNull CommandSender sender, @NotNull String alias, String @NotNull [] args, Location location) throws IllegalArgumentException {
-+        var list = new ArrayList<String>();
++        List<String> list = new ArrayList<>();
 +
 +        if (args.length <= 1) {
 +            list.add("create");
@@ -734,6 +741,7 @@ index 0000000000000000000000000000000000000000..1ba8de1c551066713043d1b4d63fe4d4
 +            switch (args[0]) {
 +                case "action" -> {
 +                    list.add("list");
++                    list.add("stop");
 +                    list.addAll(Actions.getNames());
 +                }
 +                case "create" -> list.add("<BotSkinName>");
@@ -752,6 +760,19 @@ index 0000000000000000000000000000000000000000..1ba8de1c551066713043d1b4d63fe4d4
 +        }
 +
 +        if (args.length >= 4 && args[0].equals("action")) {
++            ServerBot bot = BotList.INSTANCE.getBotByName(args[1]);
++
++            if (bot == null) {
++                return List.of("<" + args[1] + " not found>");
++            }
++
++            if (args[2].equals("stop")) {
++                for (int i = 0; i < bot.getBotActions().size(); i++) {
++                    list.add(String.valueOf(i));
++                }
++                return list;
++            }
++
 +            BotAction action = Actions.getForName(args[2]);
 +            if (action != null) {
 +                list.addAll(action.getArgument().tabComplete(args.length - 4));
@@ -773,7 +794,7 @@ index 0000000000000000000000000000000000000000..1ba8de1c551066713043d1b4d63fe4d4
 +        if (!testPermission(sender) || !LeavesConfig.fakeplayerSupport) return true;
 +
 +        if (args.length == 0) {
-+            sender.sendMessage(ChatColor.RED + "Usage: " + usageMessage);
++            sender.sendMessage(unknownMessage);
 +            return false;
 +        }
 +
@@ -789,7 +810,7 @@ index 0000000000000000000000000000000000000000..1ba8de1c551066713043d1b4d63fe4d4
 +            case "list" -> this.onList(sender, args);
 +
 +            default -> {
-+                sender.sendMessage(ChatColor.RED + "Usage: " + usageMessage);
++                sender.sendMessage(unknownMessage);
 +                return false;
 +            }
 +        }
@@ -799,7 +820,7 @@ index 0000000000000000000000000000000000000000..1ba8de1c551066713043d1b4d63fe4d4
 +
 +    private void onCreate(CommandSender sender, String @NotNull [] args) {
 +        if (args.length < 2) {
-+            sender.sendMessage(ChatColor.RED + "Use /bot create <name> [skin_name] to create a fakeplayer");
++            sender.sendMessage(text("Use /bot create <name> [skin_name] to create a fakeplayer", NamedTextColor.RED));
 +            return;
 +        }
 +
@@ -824,7 +845,7 @@ index 0000000000000000000000000000000000000000..1ba8de1c551066713043d1b4d63fe4d4
 +                            builder.location(new Location(world, x, y, z));
 +                        }
 +                    } catch (Exception e) {
-+                        e.printStackTrace();
++                        LeavesLogger.LOGGER.warning("Can't build location", e);
 +                    }
 +                }
 +            }
@@ -836,22 +857,22 @@ index 0000000000000000000000000000000000000000..1ba8de1c551066713043d1b4d63fe4d4
 +    private boolean canCreate(CommandSender sender, @NotNull String name) {
 +        BotList botList = BotList.INSTANCE;
 +        if (!name.matches("^[a-zA-Z0-9_]{4,16}$")) {
-+            sender.sendMessage(ChatColor.RED + "This name is illegal");
++            sender.sendMessage(text("This name is illegal", NamedTextColor.RED));
 +            return false;
 +        }
 +
 +        if (Bukkit.getPlayerExact(name) != null || botList.getBotByName(name) != null) {
-+            sender.sendMessage(ChatColor.RED + "This player is in server");
++            sender.sendMessage(text("This player is in server", NamedTextColor.RED));
 +            return false;
 +        }
 +
 +        if (org.leavesmc.leaves.LeavesConfig.unableFakeplayerNames.contains(name)) {
-+            sender.sendMessage(ChatColor.RED + "This name is not allowed");
++            sender.sendMessage(text("This name is not allowed", NamedTextColor.RED));
 +            return false;
 +        }
 +
 +        if (botList.bots.size() >= org.leavesmc.leaves.LeavesConfig.fakeplayerLimit) {
-+            sender.sendMessage(ChatColor.RED + "Fakeplayer limit is full");
++            sender.sendMessage(text("Fakeplayer limit is full", NamedTextColor.RED));
 +            return false;
 +        }
 +
@@ -860,7 +881,7 @@ index 0000000000000000000000000000000000000000..1ba8de1c551066713043d1b4d63fe4d4
 +
 +    private void onRemove(CommandSender sender, String @NotNull [] args) {
 +        if (args.length < 2 || args.length > 5) {
-+            sender.sendMessage(ChatColor.RED + "Use /bot remove <name> [hour] [minute] [second] to remove a fakeplayer");
++            sender.sendMessage(text("Use /bot remove <name> [hour] [minute] [second] to remove a fakeplayer", NamedTextColor.RED));
 +            return;
 +        }
 +
@@ -868,19 +889,19 @@ index 0000000000000000000000000000000000000000..1ba8de1c551066713043d1b4d63fe4d4
 +        ServerBot bot = botList.getBotByName(args[1]);
 +
 +        if (bot == null) {
-+            sender.sendMessage(ChatColor.RED + "This fakeplayer is not in server");
++            sender.sendMessage(text("This fakeplayer is not in server", NamedTextColor.RED));
 +            return;
 +        }
 +
 +        if (args.length > 2) {
 +            if (args[2].equals("cancel")) {
 +                if (bot.removeTaskId == -1) {
-+                    sender.sendMessage(ChatColor.RED + "This fakeplayer is not scheduled to be removed");
++                    sender.sendMessage(text("This fakeplayer is not scheduled to be removed", NamedTextColor.RED));
 +                    return;
 +                }
 +                Bukkit.getScheduler().cancelTask(bot.removeTaskId);
 +                bot.removeTaskId = -1;
-+                sender.sendMessage("Remove cancel");
++                sender.sendMessage(text("Remove cancel"));
 +                return;
 +            }
 +
@@ -910,7 +931,7 @@ index 0000000000000000000000000000000000000000..1ba8de1c551066713043d1b4d63fe4d4
 +                    time += s * 20;
 +                }
 +            } catch (NumberFormatException e) {
-+                sender.sendMessage(ChatColor.RED + "This fakeplayer is not scheduled to be removed");
++                sender.sendMessage(text("This fakeplayer is not scheduled to be removed", NamedTextColor.RED));
 +                return;
 +            }
 +
@@ -938,27 +959,32 @@ index 0000000000000000000000000000000000000000..1ba8de1c551066713043d1b4d63fe4d4
 +        }
 +
 +        if (args.length < 3) {
-+            sender.sendMessage(ChatColor.RED + "Use /bot action <name> <action> to make fakeplayer do action");
++            sender.sendMessage(text("Use /bot action <name> <action> to make fakeplayer do action", NamedTextColor.RED));
 +            return;
 +        }
 +
 +        ServerBot bot = BotList.INSTANCE.getBotByName(args[1]);
 +        if (bot == null) {
-+            sender.sendMessage(ChatColor.RED + "This fakeplayer is not in server");
++            sender.sendMessage(text("This fakeplayer is not in server", NamedTextColor.RED));
 +            return;
 +        }
 +
 +        if (args[2].equals("list")) {
 +            sender.sendMessage(bot.getScoreboardName() + "'s action list:");
-+            for (BotAction action : bot.getBotActions()) {
-+                sender.sendMessage(action.getName());
++            for (int i = 0; i < bot.getBotActions().size(); i++) {
++                sender.sendMessage(i + " " + bot.getBotActions().get(i).getName());
 +            }
++            return;
++        }
++
++        if (args[2].equals("stop")) {
++            // TODO
 +            return;
 +        }
 +
 +        BotAction action = Actions.getForName(args[2]);
 +        if (action == null) {
-+            sender.sendMessage(ChatColor.RED + "Invalid action");
++            sender.sendMessage(text("Invalid action", NamedTextColor.RED));
 +            return;
 +        }
 +
@@ -982,7 +1008,7 @@ index 0000000000000000000000000000000000000000..1ba8de1c551066713043d1b4d63fe4d4
 +        }
 +
 +        if (newAction == null) {
-+            sender.sendMessage(ChatColor.RED + "Action create error, please check your arguments");
++            sender.sendMessage(text("Action create error, please check your arguments", NamedTextColor.RED));
 +            return;
 +        }
 +
@@ -990,7 +1016,7 @@ index 0000000000000000000000000000000000000000..1ba8de1c551066713043d1b4d63fe4d4
 +        Bukkit.getPluginManager().callEvent(event);
 +
 +        if (!event.isCancelled()) {
-+            bot.setBotAction(newAction);
++            bot.addBotAction(newAction);
 +            sender.sendMessage("Action " + action.getName() + " has been issued to " + bot.getName().getString());
 +        }
 +    }
@@ -1003,18 +1029,18 @@ index 0000000000000000000000000000000000000000..1ba8de1c551066713043d1b4d63fe4d4
 +        }
 +
 +        if (args.length < 3) {
-+            sender.sendMessage(ChatColor.RED + "Use /bot config <name> <config> to modify fakeplayer's config");
++            sender.sendMessage(text("Use /bot config <name> <config> to modify fakeplayer's config", NamedTextColor.RED));
 +            return;
 +        }
 +
 +        ServerBot bot = BotList.INSTANCE.getBotByName(args[1]);
 +        if (bot == null) {
-+            sender.sendMessage(ChatColor.RED + "This fakeplayer is not in server");
++            sender.sendMessage(text("This fakeplayer is not in server", NamedTextColor.RED));
 +            return;
 +        }
 +
 +        if (!acceptConfig.contains(args[2])) {
-+            sender.sendMessage(ChatColor.RED + "This config is not accept");
++            sender.sendMessage(text("This config is not accept", NamedTextColor.RED));
 +            return;
 +        }
 +
@@ -1037,7 +1063,7 @@ index 0000000000000000000000000000000000000000..1ba8de1c551066713043d1b4d63fe4d4
 +                config.setValue(bot, result);
 +                config.getChangeMessage(bot).forEach(sender::sendMessage);
 +            } catch (IllegalArgumentException e) {
-+                sender.sendMessage(ChatColor.RED + e.getMessage());
++                sender.sendMessage(text(e.getMessage(), NamedTextColor.RED));
 +            }
 +        }
 +    }
@@ -1051,7 +1077,7 @@ index 0000000000000000000000000000000000000000..1ba8de1c551066713043d1b4d63fe4d4
 +            }
 +
 +            for (ServerBot bot : botList.bots) {
-+                Bot bukkitBot = bot.getBukkitPlayer();
++                Bot bukkitBot = bot.getBukkitEntity();
 +                botMap.get(bukkitBot.getWorld()).add(bukkitBot.getName());
 +            }
 +
@@ -1063,13 +1089,13 @@ index 0000000000000000000000000000000000000000..1ba8de1c551066713043d1b4d63fe4d4
 +            World world = Bukkit.getWorld(args[2]);
 +
 +            if (world == null) {
-+                sender.sendMessage(ChatColor.RED + "Unknown world");
++                sender.sendMessage(text("Unknown world", NamedTextColor.RED));
 +                return;
 +            }
 +
 +            List<String> snowBotList = new ArrayList<>();
 +            for (ServerBot bot : botList.bots) {
-+                Bot bukkitBot = bot.getBukkitPlayer();
++                Bot bukkitBot = bot.getBukkitEntity();
 +                if (bukkitBot.getWorld() == world) {
 +                    snowBotList.add(bukkitBot.getName());
 +                }
@@ -1408,13 +1434,15 @@ index 0000000000000000000000000000000000000000..4f5e6e5c1b9d8bd38c98e97fd31b3833
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/BotList.java b/src/main/java/org/leavesmc/leaves/bot/BotList.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..6096b91ec937f48ef06ef0cf625ac5a37853ab08
+index 0000000000000000000000000000000000000000..8fc5b14426d33c1948bb9eb64f0cdcbbb1d9cbd5
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/BotList.java
-@@ -0,0 +1,187 @@
+@@ -0,0 +1,202 @@
 +package org.leavesmc.leaves.bot;
 +
 +import com.google.common.collect.Maps;
++import com.mojang.authlib.GameProfile;
++import com.mojang.authlib.properties.Property;
 +import com.mojang.logging.LogUtils;
 +import io.papermc.paper.adventure.PaperAdventure;
 +import net.kyori.adventure.text.format.NamedTextColor;
@@ -1428,7 +1456,6 @@ index 0000000000000000000000000000000000000000..6096b91ec937f48ef06ef0cf625ac5a3
 +import org.bukkit.Bukkit;
 +import org.bukkit.Location;
 +import org.bukkit.command.CommandSender;
-+import org.bukkit.craftbukkit.CraftServer;
 +import org.bukkit.craftbukkit.CraftWorld;
 +import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
@@ -1475,7 +1502,7 @@ index 0000000000000000000000000000000000000000..6096b91ec937f48ef06ef0cf625ac5a3
 +        Location location = event.getCreateLocation();
 +        ServerLevel world = ((CraftWorld) location.getWorld()).getHandle();
 +
-+        ServerBot.CustomGameProfile profile = new ServerBot.CustomGameProfile(BotUtil.getBotUUID(state), state.name(), state.skin());
++        CustomGameProfile profile = new CustomGameProfile(BotUtil.getBotUUID(state), state.name(), state.skin());
 +        ServerBot bot = new ServerBot(this.server, world, profile);
 +        bot.createState = state;
 +        if (event.getCreator() instanceof org.bukkit.entity.Player player) {
@@ -1505,7 +1532,7 @@ index 0000000000000000000000000000000000000000..6096b91ec937f48ef06ef0cf625ac5a3
 +        world.addNewPlayer(bot);
 +        // TODO mountSavedVehicle
 +
-+        BotJoinEvent event1 = new BotJoinEvent(bot.getBukkitPlayer(), PaperAdventure.asAdventure(Component.translatable("multiplayer.player.joined", bot.getDisplayName())).style(Style.style(NamedTextColor.YELLOW)));
++        BotJoinEvent event1 = new BotJoinEvent(bot.getBukkitEntity(), PaperAdventure.asAdventure(Component.translatable("multiplayer.player.joined", bot.getDisplayName())).style(Style.style(NamedTextColor.YELLOW)));
 +        this.server.server.getPluginManager().callEvent(event1);
 +
 +        net.kyori.adventure.text.Component joinMessage = event1.joinMessage();
@@ -1521,7 +1548,7 @@ index 0000000000000000000000000000000000000000..6096b91ec937f48ef06ef0cf625ac5a3
 +    }
 +
 +    public void removeBot(@NotNull ServerBot bot, @NotNull BotRemoveEvent.RemoveReason reason, @Nullable CommandSender remover, boolean saved) {
-+        BotRemoveEvent event = new BotRemoveEvent(bot.getBukkitPlayer(), reason, remover, PaperAdventure.asAdventure(Component.translatable("multiplayer.player.left", bot.getDisplayName())).style(Style.style(NamedTextColor.YELLOW)), saved);
++        BotRemoveEvent event = new BotRemoveEvent(bot.getBukkitEntity(), reason, remover, PaperAdventure.asAdventure(Component.translatable("multiplayer.player.left", bot.getDisplayName())).style(Style.style(NamedTextColor.YELLOW)), saved);
 +        this.server.server.getPluginManager().callEvent(event);
 +
 +        if (event.isCancelled() && event.getReason() != BotRemoveEvent.RemoveReason.INTERNAL) {
@@ -1597,6 +1624,20 @@ index 0000000000000000000000000000000000000000..6096b91ec937f48ef06ef0cf625ac5a3
 +        }
 +
 +        return this.bots.size() < LeavesConfig.fakeplayerLimit;
++    }
++
++    public static class CustomGameProfile extends GameProfile {
++
++        public CustomGameProfile(UUID uuid, String name, String[] skin) {
++            super(uuid, name);
++            setSkin(skin);
++        }
++
++        public void setSkin(String[] skin) {
++            if (skin != null) {
++                getProperties().put("textures", new Property("textures", skin[0], skin[1]));
++            }
++        }
 +    }
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/BotStatsCounter.java b/src/main/java/org/leavesmc/leaves/bot/BotStatsCounter.java
@@ -1927,18 +1968,19 @@ index 0000000000000000000000000000000000000000..6cb1817831bf38f3bfe656d0e3a530a1
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/ServerBot.java b/src/main/java/org/leavesmc/leaves/bot/ServerBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..af413002a1dca1b5aec5d75c03f54fb9b3360346
+index 0000000000000000000000000000000000000000..a2698255b97f120f27efc9b7ef6fac9951dcc3c2
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/ServerBot.java
-@@ -0,0 +1,528 @@
+@@ -0,0 +1,492 @@
 +package org.leavesmc.leaves.bot;
 +
 +import com.google.common.collect.ImmutableMap;
 +import com.mojang.authlib.GameProfile;
-+import com.mojang.authlib.properties.Property;
 +import io.papermc.paper.adventure.PaperAdventure;
 +import io.papermc.paper.event.entity.EntityKnockbackEvent;
 +import net.minecraft.core.BlockPos;
++import net.minecraft.core.particles.BlockParticleOption;
++import net.minecraft.core.particles.ParticleTypes;
 +import net.minecraft.network.chat.Component;
 +import net.minecraft.network.protocol.Packet;
 +import net.minecraft.network.protocol.game.ClientboundPlayerInfoRemovePacket;
@@ -1951,6 +1993,7 @@ index 0000000000000000000000000000000000000000..af413002a1dca1b5aec5d75c03f54fb9
 +import net.minecraft.server.level.ServerPlayer;
 +import net.minecraft.server.network.ServerPlayerConnection;
 +import net.minecraft.stats.ServerStatsCounter;
++import net.minecraft.util.Mth;
 +import net.minecraft.world.InteractionHand;
 +import net.minecraft.world.InteractionResult;
 +import net.minecraft.world.SimpleMenuProvider;
@@ -1970,7 +2013,6 @@ index 0000000000000000000000000000000000000000..af413002a1dca1b5aec5d75c03f54fb9
 +import net.minecraft.world.phys.Vec3;
 +import org.bukkit.Bukkit;
 +import org.bukkit.Location;
-+import org.bukkit.Material;
 +import org.bukkit.craftbukkit.scheduler.CraftScheduler;
 +import org.bukkit.util.Vector;
 +import org.jetbrains.annotations.NotNull;
@@ -1980,18 +2022,14 @@ index 0000000000000000000000000000000000000000..af413002a1dca1b5aec5d75c03f54fb9
 +import org.leavesmc.leaves.bot.agent.BotAction;
 +import org.leavesmc.leaves.bot.agent.BotConfig;
 +import org.leavesmc.leaves.bot.agent.Configs;
-+import org.leavesmc.leaves.bot.agent.actions.StopAction;
-+import org.leavesmc.leaves.entity.Bot;
 +import org.leavesmc.leaves.entity.CraftBot;
 +import org.leavesmc.leaves.event.bot.BotDeathEvent;
 +import org.leavesmc.leaves.event.bot.BotInventoryOpenEvent;
 +import org.leavesmc.leaves.event.bot.BotRemoveEvent;
 +import org.leavesmc.leaves.util.MathUtils;
 +
-+import java.util.Collection;
++import java.util.ArrayList;
 +import java.util.EnumSet;
-+import java.util.HashMap;
-+import java.util.Iterator;
 +import java.util.List;
 +import java.util.Map;
 +import java.util.Objects;
@@ -2002,10 +2040,9 @@ index 0000000000000000000000000000000000000000..af413002a1dca1b5aec5d75c03f54fb9
 +public class ServerBot extends ServerPlayer {
 +
 +    private final Map<Configs<?>, BotConfig<?>> configs;
-+    private final Map<String, BotAction> actions;
++    private final List<BotAction> actions;
 +
 +    public BotCreateState createState;
-+    public boolean waterSwim;
 +    public UUID createPlayer;
 +
 +    private final int tracingRange;
@@ -2023,7 +2060,7 @@ index 0000000000000000000000000000000000000000..af413002a1dca1b5aec5d75c03f54fb9
 +        this.entityData.set(Player.DATA_PLAYER_MODE_CUSTOMISATION, (byte) -2);
 +
 +        this.gameMode = new ServerBotGameMode(this);
-+        this.actions = new HashMap<>();
++        this.actions = new ArrayList<>();
 +
 +        ImmutableMap.Builder<Configs<?>, BotConfig<?>> configBuilder = ImmutableMap.builder();
 +        for (Configs<?> config : Configs.getConfigs()) {
@@ -2033,20 +2070,10 @@ index 0000000000000000000000000000000000000000..af413002a1dca1b5aec5d75c03f54fb9
 +
 +        this.stats = new BotStatsCounter(server);
 +        this.container = new BotInventoryContainer(this);
-+        this.waterSwim = true;
 +        this.tracingRange = world.spigotConfig.playerTrackingRange * world.spigotConfig.playerTrackingRange;
 +
 +        this.notSleepTicks = 0;
 +        this.fauxSleeping = LeavesConfig.fakeplayerSkipSleep;
-+    }
-+
-+    public void renderAll() {
-+        this.server.getPlayerList().getPlayers().forEach(
-+                player -> {
-+                    this.sendPlayerInfo(player);
-+                    this.sendFakeDataIfNeed(player, false);
-+                }
-+        );
 +    }
 +
 +    public void sendPlayerInfo(ServerPlayer player) {
@@ -2073,12 +2100,19 @@ index 0000000000000000000000000000000000000000..af413002a1dca1b5aec5d75c03f54fb9
 +
 +        playerConnection.send(this.getAddEntityPacket(entityTracker.serverEntity));
 +        if (login) {
-+            Bukkit.getScheduler().runTaskLater(CraftScheduler.MINECRAFT, () -> {
-+                playerConnection.send(new ClientboundRotateHeadPacket(this, (byte) ((getYRot() * 256f) / 360f)));
-+            }, 10);
++            Bukkit.getScheduler().runTaskLater(CraftScheduler.MINECRAFT, () -> playerConnection.send(new ClientboundRotateHeadPacket(this, (byte) ((getYRot() * 256f) / 360f))), 10);
 +        } else {
 +            playerConnection.send(new ClientboundRotateHeadPacket(this, (byte) ((getYRot() * 256f) / 360f)));
 +        }
++    }
++
++    public void renderAll() {
++        this.server.getPlayerList().getPlayers().forEach(
++                player -> {
++                    this.sendPlayerInfo(player);
++                    this.sendFakeDataIfNeed(player, false);
++                }
++        );
 +    }
 +
 +    private void sendPacket(Packet<?> packet) {
@@ -2090,7 +2124,7 @@ index 0000000000000000000000000000000000000000..af413002a1dca1b5aec5d75c03f54fb9
 +        boolean flag = this.level().getGameRules().getBoolean(GameRules.RULE_SHOWDEATHMESSAGES);
 +        Component defaultMessage = this.getCombatTracker().getDeathMessage();
 +
-+        BotDeathEvent event = new BotDeathEvent(this.getBukkitPlayer(), PaperAdventure.asAdventure(defaultMessage), flag);
++        BotDeathEvent event = new BotDeathEvent(this.getBukkitEntity(), PaperAdventure.asAdventure(defaultMessage), flag);
 +        this.server.server.getPluginManager().callEvent(event);
 +
 +        if (event.isCancelled()) {
@@ -2120,29 +2154,6 @@ index 0000000000000000000000000000000000000000..af413002a1dca1b5aec5d75c03f54fb9
 +        return null; // disable dimension change
 +    }
 +
-+    public Bot getBukkitPlayer() {
-+        return this.getBukkitEntity();
-+    }
-+
-+    @Override
-+    @NotNull
-+    public CraftBot getBukkitEntity() {
-+        return (CraftBot) super.getBukkitEntity();
-+    }
-+
-+    @Override
-+    public boolean isInWater() {
-+        Location loc = this.getLocation();
-+        for (int i = 0; i <= 2; i++) {
-+            Material type = loc.getBlock().getType();
-+            if (type == Material.WATER || type == Material.LAVA) {
-+                return true;
-+            }
-+            loc.add(0, 0.9, 0);
-+        }
-+        return false;
-+    }
-+
 +    @Override
 +    public void tick() {
 +        if (!this.isAlive()) {
@@ -2168,31 +2179,6 @@ index 0000000000000000000000000000000000000000..af413002a1dca1b5aec5d75c03f54fb9
 +
 +            this.setHealth(amount);
 +        }
-+
-+        this.server.tell(this.server.wrapRunnable(() -> {
-+            Iterator<Map.Entry<String, BotAction>> iterator = actions.entrySet().iterator();
-+            while (iterator.hasNext()) {
-+                Map.Entry<String, BotAction> entry = iterator.next();
-+                if (entry.getValue().isCancel()) {
-+                    iterator.remove();
-+                } else {
-+                    entry.getValue().tryTick(this);
-+                }
-+            }
-+        }));
-+    }
-+
-+    public Entity getTargetEntity(int maxDistance, Predicate<? super Entity> predicate) {
-+        List<Entity> entities = this.level().getEntities((Entity) null, this.getBoundingBox(), (e -> e != this && (predicate == null || predicate.test(e))));
-+        if (!entities.isEmpty()) {
-+            return entities.getFirst();
-+        } else {
-+            EntityHitResult result = this.getBukkitEntity().rayTraceEntity(maxDistance, false);
-+            if (result != null && (predicate == null || predicate.test(result.getEntity()))) {
-+                return result.getEntity();
-+            }
-+        }
-+        return null;
 +    }
 +
 +    @Override
@@ -2214,7 +2200,50 @@ index 0000000000000000000000000000000000000000..af413002a1dca1b5aec5d75c03f54fb9
 +    }
 +
 +    @Override
++    public @NotNull InteractionResult interact(@NotNull Player player, @NotNull InteractionHand hand) {
++        if (LeavesConfig.openFakeplayerInventory) {
++            if (player instanceof ServerPlayer player1 && player.getMainHandItem().isEmpty()) {
++                BotInventoryOpenEvent event = new BotInventoryOpenEvent(this.getBukkitEntity(), player1.getBukkitEntity());
++                this.server.server.getPluginManager().callEvent(event);
++                if (!event.isCancelled()) {
++                    Component menuName = this.getDisplayName() != null ? this.getDisplayName() : Component.literal(this.createState.name());
++                    player.openMenu(new SimpleMenuProvider((i, inventory, p) -> ChestMenu.sixRows(i, inventory, this.container), menuName));
++                    return InteractionResult.SUCCESS;
++                }
++            }
++        }
++        return super.interact(player, hand);
++    }
++
++    @Override
 +    public void checkFallDamage(double heightDifference, boolean onGround, @NotNull BlockState state, @NotNull BlockPos landedPosition) {
++        if (onGround && this.fallDistance > 0.0F) {
++            this.onChangedBlock(this.serverLevel(), landedPosition);
++            double d1 = this.getAttributeValue(Attributes.SAFE_FALL_DISTANCE);
++
++            if ((double) this.fallDistance > d1 && !state.isAir()) {
++                double d2 = this.getX();
++                double d3 = this.getY();
++                double d4 = this.getZ();
++                BlockPos blockposition = this.blockPosition();
++
++                if (landedPosition.getX() != blockposition.getX() || landedPosition.getZ() != blockposition.getZ()) {
++                    double d5 = d2 - (double) landedPosition.getX() - 0.5D;
++                    double d6 = d4 - (double) landedPosition.getZ() - 0.5D;
++                    double d7 = Math.max(Math.abs(d5), Math.abs(d6));
++
++                    d2 = (double) landedPosition.getX() + 0.5D + d5 / d7 * 0.5D;
++                    d4 = (double) landedPosition.getZ() + 0.5D + d6 / d7 * 0.5D;
++                }
++
++                float f = (float) Mth.ceil((double) this.fallDistance - d1);
++                double d8 = Math.min(0.2F + f / 15.0F, 2.5D);
++                int i = (int) (150.0D * d8);
++
++                this.serverLevel().sendParticles(this, new BlockParticleOption(ParticleTypes.BLOCK, state), d2, d3, d4, i, 0.0D, 0.0D, 0.0D, 0.15000000596046448D, false);
++            }
++        }
++
 +        if (onGround) {
 +            if (this.fallDistance > 0.0F) {
 +                state.getBlock().fallOn(this.level(), state, landedPosition, this, this.fallDistance);
@@ -2255,8 +2284,12 @@ index 0000000000000000000000000000000000000000..af413002a1dca1b5aec5d75c03f54fb9
 +        }
 +
 +        this.updateIsUnderwater();
++
 +        this.addDeltaMovement(knockback);
 +        this.knockback = Vec3.ZERO;
++
++        this.server.tell(this.server.wrapRunnable(this::runAction));
++
 +        this.livingEntityTick();
 +
 +        this.foodData.tick(this);
@@ -2279,11 +2312,6 @@ index 0000000000000000000000000000000000000000..af413002a1dca1b5aec5d75c03f54fb9
 +        }
 +    }
 +
-+    public Location getLocation() {
-+        return this.getBukkitPlayer().getLocation();
-+    }
-+
-+
 +    @Override
 +    public void knockback(double strength, double x, double z, @Nullable Entity attacker, @NotNull EntityKnockbackEvent.Cause cause) {
 +        strength *= 1.0D - this.getAttributeValue(Attributes.KNOCKBACK_RESISTANCE);
@@ -2293,6 +2321,17 @@ index 0000000000000000000000000000000000000000..af413002a1dca1b5aec5d75c03f54fb9
 +            this.hasImpulse = true;
 +            this.knockback = new Vec3(vec3d.x / 2.0D - vec3d1.x, this.onGround() ? Math.min(0.4D, vec3d.y / 2.0D + strength) : vec3d.y, vec3d.z / 2.0D - vec3d1.z).subtract(vec3d);
 +        }
++    }
++
++    @Override
++    public void setRot(float yaw, float pitch) {
++        this.getBukkitEntity().setRotation(yaw, pitch);
++    }
++
++    @Override
++    public void attack(@NotNull Entity target) {
++        super.attack(target);
++        this.swing(InteractionHand.MAIN_HAND);
 +    }
 +
 +    public void faceLocation(@NotNull Location loc) {
@@ -2316,76 +2355,50 @@ index 0000000000000000000000000000000000000000..af413002a1dca1b5aec5d75c03f54fb9
 +        this.setRot(yaw, pitch);
 +    }
 +
-+    @Override
-+    public void setRot(float yaw, float pitch) {
-+        this.getBukkitEntity().setRotation(yaw, pitch);
++    public Location getLocation() {
++        return this.getBukkitEntity().getLocation();
 +    }
 +
-+    public void attack(@NotNull Entity target) {
-+        super.attack(target);
-+        this.swing(InteractionHand.MAIN_HAND);
++    public Entity getTargetEntity(int maxDistance, Predicate<? super Entity> predicate) {
++        List<Entity> entities = this.level().getEntities((Entity) null, this.getBoundingBox(), (e -> e != this && (predicate == null || predicate.test(e))));
++        if (!entities.isEmpty()) {
++            return entities.getFirst();
++        } else {
++            EntityHitResult result = this.getBukkitEntity().rayTraceEntity(maxDistance, false);
++            if (result != null && (predicate == null || predicate.test(result.getEntity()))) {
++                return result.getEntity();
++            }
++        }
++        return null;
 +    }
-+
-+    /*
-+    @Override
-+    public void jumpFromGround() {
-+        double jumpPower = (double) this.getJumpPower() + this.getJumpBoostPower();
-+        this.addDeltaMovement(new Vec3(0, jumpPower, 0));
-+    }
-+     */
 +
 +    public void dropAll() {
 +        this.getInventory().dropAll();
 +        this.detectEquipmentUpdatesPublic();
 +    }
 +
-+    public void setBotAction(BotAction action) {
++    private void runAction() {
++        if (LeavesConfig.fakeplayerUseAction) {
++            this.actions.forEach(action -> action.tryTick(this));
++            this.actions.removeIf(BotAction::isCancelled);
++        }
++    }
++
++    public void addBotAction(BotAction action) {
 +        if (!LeavesConfig.fakeplayerUseAction) {
 +            return;
 +        }
-+        if (action instanceof StopAction) {
-+            this.actions.clear();
-+        }
 +        action.init();
-+        this.actions.put(action.getName(), action);
++        this.actions.add(action);
 +    }
 +
-+    public Collection<BotAction> getBotActions() {
-+        return actions.values();
-+    }
-+
-+    public BotAction getBotAction(String name) {
-+        return actions.get(name);
-+    }
-+
-+    @Deprecated
-+    public BotAction getBotAction() {
-+        return null;
++    public List<BotAction> getBotActions() {
++        return actions;
 +    }
 +
 +    @Override
 +    public @NotNull ServerStatsCounter getStats() {
 +        return stats;
-+    }
-+
-+    public BotInventoryContainer getContainer() {
-+        return container;
-+    }
-+
-+    @Override
-+    public @NotNull InteractionResult interact(@NotNull Player player, @NotNull InteractionHand hand) {
-+        if (LeavesConfig.openFakeplayerInventory) {
-+            if (player instanceof ServerPlayer player1 && player.getMainHandItem().isEmpty()) {
-+                BotInventoryOpenEvent event = new BotInventoryOpenEvent(this.getBukkitEntity(), player1.getBukkitEntity());
-+                server.server.getPluginManager().callEvent(event);
-+                if (!event.isCancelled()) {
-+                    Component menuName = this.getDisplayName() != null ? this.getDisplayName() : Component.literal(this.createState.name());
-+                    player.openMenu(new SimpleMenuProvider((i, inventory, p) -> ChestMenu.sixRows(i, inventory, container), menuName));
-+                    return InteractionResult.SUCCESS;
-+                }
-+            }
-+        }
-+        return super.interact(player, hand);
 +    }
 +
 +    @SuppressWarnings("unchecked")
@@ -2395,6 +2408,12 @@ index 0000000000000000000000000000000000000000..af413002a1dca1b5aec5d75c03f54fb9
 +
 +    public <E> E getConfigValue(Configs<E> config) {
 +        return this.getConfig(config).getValue(this);
++    }
++
++    @Override
++    @NotNull
++    public CraftBot getBukkitEntity() {
++        return (CraftBot) super.getBukkitEntity();
 +    }
 +
 +    /* TODO move
@@ -2444,20 +2463,6 @@ index 0000000000000000000000000000000000000000..af413002a1dca1b5aec5d75c03f54fb9
 +        }
 +    }
 +     */
-+
-+    public static class CustomGameProfile extends GameProfile {
-+
-+        public CustomGameProfile(UUID uuid, String name, String[] skin) {
-+            super(uuid, name);
-+            setSkin(skin);
-+        }
-+
-+        public void setSkin(String[] skin) {
-+            if (skin != null) {
-+                getProperties().put("textures", new Property("textures", skin[0], skin[1]));
-+            }
-+        }
-+    }
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/ServerBotGameMode.java b/src/main/java/org/leavesmc/leaves/bot/ServerBotGameMode.java
 new file mode 100644
@@ -2697,10 +2702,10 @@ index 0000000000000000000000000000000000000000..c62f9258e4114ff686642b7f472d0e14
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/Actions.java b/src/main/java/org/leavesmc/leaves/bot/agent/Actions.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..15cbf363f587a27d55f4bc7ec897787158a7d534
+index 0000000000000000000000000000000000000000..19995b0223d1072d19401cbb0d476879c043378d
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/agent/Actions.java
-@@ -0,0 +1,66 @@
+@@ -0,0 +1,65 @@
 +package org.leavesmc.leaves.bot.agent;
 +
 +import org.jetbrains.annotations.Contract;
@@ -2723,7 +2728,6 @@ index 0000000000000000000000000000000000000000..15cbf363f587a27d55f4bc7ec8977871
 +        register(new JumpAction());
 +        register(new RotateAction());
 +        register(new SneakAction());
-+        register(new StopAction());
 +        register(new UseItemAction());
 +        register(new UseItemOnAction());
 +        register(new UseItemToAction());
@@ -2769,10 +2773,10 @@ index 0000000000000000000000000000000000000000..15cbf363f587a27d55f4bc7ec8977871
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/BotAction.java b/src/main/java/org/leavesmc/leaves/bot/agent/BotAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..9abcb8852ac031abaa991881a7cd6b33bc523b26
+index 0000000000000000000000000000000000000000..135d9719c23a21018f1fe9d73f4106db1caef12a
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/agent/BotAction.java
-@@ -0,0 +1,93 @@
+@@ -0,0 +1,102 @@
 +package org.leavesmc.leaves.bot.agent;
 +
 +import net.minecraft.server.level.ServerPlayer;
@@ -2782,10 +2786,12 @@ index 0000000000000000000000000000000000000000..9abcb8852ac031abaa991881a7cd6b33
 +import org.leavesmc.leaves.command.CommandArgumentResult;
 +
 +import java.util.List;
++import java.util.UUID;
 +
 +public abstract class BotAction {
 +
 +    private final String name;
++    private final UUID uuid;
 +    private final CommandArgument argument;
 +
 +    private boolean cancel;
@@ -2795,29 +2801,33 @@ index 0000000000000000000000000000000000000000..9abcb8852ac031abaa991881a7cd6b33
 +    private int needWaitTick;
 +    private int canDoNumber;
 +
++
 +    public BotAction(String name, CommandArgument argument) {
 +        this.name = name;
 +        this.argument = argument;
++        this.uuid = UUID.randomUUID();
 +
 +        this.cancel = false;
 +        this.tickDelay = 20;
 +        this.number = -1;
 +    }
 +
++    public void init() {
++        this.needWaitTick = 0;
++        this.canDoNumber = this.getNumber();
++        this.setCancelled(false);
++    }
++
 +    public String getName() {
-+        return name;
++        return this.name;
++    }
++
++    public UUID getUUID() {
++        return uuid;
 +    }
 +
 +    public int getTickDelay() {
-+        return tickDelay;
-+    }
-+
-+    public int getNumber() {
-+        return number;
-+    }
-+
-+    public boolean isCancel() {
-+        return cancel;
++        return this.tickDelay;
 +    }
 +
 +    public BotAction setTickDelay(int tickDelay) {
@@ -2825,9 +2835,8 @@ index 0000000000000000000000000000000000000000..9abcb8852ac031abaa991881a7cd6b33
 +        return this;
 +    }
 +
-+    public BotAction setTabComplete(int index, List<String> list) {
-+        argument.setTabComplete(index, list);
-+        return this;
++    public int getNumber() {
++        return this.number;
 +    }
 +
 +    public BotAction setNumber(int number) {
@@ -2835,31 +2844,35 @@ index 0000000000000000000000000000000000000000..9abcb8852ac031abaa991881a7cd6b33
 +        return this;
 +    }
 +
-+    public void setCancel(boolean cancel) {
++    public boolean isCancelled() {
++        return cancel;
++    }
++
++    public void setCancelled(boolean cancel) {
 +        this.cancel = cancel;
 +    }
 +
-+    public void init() {
-+        this.needWaitTick = 0;
-+        this.canDoNumber = this.getNumber();
-+        this.setCancel(false);
++    public CommandArgument getArgument() {
++        return this.argument;
++    }
++
++    public BotAction setTabComplete(int index, List<String> list) {
++        this.argument.setTabComplete(index, list);
++        return this;
 +    }
 +
 +    public void tryTick(ServerBot bot) {
 +        if (canDoNumber == 0) {
-+            this.setCancel(true);
++            this.setCancelled(true);
 +            return;
 +        }
++        
 +        if (needWaitTick-- <= 0) {
 +            if (this.doTick(bot)) {
-+                canDoNumber--;
-+                needWaitTick = this.getTickDelay();
++                this.canDoNumber--;
++                this.needWaitTick = this.getTickDelay();
 +            }
 +        }
-+    }
-+
-+    public CommandArgument getArgument() {
-+        return argument;
 +    }
 +
 +    public abstract BotAction getNew(@NotNull ServerPlayer player, @NotNull CommandArgumentResult result);
@@ -3120,7 +3133,7 @@ index 0000000000000000000000000000000000000000..adcce8f8c39b0a1e445f5552ce744360
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/actions/CraftCustomBotAction.java b/src/main/java/org/leavesmc/leaves/bot/agent/actions/CraftCustomBotAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..f9b48f38a9b530125849f30eeab497895da77a21
+index 0000000000000000000000000000000000000000..f3490f0497dce0e131ca7b08c6e7ed6b382b5696
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/agent/actions/CraftCustomBotAction.java
 @@ -0,0 +1,48 @@
@@ -3169,7 +3182,7 @@ index 0000000000000000000000000000000000000000..f9b48f38a9b530125849f30eeab49789
 +
 +    @Override
 +    public boolean doTick(@NotNull ServerBot bot) {
-+        return realAction.doTick(bot.getBukkitPlayer());
++        return realAction.doTick(bot.getBukkitEntity());
 +    }
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/actions/DropAction.java b/src/main/java/org/leavesmc/leaves/bot/agent/actions/DropAction.java
@@ -3498,47 +3511,16 @@ index 0000000000000000000000000000000000000000..9b4406bc0b418abc6a253e047c504b4a
 +        return true;
 +    }
 +}
-diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/actions/StopAction.java b/src/main/java/org/leavesmc/leaves/bot/agent/actions/StopAction.java
-new file mode 100644
-index 0000000000000000000000000000000000000000..bd02fe0e6b1f1b6048d56ab9c9379808dcf227c4
---- /dev/null
-+++ b/src/main/java/org/leavesmc/leaves/bot/agent/actions/StopAction.java
-@@ -0,0 +1,26 @@
-+package org.leavesmc.leaves.bot.agent.actions;
-+
-+import net.minecraft.server.level.ServerPlayer;
-+import org.jetbrains.annotations.NotNull;
-+import org.leavesmc.leaves.bot.ServerBot;
-+import org.leavesmc.leaves.bot.agent.BotAction;
-+import org.leavesmc.leaves.command.CommandArgument;
-+import org.leavesmc.leaves.command.CommandArgumentResult;
-+
-+public class StopAction extends BotAction {
-+
-+    public StopAction() {
-+        super("stop", new CommandArgument());
-+    }
-+
-+    @Override
-+    public BotAction getNew(@NotNull ServerPlayer player, @NotNull CommandArgumentResult result) {
-+        return this.setTickDelay(0).setNumber(0);
-+    }
-+
-+    @Override
-+    public boolean doTick(@NotNull ServerBot bot) {
-+        this.setCancel(true);
-+        return true;
-+    }
-+}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/actions/SwimAction.java b/src/main/java/org/leavesmc/leaves/bot/agent/actions/SwimAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..c91ca987eb5922b8dbcd271deb33f80be5e1a9af
+index 0000000000000000000000000000000000000000..ffd78ca9025a3fb5d3a0e07222d06219907ae664
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/agent/actions/SwimAction.java
-@@ -0,0 +1,26 @@
+@@ -0,0 +1,29 @@
 +package org.leavesmc.leaves.bot.agent.actions;
 +
 +import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.world.phys.Vec3;
 +import org.jetbrains.annotations.NotNull;
 +import org.leavesmc.leaves.bot.ServerBot;
 +import org.leavesmc.leaves.bot.agent.BotAction;
@@ -3553,12 +3535,14 @@ index 0000000000000000000000000000000000000000..c91ca987eb5922b8dbcd271deb33f80b
 +
 +    @Override
 +    public BotAction getNew(@NotNull ServerPlayer player, @NotNull CommandArgumentResult result) {
-+        return this.setTickDelay(0).setNumber(1);
++        return this.setTickDelay(0).setNumber(-1);
 +    }
 +
 +    @Override
 +    public boolean doTick(@NotNull ServerBot bot) {
-+        bot.waterSwim = !bot.waterSwim;
++        if (bot.isInWater()) {
++            bot.addDeltaMovement(new Vec3(0, 0.05, 0));
++        }
 +        return true;
 +    }
 +}
@@ -4059,21 +4043,17 @@ index 0d6d33e66461dda39c8f0e8395bf3f047ef88cbd..4ca3508475bbd9771768704e300fe12b
  }
 diff --git a/src/main/java/org/leavesmc/leaves/entity/CraftBot.java b/src/main/java/org/leavesmc/leaves/entity/CraftBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..542a458f99a10167dec898ee2f28465d5ff80b36
+index 0000000000000000000000000000000000000000..893570a670ae90def4690d77dcd956da5a681eb9
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/entity/CraftBot.java
-@@ -0,0 +1,67 @@
+@@ -0,0 +1,45 @@
 +package org.leavesmc.leaves.entity;
 +
 +import org.bukkit.craftbukkit.CraftServer;
 +import org.bukkit.craftbukkit.entity.CraftPlayer;
-+import org.bukkit.entity.Player;
 +import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
 +import org.leavesmc.leaves.bot.ServerBot;
-+import org.leavesmc.leaves.bot.agent.Actions;
-+import org.leavesmc.leaves.bot.agent.BotAction;
-+import org.leavesmc.leaves.entity.botaction.LeavesBotAction;
 +
 +import java.util.UUID;
 +
@@ -4099,24 +4079,6 @@ index 0000000000000000000000000000000000000000..542a458f99a10167dec898ee2f28465d
 +    }
 +
 +    @Override
-+    public boolean setBotAction(@NotNull String action, @NotNull Player player, @NotNull String[] args) {
-+        BotAction botAction = Actions.getForName(action);
-+        if (botAction != null) {
-+            BotAction newAction = botAction.getNew(((CraftPlayer) player).getHandle(), botAction.getArgument().parse(0, args));
-+            if (newAction != null) {
-+                getHandle().setBotAction(newAction);
-+                return true;
-+            }
-+        }
-+        return false;
-+    }
-+
-+    @Override
-+    public boolean setBotAction(@NotNull LeavesBotAction action, @NotNull Player player, @NotNull String[] args) {
-+        return setBotAction(action.getName(), player, args);
-+    }
-+
-+    @Override
 +    public ServerBot getHandle() {
 +        return (ServerBot) entity;
 +    }
@@ -4132,7 +4094,7 @@ index 0000000000000000000000000000000000000000..542a458f99a10167dec898ee2f28465d
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/entity/CraftBotManager.java b/src/main/java/org/leavesmc/leaves/entity/CraftBotManager.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..2412bd7e18cb5bf555c74d7c29cdf193ef01708f
+index 0000000000000000000000000000000000000000..c5414799a8a7f43322a5b06d183bb43e28370619
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/entity/CraftBotManager.java
 @@ -0,0 +1,71 @@
@@ -4176,7 +4138,7 @@ index 0000000000000000000000000000000000000000..2412bd7e18cb5bf555c74d7c29cdf193
 +    public @Nullable Bot getBot(@NotNull UUID uuid) {
 +        ServerBot bot = botList.getBot(uuid);
 +        if (bot != null) {
-+            return bot.getBukkitPlayer();
++            return bot.getBukkitEntity();
 +        } else {
 +            return null;
 +        }
@@ -4186,7 +4148,7 @@ index 0000000000000000000000000000000000000000..2412bd7e18cb5bf555c74d7c29cdf193
 +    public @Nullable Bot getBot(@NotNull String name) {
 +        ServerBot bot = botList.getBotByName(name);
 +        if (bot != null) {
-+            return bot.getBukkitPlayer();
++            return bot.getBukkitEntity();
 +        } else {
 +            return null;
 +        }

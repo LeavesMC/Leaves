@@ -657,7 +657,7 @@ index 22f1ed383313829b8af4badda9ef8dc85cae8fd1..1c47e320e464af9651953ff308a2583f
                      // Paper end
 diff --git a/src/main/java/org/leavesmc/leaves/bot/BotCommand.java b/src/main/java/org/leavesmc/leaves/bot/BotCommand.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..61b584741f1bae95eb36a71c7fe6cd1cbd493f6c
+index 0000000000000000000000000000000000000000..77fcfdd90b318b7f6c9f27d2697b5c3eed8d1429
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/BotCommand.java
 @@ -0,0 +1,480 @@
@@ -1073,7 +1073,7 @@ index 0000000000000000000000000000000000000000..61b584741f1bae95eb36a71c7fe6cd1c
 +
 +        BotConfig<?> config = Objects.requireNonNull(Configs.getConfig(args[2])).config;
 +        if (args.length < 4) {
-+            config.getMessage(bot).forEach(sender::sendMessage);
++            config.getMessage().forEach(sender::sendMessage);
 +        } else {
 +            String[] realArgs = new String[args.length - 3];
 +            System.arraycopy(args, 3, realArgs, 0, realArgs.length);
@@ -1087,8 +1087,8 @@ index 0000000000000000000000000000000000000000..61b584741f1bae95eb36a71c7fe6cd1c
 +            CommandArgumentResult result = config.getArgument().parse(0, realArgs);
 +
 +            try {
-+                config.setValue(bot, result);
-+                config.getChangeMessage(bot).forEach(sender::sendMessage);
++                config.setValue(result);
++                config.getChangeMessage().forEach(sender::sendMessage);
 +            } catch (IllegalArgumentException e) {
 +                sender.sendMessage(text(e.getMessage(), NamedTextColor.RED));
 +            }
@@ -1994,10 +1994,10 @@ index 0000000000000000000000000000000000000000..6cb1817831bf38f3bfe656d0e3a530a1
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/ServerBot.java b/src/main/java/org/leavesmc/leaves/bot/ServerBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..a2fbdb21c5a0d7473a82feef51ccdc26d6916975
+index 0000000000000000000000000000000000000000..12f2257eb5d0c084ba17ee6572ab6d9d453ec1dd
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/ServerBot.java
-@@ -0,0 +1,545 @@
+@@ -0,0 +1,581 @@
 +package org.leavesmc.leaves.bot;
 +
 +import com.google.common.collect.ImmutableMap;
@@ -2048,6 +2048,7 @@ index 0000000000000000000000000000000000000000..a2fbdb21c5a0d7473a82feef51ccdc26
 +import org.jetbrains.annotations.Nullable;
 +import org.leavesmc.leaves.LeavesConfig;
 +import org.leavesmc.leaves.LeavesLogger;
++import org.leavesmc.leaves.bot.agent.Actions;
 +import org.leavesmc.leaves.bot.agent.BotAction;
 +import org.leavesmc.leaves.bot.agent.BotConfig;
 +import org.leavesmc.leaves.bot.agent.Configs;
@@ -2094,7 +2095,7 @@ index 0000000000000000000000000000000000000000..a2fbdb21c5a0d7473a82feef51ccdc26
 +
 +        ImmutableMap.Builder<Configs<?>, BotConfig<?>> configBuilder = ImmutableMap.builder();
 +        for (Configs<?> config : Configs.getConfigs()) {
-+            configBuilder.put(config, config.config.create());
++            configBuilder.put(config, config.config.create(this));
 +        }
 +        this.configs = configBuilder.build();
 +
@@ -2367,6 +2368,7 @@ index 0000000000000000000000000000000000000000..a2fbdb21c5a0d7473a82feef51ccdc26
 +    @Override
 +    public void addAdditionalSaveData(@NotNull CompoundTag nbt) {
 +        super.addAdditionalSaveData(nbt);
++        nbt.putBoolean("isShiftKeyDown", this.isShiftKeyDown());
 +
 +        CompoundTag createNbt = new CompoundTag();
 +        createNbt.putString("realName", this.createState.realName());
@@ -2383,14 +2385,27 @@ index 0000000000000000000000000000000000000000..a2fbdb21c5a0d7473a82feef51ccdc26
 +
 +        nbt.put("createStatus", createNbt);
 +
-+        nbt.putInt("notSleepTicks", this.notSleepTicks);
-+        nbt.putBoolean("isShiftKeyDown", this.isShiftKeyDown());
-+        // TODO action, config
++        if (!this.actions.isEmpty()) {
++            ListTag actionNbt = new ListTag();
++            for (BotAction<?> action : this.actions) {
++                actionNbt.add(action.save(new CompoundTag()));
++            }
++            nbt.put("actions", actionNbt);
++        }
++
++        if (!this.configs.isEmpty()) {
++            ListTag configNbt = new ListTag();
++            for (BotConfig<?> config : this.configs.values()) {
++                configNbt.add(config.save(new CompoundTag()));
++            }
++            nbt.put("configs", configNbt);
++        }
 +    }
 +
 +    @Override
 +    public void readAdditionalSaveData(@NotNull CompoundTag nbt) {
 +        super.readAdditionalSaveData(nbt);
++        this.setShiftKeyDown(nbt.getBoolean("isShiftKeyDown"));
 +
 +        CompoundTag createNbt = nbt.getCompound("createStatus");
 +        BotCreateState.Builder createBuilder = BotCreateState.builder(createNbt.getString("realName"), null).name(createNbt.getString("name"));
@@ -2409,8 +2424,29 @@ index 0000000000000000000000000000000000000000..a2fbdb21c5a0d7473a82feef51ccdc26
 +
 +        this.createState = createBuilder.build();
 +
-+        this.notSleepTicks = nbt.getInt("notSleepTicks");
-+        this.setShiftKeyDown(nbt.getBoolean("isShiftKeyDown"));
++        if (nbt.contains("actions")) {
++            ListTag actionNbt = nbt.getList("actions", 10);
++            for (int i = 0; i < actionNbt.size(); i++) {
++                CompoundTag actionTag = actionNbt.getCompound(i);
++                BotAction<?> action = Actions.getForName(actionTag.getString("actionName"));
++                if (action != null) {
++                    BotAction<?> newAction = action.create();
++                    newAction.load(actionTag);
++                    this.actions.add(newAction);
++                }
++            }
++        }
++
++        if (nbt.contains("configs")) {
++            ListTag configNbt = nbt.getList("configs", 10);
++            for (int i = 0; i < configNbt.size(); i++) {
++                CompoundTag configTag = configNbt.getCompound(i);
++                Configs<?> configKey = Configs.getConfig(configTag.getString("configName"));
++                if (configKey != null) {
++                    this.configs.get(configKey).load(configTag);
++                }
++            }
++        }
 +    }
 +
 +    public void faceLocation(@NotNull Location loc) {
@@ -2486,7 +2522,7 @@ index 0000000000000000000000000000000000000000..a2fbdb21c5a0d7473a82feef51ccdc26
 +    }
 +
 +    public <E> E getConfigValue(Configs<E> config) {
-+        return this.getConfig(config).getValue(this);
++        return this.getConfig(config).getValue();
 +    }
 +
 +    @Override
@@ -2781,14 +2817,15 @@ index 0000000000000000000000000000000000000000..c62f9258e4114ff686642b7f472d0e14
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/Actions.java b/src/main/java/org/leavesmc/leaves/bot/agent/Actions.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..19995b0223d1072d19401cbb0d476879c043378d
+index 0000000000000000000000000000000000000000..a37513e1ba8443c702ab0c01fbe5e052e5f0f2ab
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/agent/Actions.java
-@@ -0,0 +1,65 @@
+@@ -0,0 +1,67 @@
 +package org.leavesmc.leaves.bot.agent;
 +
 +import org.jetbrains.annotations.Contract;
 +import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
 +import org.leavesmc.leaves.bot.agent.actions.*;
 +
 +import java.util.Collection;
@@ -2798,7 +2835,7 @@ index 0000000000000000000000000000000000000000..19995b0223d1072d19401cbb0d476879
 +
 +public class Actions {
 +
-+    private static final Map<String, BotAction> actions = new HashMap<>();
++    private static final Map<String, BotAction<?>> actions = new HashMap<>();
 +
 +    public static void registerAll() {
 +        register(new AttackAction());
@@ -2819,7 +2856,7 @@ index 0000000000000000000000000000000000000000..19995b0223d1072d19401cbb0d476879
 +        register(new RotationAction());
 +    }
 +
-+    public static boolean register(@NotNull BotAction action) {
++    public static boolean register(@NotNull BotAction<?> action) {
 +        if (!actions.containsKey(action.getName())) {
 +            actions.put(action.getName(), action);
 +            return true;
@@ -2837,7 +2874,7 @@ index 0000000000000000000000000000000000000000..19995b0223d1072d19401cbb0d476879
 +
 +    @NotNull
 +    @Contract(pure = true)
-+    public static Collection<BotAction> getAll() {
++    public static Collection<BotAction<?>> getAll() {
 +        return actions.values();
 +    }
 +
@@ -2846,16 +2883,17 @@ index 0000000000000000000000000000000000000000..19995b0223d1072d19401cbb0d476879
 +        return actions.keySet();
 +    }
 +
-+    public static BotAction getForName(String name) {
++    @Nullable
++    public static BotAction<?> getForName(String name) {
 +        return actions.get(name);
 +    }
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/BotAction.java b/src/main/java/org/leavesmc/leaves/bot/agent/BotAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..a03b0bf7a1bad99f5b28e7e3a8f96879b65dcceb
+index 0000000000000000000000000000000000000000..ba9857c10f99ec1bc575f5530ce928e51b0e6693
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/agent/BotAction.java
-@@ -0,0 +1,132 @@
+@@ -0,0 +1,134 @@
 +package org.leavesmc.leaves.bot.agent;
 +
 +import net.minecraft.nbt.CompoundTag;
@@ -2961,6 +2999,12 @@ index 0000000000000000000000000000000000000000..a03b0bf7a1bad99f5b28e7e3a8f96879
 +        }
 +    }
 +
++    @NotNull
++    public E create() {
++        return this.creator.get();
++    }
++
++    @NotNull
 +    public CompoundTag save(@NotNull CompoundTag nbt) {
 +        if (!this.cancel) {
 +            nbt.putString("actionName", this.name);
@@ -2971,10 +3015,6 @@ index 0000000000000000000000000000000000000000..a03b0bf7a1bad99f5b28e7e3a8f96879
 +            nbt.putInt("tickDelay", this.tickDelay);
 +        }
 +        return nbt;
-+    }
-+
-+    public E create() {
-+        return this.creator.get();
 +    }
 +
 +    public void load(@NotNull CompoundTag nbt) {
@@ -2990,41 +3030,49 @@ index 0000000000000000000000000000000000000000..a03b0bf7a1bad99f5b28e7e3a8f96879
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/BotConfig.java b/src/main/java/org/leavesmc/leaves/bot/agent/BotConfig.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..bc40f2ee606d5098b30f6a6bde0a163a939e9a3a
+index 0000000000000000000000000000000000000000..c889a2409d8b9f5979a10b61c98638054bd8f5bc
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/agent/BotConfig.java
-@@ -0,0 +1,41 @@
+@@ -0,0 +1,62 @@
 +package org.leavesmc.leaves.bot.agent;
 +
++import net.minecraft.nbt.CompoundTag;
 +import org.jetbrains.annotations.NotNull;
 +import org.leavesmc.leaves.bot.ServerBot;
 +import org.leavesmc.leaves.command.CommandArgument;
 +import org.leavesmc.leaves.command.CommandArgumentResult;
 +
 +import java.util.List;
++import java.util.function.Supplier;
 +
 +public abstract class BotConfig<E> {
 +
 +    private final String name;
 +    private final CommandArgument argument;
++    private final Supplier<BotConfig<E>> creator;
++    protected ServerBot bot;
 +
-+    public BotConfig(String name, CommandArgument argument) {
++    public BotConfig(String name, CommandArgument argument, Supplier<BotConfig<E>> creator) {
 +        this.name = name;
 +        this.argument = argument;
++        this.creator = creator;
 +    }
 +
-+    public abstract E getValue(@NotNull ServerBot bot);
-+
-+    public abstract void setValue(@NotNull ServerBot bot, @NotNull CommandArgumentResult result) throws IllegalArgumentException;
-+
-+    public abstract BotConfig<E> create();
-+
-+    public List<String> getMessage(@NotNull ServerBot bot) {
-+        return List.of(bot.getScoreboardName() + "'s " + this.getName() + ": " + this.getValue(bot));
++    public BotConfig<E> setBot(ServerBot bot) {
++        this.bot = bot;
++        return this;
 +    }
 +
-+    public List<String> getChangeMessage(@NotNull ServerBot bot) {
-+        return List.of(bot.getScoreboardName() + "'s " + this.getName() + " changed: " + this.getValue(bot));
++    public abstract E getValue();
++
++    public abstract void setValue(@NotNull CommandArgumentResult result) throws IllegalArgumentException;
++
++    public List<String> getMessage() {
++        return List.of(this.bot.getScoreboardName() + "'s " + this.getName() + ": " + this.getValue());
++    }
++
++    public List<String> getChangeMessage() {
++        return List.of(this.bot.getScoreboardName() + "'s " + this.getName() + " changed: " + this.getValue());
 +    }
 +
 +    public String getName() {
@@ -3034,6 +3082,19 @@ index 0000000000000000000000000000000000000000..bc40f2ee606d5098b30f6a6bde0a163a
 +    public CommandArgument getArgument() {
 +        return argument;
 +    }
++
++    @NotNull
++    public BotConfig<E> create(ServerBot bot) {
++        return this.creator.get().setBot(bot);
++    }
++
++    @NotNull
++    public CompoundTag save(@NotNull CompoundTag nbt) {
++        nbt.putString("configName", this.name);
++        return nbt;
++    }
++
++    public abstract void load(@NotNull CompoundTag nbt);
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/Configs.java b/src/main/java/org/leavesmc/leaves/bot/agent/Configs.java
 new file mode 100644
@@ -3320,10 +3381,10 @@ index 0000000000000000000000000000000000000000..b0a86493a2567ee8278aed27797b41eb
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/actions/FishAction.java b/src/main/java/org/leavesmc/leaves/bot/agent/actions/FishAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..849e9a3109a19a2f11beff76bba6eb04c731b027
+index 0000000000000000000000000000000000000000..3a13f8ac73e042d939496fb5602e4aa4ea368e0d
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/agent/actions/FishAction.java
-@@ -0,0 +1,72 @@
+@@ -0,0 +1,73 @@
 +package org.leavesmc.leaves.bot.agent.actions;
 +
 +import net.minecraft.nbt.CompoundTag;
@@ -3351,6 +3412,7 @@ index 0000000000000000000000000000000000000000..849e9a3109a19a2f11beff76bba6eb04
 +    }
 +
 +    @Override
++    @NotNull
 +    public CompoundTag save(@NotNull CompoundTag nbt) {
 +        super.save(nbt);
 +        nbt.putInt("fishDelay", this.delay);
@@ -3425,10 +3487,10 @@ index 0000000000000000000000000000000000000000..6fc9ba9bf94cb19ed32cfafa3a44fad0
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/actions/LookAction.java b/src/main/java/org/leavesmc/leaves/bot/agent/actions/LookAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..cffdbac2beef309a834d9bbbf7457f2fd049f88e
+index 0000000000000000000000000000000000000000..edd2cb2cd53e742c7ad1916a57a6f9555c37a58f
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/agent/actions/LookAction.java
-@@ -0,0 +1,61 @@
+@@ -0,0 +1,62 @@
 +package org.leavesmc.leaves.bot.agent.actions;
 +
 +import net.minecraft.nbt.CompoundTag;
@@ -3465,6 +3527,7 @@ index 0000000000000000000000000000000000000000..cffdbac2beef309a834d9bbbf7457f2f
 +    }
 +
 +    @Override
++    @NotNull
 +    public CompoundTag save(@NotNull CompoundTag nbt) {
 +        super.save(nbt);
 +        nbt.putDouble("x", this.pos.getX());
@@ -3492,10 +3555,10 @@ index 0000000000000000000000000000000000000000..cffdbac2beef309a834d9bbbf7457f2f
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/actions/RotateAction.java b/src/main/java/org/leavesmc/leaves/bot/agent/actions/RotateAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..61851ca1c6a93949a4406f81a6e9c960fa0359a9
+index 0000000000000000000000000000000000000000..8e4740ac745af67029443719c083258b4f261718
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/agent/actions/RotateAction.java
-@@ -0,0 +1,49 @@
+@@ -0,0 +1,50 @@
 +package org.leavesmc.leaves.bot.agent.actions;
 +
 +import net.minecraft.nbt.CompoundTag;
@@ -3525,6 +3588,7 @@ index 0000000000000000000000000000000000000000..61851ca1c6a93949a4406f81a6e9c960
 +    }
 +
 +    @Override
++    @NotNull
 +    public CompoundTag save(@NotNull CompoundTag nbt) {
 +        super.save(nbt);
 +        nbt.putString("actionName", "look"); // to player loc
@@ -3547,10 +3611,10 @@ index 0000000000000000000000000000000000000000..61851ca1c6a93949a4406f81a6e9c960
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/actions/RotationAction.java b/src/main/java/org/leavesmc/leaves/bot/agent/actions/RotationAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..6ac662ffac345b3a942299b9482b61700ffff632
+index 0000000000000000000000000000000000000000..78d7cf38c28c5512955cf2c59a78ac493e99f829
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/agent/actions/RotationAction.java
-@@ -0,0 +1,59 @@
+@@ -0,0 +1,60 @@
 +package org.leavesmc.leaves.bot.agent.actions;
 +
 +import net.minecraft.nbt.CompoundTag;
@@ -3591,6 +3655,7 @@ index 0000000000000000000000000000000000000000..6ac662ffac345b3a942299b9482b6170
 +    }
 +
 +    @Override
++    @NotNull
 +    public CompoundTag save(@NotNull CompoundTag nbt) {
 +        super.save(nbt);
 +        nbt.putFloat("yaw", this.yaw);
@@ -3886,15 +3951,16 @@ index 0000000000000000000000000000000000000000..e42288a4f99f7de6655d49ee1a05d37b
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/configs/AlwaysSendDataConfig.java b/src/main/java/org/leavesmc/leaves/bot/agent/configs/AlwaysSendDataConfig.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..c74febe89dc8a3ae95bfaf303c2f87e964509d97
+index 0000000000000000000000000000000000000000..9a584603edbbe4ccd8a88c90ef3e9125480635f1
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/agent/configs/AlwaysSendDataConfig.java
-@@ -0,0 +1,36 @@
+@@ -0,0 +1,45 @@
 +package org.leavesmc.leaves.bot.agent.configs;
 +
++import net.minecraft.nbt.CompoundTag;
 +import org.jetbrains.annotations.NotNull;
 +import org.leavesmc.leaves.LeavesConfig;
-+import org.leavesmc.leaves.bot.ServerBot;
++
 +import org.leavesmc.leaves.bot.agent.BotConfig;
 +import org.leavesmc.leaves.command.CommandArgument;
 +import org.leavesmc.leaves.command.CommandArgumentResult;
@@ -3907,75 +3973,93 @@ index 0000000000000000000000000000000000000000..c74febe89dc8a3ae95bfaf303c2f87e9
 +    private boolean value;
 +
 +    public AlwaysSendDataConfig() {
-+        super("always_send_data", CommandArgument.of(CommandArgumentType.BOOLEAN).setTabComplete(0, List.of("ture", "false")));
++        super("always_send_data", CommandArgument.of(CommandArgumentType.BOOLEAN).setTabComplete(0, List.of("ture", "false")), AlwaysSendDataConfig::new);
 +        this.value = LeavesConfig.alwaysSendFakeplayerData;
 +    }
 +
 +    @Override
-+    public Boolean getValue(@NotNull ServerBot bot) {
++    public Boolean getValue() {
 +        return value;
 +    }
 +
 +    @Override
-+    public void setValue(@NotNull ServerBot bot, @NotNull CommandArgumentResult result) throws IllegalArgumentException {
++    public void setValue(@NotNull CommandArgumentResult result) throws IllegalArgumentException {
 +        this.value = result.readBoolean(this.value);
 +    }
 +
 +    @Override
-+    public AlwaysSendDataConfig create() {
-+        return new AlwaysSendDataConfig();
++    @NotNull
++    public CompoundTag save(@NotNull CompoundTag nbt) {
++        super.save(nbt);
++        nbt.putBoolean("always_send_data", this.getValue());
++        return nbt;
++    }
++
++    @Override
++    public void load(@NotNull CompoundTag nbt) {
++        this.value = nbt.getBoolean("always_send_data");
 +    }
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/configs/SimulationDistanceConfig.java b/src/main/java/org/leavesmc/leaves/bot/agent/configs/SimulationDistanceConfig.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..763c85848120e7eb7ada744bffc7072b8d2a2368
+index 0000000000000000000000000000000000000000..f667e3480de8f42ebe1dce66330684b63c416f6f
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/agent/configs/SimulationDistanceConfig.java
-@@ -0,0 +1,36 @@
+@@ -0,0 +1,45 @@
 +package org.leavesmc.leaves.bot.agent.configs;
 +
++import net.minecraft.nbt.CompoundTag;
 +import org.jetbrains.annotations.NotNull;
-+import org.leavesmc.leaves.bot.ServerBot;
 +import org.leavesmc.leaves.bot.agent.BotConfig;
 +import org.leavesmc.leaves.command.CommandArgument;
 +import org.leavesmc.leaves.command.CommandArgumentResult;
 +import org.leavesmc.leaves.command.CommandArgumentType;
 +
++import java.util.Collections;
 +import java.util.List;
 +
 +public class SimulationDistanceConfig extends BotConfig<Integer> {
 +
 +    public SimulationDistanceConfig() {
-+        super("simulation_distance", CommandArgument.of(CommandArgumentType.INTEGER).setTabComplete(0, List.of("2", "10", "<INT 2 - 32>")));
++        super("simulation_distance", CommandArgument.of(CommandArgumentType.INTEGER).setTabComplete(0, List.of("2", "10", "<INT 2 - 32>")), SimulationDistanceConfig::new);
 +    }
 +
 +    @Override
-+    public Integer getValue(@NotNull ServerBot bot) {
-+        return bot.getBukkitEntity().getSimulationDistance();
++    public Integer getValue() {
++        return this.bot.getBukkitEntity().getSimulationDistance();
 +    }
 +
 +    @Override
-+    public void setValue(@NotNull ServerBot bot, @NotNull CommandArgumentResult result) throws IllegalArgumentException {
-+        int realValue = result.readInt(bot.getBukkitEntity().getSimulationDistance());
++    public void setValue(@NotNull CommandArgumentResult result) throws IllegalArgumentException {
++        int realValue = result.readInt(this.bot.getBukkitEntity().getSimulationDistance());
 +        if (realValue < 2 || realValue > 32) {
 +            throw new IllegalArgumentException("simulation_distance must be a number between 2 and 32, got: " + result);
 +        }
-+        bot.getBukkitEntity().setSimulationDistance(realValue);
++        this.bot.getBukkitEntity().setSimulationDistance(realValue);
 +    }
 +
 +    @Override
-+    public SimulationDistanceConfig create() {
-+        return this;
++    @NotNull
++    public CompoundTag save(@NotNull CompoundTag nbt) {
++        super.save(nbt);
++        nbt.putInt("simulation_distance", this.getValue());
++        return nbt;
++    }
++
++    @Override
++    public void load(@NotNull CompoundTag nbt) {
++        this.setValue(new CommandArgumentResult(Collections.singletonList(nbt.getInt("simulation_distance"))));
 +    }
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/configs/SkipSleepConfig.java b/src/main/java/org/leavesmc/leaves/bot/agent/configs/SkipSleepConfig.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..01cb56eaf3dcd26299d166885b80ad27661b73b7
+index 0000000000000000000000000000000000000000..bc805bbb3908879df8e1f1a05bbffec6c7bf2725
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/agent/configs/SkipSleepConfig.java
-@@ -0,0 +1,32 @@
+@@ -0,0 +1,46 @@
 +package org.leavesmc.leaves.bot.agent.configs;
 +
++import net.minecraft.nbt.CompoundTag;
 +import org.jetbrains.annotations.NotNull;
 +import org.leavesmc.leaves.bot.ServerBot;
 +import org.leavesmc.leaves.bot.agent.BotConfig;
@@ -3988,32 +4072,46 @@ index 0000000000000000000000000000000000000000..01cb56eaf3dcd26299d166885b80ad27
 +public class SkipSleepConfig extends BotConfig<Boolean> {
 +
 +    public SkipSleepConfig() {
-+        super("skip_sleep", CommandArgument.of(CommandArgumentType.BOOLEAN).setTabComplete(0, List.of("ture", "false")));
++        super("skip_sleep", CommandArgument.of(CommandArgumentType.BOOLEAN).setTabComplete(0, List.of("ture", "false")), SkipSleepConfig::new);
 +    }
 +
 +    @Override
-+    public Boolean getValue(@NotNull ServerBot bot) {
++    public Boolean getValue() {
 +        return bot.fauxSleeping;
 +    }
 +
 +    @Override
-+    public void setValue(@NotNull ServerBot bot, @NotNull CommandArgumentResult result) throws IllegalArgumentException {
++    public void setValue(@NotNull CommandArgumentResult result) throws IllegalArgumentException {
 +        bot.fauxSleeping = result.readBoolean(bot.fauxSleeping);
 +    }
 +
 +    @Override
-+    public BotConfig<Boolean> create() {
++    @NotNull
++    public BotConfig<Boolean> create(ServerBot bot) {
 +        return this;
++    }
++
++    @Override
++    public @NotNull CompoundTag save(@NotNull CompoundTag nbt) {
++        super.save(nbt);
++        nbt.putBoolean("skip_sleep", this.getValue());
++        return nbt;
++    }
++
++    @Override
++    public void load(@NotNull CompoundTag nbt) {
++        this.setValue(new CommandArgumentResult(List.of(nbt.getBoolean("skip_sleep"))));
 +    }
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/configs/SpawnPhantomConfig.java b/src/main/java/org/leavesmc/leaves/bot/agent/configs/SpawnPhantomConfig.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..367dbde1664b7fa9d57cf0960572d9819378ee1e
+index 0000000000000000000000000000000000000000..98ef2ae8e4fd368f285ca05db3bd93d0ea1fdf0b
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/agent/configs/SpawnPhantomConfig.java
-@@ -0,0 +1,44 @@
+@@ -0,0 +1,58 @@
 +package org.leavesmc.leaves.bot.agent.configs;
 +
++import net.minecraft.nbt.CompoundTag;
 +import org.jetbrains.annotations.NotNull;
 +import org.leavesmc.leaves.LeavesConfig;
 +import org.leavesmc.leaves.bot.ServerBot;
@@ -4029,31 +4127,44 @@ index 0000000000000000000000000000000000000000..367dbde1664b7fa9d57cf0960572d981
 +    private boolean value;
 +
 +    public SpawnPhantomConfig() {
-+        super("spawn_phantom", CommandArgument.of(CommandArgumentType.BOOLEAN).setTabComplete(0, List.of("ture", "false")));
++        super("spawn_phantom", CommandArgument.of(CommandArgumentType.BOOLEAN).setTabComplete(0, List.of("ture", "false")), SpawnPhantomConfig::new);
 +        this.value = LeavesConfig.fakeplayerSpawnPhantom;
 +    }
 +
 +    @Override
-+    public SpawnPhantomConfig create() {
-+        return new SpawnPhantomConfig();
-+    }
-+
-+    @Override
-+    public Boolean getValue(@NotNull ServerBot bot) {
++    public Boolean getValue() {
 +        return value;
 +    }
 +
 +    @Override
-+    public void setValue(@NotNull ServerBot bot, @NotNull CommandArgumentResult result) throws IllegalArgumentException {
++    public void setValue(@NotNull CommandArgumentResult result) throws IllegalArgumentException {
 +        this.value = result.readBoolean(this.value);
 +    }
 +
 +    @Override
-+    public List<String> getMessage(@NotNull ServerBot bot) {
++    public List<String> getMessage() {
 +        return List.of(
-+                bot.getScoreboardName() + "'s spawn_phantom: " + this.getValue(bot),
++                bot.getScoreboardName() + "'s spawn_phantom: " + this.getValue(),
 +                bot.getScoreboardName() + "'s not_sleeping_ticks: " + bot.notSleepTicks
 +        );
++    }
++
++    @Override
++    @NotNull
++    public SpawnPhantomConfig create(ServerBot bot) {
++        return new SpawnPhantomConfig();
++    }
++
++    @Override
++    public @NotNull CompoundTag save(@NotNull CompoundTag nbt) {
++        super.save(nbt);
++        nbt.putBoolean("spawn_phantom", this.getValue());
++        return nbt;
++    }
++
++    @Override
++    public void load(@NotNull CompoundTag nbt) {
++        this.value = nbt.getBoolean("spawn_phantom");
 +    }
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/command/CommandArgumentResult.java b/src/main/java/org/leavesmc/leaves/command/CommandArgumentResult.java

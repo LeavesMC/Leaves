@@ -47,7 +47,7 @@ index 3e550f8e7cd4f4e16f499a8a2a4b95420270f07a..46d9c77581b78c427692aa8645d17b3d
      private DisconnectionDetails disconnectionDetails;
      private boolean encrypted;
 diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
-index 7ce0fb36690e12f3f36c9a43e45ac71814be8e69..c68e0a6715c690298268457d6438b12cd5c6baf2 100644
+index 7ce0fb36690e12f3f36c9a43e45ac71814be8e69..89c568a24df0323b902b5236484644a6edbea7ff 100644
 --- a/src/main/java/net/minecraft/server/MinecraftServer.java
 +++ b/src/main/java/net/minecraft/server/MinecraftServer.java
 @@ -319,6 +319,8 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
@@ -63,7 +63,7 @@ index 7ce0fb36690e12f3f36c9a43e45ac71814be8e69..c68e0a6715c690298268457d6438b12c
          }
          // Paper end - Configurable player collision
  
-+        // org.leavesmc.leaves.bot.ServerBot.loadAllBot(); // Leaves - load resident bot TODO
++        this.getBotList().loadResume(); // Leaves - load resident bot
 +
          this.server.enablePlugins(org.bukkit.plugin.PluginLoadOrder.POSTWORLD);
          this.server.spark.registerCommandBeforePlugins(this.server); // Paper - spark
@@ -72,7 +72,7 @@ index 7ce0fb36690e12f3f36c9a43e45ac71814be8e69..c68e0a6715c690298268457d6438b12c
  
          MinecraftServer.LOGGER.info("Stopping server");
          Commands.COMMAND_SENDING_POOL.shutdownNow(); // Paper - Perf: Async command map building; Shutdown and don't bother finishing
-+        // org.leavesmc.leaves.bot.ServerBot.saveOrRemoveAllBot(); // Leaves - save or remove bot TODO
++        this.getBotList().removeAll(); // Leaves - save or remove bot
          this.server.spark.disable(); // Paper - spark
          // CraftBukkit start
          if (this.server != null) {
@@ -476,6 +476,32 @@ index 1b1b475ca27e799e251d6f8a8c9fe1a4fd8bae83..22f8e7d62df86a12c5b9ad709538d6ac
  
                                      if (randomsource.nextInt(j) >= world.paperConfig().entities.behavior.playerInsomniaStartTicks) { // Paper - Ability to control player's insomnia and phantoms
                                          BlockPos blockposition1 = blockposition.above(20 + randomsource.nextInt(15)).east(-10 + randomsource.nextInt(21)).south(-10 + randomsource.nextInt(21));
+diff --git a/src/main/java/net/minecraft/world/level/storage/LevelResource.java b/src/main/java/net/minecraft/world/level/storage/LevelResource.java
+index fee8367d2812db559b15970f0a60023bedaaefc5..f6b59b00bb1611aff8d161d1ad03df7fc911f994 100644
+--- a/src/main/java/net/minecraft/world/level/storage/LevelResource.java
++++ b/src/main/java/net/minecraft/world/level/storage/LevelResource.java
+@@ -15,7 +15,7 @@ public class LevelResource {
+     public static final LevelResource ROOT = new LevelResource(".");
+     private final String id;
+ 
+-    private LevelResource(String relativePath) {
++    public LevelResource(String relativePath) { // Leaves - private -> public
+         this.id = relativePath;
+     }
+ 
+diff --git a/src/main/java/net/minecraft/world/level/storage/PlayerDataStorage.java b/src/main/java/net/minecraft/world/level/storage/PlayerDataStorage.java
+index 8ab7ca373a885fbe658013c9c6a2e38d32d77bb2..2262eaab7af5f1d7c37ef028479842c0fb45f3ee 100644
+--- a/src/main/java/net/minecraft/world/level/storage/PlayerDataStorage.java
++++ b/src/main/java/net/minecraft/world/level/storage/PlayerDataStorage.java
+@@ -21,7 +21,7 @@ import net.minecraft.world.entity.player.Player;
+ import org.bukkit.craftbukkit.entity.CraftPlayer;
+ import org.slf4j.Logger;
+ 
+-public class PlayerDataStorage {
++public class PlayerDataStorage implements org.leavesmc.leaves.bot.IPlayerDataStorage {
+ 
+     private static final Logger LOGGER = LogUtils.getLogger();
+     private final File playerDir;
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 index f2a0a1f32bf456c302e5d18b91367aa0c041cc6c..97d09246b5bab3fe85491d06c7b16f932bcd1cb2 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
@@ -657,10 +683,10 @@ index 22f1ed383313829b8af4badda9ef8dc85cae8fd1..1c47e320e464af9651953ff308a2583f
                      // Paper end
 diff --git a/src/main/java/org/leavesmc/leaves/bot/BotCommand.java b/src/main/java/org/leavesmc/leaves/bot/BotCommand.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..77fcfdd90b318b7f6c9f27d2697b5c3eed8d1429
+index 0000000000000000000000000000000000000000..a978fed9f02f17d2a670b092f7605e2ad40bde59
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/BotCommand.java
-@@ -0,0 +1,480 @@
+@@ -0,0 +1,527 @@
 +package org.leavesmc.leaves.bot;
 +
 +import io.papermc.paper.command.CommandUtil;
@@ -717,6 +743,7 @@ index 0000000000000000000000000000000000000000..77fcfdd90b318b7f6c9f27d2697b5c3e
 +    @Override
 +    public @NotNull List<String> tabComplete(@NotNull CommandSender sender, @NotNull String alias, String @NotNull [] args, Location location) throws IllegalArgumentException {
 +        List<String> list = new ArrayList<>();
++        BotList botList = BotList.INSTANCE;
 +
 +        if (args.length <= 1) {
 +            list.add("create");
@@ -727,14 +754,19 @@ index 0000000000000000000000000000000000000000..77fcfdd90b318b7f6c9f27d2697b5c3e
 +            if (LeavesConfig.fakeplayerModifyConfig) {
 +                list.add("config");
 +            }
++            if (LeavesConfig.fakeplayerManualSaveAndLoad) {
++                list.add("save");
++                list.add("load");
++            }
 +            list.add("list");
 +        }
 +
 +        if (args.length == 2) {
 +            switch (args[0]) {
 +                case "create" -> list.add("<BotName>");
-+                case "remove", "action", "config" -> list.addAll(BotList.INSTANCE.bots.stream().map(e -> e.getName().getString()).toList());
++                case "remove", "action", "config", "save" -> list.addAll(botList.bots.stream().map(e -> e.getName().getString()).toList());
 +                case "list" -> list.addAll(Bukkit.getWorlds().stream().map(WorldInfo::getName).toList());
++                case "load" -> list.addAll(botList.getSavedBotList().getAllKeys());
 +            }
 +        }
 +
@@ -761,7 +793,7 @@ index 0000000000000000000000000000000000000000..77fcfdd90b318b7f6c9f27d2697b5c3e
 +        }
 +
 +        if (args.length >= 4 && args[0].equals("action")) {
-+            ServerBot bot = BotList.INSTANCE.getBotByName(args[1]);
++            ServerBot bot = botList.getBotByName(args[1]);
 +
 +            if (bot == null) {
 +                return Collections.singletonList("<" + args[1] + " not found>");
@@ -801,15 +833,12 @@ index 0000000000000000000000000000000000000000..77fcfdd90b318b7f6c9f27d2697b5c3e
 +
 +        switch (args[0]) {
 +            case "create" -> this.onCreate(sender, args);
-+
 +            case "remove" -> this.onRemove(sender, args);
-+
 +            case "action" -> this.onAction(sender, args);
-+
 +            case "config" -> this.onConfig(sender, args);
-+
 +            case "list" -> this.onList(sender, args);
-+
++            case "save" -> this.onSave(sender, args);
++            case "load" -> this.onLoad(sender, args);
 +            default -> {
 +                sender.sendMessage(unknownMessage);
 +                return false;
@@ -1095,6 +1124,50 @@ index 0000000000000000000000000000000000000000..77fcfdd90b318b7f6c9f27d2697b5c3e
 +        }
 +    }
 +
++    private void onSave(CommandSender sender, String @NotNull [] args) {
++        if (!LeavesConfig.fakeplayerManualSaveAndLoad) {
++            return;
++        }
++
++        if (args.length < 2) {
++            sender.sendMessage(text("Use /bot save <name> to save a fakeplayer", NamedTextColor.RED));
++            return;
++        }
++
++        BotList botList = BotList.INSTANCE;
++        ServerBot bot = botList.getBotByName(args[1]);
++
++        if (bot == null) {
++            sender.sendMessage(text("This fakeplayer is not in server", NamedTextColor.RED));
++            return;
++        }
++
++        botList.removeBot(bot, BotRemoveEvent.RemoveReason.COMMAND, sender, true);
++        sender.sendMessage(bot.getScoreboardName() + " saved to " + bot.createState.realName());
++    }
++
++    private void onLoad(CommandSender sender, String @NotNull [] args) {
++        if (!LeavesConfig.fakeplayerManualSaveAndLoad) {
++            return;
++        }
++
++        if (args.length < 2) {
++            sender.sendMessage(text("Use /bot save <name> to save a fakeplayer", NamedTextColor.RED));
++            return;
++        }
++
++        String realName = args[1];
++        BotList botList = BotList.INSTANCE;
++        if (!botList.getSavedBotList().contains(realName)) {
++            sender.sendMessage(text("This fakeplayer is not saved", NamedTextColor.RED));
++            return;
++        }
++
++        if (botList.loadNewBot(realName) == null) {
++            sender.sendMessage(text("Can't load bot, please check", NamedTextColor.RED));
++        }
++    }
++
 +    private void onList(CommandSender sender, String @NotNull [] args) {
 +        BotList botList = BotList.INSTANCE;
 +        if (args.length < 2) {
@@ -1259,6 +1332,133 @@ index 0000000000000000000000000000000000000000..09d9b488a5d0808404038206615d48c7
 +                }
 +            }
 +        }
++    }
++}
+diff --git a/src/main/java/org/leavesmc/leaves/bot/BotDataStorage.java b/src/main/java/org/leavesmc/leaves/bot/BotDataStorage.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..53bece66534df40ef8cf559c12e2c472a791b9c3
+--- /dev/null
++++ b/src/main/java/org/leavesmc/leaves/bot/BotDataStorage.java
+@@ -0,0 +1,121 @@
++package org.leavesmc.leaves.bot;
++
++import com.mojang.logging.LogUtils;
++import net.minecraft.nbt.CompoundTag;
++import net.minecraft.nbt.NbtAccounter;
++import net.minecraft.nbt.NbtIo;
++import net.minecraft.world.entity.player.Player;
++import net.minecraft.world.level.storage.LevelResource;
++import net.minecraft.world.level.storage.LevelStorageSource;
++import org.jetbrains.annotations.NotNull;
++import org.slf4j.Logger;
++
++import java.io.File;
++import java.io.IOException;
++import java.util.Optional;
++
++public class BotDataStorage implements IPlayerDataStorage {
++
++    private static final LevelResource BOT_DATA_DIR = new LevelResource("fakeplayerdata");
++    private static final LevelResource BOT_LIST_FILE = new LevelResource("fakeplayer.dat");
++
++    private static final Logger LOGGER = LogUtils.getLogger();
++    private final File botDir;
++    private final File botListFile;
++
++    private CompoundTag savedBotList;
++
++    public BotDataStorage(LevelStorageSource.@NotNull LevelStorageAccess session) {
++        this.botDir = session.getLevelPath(BOT_DATA_DIR).toFile();
++        this.botListFile = session.getLevelPath(BOT_LIST_FILE).toFile();
++        this.botDir.mkdirs();
++
++        this.savedBotList = new CompoundTag();
++        if (this.botListFile.exists() && this.botListFile.isFile()) {
++            try {
++                Optional.of(NbtIo.readCompressed(this.botListFile.toPath(), NbtAccounter.unlimitedHeap())).ifPresent(tag -> this.savedBotList = tag);
++            } catch (Exception exception) {
++                BotDataStorage.LOGGER.warn("Failed to load player data list");
++            }
++        }
++    }
++
++    @Override
++    public void save(Player player) {
++        boolean flag = true;
++        try {
++            CompoundTag nbt = player.saveWithoutId(new CompoundTag());
++            File file = new File(this.botDir, player.getStringUUID() + ".dat");
++
++            if (file.exists() && file.isFile()) {
++                if (!file.delete()) {
++                    throw new IOException("Failed to delete file: " + file);
++                }
++            }
++            if (!file.createNewFile()) {
++                throw new IOException("Failed to create nbt file: " + file);
++            }
++            NbtIo.writeCompressed(nbt, file.toPath());
++        } catch (Exception exception) {
++            BotDataStorage.LOGGER.warn("Failed to save fakeplayer data for {}", player.getScoreboardName(), exception);
++            flag = false;
++        }
++
++        if (flag && player instanceof ServerBot bot) {
++            CompoundTag nbt = new CompoundTag();
++            nbt.putString("name", bot.createState.name());
++            nbt.putUUID("uuid", bot.getUUID());
++            nbt.putBoolean("resume", bot.resume);
++            this.savedBotList.put(bot.createState.realName(), nbt);
++            this.saveBotList();
++        }
++    }
++
++    @Override
++    public Optional<CompoundTag> load(Player player) {
++        return this.load(player.getScoreboardName(), player.getStringUUID()).map((nbt) -> {
++            player.load(nbt);
++            return nbt;
++        });
++    }
++
++    private Optional<CompoundTag> load(String name, String uuid) {
++        File file = new File(this.botDir, uuid + ".dat");
++
++        if (file.exists() && file.isFile()) {
++            try {
++                Optional<CompoundTag> optional = Optional.of(NbtIo.readCompressed(file.toPath(), NbtAccounter.unlimitedHeap()));
++                if (!file.delete()) {
++                    throw new IOException("Failed to delete fakeplayer data");
++                }
++                this.savedBotList.remove(name);
++                this.saveBotList();
++                return optional;
++            } catch (Exception exception) {
++                BotDataStorage.LOGGER.warn("Failed to load fakeplayer data for {}", name);
++            }
++        }
++
++        return Optional.empty();
++    }
++
++    private void saveBotList() {
++        try {
++            if (this.botListFile.exists() && this.botListFile.isFile()) {
++                if (!this.botListFile.delete()) {
++                    throw new IOException("Failed to delete file: " + this.botListFile);
++                }
++            }
++            if (!this.botListFile.createNewFile()) {
++                throw new IOException("Failed to create nbt file: " + this.botListFile);
++            }
++            NbtIo.writeCompressed(this.savedBotList, this.botListFile.toPath());
++        } catch (Exception exception) {
++            BotDataStorage.LOGGER.warn("Failed to save player data list");
++        }
++    }
++
++    public CompoundTag getSavedBotList() {
++        return savedBotList;
 +    }
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/BotInventoryContainer.java b/src/main/java/org/leavesmc/leaves/bot/BotInventoryContainer.java
@@ -1460,10 +1660,10 @@ index 0000000000000000000000000000000000000000..4f5e6e5c1b9d8bd38c98e97fd31b3833
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/BotList.java b/src/main/java/org/leavesmc/leaves/bot/BotList.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..9e5a0a8e3d9901761861231288b0566675452ee7
+index 0000000000000000000000000000000000000000..3706ad3745a8f733c250471c3b5479f0878beef8
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/BotList.java
-@@ -0,0 +1,202 @@
+@@ -0,0 +1,265 @@
 +package org.leavesmc.leaves.bot;
 +
 +import com.google.common.collect.Maps;
@@ -1473,12 +1673,15 @@ index 0000000000000000000000000000000000000000..9e5a0a8e3d9901761861231288b05666
 +import io.papermc.paper.adventure.PaperAdventure;
 +import net.kyori.adventure.text.format.NamedTextColor;
 +import net.kyori.adventure.text.format.Style;
++import net.minecraft.nbt.CompoundTag;
 +import net.minecraft.network.chat.Component;
 +import net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket;
++import net.minecraft.resources.ResourceKey;
 +import net.minecraft.server.MinecraftServer;
 +import net.minecraft.server.level.ServerLevel;
 +import net.minecraft.server.level.ServerPlayer;
 +import net.minecraft.world.entity.Entity;
++import net.minecraft.world.level.Level;
 +import org.bukkit.Bukkit;
 +import org.bukkit.Location;
 +import org.bukkit.command.CommandSender;
@@ -1494,6 +1697,7 @@ index 0000000000000000000000000000000000000000..9e5a0a8e3d9901761861231288b05666
 +import java.util.List;
 +import java.util.Locale;
 +import java.util.Map;
++import java.util.Optional;
 +import java.util.UUID;
 +import java.util.concurrent.CopyOnWriteArrayList;
 +
@@ -1506,13 +1710,14 @@ index 0000000000000000000000000000000000000000..9e5a0a8e3d9901761861231288b05666
 +    private final MinecraftServer server;
 +
 +    public final List<ServerBot> bots = new CopyOnWriteArrayList<>();
-+    // TODO BotDataStorage
++    private final BotDataStorage dataStorage;
 +
 +    private final Map<UUID, ServerBot> botsByUUID = Maps.newHashMap();
 +    private final Map<String, ServerBot> botsByName = Maps.newHashMap();
 +
 +    public BotList(MinecraftServer server) {
 +        this.server = server;
++        this.dataStorage = new BotDataStorage(server.storageSource);
 +        INSTANCE = this;
 +    }
 +
@@ -1536,6 +1741,38 @@ index 0000000000000000000000000000000000000000..9e5a0a8e3d9901761861231288b05666
 +        }
 +
 +        return this.placeNewBot(bot, world, location);
++    }
++
++    public ServerBot loadNewBot(String realName) {
++        return this.loadNewBot(realName, this.dataStorage);
++    }
++
++    public ServerBot loadNewBot(String realName, IPlayerDataStorage playerIO) {
++        UUID uuid = BotUtil.getBotUUID(realName);
++        // TODO event
++        ServerBot bot = new ServerBot(this.server, this.server.getLevel(Level.OVERWORLD), new GameProfile(uuid, realName));
++        bot.connection = new ServerBotPacketListenerImpl(this.server, bot);
++        Optional<CompoundTag> optional = playerIO.load(bot);
++
++        if (optional.isEmpty()) {
++            return null;
++        }
++
++        bot.gameProfile = new CustomGameProfile(uuid, bot.createState.name(), bot.createState.skin());
++
++        ResourceKey<Level> resourcekey = null;
++        if (optional.get().contains("WorldUUIDMost") && optional.get().contains("WorldUUIDLeast")) {
++            org.bukkit.World bWorld = Bukkit.getServer().getWorld(new UUID(optional.get().getLong("WorldUUIDMost"), optional.get().getLong("WorldUUIDLeast")));
++            if (bWorld != null) {
++                resourcekey = ((CraftWorld) bWorld).getHandle().dimension();
++            }
++        }
++        if (resourcekey == null) {
++            return null;
++        }
++
++        ServerLevel world = this.server.getLevel(resourcekey);
++        return this.placeNewBot(bot, world, bot.getLocation());
 +    }
 +
 +    public ServerBot placeNewBot(ServerBot bot, ServerLevel world, Location location) {
@@ -1574,6 +1811,10 @@ index 0000000000000000000000000000000000000000..9e5a0a8e3d9901761861231288b05666
 +    }
 +
 +    public void removeBot(@NotNull ServerBot bot, @NotNull BotRemoveEvent.RemoveReason reason, @Nullable CommandSender remover, boolean saved) {
++        this.removeBot(bot, reason, remover, saved, this.dataStorage);
++    }
++
++    public void removeBot(@NotNull ServerBot bot, @NotNull BotRemoveEvent.RemoveReason reason, @Nullable CommandSender remover, boolean saved, IPlayerDataStorage playerIO) {
 +        BotRemoveEvent event = new BotRemoveEvent(bot.getBukkitEntity(), reason, remover, PaperAdventure.asAdventure(Component.translatable("multiplayer.player.left", bot.getDisplayName())).style(Style.style(NamedTextColor.YELLOW)), saved);
 +        this.server.server.getPluginManager().callEvent(event);
 +
@@ -1591,7 +1832,7 @@ index 0000000000000000000000000000000000000000..9e5a0a8e3d9901761861231288b05666
 +        }
 +
 +        if (event.isSaved()) {
-+            // TODO save
++            playerIO.save(bot);
 +        } else {
 +            bot.dropAll();
 +        }
@@ -1622,6 +1863,24 @@ index 0000000000000000000000000000000000000000..9e5a0a8e3d9901761861231288b05666
 +        }
 +    }
 +
++    public void removeAll() {
++        for (ServerBot bot : this.bots) {
++            bot.resume = LeavesConfig.fakeplayerResident;
++            this.removeBot(bot, BotRemoveEvent.RemoveReason.INTERNAL, null, LeavesConfig.fakeplayerResident);
++        }
++    }
++
++    public void loadResume() {
++        if (LeavesConfig.fakeplayerSupport && LeavesConfig.fakeplayerResident) {
++            for (String realName : this.getSavedBotList().getAllKeys()) {
++                CompoundTag nbt = this.getSavedBotList().getCompound(realName);
++                if (nbt.getBoolean("resume")) {
++                    this.loadNewBot(realName);
++                }
++            }
++        }
++    }
++
 +    public void networkTick() {
 +        this.bots.forEach(ServerBot::doTick);
 +    }
@@ -1634,6 +1893,10 @@ index 0000000000000000000000000000000000000000..9e5a0a8e3d9901761861231288b05666
 +    @Nullable
 +    public ServerBot getBotByName(@NotNull String name) {
 +        return this.botsByName.get(name.toLowerCase(Locale.ROOT));
++    }
++
++    public CompoundTag getSavedBotList() {
++        return this.dataStorage.getSavedBotList();
 +    }
 +
 +    public boolean isCreateLegal(@NotNull String name) {
@@ -1712,10 +1975,10 @@ index 0000000000000000000000000000000000000000..5bd34353b6ea86cd15ff48b8d6570167
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/BotUtil.java b/src/main/java/org/leavesmc/leaves/bot/BotUtil.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..36990dc142d1ca107f0060991285edfdf7c6ff62
+index 0000000000000000000000000000000000000000..a06ba479960a2e4a1545143e03c0918faf9488c5
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/BotUtil.java
-@@ -0,0 +1,230 @@
+@@ -0,0 +1,92 @@
 +package org.leavesmc.leaves.bot;
 +
 +import com.google.common.base.Charsets;
@@ -1799,152 +2062,33 @@ index 0000000000000000000000000000000000000000..36990dc142d1ca107f0060991285edfd
 +        return item.isDamageableItem() && (item.getMaxDamage() - item.getDamageValue()) <= minDamage;
 +    }
 +
-+    /* TODO
 +    @NotNull
-+    public static JsonObject saveBot(@NotNull ServerBot bot) {
-+        JsonObject fakePlayer = getBotJson(bot);
-+
-+        Collection<BotAction> actions = bot.getBotActions();
-+        JsonArray botActions = new JsonArray();
-+        for (BotAction action : actions) {
-+            JsonObject actionObj = new JsonObject();
-+            actionObj.addProperty("name", action.getName());
-+            actionObj.addProperty("number", String.valueOf(action.getNumber()));
-+            actionObj.addProperty("delay", String.valueOf(action.getTickDelay()));
-+            botActions.add(actionObj);
-+        }
-+        fakePlayer.add("actions", botActions);
-+
-+        CompoundTag invnbt = new CompoundTag();
-+        invnbt.put("Inventory", bot.getInventory().save(new ListTag()));
-+
-+        File file = MinecraftServer.getServer().getWorldPath(LevelResource.ROOT).resolve("fakeplayer/" + bot.getStringUUID() + ".dat").toFile();
-+        File parent = file.getParentFile();
-+        try {
-+            if (!parent.exists() || !parent.isDirectory()) {
-+                if (!parent.mkdirs()) {
-+                    throw new IOException("Failed to loadCommand directory: " + parent);
-+                }
-+            }
-+            if (file.exists() && file.isFile()) {
-+                if (!file.delete()) {
-+                    throw new IOException("Failed to delete file: " + file);
-+                }
-+            }
-+            if (!file.createNewFile()) {
-+                throw new IOException("Failed to loadCommand nbt file: " + file);
-+            }
-+            NbtIo.writeCompressed(invnbt, file.toPath());
-+        } catch (IOException e) {
-+            LeavesLogger.LOGGER.warning("Failed to save fakeplayer inv: ", e);
-+        }
-+
-+        return fakePlayer;
++    public static UUID getBotUUID(@NotNull BotCreateState state) {
++        return getBotUUID(state.realName());
 +    }
 +
-+    private static @NotNull JsonObject getBotJson(@NotNull ServerBot bot) {
-+        double pos_x = bot.getX();
-+        double pos_y = bot.getY();
-+        double pos_z = bot.getZ();
-+        float yaw = bot.getYRot();
-+        float pitch = bot.getXRot();
-+        String dimension = bot.getLocation().getWorld().getName();
-+        String skin = bot.createState.skinName;
-+        String realName = bot.createState.getRealName();
-+        String name = bot.createState.getName();
-+        String[] skinValue = bot.createState.skin;
-+
-+        JsonObject fakePlayer = new JsonObject();
-+        fakePlayer.addProperty("pos_x", pos_x);
-+        fakePlayer.addProperty("pos_y", pos_y);
-+        fakePlayer.addProperty("pos_z", pos_z);
-+        fakePlayer.addProperty("yaw", yaw);
-+        fakePlayer.addProperty("pitch", pitch);
-+        fakePlayer.addProperty("dimension", dimension);
-+        fakePlayer.addProperty("skin", skin);
-+        fakePlayer.addProperty("real_name", realName);
-+        fakePlayer.addProperty("name", name);
-+
-+        if (skinValue != null) {
-+            JsonArray jsonArray = new JsonArray();
-+            for (String str : skinValue) {
-+                jsonArray.add(str);
-+            }
-+            fakePlayer.add("skin_value", jsonArray);
-+        }
-+
-+        return fakePlayer;
++    public static UUID getBotUUID(@NotNull String realName) {
++        return UUID.nameUUIDFromBytes(("Fakeplayer:" + realName).getBytes(Charsets.UTF_8));
 +    }
++}
+diff --git a/src/main/java/org/leavesmc/leaves/bot/IPlayerDataStorage.java b/src/main/java/org/leavesmc/leaves/bot/IPlayerDataStorage.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..313b78043e822a71334a3a5ded3b2ad531921127
+--- /dev/null
++++ b/src/main/java/org/leavesmc/leaves/bot/IPlayerDataStorage.java
+@@ -0,0 +1,13 @@
++package org.leavesmc.leaves.bot;
 +
-+    public static void loadBot(Map.@NotNull Entry<String, JsonElement> entry) {
-+        JsonObject fakePlayer = entry.getValue().getAsJsonObject();
++import net.minecraft.nbt.CompoundTag;
++import net.minecraft.world.entity.player.Player;
 +
-+        String name = entry.getKey();
-+        String realName = name;
-+        if (fakePlayer.has("real_name")) {
-+            realName = fakePlayer.get("real_name").getAsString();
-+            name = fakePlayer.get("name").getAsString();
-+        }
++import java.util.Optional;
 +
-+        double pos_x = fakePlayer.get("pos_x").getAsDouble();
-+        double pos_y = fakePlayer.get("pos_y").getAsDouble();
-+        double pos_z = fakePlayer.get("pos_z").getAsDouble();
-+        float yaw = fakePlayer.get("yaw").getAsFloat();
-+        float pitch = fakePlayer.get("pitch").getAsFloat();
-+        String dimension = fakePlayer.get("dimension").getAsString();
-+        String skin = fakePlayer.get("skin").getAsString();
++public interface IPlayerDataStorage {
 +
-+        String[] skinValue = null;
-+        if (fakePlayer.has("skin_value")) {
-+            JsonArray jsonArray = fakePlayer.get("skin_value").getAsJsonArray();
-+            skinValue = new String[jsonArray.size()];
-+            for (int i = 0; i < jsonArray.size(); i++) {
-+                skinValue[i] = jsonArray.get(i).getAsString();
-+            }
-+        }
++    void save(Player player);
 +
-+        Location location = new Location(Bukkit.getWorld(dimension), pos_x, pos_y, pos_z, yaw, pitch);
-+        ServerBot.BotCreateState state = new ServerBot.BotCreateState(location, name, realName, skin, skinValue, BotCreateEvent.CreateReason.INTERNAL, null);
-+
-+        ListTag inv = null;
-+        File file = MinecraftServer.getServer().getWorldPath(LevelResource.ROOT).resolve("fakeplayer/" + getBotUUID(state) + ".dat").toFile();
-+        if (file.exists()) {
-+            try {
-+                CompoundTag nbt = NbtIo.readCompressed(file.toPath(), NbtAccounter.unlimitedHeap());
-+                inv = nbt.getList("Inventory", 10);
-+            } catch (IOException e) {
-+                LeavesLogger.LOGGER.warning("Failed to load inventory: ", e);
-+            }
-+            if (!file.delete()) {
-+                LeavesLogger.LOGGER.warning("Failed to delete file: " + file);
-+            }
-+        }
-+
-+        final JsonArray finalActions = fakePlayer.get("actions").getAsJsonArray();
-+        final ListTag finalInv = inv;
-+        state.createNow(serverBot -> {
-+            if (finalInv != null) {
-+                serverBot.getInventory().load(finalInv);
-+            }
-+
-+            for (JsonElement element : finalActions) {
-+                JsonObject actionObj = element.getAsJsonObject();
-+                BotAction action = Actions.getForName(actionObj.get("name").getAsString());
-+                if (action != null) {
-+                    BotAction newAction = action.loadCommand(serverBot,
-+                            action.getArgument().parse(0, new String[]{actionObj.get("delay").getAsString(), actionObj.get("number").getAsString()})
-+                    );
-+                    serverBot.setBotAction(newAction);
-+                }
-+            }
-+        });
-+    }
-+     */
-+
-+    @NotNull
-+    public static UUID getBotUUID(BotCreateState state) {
-+        return UUID.nameUUIDFromBytes(("Fakeplayer:" + state.realName()).getBytes(Charsets.UTF_8));
-+    }
++    public Optional<CompoundTag> load(Player player);
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/MojangAPI.java b/src/main/java/org/leavesmc/leaves/bot/MojangAPI.java
 new file mode 100644
@@ -1994,10 +2138,10 @@ index 0000000000000000000000000000000000000000..6cb1817831bf38f3bfe656d0e3a530a1
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/ServerBot.java b/src/main/java/org/leavesmc/leaves/bot/ServerBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..12f2257eb5d0c084ba17ee6572ab6d9d453ec1dd
+index 0000000000000000000000000000000000000000..8d95804aa799b49a1fb0a4927bead56f939c3425
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/ServerBot.java
-@@ -0,0 +1,581 @@
+@@ -0,0 +1,535 @@
 +package org.leavesmc.leaves.bot;
 +
 +import com.google.common.collect.ImmutableMap;
@@ -2073,6 +2217,7 @@ index 0000000000000000000000000000000000000000..12f2257eb5d0c084ba17ee6572ab6d9d
 +    private final Map<Configs<?>, BotConfig<?>> configs;
 +    private final List<BotAction<?>> actions;
 +
++    public boolean resume = false;
 +    public BotCreateState createState;
 +    public UUID createPlayer;
 +
@@ -2196,7 +2341,7 @@ index 0000000000000000000000000000000000000000..12f2257eb5d0c084ba17ee6572ab6d9d
 +            notSleepTicks++;
 +        }
 +
-+        if (server.getTickCount() % 20 == 0) {
++        if (LeavesConfig.fakeplayerRegenAmount > 0.0 && server.getTickCount() % 20 == 0) {
 +            float health = getHealth();
 +            float maxHealth = getMaxHealth();
 +            float regenAmount = (float) (LeavesConfig.fakeplayerRegenAmount * 20);
@@ -2424,6 +2569,7 @@ index 0000000000000000000000000000000000000000..12f2257eb5d0c084ba17ee6572ab6d9d
 +
 +        this.createState = createBuilder.build();
 +
++
 +        if (nbt.contains("actions")) {
 +            ListTag actionNbt = nbt.getList("actions", 10);
 +            for (int i = 0; i < actionNbt.size(); i++) {
@@ -2530,54 +2676,6 @@ index 0000000000000000000000000000000000000000..12f2257eb5d0c084ba17ee6572ab6d9d
 +    public CraftBot getBukkitEntity() {
 +        return (CraftBot) super.getBukkitEntity();
 +    }
-+
-+    /* TODO move
-+    public static void saveOrRemoveAllBot() {
-+        if (LeavesConfig.fakeplayerSupport && LeavesConfig.fakeplayerResident) {
-+            JsonObject fakePlayerList = new JsonObject();
-+            bots.forEach(bot -> fakePlayerList.add(bot.createState.realName, BotUtil.saveBot(bot)));
-+            File file = MinecraftServer.getServer().getWorldPath(LevelResource.ROOT).resolve("fake_player.leaves.json").toFile();
-+            if (!file.isFile()) {
-+                try {
-+                    if (!file.createNewFile()) {
-+                        throw new IOException("Failed to loadCommand fakeplayer file: " + file);
-+                    }
-+                } catch (IOException e) {
-+                    LeavesLogger.LOGGER.severe("Failed to save fakeplayer", e);
-+                    return;
-+                }
-+            }
-+            try (BufferedWriter bfw = Files.newBufferedWriter(file.toPath(), StandardCharsets.UTF_8)) {
-+                bfw.write(new Gson().toJson(fakePlayerList));
-+            } catch (IOException e) {
-+                LeavesLogger.LOGGER.severe("Failed to save fakeplayer", e);
-+            }
-+        } else {
-+            removeAllBot(BotRemoveEvent.RemoveReason.INTERNAL);
-+        }
-+    }
-+
-+    public static void loadAllBot() {
-+        if (LeavesConfig.fakeplayerSupport && LeavesConfig.fakeplayerResident) {
-+            JsonObject fakePlayerList = new JsonObject();
-+            File file = MinecraftServer.getServer().getWorldPath(LevelResource.ROOT).resolve("fake_player.leaves.json").toFile();
-+            if (!file.isFile()) {
-+                return;
-+            }
-+            try (BufferedReader bfr = Files.newBufferedReader(file.toPath(), StandardCharsets.UTF_8)) {
-+                fakePlayerList = new Gson().fromJson(bfr, JsonObject.class);
-+            } catch (IOException e) {
-+                LeavesLogger.LOGGER.severe("Failed to load fakeplayer", e);
-+            }
-+            for (Map.Entry<String, JsonElement> entry : fakePlayerList.entrySet()) {
-+                BotUtil.loadBot(entry);
-+            }
-+            if (!file.delete()) {
-+                LeavesLogger.LOGGER.warning("Failed to delete " + file);
-+            }
-+        }
-+    }
-+     */
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/ServerBotGameMode.java b/src/main/java/org/leavesmc/leaves/bot/ServerBotGameMode.java
 new file mode 100644
@@ -2890,10 +2988,10 @@ index 0000000000000000000000000000000000000000..a37513e1ba8443c702ab0c01fbe5e052
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/BotAction.java b/src/main/java/org/leavesmc/leaves/bot/agent/BotAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..ba9857c10f99ec1bc575f5530ce928e51b0e6693
+index 0000000000000000000000000000000000000000..55b981f5d56c5df26f2709c0450bb39e1d6f1500
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/agent/BotAction.java
-@@ -0,0 +1,134 @@
+@@ -0,0 +1,138 @@
 +package org.leavesmc.leaves.bot.agent;
 +
 +import net.minecraft.nbt.CompoundTag;
@@ -2986,16 +3084,20 @@ index 0000000000000000000000000000000000000000..ba9857c10f99ec1bc575f5530ce928e5
 +    }
 +
 +    public void tryTick(ServerBot bot) {
-+        if (canDoNumber == 0) {
++        if (this.canDoNumber == 0) {
 +            this.setCancelled(true);
 +            return;
 +        }
 +
-+        if (needWaitTick-- <= 0) {
++        if (this.needWaitTick <= 0) {
 +            if (this.doTick(bot)) {
-+                this.canDoNumber--;
++                if (this.canDoNumber > 0) {
++                    this.canDoNumber--;
++                }
 +                this.needWaitTick = this.getTickDelay();
 +            }
++        } else {
++            this.needWaitTick--;
 +        }
 +    }
 +
@@ -3745,10 +3847,10 @@ index 0000000000000000000000000000000000000000..b51658329ee851c62e74000631e79185
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/actions/UseItemAction.java b/src/main/java/org/leavesmc/leaves/bot/agent/actions/UseItemAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..812eb1a369cfb154ac76d4d71156ab26458bcbbf
+index 0000000000000000000000000000000000000000..1bdde4f8dc5e379d45fac19ba11aa07c4a1b735c
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/agent/actions/UseItemAction.java
-@@ -0,0 +1,19 @@
+@@ -0,0 +1,22 @@
 +package org.leavesmc.leaves.bot.agent.actions;
 +
 +import net.minecraft.world.InteractionHand;
@@ -3763,6 +3865,9 @@ index 0000000000000000000000000000000000000000..812eb1a369cfb154ac76d4d71156ab26
 +
 +    @Override
 +    public boolean doTick(@NotNull ServerBot bot) {
++        if (bot.isUsingItem()) {
++            return false;
++        }
 +        bot.swing(InteractionHand.MAIN_HAND);
 +        bot.updateItemInHand(InteractionHand.MAIN_HAND);
 +        return bot.gameMode.useItem(bot, bot.level(), bot.getItemInHand(InteractionHand.MAIN_HAND), InteractionHand.MAIN_HAND).consumesAction();
@@ -3770,10 +3875,10 @@ index 0000000000000000000000000000000000000000..812eb1a369cfb154ac76d4d71156ab26
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/actions/UseItemOffHandAction.java b/src/main/java/org/leavesmc/leaves/bot/agent/actions/UseItemOffHandAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..2a32fcb4e4c9660b4b3c6e0b145c7246a7a0bbda
+index 0000000000000000000000000000000000000000..f6de022b7177da0eb7c089f11ce039ab22c34903
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/agent/actions/UseItemOffHandAction.java
-@@ -0,0 +1,19 @@
+@@ -0,0 +1,22 @@
 +package org.leavesmc.leaves.bot.agent.actions;
 +
 +import net.minecraft.world.InteractionHand;
@@ -3788,6 +3893,9 @@ index 0000000000000000000000000000000000000000..2a32fcb4e4c9660b4b3c6e0b145c7246
 +
 +    @Override
 +    public boolean doTick(@NotNull ServerBot bot) {
++        if (bot.isUsingItem()) {
++            return false;
++        }
 +        bot.swing(InteractionHand.OFF_HAND);
 +        bot.updateItemInHand(InteractionHand.OFF_HAND);
 +        return bot.gameMode.useItem(bot, bot.level(), bot.getItemInHand(InteractionHand.OFF_HAND), InteractionHand.OFF_HAND).consumesAction();
@@ -4002,10 +4110,10 @@ index 0000000000000000000000000000000000000000..9a584603edbbe4ccd8a88c90ef3e9125
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/configs/SimulationDistanceConfig.java b/src/main/java/org/leavesmc/leaves/bot/agent/configs/SimulationDistanceConfig.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..f667e3480de8f42ebe1dce66330684b63c416f6f
+index 0000000000000000000000000000000000000000..d50df7c59fd28b953ba20127261d1f82a6f8e368
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/agent/configs/SimulationDistanceConfig.java
-@@ -0,0 +1,45 @@
+@@ -0,0 +1,48 @@
 +package org.leavesmc.leaves.bot.agent.configs;
 +
 +import net.minecraft.nbt.CompoundTag;
@@ -4015,6 +4123,7 @@ index 0000000000000000000000000000000000000000..f667e3480de8f42ebe1dce66330684b6
 +import org.leavesmc.leaves.command.CommandArgumentResult;
 +import org.leavesmc.leaves.command.CommandArgumentType;
 +
++import java.util.ArrayList;
 +import java.util.Collections;
 +import java.util.List;
 +
@@ -4048,15 +4157,17 @@ index 0000000000000000000000000000000000000000..f667e3480de8f42ebe1dce66330684b6
 +
 +    @Override
 +    public void load(@NotNull CompoundTag nbt) {
-+        this.setValue(new CommandArgumentResult(Collections.singletonList(nbt.getInt("simulation_distance"))));
++        this.setValue(new CommandArgumentResult(new ArrayList<>(){{
++            add(nbt.getInt("simulation_distance"));
++        }}));
 +    }
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/configs/SkipSleepConfig.java b/src/main/java/org/leavesmc/leaves/bot/agent/configs/SkipSleepConfig.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..bc805bbb3908879df8e1f1a05bbffec6c7bf2725
+index 0000000000000000000000000000000000000000..ec7db9ee8984ceb537757cbbc1c89c0139351810
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/agent/configs/SkipSleepConfig.java
-@@ -0,0 +1,46 @@
+@@ -0,0 +1,44 @@
 +package org.leavesmc.leaves.bot.agent.configs;
 +
 +import net.minecraft.nbt.CompoundTag;
@@ -4067,6 +4178,8 @@ index 0000000000000000000000000000000000000000..bc805bbb3908879df8e1f1a05bbffec6
 +import org.leavesmc.leaves.command.CommandArgumentResult;
 +import org.leavesmc.leaves.command.CommandArgumentType;
 +
++import java.util.ArrayList;
++import java.util.Collections;
 +import java.util.List;
 +
 +public class SkipSleepConfig extends BotConfig<Boolean> {
@@ -4086,12 +4199,6 @@ index 0000000000000000000000000000000000000000..bc805bbb3908879df8e1f1a05bbffec6
 +    }
 +
 +    @Override
-+    @NotNull
-+    public BotConfig<Boolean> create(ServerBot bot) {
-+        return this;
-+    }
-+
-+    @Override
 +    public @NotNull CompoundTag save(@NotNull CompoundTag nbt) {
 +        super.save(nbt);
 +        nbt.putBoolean("skip_sleep", this.getValue());
@@ -4100,15 +4207,17 @@ index 0000000000000000000000000000000000000000..bc805bbb3908879df8e1f1a05bbffec6
 +
 +    @Override
 +    public void load(@NotNull CompoundTag nbt) {
-+        this.setValue(new CommandArgumentResult(List.of(nbt.getBoolean("skip_sleep"))));
++        this.setValue(new CommandArgumentResult(new ArrayList<>() {{
++            add(nbt.getBoolean("skip_sleep"));
++        }}));
 +    }
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/configs/SpawnPhantomConfig.java b/src/main/java/org/leavesmc/leaves/bot/agent/configs/SpawnPhantomConfig.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..98ef2ae8e4fd368f285ca05db3bd93d0ea1fdf0b
+index 0000000000000000000000000000000000000000..d084602ae7db40c53c6acb60e7de77e6d1a1405d
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/agent/configs/SpawnPhantomConfig.java
-@@ -0,0 +1,58 @@
+@@ -0,0 +1,52 @@
 +package org.leavesmc.leaves.bot.agent.configs;
 +
 +import net.minecraft.nbt.CompoundTag;
@@ -4147,12 +4256,6 @@ index 0000000000000000000000000000000000000000..98ef2ae8e4fd368f285ca05db3bd93d0
 +                bot.getScoreboardName() + "'s spawn_phantom: " + this.getValue(),
 +                bot.getScoreboardName() + "'s not_sleeping_ticks: " + bot.notSleepTicks
 +        );
-+    }
-+
-+    @Override
-+    @NotNull
-+    public SpawnPhantomConfig create(ServerBot bot) {
-+        return new SpawnPhantomConfig();
 +    }
 +
 +    @Override

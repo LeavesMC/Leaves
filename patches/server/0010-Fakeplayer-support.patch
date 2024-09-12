@@ -1660,10 +1660,10 @@ index 0000000000000000000000000000000000000000..4f5e6e5c1b9d8bd38c98e97fd31b3833
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/BotList.java b/src/main/java/org/leavesmc/leaves/bot/BotList.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..3706ad3745a8f733c250471c3b5479f0878beef8
+index 0000000000000000000000000000000000000000..c8e9302e9a3534fe9aafa4b9259ae9dffa5431ba
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/BotList.java
-@@ -0,0 +1,265 @@
+@@ -0,0 +1,327 @@
 +package org.leavesmc.leaves.bot;
 +
 +import com.google.common.collect.Maps;
@@ -1681,6 +1681,7 @@ index 0000000000000000000000000000000000000000..3706ad3745a8f733c250471c3b5479f0
 +import net.minecraft.server.level.ServerLevel;
 +import net.minecraft.server.level.ServerPlayer;
 +import net.minecraft.world.entity.Entity;
++import net.minecraft.world.entity.EntityType;
 +import net.minecraft.world.level.Level;
 +import org.bukkit.Bukkit;
 +import org.bukkit.Location;
@@ -1694,6 +1695,7 @@ index 0000000000000000000000000000000000000000..3706ad3745a8f733c250471c3b5479f0
 +import org.leavesmc.leaves.event.bot.BotRemoveEvent;
 +import org.slf4j.Logger;
 +
++import java.util.Iterator;
 +import java.util.List;
 +import java.util.Locale;
 +import java.util.Map;
@@ -1740,7 +1742,7 @@ index 0000000000000000000000000000000000000000..3706ad3745a8f733c250471c3b5479f0
 +            bot.createPlayer = player.getUniqueId();
 +        }
 +
-+        return this.placeNewBot(bot, world, location);
++        return this.placeNewBot(bot, world, location, null);
 +    }
 +
 +    public ServerBot loadNewBot(String realName) {
@@ -1758,8 +1760,6 @@ index 0000000000000000000000000000000000000000..3706ad3745a8f733c250471c3b5479f0
 +            return null;
 +        }
 +
-+        bot.gameProfile = new CustomGameProfile(uuid, bot.createState.name(), bot.createState.skin());
-+
 +        ResourceKey<Level> resourcekey = null;
 +        if (optional.get().contains("WorldUUIDMost") && optional.get().contains("WorldUUIDLeast")) {
 +            org.bukkit.World bWorld = Bukkit.getServer().getWorld(new UUID(optional.get().getLong("WorldUUIDMost"), optional.get().getLong("WorldUUIDLeast")));
@@ -1772,10 +1772,10 @@ index 0000000000000000000000000000000000000000..3706ad3745a8f733c250471c3b5479f0
 +        }
 +
 +        ServerLevel world = this.server.getLevel(resourcekey);
-+        return this.placeNewBot(bot, world, bot.getLocation());
++        return this.placeNewBot(bot, world, bot.getLocation(), optional.get());
 +    }
 +
-+    public ServerBot placeNewBot(ServerBot bot, ServerLevel world, Location location) {
++    public ServerBot placeNewBot(ServerBot bot, ServerLevel world, Location location, @Nullable CompoundTag nbt) {
 +        bot.isRealPlayer = true;
 +        bot.connection = new ServerBotPacketListenerImpl(this.server, bot);
 +        bot.setServerLevel(world);
@@ -1793,7 +1793,7 @@ index 0000000000000000000000000000000000000000..3706ad3745a8f733c250471c3b5479f0
 +
 +        bot.supressTrackerForLogin = true;
 +        world.addNewPlayer(bot);
-+        // TODO mountSavedVehicle
++        this.mountSavedVehicle(bot, world, nbt);
 +
 +        BotJoinEvent event1 = new BotJoinEvent(bot.getBukkitEntity(), PaperAdventure.asAdventure(Component.translatable("multiplayer.player.joined", bot.getDisplayName())).style(Style.style(NamedTextColor.YELLOW)));
 +        this.server.server.getPluginManager().callEvent(event1);
@@ -1808,6 +1808,54 @@ index 0000000000000000000000000000000000000000..3706ad3745a8f733c250471c3b5479f0
 +        bot.serverLevel().getChunkSource().chunkMap.addEntity(bot);
 +        BotList.LOGGER.info("{}[{}] logged in with entity id {} at ([{}]{}, {}, {})", bot.getName().getString(), "Local", bot.getId(), bot.serverLevel().serverLevelData.getLevelName(), bot.getX(), bot.getY(), bot.getZ());
 +        return bot;
++    }
++
++    private void mountSavedVehicle(ServerPlayer player, ServerLevel worldserver1, @Nullable CompoundTag nbt) {
++        Optional<CompoundTag> optional = Optional.ofNullable(nbt);
++        if (optional.isPresent() && optional.get().contains("RootVehicle", 10)) {
++            CompoundTag nbttagcompound = optional.get().getCompound("RootVehicle");
++            Entity entity = EntityType.loadEntityRecursive(nbttagcompound.getCompound("Entity"), worldserver1, (entity1) -> {
++                return !worldserver1.addWithUUID(entity1, org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.MOUNT) ? null : entity1;
++            });
++
++            if (entity != null) {
++                UUID uuid;
++
++                if (nbttagcompound.hasUUID("Attach")) {
++                    uuid = nbttagcompound.getUUID("Attach");
++                } else {
++                    uuid = null;
++                }
++
++                Iterator<Entity> iterator;
++                Entity entity1;
++
++                if (entity.getUUID().equals(uuid)) {
++                    player.startRiding(entity, true);
++                } else {
++                    iterator = entity.getIndirectPassengers().iterator();
++
++                    while (iterator.hasNext()) {
++                        entity1 = iterator.next();
++                        if (entity1.getUUID().equals(uuid)) {
++                            player.startRiding(entity1, true);
++                            break;
++                        }
++                    }
++                }
++
++                if (!player.isPassenger()) {
++                    BotList.LOGGER.warn("Couldn't reattach entity to fakeplayer");
++                    entity.discard();
++                    iterator = entity.getIndirectPassengers().iterator();
++
++                    while (iterator.hasNext()) {
++                        entity1 = iterator.next();
++                        entity1.discard();
++                    }
++                }
++            }
++        }
 +    }
 +
 +    public void removeBot(@NotNull ServerBot bot, @NotNull BotRemoveEvent.RemoveReason reason, @Nullable CommandSender remover, boolean saved) {
@@ -1837,7 +1885,21 @@ index 0000000000000000000000000000000000000000..3706ad3745a8f733c250471c3b5479f0
 +            bot.dropAll();
 +        }
 +
-+        // TODO passenger
++        if (bot.isPassenger()) {
++            Entity entity = bot.getRootVehicle();
++            if (entity.hasExactlyOnePlayerPassenger()) {
++                bot.stopRiding();
++                entity.getPassengersAndSelf().forEach((entity1) -> {
++                    if (entity1 instanceof net.minecraft.world.entity.npc.AbstractVillager villager) {
++                        final net.minecraft.world.entity.player.Player human = villager.getTradingPlayer();
++                        if (human != null) {
++                            villager.setTradingPlayer(null);
++                        }
++                    }
++                    entity1.setRemoved(Entity.RemovalReason.UNLOADED_WITH_PLAYER);
++                });
++            }
++        }
 +
 +        bot.unRide();
 +        bot.serverLevel().removePlayerImmediately(bot, Entity.RemovalReason.UNLOADED_WITH_PLAYER);
@@ -2138,10 +2200,10 @@ index 0000000000000000000000000000000000000000..6cb1817831bf38f3bfe656d0e3a530a1
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/ServerBot.java b/src/main/java/org/leavesmc/leaves/bot/ServerBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..8d95804aa799b49a1fb0a4927bead56f939c3425
+index 0000000000000000000000000000000000000000..9ba9a2930da7d5acad093f7b97f93d8e9e7d61ae
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/ServerBot.java
-@@ -0,0 +1,535 @@
+@@ -0,0 +1,536 @@
 +package org.leavesmc.leaves.bot;
 +
 +import com.google.common.collect.ImmutableMap;
@@ -2568,6 +2630,7 @@ index 0000000000000000000000000000000000000000..8d95804aa799b49a1fb0a4927bead56f
 +        createBuilder.createReason(BotCreateEvent.CreateReason.INTERNAL).creator(null);
 +
 +        this.createState = createBuilder.build();
++        this.gameProfile = new BotList.CustomGameProfile(this.getUUID(), this.createState.name(), this.createState.skin());
 +
 +
 +        if (nbt.contains("actions")) {

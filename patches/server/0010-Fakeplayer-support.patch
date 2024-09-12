@@ -624,66 +624,9 @@ index 8dd85b9ca3b3e3429de4d0ec0654982589c6e93e..de9f63fb3b8dcf11a9271794850ce448
          // Paper start - make cancellable
          if (event.isCancelled()) {
              return event;
-diff --git a/src/main/java/org/bukkit/craftbukkit/scheduler/CraftScheduler.java b/src/main/java/org/bukkit/craftbukkit/scheduler/CraftScheduler.java
-index 22f1ed383313829b8af4badda9ef8dc85cae8fd1..1c47e320e464af9651953ff308a2583fcb965891 100644
---- a/src/main/java/org/bukkit/craftbukkit/scheduler/CraftScheduler.java
-+++ b/src/main/java/org/bukkit/craftbukkit/scheduler/CraftScheduler.java
-@@ -1,7 +1,7 @@
- package org.bukkit.craftbukkit.scheduler;
- 
- import com.google.common.base.Preconditions;
--import com.google.common.util.concurrent.ThreadFactoryBuilder;
-+
- import java.util.ArrayList;
- import java.util.Comparator;
- import java.util.Iterator;
-@@ -10,7 +10,6 @@ import java.util.PriorityQueue;
- import java.util.concurrent.Callable;
- import java.util.concurrent.ConcurrentHashMap;
- import java.util.concurrent.Executor;
--import java.util.concurrent.Executors;
- import java.util.concurrent.Future;
- import java.util.concurrent.atomic.AtomicInteger;
- import java.util.concurrent.atomic.AtomicReference;
-@@ -23,6 +22,7 @@ import org.bukkit.scheduler.BukkitRunnable;
- import org.bukkit.scheduler.BukkitScheduler;
- import org.bukkit.scheduler.BukkitTask;
- import org.bukkit.scheduler.BukkitWorker;
-+import org.leavesmc.leaves.plugin.MinecraftInternalPlugin;
- 
- /**
-  * The fundamental concepts for this implementation:
-@@ -46,6 +46,8 @@ import org.bukkit.scheduler.BukkitWorker;
-  */
- public class CraftScheduler implements BukkitScheduler {
- 
-+    public static final Plugin MINECRAFT = new MinecraftInternalPlugin(); // Leaves - run async task
-+
-     /**
-      * The start ID for the counter.
-      */
-@@ -478,10 +480,14 @@ public class CraftScheduler implements BukkitScheduler {
-                         "Task #%s for %s generated an exception",
-                         task.getTaskId(),
-                         task.getOwner().getDescription().getFullName());
--                    task.getOwner().getLogger().log(
--                            Level.WARNING,
--                        logMessage,
--                            throwable);
-+                    if (task.getOwner() instanceof MinecraftInternalPlugin) {
-+                        net.minecraft.server.MinecraftServer.LOGGER.error(logMessage, throwable);
-+                    } else {
-+                        task.getOwner().getLogger().log(
-+                                Level.WARNING,
-+                                logMessage,
-+                                throwable);
-+                    }
-                     org.bukkit.Bukkit.getServer().getPluginManager().callEvent(
-                         new com.destroystokyo.paper.event.server.ServerExceptionEvent(new com.destroystokyo.paper.exception.ServerSchedulerException(logMessage, throwable, task)));
-                     // Paper end
 diff --git a/src/main/java/org/leavesmc/leaves/bot/BotCommand.java b/src/main/java/org/leavesmc/leaves/bot/BotCommand.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..a978fed9f02f17d2a670b092f7605e2ad40bde59
+index 0000000000000000000000000000000000000000..f67529b65b46a8da6a5a17c12f86b939930e66ca
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/BotCommand.java
 @@ -0,0 +1,527 @@
@@ -699,7 +642,6 @@ index 0000000000000000000000000000000000000000..a978fed9f02f17d2a670b092f7605e2a
 +import org.bukkit.command.CommandSender;
 +import org.bukkit.command.ConsoleCommandSender;
 +import org.bukkit.craftbukkit.entity.CraftPlayer;
-+import org.bukkit.craftbukkit.scheduler.CraftScheduler;
 +import org.bukkit.entity.Player;
 +import org.bukkit.generator.WorldInfo;
 +import org.bukkit.permissions.Permission;
@@ -719,6 +661,7 @@ index 0000000000000000000000000000000000000000..a978fed9f02f17d2a670b092f7605e2a
 +import org.leavesmc.leaves.event.bot.BotConfigModifyEvent;
 +import org.leavesmc.leaves.event.bot.BotCreateEvent;
 +import org.leavesmc.leaves.event.bot.BotRemoveEvent;
++import org.leavesmc.leaves.plugin.MinecraftInternalPlugin;
 +
 +import java.util.*;
 +
@@ -970,7 +913,7 @@ index 0000000000000000000000000000000000000000..a978fed9f02f17d2a670b092f7605e2a
 +            if (isReschedule) {
 +                Bukkit.getScheduler().cancelTask(bot.removeTaskId);
 +            }
-+            bot.removeTaskId = Bukkit.getScheduler().runTaskLater(CraftScheduler.MINECRAFT, () -> {
++            bot.removeTaskId = Bukkit.getScheduler().runTaskLater(MinecraftInternalPlugin.INSTANCE, () -> {
 +                bot.removeTaskId = -1;
 +                botList.removeBot(bot, BotRemoveEvent.RemoveReason.COMMAND, sender, false);
 +            }, time).getTaskId();
@@ -1216,7 +1159,7 @@ index 0000000000000000000000000000000000000000..a978fed9f02f17d2a670b092f7605e2a
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/BotCreateState.java b/src/main/java/org/leavesmc/leaves/bot/BotCreateState.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..09d9b488a5d0808404038206615d48c7be4e50d9
+index 0000000000000000000000000000000000000000..e4319afca7bcd7458014baa7695774abc9b33916
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/BotCreateState.java
 @@ -0,0 +1,114 @@
@@ -1226,11 +1169,11 @@ index 0000000000000000000000000000000000000000..09d9b488a5d0808404038206615d48c7
 +import org.bukkit.Bukkit;
 +import org.bukkit.Location;
 +import org.bukkit.command.CommandSender;
-+import org.bukkit.craftbukkit.scheduler.CraftScheduler;
 +import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
 +import org.leavesmc.leaves.LeavesConfig;
 +import org.leavesmc.leaves.event.bot.BotCreateEvent;
++import org.leavesmc.leaves.plugin.MinecraftInternalPlugin;
 +
 +import java.util.Objects;
 +import java.util.function.Consumer;
@@ -1244,7 +1187,7 @@ index 0000000000000000000000000000000000000000..09d9b488a5d0808404038206615d48c7
 +    }
 +
 +    @NotNull
-+    public static Builder builder(String realName, Location location) {
++    public static Builder builder(@NotNull String realName, @Nullable Location location) {
 +        return new Builder(realName, location);
 +    }
 +
@@ -1261,7 +1204,7 @@ index 0000000000000000000000000000000000000000..09d9b488a5d0808404038206615d48c7
 +        private BotCreateEvent.CreateReason createReason;
 +        private CommandSender creator;
 +
-+        private Builder(@NotNull String realName, @NotNull Location location) {
++        private Builder(@NotNull String realName, @Nullable Location location) {
 +            Objects.requireNonNull(realName);
 +
 +            this.realName = realName;
@@ -1318,7 +1261,7 @@ index 0000000000000000000000000000000000000000..09d9b488a5d0808404038206615d48c7
 +        }
 +
 +        public void createAsyncWithSkin(Consumer<ServerBot> consumer) {
-+            Bukkit.getScheduler().runTaskAsynchronously(CraftScheduler.MINECRAFT, () -> this.mojangAPISkin().create(consumer));
++            Bukkit.getScheduler().runTaskAsynchronously(MinecraftInternalPlugin.INSTANCE, () -> this.mojangAPISkin().create(consumer));
 +        }
 +
 +        public void create(Consumer<ServerBot> consumer) {
@@ -1993,10 +1936,10 @@ index 0000000000000000000000000000000000000000..c8e9302e9a3534fe9aafa4b9259ae9df
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/BotStatsCounter.java b/src/main/java/org/leavesmc/leaves/bot/BotStatsCounter.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..5bd34353b6ea86cd15ff48b8d6570167f35d75f0
+index 0000000000000000000000000000000000000000..10494446f915bc1720a18cfe75b2cab2404646e9
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/BotStatsCounter.java
-@@ -0,0 +1,38 @@
+@@ -0,0 +1,36 @@
 +package org.leavesmc.leaves.bot;
 +
 +import com.mojang.datafixers.DataFixer;
@@ -2004,6 +1947,7 @@ index 0000000000000000000000000000000000000000..5bd34353b6ea86cd15ff48b8d6570167
 +import net.minecraft.stats.ServerStatsCounter;
 +import net.minecraft.stats.Stat;
 +import net.minecraft.world.entity.player.Player;
++import org.jetbrains.annotations.NotNull;
 +
 +import java.io.File;
 +
@@ -2017,57 +1961,35 @@ index 0000000000000000000000000000000000000000..5bd34353b6ea86cd15ff48b8d6570167
 +
 +    @Override
 +    public void save() {
-+
 +    }
 +
 +    @Override
-+    public void setValue(Player player, Stat<?> stat, int value) {
-+
++    public void setValue(@NotNull Player player, @NotNull Stat<?> stat, int value) {
 +    }
 +
 +    @Override
-+    public void parseLocal(DataFixer dataFixer, String json) {
-+
++    public void parseLocal(@NotNull DataFixer dataFixer, @NotNull String json) {
 +    }
 +
 +    @Override
-+    public int getValue(Stat<?> stat) {
++    public int getValue(@NotNull Stat<?> stat) {
 +        return 0;
 +    }
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/BotUtil.java b/src/main/java/org/leavesmc/leaves/bot/BotUtil.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..a06ba479960a2e4a1545143e03c0918faf9488c5
+index 0000000000000000000000000000000000000000..78414d1f53328cdc2963264ecb4f5a65e9783798
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/BotUtil.java
-@@ -0,0 +1,92 @@
+@@ -0,0 +1,73 @@
 +package org.leavesmc.leaves.bot;
 +
 +import com.google.common.base.Charsets;
-+import com.google.gson.JsonArray;
-+import com.google.gson.JsonElement;
-+import com.google.gson.JsonObject;
 +import net.minecraft.core.NonNullList;
-+import net.minecraft.nbt.CompoundTag;
-+import net.minecraft.nbt.ListTag;
-+import net.minecraft.nbt.NbtAccounter;
-+import net.minecraft.nbt.NbtIo;
-+import net.minecraft.server.MinecraftServer;
 +import net.minecraft.world.entity.EquipmentSlot;
 +import net.minecraft.world.item.ItemStack;
-+import net.minecraft.world.level.storage.LevelResource;
-+import org.bukkit.Bukkit;
-+import org.bukkit.Location;
 +import org.jetbrains.annotations.NotNull;
-+import org.leavesmc.leaves.LeavesLogger;
-+import org.leavesmc.leaves.bot.agent.Actions;
-+import org.leavesmc.leaves.bot.agent.BotAction;
-+import org.leavesmc.leaves.event.bot.BotCreateEvent;
 +
-+import java.io.File;
-+import java.io.IOException;
-+import java.util.Collection;
-+import java.util.Map;
 +import java.util.UUID;
 +
 +public class BotUtil {
@@ -2135,7 +2057,7 @@ index 0000000000000000000000000000000000000000..a06ba479960a2e4a1545143e03c0918f
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/IPlayerDataStorage.java b/src/main/java/org/leavesmc/leaves/bot/IPlayerDataStorage.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..313b78043e822a71334a3a5ded3b2ad531921127
+index 0000000000000000000000000000000000000000..7ebe4d6c71e90be92387a585ea581c6b2c4af89d
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/IPlayerDataStorage.java
 @@ -0,0 +1,13 @@
@@ -2150,18 +2072,19 @@ index 0000000000000000000000000000000000000000..313b78043e822a71334a3a5ded3b2ad5
 +
 +    void save(Player player);
 +
-+    public Optional<CompoundTag> load(Player player);
++    Optional<CompoundTag> load(Player player);
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/MojangAPI.java b/src/main/java/org/leavesmc/leaves/bot/MojangAPI.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..6cb1817831bf38f3bfe656d0e3a530a1b9d6003c
+index 0000000000000000000000000000000000000000..517e3321b866abe9d17a6fe9e919528b50bb130a
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/MojangAPI.java
-@@ -0,0 +1,40 @@
+@@ -0,0 +1,39 @@
 +package org.leavesmc.leaves.bot;
 +
 +import com.google.gson.JsonObject;
 +import com.google.gson.JsonParser;
++import org.leavesmc.leaves.LeavesConfig;
 +
 +import java.io.IOException;
 +import java.io.InputStreamReader;
@@ -2171,12 +2094,10 @@ index 0000000000000000000000000000000000000000..6cb1817831bf38f3bfe656d0e3a530a1
 +
 +public class MojangAPI {
 +
-+    private static final boolean CACHE_ENABLED = false;
-+
 +    private static final Map<String, String[]> CACHE = new HashMap<>();
 +
 +    public static String[] getSkin(String name) {
-+        if (CACHE_ENABLED && CACHE.containsKey(name)) {
++        if (LeavesConfig.fakeplayerCacheSkin && CACHE.containsKey(name)) {
 +            return CACHE.get(name);
 +        }
 +
@@ -2200,7 +2121,7 @@ index 0000000000000000000000000000000000000000..6cb1817831bf38f3bfe656d0e3a530a1
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/ServerBot.java b/src/main/java/org/leavesmc/leaves/bot/ServerBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..9ba9a2930da7d5acad093f7b97f93d8e9e7d61ae
+index 0000000000000000000000000000000000000000..7b99ce6fd0224e79ddba04920837a48ece8a6048
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/ServerBot.java
 @@ -0,0 +1,536 @@
@@ -2248,7 +2169,6 @@ index 0000000000000000000000000000000000000000..9ba9a2930da7d5acad093f7b97f93d8e
 +import net.minecraft.world.phys.Vec3;
 +import org.bukkit.Bukkit;
 +import org.bukkit.Location;
-+import org.bukkit.craftbukkit.scheduler.CraftScheduler;
 +import org.bukkit.util.Vector;
 +import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
@@ -2263,6 +2183,7 @@ index 0000000000000000000000000000000000000000..9ba9a2930da7d5acad093f7b97f93d8e
 +import org.leavesmc.leaves.event.bot.BotDeathEvent;
 +import org.leavesmc.leaves.event.bot.BotInventoryOpenEvent;
 +import org.leavesmc.leaves.event.bot.BotRemoveEvent;
++import org.leavesmc.leaves.plugin.MinecraftInternalPlugin;
 +import org.leavesmc.leaves.util.MathUtils;
 +
 +import java.util.ArrayList;
@@ -2338,7 +2259,7 @@ index 0000000000000000000000000000000000000000..9ba9a2930da7d5acad093f7b97f93d8e
 +
 +        playerConnection.send(this.getAddEntityPacket(entityTracker.serverEntity));
 +        if (login) {
-+            Bukkit.getScheduler().runTaskLater(CraftScheduler.MINECRAFT, () -> playerConnection.send(new ClientboundRotateHeadPacket(this, (byte) ((getYRot() * 256f) / 360f))), 10);
++            Bukkit.getScheduler().runTaskLater(MinecraftInternalPlugin.INSTANCE, () -> playerConnection.send(new ClientboundRotateHeadPacket(this, (byte) ((getYRot() * 256f) / 360f))), 10);
 +        } else {
 +            playerConnection.send(new ClientboundRotateHeadPacket(this, (byte) ((getYRot() * 256f) / 360f)));
 +        }
@@ -2742,14 +2663,13 @@ index 0000000000000000000000000000000000000000..9ba9a2930da7d5acad093f7b97f93d8e
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/ServerBotGameMode.java b/src/main/java/org/leavesmc/leaves/bot/ServerBotGameMode.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..d626ac47af400d01993c358fa5a93671dce9abe9
+index 0000000000000000000000000000000000000000..bc1e29f6080c4783940848456620be8c06c32cce
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/ServerBotGameMode.java
-@@ -0,0 +1,139 @@
+@@ -0,0 +1,138 @@
 +package org.leavesmc.leaves.bot;
 +
 +import net.kyori.adventure.text.Component;
-+import net.minecraft.advancements.CriteriaTriggers;
 +import net.minecraft.core.BlockPos;
 +import net.minecraft.server.level.ServerLevel;
 +import net.minecraft.server.level.ServerPlayer;
@@ -3263,10 +3183,10 @@ index 0000000000000000000000000000000000000000..c889a2409d8b9f5979a10b61c9863805
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/Configs.java b/src/main/java/org/leavesmc/leaves/bot/agent/Configs.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..5cda0c76c2c25d65b1c5e0c22a7cf12efd4619a9
+index 0000000000000000000000000000000000000000..d99f459b2e323474174cfd5d892cb7573a32ca12
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/agent/Configs.java
-@@ -0,0 +1,46 @@
+@@ -0,0 +1,44 @@
 +package org.leavesmc.leaves.bot.agent;
 +
 +import org.jetbrains.annotations.Contract;
@@ -3274,10 +3194,8 @@ index 0000000000000000000000000000000000000000..5cda0c76c2c25d65b1c5e0c22a7cf12e
 +import org.jetbrains.annotations.Nullable;
 +import org.leavesmc.leaves.bot.agent.configs.*;
 +
-+import java.util.ArrayList;
 +import java.util.Collection;
 +import java.util.HashMap;
-+import java.util.List;
 +import java.util.Map;
 +
 +public class Configs<E> {
@@ -3315,10 +3233,10 @@ index 0000000000000000000000000000000000000000..5cda0c76c2c25d65b1c5e0c22a7cf12e
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/actions/AbstractTimerAction.java b/src/main/java/org/leavesmc/leaves/bot/agent/actions/AbstractTimerAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..a4a1b5c1829637bbe71a565e0a82cb437f998759
+index 0000000000000000000000000000000000000000..c197dd7726c9f3224b8fe44dac9c707155019c3b
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/agent/actions/AbstractTimerAction.java
-@@ -0,0 +1,25 @@
+@@ -0,0 +1,24 @@
 +package org.leavesmc.leaves.bot.agent.actions;
 +
 +import net.minecraft.server.level.ServerPlayer;
@@ -3335,8 +3253,7 @@ index 0000000000000000000000000000000000000000..a4a1b5c1829637bbe71a565e0a82cb43
 +
 +    public AbstractTimerAction(String name, Supplier<E> creator) {
 +        super(name, CommandArgument.of(CommandArgumentType.INTEGER, CommandArgumentType.INTEGER), creator);
-+        this.setTabComplete(0, List.of("[TickDelay]"));
-+        this.setTabComplete(1, List.of("[DoNumber]"));
++        this.setTabComplete(0, List.of("[TickDelay]")).setTabComplete(1, List.of("[DoNumber]"));
 +    }
 +
 +    @Override
@@ -3374,26 +3291,19 @@ index 0000000000000000000000000000000000000000..03e9baf9b7c2da0fd1d7d9b0058b70da
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/actions/BreakBlockAction.java b/src/main/java/org/leavesmc/leaves/bot/agent/actions/BreakBlockAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..cf22093b844b0d14c487af06136bd177fe2e7bef
+index 0000000000000000000000000000000000000000..bf7d20374cd7bff7cb7e09d209c6da5d297fe1f1
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/agent/actions/BreakBlockAction.java
-@@ -0,0 +1,82 @@
+@@ -0,0 +1,75 @@
 +package org.leavesmc.leaves.bot.agent.actions;
 +
 +import net.minecraft.core.BlockPos;
-+import net.minecraft.server.level.ServerPlayer;
 +import net.minecraft.world.InteractionHand;
 +import net.minecraft.world.level.block.state.BlockState;
 +import org.bukkit.block.Block;
 +import org.bukkit.craftbukkit.block.CraftBlock;
 +import org.jetbrains.annotations.NotNull;
 +import org.leavesmc.leaves.bot.ServerBot;
-+import org.leavesmc.leaves.bot.agent.BotAction;
-+import org.leavesmc.leaves.command.CommandArgument;
-+import org.leavesmc.leaves.command.CommandArgumentResult;
-+import org.leavesmc.leaves.command.CommandArgumentType;
-+
-+import java.util.List;
 +
 +public class BreakBlockAction extends AbstractTimerAction<BreakBlockAction> {
 +
@@ -3842,14 +3752,13 @@ index 0000000000000000000000000000000000000000..78d7cf38c28c5512955cf2c59a78ac49
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/actions/SneakAction.java b/src/main/java/org/leavesmc/leaves/bot/agent/actions/SneakAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..9cf7acfc22b68c80e510268c8785ce924111593c
+index 0000000000000000000000000000000000000000..6cfc1986aa3fc895ba854226170555dc2583d7fa
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/agent/actions/SneakAction.java
-@@ -0,0 +1,27 @@
+@@ -0,0 +1,26 @@
 +package org.leavesmc.leaves.bot.agent.actions;
 +
 +import net.minecraft.server.level.ServerPlayer;
-+import net.minecraft.world.entity.Pose;
 +import org.jetbrains.annotations.NotNull;
 +import org.leavesmc.leaves.bot.ServerBot;
 +import org.leavesmc.leaves.bot.agent.BotAction;
@@ -3966,7 +3875,7 @@ index 0000000000000000000000000000000000000000..f6de022b7177da0eb7c089f11ce039ab
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/actions/UseItemOnAction.java b/src/main/java/org/leavesmc/leaves/bot/agent/actions/UseItemOnAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..de69e043e36502f306f7bedc6e8a344dc76f4114
+index 0000000000000000000000000000000000000000..f73cd841009117e4032f953a3e754305d97a68be
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/agent/actions/UseItemOnAction.java
 @@ -0,0 +1,42 @@
@@ -3981,9 +3890,9 @@ index 0000000000000000000000000000000000000000..de69e043e36502f306f7bedc6e8a344d
 +import net.minecraft.world.phys.BlockHitResult;
 +import net.minecraft.world.phys.HitResult;
 +import org.bukkit.Bukkit;
-+import org.bukkit.craftbukkit.scheduler.CraftScheduler;
 +import org.jetbrains.annotations.NotNull;
 +import org.leavesmc.leaves.bot.ServerBot;
++import org.leavesmc.leaves.plugin.MinecraftInternalPlugin;
 +
 +public class UseItemOnAction extends AbstractTimerAction<UseItemOnAction> {
 +
@@ -4001,7 +3910,7 @@ index 0000000000000000000000000000000000000000..de69e043e36502f306f7bedc6e8a344d
 +                BlockEntity entity = bot.serverLevel().getBlockEntity(blockHitResult.getBlockPos());
 +                if (entity instanceof TrappedChestBlockEntity chestBlockEntity) {
 +                    chestBlockEntity.startOpen(bot);
-+                    Bukkit.getScheduler().runTaskLater(CraftScheduler.MINECRAFT, () -> chestBlockEntity.stopOpen(bot), 1);
++                    Bukkit.getScheduler().runTaskLater(MinecraftInternalPlugin.INSTANCE, () -> chestBlockEntity.stopOpen(bot), 1);
 +                    return true;
 +                }
 +            } else {
@@ -4014,7 +3923,7 @@ index 0000000000000000000000000000000000000000..de69e043e36502f306f7bedc6e8a344d
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/actions/UseItemOnOffhandAction.java b/src/main/java/org/leavesmc/leaves/bot/agent/actions/UseItemOnOffhandAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..1cccca7292ebcb33f8bbcc6b1de91178a744fe42
+index 0000000000000000000000000000000000000000..c0cd258151f690ccbf3df1ffd640b83d8f36aa7d
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/agent/actions/UseItemOnOffhandAction.java
 @@ -0,0 +1,42 @@
@@ -4029,9 +3938,9 @@ index 0000000000000000000000000000000000000000..1cccca7292ebcb33f8bbcc6b1de91178
 +import net.minecraft.world.phys.BlockHitResult;
 +import net.minecraft.world.phys.HitResult;
 +import org.bukkit.Bukkit;
-+import org.bukkit.craftbukkit.scheduler.CraftScheduler;
 +import org.jetbrains.annotations.NotNull;
 +import org.leavesmc.leaves.bot.ServerBot;
++import org.leavesmc.leaves.plugin.MinecraftInternalPlugin;
 +
 +public class UseItemOnOffhandAction extends AbstractTimerAction<UseItemOnOffhandAction> {
 +
@@ -4049,7 +3958,7 @@ index 0000000000000000000000000000000000000000..1cccca7292ebcb33f8bbcc6b1de91178
 +                BlockEntity entity = bot.serverLevel().getBlockEntity(blockHitResult.getBlockPos());
 +                if (entity instanceof TrappedChestBlockEntity chestBlockEntity) {
 +                    chestBlockEntity.startOpen(bot);
-+                    Bukkit.getScheduler().runTaskLater(CraftScheduler.MINECRAFT, () -> chestBlockEntity.stopOpen(bot), 1);
++                    Bukkit.getScheduler().runTaskLater(MinecraftInternalPlugin.INSTANCE, () -> chestBlockEntity.stopOpen(bot), 1);
 +                    return true;
 +                }
 +            } else {
@@ -4173,10 +4082,10 @@ index 0000000000000000000000000000000000000000..9a584603edbbe4ccd8a88c90ef3e9125
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/configs/SimulationDistanceConfig.java b/src/main/java/org/leavesmc/leaves/bot/agent/configs/SimulationDistanceConfig.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..d50df7c59fd28b953ba20127261d1f82a6f8e368
+index 0000000000000000000000000000000000000000..c8a2243361cd03e9c64b6a04b37725b549e5b87f
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/agent/configs/SimulationDistanceConfig.java
-@@ -0,0 +1,48 @@
+@@ -0,0 +1,47 @@
 +package org.leavesmc.leaves.bot.agent.configs;
 +
 +import net.minecraft.nbt.CompoundTag;
@@ -4187,7 +4096,6 @@ index 0000000000000000000000000000000000000000..d50df7c59fd28b953ba20127261d1f82
 +import org.leavesmc.leaves.command.CommandArgumentType;
 +
 +import java.util.ArrayList;
-+import java.util.Collections;
 +import java.util.List;
 +
 +public class SimulationDistanceConfig extends BotConfig<Integer> {
@@ -4227,22 +4135,20 @@ index 0000000000000000000000000000000000000000..d50df7c59fd28b953ba20127261d1f82
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/configs/SkipSleepConfig.java b/src/main/java/org/leavesmc/leaves/bot/agent/configs/SkipSleepConfig.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..ec7db9ee8984ceb537757cbbc1c89c0139351810
+index 0000000000000000000000000000000000000000..0d934910cff745ea9a53d651e20079635ea6781c
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/agent/configs/SkipSleepConfig.java
-@@ -0,0 +1,44 @@
+@@ -0,0 +1,42 @@
 +package org.leavesmc.leaves.bot.agent.configs;
 +
 +import net.minecraft.nbt.CompoundTag;
 +import org.jetbrains.annotations.NotNull;
-+import org.leavesmc.leaves.bot.ServerBot;
 +import org.leavesmc.leaves.bot.agent.BotConfig;
 +import org.leavesmc.leaves.command.CommandArgument;
 +import org.leavesmc.leaves.command.CommandArgumentResult;
 +import org.leavesmc.leaves.command.CommandArgumentType;
 +
 +import java.util.ArrayList;
-+import java.util.Collections;
 +import java.util.List;
 +
 +public class SkipSleepConfig extends BotConfig<Boolean> {
@@ -4277,16 +4183,15 @@ index 0000000000000000000000000000000000000000..ec7db9ee8984ceb537757cbbc1c89c01
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/configs/SpawnPhantomConfig.java b/src/main/java/org/leavesmc/leaves/bot/agent/configs/SpawnPhantomConfig.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..d084602ae7db40c53c6acb60e7de77e6d1a1405d
+index 0000000000000000000000000000000000000000..a3f978318a67c3c5e147a50eb2b6c01c3f549dc2
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/agent/configs/SpawnPhantomConfig.java
-@@ -0,0 +1,52 @@
+@@ -0,0 +1,51 @@
 +package org.leavesmc.leaves.bot.agent.configs;
 +
 +import net.minecraft.nbt.CompoundTag;
 +import org.jetbrains.annotations.NotNull;
 +import org.leavesmc.leaves.LeavesConfig;
-+import org.leavesmc.leaves.bot.ServerBot;
 +import org.leavesmc.leaves.bot.agent.BotConfig;
 +import org.leavesmc.leaves.command.CommandArgument;
 +import org.leavesmc.leaves.command.CommandArgumentResult;
@@ -4333,38 +4238,6 @@ index 0000000000000000000000000000000000000000..d084602ae7db40c53c6acb60e7de77e6
 +        this.value = nbt.getBoolean("spawn_phantom");
 +    }
 +}
-diff --git a/src/main/java/org/leavesmc/leaves/command/CommandArgumentResult.java b/src/main/java/org/leavesmc/leaves/command/CommandArgumentResult.java
-index 3f0707940f22736f703c24f4da25c18fa6e5b309..46aa6eaa75b65aad6bdbe4a5f517b42e87bcca77 100644
---- a/src/main/java/org/leavesmc/leaves/command/CommandArgumentResult.java
-+++ b/src/main/java/org/leavesmc/leaves/command/CommandArgumentResult.java
-@@ -30,6 +30,10 @@ public class CommandArgumentResult {
-         return Objects.requireNonNullElse(read(String.class), def);
-     }
- 
-+    public boolean readBoolean(boolean def) {
-+        return Objects.requireNonNullElse(read(Boolean.class), def);
-+    }
-+
-     public BlockPos readPos() {
-         Integer[] pos = {read(Integer.class), read(Integer.class), read(Integer.class)};
-         for (Integer po : pos) {
-diff --git a/src/main/java/org/leavesmc/leaves/command/CommandArgumentType.java b/src/main/java/org/leavesmc/leaves/command/CommandArgumentType.java
-index 0d6d33e66461dda39c8f0e8395bf3f047ef88cbd..4ca3508475bbd9771768704e300fe12b717489d6 100644
---- a/src/main/java/org/leavesmc/leaves/command/CommandArgumentType.java
-+++ b/src/main/java/org/leavesmc/leaves/command/CommandArgumentType.java
-@@ -44,5 +44,12 @@ public abstract class CommandArgumentType<E> {
-         }
-     };
- 
-+    public static final CommandArgumentType<Boolean> BOOLEAN = new CommandArgumentType<>() {
-+        @Override
-+        public Boolean pasre(@NotNull String arg) {
-+            return Boolean.parseBoolean(arg);
-+        }
-+    };
-+
-     public abstract E pasre(@NotNull String arg);
- }
 diff --git a/src/main/java/org/leavesmc/leaves/entity/CraftBot.java b/src/main/java/org/leavesmc/leaves/entity/CraftBot.java
 new file mode 100644
 index 0000000000000000000000000000000000000000..893570a670ae90def4690d77dcd956da5a681eb9
@@ -4495,10 +4368,10 @@ index 0000000000000000000000000000000000000000..c5414799a8a7f43322a5b06d183bb43e
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/plugin/MinecraftInternalPlugin.java b/src/main/java/org/leavesmc/leaves/plugin/MinecraftInternalPlugin.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..356b2de6ffd82e42a5d0f20ac1e3de7f4b5a7013
+index 0000000000000000000000000000000000000000..de06c854a9a5242cf632b38806e8e710496b7e4e
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/plugin/MinecraftInternalPlugin.java
-@@ -0,0 +1,149 @@
+@@ -0,0 +1,151 @@
 +package org.leavesmc.leaves.plugin;
 +
 +import org.bukkit.Server;
@@ -4519,6 +4392,9 @@ index 0000000000000000000000000000000000000000..356b2de6ffd82e42a5d0f20ac1e3de7f
 +import java.util.List;
 +
 +public class MinecraftInternalPlugin extends PluginBase {
++
++    public static final MinecraftInternalPlugin INSTANCE = new MinecraftInternalPlugin();
++
 +    private boolean enabled = true;
 +
 +    private final PluginDescriptionFile pdf;
@@ -4541,12 +4417,11 @@ index 0000000000000000000000000000000000000000..356b2de6ffd82e42a5d0f20ac1e3de7f
 +    public PluginDescriptionFile getDescription() {
 +        return pdf;
 +    }
-+    // Paper start
++
 +    @Override
 +    public io.papermc.paper.plugin.configuration.PluginMeta getPluginMeta() {
 +        return pdf;
 +    }
-+    // Paper end
 +
 +    @Override
 +    public FileConfiguration getConfig() {

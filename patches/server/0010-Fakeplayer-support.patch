@@ -626,10 +626,10 @@ index 8dd85b9ca3b3e3429de4d0ec0654982589c6e93e..de9f63fb3b8dcf11a9271794850ce448
              return event;
 diff --git a/src/main/java/org/leavesmc/leaves/bot/BotCommand.java b/src/main/java/org/leavesmc/leaves/bot/BotCommand.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..f67529b65b46a8da6a5a17c12f86b939930e66ca
+index 0000000000000000000000000000000000000000..ab7c2fb890041c478b18a49beab87d9554cd20c8
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/BotCommand.java
-@@ -0,0 +1,527 @@
+@@ -0,0 +1,522 @@
 +package org.leavesmc.leaves.bot;
 +
 +import io.papermc.paper.command.CommandUtil;
@@ -657,7 +657,6 @@ index 0000000000000000000000000000000000000000..f67529b65b46a8da6a5a17c12f86b939
 +import org.leavesmc.leaves.bot.agent.actions.CraftCustomBotAction;
 +import org.leavesmc.leaves.command.CommandArgumentResult;
 +import org.leavesmc.leaves.entity.Bot;
-+import org.leavesmc.leaves.event.bot.BotActionEvent;
 +import org.leavesmc.leaves.event.bot.BotConfigModifyEvent;
 +import org.leavesmc.leaves.event.bot.BotCreateEvent;
 +import org.leavesmc.leaves.event.bot.BotRemoveEvent;
@@ -1011,11 +1010,7 @@ index 0000000000000000000000000000000000000000..f67529b65b46a8da6a5a17c12f86b939
 +            return;
 +        }
 +
-+        BotActionEvent event = new BotActionEvent(bot.getBukkitEntity(), newAction.getName(), realArgs);
-+        Bukkit.getPluginManager().callEvent(event);
-+
-+        if (!event.isCancelled()) {
-+            bot.addBotAction(newAction);
++        if (bot.addBotAction(newAction)) {
 +            sender.sendMessage("Action " + action.getName() + " has been issued to " + bot.getName().getString());
 +        }
 +    }
@@ -1159,10 +1154,10 @@ index 0000000000000000000000000000000000000000..f67529b65b46a8da6a5a17c12f86b939
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/BotCreateState.java b/src/main/java/org/leavesmc/leaves/bot/BotCreateState.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..e4319afca7bcd7458014baa7695774abc9b33916
+index 0000000000000000000000000000000000000000..6df68cdbeeed27f4b1cc81a33f70689fae5dd339
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/BotCreateState.java
-@@ -0,0 +1,114 @@
+@@ -0,0 +1,115 @@
 +package org.leavesmc.leaves.bot;
 +
 +import net.minecraft.server.MinecraftServer;
@@ -1172,6 +1167,7 @@ index 0000000000000000000000000000000000000000..e4319afca7bcd7458014baa7695774ab
 +import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
 +import org.leavesmc.leaves.LeavesConfig;
++import org.leavesmc.leaves.entity.BotCreator;
 +import org.leavesmc.leaves.event.bot.BotCreateEvent;
 +import org.leavesmc.leaves.plugin.MinecraftInternalPlugin;
 +
@@ -1191,7 +1187,7 @@ index 0000000000000000000000000000000000000000..e4319afca7bcd7458014baa7695774ab
 +        return new Builder(realName, location);
 +    }
 +
-+    public static class Builder {
++    public static class Builder implements BotCreator {
 +
 +        private final String realName;
 +
@@ -1603,10 +1599,10 @@ index 0000000000000000000000000000000000000000..4f5e6e5c1b9d8bd38c98e97fd31b3833
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/BotList.java b/src/main/java/org/leavesmc/leaves/bot/BotList.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..c8e9302e9a3534fe9aafa4b9259ae9dffa5431ba
+index 0000000000000000000000000000000000000000..8357ada4c3a237021df58fee33d66a5a9b0bceaa
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/BotList.java
-@@ -0,0 +1,327 @@
+@@ -0,0 +1,338 @@
 +package org.leavesmc.leaves.bot;
 +
 +import com.google.common.collect.Maps;
@@ -1635,7 +1631,9 @@ index 0000000000000000000000000000000000000000..c8e9302e9a3534fe9aafa4b9259ae9df
 +import org.leavesmc.leaves.LeavesConfig;
 +import org.leavesmc.leaves.event.bot.BotCreateEvent;
 +import org.leavesmc.leaves.event.bot.BotJoinEvent;
++import org.leavesmc.leaves.event.bot.BotLoadEvent;
 +import org.leavesmc.leaves.event.bot.BotRemoveEvent;
++import org.leavesmc.leaves.event.bot.BotSpawnLocationEvent;
 +import org.slf4j.Logger;
 +
 +import java.util.Iterator;
@@ -1694,7 +1692,13 @@ index 0000000000000000000000000000000000000000..c8e9302e9a3534fe9aafa4b9259ae9df
 +
 +    public ServerBot loadNewBot(String realName, IPlayerDataStorage playerIO) {
 +        UUID uuid = BotUtil.getBotUUID(realName);
-+        // TODO event
++
++        BotLoadEvent event = new BotLoadEvent(realName, uuid);
++        this.server.server.getPluginManager().callEvent(event);
++        if (event.isCancelled()) {
++            return null;
++        }
++
 +        ServerBot bot = new ServerBot(this.server, this.server.getLevel(Level.OVERWORLD), new GameProfile(uuid, realName));
 +        bot.connection = new ServerBotPacketListenerImpl(this.server, bot);
 +        Optional<CompoundTag> optional = playerIO.load(bot);
@@ -1722,7 +1726,10 @@ index 0000000000000000000000000000000000000000..c8e9302e9a3534fe9aafa4b9259ae9df
 +        bot.isRealPlayer = true;
 +        bot.connection = new ServerBotPacketListenerImpl(this.server, bot);
 +        bot.setServerLevel(world);
-+        // TODO event
++
++        BotSpawnLocationEvent event = new BotSpawnLocationEvent(bot.getBukkitEntity(), location);
++        this.server.server.getPluginManager().callEvent(event);
++        location = event.getSpawnLocation();
 +
 +        bot.spawnIn(world);
 +        bot.gameMode.setLevel((ServerLevel) bot.level());
@@ -2121,10 +2128,10 @@ index 0000000000000000000000000000000000000000..517e3321b866abe9d17a6fe9e919528b
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/ServerBot.java b/src/main/java/org/leavesmc/leaves/bot/ServerBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..7b99ce6fd0224e79ddba04920837a48ece8a6048
+index 0000000000000000000000000000000000000000..e48bb6e0e9b745d23637529dd421613d39af3bcd
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/ServerBot.java
-@@ -0,0 +1,536 @@
+@@ -0,0 +1,545 @@
 +package org.leavesmc.leaves.bot;
 +
 +import com.google.common.collect.ImmutableMap;
@@ -2179,6 +2186,7 @@ index 0000000000000000000000000000000000000000..7b99ce6fd0224e79ddba04920837a48e
 +import org.leavesmc.leaves.bot.agent.BotConfig;
 +import org.leavesmc.leaves.bot.agent.Configs;
 +import org.leavesmc.leaves.entity.CraftBot;
++import org.leavesmc.leaves.event.bot.BotActionEvent;
 +import org.leavesmc.leaves.event.bot.BotCreateEvent;
 +import org.leavesmc.leaves.event.bot.BotDeathEvent;
 +import org.leavesmc.leaves.event.bot.BotInventoryOpenEvent;
@@ -2629,12 +2637,20 @@ index 0000000000000000000000000000000000000000..7b99ce6fd0224e79ddba04920837a48e
 +        }
 +    }
 +
-+    public void addBotAction(BotAction<?> action) {
++    public boolean addBotAction(BotAction<?> action) {
 +        if (!LeavesConfig.fakeplayerUseAction) {
-+            return;
++            return false;
 +        }
++
++        BotActionEvent event = new BotActionEvent(this.getBukkitEntity(), action.getName(), action.getUUID());
++        Bukkit.getPluginManager().callEvent(event);
++        if (event.isCancelled()) {
++            return false;
++        }
++
 +        action.init();
 +        this.actions.add(action);
++        return true;
 +    }
 +
 +    public List<BotAction<?>> getBotActions() {
@@ -4240,17 +4256,19 @@ index 0000000000000000000000000000000000000000..a3f978318a67c3c5e147a50eb2b6c01c
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/entity/CraftBot.java b/src/main/java/org/leavesmc/leaves/entity/CraftBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..893570a670ae90def4690d77dcd956da5a681eb9
+index 0000000000000000000000000000000000000000..4d44a49abd5bdeca978d8dcf00a15023ebe02666
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/entity/CraftBot.java
-@@ -0,0 +1,45 @@
+@@ -0,0 +1,53 @@
 +package org.leavesmc.leaves.entity;
 +
 +import org.bukkit.craftbukkit.CraftServer;
 +import org.bukkit.craftbukkit.entity.CraftPlayer;
 +import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
++import org.leavesmc.leaves.bot.BotList;
 +import org.leavesmc.leaves.bot.ServerBot;
++import org.leavesmc.leaves.event.bot.BotRemoveEvent;
 +
 +import java.util.UUID;
 +
@@ -4262,17 +4280,23 @@ index 0000000000000000000000000000000000000000..893570a670ae90def4690d77dcd956da
 +
 +    @Override
 +    public String getSkinName() {
-+        return getHandle().createState.skinName();
++        return this.getHandle().createState.skinName();
 +    }
 +
 +    @Override
 +    public @NotNull String getRealName() {
-+        return getHandle().createState.realName();
++        return this.getHandle().createState.realName();
 +    }
 +
 +    @Override
 +    public @Nullable UUID getCreatePlayerUUID() {
-+        return getHandle().createPlayer;
++        return this.getHandle().createPlayer;
++    }
++
++    @Override
++    public boolean remove(boolean save) {
++        BotList.INSTANCE.removeBot(this.getHandle(), BotRemoveEvent.RemoveReason.PLUGIN, null, save);
++        return true;
 +    }
 +
 +    @Override
@@ -4291,10 +4315,10 @@ index 0000000000000000000000000000000000000000..893570a670ae90def4690d77dcd956da
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/entity/CraftBotManager.java b/src/main/java/org/leavesmc/leaves/entity/CraftBotManager.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..c5414799a8a7f43322a5b06d183bb43e28370619
+index 0000000000000000000000000000000000000000..e748d49d329ba814e3906a8bd9cba017653be51b
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/entity/CraftBotManager.java
-@@ -0,0 +1,71 @@
+@@ -0,0 +1,92 @@
 +package org.leavesmc.leaves.entity;
 +
 +import com.google.common.base.Function;
@@ -4303,13 +4327,14 @@ index 0000000000000000000000000000000000000000..c5414799a8a7f43322a5b06d183bb43e
 +import org.bukkit.Location;
 +import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
++import org.leavesmc.leaves.bot.BotCreateState;
 +import org.leavesmc.leaves.bot.BotList;
 +import org.leavesmc.leaves.bot.ServerBot;
 +import org.leavesmc.leaves.bot.agent.Actions;
++import org.leavesmc.leaves.bot.agent.BotAction;
 +import org.leavesmc.leaves.bot.agent.actions.CraftCustomBotAction;
 +import org.leavesmc.leaves.entity.botaction.CustomBotAction;
 +import org.leavesmc.leaves.event.bot.BotCreateEvent;
-+import org.leavesmc.leaves.event.bot.BotRemoveEvent;
 +
 +import java.util.Collection;
 +import java.util.Collections;
@@ -4363,7 +4388,27 @@ index 0000000000000000000000000000000000000000..c5414799a8a7f43322a5b06d183bb43e
 +
 +    @Override
 +    public boolean unregisterCustomBotAction(String name) {
-+        return Actions.unregister(name);
++        BotAction<?> action = Actions.getForName(name);
++        if (action instanceof CraftCustomBotAction) {
++            return Actions.unregister(name);
++        }
++        return false;
++    }
++
++    @Override
++    public BotCreator botCreator(@NotNull String realName, @NotNull Location location) {
++        return BotCreateState.builder(realName, location);
++    }
++
++    @Override
++    public void createBot(@NotNull BotCreator creator, @Nullable Consumer<Bot> consumer) {
++        if (creator instanceof BotCreateState.Builder builder) {
++            builder.createReason(BotCreateEvent.CreateReason.PLUGIN).create((serverBot) -> {
++                if (consumer != null && serverBot != null) {
++                    consumer.accept(serverBot.getBukkitEntity());
++                }
++            });
++        }
 +    }
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/plugin/MinecraftInternalPlugin.java b/src/main/java/org/leavesmc/leaves/plugin/MinecraftInternalPlugin.java

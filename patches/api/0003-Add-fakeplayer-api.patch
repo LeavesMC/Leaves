@@ -63,10 +63,10 @@ index 594deedd08c3b3255fe6838471d945759f09a182..6fa638198f75458177af795f00250ce9
  }
 diff --git a/src/main/java/org/leavesmc/leaves/entity/Bot.java b/src/main/java/org/leavesmc/leaves/entity/Bot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..f9fa75d2b83e1a59501db9c9eb38f1159ecc10f9
+index 0000000000000000000000000000000000000000..e5cf058a5c7bf14c0c2f017d4b6fd3bd8ed0aa3d
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/entity/Bot.java
-@@ -0,0 +1,33 @@
+@@ -0,0 +1,35 @@
 +package org.leavesmc.leaves.entity;
 +
 +import org.bukkit.entity.Player;
@@ -99,21 +99,51 @@ index 0000000000000000000000000000000000000000..f9fa75d2b83e1a59501db9c9eb38f115
 +
 +    @Nullable
 +    public UUID getCreatePlayerUUID();
++
++    public boolean remove(boolean save);
++}
+diff --git a/src/main/java/org/leavesmc/leaves/entity/BotCreator.java b/src/main/java/org/leavesmc/leaves/entity/BotCreator.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..fd18396f8d127f3f044ee407e4c8a3dc7b2c02b5
+--- /dev/null
++++ b/src/main/java/org/leavesmc/leaves/entity/BotCreator.java
+@@ -0,0 +1,20 @@
++package org.leavesmc.leaves.entity;
++
++import org.bukkit.Location;
++import org.bukkit.command.CommandSender;
++import org.jetbrains.annotations.NotNull;
++
++public interface BotCreator {
++
++    public BotCreator name(String name);
++
++    public BotCreator skinName(String skinName);
++
++    public BotCreator skin(String[] skin);
++
++    public BotCreator mojangAPISkin();
++
++    public BotCreator location(@NotNull Location location);
++
++    public BotCreator creator(CommandSender creator);
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/entity/BotManager.java b/src/main/java/org/leavesmc/leaves/entity/BotManager.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..05c55d5c7cb27fb8f855b04a6d3c0e1e99d2efc9
+index 0000000000000000000000000000000000000000..1724336de0aec0b569d4d3456448c63be3021018
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/entity/BotManager.java
-@@ -0,0 +1,56 @@
+@@ -0,0 +1,62 @@
 +package org.leavesmc.leaves.entity;
 +
++import org.bukkit.Location;
 +import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
 +import org.leavesmc.leaves.entity.botaction.CustomBotAction;
 +
 +import java.util.Collection;
 +import java.util.UUID;
++import java.util.function.Consumer;
 +
 +/**
 + * Simple fakeplayer manager
@@ -148,7 +178,7 @@ index 0000000000000000000000000000000000000000..05c55d5c7cb27fb8f855b04a6d3c0e1e
 +    /**
 +     * Register a custom bot action.
 +     *
-+     * @param name action name
++     * @param name   action name
 +     * @param action action executor
 +     * @return true if success, or false
 +     */
@@ -161,6 +191,10 @@ index 0000000000000000000000000000000000000000..05c55d5c7cb27fb8f855b04a6d3c0e1e
 +     * @return true if success, or false
 +     */
 +    public boolean unregisterCustomBotAction(String name);
++
++    public BotCreator botCreator(@NotNull String realName, @NotNull Location location);
++
++    public void createBot(@NotNull BotCreator creator, @Nullable Consumer<Bot> consumer);
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/entity/botaction/CustomBotAction.java b/src/main/java/org/leavesmc/leaves/entity/botaction/CustomBotAction.java
 new file mode 100644
@@ -222,10 +256,10 @@ index 0000000000000000000000000000000000000000..0b1648013d5f03d064c0719c23198108
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/entity/botaction/LeavesBotAction.java b/src/main/java/org/leavesmc/leaves/entity/botaction/LeavesBotAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..a6fdf8c77318172621494af94a0efb2bd34ca651
+index 0000000000000000000000000000000000000000..3437aea093fd67536e73a1068f17167057d935c2
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/entity/botaction/LeavesBotAction.java
-@@ -0,0 +1,36 @@
+@@ -0,0 +1,34 @@
 +package org.leavesmc.leaves.entity.botaction;
 +
 +/**
@@ -233,15 +267,13 @@ index 0000000000000000000000000000000000000000..a6fdf8c77318172621494af94a0efb2b
 + */
 +public enum LeavesBotAction {
 +    ATTACK("attack"),
-+    @Deprecated(since = "1.21.1", forRemoval = true)
-+    ATTACK_SELF("attack_self"),
 +    BREAK("break"),
 +    DROP("drop"),
 +    FISH("fish"),
 +    JUMP("jump"),
-+    LAY("lay"),
 +    LOOK("look"),
 +    ROTATE("rotate"),
++    ROTATION("rotation"),
 +    SNEAK("sneak"),
 +    STOP("stop"),
 +    SWIM("swim"),
@@ -264,10 +296,10 @@ index 0000000000000000000000000000000000000000..a6fdf8c77318172621494af94a0efb2b
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/event/bot/BotActionEvent.java b/src/main/java/org/leavesmc/leaves/event/bot/BotActionEvent.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..91ea5540387b7d7e1be5b6368a2f02b3b784614a
+index 0000000000000000000000000000000000000000..e85efcaef9f3575b6a85d57b02b2d814b21ef6b9
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/event/bot/BotActionEvent.java
-@@ -0,0 +1,49 @@
+@@ -0,0 +1,50 @@
 +package org.leavesmc.leaves.event.bot;
 +
 +import org.bukkit.event.Cancellable;
@@ -275,27 +307,28 @@ index 0000000000000000000000000000000000000000..91ea5540387b7d7e1be5b6368a2f02b3
 +import org.jetbrains.annotations.NotNull;
 +import org.leavesmc.leaves.entity.Bot;
 +
++import java.util.UUID;
++
 +public class BotActionEvent extends BotEvent implements Cancellable {
 +    private static final HandlerList handlers = new HandlerList();
 +
 +    private final String actionName;
-+    private final String[] actionArgs;
++    private final UUID actionUUID;
 +    private boolean cancel = false;
 +
-+    public BotActionEvent(@NotNull Bot who, String actionName, String[] actionArgs) {
++    public BotActionEvent(@NotNull Bot who, String actionName, UUID actionUUID) {
 +        super(who);
-+        this.actionArgs = actionArgs;
 +        this.actionName = actionName;
-+    }
-+
-+    @NotNull
-+    public String[] getActionArgs() {
-+        return actionArgs;
++        this.actionUUID = actionUUID;
 +    }
 +
 +    @NotNull
 +    public String getActionName() {
 +        return actionName;
++    }
++
++    public UUID getActionUUID() {
++        return actionUUID;
 +    }
 +
 +    @Override
@@ -733,6 +766,70 @@ index 0000000000000000000000000000000000000000..07f6d81c4cd897230bbd6712dac09b89
 +        return handlers;
 +    }
 +}
+diff --git a/src/main/java/org/leavesmc/leaves/event/bot/BotLoadEvent.java b/src/main/java/org/leavesmc/leaves/event/bot/BotLoadEvent.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..ff3243f420e8c64ea2675e8c8712b851dcce4c27
+--- /dev/null
++++ b/src/main/java/org/leavesmc/leaves/event/bot/BotLoadEvent.java
+@@ -0,0 +1,58 @@
++package org.leavesmc.leaves.event.bot;
++
++import org.bukkit.event.Cancellable;
++import org.bukkit.event.Event;
++import org.bukkit.event.HandlerList;
++import org.jetbrains.annotations.NotNull;
++
++import java.util.UUID;
++
++/**
++ * Call when a fakeplayer loading a server
++ */
++public class BotLoadEvent extends Event implements Cancellable {
++    private static final HandlerList handlers = new HandlerList();
++
++    private final String bot;
++    private final UUID botUUID;
++    private boolean cancel = false;
++
++    public BotLoadEvent(@NotNull final String who, @NotNull final UUID uuid) {
++        this.bot = who;
++        this.botUUID = uuid;
++    }
++
++    /**
++     * Gets the fakeplayer name
++     *
++     * @return fakeplayer name
++     */
++    public String getBot() {
++        return bot;
++    }
++
++    public UUID getBotUUID() {
++        return botUUID;
++    }
++
++    @Override
++    public boolean isCancelled() {
++        return cancel;
++    }
++
++    @Override
++    public void setCancelled(boolean cancel) {
++        this.cancel = cancel;
++    }
++
++    @Override
++    @NotNull
++    public HandlerList getHandlers() {
++        return handlers;
++    }
++
++    @NotNull
++    public static HandlerList getHandlerList() {
++        return handlers;
++    }
++}
 diff --git a/src/main/java/org/leavesmc/leaves/event/bot/BotRemoveEvent.java b/src/main/java/org/leavesmc/leaves/event/bot/BotRemoveEvent.java
 new file mode 100644
 index 0000000000000000000000000000000000000000..e950643e4b4da99b067d7392034a651361094853
@@ -837,6 +934,50 @@ index 0000000000000000000000000000000000000000..e950643e4b4da99b067d7392034a6513
 +
 +    @Override
 +    @NotNull
++    public HandlerList getHandlers() {
++        return handlers;
++    }
++
++    @NotNull
++    public static HandlerList getHandlerList() {
++        return handlers;
++    }
++}
+diff --git a/src/main/java/org/leavesmc/leaves/event/bot/BotSpawnLocationEvent.java b/src/main/java/org/leavesmc/leaves/event/bot/BotSpawnLocationEvent.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..434e78be76750adfbeb033ab1aceaae222b978df
+--- /dev/null
++++ b/src/main/java/org/leavesmc/leaves/event/bot/BotSpawnLocationEvent.java
+@@ -0,0 +1,38 @@
++package org.leavesmc.leaves.event.bot;
++
++import org.bukkit.Location;
++import org.bukkit.entity.Player;
++import org.bukkit.event.HandlerList;
++import org.jetbrains.annotations.NotNull;
++import org.leavesmc.leaves.entity.Bot;
++
++public class BotSpawnLocationEvent extends BotEvent {
++
++    private static final HandlerList handlers = new HandlerList();
++    private Location spawnLocation;
++
++    public BotSpawnLocationEvent(@NotNull final Bot who, @NotNull Location spawnLocation) {
++        super(who);
++        this.spawnLocation = spawnLocation;
++    }
++
++    @NotNull
++    public Location getSpawnLocation() {
++        return spawnLocation;
++    }
++
++    public void setSpawnLocation(@NotNull Location location) {
++        this.spawnLocation = location;
++    }
++
++    @NotNull
++    @Override
 +    public HandlerList getHandlers() {
 +        return handlers;
 +    }

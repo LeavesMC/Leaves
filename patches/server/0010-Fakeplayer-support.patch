@@ -626,10 +626,10 @@ index 4632eb883e9f5efde520ee543bcad25827c0da2c..d710803137a325f34e0628405d5ddfd0
              return event;
 diff --git a/src/main/java/org/leavesmc/leaves/bot/BotCommand.java b/src/main/java/org/leavesmc/leaves/bot/BotCommand.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..a06f24253a2d941c8fd265f50dcaec356b5cfbcc
+index 0000000000000000000000000000000000000000..ee4255c82786c83428373caf2d6d8530e164c671
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/BotCommand.java
-@@ -0,0 +1,522 @@
+@@ -0,0 +1,530 @@
 +package org.leavesmc.leaves.bot;
 +
 +import io.papermc.paper.command.CommandUtil;
@@ -657,6 +657,7 @@ index 0000000000000000000000000000000000000000..a06f24253a2d941c8fd265f50dcaec35
 +import org.leavesmc.leaves.bot.agent.actions.CraftCustomBotAction;
 +import org.leavesmc.leaves.command.CommandArgumentResult;
 +import org.leavesmc.leaves.entity.Bot;
++import org.leavesmc.leaves.event.bot.BotActionStopEvent;
 +import org.leavesmc.leaves.event.bot.BotConfigModifyEvent;
 +import org.leavesmc.leaves.event.bot.BotCreateEvent;
 +import org.leavesmc.leaves.event.bot.BotRemoveEvent;
@@ -957,6 +958,9 @@ index 0000000000000000000000000000000000000000..a06f24253a2d941c8fd265f50dcaec35
 +
 +            String index = args[3];
 +            if (index.equals("all")) {
++                bot.getBotActions().forEach(action -> new BotActionStopEvent(
++                        bot.getBukkitEntity(), action.getName(), action.getUUID(), BotActionStopEvent.Reason.COMMAND, sender
++                ).callEvent());
 +                bot.getBotActions().clear();
 +                sender.sendMessage(bot.getScoreboardName() + "'s action list cleared.");
 +            } else {
@@ -967,7 +971,11 @@ index 0000000000000000000000000000000000000000..a06f24253a2d941c8fd265f50dcaec35
 +                        return;
 +                    }
 +
-+                    BotAction<?> action = bot.getBotActions().remove(i);
++                    BotAction<?> action = bot.getBotActions().get(i);
++                    new BotActionStopEvent(
++                            bot.getBukkitEntity(), action.getName(), action.getUUID(), BotActionStopEvent.Reason.COMMAND, sender
++                    ).callEvent();
++                    bot.getBotActions().remove(i);
 +                    sender.sendMessage(bot.getScoreboardName() + "'s " + action.getName() + " stopped.");
 +                } catch (NumberFormatException e) {
 +                    sender.sendMessage(text("Invalid index", NamedTextColor.RED));
@@ -1010,7 +1018,7 @@ index 0000000000000000000000000000000000000000..a06f24253a2d941c8fd265f50dcaec35
 +            return;
 +        }
 +
-+        if (bot.addBotAction(newAction)) {
++        if (bot.addBotAction(newAction, sender)) {
 +            sender.sendMessage("Action " + action.getName() + " has been issued to " + bot.getName().getString());
 +        }
 +    }
@@ -1045,7 +1053,7 @@ index 0000000000000000000000000000000000000000..a06f24253a2d941c8fd265f50dcaec35
 +            String[] realArgs = new String[args.length - 3];
 +            System.arraycopy(args, 3, realArgs, 0, realArgs.length);
 +
-+            BotConfigModifyEvent event = new BotConfigModifyEvent(bot.getBukkitEntity(), config.getName(), realArgs);
++            BotConfigModifyEvent event = new BotConfigModifyEvent(bot.getBukkitEntity(), config.getName(), realArgs, sender);
 +            Bukkit.getPluginManager().callEvent(event);
 +
 +            if (event.isCancelled()) {
@@ -1080,7 +1088,7 @@ index 0000000000000000000000000000000000000000..a06f24253a2d941c8fd265f50dcaec35
 +            return;
 +        }
 +
-+        botList.removeBot(bot, BotRemoveEvent.RemoveReason.COMMAND, sender, true);
++        if (!botList.removeBot(bot, BotRemoveEvent.RemoveReason.COMMAND, sender, true)) return;
 +        sender.sendMessage(bot.getScoreboardName() + " saved to " + bot.createState.realName());
 +    }
 +
@@ -1604,10 +1612,10 @@ index 0000000000000000000000000000000000000000..4f5e6e5c1b9d8bd38c98e97fd31b3833
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/BotList.java b/src/main/java/org/leavesmc/leaves/bot/BotList.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..003f1e01ba56ea2fa9ff311675c58b1d0a38d53b
+index 0000000000000000000000000000000000000000..33deb7eeda2c4cda396ac4ed7f05e6a851e89050
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/BotList.java
-@@ -0,0 +1,338 @@
+@@ -0,0 +1,339 @@
 +package org.leavesmc.leaves.bot;
 +
 +import com.google.common.collect.Maps;
@@ -1813,16 +1821,16 @@ index 0000000000000000000000000000000000000000..003f1e01ba56ea2fa9ff311675c58b1d
 +        }
 +    }
 +
-+    public void removeBot(@NotNull ServerBot bot, @NotNull BotRemoveEvent.RemoveReason reason, @Nullable CommandSender remover, boolean saved) {
-+        this.removeBot(bot, reason, remover, saved, this.dataStorage);
++    public boolean removeBot(@NotNull ServerBot bot, @NotNull BotRemoveEvent.RemoveReason reason, @Nullable CommandSender remover, boolean saved) {
++        return this.removeBot(bot, reason, remover, saved, this.dataStorage);
 +    }
 +
-+    public void removeBot(@NotNull ServerBot bot, @NotNull BotRemoveEvent.RemoveReason reason, @Nullable CommandSender remover, boolean saved, IPlayerDataStorage playerIO) {
++    public boolean removeBot(@NotNull ServerBot bot, @NotNull BotRemoveEvent.RemoveReason reason, @Nullable CommandSender remover, boolean saved, IPlayerDataStorage playerIO) {
 +        BotRemoveEvent event = new BotRemoveEvent(bot.getBukkitEntity(), reason, remover, PaperAdventure.asAdventure(Component.translatable("multiplayer.player.left", bot.getDisplayName())).style(Style.style(NamedTextColor.YELLOW)), saved);
 +        this.server.server.getPluginManager().callEvent(event);
 +
 +        if (event.isCancelled() && event.getReason() != BotRemoveEvent.RemoveReason.INTERNAL) {
-+            return;
++            return event.isCancelled();
 +        }
 +
 +        if (bot.removeTaskId != -1) {
@@ -1878,6 +1886,7 @@ index 0000000000000000000000000000000000000000..003f1e01ba56ea2fa9ff311675c58b1d
 +        if (removeMessage != null && !removeMessage.equals(net.kyori.adventure.text.Component.empty())) {
 +            this.server.getPlayerList().broadcastSystemMessage(PaperAdventure.asVanilla(removeMessage), false);
 +        }
++        return true;
 +    }
 +
 +    public void removeAll() {
@@ -2133,10 +2142,10 @@ index 0000000000000000000000000000000000000000..517e3321b866abe9d17a6fe9e919528b
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/ServerBot.java b/src/main/java/org/leavesmc/leaves/bot/ServerBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..18cf5182c33c43690d7329d6bd435ebc8ee517e5
+index 0000000000000000000000000000000000000000..bab7790db401135cb9ea5b05f749dca5e7d0b95f
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/ServerBot.java
-@@ -0,0 +1,543 @@
+@@ -0,0 +1,544 @@
 +package org.leavesmc.leaves.bot;
 +
 +import com.google.common.collect.ImmutableMap;
@@ -2181,6 +2190,7 @@ index 0000000000000000000000000000000000000000..18cf5182c33c43690d7329d6bd435ebc
 +import net.minecraft.world.phys.Vec3;
 +import org.bukkit.Bukkit;
 +import org.bukkit.Location;
++import org.bukkit.command.CommandSender;
 +import org.bukkit.util.Vector;
 +import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
@@ -2642,12 +2652,12 @@ index 0000000000000000000000000000000000000000..18cf5182c33c43690d7329d6bd435ebc
 +        }
 +    }
 +
-+    public boolean addBotAction(BotAction<?> action) {
++    public boolean addBotAction(BotAction<?> action, CommandSender sender) {
 +        if (!LeavesConfig.fakeplayerUseAction) {
 +            return false;
 +        }
 +
-+        if (!new BotActionScheduleEvent(this.getBukkitEntity(), action.getName(), action.getUUID()).callEvent()) {
++        if (!new BotActionScheduleEvent(this.getBukkitEntity(), action.getName(), action.getUUID(), sender).callEvent()) {
 +            return false;
 +        }
 +
@@ -2990,7 +3000,7 @@ index 0000000000000000000000000000000000000000..a37513e1ba8443c702ab0c01fbe5e052
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/BotAction.java b/src/main/java/org/leavesmc/leaves/bot/agent/BotAction.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..3ad5484f26e3dc7fb45c5d2ee0687604e6974404
+index 0000000000000000000000000000000000000000..3bd512b436b32f240466a406a101a051b4b07817
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/agent/BotAction.java
 @@ -0,0 +1,163 @@
@@ -3082,7 +3092,7 @@ index 0000000000000000000000000000000000000000..3ad5484f26e3dc7fb45c5d2ee0687604
 +    }
 +
 +    public void stop(@NotNull ServerBot bot, BotActionStopEvent.Reason reason) {
-+        new BotActionStopEvent(bot.getBukkitEntity(), this.name, this.uuid, reason).callEvent();
++        new BotActionStopEvent(bot.getBukkitEntity(), this.name, this.uuid, reason, null).callEvent();
 +        this.setCancelled(true);
 +    }
 +
@@ -4356,7 +4366,7 @@ index 0000000000000000000000000000000000000000..a3f978318a67c3c5e147a50eb2b6c01c
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/entity/CraftBot.java b/src/main/java/org/leavesmc/leaves/entity/CraftBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..744f5533859bfe81267b3fd5133597e80e0fdc73
+index 0000000000000000000000000000000000000000..46aec2f954919f487e22ab953062b6889fe3e58b
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/entity/CraftBot.java
 @@ -0,0 +1,84 @@
@@ -4399,7 +4409,7 @@ index 0000000000000000000000000000000000000000..744f5533859bfe81267b3fd5133597e8
 +
 +    @Override
 +    public void addAction(@NotNull LeavesBotAction action) {
-+        this.getHandle().addBotAction(CraftBotAction.asInternalCopy(action));
++        this.getHandle().addBotAction(CraftBotAction.asInternalCopy(action), null);
 +    }
 +
 +    @Override

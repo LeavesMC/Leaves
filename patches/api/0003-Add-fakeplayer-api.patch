@@ -4,15 +4,6 @@ Date: Wed, 27 Jul 2022 15:30:34 +0800
 Subject: [PATCH] Add fakeplayer api
 
 
-diff --git a/.gitignore b/.gitignore
-index 97e78e27ee0eea2c8b24886eeb19164d552323fe..9764fa643039f215627c20a33ca70c9e36b2d599 100644
---- a/.gitignore
-+++ b/.gitignore
-@@ -38,3 +38,4 @@
- # vs code
- /.vscode
- /.factorypath
-+
 diff --git a/src/main/java/org/bukkit/Bukkit.java b/src/main/java/org/bukkit/Bukkit.java
 index e20e4239a5a1f952e1c70e899549989d5e42f73c..5f6078bc80e20c9482a96d2bf1095bb32fbfc28c 100644
 --- a/src/main/java/org/bukkit/Bukkit.java
@@ -149,10 +140,10 @@ index 0000000000000000000000000000000000000000..7a1ee45d571687317883b896f3ec0a83
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/entity/BotCreator.java b/src/main/java/org/leavesmc/leaves/entity/BotCreator.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..98c7e87854eae9760a6f4427c6b052b192df2b45
+index 0000000000000000000000000000000000000000..3c0d985c3e293144f4fef0e447f9bd981bf7912f
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/entity/BotCreator.java
-@@ -0,0 +1,52 @@
+@@ -0,0 +1,53 @@
 +package org.leavesmc.leaves.entity;
 +
 +import org.bukkit.Bukkit;
@@ -197,7 +188,8 @@ index 0000000000000000000000000000000000000000..98c7e87854eae9760a6f4427c6b052b1
 +    public Bot spawn();
 +
 +    /**
-+     * Create a bot and apply skin
++     * Create a bot and apply skin of player names `skinName` from MojangAPI
++     * just like `mojangAPISkin().spawn()`, but async
 +     * <p>
 +     * you can not get the bot instance instantly because get skin in on async thread
 +     *
@@ -542,15 +534,17 @@ index 0000000000000000000000000000000000000000..69a99679d407f974ef0e414945d3bcc7
 +
 diff --git a/src/main/java/org/leavesmc/leaves/event/bot/BotActionScheduleEvent.java b/src/main/java/org/leavesmc/leaves/event/bot/BotActionScheduleEvent.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..7189649e608d41511d4213c1c3938996361290df
+index 0000000000000000000000000000000000000000..f1123d55712cc90a1d0bb79b7832c90abb77ae90
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/event/bot/BotActionScheduleEvent.java
-@@ -0,0 +1,39 @@
+@@ -0,0 +1,48 @@
 +package org.leavesmc.leaves.event.bot;
 +
++import org.bukkit.command.CommandSender;
 +import org.bukkit.event.Cancellable;
 +import org.bukkit.event.HandlerList;
 +import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
 +import org.leavesmc.leaves.entity.Bot;
 +
 +import java.util.UUID;
@@ -560,9 +554,11 @@ index 0000000000000000000000000000000000000000..7189649e608d41511d4213c1c3938996
 +    private static final HandlerList handlers = new HandlerList();
 +
 +    private boolean cancel = false;
++    private final CommandSender sender;
 +
-+    public BotActionScheduleEvent(@NotNull Bot who, String actionName, UUID actionUUID) {
++    public BotActionScheduleEvent(@NotNull Bot who, String actionName, UUID actionUUID, CommandSender sender) {
 +        super(who, actionName, actionUUID);
++        this.sender = sender;
 +    }
 +
 +    @Override
@@ -573,6 +569,11 @@ index 0000000000000000000000000000000000000000..7189649e608d41511d4213c1c3938996
 +    @Override
 +    public void setCancelled(boolean cancel) {
 +        this.cancel = cancel;
++    }
++
++    @Nullable
++    public CommandSender getSender() {
++        return sender;
 +    }
 +
 +    @Override
@@ -587,21 +588,25 @@ index 0000000000000000000000000000000000000000..7189649e608d41511d4213c1c3938996
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/event/bot/BotActionStopEvent.java b/src/main/java/org/leavesmc/leaves/event/bot/BotActionStopEvent.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..e8de7b19d72b3dfd6e4423096573b3a7ef737803
+index 0000000000000000000000000000000000000000..56822a944a13394f635a7640d76c66b4cc98698a
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/event/bot/BotActionStopEvent.java
-@@ -0,0 +1,36 @@
+@@ -0,0 +1,56 @@
 +package org.leavesmc.leaves.event.bot;
 +
++import org.bukkit.command.CommandSender;
++import org.bukkit.event.Cancellable;
 +import org.bukkit.event.HandlerList;
 +import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
 +import org.leavesmc.leaves.entity.Bot;
 +
 +import java.util.UUID;
 +
-+public class BotActionStopEvent extends BotActionEvent {
-+
++public class BotActionStopEvent extends BotActionEvent  implements Cancellable{
 +    private static final HandlerList handlers = new HandlerList();
++    private boolean cancel = false;
++    private final CommandSender sender;
 +
 +    public enum Reason {
 +        DONE, COMMAND, PLUGIN, INTERNAL
@@ -609,9 +614,10 @@ index 0000000000000000000000000000000000000000..e8de7b19d72b3dfd6e4423096573b3a7
 +
 +    private final Reason reason;
 +
-+    public BotActionStopEvent(@NotNull Bot who, String actionName, UUID actionUUID, Reason stopReason) {
++    public BotActionStopEvent(@NotNull Bot who, String actionName, UUID actionUUID, Reason stopReason, CommandSender sender) {
 +        super(who, actionName, actionUUID);
 +        this.reason = stopReason;
++        this.sender = sender;
 +    }
 +
 +    public Reason getReason() {
@@ -626,15 +632,31 @@ index 0000000000000000000000000000000000000000..e8de7b19d72b3dfd6e4423096573b3a7
 +    public static HandlerList getHandlerList() {
 +        return handlers;
 +    }
++
++    @Override
++    public boolean isCancelled() {
++        return cancel;
++    }
++
++    @Override
++    public void setCancelled(boolean cancel) {
++        this.cancel = cancel;
++    }
++
++    @Nullable
++    public CommandSender getSender() {
++        return sender;
++    }
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/event/bot/BotConfigModifyEvent.java b/src/main/java/org/leavesmc/leaves/event/bot/BotConfigModifyEvent.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..053be37cb250d77b1c9f4c1bbd83a49da93027a7
+index 0000000000000000000000000000000000000000..5afa2df3566dd038b9f262ce8bc1f01c688b45a5
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/event/bot/BotConfigModifyEvent.java
-@@ -0,0 +1,50 @@
+@@ -0,0 +1,53 @@
 +package org.leavesmc.leaves.event.bot;
 +
++import org.bukkit.command.CommandSender;
 +import org.bukkit.event.Cancellable;
 +import org.bukkit.event.HandlerList;
 +import org.jetbrains.annotations.NotNull;
@@ -647,11 +669,13 @@ index 0000000000000000000000000000000000000000..053be37cb250d77b1c9f4c1bbd83a49d
 +    private final String configName;
 +    private final String[] configValue;
 +    private boolean cancel;
++    private final CommandSender sender;
 +
-+    public BotConfigModifyEvent(@NotNull Bot who, String configName, String[] configValue) {
++    public BotConfigModifyEvent(@NotNull Bot who, String configName, String[] configValue, CommandSender sender) {
 +        super(who);
 +        this.configName = configName;
 +        this.configValue = configValue;
++        this.sender = sender;
 +    }
 +
 +    @NotNull
@@ -685,7 +709,7 @@ index 0000000000000000000000000000000000000000..053be37cb250d77b1c9f4c1bbd83a49d
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/event/bot/BotCreateEvent.java b/src/main/java/org/leavesmc/leaves/event/bot/BotCreateEvent.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..08e382120feec65c2a842134a1643f236a120bbd
+index 0000000000000000000000000000000000000000..11e55a99b91e4ea11640d3fe02bc7f0106d7b91c
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/event/bot/BotCreateEvent.java
 @@ -0,0 +1,119 @@
@@ -700,7 +724,7 @@ index 0000000000000000000000000000000000000000..08e382120feec65c2a842134a1643f23
 +import org.jetbrains.annotations.Nullable;
 +
 +/**
-+ * Call when a fakeplayer creates a server
++ * Call when a fakeplayer created
 + */
 +public class BotCreateEvent extends Event implements Cancellable {
 +
@@ -1048,7 +1072,7 @@ index 0000000000000000000000000000000000000000..24e5f4d833897000e0378d4d3c3ff75c
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/event/bot/BotLoadEvent.java b/src/main/java/org/leavesmc/leaves/event/bot/BotLoadEvent.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..d4472675af540cdeeebf428144c70b9a5c3f34ce
+index 0000000000000000000000000000000000000000..b5295bddb627985ff35ca4de55253bbd68593655
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/event/bot/BotLoadEvent.java
 @@ -0,0 +1,59 @@
@@ -1062,7 +1086,7 @@ index 0000000000000000000000000000000000000000..d4472675af540cdeeebf428144c70b9a
 +import java.util.UUID;
 +
 +/**
-+ * Call when a fakeplayer loading a server
++ * Call when a fakeplayer loaded
 + */
 +public class BotLoadEvent extends Event implements Cancellable {
 +
@@ -1113,7 +1137,7 @@ index 0000000000000000000000000000000000000000..d4472675af540cdeeebf428144c70b9a
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/event/bot/BotRemoveEvent.java b/src/main/java/org/leavesmc/leaves/event/bot/BotRemoveEvent.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..408a7e39ee1923d595fb8ac3f91d60e14a2c446c
+index 0000000000000000000000000000000000000000..76909d03f2b23602335b91f3b168e17f20256d34
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/event/bot/BotRemoveEvent.java
 @@ -0,0 +1,106 @@
@@ -1129,7 +1153,7 @@ index 0000000000000000000000000000000000000000..408a7e39ee1923d595fb8ac3f91d60e1
 +import org.leavesmc.leaves.entity.Bot;
 +
 +/**
-+ * Call when a fakeplayer creates a server
++ * Call when a fakeplayer removed
 + */
 +public class BotRemoveEvent extends BotEvent implements Cancellable {
 +

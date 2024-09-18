@@ -626,10 +626,10 @@ index 4632eb883e9f5efde520ee543bcad25827c0da2c..d710803137a325f34e0628405d5ddfd0
              return event;
 diff --git a/src/main/java/org/leavesmc/leaves/bot/BotCommand.java b/src/main/java/org/leavesmc/leaves/bot/BotCommand.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..ee4255c82786c83428373caf2d6d8530e164c671
+index 0000000000000000000000000000000000000000..5a1054414f5313b59d38d89fb84987cad397ff12
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/BotCommand.java
-@@ -0,0 +1,530 @@
+@@ -0,0 +1,543 @@
 +package org.leavesmc.leaves.bot;
 +
 +import io.papermc.paper.command.CommandUtil;
@@ -958,10 +958,18 @@ index 0000000000000000000000000000000000000000..ee4255c82786c83428373caf2d6d8530
 +
 +            String index = args[3];
 +            if (index.equals("all")) {
-+                bot.getBotActions().forEach(action -> new BotActionStopEvent(
-+                        bot.getBukkitEntity(), action.getName(), action.getUUID(), BotActionStopEvent.Reason.COMMAND, sender
-+                ).callEvent());
-+                bot.getBotActions().clear();
++                Set<BotAction<?>> forRemoval = new HashSet<>();
++                for (int i = 0; i < bot.getBotActions().size(); i++) {
++                    BotAction<?> action = bot.getBotActions().get(i);
++                    BotActionStopEvent event = new BotActionStopEvent(
++                            bot.getBukkitEntity(), action.getName(), action.getUUID(), BotActionStopEvent.Reason.COMMAND, sender
++                    );
++                    event.callEvent();
++                    if (!event.isCancelled()) {
++                        forRemoval.add(action);
++                    }
++                }
++                bot.getBotActions().removeAll(forRemoval);
 +                sender.sendMessage(bot.getScoreboardName() + "'s action list cleared.");
 +            } else {
 +                try {
@@ -972,11 +980,15 @@ index 0000000000000000000000000000000000000000..ee4255c82786c83428373caf2d6d8530
 +                    }
 +
 +                    BotAction<?> action = bot.getBotActions().get(i);
-+                    new BotActionStopEvent(
++                    BotActionStopEvent event = new BotActionStopEvent(
 +                            bot.getBukkitEntity(), action.getName(), action.getUUID(), BotActionStopEvent.Reason.COMMAND, sender
-+                    ).callEvent();
-+                    bot.getBotActions().remove(i);
-+                    sender.sendMessage(bot.getScoreboardName() + "'s " + action.getName() + " stopped.");
++                    );
++                    event.callEvent();
++                    if (!event.isCancelled()) {
++                        bot.getBotActions().remove(i);
++                        sender.sendMessage(bot.getScoreboardName() + "'s " + action.getName() + " stopped.");
++
++                    }
 +                } catch (NumberFormatException e) {
 +                    sender.sendMessage(text("Invalid index", NamedTextColor.RED));
 +                }
@@ -1088,8 +1100,9 @@ index 0000000000000000000000000000000000000000..ee4255c82786c83428373caf2d6d8530
 +            return;
 +        }
 +
-+        if (!botList.removeBot(bot, BotRemoveEvent.RemoveReason.COMMAND, sender, true)) return;
-+        sender.sendMessage(bot.getScoreboardName() + " saved to " + bot.createState.realName());
++        if (botList.removeBot(bot, BotRemoveEvent.RemoveReason.COMMAND, sender, true)) {
++            sender.sendMessage(bot.getScoreboardName() + " saved to " + bot.createState.realName());
++        }
 +    }
 +
 +    private void onLoad(CommandSender sender, String @NotNull [] args) {

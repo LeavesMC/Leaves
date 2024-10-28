@@ -502,6 +502,18 @@ index b148cf247acdd36f856d0495cde4cc5ad32b5a2f..011d6c813781251c7f4041ad3a8396fb
  
      private static final Logger LOGGER = LogUtils.getLogger();
      private final File playerDir;
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftRegionAccessor.java b/src/main/java/org/bukkit/craftbukkit/CraftRegionAccessor.java
+index c9ecec5da937bc5458f69736b68ff6ae50aa5ebc..decaea842c557adecb9d2d6e654376f0508721bd 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftRegionAccessor.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftRegionAccessor.java
+@@ -428,6 +428,7 @@ public abstract class CraftRegionAccessor implements RegionAccessor {
+     @SuppressWarnings("unchecked")
+     public <T extends Entity> T addEntity(T entity) {
+         Preconditions.checkArgument(!entity.isInWorld(), "Entity has already been added to a world");
++        Preconditions.checkState(!(entity instanceof org.leavesmc.leaves.entity.CraftBot), "[Leaves] Fakeplayers do not support changing world, Please use leaves fakeplayer-api instead!");
+         net.minecraft.world.entity.Entity nmsEntity = ((CraftEntity) entity).getHandle();
+         if (nmsEntity.level() != this.getHandle().getLevel()) {
+             nmsEntity = nmsEntity.changeDimension(new DimensionTransition(this.getHandle().getLevel(), nmsEntity, DimensionTransition.DO_NOTHING));
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 index e79af523a49aaa6558b690383cb29649e6ae40c8..61dd71c2d5efbcb5dd363e2ac16757011b454082 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
@@ -2156,10 +2168,10 @@ index 0000000000000000000000000000000000000000..517e3321b866abe9d17a6fe9e919528b
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/ServerBot.java b/src/main/java/org/leavesmc/leaves/bot/ServerBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..bab7790db401135cb9ea5b05f749dca5e7d0b95f
+index 0000000000000000000000000000000000000000..1a50c4efbec7ff4000e23a477c2f60a79a459dee
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/ServerBot.java
-@@ -0,0 +1,544 @@
+@@ -0,0 +1,548 @@
 +package org.leavesmc.leaves.bot;
 +
 +import com.google.common.collect.ImmutableMap;
@@ -2347,7 +2359,11 @@ index 0000000000000000000000000000000000000000..bab7790db401135cb9ea5b05f749dca5
 +    @Nullable
 +    @Override
 +    public Entity changeDimension(@NotNull DimensionTransition teleportTarget) {
-+        return null; // disable dimension change
++        return this; // disable dimension change
++    }
++
++    @Override
++    public void handlePortal() {
 +    }
 +
 +    @Override
@@ -4412,14 +4428,23 @@ index f50c3871e3ab435abc6de5bfb67b85b09d235733..d110bf39788503ec662d6f0c737ce9aa
  import org.checkerframework.checker.nullness.qual.NonNull;
 diff --git a/src/main/java/org/leavesmc/leaves/entity/CraftBot.java b/src/main/java/org/leavesmc/leaves/entity/CraftBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..46aec2f954919f487e22ab953062b6889fe3e58b
+index 0000000000000000000000000000000000000000..b33a3ca0e2b6a06668252048ce064dd294c28bee
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/entity/CraftBot.java
-@@ -0,0 +1,84 @@
+@@ -0,0 +1,102 @@
 +package org.leavesmc.leaves.entity;
 +
++import com.google.common.base.Preconditions;
++import io.papermc.paper.entity.TeleportFlag;
++import net.minecraft.world.level.portal.DimensionTransition;
++import net.minecraft.world.phys.Vec3;
++import org.bukkit.Bukkit;
++import org.bukkit.Location;
 +import org.bukkit.craftbukkit.CraftServer;
++import org.bukkit.craftbukkit.CraftWorld;
 +import org.bukkit.craftbukkit.entity.CraftPlayer;
++import org.bukkit.craftbukkit.util.CraftLocation;
++import org.bukkit.event.player.PlayerTeleportEvent;
 +import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
 +import org.leavesmc.leaves.bot.BotList;
@@ -4430,6 +4455,7 @@ index 0000000000000000000000000000000000000000..46aec2f954919f487e22ab953062b688
 +import org.leavesmc.leaves.event.bot.BotActionStopEvent;
 +import org.leavesmc.leaves.event.bot.BotRemoveEvent;
 +
++import java.util.Set;
 +import java.util.UUID;
 +
 +public class CraftBot extends CraftPlayer implements Bot {
@@ -4484,6 +4510,14 @@ index 0000000000000000000000000000000000000000..46aec2f954919f487e22ab953062b688
 +    public boolean remove(boolean save) {
 +        BotList.INSTANCE.removeBot(this.getHandle(), BotRemoveEvent.RemoveReason.PLUGIN, null, save);
 +        return true;
++    }
++
++    @Override
++    public boolean teleport(Location location, PlayerTeleportEvent.TeleportCause cause, io.papermc.paper.entity.TeleportFlag... flags) {
++        // Paper end
++        Preconditions.checkArgument(location != null, "location cannot be null");
++        Preconditions.checkState(location.getWorld().equals(this.getWorld()), "[Leaves] Fakeplayers do not support changing world, Please use leaves fakeplayer-api instead!");
++        return super.teleport(location, cause, flags);
 +    }
 +
 +    @Override

@@ -124,19 +124,17 @@ index 30d0133a42ce990352f5c492fcf9beb105364848..1ab2eab686b3a89d406f127a6036c0e2
      protected CompositeLootItemCondition(List<LootItemCondition> terms, Predicate<LootContext> predicate) {
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/JadeProtocol.java b/src/main/java/org/leavesmc/leaves/protocol/jade/JadeProtocol.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..3506533241e9222d2453cacea5539355c0d4ef22
+index 0000000000000000000000000000000000000000..eb26708fafa054ba32c5deed43c8496d5496f6a9
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/JadeProtocol.java
-@@ -0,0 +1,387 @@
+@@ -0,0 +1,311 @@
 +package org.leavesmc.leaves.protocol.jade;
 +
 +import com.google.common.base.Suppliers;
-+import io.netty.buffer.ByteBuf;
 +import net.minecraft.core.BlockPos;
 +import net.minecraft.core.registries.BuiltInRegistries;
 +import net.minecraft.core.registries.Registries;
-+import net.minecraft.network.codec.ByteBufCodecs;
-+import net.minecraft.network.codec.StreamCodec;
++import net.minecraft.nbt.CompoundTag;
 +import net.minecraft.resources.ResourceLocation;
 +import net.minecraft.server.MinecraftServer;
 +import net.minecraft.server.level.ServerPlayer;
@@ -181,7 +179,6 @@ index 0000000000000000000000000000000000000000..3506533241e9222d2453cacea5539355
 +import org.leavesmc.leaves.protocol.core.ProtocolUtils;
 +import org.leavesmc.leaves.protocol.jade.accessor.BlockAccessor;
 +import org.leavesmc.leaves.protocol.jade.accessor.BlockAccessorImpl;
-+import org.leavesmc.leaves.protocol.jade.accessor.DataAccessor;
 +import org.leavesmc.leaves.protocol.jade.accessor.EntityAccessor;
 +import org.leavesmc.leaves.protocol.jade.accessor.EntityAccessorImpl;
 +import org.leavesmc.leaves.protocol.jade.payload.ReceiveDataPayload;
@@ -217,21 +214,13 @@ index 0000000000000000000000000000000000000000..3506533241e9222d2453cacea5539355
 +import org.leavesmc.leaves.protocol.jade.util.PriorityStore;
 +import org.leavesmc.leaves.protocol.jade.util.WrappedHierarchyLookup;
 +
-+import java.util.ArrayList;
 +import java.util.Collections;
-+import java.util.Comparator;
-+import java.util.HashSet;
 +import java.util.List;
-+import java.util.Set;
-+import java.util.UUID;
-+import java.util.function.Predicate;
-+import java.util.stream.Collectors;
 +
 +@LeavesProtocol(namespace = "jade")
 +public class JadeProtocol {
 +
 +    public static PriorityStore<ResourceLocation, IJadeProvider> priorities;
-+    private static Set<UUID> enabledPlayers = new HashSet<>();
 +    private static List<Block> shearableBlocks = null;
 +
 +    public static final String PROTOCOL_ID = "jade";
@@ -239,57 +228,6 @@ index 0000000000000000000000000000000000000000..3506533241e9222d2453cacea5539355
 +    public static final HierarchyLookup<IServerDataProvider<EntityAccessor>> entityDataProviders = new HierarchyLookup<>(Entity.class);
 +    public static final PairHierarchyLookup<IServerDataProvider<BlockAccessor>> blockDataProviders = new PairHierarchyLookup<>(new HierarchyLookup<>(Block.class), new HierarchyLookup<>(BlockEntity.class));
 +    public static final WrappedHierarchyLookup<IServerExtensionProvider<ItemStack>> itemStorageProviders = new WrappedHierarchyLookup<>();
-+
-+    public static final StreamCodec<ByteBuf, Object> PRIMITIVE_STREAM_CODEC = new StreamCodec<>() {
-+        @Override
-+        public @NotNull Object decode(ByteBuf buf) {
-+            byte b = buf.readByte();
-+            if (b == 0) {
-+                return false;
-+            } else if (b == 1) {
-+                return true;
-+            } else if (b == 2) {
-+                return ByteBufCodecs.VAR_INT.decode(buf);
-+            } else if (b == 3) {
-+                return ByteBufCodecs.FLOAT.decode(buf);
-+            } else if (b == 4) {
-+                return ByteBufCodecs.STRING_UTF8.decode(buf);
-+            } else if (b > 20) {
-+                return b - 20;
-+            }
-+            throw new IllegalArgumentException("Unknown primitive type: " + b);
-+        }
-+
-+        @Override
-+        public void encode(ByteBuf buf, Object o) {
-+            switch (o) {
-+                case Boolean b -> buf.writeByte(b ? 1 : 0);
-+                case Number n -> {
-+                    float f = n.floatValue();
-+                    if (f != (int) f) {
-+                        buf.writeByte(3);
-+                        ByteBufCodecs.FLOAT.encode(buf, f);
-+                    }
-+                    int i = n.intValue();
-+                    if (i <= Byte.MAX_VALUE - 20 && i >= 0) {
-+                        buf.writeByte(i + 20);
-+                    } else {
-+                        ByteBufCodecs.VAR_INT.encode(buf, i);
-+                    }
-+                }
-+                case String s -> {
-+                    buf.writeByte(4);
-+                    ByteBufCodecs.STRING_UTF8.encode(buf, s);
-+                }
-+                case Enum<?> anEnum -> {
-+                    buf.writeByte(4);
-+                    ByteBufCodecs.STRING_UTF8.encode(buf, anEnum.name());
-+                }
-+                case null -> throw new NullPointerException();
-+                default -> throw new IllegalArgumentException("Unknown primitive type: %s (%s)".formatted(o, o.getClass()));
-+            }
-+        }
-+    };
 +
 +    @Contract("_ -> new")
 +    public static @NotNull ResourceLocation id(String path) {
@@ -301,28 +239,9 @@ index 0000000000000000000000000000000000000000..3506533241e9222d2453cacea5539355
 +        return ResourceLocation.withDefaultNamespace(path);
 +    }
 +
-+    private static boolean isPrimaryKey(ResourceLocation key) {
-+        return !key.getPath().contains(".");
-+    }
-+
-+    private static ResourceLocation getPrimaryKey(ResourceLocation key) {
-+        return new ResourceLocation(key.getNamespace(), key.getPath().substring(0, key.getPath().indexOf('.')));
-+    }
-+
 +    @ProtocolHandler.Init
 +    public static void init() {
 +        priorities = new PriorityStore<>(IJadeProvider::getDefaultPriority, IJadeProvider::getUid);
-+        priorities.setSortingFunction((store, allKeys) -> {
-+            List<ResourceLocation> keys = allKeys.stream()
-+                    .filter(JadeProtocol::isPrimaryKey)
-+                    .sorted(Comparator.comparingInt(store::byKey))
-+                    .collect(Collectors.toCollection(ArrayList::new));
-+            allKeys.stream().filter(Predicate.not(JadeProtocol::isPrimaryKey)).forEach($ -> {
-+                int index = keys.indexOf(JadeProtocol.getPrimaryKey($));
-+                keys.add(index + 1, $);
-+            });
-+            return keys;
-+        });
 +
 +        // core plugin
 +        blockDataProviders.register(BlockEntity.class, ObjectNameProvider.ForBlock.INSTANCE);
@@ -381,7 +300,11 @@ index 0000000000000000000000000000000000000000..3506533241e9222d2453cacea5539355
 +
 +    @ProtocolHandler.PlayerJoin
 +    public static void onPlayerJoin(ServerPlayer player) {
-+        ProtocolUtils.sendPayloadPacket(player, new ServerPingPayload(Collections.emptyMap(), shearableBlocks, blockDataProviders.mappedIds(), entityDataProviders.mappedIds()));
++        if (!LeavesConfig.jadeProtocol) {
++            return;
++        }
++
++        sendPingPacket(player);
 +    }
 +
 +    @ProtocolHandler.PayloadReceiver(payload = RequestEntityPayload.class, payloadId = "request_entity")
@@ -413,9 +336,8 @@ index 0000000000000000000000000000000000000000..3506533241e9222d2453cacea5539355
 +                return;
 +            }
 +
-+
 +            final Entity finalEntity = entity;
-+            DataAccessor tag = new DataAccessor(world);
++            CompoundTag tag = new CompoundTag();
 +            EntityAccessor accessor = new EntityAccessorImpl.Builder()
 +                    .level(world)
 +                    .player(player)
@@ -474,7 +396,7 @@ index 0000000000000000000000000000000000000000..3506533241e9222d2453cacea5539355
 +                return;
 +            }
 +
-+            DataAccessor tag = new DataAccessor(world);
++            CompoundTag tag = new CompoundTag();
 +            BlockAccessor accessor = new BlockAccessorImpl.Builder()
 +                    .level(world)
 +                    .player(player)
@@ -482,7 +404,6 @@ index 0000000000000000000000000000000000000000..3506533241e9222d2453cacea5539355
 +                    .hit(result)
 +                    .blockState(blockState)
 +                    .blockEntity(blockEntity)
-+                    .fakeBlock(payload.data().fakeBlock())
 +                    .build();
 +
 +            for (IServerDataProvider<BlockAccessor> provider : providers) {
@@ -496,6 +417,7 @@ index 0000000000000000000000000000000000000000..3506533241e9222d2453cacea5539355
 +            tag.putInt("y", pos.getY());
 +            tag.putInt("z", pos.getZ());
 +            tag.putString("BlockId", BuiltInRegistries.BLOCK.getKey(block).toString());
++
 +            ProtocolUtils.sendPayloadPacket(player, new ReceiveDataPayload(tag));
 +        });
 +    }
@@ -509,37 +431,32 @@ index 0000000000000000000000000000000000000000..3506533241e9222d2453cacea5539355
 +
 +    public static void enableAllPlayer() {
 +        for (ServerPlayer player : MinecraftServer.getServer().getPlayerList().players) {
-+            if (enabledPlayers.contains(player.getUUID())) {
-+                ProtocolUtils.sendPayloadPacket(player, new ServerPingPayload(Collections.emptyMap(), shearableBlocks, blockDataProviders.mappedIds(), entityDataProviders.mappedIds()));
-+            }
++            sendPingPacket(player);
 +        }
++    }
++
++    public static void sendPingPacket(ServerPlayer player) {
++        ProtocolUtils.sendPayloadPacket(player, new ServerPingPayload(Collections.emptyMap(), shearableBlocks, blockDataProviders.mappedIds(), entityDataProviders.mappedIds()));
 +    }
 +}
 \ No newline at end of file
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/accessor/Accessor.java b/src/main/java/org/leavesmc/leaves/protocol/jade/accessor/Accessor.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..daa4e6e7455d34a18ce76c49fcfdd75c8db42496
+index 0000000000000000000000000000000000000000..9c9b469f805196dd97e02d93a11232d043f5e854
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/accessor/Accessor.java
-@@ -0,0 +1,58 @@
+@@ -0,0 +1,37 @@
 +package org.leavesmc.leaves.protocol.jade.accessor;
 +
-+import com.mojang.serialization.DynamicOps;
-+import com.mojang.serialization.MapDecoder;
-+import com.mojang.serialization.MapEncoder;
 +import net.minecraft.nbt.CompoundTag;
 +import net.minecraft.nbt.Tag;
 +import net.minecraft.network.RegistryFriendlyByteBuf;
-+import net.minecraft.network.codec.StreamDecoder;
 +import net.minecraft.network.codec.StreamEncoder;
 +import net.minecraft.world.entity.player.Player;
-+import net.minecraft.world.item.ItemStack;
 +import net.minecraft.world.level.Level;
 +import net.minecraft.world.phys.HitResult;
 +import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
-+
-+import java.util.Optional;
 +
 +public interface Accessor<T extends HitResult> {
 +
@@ -550,14 +467,6 @@ index 0000000000000000000000000000000000000000..daa4e6e7455d34a18ce76c49fcfdd75c
 +    @NotNull
 +    CompoundTag getServerData();
 +
-+    DynamicOps<Tag> nbtOps();
-+
-+    <D> Optional<D> readData(MapDecoder<D> codec);
-+
-+    <D> void writeData(MapEncoder<D> codec, D value);
-+
-+    <D> Optional<D> decodeFromNbt(StreamDecoder<RegistryFriendlyByteBuf, D> codec, Tag tag);
-+
 +    <D> Tag encodeAsNbt(StreamEncoder<RegistryFriendlyByteBuf, D> codec, D value);
 +
 +    T getHitResult();
@@ -567,49 +476,33 @@ index 0000000000000000000000000000000000000000..daa4e6e7455d34a18ce76c49fcfdd75c
 +     */
 +    boolean isServerConnected();
 +
-+    ItemStack getPickedResult();
-+
 +    boolean showDetails();
 +
 +    @Nullable
 +    Object getTarget();
 +
-+    Class<? extends Accessor<?>> getAccessorType();
-+
-+    boolean verifyData(CompoundTag data);
-+
 +    float tickRate();
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/accessor/AccessorImpl.java b/src/main/java/org/leavesmc/leaves/protocol/jade/accessor/AccessorImpl.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..01f5f2a5015e7d63e18c09fb5c7f25d47f840bf3
+index 0000000000000000000000000000000000000000..38d6b146d9135fb7c985f1f4e8a804bb490ff0df
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/accessor/AccessorImpl.java
-@@ -0,0 +1,144 @@
+@@ -0,0 +1,92 @@
 +package org.leavesmc.leaves.protocol.jade.accessor;
 +
-+import java.util.Optional;
 +import java.util.function.Supplier;
 +
 +import org.apache.commons.lang3.ArrayUtils;
 +import org.jetbrains.annotations.NotNull;
 +
-+import com.mojang.serialization.DynamicOps;
-+import com.mojang.serialization.MapDecoder;
-+import com.mojang.serialization.MapEncoder;
-+import com.mojang.serialization.MapLike;
-+
 +import io.netty.buffer.Unpooled;
 +import net.minecraft.nbt.ByteArrayTag;
 +import net.minecraft.nbt.CompoundTag;
-+import net.minecraft.nbt.NbtOps;
 +import net.minecraft.nbt.Tag;
 +import net.minecraft.network.RegistryFriendlyByteBuf;
-+import net.minecraft.network.codec.StreamDecoder;
 +import net.minecraft.network.codec.StreamEncoder;
-+import net.minecraft.resources.RegistryOps;
 +import net.minecraft.world.entity.player.Player;
-+import net.minecraft.world.item.ItemStack;
 +import net.minecraft.world.level.Level;
 +import net.minecraft.world.phys.HitResult;
 +
@@ -622,7 +515,6 @@ index 0000000000000000000000000000000000000000..01f5f2a5015e7d63e18c09fb5c7f25d4
 +    private final boolean serverConnected;
 +    private final boolean showDetails;
 +    protected boolean verify;
-+    private DynamicOps<Tag> ops;
 +    private RegistryFriendlyByteBuf buffer;
 +
 +    public AccessorImpl(Level level, Player player, CompoundTag serverData, Supplier<T> hit, boolean serverConnected, boolean showDetails) {
@@ -649,46 +541,12 @@ index 0000000000000000000000000000000000000000..01f5f2a5015e7d63e18c09fb5c7f25d4
 +        return serverData;
 +    }
 +
-+    @Override
-+    public DynamicOps<Tag> nbtOps() {
-+        if (ops == null) {
-+            ops = RegistryOps.create(NbtOps.INSTANCE, level.registryAccess());
-+        }
-+        return ops;
-+    }
-+
-+    @Override
-+    public <D> Optional<D> readData(MapDecoder<D> codec) {
-+        MapLike<Tag> mapLike = nbtOps().getMap(serverData).getOrThrow();
-+        return codec.decode(nbtOps(), mapLike).result();
-+    }
-+
-+    @Override
-+    public <D> void writeData(MapEncoder<D> codec, D value) {
-+        Tag tag = codec.encode(value, nbtOps(), nbtOps().mapBuilder()).build(new CompoundTag()).getOrThrow();
-+        serverData.merge((CompoundTag) tag);
-+    }
-+
 +    private RegistryFriendlyByteBuf buffer() {
 +        if (buffer == null) {
 +            buffer = new RegistryFriendlyByteBuf(Unpooled.buffer(), level.registryAccess());
 +        }
 +        buffer.clear();
 +        return buffer;
-+    }
-+
-+    @Override
-+    public <D> Optional<D> decodeFromNbt(StreamDecoder<RegistryFriendlyByteBuf, D> codec, Tag tag) {
-+        try {
-+            RegistryFriendlyByteBuf buffer = buffer();
-+            buffer.writeBytes(((ByteArrayTag) tag).getAsByteArray());
-+            D decoded = codec.decode(buffer);
-+            return Optional.of(decoded);
-+        } catch (Exception e) {
-+            return Optional.empty();
-+        } finally {
-+            buffer.clear();
-+        }
 +    }
 +
 +    @Override
@@ -719,30 +577,21 @@ index 0000000000000000000000000000000000000000..01f5f2a5015e7d63e18c09fb5c7f25d4
 +    }
 +
 +    @Override
-+    public abstract ItemStack getPickedResult();
-+
-+    public void requireVerification() {
-+        verify = true;
-+    }
-+
-+    @Override
 +    public float tickRate() {
 +        return getLevel().tickRateManager().tickrate();
 +    }
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/accessor/BlockAccessor.java b/src/main/java/org/leavesmc/leaves/protocol/jade/accessor/BlockAccessor.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..7fbd1f728499f67f7dd336e101f57c3f461febe0
+index 0000000000000000000000000000000000000000..12d689ca80887dcd5dbf68ea2c38a8adcc5ddee4
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/accessor/BlockAccessor.java
-@@ -0,0 +1,72 @@
+@@ -0,0 +1,50 @@
 +package org.leavesmc.leaves.protocol.jade.accessor;
 +
 +import net.minecraft.core.BlockPos;
 +import net.minecraft.core.Direction;
-+import net.minecraft.nbt.CompoundTag;
 +import net.minecraft.world.entity.player.Player;
-+import net.minecraft.world.item.ItemStack;
 +import net.minecraft.world.level.Level;
 +import net.minecraft.world.level.block.Block;
 +import net.minecraft.world.level.block.entity.BlockEntity;
@@ -764,27 +613,11 @@ index 0000000000000000000000000000000000000000..7fbd1f728499f67f7dd336e101f57c3f
 +
 +    Direction getSide();
 +
-+    /**
-+     * The targeting block is a custom block created by data pack
-+     */
-+    boolean isFakeBlock();
-+
-+    ItemStack getFakeBlock();
-+
-+    @Override
-+    default Class<? extends Accessor<?>> getAccessorType() {
-+        return BlockAccessor.class;
-+    }
-+
 +    @ApiStatus.NonExtendable
 +    interface Builder {
 +        Builder level(Level level);
 +
 +        Builder player(Player player);
-+
-+        Builder serverData(CompoundTag serverData);
-+
-+        Builder serverConnected(boolean connected);
 +
 +        Builder showDetails(boolean showDetails);
 +
@@ -798,11 +631,7 @@ index 0000000000000000000000000000000000000000..7fbd1f728499f67f7dd336e101f57c3f
 +
 +        Builder blockEntity(Supplier<BlockEntity> blockEntity);
 +
-+        Builder fakeBlock(ItemStack stack);
-+
 +        Builder from(BlockAccessor accessor);
-+
-+        Builder requireVerification();
 +
 +        BlockAccessor build();
 +    }
@@ -810,14 +639,12 @@ index 0000000000000000000000000000000000000000..7fbd1f728499f67f7dd336e101f57c3f
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/accessor/BlockAccessorImpl.java b/src/main/java/org/leavesmc/leaves/protocol/jade/accessor/BlockAccessorImpl.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..105348253f11699827395454f96563820804486e
+index 0000000000000000000000000000000000000000..4a2cd64c7911b756f737ed34f245f7366668f417
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/accessor/BlockAccessorImpl.java
-@@ -0,0 +1,279 @@
+@@ -0,0 +1,166 @@
 +package org.leavesmc.leaves.protocol.jade.accessor;
 +
-+import java.util.List;
-+import java.util.function.Consumer;
 +import java.util.function.Supplier;
 +
 +import org.jetbrains.annotations.Nullable;
@@ -831,9 +658,7 @@ index 0000000000000000000000000000000000000000..105348253f11699827395454f9656382
 +import net.minecraft.network.RegistryFriendlyByteBuf;
 +import net.minecraft.network.codec.ByteBufCodecs;
 +import net.minecraft.network.codec.StreamCodec;
-+import net.minecraft.server.level.ServerLevel;
 +import net.minecraft.server.level.ServerPlayer;
-+import net.minecraft.util.Mth;
 +import net.minecraft.world.entity.player.Player;
 +import net.minecraft.world.item.ItemStack;
 +import net.minecraft.world.level.Level;
@@ -842,11 +667,6 @@ index 0000000000000000000000000000000000000000..105348253f11699827395454f9656382
 +import net.minecraft.world.level.block.entity.BlockEntity;
 +import net.minecraft.world.level.block.state.BlockState;
 +import net.minecraft.world.phys.BlockHitResult;
-+import org.leavesmc.leaves.protocol.jade.JadeProtocol;
-+import org.leavesmc.leaves.protocol.jade.payload.RequestBlockPayload;
-+import org.leavesmc.leaves.protocol.jade.payload.ServerPayloadContext;
-+import org.leavesmc.leaves.protocol.jade.provider.IServerDataProvider;
-+import org.leavesmc.leaves.protocol.jade.util.CommonUtil;
 +
 +/**
 + * Class to get information of block target and context.
@@ -856,48 +676,11 @@ index 0000000000000000000000000000000000000000..105348253f11699827395454f9656382
 +    private final BlockState blockState;
 +    @Nullable
 +    private final Supplier<BlockEntity> blockEntity;
-+    private ItemStack fakeBlock;
 +
 +    private BlockAccessorImpl(Builder builder) {
 +        super(builder.level, builder.player, builder.serverData, Suppliers.ofInstance(builder.hit), builder.connected, builder.showDetails);
 +        blockState = builder.blockState;
 +        blockEntity = builder.blockEntity;
-+        fakeBlock = builder.fakeBlock;
-+    }
-+
-+    public static void handleRequest(RequestBlockPayload message, ServerPayloadContext context, Consumer<CompoundTag> responseSender) {
-+        ServerPlayer player = context.player();
-+        context.execute(() -> {
-+            BlockAccessor accessor = message.data().unpack(player);
-+            if (accessor == null) {
-+                return;
-+            }
-+            BlockPos pos = accessor.getPosition();
-+            ServerLevel world = player.serverLevel();
-+            double maxDistance = Mth.square(player.blockInteractionRange() + 21);
-+            if (pos.distSqr(player.blockPosition()) > maxDistance || !world.isLoaded(pos)) {
-+                return;
-+            }
-+
-+            List<IServerDataProvider<BlockAccessor>> providers = CommonUtil.getBlockNBTProviders(accessor.getBlock(), accessor.getBlockEntity());
-+            CompoundTag tag = accessor.getServerData();
-+            for (IServerDataProvider<BlockAccessor> provider : providers) {
-+                if (!message.dataProviders().contains(provider)) {
-+                    continue;
-+                }
-+                try {
-+                    provider.appendServerData(tag, accessor);
-+                } catch (Exception e) {
-+                    throw new RuntimeException(e);
-+                }
-+            }
-+
-+            tag.putInt("x", pos.getX());
-+            tag.putInt("y", pos.getY());
-+            tag.putInt("z", pos.getZ());
-+            tag.putString("BlockId", CommonUtil.getId(accessor.getBlock()).toString());
-+            responseSender.accept(tag);
-+        });
 +    }
 +
 +    @Override
@@ -925,41 +708,10 @@ index 0000000000000000000000000000000000000000..105348253f11699827395454f9656382
 +        return getHitResult().getDirection();
 +    }
 +
-+    @Override
-+    public ItemStack getPickedResult() {
-+        return null;//TODO implement minecraft pick up result
-+    }
-+
 +    @Nullable
 +    @Override
 +    public Object getTarget() {
 +        return getBlockEntity();
-+    }
-+
-+    @Override
-+    public boolean isFakeBlock() {
-+        return !fakeBlock.isEmpty();
-+    }
-+
-+    @Override
-+    public ItemStack getFakeBlock() {
-+        return fakeBlock;
-+    }
-+
-+    public void setFakeBlock(ItemStack fakeBlock) {
-+        this.fakeBlock = fakeBlock;
-+    }
-+
-+    @Override
-+    public boolean verifyData(CompoundTag data) {
-+        if (!verify) {
-+            return true;
-+        }
-+        int x = data.getInt("x");
-+        int y = data.getInt("y");
-+        int z = data.getInt("z");
-+        BlockPos hitPos = getPosition();
-+        return x == hitPos.getX() && y == hitPos.getY() && z == hitPos.getZ();
 +    }
 +
 +    public static class Builder implements BlockAccessor.Builder {
@@ -972,8 +724,6 @@ index 0000000000000000000000000000000000000000..105348253f11699827395454f9656382
 +        private BlockHitResult hit;
 +        private BlockState blockState = Blocks.AIR.defaultBlockState();
 +        private Supplier<BlockEntity> blockEntity;
-+        private ItemStack fakeBlock = ItemStack.EMPTY;
-+        private boolean verify;
 +
 +        @Override
 +        public Builder level(Level level) {
@@ -984,18 +734,6 @@ index 0000000000000000000000000000000000000000..105348253f11699827395454f9656382
 +        @Override
 +        public Builder player(Player player) {
 +            this.player = player;
-+            return this;
-+        }
-+
-+        @Override
-+        public Builder serverData(CompoundTag serverData) {
-+            this.serverData = serverData;
-+            return this;
-+        }
-+
-+        @Override
-+        public Builder serverConnected(boolean connected) {
-+            this.connected = connected;
 +            return this;
 +        }
 +
@@ -1024,12 +762,6 @@ index 0000000000000000000000000000000000000000..105348253f11699827395454f9656382
 +        }
 +
 +        @Override
-+        public Builder fakeBlock(ItemStack stack) {
-+            fakeBlock = stack;
-+            return this;
-+        }
-+
-+        @Override
 +        public Builder from(BlockAccessor accessor) {
 +            level = accessor.getLevel();
 +            player = accessor.getPlayer();
@@ -1039,23 +771,12 @@ index 0000000000000000000000000000000000000000..105348253f11699827395454f9656382
 +            hit = accessor.getHitResult();
 +            blockEntity = accessor::getBlockEntity;
 +            blockState = accessor.getBlockState();
-+            fakeBlock = accessor.getFakeBlock();
-+            return this;
-+        }
-+
-+        @Override
-+        public BlockAccessor.Builder requireVerification() {
-+            verify = true;
 +            return this;
 +        }
 +
 +        @Override
 +        public BlockAccessor build() {
-+            BlockAccessorImpl accessor = new BlockAccessorImpl(this);
-+            if (verify) {
-+                accessor.requireVerification();
-+            }
-+            return accessor;
++            return new BlockAccessorImpl(this);
 +        }
 +    }
 +
@@ -1072,10 +793,6 @@ index 0000000000000000000000000000000000000000..105348253f11699827395454f9656382
 +                SyncData::new
 +        );
 +
-+        public SyncData(BlockAccessor accessor) {
-+            this(accessor.showDetails(), accessor.getHitResult(), accessor.getBlockState(), accessor.getFakeBlock());
-+        }
-+
 +        public BlockAccessor unpack(ServerPlayer player) {
 +            Supplier<BlockEntity> blockEntity = null;
 +            if (blockState.hasBlockEntity()) {
@@ -1088,58 +805,18 @@ index 0000000000000000000000000000000000000000..105348253f11699827395454f9656382
 +                    .hit(hit)
 +                    .blockState(blockState)
 +                    .blockEntity(blockEntity)
-+                    .fakeBlock(fakeBlock)
 +                    .build();
 +        }
 +    }
 +}
-diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/accessor/DataAccessor.java b/src/main/java/org/leavesmc/leaves/protocol/jade/accessor/DataAccessor.java
-new file mode 100644
-index 0000000000000000000000000000000000000000..f8215ffdc2cfe39ab1be89c31a68ef0925eaa3a6
---- /dev/null
-+++ b/src/main/java/org/leavesmc/leaves/protocol/jade/accessor/DataAccessor.java
-@@ -0,0 +1,32 @@
-+package org.leavesmc.leaves.protocol.jade.accessor;
-+
-+import com.mojang.serialization.DynamicOps;
-+import com.mojang.serialization.MapEncoder;
-+import net.minecraft.nbt.CompoundTag;
-+import net.minecraft.nbt.NbtOps;
-+import net.minecraft.nbt.Tag;
-+import net.minecraft.resources.RegistryOps;
-+import net.minecraft.world.level.Level;
-+
-+public class DataAccessor extends CompoundTag {
-+
-+    private final Level level;
-+    private DynamicOps<Tag> ops;
-+
-+    public DataAccessor(Level level) {
-+        this.level = level;
-+    }
-+
-+    public DynamicOps<Tag> nbtOps() {
-+        if (ops == null) {
-+            ops = RegistryOps.create(NbtOps.INSTANCE, level.registryAccess());
-+        }
-+
-+        return ops;
-+    }
-+
-+    public <D> void writeMapData(MapEncoder<D> codec, D value) {
-+        Tag tag = codec.encode(value, nbtOps(), nbtOps().mapBuilder()).build(new CompoundTag()).getOrThrow();
-+        this.merge((CompoundTag) tag);
-+    }
-+}
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/accessor/EntityAccessor.java b/src/main/java/org/leavesmc/leaves/protocol/jade/accessor/EntityAccessor.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..305f0d7167526df4d864d3258be5a3dc64777e49
+index 0000000000000000000000000000000000000000..454360d5e5c01cad3c197b078d536a9f34e2c6a2
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/accessor/EntityAccessor.java
-@@ -0,0 +1,56 @@
+@@ -0,0 +1,44 @@
 +package org.leavesmc.leaves.protocol.jade.accessor;
 +
-+import net.minecraft.nbt.CompoundTag;
 +import net.minecraft.world.entity.Entity;
 +import net.minecraft.world.entity.player.Player;
 +import net.minecraft.world.level.Level;
@@ -1157,20 +834,11 @@ index 0000000000000000000000000000000000000000..305f0d7167526df4d864d3258be5a3dc
 +     */
 +    Entity getRawEntity();
 +
-+    @Override
-+    default Class<? extends Accessor<?>> getAccessorType() {
-+        return EntityAccessor.class;
-+    }
-+
 +    @ApiStatus.NonExtendable
 +    interface Builder {
 +        Builder level(Level level);
 +
 +        Builder player(Player player);
-+
-+        Builder serverData(CompoundTag serverData);
-+
-+        Builder serverConnected(boolean connected);
 +
 +        Builder showDetails(boolean showDetails);
 +
@@ -1188,18 +856,16 @@ index 0000000000000000000000000000000000000000..305f0d7167526df4d864d3258be5a3dc
 +
 +        Builder from(EntityAccessor accessor);
 +
-+        Builder requireVerification();
-+
 +        EntityAccessor build();
 +    }
 +}
 \ No newline at end of file
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/accessor/EntityAccessorImpl.java b/src/main/java/org/leavesmc/leaves/protocol/jade/accessor/EntityAccessorImpl.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..a92edcbb3e707065455ad5464484068e8500337c
+index 0000000000000000000000000000000000000000..f670ac9b7ee72bbf3fa4f509cc2cdaeee238ccff
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/accessor/EntityAccessorImpl.java
-@@ -0,0 +1,211 @@
+@@ -0,0 +1,126 @@
 +package org.leavesmc.leaves.protocol.jade.accessor;
 +
 +import com.google.common.base.Suppliers;
@@ -1208,22 +874,14 @@ index 0000000000000000000000000000000000000000..a92edcbb3e707065455ad5464484068e
 +import net.minecraft.network.codec.ByteBufCodecs;
 +import net.minecraft.network.codec.StreamCodec;
 +import net.minecraft.server.level.ServerPlayer;
-+import net.minecraft.util.Mth;
 +import net.minecraft.world.entity.Entity;
 +import net.minecraft.world.entity.player.Player;
-+import net.minecraft.world.item.ItemStack;
 +import net.minecraft.world.level.Level;
 +import net.minecraft.world.phys.EntityHitResult;
 +import net.minecraft.world.phys.Vec3;
 +import org.jetbrains.annotations.NotNull;
-+import org.leavesmc.leaves.protocol.jade.JadeProtocol;
-+import org.leavesmc.leaves.protocol.jade.payload.RequestEntityPayload;
-+import org.leavesmc.leaves.protocol.jade.payload.ServerPayloadContext;
-+import org.leavesmc.leaves.protocol.jade.provider.IServerDataProvider;
 +import org.leavesmc.leaves.protocol.jade.util.CommonUtil;
 +
-+import java.util.List;
-+import java.util.function.Consumer;
 +import java.util.function.Supplier;
 +
 +public class EntityAccessorImpl extends AccessorImpl<EntityHitResult> implements EntityAccessor {
@@ -1233,36 +891,6 @@ index 0000000000000000000000000000000000000000..a92edcbb3e707065455ad5464484068e
 +    public EntityAccessorImpl(Builder builder) {
 +        super(builder.level, builder.player, builder.serverData, builder.hit, builder.connected, builder.showDetails);
 +        entity = builder.entity;
-+    }
-+
-+    public static void handleRequest(RequestEntityPayload message, ServerPayloadContext context, Consumer<CompoundTag> responseSender) {
-+        ServerPlayer player = context.player();
-+        context.execute(() -> {
-+            EntityAccessor accessor = message.data().unpack(player);
-+            if (accessor == null) {
-+                return;
-+            }
-+            Entity entity = accessor.getEntity();
-+            double maxDistance = Mth.square(player.entityInteractionRange() + 21);
-+            if (entity == null || player.distanceToSqr(entity) > maxDistance) {
-+                return;
-+            }
-+            List<IServerDataProvider<EntityAccessor>> providers = JadeProtocol.entityDataProviders.get(entity);
-+            CompoundTag tag = accessor.getServerData();
-+            for (IServerDataProvider<EntityAccessor> provider : providers) {
-+                if (!message.dataProviders().contains(provider)) {
-+                    continue;
-+                }
-+                try {
-+                    provider.appendServerData(tag, accessor);
-+                } catch (Exception e) {
-+                    throw new RuntimeException(e);
-+                }
-+            }
-+
-+            tag.putInt("EntityId", entity.getId());
-+            responseSender.accept(tag);
-+        });
 +    }
 +
 +    @Override
@@ -1275,26 +903,10 @@ index 0000000000000000000000000000000000000000..a92edcbb3e707065455ad5464484068e
 +        return entity.get();
 +    }
 +
-+    @Override
-+    public ItemStack getPickedResult() {
-+        return null; //TODO implement minecraft pick up result
-+    }
-+
 +    @NotNull
 +    @Override
 +    public Object getTarget() {
 +        return getEntity();
-+    }
-+
-+    @Override
-+    public boolean verifyData(CompoundTag data) {
-+        if (!verify) {
-+            return true;
-+        }
-+        if (!data.contains("EntityId")) {
-+            return false;
-+        }
-+        return data.getInt("EntityId") == getEntity().getId();
 +    }
 +
 +    public static class Builder implements EntityAccessor.Builder {
@@ -1306,7 +918,6 @@ index 0000000000000000000000000000000000000000..a92edcbb3e707065455ad5464484068e
 +        private boolean connected;
 +        private Supplier<EntityHitResult> hit;
 +        private Supplier<Entity> entity;
-+        private boolean verify;
 +
 +        @Override
 +        public Builder level(Level level) {
@@ -1317,18 +928,6 @@ index 0000000000000000000000000000000000000000..a92edcbb3e707065455ad5464484068e
 +        @Override
 +        public Builder player(Player player) {
 +            this.player = player;
-+            return this;
-+        }
-+
-+        @Override
-+        public Builder serverData(CompoundTag serverData) {
-+            this.serverData = serverData;
-+            return this;
-+        }
-+
-+        @Override
-+        public Builder serverConnected(boolean connected) {
-+            this.connected = connected;
 +            return this;
 +        }
 +
@@ -1363,18 +962,8 @@ index 0000000000000000000000000000000000000000..a92edcbb3e707065455ad5464484068e
 +        }
 +
 +        @Override
-+        public EntityAccessor.Builder requireVerification() {
-+            verify = true;
-+            return this;
-+        }
-+
-+        @Override
 +        public EntityAccessor build() {
-+            EntityAccessorImpl accessor = new EntityAccessorImpl(this);
-+            if (verify) {
-+                accessor.requireVerification();
-+            }
-+            return accessor;
++            return new EntityAccessorImpl(this);
 +        }
 +    }
 +
@@ -1390,14 +979,6 @@ index 0000000000000000000000000000000000000000..a92edcbb3e707065455ad5464484068e
 +                SyncData::hitVec,
 +                SyncData::new
 +        );
-+
-+        public SyncData(EntityAccessor accessor) {
-+            this(
-+                    accessor.showDetails(),
-+                    accessor.getEntity().getId(),
-+                    CommonUtil.getPartEntityIndex(accessor.getRawEntity()),
-+                    accessor.getHitResult().getLocation());
-+        }
 +
 +        public EntityAccessor unpack(ServerPlayer player) {
 +            Supplier<Entity> entity = Suppliers.memoize(() -> CommonUtil.getPartEntity(player.level().getEntity(id), partIndex));
@@ -1448,12 +1029,11 @@ index 0000000000000000000000000000000000000000..1b474ea8c1075b3dbaa7cd27e5bd95aa
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/payload/RequestBlockPayload.java b/src/main/java/org/leavesmc/leaves/protocol/jade/payload/RequestBlockPayload.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..53e8b14b90afb6d4405c7d13a0424b4088421f11
+index 0000000000000000000000000000000000000000..480ec35f28c850bfbe4f787d080fd7bbd84ca24c
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/payload/RequestBlockPayload.java
-@@ -0,0 +1,52 @@
+@@ -0,0 +1,51 @@
 +package org.leavesmc.leaves.protocol.jade.payload;
-+
 +
 +import io.netty.buffer.ByteBuf;
 +import net.minecraft.network.FriendlyByteBuf;
@@ -1507,10 +1087,10 @@ index 0000000000000000000000000000000000000000..53e8b14b90afb6d4405c7d13a0424b40
 \ No newline at end of file
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/payload/RequestEntityPayload.java b/src/main/java/org/leavesmc/leaves/protocol/jade/payload/RequestEntityPayload.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..b398176d0375784c2eff1db48fbaadcc6e80cbf9
+index 0000000000000000000000000000000000000000..ef7ee32f0f2fd78b7e7891d622f76cddb8cb0680
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/payload/RequestEntityPayload.java
-@@ -0,0 +1,55 @@
+@@ -0,0 +1,53 @@
 +package org.leavesmc.leaves.protocol.jade.payload;
 +
 +import io.netty.buffer.ByteBuf;
@@ -1533,9 +1113,7 @@ index 0000000000000000000000000000000000000000..b398176d0375784c2eff1db48fbaadcc
 +
 +import static org.leavesmc.leaves.protocol.jade.JadeProtocol.entityDataProviders;
 +
-+public record RequestEntityPayload(
-+        EntityAccessorImpl.SyncData data,
-+        List<@Nullable IServerDataProvider<EntityAccessor>> dataProviders) implements LeavesCustomPayload<RequestEntityPayload> {
++public record RequestEntityPayload(EntityAccessorImpl.SyncData data, List<@Nullable IServerDataProvider<EntityAccessor>> dataProviders) implements LeavesCustomPayload<RequestEntityPayload> {
 +
 +    private static final ResourceLocation PACKET_REQUEST_ENTITY = JadeProtocol.id("request_entity");
 +    private static final StreamCodec<RegistryFriendlyByteBuf, RequestEntityPayload> CODEC = StreamCodec.composite(
@@ -1567,41 +1145,13 @@ index 0000000000000000000000000000000000000000..b398176d0375784c2eff1db48fbaadcc
 +    }
 +}
 \ No newline at end of file
-diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/payload/ServerPayloadContext.java b/src/main/java/org/leavesmc/leaves/protocol/jade/payload/ServerPayloadContext.java
-new file mode 100644
-index 0000000000000000000000000000000000000000..5a552665cfda2eafe9b66486445832284250ab88
---- /dev/null
-+++ b/src/main/java/org/leavesmc/leaves/protocol/jade/payload/ServerPayloadContext.java
-@@ -0,0 +1,20 @@
-+package org.leavesmc.leaves.protocol.jade.payload;
-+
-+
-+import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket;
-+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-+import net.minecraft.server.level.ServerPlayer;
-+
-+import java.util.Objects;
-+
-+public interface ServerPayloadContext {
-+    default void execute(Runnable runnable) {
-+        Objects.requireNonNull(player().getServer()).execute(runnable);
-+    }
-+
-+    default void sendPacket(CustomPacketPayload payload) {
-+        player().connection.send(new ClientboundCustomPayloadPacket(payload));
-+    }
-+
-+    ServerPlayer player();
-+}
-\ No newline at end of file
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/payload/ServerPingPayload.java b/src/main/java/org/leavesmc/leaves/protocol/jade/payload/ServerPingPayload.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..8e5ea16f09dc33fb21820dcc9caeb54c62f7ba25
+index 0000000000000000000000000000000000000000..f4419962a7fedaea05140bbf6eaa01cc94c05049
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/payload/ServerPingPayload.java
-@@ -0,0 +1,50 @@
+@@ -0,0 +1,49 @@
 +package org.leavesmc.leaves.protocol.jade.payload;
-+
 +
 +import com.google.common.collect.Maps;
 +import io.netty.buffer.ByteBuf;
@@ -1619,7 +1169,7 @@ index 0000000000000000000000000000000000000000..8e5ea16f09dc33fb21820dcc9caeb54c
 +import java.util.List;
 +import java.util.Map;
 +
-+import static org.leavesmc.leaves.protocol.jade.JadeProtocol.PRIMITIVE_STREAM_CODEC;
++import static org.leavesmc.leaves.protocol.jade.util.JadeCodec.PRIMITIVE_STREAM_CODEC;
 +
 +public record ServerPingPayload(
 +        Map<ResourceLocation, Object> serverConfig,
@@ -1670,29 +1220,24 @@ index 0000000000000000000000000000000000000000..d62fc8f96fcdee7dbb0204d2460ff6fe
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/provider/IServerDataProvider.java b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/IServerDataProvider.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..2a26ebffe50a19d8a4c2032eb6b9ce48f673f67d
+index 0000000000000000000000000000000000000000..7d839f17601ca4d2b8717222989cf566a0eb6524
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/IServerDataProvider.java
-@@ -0,0 +1,13 @@
+@@ -0,0 +1,8 @@
 +package org.leavesmc.leaves.protocol.jade.provider;
 +
 +import net.minecraft.nbt.CompoundTag;
 +import org.leavesmc.leaves.protocol.jade.accessor.Accessor;
 +
 +public interface IServerDataProvider<T extends Accessor<?>> extends IJadeProvider {
-+
 +    void appendServerData(CompoundTag data, T accessor);
-+
-+    default boolean shouldRequestData(T accessor) {
-+        return true;
-+    }
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/provider/IServerExtensionProvider.java b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/IServerExtensionProvider.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..6ba1dd992779d32106548805feea502a0a7294be
+index 0000000000000000000000000000000000000000..6e32eed15f028020223e2500849b4db3892f68c3
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/IServerExtensionProvider.java
-@@ -0,0 +1,14 @@
+@@ -0,0 +1,10 @@
 +package org.leavesmc.leaves.protocol.jade.provider;
 +
 +import org.leavesmc.leaves.protocol.jade.accessor.Accessor;
@@ -1702,10 +1247,6 @@ index 0000000000000000000000000000000000000000..6ba1dd992779d32106548805feea502a
 +
 +public interface IServerExtensionProvider<T> extends IJadeProvider {
 +    List<ViewGroup<T>> getGroups(Accessor<?> request);
-+
-+    default boolean shouldRequestData(Accessor<?> accessor) {
-+        return true;
-+    }
 +}
 \ No newline at end of file
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/provider/ItemStorageExtensionProvider.java b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/ItemStorageExtensionProvider.java
@@ -1858,10 +1399,10 @@ index 0000000000000000000000000000000000000000..7680ff97d99e15a9b3475ef83f7cfe34
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/provider/StreamServerDataProvider.java b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/StreamServerDataProvider.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..2124b1e8330c62e7217fa94f84a3e8e4e6d0df17
+index 0000000000000000000000000000000000000000..52887edb3359c5eb1900cd1eec912e52afef2c9f
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/StreamServerDataProvider.java
-@@ -0,0 +1,34 @@
+@@ -0,0 +1,26 @@
 +package org.leavesmc.leaves.protocol.jade.provider;
 +
 +import net.minecraft.nbt.CompoundTag;
@@ -1883,14 +1424,6 @@ index 0000000000000000000000000000000000000000..2124b1e8330c62e7217fa94f84a3e8e4
 +        }
 +    }
 +
-+    default Optional<D> decodeFromData(T accessor) {
-+        Tag tag = accessor.getServerData().get(getUid().toString());
-+        if (tag == null) {
-+            return Optional.empty();
-+        }
-+        return accessor.decodeFromNbt(streamCodec(), tag);
-+    }
-+
 +    @Nullable
 +    D streamData(T accessor);
 +
@@ -1898,10 +1431,10 @@ index 0000000000000000000000000000000000000000..2124b1e8330c62e7217fa94f84a3e8e4
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/provider/block/BeehiveProvider.java b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/block/BeehiveProvider.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..17d414c3cc73e0c1d181ef8c1afad5affb839d7e
+index 0000000000000000000000000000000000000000..ee92d79bf4d328c95c51178a2ad43beb0a54cd29
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/block/BeehiveProvider.java
-@@ -0,0 +1,33 @@
+@@ -0,0 +1,34 @@
 +package org.leavesmc.leaves.protocol.jade.provider.block;
 +
 +import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -1909,6 +1442,7 @@ index 0000000000000000000000000000000000000000..17d414c3cc73e0c1d181ef8c1afad5af
 +import net.minecraft.network.codec.StreamCodec;
 +import net.minecraft.resources.ResourceLocation;
 +import net.minecraft.world.level.block.entity.BeehiveBlockEntity;
++import org.jetbrains.annotations.NotNull;
 +import org.leavesmc.leaves.protocol.jade.JadeProtocol;
 +import org.leavesmc.leaves.protocol.jade.accessor.BlockAccessor;
 +import org.leavesmc.leaves.protocol.jade.provider.StreamServerDataProvider;
@@ -1919,12 +1453,12 @@ index 0000000000000000000000000000000000000000..17d414c3cc73e0c1d181ef8c1afad5af
 +    private static final ResourceLocation MC_BEEHIVE = JadeProtocol.mc_id("beehive");
 +
 +    @Override
-+    public StreamCodec<RegistryFriendlyByteBuf, Byte> streamCodec() {
++    public @NotNull StreamCodec<RegistryFriendlyByteBuf, Byte> streamCodec() {
 +        return ByteBufCodecs.BYTE.cast();
 +    }
 +
 +    @Override
-+    public Byte streamData(BlockAccessor accessor) {
++    public Byte streamData(@NotNull BlockAccessor accessor) {
 +        BeehiveBlockEntity beehive = (BeehiveBlockEntity) accessor.getBlockEntity();
 +        int bees = beehive.getOccupantCount();
 +        return (byte) (beehive.isFull() ? bees : -bees);
@@ -1938,10 +1472,10 @@ index 0000000000000000000000000000000000000000..17d414c3cc73e0c1d181ef8c1afad5af
 \ No newline at end of file
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/provider/block/BrewingStandProvider.java b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/block/BrewingStandProvider.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..bf4b4febfef345d28e573be51a7a154c33471516
+index 0000000000000000000000000000000000000000..e6f15f87819d4a7c4d4383db735d8318ea30a03c
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/block/BrewingStandProvider.java
-@@ -0,0 +1,42 @@
+@@ -0,0 +1,43 @@
 +package org.leavesmc.leaves.protocol.jade.provider.block;
 +
 +import io.netty.buffer.ByteBuf;
@@ -1950,6 +1484,7 @@ index 0000000000000000000000000000000000000000..bf4b4febfef345d28e573be51a7a154c
 +import net.minecraft.network.codec.StreamCodec;
 +import net.minecraft.resources.ResourceLocation;
 +import net.minecraft.world.level.block.entity.BrewingStandBlockEntity;
++import org.jetbrains.annotations.NotNull;
 +import org.leavesmc.leaves.protocol.jade.JadeProtocol;
 +import org.leavesmc.leaves.protocol.jade.accessor.BlockAccessor;
 +import org.leavesmc.leaves.protocol.jade.provider.StreamServerDataProvider;
@@ -1960,13 +1495,13 @@ index 0000000000000000000000000000000000000000..bf4b4febfef345d28e573be51a7a154c
 +    private static final ResourceLocation MC_BREWING_STAND = JadeProtocol.mc_id("brewing_stand");
 +
 +    @Override
-+    public Data streamData(BlockAccessor accessor) {
++    public @NotNull Data streamData(@NotNull BlockAccessor accessor) {
 +        BrewingStandBlockEntity brewingStand = (BrewingStandBlockEntity) accessor.getBlockEntity();
 +        return new Data(brewingStand.fuel, brewingStand.brewTime);
 +    }
 +
 +    @Override
-+    public StreamCodec<RegistryFriendlyByteBuf, Data> streamCodec() {
++    public @NotNull StreamCodec<RegistryFriendlyByteBuf, Data> streamCodec() {
 +        return Data.STREAM_CODEC.cast();
 +    }
 +
@@ -1986,10 +1521,10 @@ index 0000000000000000000000000000000000000000..bf4b4febfef345d28e573be51a7a154c
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/provider/block/CampfireProvider.java b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/block/CampfireProvider.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..b090283ab2c383de857a2c2974bdb7d5939de237
+index 0000000000000000000000000000000000000000..2deb3777a320d6a50168e06f234ba4c21da48e9a
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/block/CampfireProvider.java
-@@ -0,0 +1,52 @@
+@@ -0,0 +1,55 @@
 +package org.leavesmc.leaves.protocol.jade.provider.block;
 +
 +import com.google.common.collect.Lists;
@@ -2001,6 +1536,9 @@ index 0000000000000000000000000000000000000000..b090283ab2c383de857a2c2974bdb7d5
 +import net.minecraft.world.item.ItemStack;
 +import net.minecraft.world.item.component.CustomData;
 +import net.minecraft.world.level.block.entity.CampfireBlockEntity;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++import org.jetbrains.annotations.Unmodifiable;
 +import org.leavesmc.leaves.protocol.jade.JadeProtocol;
 +import org.leavesmc.leaves.protocol.jade.accessor.Accessor;
 +import org.leavesmc.leaves.protocol.jade.provider.IServerExtensionProvider;
@@ -2015,7 +1553,7 @@ index 0000000000000000000000000000000000000000..b090283ab2c383de857a2c2974bdb7d5
 +    private static final ResourceLocation MC_CAMPFIRE = JadeProtocol.mc_id("campfire");
 +
 +    @Override
-+    public List<ViewGroup<ItemStack>> getGroups(Accessor<?> request) {
++    public @Nullable @Unmodifiable List<ViewGroup<ItemStack>> getGroups(@NotNull Accessor<?> request) {
 +        if (request.getTarget() instanceof CampfireBlockEntity campfire) {
 +            List<ItemStack> list = Lists.newArrayList();
 +            for (int i = 0; i < campfire.cookingTime.length; i++) {
@@ -2044,19 +1582,20 @@ index 0000000000000000000000000000000000000000..b090283ab2c383de857a2c2974bdb7d5
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/provider/block/ChiseledBookshelfProvider.java b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/block/ChiseledBookshelfProvider.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..7dde33fa75e509beb6647fa0b9b77157068bae4b
+index 0000000000000000000000000000000000000000..bde872cc5ebd9d79af307c8a4b38acd385cec11b
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/block/ChiseledBookshelfProvider.java
 @@ -0,0 +1,39 @@
 +package org.leavesmc.leaves.protocol.jade.provider.block;
 +
-+import com.mojang.serialization.MapCodec;
 +import net.minecraft.network.RegistryFriendlyByteBuf;
 +import net.minecraft.network.codec.StreamCodec;
 +import net.minecraft.resources.ResourceLocation;
 +import net.minecraft.world.item.ItemStack;
 +import net.minecraft.world.level.block.ChiseledBookShelfBlock;
 +import net.minecraft.world.level.block.entity.ChiseledBookShelfBlockEntity;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
 +import org.leavesmc.leaves.protocol.jade.JadeProtocol;
 +import org.leavesmc.leaves.protocol.jade.accessor.BlockAccessor;
 +import org.leavesmc.leaves.protocol.jade.provider.StreamServerDataProvider;
@@ -2064,11 +1603,10 @@ index 0000000000000000000000000000000000000000..7dde33fa75e509beb6647fa0b9b77157
 +public enum ChiseledBookshelfProvider implements StreamServerDataProvider<BlockAccessor, ItemStack> {
 +    INSTANCE;
 +
-+    public static final MapCodec<ItemStack> BOOK_CODEC = ItemStack.CODEC.fieldOf("book");
 +    private static final ResourceLocation MC_CHISELED_BOOKSHELF = JadeProtocol.mc_id("chiseled_bookshelf");
 +
 +    @Override
-+    public ItemStack streamData(BlockAccessor accessor) {
++    public @Nullable ItemStack streamData(@NotNull BlockAccessor accessor) {
 +        int slot = ((ChiseledBookShelfBlock) accessor.getBlock()).getHitSlot(accessor.getHitResult(), accessor.getBlockState()).orElse(-1);
 +        if (slot == -1) {
 +            return null;
@@ -2089,10 +1627,10 @@ index 0000000000000000000000000000000000000000..7dde33fa75e509beb6647fa0b9b77157
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/provider/block/CommandBlockProvider.java b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/block/CommandBlockProvider.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..bd92188b750a21c73d8130ba0e71782a3990dca4
+index 0000000000000000000000000000000000000000..5f71fadae8fe95e3386e3ee5465eb33f850a37b0
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/block/CommandBlockProvider.java
-@@ -0,0 +1,39 @@
+@@ -0,0 +1,40 @@
 +package org.leavesmc.leaves.protocol.jade.provider.block;
 +
 +import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -2100,6 +1638,7 @@ index 0000000000000000000000000000000000000000..bd92188b750a21c73d8130ba0e71782a
 +import net.minecraft.network.codec.StreamCodec;
 +import net.minecraft.resources.ResourceLocation;
 +import net.minecraft.world.level.block.entity.CommandBlockEntity;
++import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
 +import org.leavesmc.leaves.protocol.jade.JadeProtocol;
 +import org.leavesmc.leaves.protocol.jade.accessor.BlockAccessor;
@@ -2111,7 +1650,7 @@ index 0000000000000000000000000000000000000000..bd92188b750a21c73d8130ba0e71782a
 +    private static final ResourceLocation MC_COMMAND_BLOCK = JadeProtocol.mc_id("command_block");
 +
 +    @Nullable
-+    public String streamData(BlockAccessor accessor) {
++    public String streamData(@NotNull BlockAccessor accessor) {
 +        if (!accessor.getPlayer().canUseGameMasterBlocks()) {
 +            return null;
 +        }
@@ -2123,7 +1662,7 @@ index 0000000000000000000000000000000000000000..bd92188b750a21c73d8130ba0e71782a
 +    }
 +
 +    @Override
-+    public StreamCodec<RegistryFriendlyByteBuf, String> streamCodec() {
++    public @NotNull StreamCodec<RegistryFriendlyByteBuf, String> streamCodec() {
 +        return ByteBufCodecs.STRING_UTF8.cast();
 +    }
 +
@@ -2134,10 +1673,10 @@ index 0000000000000000000000000000000000000000..bd92188b750a21c73d8130ba0e71782a
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/provider/block/FurnaceProvider.java b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/block/FurnaceProvider.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..962556088f145a5def5317d02bcc6b2786ced8ba
+index 0000000000000000000000000000000000000000..090e6a350a5c19c0204ecf9a2c2c42e8d012cb3d
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/block/FurnaceProvider.java
-@@ -0,0 +1,58 @@
+@@ -0,0 +1,60 @@
 +package org.leavesmc.leaves.protocol.jade.provider.block;
 +
 +import net.minecraft.nbt.CompoundTag;
@@ -2147,6 +1686,8 @@ index 0000000000000000000000000000000000000000..962556088f145a5def5317d02bcc6b27
 +import net.minecraft.resources.ResourceLocation;
 +import net.minecraft.world.item.ItemStack;
 +import net.minecraft.world.level.block.entity.AbstractFurnaceBlockEntity;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
 +import org.leavesmc.leaves.protocol.jade.JadeProtocol;
 +import org.leavesmc.leaves.protocol.jade.accessor.BlockAccessor;
 +import org.leavesmc.leaves.protocol.jade.provider.StreamServerDataProvider;
@@ -2159,7 +1700,7 @@ index 0000000000000000000000000000000000000000..962556088f145a5def5317d02bcc6b27
 +    private static final ResourceLocation MC_FURNACE = JadeProtocol.mc_id("furnace");
 +
 +    @Override
-+    public Data streamData(BlockAccessor accessor) {
++    public @Nullable Data streamData(@NotNull BlockAccessor accessor) {
 +        if (!(accessor.getTarget() instanceof AbstractFurnaceBlockEntity furnace)) {
 +            return null;
 +        }
@@ -2198,10 +1739,10 @@ index 0000000000000000000000000000000000000000..962556088f145a5def5317d02bcc6b27
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/provider/block/HopperLockProvider.java b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/block/HopperLockProvider.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..fd7bea22675360e371b54948dfed57b3508499a9
+index 0000000000000000000000000000000000000000..a3937081bd923d3b6f2ee966dc95aa235c3eb57c
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/block/HopperLockProvider.java
-@@ -0,0 +1,31 @@
+@@ -0,0 +1,32 @@
 +package org.leavesmc.leaves.protocol.jade.provider.block;
 +
 +import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -2209,6 +1750,7 @@ index 0000000000000000000000000000000000000000..fd7bea22675360e371b54948dfed57b3
 +import net.minecraft.network.codec.StreamCodec;
 +import net.minecraft.resources.ResourceLocation;
 +import net.minecraft.world.level.block.state.properties.BlockStateProperties;
++import org.jetbrains.annotations.NotNull;
 +import org.leavesmc.leaves.protocol.jade.JadeProtocol;
 +import org.leavesmc.leaves.protocol.jade.accessor.BlockAccessor;
 +import org.leavesmc.leaves.protocol.jade.provider.StreamServerDataProvider;
@@ -2219,12 +1761,12 @@ index 0000000000000000000000000000000000000000..fd7bea22675360e371b54948dfed57b3
 +    private static final ResourceLocation MC_HOPPER_LOCK = JadeProtocol.mc_id("hopper_lock");
 +
 +    @Override
-+    public Boolean streamData(BlockAccessor accessor) {
++    public Boolean streamData(@NotNull BlockAccessor accessor) {
 +        return !accessor.getBlockState().getValue(BlockStateProperties.ENABLED);
 +    }
 +
 +    @Override
-+    public StreamCodec<RegistryFriendlyByteBuf, Boolean> streamCodec() {
++    public @NotNull StreamCodec<RegistryFriendlyByteBuf, Boolean> streamCodec() {
 +        return ByteBufCodecs.BOOL.cast();
 +    }
 +
@@ -2236,12 +1778,11 @@ index 0000000000000000000000000000000000000000..fd7bea22675360e371b54948dfed57b3
 \ No newline at end of file
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/provider/block/ItemStorageProvider.java b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/block/ItemStorageProvider.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..9008c9aa04ab9f84d08def2884d5839981ccc9b3
+index 0000000000000000000000000000000000000000..f4eb38d4b5d98a286964cdb68581bb9a2d836def
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/block/ItemStorageProvider.java
-@@ -0,0 +1,95 @@
+@@ -0,0 +1,92 @@
 +package org.leavesmc.leaves.protocol.jade.provider.block;
-+
 +
 +import net.minecraft.nbt.CompoundTag;
 +import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -2253,6 +1794,7 @@ index 0000000000000000000000000000000000000000..9008c9aa04ab9f84d08def2884d58399
 +import net.minecraft.world.item.ItemStack;
 +import net.minecraft.world.level.block.entity.AbstractFurnaceBlockEntity;
 +import net.minecraft.world.level.block.entity.BaseContainerBlockEntity;
++import org.jetbrains.annotations.NotNull;
 +import org.leavesmc.leaves.protocol.jade.JadeProtocol;
 +import org.leavesmc.leaves.protocol.jade.accessor.Accessor;
 +import org.leavesmc.leaves.protocol.jade.accessor.BlockAccessor;
@@ -2272,7 +1814,6 @@ index 0000000000000000000000000000000000000000..9008c9aa04ab9f84d08def2884d58399
 +
 +    private static final ResourceLocation UNIVERSAL_ITEM_STORAGE = JadeProtocol.mc_id("item_storage.default");
 +
-+
 +    public static ForBlock getBlock() {
 +        return ForBlock.INSTANCE;
 +    }
@@ -2288,7 +1829,6 @@ index 0000000000000000000000000000000000000000..9008c9aa04ab9f84d08def2884d58399
 +    public static class ForEntity extends ItemStorageProvider<EntityAccessor> {
 +        private static final ForEntity INSTANCE = new ForEntity();
 +    }
-+
 +
 +    public static void putData(Accessor<?> accessor) {
 +        CompoundTag tag = accessor.getServerData();
@@ -2316,14 +1856,13 @@ index 0000000000000000000000000000000000000000..9008c9aa04ab9f84d08def2884d58399
 +        }
 +    }
 +
-+
 +    @Override
 +    public ResourceLocation getUid() {
 +        return UNIVERSAL_ITEM_STORAGE;
 +    }
 +
 +    @Override
-+    public void appendServerData(CompoundTag tag, T accessor) {
++    public void appendServerData(CompoundTag tag, @NotNull T accessor) {
 +        if (accessor.getTarget() instanceof AbstractFurnaceBlockEntity) {
 +            return;
 +        }
@@ -2338,18 +1877,18 @@ index 0000000000000000000000000000000000000000..9008c9aa04ab9f84d08def2884d58399
 \ No newline at end of file
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/provider/block/JukeboxProvider.java b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/block/JukeboxProvider.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..844c1dde4b7ea538c66d00eb0964d591cf2105d4
+index 0000000000000000000000000000000000000000..0b6e224ebc8d6acdc29abf51f7d98b667baf0984
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/block/JukeboxProvider.java
-@@ -0,0 +1,33 @@
+@@ -0,0 +1,32 @@
 +package org.leavesmc.leaves.protocol.jade.provider.block;
 +
-+import com.mojang.serialization.MapCodec;
 +import net.minecraft.network.RegistryFriendlyByteBuf;
 +import net.minecraft.network.codec.StreamCodec;
 +import net.minecraft.resources.ResourceLocation;
 +import net.minecraft.world.item.ItemStack;
 +import net.minecraft.world.level.block.entity.JukeboxBlockEntity;
++import org.jetbrains.annotations.NotNull;
 +import org.leavesmc.leaves.protocol.jade.JadeProtocol;
 +import org.leavesmc.leaves.protocol.jade.accessor.BlockAccessor;
 +import org.leavesmc.leaves.protocol.jade.provider.StreamServerDataProvider;
@@ -2357,11 +1896,10 @@ index 0000000000000000000000000000000000000000..844c1dde4b7ea538c66d00eb0964d591
 +public enum JukeboxProvider implements StreamServerDataProvider<BlockAccessor, ItemStack> {
 +    INSTANCE;
 +
-+    private static final MapCodec<ItemStack> RECORD_CODEC = ItemStack.CODEC.fieldOf("record");
 +    private static final ResourceLocation MC_JUKEBOX = JadeProtocol.mc_id("jukebox");
 +
 +    @Override
-+    public ItemStack streamData(BlockAccessor accessor) {
++    public @NotNull ItemStack streamData(BlockAccessor accessor) {
 +        return ((JukeboxBlockEntity) accessor.getBlockEntity()).getTheItem();
 +    }
 +
@@ -2377,10 +1915,10 @@ index 0000000000000000000000000000000000000000..844c1dde4b7ea538c66d00eb0964d591
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/provider/block/LecternProvider.java b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/block/LecternProvider.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..a4f7f81681abf5f16b71f5c1a54af525a870eddb
+index 0000000000000000000000000000000000000000..c363bd616fa41eca3266ccb485432cfd90ad7473
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/block/LecternProvider.java
-@@ -0,0 +1,32 @@
+@@ -0,0 +1,33 @@
 +package org.leavesmc.leaves.protocol.jade.provider.block;
 +
 +import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -2388,6 +1926,7 @@ index 0000000000000000000000000000000000000000..a4f7f81681abf5f16b71f5c1a54af525
 +import net.minecraft.resources.ResourceLocation;
 +import net.minecraft.world.item.ItemStack;
 +import net.minecraft.world.level.block.entity.LecternBlockEntity;
++import org.jetbrains.annotations.NotNull;
 +import org.leavesmc.leaves.protocol.jade.JadeProtocol;
 +import org.leavesmc.leaves.protocol.jade.accessor.BlockAccessor;
 +import org.leavesmc.leaves.protocol.jade.provider.StreamServerDataProvider;
@@ -2398,7 +1937,7 @@ index 0000000000000000000000000000000000000000..a4f7f81681abf5f16b71f5c1a54af525
 +    private static final ResourceLocation MC_LECTERN = JadeProtocol.mc_id("lectern");
 +
 +    @Override
-+    public ItemStack streamData(BlockAccessor accessor) {
++    public @NotNull ItemStack streamData(@NotNull BlockAccessor accessor) {
 +        return ((LecternBlockEntity) accessor.getBlockEntity()).getBook();
 +    }
 +
@@ -2415,10 +1954,10 @@ index 0000000000000000000000000000000000000000..a4f7f81681abf5f16b71f5c1a54af525
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/provider/block/MobSpawnerCooldownProvider.java b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/block/MobSpawnerCooldownProvider.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..2007851c9fb60bdbab26048121aed59717240794
+index 0000000000000000000000000000000000000000..a70f4a81166221ec1971b1fbf06e4c73efffcbe4
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/block/MobSpawnerCooldownProvider.java
-@@ -0,0 +1,41 @@
+@@ -0,0 +1,42 @@
 +package org.leavesmc.leaves.protocol.jade.provider.block;
 +
 +import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -2428,6 +1967,7 @@ index 0000000000000000000000000000000000000000..2007851c9fb60bdbab26048121aed597
 +import net.minecraft.server.level.ServerLevel;
 +import net.minecraft.world.level.block.entity.TrialSpawnerBlockEntity;
 +import net.minecraft.world.level.block.entity.trialspawner.TrialSpawnerData;
++import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
 +import org.leavesmc.leaves.protocol.jade.JadeProtocol;
 +import org.leavesmc.leaves.protocol.jade.accessor.BlockAccessor;
@@ -2439,7 +1979,7 @@ index 0000000000000000000000000000000000000000..2007851c9fb60bdbab26048121aed597
 +    private static final ResourceLocation MC_MOB_SPAWNER_COOLDOWN = JadeProtocol.mc_id("mob_spawner.cooldown");
 +
 +    @Override
-+    public @Nullable Integer streamData(BlockAccessor accessor) {
++    public @Nullable Integer streamData(@NotNull BlockAccessor accessor) {
 +        TrialSpawnerBlockEntity spawner = (TrialSpawnerBlockEntity) accessor.getBlockEntity();
 +        TrialSpawnerData spawnerData = spawner.getTrialSpawner().getData();
 +        ServerLevel level = ((ServerLevel) accessor.getLevel());
@@ -2450,7 +1990,7 @@ index 0000000000000000000000000000000000000000..2007851c9fb60bdbab26048121aed597
 +    }
 +
 +    @Override
-+    public StreamCodec<RegistryFriendlyByteBuf, Integer> streamCodec() {
++    public @NotNull StreamCodec<RegistryFriendlyByteBuf, Integer> streamCodec() {
 +        return ByteBufCodecs.VAR_INT.cast();
 +    }
 +
@@ -2462,13 +2002,12 @@ index 0000000000000000000000000000000000000000..2007851c9fb60bdbab26048121aed597
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/provider/block/ObjectNameProvider.java b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/block/ObjectNameProvider.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..9aebe142d987331c5fb8d6bb5abf5968cb994e64
+index 0000000000000000000000000000000000000000..e97fb13707365cceaf28f2624791d0472e56169c
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/block/ObjectNameProvider.java
-@@ -0,0 +1,64 @@
+@@ -0,0 +1,57 @@
 +package org.leavesmc.leaves.protocol.jade.provider.block;
 +
-+import com.mojang.serialization.MapCodec;
 +import net.minecraft.network.RegistryFriendlyByteBuf;
 +import net.minecraft.network.chat.Component;
 +import net.minecraft.network.chat.ComponentSerialization;
@@ -2478,6 +2017,7 @@ index 0000000000000000000000000000000000000000..9aebe142d987331c5fb8d6bb5abf5968
 +import net.minecraft.world.Nameable;
 +import net.minecraft.world.level.block.ChestBlock;
 +import net.minecraft.world.level.block.entity.ChestBlockEntity;
++import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
 +import org.leavesmc.leaves.protocol.jade.JadeProtocol;
 +import org.leavesmc.leaves.protocol.jade.accessor.BlockAccessor;
@@ -2485,7 +2025,6 @@ index 0000000000000000000000000000000000000000..9aebe142d987331c5fb8d6bb5abf5968
 +
 +public abstract class ObjectNameProvider implements StreamServerDataProvider<BlockAccessor, Component> {
 +
-+    private static final MapCodec<Component> GIVEN_NAME_CODEC = ComponentSerialization.CODEC.fieldOf("given_name");
 +    private static final ResourceLocation CORE_OBJECT_NAME = JadeProtocol.id("object_name");
 +
 +    public static class ForBlock extends ObjectNameProvider implements StreamServerDataProvider<BlockAccessor, Component> {
@@ -2493,7 +2032,7 @@ index 0000000000000000000000000000000000000000..9aebe142d987331c5fb8d6bb5abf5968
 +
 +        @Override
 +        @Nullable
-+        public Component streamData(BlockAccessor accessor) {
++        public Component streamData(@NotNull BlockAccessor accessor) {
 +            if (!(accessor.getBlockEntity() instanceof Nameable nameable)) {
 +                return null;
 +            }
@@ -2512,13 +2051,7 @@ index 0000000000000000000000000000000000000000..9aebe142d987331c5fb8d6bb5abf5968
 +        public StreamCodec<RegistryFriendlyByteBuf, Component> streamCodec() {
 +            return ComponentSerialization.STREAM_CODEC;
 +        }
-+
-+        @Override
-+        public boolean shouldRequestData(BlockAccessor accessor) {
-+            return accessor.getBlockEntity() instanceof Nameable;
-+        }
 +    }
-+
 +
 +    @Override
 +    public ResourceLocation getUid() {
@@ -2533,10 +2066,10 @@ index 0000000000000000000000000000000000000000..9aebe142d987331c5fb8d6bb5abf5968
 \ No newline at end of file
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/provider/block/RedstoneProvider.java b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/block/RedstoneProvider.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..6e059789ef4c7fb45009c47c0c3b7673d9d5e9a0
+index 0000000000000000000000000000000000000000..1cdcf21ed69744f96f47673100d8bf0114850f4f
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/block/RedstoneProvider.java
-@@ -0,0 +1,35 @@
+@@ -0,0 +1,36 @@
 +package org.leavesmc.leaves.protocol.jade.provider.block;
 +
 +import net.minecraft.core.Direction;
@@ -2546,6 +2079,7 @@ index 0000000000000000000000000000000000000000..6e059789ef4c7fb45009c47c0c3b7673
 +import net.minecraft.world.level.block.entity.BlockEntity;
 +import net.minecraft.world.level.block.entity.CalibratedSculkSensorBlockEntity;
 +import net.minecraft.world.level.block.entity.ComparatorBlockEntity;
++import org.jetbrains.annotations.NotNull;
 +import org.leavesmc.leaves.protocol.jade.JadeProtocol;
 +import org.leavesmc.leaves.protocol.jade.accessor.BlockAccessor;
 +import org.leavesmc.leaves.protocol.jade.provider.IServerDataProvider;
@@ -2556,7 +2090,7 @@ index 0000000000000000000000000000000000000000..6e059789ef4c7fb45009c47c0c3b7673
 +    private static final ResourceLocation MC_REDSTONE = JadeProtocol.mc_id("redstone");
 +
 +    @Override
-+    public void appendServerData(CompoundTag data, BlockAccessor accessor) {
++    public void appendServerData(CompoundTag data, @NotNull BlockAccessor accessor) {
 +        BlockEntity blockEntity = accessor.getBlockEntity();
 +        if (blockEntity instanceof ComparatorBlockEntity comparator) {
 +            data.putInt("Signal", comparator.getOutputSignal());
@@ -2574,10 +2108,10 @@ index 0000000000000000000000000000000000000000..6e059789ef4c7fb45009c47c0c3b7673
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/provider/entity/AnimalOwnerProvider.java b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/entity/AnimalOwnerProvider.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..2f1903bcb5b40ab7c872698ba0eac79b00ac4261
+index 0000000000000000000000000000000000000000..ff50ef60e3b37ab231161c870c432ef8e3018458
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/entity/AnimalOwnerProvider.java
-@@ -0,0 +1,42 @@
+@@ -0,0 +1,43 @@
 +package org.leavesmc.leaves.protocol.jade.provider.entity;
 +
 +import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -2586,6 +2120,7 @@ index 0000000000000000000000000000000000000000..2f1903bcb5b40ab7c872698ba0eac79b
 +import net.minecraft.resources.ResourceLocation;
 +import net.minecraft.world.entity.Entity;
 +import net.minecraft.world.entity.OwnableEntity;
++import org.jetbrains.annotations.NotNull;
 +import org.leavesmc.leaves.protocol.jade.JadeProtocol;
 +import org.leavesmc.leaves.protocol.jade.accessor.EntityAccessor;
 +import org.leavesmc.leaves.protocol.jade.provider.StreamServerDataProvider;
@@ -2599,12 +2134,12 @@ index 0000000000000000000000000000000000000000..2f1903bcb5b40ab7c872698ba0eac79b
 +    private static final ResourceLocation MC_ANIMAL_OWNER = JadeProtocol.mc_id("animal_owner");
 +
 +    @Override
-+    public String streamData(EntityAccessor accessor) {
++    public String streamData(@NotNull EntityAccessor accessor) {
 +        return CommonUtil.getLastKnownUsername(getOwnerUUID(accessor.getEntity()));
 +    }
 +
 +    @Override
-+    public StreamCodec<RegistryFriendlyByteBuf, String> streamCodec() {
++    public @NotNull StreamCodec<RegistryFriendlyByteBuf, String> streamCodec() {
 +        return ByteBufCodecs.STRING_UTF8.cast();
 +    }
 +
@@ -2623,10 +2158,10 @@ index 0000000000000000000000000000000000000000..2f1903bcb5b40ab7c872698ba0eac79b
 \ No newline at end of file
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/provider/entity/MobBreedingProvider.java b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/entity/MobBreedingProvider.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..2665f0c1fc19e2f2e4a9db07dc7313b8f46c9a9d
+index 0000000000000000000000000000000000000000..0acba2f9700e4a65e764077b22e65e18d787be2a
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/entity/MobBreedingProvider.java
-@@ -0,0 +1,43 @@
+@@ -0,0 +1,44 @@
 +package org.leavesmc.leaves.protocol.jade.provider.entity;
 +
 +import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -2636,6 +2171,7 @@ index 0000000000000000000000000000000000000000..2665f0c1fc19e2f2e4a9db07dc7313b8
 +import net.minecraft.world.entity.Entity;
 +import net.minecraft.world.entity.animal.Animal;
 +import net.minecraft.world.entity.animal.allay.Allay;
++import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
 +import org.leavesmc.leaves.protocol.jade.JadeProtocol;
 +import org.leavesmc.leaves.protocol.jade.accessor.EntityAccessor;
@@ -2647,7 +2183,7 @@ index 0000000000000000000000000000000000000000..2665f0c1fc19e2f2e4a9db07dc7313b8
 +    private static final ResourceLocation MC_MOB_BREEDING = JadeProtocol.mc_id("mob_breeding");
 +
 +    @Override
-+    public @Nullable Integer streamData(EntityAccessor accessor) {
++    public @Nullable Integer streamData(@NotNull EntityAccessor accessor) {
 +        int time = 0;
 +        Entity entity = accessor.getEntity();
 +        if (entity instanceof Allay allay) {
@@ -2661,7 +2197,7 @@ index 0000000000000000000000000000000000000000..2665f0c1fc19e2f2e4a9db07dc7313b8
 +    }
 +
 +    @Override
-+    public StreamCodec<RegistryFriendlyByteBuf, Integer> streamCodec() {
++    public @NotNull StreamCodec<RegistryFriendlyByteBuf, Integer> streamCodec() {
 +        return ByteBufCodecs.VAR_INT.cast();
 +    }
 +
@@ -2672,10 +2208,10 @@ index 0000000000000000000000000000000000000000..2665f0c1fc19e2f2e4a9db07dc7313b8
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/provider/entity/MobGrowthProvider.java b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/entity/MobGrowthProvider.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..a92320fe3ea32d8e084b38492cc7669d5f4063dd
+index 0000000000000000000000000000000000000000..44f5f4b8bf3b9fe66b2f8b93b36284c3ae5d1d87
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/entity/MobGrowthProvider.java
-@@ -0,0 +1,42 @@
+@@ -0,0 +1,43 @@
 +package org.leavesmc.leaves.protocol.jade.provider.entity;
 +
 +import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -2685,6 +2221,7 @@ index 0000000000000000000000000000000000000000..a92320fe3ea32d8e084b38492cc7669d
 +import net.minecraft.world.entity.AgeableMob;
 +import net.minecraft.world.entity.Entity;
 +import net.minecraft.world.entity.animal.frog.Tadpole;
++import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
 +import org.leavesmc.leaves.protocol.jade.JadeProtocol;
 +import org.leavesmc.leaves.protocol.jade.accessor.EntityAccessor;
@@ -2696,7 +2233,7 @@ index 0000000000000000000000000000000000000000..a92320fe3ea32d8e084b38492cc7669d
 +    private static final ResourceLocation MC_MOB_GROWTH = JadeProtocol.mc_id("mob_growth");
 +
 +    @Override
-+    public @Nullable Integer streamData(EntityAccessor accessor) {
++    public @Nullable Integer streamData(@NotNull EntityAccessor accessor) {
 +        int time = -1;
 +        Entity entity = accessor.getEntity();
 +        if (entity instanceof AgeableMob ageable) {
@@ -2708,7 +2245,7 @@ index 0000000000000000000000000000000000000000..a92320fe3ea32d8e084b38492cc7669d
 +    }
 +
 +    @Override
-+    public StreamCodec<RegistryFriendlyByteBuf, Integer> streamCodec() {
++    public @NotNull StreamCodec<RegistryFriendlyByteBuf, Integer> streamCodec() {
 +        return ByteBufCodecs.VAR_INT.cast();
 +    }
 +
@@ -2720,16 +2257,17 @@ index 0000000000000000000000000000000000000000..a92320fe3ea32d8e084b38492cc7669d
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/provider/entity/NextEntityDropProvider.java b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/entity/NextEntityDropProvider.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..ffc12cd32039b29c6424ed8fbf6287d63933bf70
+index 0000000000000000000000000000000000000000..892911a3d0087a5bf48b2df8326e3c5ce27835a0
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/entity/NextEntityDropProvider.java
-@@ -0,0 +1,34 @@
+@@ -0,0 +1,35 @@
 +package org.leavesmc.leaves.protocol.jade.provider.entity;
 +
 +import net.minecraft.nbt.CompoundTag;
 +import net.minecraft.resources.ResourceLocation;
 +import net.minecraft.world.entity.animal.Chicken;
 +import net.minecraft.world.entity.animal.armadillo.Armadillo;
++import org.jetbrains.annotations.NotNull;
 +import org.leavesmc.leaves.protocol.jade.JadeProtocol;
 +import org.leavesmc.leaves.protocol.jade.accessor.EntityAccessor;
 +import org.leavesmc.leaves.protocol.jade.provider.IServerDataProvider;
@@ -2740,7 +2278,7 @@ index 0000000000000000000000000000000000000000..ffc12cd32039b29c6424ed8fbf6287d6
 +    private static final ResourceLocation MC_NEXT_ENTITY_DROP = JadeProtocol.mc_id("next_entity_drop");
 +
 +    @Override
-+    public void appendServerData(CompoundTag tag, EntityAccessor accessor) {
++    public void appendServerData(CompoundTag tag, @NotNull EntityAccessor accessor) {
 +        int max = 24000 * 2;
 +        if (accessor.getEntity() instanceof Chicken chicken) {
 +            if (!chicken.isBaby() && chicken.eggTime < max) {
@@ -2760,10 +2298,10 @@ index 0000000000000000000000000000000000000000..ffc12cd32039b29c6424ed8fbf6287d6
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/provider/entity/StatusEffectsProvider.java b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/entity/StatusEffectsProvider.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..e9bd791a51bc9ce499a45d6bea3f0744bcf8f98c
+index 0000000000000000000000000000000000000000..ffc571875f620fe53b2210583c246d6579c3df1f
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/entity/StatusEffectsProvider.java
-@@ -0,0 +1,44 @@
+@@ -0,0 +1,45 @@
 +package org.leavesmc.leaves.protocol.jade.provider.entity;
 +
 +import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -2772,6 +2310,7 @@ index 0000000000000000000000000000000000000000..e9bd791a51bc9ce499a45d6bea3f0744
 +import net.minecraft.resources.ResourceLocation;
 +import net.minecraft.world.effect.MobEffectInstance;
 +import net.minecraft.world.entity.LivingEntity;
++import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
 +import org.leavesmc.leaves.protocol.jade.JadeProtocol;
 +import org.leavesmc.leaves.protocol.jade.accessor.EntityAccessor;
@@ -2789,7 +2328,7 @@ index 0000000000000000000000000000000000000000..e9bd791a51bc9ce499a45d6bea3f0744
 +
 +    @Override
 +    @Nullable
-+    public List<MobEffectInstance> streamData(EntityAccessor accessor) {
++    public List<MobEffectInstance> streamData(@NotNull EntityAccessor accessor) {
 +        List<MobEffectInstance> effects = ((LivingEntity) accessor.getEntity()).getActiveEffects()
 +                .stream()
 +                .filter(MobEffectInstance::isVisible)
@@ -2810,10 +2349,10 @@ index 0000000000000000000000000000000000000000..e9bd791a51bc9ce499a45d6bea3f0744
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/provider/entity/ZombieVillagerProvider.java b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/entity/ZombieVillagerProvider.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..1b4a0f18cfe9b9623c7e00c0e95a4f3697de7eca
+index 0000000000000000000000000000000000000000..b7c9afd29f3ddead6871c8f2b1f2b0815605cea5
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/entity/ZombieVillagerProvider.java
-@@ -0,0 +1,33 @@
+@@ -0,0 +1,34 @@
 +package org.leavesmc.leaves.protocol.jade.provider.entity;
 +
 +import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -2821,6 +2360,7 @@ index 0000000000000000000000000000000000000000..1b4a0f18cfe9b9623c7e00c0e95a4f36
 +import net.minecraft.network.codec.StreamCodec;
 +import net.minecraft.resources.ResourceLocation;
 +import net.minecraft.world.entity.monster.ZombieVillager;
++import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
 +import org.leavesmc.leaves.protocol.jade.JadeProtocol;
 +import org.leavesmc.leaves.protocol.jade.accessor.EntityAccessor;
@@ -2832,13 +2372,13 @@ index 0000000000000000000000000000000000000000..1b4a0f18cfe9b9623c7e00c0e95a4f36
 +    private static final ResourceLocation MC_ZOMBIE_VILLAGER = JadeProtocol.mc_id("zombie_villager");
 +
 +    @Override
-+    public @Nullable Integer streamData(EntityAccessor accessor) {
++    public @Nullable Integer streamData(@NotNull EntityAccessor accessor) {
 +        int time = ((ZombieVillager) accessor.getEntity()).villagerConversionTime;
 +        return time > 0 ? time : null;
 +    }
 +
 +    @Override
-+    public StreamCodec<RegistryFriendlyByteBuf, Integer> streamCodec() {
++    public @NotNull StreamCodec<RegistryFriendlyByteBuf, Integer> streamCodec() {
 +        return ByteBufCodecs.VAR_INT.cast();
 +    }
 +
@@ -2849,25 +2389,21 @@ index 0000000000000000000000000000000000000000..1b4a0f18cfe9b9623c7e00c0e95a4f36
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/tool/ShearsToolHandler.java b/src/main/java/org/leavesmc/leaves/protocol/jade/tool/ShearsToolHandler.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..0e6f19a4cf55d952d8f20bf703635c8584a5f0bd
+index 0000000000000000000000000000000000000000..6a9cd9f0e71331c4fd3bef7bbeabebcc5d0e80cb
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/tool/ShearsToolHandler.java
-@@ -0,0 +1,43 @@
+@@ -0,0 +1,32 @@
 +package org.leavesmc.leaves.protocol.jade.tool;
 +
-+import com.google.common.collect.Sets;
 +import net.minecraft.core.BlockPos;
 +import net.minecraft.world.item.ItemStack;
 +import net.minecraft.world.item.Items;
 +import net.minecraft.world.level.Level;
-+import net.minecraft.world.level.block.Block;
 +import net.minecraft.world.level.block.Blocks;
 +import net.minecraft.world.level.block.state.BlockState;
 +import org.leavesmc.leaves.protocol.jade.JadeProtocol;
 +
-+import java.util.Collection;
 +import java.util.List;
-+import java.util.Set;
 +
 +public class ShearsToolHandler extends SimpleToolHandler {
 +
@@ -2877,31 +2413,24 @@ index 0000000000000000000000000000000000000000..0e6f19a4cf55d952d8f20bf703635c85
 +        return INSTANCE;
 +    }
 +
-+    private final Set<Block> shearableBlocks = Sets.newIdentityHashSet();
-+
 +    public ShearsToolHandler() {
 +        super(JadeProtocol.id("shears"), List.of(Items.SHEARS.getDefaultInstance()), true);
 +    }
 +
 +    @Override
 +    public ItemStack test(BlockState state, Level world, BlockPos pos) {
-+        if (state.is(Blocks.TRIPWIRE) || shearableBlocks.contains(state.getBlock())) {
++        if (state.is(Blocks.TRIPWIRE)) {
 +            return tools.getFirst();
 +        }
 +        return super.test(state, world, pos);
 +    }
-+
-+    public void setShearableBlocks(Collection<Block> blocks) {
-+        shearableBlocks.clear();
-+        shearableBlocks.addAll(blocks);
-+    }
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/tool/SimpleToolHandler.java b/src/main/java/org/leavesmc/leaves/protocol/jade/tool/SimpleToolHandler.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..22fee6ecc49bbda94a7d32ee9dcf2a9ee661904b
+index 0000000000000000000000000000000000000000..d45ecdb17a78d7e0c5eb280ee584960761ced1d2
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/tool/SimpleToolHandler.java
-@@ -0,0 +1,67 @@
+@@ -0,0 +1,71 @@
 +package org.leavesmc.leaves.protocol.jade.tool;
 +
 +import com.google.common.base.Preconditions;
@@ -2914,6 +2443,8 @@ index 0000000000000000000000000000000000000000..22fee6ecc49bbda94a7d32ee9dcf2a9e
 +import net.minecraft.world.item.component.Tool;
 +import net.minecraft.world.level.Level;
 +import net.minecraft.world.level.block.state.BlockState;
++import org.jetbrains.annotations.Contract;
++import org.jetbrains.annotations.NotNull;
 +
 +import java.util.List;
 +
@@ -2923,18 +2454,20 @@ index 0000000000000000000000000000000000000000..22fee6ecc49bbda94a7d32ee9dcf2a9e
 +    private final ResourceLocation uid;
 +    private final boolean skipInstaBreakingBlock;
 +
-+    protected SimpleToolHandler(ResourceLocation uid, List<ItemStack> tools, boolean skipInstaBreakingBlock) {
++    protected SimpleToolHandler(ResourceLocation uid, @NotNull List<ItemStack> tools, boolean skipInstaBreakingBlock) {
 +        this.uid = uid;
 +        Preconditions.checkArgument(!tools.isEmpty(), "tools cannot be empty");
 +        this.tools.addAll(tools);
 +        this.skipInstaBreakingBlock = skipInstaBreakingBlock;
 +    }
 +
-+    public static SimpleToolHandler create(ResourceLocation uid, List<Item> tools) {
++    @Contract("_, _ -> new")
++    public static @NotNull SimpleToolHandler create(ResourceLocation uid, List<Item> tools) {
 +        return create(uid, tools, true);
 +    }
 +
-+    public static SimpleToolHandler create(ResourceLocation uid, List<Item> tools, boolean skipInstaBreakingBlock) {
++    @Contract("_, _, _ -> new")
++    public static @NotNull SimpleToolHandler create(ResourceLocation uid, List<Item> tools, boolean skipInstaBreakingBlock) {
 +        return new SimpleToolHandler(uid, Lists.transform(tools, Item::getDefaultInstance), skipInstaBreakingBlock);
 +    }
 +
@@ -2994,10 +2527,10 @@ index 0000000000000000000000000000000000000000..18f11e701189ce3615e08c631e31112d
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/util/CommonUtil.java b/src/main/java/org/leavesmc/leaves/protocol/jade/util/CommonUtil.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..14c476cf0502f39d2cd7b4bb9a3a373e849a2bba
+index 0000000000000000000000000000000000000000..a0a85361693980eb5b0bf7f9d486475c77b646f7
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/util/CommonUtil.java
-@@ -0,0 +1,101 @@
+@@ -0,0 +1,79 @@
 +package org.leavesmc.leaves.protocol.jade.util;
 +
 +import com.mojang.authlib.GameProfile;
@@ -3007,13 +2540,11 @@ index 0000000000000000000000000000000000000000..14c476cf0502f39d2cd7b4bb9a3a373e
 +import net.minecraft.world.entity.boss.EnderDragonPart;
 +import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 +import net.minecraft.world.level.block.Block;
-+import net.minecraft.world.level.block.entity.BlockEntity;
 +import net.minecraft.world.level.block.entity.SkullBlockEntity;
++import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
 +import org.leavesmc.leaves.LeavesLogger;
 +import org.leavesmc.leaves.protocol.jade.accessor.Accessor;
-+import org.leavesmc.leaves.protocol.jade.accessor.BlockAccessor;
-+import org.leavesmc.leaves.protocol.jade.provider.IServerDataProvider;
 +import org.leavesmc.leaves.protocol.jade.provider.IServerExtensionProvider;
 +
 +import java.util.List;
@@ -3021,19 +2552,10 @@ index 0000000000000000000000000000000000000000..14c476cf0502f39d2cd7b4bb9a3a373e
 +import java.util.Optional;
 +import java.util.UUID;
 +
-+import static org.leavesmc.leaves.protocol.jade.JadeProtocol.blockDataProviders;
-+
 +public class CommonUtil {
 +
-+    public static ResourceLocation getId(Block block) {
++    public static @NotNull ResourceLocation getId(Block block) {
 +        return BuiltInRegistries.BLOCK.getKey(block);
-+    }
-+
-+    public static List<IServerDataProvider<BlockAccessor>> getBlockNBTProviders(Block block, @Nullable BlockEntity blockEntity) {
-+        if (blockEntity == null) {
-+            return blockDataProviders.first.get(block);
-+        }
-+        return blockDataProviders.getMerged(block, blockEntity);
 +    }
 +
 +    public static Entity wrapPartEntityParent(Entity target) {
@@ -3041,17 +2563,6 @@ index 0000000000000000000000000000000000000000..14c476cf0502f39d2cd7b4bb9a3a373e
 +            return part.parentMob;
 +        }
 +        return target;
-+    }
-+
-+    public static int getPartEntityIndex(Entity entity) {
-+        if (!(entity instanceof EnderDragonPart part)) {
-+            return -1;
-+        }
-+        if (!(wrapPartEntityParent(entity) instanceof EnderDragon parent)) {
-+            return -1;
-+        }
-+        EnderDragonPart[] parts = parent.getSubEntities();
-+        return List.of(parts).indexOf(part);
 +    }
 +
 +    public static Entity getPartEntity(Entity parent, int index) {
@@ -3101,7 +2612,7 @@ index 0000000000000000000000000000000000000000..14c476cf0502f39d2cd7b4bb9a3a373e
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/util/HierarchyLookup.java b/src/main/java/org/leavesmc/leaves/protocol/jade/util/HierarchyLookup.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..f19d6b4d00d04063b397e0ba5af34c50b0123224
+index 0000000000000000000000000000000000000000..0070fd22b096281a094d1cd19c93fdbccc03a3cc
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/util/HierarchyLookup.java
 @@ -0,0 +1,139 @@
@@ -3187,7 +2698,7 @@ index 0000000000000000000000000000000000000000..f19d6b4d00d04063b397e0ba5af34c50
 +                return list;
 +            });
 +        } catch (ExecutionException e) {
-+            e.printStackTrace();
++            LeavesLogger.LOGGER.warning("HierarchyLookup error", e);
 +        }
 +        return List.of();
 +    }
@@ -3247,10 +2758,10 @@ index 0000000000000000000000000000000000000000..f19d6b4d00d04063b397e0ba5af34c50
 \ No newline at end of file
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/util/IHierarchyLookup.java b/src/main/java/org/leavesmc/leaves/protocol/jade/util/IHierarchyLookup.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..748370916aec633e0cb74264a3a1e3d43918019c
+index 0000000000000000000000000000000000000000..137cdf619879390477b4fc8c4b7ecee5b762dc30
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/util/IHierarchyLookup.java
-@@ -0,0 +1,81 @@
+@@ -0,0 +1,66 @@
 +package org.leavesmc.leaves.protocol.jade.util;
 +
 +import com.google.common.collect.Streams;
@@ -3263,8 +2774,6 @@ index 0000000000000000000000000000000000000000..748370916aec633e0cb74264a3a1e3d4
 +import java.util.List;
 +import java.util.Map;
 +import java.util.Objects;
-+import java.util.function.Function;
-+import java.util.stream.Collectors;
 +import java.util.stream.Stream;
 +
 +public interface IHierarchyLookup<T extends IJadeProvider> {
@@ -3317,24 +2826,11 @@ index 0000000000000000000000000000000000000000..748370916aec633e0cb74264a3a1e3d4
 +        }
 +        return idMapper;
 +    }
-+
-+    default void remapIds(List<ResourceLocation> ids) {
-+        IdMapper<T> idMapper = Objects.requireNonNull(idMapper());
-+        Map<ResourceLocation, T> map = Streams.stream(idMapper).collect(Collectors.toMap(IJadeProvider::getUid, Function.identity()));
-+        int i = 0;
-+        for (ResourceLocation id : ids) {
-+            T object = map.get(id);
-+            if (object != null) {
-+                idMapper.addMapping(object, i);
-+            }
-+            i++;
-+        }
-+    }
 +}
 +
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/util/ItemCollector.java b/src/main/java/org/leavesmc/leaves/protocol/jade/util/ItemCollector.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..1386291a6c651dfbbcecb2e469b1bd943861e4cc
+index 0000000000000000000000000000000000000000..769c331035e59408064b63a29d8bf2194b386aa0
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/util/ItemCollector.java
 @@ -0,0 +1,114 @@
@@ -3362,7 +2858,7 @@ index 0000000000000000000000000000000000000000..1386291a6c651dfbbcecb2e469b1bd94
 +        }
 +        CustomData customData = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY);
 +        if (customData.contains("CustomModelData")) {
-+            CompoundTag tag = customData.getUnsafe();
++            CompoundTag tag = customData.copyTag();
 +            for (String key : tag.getAllKeys()) {
 +                if (key.toLowerCase(Locale.ENGLISH).endsWith("clear") && tag.getBoolean(key)) {
 +                    return false;
@@ -3560,12 +3056,77 @@ index 0000000000000000000000000000000000000000..4d65e9a8b5224bd268b1bf18bc39a58d
 +        }
 +    }
 +}
+diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/util/JadeCodec.java b/src/main/java/org/leavesmc/leaves/protocol/jade/util/JadeCodec.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..a046ae4e542efcadd0001b7225440c309a7a7570
+--- /dev/null
++++ b/src/main/java/org/leavesmc/leaves/protocol/jade/util/JadeCodec.java
+@@ -0,0 +1,59 @@
++package org.leavesmc.leaves.protocol.jade.util;
++
++import io.netty.buffer.ByteBuf;
++import net.minecraft.network.codec.ByteBufCodecs;
++import net.minecraft.network.codec.StreamCodec;
++import org.jetbrains.annotations.NotNull;
++
++public class JadeCodec {
++    public static final StreamCodec<ByteBuf, Object> PRIMITIVE_STREAM_CODEC = new StreamCodec<>() {
++        @Override
++        public @NotNull Object decode(@NotNull ByteBuf buf) {
++            byte b = buf.readByte();
++            if (b == 0) {
++                return false;
++            } else if (b == 1) {
++                return true;
++            } else if (b == 2) {
++                return ByteBufCodecs.VAR_INT.decode(buf);
++            } else if (b == 3) {
++                return ByteBufCodecs.FLOAT.decode(buf);
++            } else if (b == 4) {
++                return ByteBufCodecs.STRING_UTF8.decode(buf);
++            } else if (b > 20) {
++                return b - 20;
++            }
++            throw new IllegalArgumentException("Unknown primitive type: " + b);
++        }
++
++        @Override
++        public void encode(@NotNull ByteBuf buf, @NotNull Object o) {
++            switch (o) {
++                case Boolean b -> buf.writeByte(b ? 1 : 0);
++                case Number n -> {
++                    float f = n.floatValue();
++                    if (f != (int) f) {
++                        buf.writeByte(3);
++                        ByteBufCodecs.FLOAT.encode(buf, f);
++                    }
++                    int i = n.intValue();
++                    if (i <= Byte.MAX_VALUE - 20 && i >= 0) {
++                        buf.writeByte(i + 20);
++                    } else {
++                        ByteBufCodecs.VAR_INT.encode(buf, i);
++                    }
++                }
++                case String s -> {
++                    buf.writeByte(4);
++                    ByteBufCodecs.STRING_UTF8.encode(buf, s);
++                }
++                case Enum<?> anEnum -> {
++                    buf.writeByte(4);
++                    ByteBufCodecs.STRING_UTF8.encode(buf, anEnum.name());
++                }
++                case null -> throw new NullPointerException();
++                default -> throw new IllegalArgumentException("Unknown primitive type: %s (%s)".formatted(o, o.getClass()));
++            }
++        }
++    };
++}
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/util/LootTableMineableCollector.java b/src/main/java/org/leavesmc/leaves/protocol/jade/util/LootTableMineableCollector.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..c811f89295964b1cb86c3eea39cd20f979ebceb9
+index 0000000000000000000000000000000000000000..63f4d0a31232525db3620095fc662f0225c5f306
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/util/LootTableMineableCollector.java
-@@ -0,0 +1,104 @@
+@@ -0,0 +1,105 @@
 +package org.leavesmc.leaves.protocol.jade.util;
 +
 +import com.google.common.collect.Lists;
@@ -3582,6 +3143,7 @@ index 0000000000000000000000000000000000000000..c811f89295964b1cb86c3eea39cd20f9
 +import net.minecraft.world.level.storage.loot.predicates.AnyOfCondition;
 +import net.minecraft.world.level.storage.loot.predicates.LootItemCondition;
 +import net.minecraft.world.level.storage.loot.predicates.MatchTool;
++import org.jetbrains.annotations.NotNull;
 +import org.leavesmc.leaves.protocol.jade.tool.ShearsToolHandler;
 +
 +import java.util.List;
@@ -3597,7 +3159,7 @@ index 0000000000000000000000000000000000000000..c811f89295964b1cb86c3eea39cd20f9
 +        this.toolItem = toolItem;
 +    }
 +
-+    public static List<Block> execute(Registry<LootTable> lootRegistry, ItemStack toolItem) {
++    public static @NotNull List<Block> execute(Registry<LootTable> lootRegistry, ItemStack toolItem) {
 +        LootTableMineableCollector collector = new LootTableMineableCollector(lootRegistry, toolItem);
 +        List<Block> list = Lists.newArrayList();
 +        for (Block block : BuiltInRegistries.BLOCK) {
@@ -3626,7 +3188,7 @@ index 0000000000000000000000000000000000000000..c811f89295964b1cb86c3eea39cd20f9
 +        return false;
 +    }
 +
-+    private boolean doLootPool(LootPool lootPool) {
++    private boolean doLootPool(@NotNull LootPool lootPool) {
 +        for (LootPoolEntryContainer entry : lootPool.entries) {
 +            if (doLootPoolEntry(entry)) {
 +                return true;
@@ -3651,7 +3213,7 @@ index 0000000000000000000000000000000000000000..c811f89295964b1cb86c3eea39cd20f9
 +        return false;
 +    }
 +
-+    public static boolean isCorrectConditions(List<LootItemCondition> conditions, ItemStack toolItem) {
++    public static boolean isCorrectConditions(@NotNull List<LootItemCondition> conditions, ItemStack toolItem) {
 +        if (conditions.size() != 1) {
 +            return false;
 +        }
@@ -3799,23 +3361,16 @@ index 0000000000000000000000000000000000000000..cb5c8201958b3f444d990082d7aac615
 \ No newline at end of file
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/util/PriorityStore.java b/src/main/java/org/leavesmc/leaves/protocol/jade/util/PriorityStore.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..5e94e10e0feea1bc2f4e0495d4ed05810baa1466
+index 0000000000000000000000000000000000000000..da4d5a7751b1076417e63b63dc1f91c0fcc73ff9
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/util/PriorityStore.java
-@@ -0,0 +1,73 @@
+@@ -0,0 +1,40 @@
 +package org.leavesmc.leaves.protocol.jade.util;
 +
-+import com.google.common.collect.ImmutableList;
-+import com.google.common.collect.Sets;
 +import it.unimi.dsi.fastutil.objects.Object2IntLinkedOpenHashMap;
 +import it.unimi.dsi.fastutil.objects.Object2IntMap;
 +
-+import java.util.Collection;
-+import java.util.Comparator;
-+import java.util.List;
 +import java.util.Objects;
-+import java.util.Set;
-+import java.util.function.BiFunction;
 +import java.util.function.Function;
 +import java.util.function.ToIntFunction;
 +
@@ -3824,18 +3379,10 @@ index 0000000000000000000000000000000000000000..5e94e10e0feea1bc2f4e0495d4ed0581
 +    private final Object2IntMap<K> priorities = new Object2IntLinkedOpenHashMap<>();
 +    private final Function<V, K> keyGetter;
 +    private final ToIntFunction<V> defaultPriorityGetter;
-+    private ImmutableList<K> sortedList = ImmutableList.of();
-+    private BiFunction<PriorityStore<K, V>, Collection<K>, List<K>> sortingFunction = (store, allKeys) -> allKeys.stream()
-+        .sorted(Comparator.comparingInt(store::byKey))
-+        .toList();
 +
 +    public PriorityStore(ToIntFunction<V> defaultPriorityGetter, Function<V, K> keyGetter) {
 +        this.defaultPriorityGetter = defaultPriorityGetter;
 +        this.keyGetter = keyGetter;
-+    }
-+
-+    public void setSortingFunction(BiFunction<PriorityStore<K, V>, Collection<K>, List<K>> sortingFunction) {
-+        this.sortingFunction = sortingFunction;
 +    }
 +
 +    public void put(V provider) {
@@ -3850,30 +3397,12 @@ index 0000000000000000000000000000000000000000..5e94e10e0feea1bc2f4e0495d4ed0581
 +        priorities.put(uid, priority);
 +    }
 +
-+    public void putUnsafe(K key, int priority) {
-+        Objects.requireNonNull(key);
-+        priorities.put(key, priority);
-+    }
-+
-+    public void sort(Set<K> extraKeys) {
-+        Set<K> allKeys = priorities.keySet();
-+        if (!extraKeys.isEmpty()) {
-+            allKeys = Sets.union(priorities.keySet(), extraKeys);
-+        }
-+
-+        sortedList = ImmutableList.copyOf(sortingFunction.apply(this, allKeys));
-+    }
-+
 +    public int byValue(V value) {
 +        return byKey(keyGetter.apply(value));
 +    }
 +
 +    public int byKey(K id) {
 +        return priorities.getInt(id);
-+    }
-+
-+    public ImmutableList<K> getSortedList() {
-+        return sortedList;
 +    }
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/util/ViewGroup.java b/src/main/java/org/leavesmc/leaves/protocol/jade/util/ViewGroup.java
@@ -3946,10 +3475,10 @@ index 0000000000000000000000000000000000000000..520eadbf6de55141524741b4e4063cd5
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/util/WrappedHierarchyLookup.java b/src/main/java/org/leavesmc/leaves/protocol/jade/util/WrappedHierarchyLookup.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..f9f6e367a5d11150bfab04e0666c34179e35f80c
+index 0000000000000000000000000000000000000000..11d66b88327a954c8d530a002aa87c9abae8da12
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/util/WrappedHierarchyLookup.java
-@@ -0,0 +1,106 @@
+@@ -0,0 +1,96 @@
 +package org.leavesmc.leaves.protocol.jade.util;
 +
 +import com.google.common.collect.Lists;
@@ -3964,7 +3493,6 @@ index 0000000000000000000000000000000000000000..f9f6e367a5d11150bfab04e0666c3417
 +import java.util.Collection;
 +import java.util.List;
 +import java.util.Map;
-+import java.util.function.BiPredicate;
 +import java.util.function.Function;
 +import java.util.stream.Stream;
 +
@@ -3992,15 +3520,6 @@ index 0000000000000000000000000000000000000000..f9f6e367a5d11150bfab04e0666c3417
 +        }
 +        list.addAll(get(accessor.getTarget()));
 +        return list;
-+    }
-+
-+    public boolean hitsAny(Accessor<?> accessor, BiPredicate<T, Accessor<?>> predicate) {
-+        for (T provider : wrappedGet(accessor)) {
-+            if (predicate.test(provider, accessor)) {
-+                return true;
-+            }
-+        }
-+        return false;
 +    }
 +
 +    @Override

@@ -124,10 +124,10 @@ index 30d0133a42ce990352f5c492fcf9beb105364848..1ab2eab686b3a89d406f127a6036c0e2
      protected CompositeLootItemCondition(List<LootItemCondition> terms, Predicate<LootContext> predicate) {
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/JadeProtocol.java b/src/main/java/org/leavesmc/leaves/protocol/jade/JadeProtocol.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..a860aa5faff35209e484c9b79c3355bab933aa18
+index 0000000000000000000000000000000000000000..20002a8839f450c096985132752caa062f909c79
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/JadeProtocol.java
-@@ -0,0 +1,514 @@
+@@ -0,0 +1,558 @@
 +package org.leavesmc.leaves.protocol.jade;
 +
 +import com.google.common.base.Suppliers;
@@ -139,6 +139,7 @@ index 0000000000000000000000000000000000000000..a860aa5faff35209e484c9b79c3355ba
 +import net.minecraft.nbt.CompoundTag;
 +import net.minecraft.network.FriendlyByteBuf;
 +import net.minecraft.network.RegistryFriendlyByteBuf;
++import net.minecraft.network.chat.Component;
 +import net.minecraft.network.codec.ByteBufCodecs;
 +import net.minecraft.network.codec.StreamCodec;
 +import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket;
@@ -224,9 +225,12 @@ index 0000000000000000000000000000000000000000..a860aa5faff35209e484c9b79c3355ba
 +import java.util.ArrayList;
 +import java.util.Collections;
 +import java.util.Comparator;
++import java.util.HashSet;
 +import java.util.List;
 +import java.util.Map;
 +import java.util.Objects;
++import java.util.Set;
++import java.util.UUID;
 +import java.util.function.Predicate;
 +import java.util.stream.Collectors;
 +
@@ -234,9 +238,11 @@ index 0000000000000000000000000000000000000000..a860aa5faff35209e484c9b79c3355ba
 +public class JadeProtocol {
 +
 +    public static PriorityStore<ResourceLocation, IJadeProvider> priorities;
++    private static Set<UUID> enabledPlayers = new HashSet<>();
 +    private static List<Block> shearableBlocks = null;
 +
 +    public static final String PROTOCOL_ID = "jade";
++    public static final String PROTOCOL_VERSION = "7";
 +
 +    public static final HierarchyLookup<IServerDataProvider<EntityAccessor>> entityDataProviders = new HierarchyLookup<>(Entity.class);
 +    public static final PairHierarchyLookup<IServerDataProvider<BlockAccessor>> blockDataProviders = new PairHierarchyLookup<>(new HierarchyLookup<>(Block.class), new HierarchyLookup<>(BlockEntity.class));
@@ -381,11 +387,22 @@ index 0000000000000000000000000000000000000000..a860aa5faff35209e484c9b79c3355ba
 +        }
 +    }
 +
-+    @ProtocolHandler.PlayerJoin
-+    public static void onPlayerJoin(ServerPlayer player) {
-+        if (LeavesConfig.jadeProtocol) {
-+            ProtocolUtils.sendPayloadPacket(player, new ServerPingPayload(Collections.emptyMap(), shearableBlocks, blockDataProviders.mappedIds(), entityDataProviders.mappedIds()));
++    @ProtocolHandler.PlayerLeave
++    public static void onPlayerQuit(ServerPlayer player) {
++        enabledPlayers.remove(player.getUUID());
++    }
++
++    @ProtocolHandler.PayloadReceiver(payload = ClientHandshakePayload.class, payloadId = "client_handshake")
++    public static void clientHandshake(ServerPlayer player, ClientHandshakePayload payload) {
++        if (!LeavesConfig.jadeProtocol) {
++            return;
 +        }
++        if (!payload.protocolVersion().equals(PROTOCOL_VERSION)) {
++            player.sendSystemMessage(Component.literal("You are using a different version of Jade than the server. Please update Jade or report to the server operator").withColor(0xff0000));
++            return;
++        }
++        ProtocolUtils.sendPayloadPacket(player, new ServerHandshakePayload(Collections.emptyMap(), shearableBlocks, blockDataProviders.mappedIds(), entityDataProviders.mappedIds()));
++        enabledPlayers.add(player.getUUID());
 +    }
 +
 +    @ProtocolHandler.PayloadReceiver(payload = RequestEntityPayload.class, payloadId = "request_entity")
@@ -513,7 +530,9 @@ index 0000000000000000000000000000000000000000..a860aa5faff35209e484c9b79c3355ba
 +
 +    public static void enableAllPlayer() {
 +        for (ServerPlayer player : MinecraftServer.getServer().getPlayerList().players) {
-+            onPlayerJoin(player);
++            if (enabledPlayers.contains(player.getUUID())) {
++                ProtocolUtils.sendPayloadPacket(player, new ServerHandshakePayload(Collections.emptyMap(), shearableBlocks, blockDataProviders.mappedIds(), entityDataProviders.mappedIds()));
++            }
 +        }
 +    }
 +
@@ -522,7 +541,7 @@ index 0000000000000000000000000000000000000000..a860aa5faff35209e484c9b79c3355ba
 +            List<@Nullable IServerDataProvider<EntityAccessor>> dataProviders) implements LeavesCustomPayload<RequestEntityPayload> {
 +
 +        private static final ResourceLocation PACKET_REQUEST_ENTITY = JadeProtocol.id("request_entity");
-+        public static final StreamCodec<RegistryFriendlyByteBuf, RequestEntityPayload> CODEC = StreamCodec.composite(
++        private static final StreamCodec<RegistryFriendlyByteBuf, RequestEntityPayload> CODEC = StreamCodec.composite(
 +                EntityAccessorImpl.SyncData.STREAM_CODEC,
 +                RequestEntityPayload::data,
 +                ByteBufCodecs.<ByteBuf, IServerDataProvider<EntityAccessor>>list()
@@ -554,7 +573,7 @@ index 0000000000000000000000000000000000000000..a860aa5faff35209e484c9b79c3355ba
 +    public record RequestBlockPayload(BlockAccessorImpl.SyncData data, List<@Nullable IServerDataProvider<BlockAccessor>> dataProviders) implements LeavesCustomPayload<RequestBlockPayload> {
 +
 +        private static final ResourceLocation PACKET_REQUEST_BLOCK = JadeProtocol.id("request_block");
-+        public static final StreamCodec<RegistryFriendlyByteBuf, RequestBlockPayload> CODEC = StreamCodec.composite(
++        private static final StreamCodec<RegistryFriendlyByteBuf, RequestBlockPayload> CODEC = StreamCodec.composite(
 +                BlockAccessorImpl.SyncData.STREAM_CODEC,
 +                RequestBlockPayload::data,
 +                ByteBufCodecs.<ByteBuf, IServerDataProvider<BlockAccessor>>list()
@@ -581,23 +600,14 @@ index 0000000000000000000000000000000000000000..a860aa5faff35209e484c9b79c3355ba
 +        }
 +    }
 +
-+    public record ServerPingPayload(
-+            Map<ResourceLocation, Object> serverConfig,
-+            List<Block> shearableBlocks,
-+            List<ResourceLocation> blockProviderIds,
-+            List<ResourceLocation> entityProviderIds) implements LeavesCustomPayload<ServerPingPayload> {
++    public record ClientHandshakePayload(String protocolVersion) implements LeavesCustomPayload<ClientHandshakePayload> {
 +
-+        private static final ResourceLocation PACKET_SERVER_PING = JadeProtocol.id("server_ping_v1");
-+        public static final StreamCodec<RegistryFriendlyByteBuf, ServerPingPayload> CODEC = StreamCodec.composite(
-+                ByteBufCodecs.map(Maps::newHashMapWithExpectedSize, ResourceLocation.STREAM_CODEC, PRIMITIVE_STREAM_CODEC),
-+                ServerPingPayload::serverConfig,
-+                ByteBufCodecs.registry(Registries.BLOCK).apply(ByteBufCodecs.list()),
-+                ServerPingPayload::shearableBlocks,
-+                ByteBufCodecs.<ByteBuf, ResourceLocation>list().apply(ResourceLocation.STREAM_CODEC),
-+                ServerPingPayload::blockProviderIds,
-+                ByteBufCodecs.<ByteBuf, ResourceLocation>list().apply(ResourceLocation.STREAM_CODEC),
-+                ServerPingPayload::entityProviderIds,
-+                ServerPingPayload::new);
++        private static final ResourceLocation PACKET_CLIENT_HANDSHAKE = JadeProtocol.id("client_handshake");
++
++        private static final StreamCodec<RegistryFriendlyByteBuf, ClientHandshakePayload> CODEC = StreamCodec.composite(
++                ByteBufCodecs.STRING_UTF8,
++                ClientHandshakePayload::protocolVersion,
++                ClientHandshakePayload::new);
 +
 +        @Override
 +        public void write(FriendlyByteBuf buf) {
@@ -606,7 +616,41 @@ index 0000000000000000000000000000000000000000..a860aa5faff35209e484c9b79c3355ba
 +
 +        @Override
 +        public ResourceLocation id() {
-+            return PACKET_SERVER_PING;
++            return PACKET_CLIENT_HANDSHAKE;
++        }
++
++        @New
++        public static ClientHandshakePayload create(ResourceLocation location, FriendlyByteBuf buf) {
++            return CODEC.decode(new RegistryFriendlyByteBuf(buf, MinecraftServer.getServer().registryAccess()));
++        }
++    }
++
++    public record ServerHandshakePayload(
++            Map<ResourceLocation, Object> serverConfig,
++            List<Block> shearableBlocks,
++            List<ResourceLocation> blockProviderIds,
++            List<ResourceLocation> entityProviderIds) implements LeavesCustomPayload<ServerHandshakePayload> {
++
++        private static final ResourceLocation PACKET_SERVER_HANDSHAKE = JadeProtocol.id("server_handshake");
++        private static final StreamCodec<RegistryFriendlyByteBuf, ServerHandshakePayload> CODEC = StreamCodec.composite(
++                ByteBufCodecs.map(Maps::newHashMapWithExpectedSize, ResourceLocation.STREAM_CODEC, PRIMITIVE_STREAM_CODEC),
++                ServerHandshakePayload::serverConfig,
++                ByteBufCodecs.registry(Registries.BLOCK).apply(ByteBufCodecs.list()),
++                ServerHandshakePayload::shearableBlocks,
++                ByteBufCodecs.<ByteBuf, ResourceLocation>list().apply(ResourceLocation.STREAM_CODEC),
++                ServerHandshakePayload::blockProviderIds,
++                ByteBufCodecs.<ByteBuf, ResourceLocation>list().apply(ResourceLocation.STREAM_CODEC),
++                ServerHandshakePayload::entityProviderIds,
++                ServerHandshakePayload::new);
++
++        @Override
++        public void write(FriendlyByteBuf buf) {
++            CODEC.encode(new RegistryFriendlyByteBuf(buf, MinecraftServer.getServer().registryAccess()), this);
++        }
++
++        @Override
++        public ResourceLocation id() {
++            return PACKET_SERVER_HANDSHAKE;
 +        }
 +    }
 +

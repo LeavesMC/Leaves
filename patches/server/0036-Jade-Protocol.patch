@@ -124,10 +124,10 @@ index 30d0133a42ce990352f5c492fcf9beb105364848..1ab2eab686b3a89d406f127a6036c0e2
      protected CompositeLootItemCondition(List<LootItemCondition> terms, Predicate<LootContext> predicate) {
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/JadeProtocol.java b/src/main/java/org/leavesmc/leaves/protocol/jade/JadeProtocol.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..20002a8839f450c096985132752caa062f909c79
+index 0000000000000000000000000000000000000000..2d3f3de3f37d635ceeb2f350c844dcfde327a412
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/JadeProtocol.java
-@@ -0,0 +1,558 @@
+@@ -0,0 +1,413 @@
 +package org.leavesmc.leaves.protocol.jade;
 +
 +import com.google.common.base.Suppliers;
@@ -193,6 +193,11 @@ index 0000000000000000000000000000000000000000..20002a8839f450c096985132752caa06
 +import org.leavesmc.leaves.protocol.jade.accessor.DataAccessor;
 +import org.leavesmc.leaves.protocol.jade.accessor.EntityAccessor;
 +import org.leavesmc.leaves.protocol.jade.accessor.EntityAccessorImpl;
++import org.leavesmc.leaves.protocol.jade.payload.ClientHandshakePayload;
++import org.leavesmc.leaves.protocol.jade.payload.ReceiveDataPayload;
++import org.leavesmc.leaves.protocol.jade.payload.RequestBlockPayload;
++import org.leavesmc.leaves.protocol.jade.payload.RequestEntityPayload;
++import org.leavesmc.leaves.protocol.jade.payload.ServerHandshakePayload;
 +import org.leavesmc.leaves.protocol.jade.provider.IJadeProvider;
 +import org.leavesmc.leaves.protocol.jade.provider.IServerDataProvider;
 +import org.leavesmc.leaves.protocol.jade.provider.IServerExtensionProvider;
@@ -248,7 +253,7 @@ index 0000000000000000000000000000000000000000..20002a8839f450c096985132752caa06
 +    public static final PairHierarchyLookup<IServerDataProvider<BlockAccessor>> blockDataProviders = new PairHierarchyLookup<>(new HierarchyLookup<>(Block.class), new HierarchyLookup<>(BlockEntity.class));
 +    public static final WrappedHierarchyLookup<IServerExtensionProvider<ItemStack>> itemStorageProviders = new WrappedHierarchyLookup<>();
 +
-+    private static final StreamCodec<ByteBuf, Object> PRIMITIVE_STREAM_CODEC = new StreamCodec<>() {
++    public static final StreamCodec<ByteBuf, Object> PRIMITIVE_STREAM_CODEC = new StreamCodec<>() {
 +        @Override
 +        public @NotNull Object decode(ByteBuf buf) {
 +            byte b = buf.readByte();
@@ -414,18 +419,18 @@ index 0000000000000000000000000000000000000000..20002a8839f450c096985132752caa06
 +        MinecraftServer server = MinecraftServer.getServer();
 +        server.execute(() -> {
 +            Level world = player.level();
-+            boolean showDetails = payload.data.showDetails();
-+            Entity entity = world.getEntity(payload.data.id());
++            boolean showDetails = payload.data().showDetails();
++            Entity entity = world.getEntity(payload.data().id());
 +            double maxDistance = Mth.square(player.entityInteractionRange() + 21);
 +
 +            if (entity == null || player.distanceToSqr(entity) > maxDistance) {
 +                return;
 +            }
 +
-+            if (payload.data.partIndex() >= 0 && entity instanceof EnderDragon dragon) {
++            if (payload.data().partIndex() >= 0 && entity instanceof EnderDragon dragon) {
 +                EnderDragonPart[] parts = dragon.getSubEntities();
-+                if (payload.data.partIndex() < parts.length) {
-+                    entity = parts[payload.data.partIndex()];
++                if (payload.data().partIndex() < parts.length) {
++                    entity = parts[payload.data().partIndex()];
 +                }
 +            }
 +
@@ -467,11 +472,11 @@ index 0000000000000000000000000000000000000000..20002a8839f450c096985132752caa06
 +        MinecraftServer server = MinecraftServer.getServer();
 +        server.execute(() -> {
 +            Level world = player.level();
-+            BlockState blockState = payload.data.blockState();
++            BlockState blockState = payload.data().blockState();
 +            Block block = blockState.getBlock();
-+            BlockHitResult result = payload.data.hit();
++            BlockHitResult result = payload.data().hit();
 +            BlockPos pos = result.getBlockPos();
-+            boolean showDetails = payload.data.showDetails();
++            boolean showDetails = payload.data().showDetails();
 +
 +            double maxDistance = Mth.square(player.blockInteractionRange() + 21);
 +            if (pos.distSqr(player.blockPosition()) > maxDistance || !world.isLoaded(pos)) {
@@ -503,7 +508,7 @@ index 0000000000000000000000000000000000000000..20002a8839f450c096985132752caa06
 +                    .hit(result)
 +                    .blockState(blockState)
 +                    .blockEntity(blockEntity)
-+                    .fakeBlock(payload.data.fakeBlock())
++                    .fakeBlock(payload.data().fakeBlock())
 +                    .build();
 +
 +            for (IServerDataProvider<BlockAccessor> provider : providers) {
@@ -534,156 +539,6 @@ index 0000000000000000000000000000000000000000..20002a8839f450c096985132752caa06
 +                ProtocolUtils.sendPayloadPacket(player, new ServerHandshakePayload(Collections.emptyMap(), shearableBlocks, blockDataProviders.mappedIds(), entityDataProviders.mappedIds()));
 +            }
 +        }
-+    }
-+
-+    public record RequestEntityPayload(
-+            EntityAccessorImpl.SyncData data,
-+            List<@Nullable IServerDataProvider<EntityAccessor>> dataProviders) implements LeavesCustomPayload<RequestEntityPayload> {
-+
-+        private static final ResourceLocation PACKET_REQUEST_ENTITY = JadeProtocol.id("request_entity");
-+        private static final StreamCodec<RegistryFriendlyByteBuf, RequestEntityPayload> CODEC = StreamCodec.composite(
-+                EntityAccessorImpl.SyncData.STREAM_CODEC,
-+                RequestEntityPayload::data,
-+                ByteBufCodecs.<ByteBuf, IServerDataProvider<EntityAccessor>>list()
-+                        .apply(ByteBufCodecs.idMapper(
-+                                $ -> Objects.requireNonNull(entityDataProviders.idMapper()).byId($),
-+                                $ -> Objects.requireNonNull(entityDataProviders.idMapper())
-+                                        .getIdOrThrow($))),
-+                RequestEntityPayload::dataProviders,
-+                RequestEntityPayload::new);
-+
-+
-+        @Override
-+        public void write(FriendlyByteBuf buf) {
-+            CODEC.encode(new RegistryFriendlyByteBuf(buf, MinecraftServer.getServer().registryAccess()), this);
-+        }
-+
-+        @New
-+        public static RequestEntityPayload create(ResourceLocation location, FriendlyByteBuf buf) {
-+            return CODEC.decode(new RegistryFriendlyByteBuf(buf, MinecraftServer.getServer().registryAccess()));
-+        }
-+
-+        @Override
-+        @NotNull
-+        public ResourceLocation id() {
-+            return PACKET_REQUEST_ENTITY;
-+        }
-+    }
-+
-+    public record RequestBlockPayload(BlockAccessorImpl.SyncData data, List<@Nullable IServerDataProvider<BlockAccessor>> dataProviders) implements LeavesCustomPayload<RequestBlockPayload> {
-+
-+        private static final ResourceLocation PACKET_REQUEST_BLOCK = JadeProtocol.id("request_block");
-+        private static final StreamCodec<RegistryFriendlyByteBuf, RequestBlockPayload> CODEC = StreamCodec.composite(
-+                BlockAccessorImpl.SyncData.STREAM_CODEC,
-+                RequestBlockPayload::data,
-+                ByteBufCodecs.<ByteBuf, IServerDataProvider<BlockAccessor>>list()
-+                        .apply(ByteBufCodecs.idMapper(
-+                                $ -> Objects.requireNonNull(blockDataProviders.idMapper()).byId($),
-+                                $ -> Objects.requireNonNull(blockDataProviders.idMapper()).getIdOrThrow($))),
-+                RequestBlockPayload::dataProviders,
-+                RequestBlockPayload::new);
-+
-+        @Override
-+        public void write(FriendlyByteBuf buf) {
-+            CODEC.encode(new RegistryFriendlyByteBuf(buf, MinecraftServer.getServer().registryAccess()), this);
-+        }
-+
-+        @New
-+        public static RequestBlockPayload create(ResourceLocation location, FriendlyByteBuf buf) {
-+            return CODEC.decode(new RegistryFriendlyByteBuf(buf, MinecraftServer.getServer().registryAccess()));
-+        }
-+
-+        @Override
-+        @NotNull
-+        public ResourceLocation id() {
-+            return PACKET_REQUEST_BLOCK;
-+        }
-+    }
-+
-+    public record ClientHandshakePayload(String protocolVersion) implements LeavesCustomPayload<ClientHandshakePayload> {
-+
-+        private static final ResourceLocation PACKET_CLIENT_HANDSHAKE = JadeProtocol.id("client_handshake");
-+
-+        private static final StreamCodec<RegistryFriendlyByteBuf, ClientHandshakePayload> CODEC = StreamCodec.composite(
-+                ByteBufCodecs.STRING_UTF8,
-+                ClientHandshakePayload::protocolVersion,
-+                ClientHandshakePayload::new);
-+
-+        @Override
-+        public void write(FriendlyByteBuf buf) {
-+            CODEC.encode(new RegistryFriendlyByteBuf(buf, MinecraftServer.getServer().registryAccess()), this);
-+        }
-+
-+        @Override
-+        public ResourceLocation id() {
-+            return PACKET_CLIENT_HANDSHAKE;
-+        }
-+
-+        @New
-+        public static ClientHandshakePayload create(ResourceLocation location, FriendlyByteBuf buf) {
-+            return CODEC.decode(new RegistryFriendlyByteBuf(buf, MinecraftServer.getServer().registryAccess()));
-+        }
-+    }
-+
-+    public record ServerHandshakePayload(
-+            Map<ResourceLocation, Object> serverConfig,
-+            List<Block> shearableBlocks,
-+            List<ResourceLocation> blockProviderIds,
-+            List<ResourceLocation> entityProviderIds) implements LeavesCustomPayload<ServerHandshakePayload> {
-+
-+        private static final ResourceLocation PACKET_SERVER_HANDSHAKE = JadeProtocol.id("server_handshake");
-+        private static final StreamCodec<RegistryFriendlyByteBuf, ServerHandshakePayload> CODEC = StreamCodec.composite(
-+                ByteBufCodecs.map(Maps::newHashMapWithExpectedSize, ResourceLocation.STREAM_CODEC, PRIMITIVE_STREAM_CODEC),
-+                ServerHandshakePayload::serverConfig,
-+                ByteBufCodecs.registry(Registries.BLOCK).apply(ByteBufCodecs.list()),
-+                ServerHandshakePayload::shearableBlocks,
-+                ByteBufCodecs.<ByteBuf, ResourceLocation>list().apply(ResourceLocation.STREAM_CODEC),
-+                ServerHandshakePayload::blockProviderIds,
-+                ByteBufCodecs.<ByteBuf, ResourceLocation>list().apply(ResourceLocation.STREAM_CODEC),
-+                ServerHandshakePayload::entityProviderIds,
-+                ServerHandshakePayload::new);
-+
-+        @Override
-+        public void write(FriendlyByteBuf buf) {
-+            CODEC.encode(new RegistryFriendlyByteBuf(buf, MinecraftServer.getServer().registryAccess()), this);
-+        }
-+
-+        @Override
-+        public ResourceLocation id() {
-+            return PACKET_SERVER_HANDSHAKE;
-+        }
-+    }
-+
-+    public record ReceiveDataPayload(CompoundTag tag) implements LeavesCustomPayload<ReceiveDataPayload> {
-+
-+        private static final ResourceLocation PACKET_RECEIVE_DATA = JadeProtocol.id("receive_data");
-+
-+        @New
-+        public ReceiveDataPayload(ResourceLocation id, FriendlyByteBuf buf) {
-+            this(buf.readNbt());
-+        }
-+
-+        @Override
-+        public void write(@NotNull FriendlyByteBuf buf) {
-+            buf.writeNbt(tag);
-+        }
-+
-+        @Override
-+        public ResourceLocation id() {
-+            return PACKET_RECEIVE_DATA;
-+        }
-+    }
-+
-+    public interface ServerPayloadContext {
-+        default void execute(Runnable runnable) {
-+            Objects.requireNonNull(player().getServer()).execute(runnable);
-+        }
-+
-+        default void sendPacket(CustomPacketPayload payload) {
-+            player().connection.send(new ClientboundCustomPayloadPacket(payload));
-+        }
-+
-+        ServerPlayer player();
 +    }
 +}
 \ No newline at end of file
@@ -981,10 +836,10 @@ index 0000000000000000000000000000000000000000..7fbd1f728499f67f7dd336e101f57c3f
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/accessor/BlockAccessorImpl.java b/src/main/java/org/leavesmc/leaves/protocol/jade/accessor/BlockAccessorImpl.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..234450cc46f680cd19b250d58b3b1aede118b171
+index 0000000000000000000000000000000000000000..105348253f11699827395454f96563820804486e
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/accessor/BlockAccessorImpl.java
-@@ -0,0 +1,277 @@
+@@ -0,0 +1,279 @@
 +package org.leavesmc.leaves.protocol.jade.accessor;
 +
 +import java.util.List;
@@ -1014,6 +869,8 @@ index 0000000000000000000000000000000000000000..234450cc46f680cd19b250d58b3b1aed
 +import net.minecraft.world.level.block.state.BlockState;
 +import net.minecraft.world.phys.BlockHitResult;
 +import org.leavesmc.leaves.protocol.jade.JadeProtocol;
++import org.leavesmc.leaves.protocol.jade.payload.RequestBlockPayload;
++import org.leavesmc.leaves.protocol.jade.payload.ServerPayloadContext;
 +import org.leavesmc.leaves.protocol.jade.provider.IServerDataProvider;
 +import org.leavesmc.leaves.protocol.jade.util.CommonUtil;
 +
@@ -1034,7 +891,7 @@ index 0000000000000000000000000000000000000000..234450cc46f680cd19b250d58b3b1aed
 +        fakeBlock = builder.fakeBlock;
 +    }
 +
-+    public static void handleRequest(JadeProtocol.RequestBlockPayload message, JadeProtocol.ServerPayloadContext context, Consumer<CompoundTag> responseSender) {
++    public static void handleRequest(RequestBlockPayload message, ServerPayloadContext context, Consumer<CompoundTag> responseSender) {
 +        ServerPlayer player = context.player();
 +        context.execute(() -> {
 +            BlockAccessor accessor = message.data().unpack(player);
@@ -1365,10 +1222,10 @@ index 0000000000000000000000000000000000000000..305f0d7167526df4d864d3258be5a3dc
 \ No newline at end of file
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/accessor/EntityAccessorImpl.java b/src/main/java/org/leavesmc/leaves/protocol/jade/accessor/EntityAccessorImpl.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..6834254d76527d86372a4f2081be4e30f52b43d6
+index 0000000000000000000000000000000000000000..a92edcbb3e707065455ad5464484068e8500337c
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/accessor/EntityAccessorImpl.java
-@@ -0,0 +1,209 @@
+@@ -0,0 +1,211 @@
 +package org.leavesmc.leaves.protocol.jade.accessor;
 +
 +import com.google.common.base.Suppliers;
@@ -1386,6 +1243,8 @@ index 0000000000000000000000000000000000000000..6834254d76527d86372a4f2081be4e30
 +import net.minecraft.world.phys.Vec3;
 +import org.jetbrains.annotations.NotNull;
 +import org.leavesmc.leaves.protocol.jade.JadeProtocol;
++import org.leavesmc.leaves.protocol.jade.payload.RequestEntityPayload;
++import org.leavesmc.leaves.protocol.jade.payload.ServerPayloadContext;
 +import org.leavesmc.leaves.protocol.jade.provider.IServerDataProvider;
 +import org.leavesmc.leaves.protocol.jade.util.CommonUtil;
 +
@@ -1402,7 +1261,7 @@ index 0000000000000000000000000000000000000000..6834254d76527d86372a4f2081be4e30
 +        entity = builder.entity;
 +    }
 +
-+    public static void handleRequest(JadeProtocol.RequestEntityPayload message, JadeProtocol.ServerPayloadContext context, Consumer<CompoundTag> responseSender) {
++    public static void handleRequest(RequestEntityPayload message, ServerPayloadContext context, Consumer<CompoundTag> responseSender) {
 +        ServerPlayer player = context.player();
 +        context.execute(() -> {
 +            EntityAccessor accessor = message.data().unpack(player);
@@ -1577,6 +1436,286 @@ index 0000000000000000000000000000000000000000..6834254d76527d86372a4f2081be4e30
 +                    .build();
 +        }
 +    }
++}
+\ No newline at end of file
+diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/payload/ClientHandshakePayload.java b/src/main/java/org/leavesmc/leaves/protocol/jade/payload/ClientHandshakePayload.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..a2e58089ad12706e927771e2485380a5bf5e6482
+--- /dev/null
++++ b/src/main/java/org/leavesmc/leaves/protocol/jade/payload/ClientHandshakePayload.java
+@@ -0,0 +1,36 @@
++package org.leavesmc.leaves.protocol.jade.payload;
++
++
++import net.minecraft.network.FriendlyByteBuf;
++import net.minecraft.network.RegistryFriendlyByteBuf;
++import net.minecraft.network.codec.ByteBufCodecs;
++import net.minecraft.network.codec.StreamCodec;
++import net.minecraft.resources.ResourceLocation;
++import net.minecraft.server.MinecraftServer;
++import org.leavesmc.leaves.protocol.core.LeavesCustomPayload;
++import org.leavesmc.leaves.protocol.jade.JadeProtocol;
++
++public record ClientHandshakePayload(String protocolVersion) implements LeavesCustomPayload<ClientHandshakePayload> {
++
++    private static final ResourceLocation PACKET_CLIENT_HANDSHAKE = JadeProtocol.id("client_handshake");
++
++    private static final StreamCodec<RegistryFriendlyByteBuf, ClientHandshakePayload> CODEC = StreamCodec.composite(
++            ByteBufCodecs.STRING_UTF8,
++            ClientHandshakePayload::protocolVersion,
++            ClientHandshakePayload::new);
++
++    @Override
++    public void write(FriendlyByteBuf buf) {
++        CODEC.encode(new RegistryFriendlyByteBuf(buf, MinecraftServer.getServer().registryAccess()), this);
++    }
++
++    @Override
++    public ResourceLocation id() {
++        return PACKET_CLIENT_HANDSHAKE;
++    }
++
++    @New
++    public static ClientHandshakePayload create(ResourceLocation location, FriendlyByteBuf buf) {
++        return CODEC.decode(new RegistryFriendlyByteBuf(buf, MinecraftServer.getServer().registryAccess()));
++    }
++}
+diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/payload/ReceiveDataPayload.java b/src/main/java/org/leavesmc/leaves/protocol/jade/payload/ReceiveDataPayload.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..1b474ea8c1075b3dbaa7cd27e5bd95aa904fbe97
+--- /dev/null
++++ b/src/main/java/org/leavesmc/leaves/protocol/jade/payload/ReceiveDataPayload.java
+@@ -0,0 +1,28 @@
++package org.leavesmc.leaves.protocol.jade.payload;
++
++import net.minecraft.nbt.CompoundTag;
++import net.minecraft.network.FriendlyByteBuf;
++import net.minecraft.resources.ResourceLocation;
++import org.jetbrains.annotations.NotNull;
++import org.leavesmc.leaves.protocol.core.LeavesCustomPayload;
++import org.leavesmc.leaves.protocol.jade.JadeProtocol;
++
++public record ReceiveDataPayload(CompoundTag tag) implements LeavesCustomPayload<ReceiveDataPayload> {
++
++    private static final ResourceLocation PACKET_RECEIVE_DATA = JadeProtocol.id("receive_data");
++
++    @New
++    public ReceiveDataPayload(ResourceLocation id, FriendlyByteBuf buf) {
++        this(buf.readNbt());
++    }
++
++    @Override
++    public void write(@NotNull FriendlyByteBuf buf) {
++        buf.writeNbt(tag);
++    }
++
++    @Override
++    public ResourceLocation id() {
++        return PACKET_RECEIVE_DATA;
++    }
++}
+diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/payload/RequestBlockPayload.java b/src/main/java/org/leavesmc/leaves/protocol/jade/payload/RequestBlockPayload.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..53e8b14b90afb6d4405c7d13a0424b4088421f11
+--- /dev/null
++++ b/src/main/java/org/leavesmc/leaves/protocol/jade/payload/RequestBlockPayload.java
+@@ -0,0 +1,52 @@
++package org.leavesmc.leaves.protocol.jade.payload;
++
++
++import io.netty.buffer.ByteBuf;
++import net.minecraft.network.FriendlyByteBuf;
++import net.minecraft.network.RegistryFriendlyByteBuf;
++import net.minecraft.network.codec.ByteBufCodecs;
++import net.minecraft.network.codec.StreamCodec;
++import net.minecraft.resources.ResourceLocation;
++import net.minecraft.server.MinecraftServer;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++import org.leavesmc.leaves.protocol.core.LeavesCustomPayload;
++import org.leavesmc.leaves.protocol.jade.JadeProtocol;
++import org.leavesmc.leaves.protocol.jade.accessor.BlockAccessor;
++import org.leavesmc.leaves.protocol.jade.accessor.BlockAccessorImpl;
++import org.leavesmc.leaves.protocol.jade.provider.IServerDataProvider;
++
++import java.util.List;
++import java.util.Objects;
++
++import static org.leavesmc.leaves.protocol.jade.JadeProtocol.blockDataProviders;
++
++public record RequestBlockPayload(BlockAccessorImpl.SyncData data, List<@Nullable IServerDataProvider<BlockAccessor>> dataProviders) implements LeavesCustomPayload<RequestBlockPayload> {
++
++    private static final ResourceLocation PACKET_REQUEST_BLOCK = JadeProtocol.id("request_block");
++    private static final StreamCodec<RegistryFriendlyByteBuf, RequestBlockPayload> CODEC = StreamCodec.composite(
++            BlockAccessorImpl.SyncData.STREAM_CODEC,
++            RequestBlockPayload::data,
++            ByteBufCodecs.<ByteBuf, IServerDataProvider<BlockAccessor>>list()
++                    .apply(ByteBufCodecs.idMapper(
++                            $ -> Objects.requireNonNull(blockDataProviders.idMapper()).byId($),
++                            $ -> Objects.requireNonNull(blockDataProviders.idMapper()).getIdOrThrow($))),
++            RequestBlockPayload::dataProviders,
++            RequestBlockPayload::new);
++
++    @Override
++    public void write(FriendlyByteBuf buf) {
++        CODEC.encode(new RegistryFriendlyByteBuf(buf, MinecraftServer.getServer().registryAccess()), this);
++    }
++
++    @New
++    public static RequestBlockPayload create(ResourceLocation location, FriendlyByteBuf buf) {
++        return CODEC.decode(new RegistryFriendlyByteBuf(buf, MinecraftServer.getServer().registryAccess()));
++    }
++
++    @Override
++    @NotNull
++    public ResourceLocation id() {
++        return PACKET_REQUEST_BLOCK;
++    }
++}
+\ No newline at end of file
+diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/payload/RequestEntityPayload.java b/src/main/java/org/leavesmc/leaves/protocol/jade/payload/RequestEntityPayload.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..b398176d0375784c2eff1db48fbaadcc6e80cbf9
+--- /dev/null
++++ b/src/main/java/org/leavesmc/leaves/protocol/jade/payload/RequestEntityPayload.java
+@@ -0,0 +1,55 @@
++package org.leavesmc.leaves.protocol.jade.payload;
++
++import io.netty.buffer.ByteBuf;
++import net.minecraft.network.FriendlyByteBuf;
++import net.minecraft.network.RegistryFriendlyByteBuf;
++import net.minecraft.network.codec.ByteBufCodecs;
++import net.minecraft.network.codec.StreamCodec;
++import net.minecraft.resources.ResourceLocation;
++import net.minecraft.server.MinecraftServer;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++import org.leavesmc.leaves.protocol.core.LeavesCustomPayload;
++import org.leavesmc.leaves.protocol.jade.JadeProtocol;
++import org.leavesmc.leaves.protocol.jade.accessor.EntityAccessor;
++import org.leavesmc.leaves.protocol.jade.accessor.EntityAccessorImpl;
++import org.leavesmc.leaves.protocol.jade.provider.IServerDataProvider;
++
++import java.util.List;
++import java.util.Objects;
++
++import static org.leavesmc.leaves.protocol.jade.JadeProtocol.entityDataProviders;
++
++public record RequestEntityPayload(
++        EntityAccessorImpl.SyncData data,
++        List<@Nullable IServerDataProvider<EntityAccessor>> dataProviders) implements LeavesCustomPayload<RequestEntityPayload> {
++
++    private static final ResourceLocation PACKET_REQUEST_ENTITY = JadeProtocol.id("request_entity");
++    private static final StreamCodec<RegistryFriendlyByteBuf, RequestEntityPayload> CODEC = StreamCodec.composite(
++            EntityAccessorImpl.SyncData.STREAM_CODEC,
++            RequestEntityPayload::data,
++            ByteBufCodecs.<ByteBuf, IServerDataProvider<EntityAccessor>>list()
++                    .apply(ByteBufCodecs.idMapper(
++                            $ -> Objects.requireNonNull(entityDataProviders.idMapper()).byId($),
++                            $ -> Objects.requireNonNull(entityDataProviders.idMapper())
++                                    .getIdOrThrow($))),
++            RequestEntityPayload::dataProviders,
++            RequestEntityPayload::new);
++
++
++    @Override
++    public void write(FriendlyByteBuf buf) {
++        CODEC.encode(new RegistryFriendlyByteBuf(buf, MinecraftServer.getServer().registryAccess()), this);
++    }
++
++    @New
++    public static RequestEntityPayload create(ResourceLocation location, FriendlyByteBuf buf) {
++        return CODEC.decode(new RegistryFriendlyByteBuf(buf, MinecraftServer.getServer().registryAccess()));
++    }
++
++    @Override
++    @NotNull
++    public ResourceLocation id() {
++        return PACKET_REQUEST_ENTITY;
++    }
++}
+\ No newline at end of file
+diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/payload/ServerHandshakePayload.java b/src/main/java/org/leavesmc/leaves/protocol/jade/payload/ServerHandshakePayload.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..c2eb61a7556130e5186dc1bba71329fefef8446f
+--- /dev/null
++++ b/src/main/java/org/leavesmc/leaves/protocol/jade/payload/ServerHandshakePayload.java
+@@ -0,0 +1,50 @@
++package org.leavesmc.leaves.protocol.jade.payload;
++
++
++import com.google.common.collect.Maps;
++import io.netty.buffer.ByteBuf;
++import net.minecraft.core.registries.Registries;
++import net.minecraft.network.FriendlyByteBuf;
++import net.minecraft.network.RegistryFriendlyByteBuf;
++import net.minecraft.network.codec.ByteBufCodecs;
++import net.minecraft.network.codec.StreamCodec;
++import net.minecraft.resources.ResourceLocation;
++import net.minecraft.server.MinecraftServer;
++import net.minecraft.world.level.block.Block;
++import org.leavesmc.leaves.protocol.core.LeavesCustomPayload;
++import org.leavesmc.leaves.protocol.jade.JadeProtocol;
++
++import java.util.List;
++import java.util.Map;
++
++import static org.leavesmc.leaves.protocol.jade.JadeProtocol.PRIMITIVE_STREAM_CODEC;
++
++public record ServerHandshakePayload(
++        Map<ResourceLocation, Object> serverConfig,
++        List<Block> shearableBlocks,
++        List<ResourceLocation> blockProviderIds,
++        List<ResourceLocation> entityProviderIds) implements LeavesCustomPayload<ServerHandshakePayload> {
++
++    private static final ResourceLocation PACKET_SERVER_HANDSHAKE = JadeProtocol.id("server_handshake");
++    private static final StreamCodec<RegistryFriendlyByteBuf, ServerHandshakePayload> CODEC = StreamCodec.composite(
++            ByteBufCodecs.map(Maps::newHashMapWithExpectedSize, ResourceLocation.STREAM_CODEC, PRIMITIVE_STREAM_CODEC),
++            ServerHandshakePayload::serverConfig,
++            ByteBufCodecs.registry(Registries.BLOCK).apply(ByteBufCodecs.list()),
++            ServerHandshakePayload::shearableBlocks,
++            ByteBufCodecs.<ByteBuf, ResourceLocation>list().apply(ResourceLocation.STREAM_CODEC),
++            ServerHandshakePayload::blockProviderIds,
++            ByteBufCodecs.<ByteBuf, ResourceLocation>list().apply(ResourceLocation.STREAM_CODEC),
++            ServerHandshakePayload::entityProviderIds,
++            ServerHandshakePayload::new);
++
++    @Override
++    public void write(FriendlyByteBuf buf) {
++        CODEC.encode(new RegistryFriendlyByteBuf(buf, MinecraftServer.getServer().registryAccess()), this);
++    }
++
++    @Override
++    public ResourceLocation id() {
++        return PACKET_SERVER_HANDSHAKE;
++    }
++}
++
+diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/payload/ServerPayloadContext.java b/src/main/java/org/leavesmc/leaves/protocol/jade/payload/ServerPayloadContext.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..5a552665cfda2eafe9b66486445832284250ab88
+--- /dev/null
++++ b/src/main/java/org/leavesmc/leaves/protocol/jade/payload/ServerPayloadContext.java
+@@ -0,0 +1,20 @@
++package org.leavesmc.leaves.protocol.jade.payload;
++
++
++import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket;
++import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
++import net.minecraft.server.level.ServerPlayer;
++
++import java.util.Objects;
++
++public interface ServerPayloadContext {
++    default void execute(Runnable runnable) {
++        Objects.requireNonNull(player().getServer()).execute(runnable);
++    }
++
++    default void sendPacket(CustomPacketPayload payload) {
++        player().connection.send(new ClientboundCustomPayloadPacket(payload));
++    }
++
++    ServerPlayer player();
 +}
 \ No newline at end of file
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/provider/IJadeProvider.java b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/IJadeProvider.java
@@ -2923,10 +3062,10 @@ index 0000000000000000000000000000000000000000..18f11e701189ce3615e08c631e31112d
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/util/CommonUtil.java b/src/main/java/org/leavesmc/leaves/protocol/jade/util/CommonUtil.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..f2a2fbf1037bbeff1ae222817918047ff3d9c27d
+index 0000000000000000000000000000000000000000..14c476cf0502f39d2cd7b4bb9a3a373e849a2bba
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/util/CommonUtil.java
-@@ -0,0 +1,100 @@
+@@ -0,0 +1,101 @@
 +package org.leavesmc.leaves.protocol.jade.util;
 +
 +import com.mojang.authlib.GameProfile;
@@ -2939,6 +3078,7 @@ index 0000000000000000000000000000000000000000..f2a2fbf1037bbeff1ae222817918047f
 +import net.minecraft.world.level.block.entity.BlockEntity;
 +import net.minecraft.world.level.block.entity.SkullBlockEntity;
 +import org.jetbrains.annotations.Nullable;
++import org.leavesmc.leaves.LeavesLogger;
 +import org.leavesmc.leaves.protocol.jade.accessor.Accessor;
 +import org.leavesmc.leaves.protocol.jade.accessor.BlockAccessor;
 +import org.leavesmc.leaves.protocol.jade.provider.IServerDataProvider;
@@ -3017,7 +3157,7 @@ index 0000000000000000000000000000000000000000..f2a2fbf1037bbeff1ae222817918047f
 +            try {
 +                groups = provider.getGroups(accessor);
 +            } catch (Exception e) {
-+                e.printStackTrace();
++                LeavesLogger.LOGGER.severe(e.toString());
 +                continue;
 +            }
 +            if (groups != null) {
@@ -3600,7 +3740,7 @@ index 0000000000000000000000000000000000000000..c811f89295964b1cb86c3eea39cd20f9
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/util/PairHierarchyLookup.java b/src/main/java/org/leavesmc/leaves/protocol/jade/util/PairHierarchyLookup.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..6db4c872ed2c24464a10b6854cb4acf35b370def
+index 0000000000000000000000000000000000000000..cb5c8201958b3f444d990082d7aac615090cc2a8
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/util/PairHierarchyLookup.java
 @@ -0,0 +1,120 @@
@@ -3658,7 +3798,7 @@ index 0000000000000000000000000000000000000000..6db4c872ed2c24464a10b6854cb4acf3
 +                );
 +            });
 +        } catch (ExecutionException e) {
-+            e.printStackTrace();
++            LeavesLogger.LOGGER.severe(e.toString());
 +        }
 +        return List.of();
 +    }

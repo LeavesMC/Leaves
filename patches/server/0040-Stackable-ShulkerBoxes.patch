@@ -5,8 +5,34 @@ Subject: [PATCH] Stackable ShulkerBoxes
 
 This patch is Powered by fabric-carpet(https://github.com/gnembon/fabric-carpet) and plusls-carpet-addition(https://github.com/plusls/plusls-carpet-addition)
 
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundContainerSetContentPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundContainerSetContentPacket.java
+index 8cca2ac616a2c80268c96b9f95e33f834a0fc8fd..bcca3fa530fd52238bc9444244b1f26a567f6fc4 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundContainerSetContentPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundContainerSetContentPacket.java
+@@ -23,7 +23,7 @@ public class ClientboundContainerSetContentPacket implements Packet<ClientGamePa
+         this.items = NonNullList.withSize(contents.size(), ItemStack.EMPTY);
+ 
+         for (int i = 0; i < contents.size(); i++) {
+-            this.items.set(i, contents.get(i).copy());
++            this.items.set(i, org.leavesmc.leaves.util.ShulkerBoxUtils.correctItemStackMaxStackSize(contents.get(i).copy())); // Leaves - stackable shulker boxes
+         }
+ 
+         this.carriedItem = cursorStack.copy();
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundContainerSetSlotPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundContainerSetSlotPacket.java
+index 63f6a2437da9363786b55af0a7cbc5373232d35b..a56c59815b8d970d31a71edf3bf1a9962b0a983c 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundContainerSetSlotPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundContainerSetSlotPacket.java
+@@ -21,7 +21,7 @@ public class ClientboundContainerSetSlotPacket implements Packet<ClientGamePacke
+         this.containerId = syncId;
+         this.stateId = revision;
+         this.slot = slot;
+-        this.itemStack = stack.copy();
++        this.itemStack = org.leavesmc.leaves.util.ShulkerBoxUtils.correctItemStackMaxStackSize(stack.copy()); // Leaves - stackable shulker boxes
+     }
+ 
+     private ClientboundContainerSetSlotPacket(RegistryFriendlyByteBuf buf) {
 diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index befeaac4786760f6847a5945da2296a3e68dbb17..1625d99c80df1bac8b6e17b137ea4b01eed50add 100644
+index 064d52d4479727c6a32bf357be8da32d1760e7fc..a90fc38ed741f19540e872ba3ac997f41608036f 100644
 --- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 @@ -3415,7 +3415,7 @@ public class ServerGamePacketListenerImpl extends ServerCommonPacketListenerImpl
@@ -294,7 +320,7 @@ index c39c773112fb8b534b926f2f2b47fe6fbb69fcb2..ae9338b8a5598e7a257b469adae72858
  
      @Nullable
 diff --git a/src/main/java/net/minecraft/world/item/ItemStack.java b/src/main/java/net/minecraft/world/item/ItemStack.java
-index eec0ec43590be7e8ae5b530a7404c98b5e23cb53..2a2b9631a16c16f41261b7e042acd14d600df230 100644
+index 522b817f23f08eb720fe9d05eec7f548d2761603..a0879f03e8f1477d2c45bd4754f4d9171774a8a1 100644
 --- a/src/main/java/net/minecraft/world/item/ItemStack.java
 +++ b/src/main/java/net/minecraft/world/item/ItemStack.java
 @@ -225,7 +225,7 @@ public final class ItemStack implements DataComponentHolder {
@@ -392,10 +418,10 @@ index f7a6296773defc95215bdf36d8ea105cf9590a9e..5f394cda052271b6ecfafc325733e5ae
                  ignoreTileUpdates = true; // Paper - Perf: Optimize Hoppers
 diff --git a/src/main/java/org/leavesmc/leaves/util/ShulkerBoxUtils.java b/src/main/java/org/leavesmc/leaves/util/ShulkerBoxUtils.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..eb31cd1dc9598f3915f25b6920a80fa2ebccdf62
+index 0000000000000000000000000000000000000000..bcb13315000a16f4f2dbdcbef751940743ce297d
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/util/ShulkerBoxUtils.java
-@@ -0,0 +1,28 @@
+@@ -0,0 +1,38 @@
 +package org.leavesmc.leaves.util;
 +
 +import net.minecraft.core.component.DataComponents;
@@ -418,6 +444,16 @@ index 0000000000000000000000000000000000000000..eb31cd1dc9598f3915f25b6920a80fa2
 +            return org.leavesmc.leaves.LeavesConfig.shulkerBoxStackSize;
 +        }
 +        return stack.getMaxStackSize();
++    }
++
++    public static net.minecraft.world.item.ItemStack correctItemStackMaxStackSize(net.minecraft.world.item.ItemStack itemStack) {
++        int trulyMaxStackSize = org.leavesmc.leaves.util.ShulkerBoxUtils.getItemStackMaxCount(itemStack);
++        if (itemStack.getMaxStackSize() != trulyMaxStackSize) {
++            org.bukkit.inventory.ItemStack bkStack = org.bukkit.craftbukkit.inventory.CraftItemStack.asBukkitCopy(itemStack);
++            bkStack.editMeta(meta -> meta.setMaxStackSize(trulyMaxStackSize));
++            itemStack = org.bukkit.craftbukkit.inventory.CraftItemStack.asNMSCopy(bkStack);
++        }
++        return itemStack;
 +    }
 +
 +    public static boolean isStackable(ItemStack itemStack) {

@@ -1,0 +1,137 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Lumine1909 <133463833+Lumine1909@users.noreply.github.com>
+Date: Fri, 9 Aug 2024 04:25:11 +0800
+Subject: [PATCH] Recorder API
+
+
+diff --git a/src/main/java/org/leavesmc/leaves/recorder/RecorderAPI.java b/src/main/java/org/leavesmc/leaves/recorder/RecorderAPI.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..cf5d88ff2c63f13c7130a754eabe82650bb17948
+--- /dev/null
++++ b/src/main/java/org/leavesmc/leaves/recorder/RecorderAPI.java
+@@ -0,0 +1,19 @@
++package org.leavesmc.leaves.recorder;
++
++import net.minecraft.server.level.ServerPlayer;
++
++import java.io.File;
++import java.util.HashMap;
++import java.util.Map;
++
++public class RecorderAPI {
++
++    private static Map<ServerPlayer, RecorderStream> recordingPlayer = new HashMap<>();
++
++    public static RecorderStream getOrCreateStream(ServerPlayer player, File file) {
++        if (!recordingPlayer.containsKey(player)) {
++            recordingPlayer.put(player, new RecorderStream(player, file));
++        }
++        return recordingPlayer.get(player);
++    }
++}
+diff --git a/src/main/java/org/leavesmc/leaves/recorder/RecorderStream.java b/src/main/java/org/leavesmc/leaves/recorder/RecorderStream.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..7ce3700a513dab8de2d6ddb75829e30df34fe876
+--- /dev/null
++++ b/src/main/java/org/leavesmc/leaves/recorder/RecorderStream.java
+@@ -0,0 +1,100 @@
++package org.leavesmc.leaves.recorder;
++
++import io.netty.buffer.ByteBuf;
++import io.netty.channel.ChannelHandlerContext;
++import io.netty.channel.ChannelOutboundHandlerAdapter;
++import io.netty.channel.ChannelPromise;
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.world.entity.player.Player;
++import org.leavesmc.leaves.replay.DigestOutputStream;
++
++import java.io.BufferedOutputStream;
++import java.io.DataOutputStream;
++import java.io.File;
++import java.io.FileOutputStream;
++import java.io.IOException;
++import java.util.concurrent.ExecutorService;
++import java.util.concurrent.Executors;
++import java.util.zip.CRC32;
++
++public class RecorderStream {
++
++    private class RecorderInterceptor extends ChannelOutboundHandlerAdapter {
++
++        @Override
++        public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
++            if (isRecording) {
++                savePacket(getCurrentTimeAndUpdate(), (ByteBuf) msg);
++            }
++            super.write(ctx, msg, promise);
++        }
++    }
++
++    private static final ExecutorService saveService = Executors.newVirtualThreadPerTaskExecutor();
++
++    private final ServerPlayer player;
++    private final DataOutputStream packetOutStream;
++
++    private boolean isRecording = false;
++    private boolean paused = false;
++    private boolean resumeOnNextPacket = true;
++
++    private long startTime;
++    private long lastPacket;
++    private long timeShift = 0;
++
++
++    RecorderStream(ServerPlayer player, File output) {
++        try {
++            this.player = player;
++            packetOutStream = new DataOutputStream(new DigestOutputStream(new BufferedOutputStream(new FileOutputStream(output)), new CRC32()));
++        } catch (IOException e) {
++            throw new RuntimeException(e);
++        }
++        player.connection.connection.channel.pipeline().addBefore("encoder", "recorder", new RecorderInterceptor());
++    }
++
++    private synchronized long getCurrentTimeAndUpdate() {
++        long now = getRecordedTime();
++        if (paused) {
++            if (resumeOnNextPacket) {
++                paused = false;
++            }
++            timeShift += now - lastPacket;
++            return lastPacket;
++        }
++        return lastPacket = now;
++    }
++
++    public long getRecordedTime() {
++        final long base = System.currentTimeMillis() - startTime;
++        return base - timeShift;
++    }
++
++    private void savePacket(long timestamp, ByteBuf packetbuf) {
++        saveService.submit(() -> {
++            byte[] data = packetbuf.array();
++            try {
++                packetOutStream.writeInt((int) timestamp);
++                packetOutStream.writeInt(data.length);
++                packetOutStream.write(data);
++            } catch (IOException e) {
++                throw new RuntimeException(e);
++            }
++        });
++    }
++
++    public void startRecording() {
++        isRecording = true;
++        startTime = System.currentTimeMillis();
++    }
++
++    public void stopRecording() {
++        isRecording = false;
++    }
++
++    public void close() throws IOException {
++        player.connection.connection.channel.pipeline().remove("encoder");
++        packetOutStream.close();
++    }
++}

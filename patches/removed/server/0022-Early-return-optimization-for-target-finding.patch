@@ -1,0 +1,30 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Sun, 14 Aug 2022 17:16:19 +0800
+Subject: [PATCH] Early return optimization for target finding
+
+This patch is Powered by Pufferfish(https://github.com/pufferfish-gg/Pufferfish)
+
+diff --git a/src/main/java/net/minecraft/world/entity/ai/targeting/TargetingConditions.java b/src/main/java/net/minecraft/world/entity/ai/targeting/TargetingConditions.java
+index aecb0ad814586bfc5e56755ee14379a69388b38c..c618d7c87a0b2e2ee55cbe64cae80178fd8bd651 100644
+--- a/src/main/java/net/minecraft/world/entity/ai/targeting/TargetingConditions.java
++++ b/src/main/java/net/minecraft/world/entity/ai/targeting/TargetingConditions.java
+@@ -76,9 +76,17 @@ public class TargetingConditions {
+                 }
+ 
+                 if (this.range > 0.0) {
++                    // Leaves start - check range before getting visibility
++                    double f = baseEntity.distanceToSqr(targetEntity.getX(), targetEntity.getY(), targetEntity.getZ());
++                    if (org.leavesmc.leaves.LeavesConfig.entityTargetFindingOptimization) {
++                        double followRangeRaw = this.useFollowRange ? this.getFollowRange(baseEntity) : this.range;
++                        if (f > followRangeRaw * followRangeRaw) { // the actual follow range will always be this value or smaller, so if the distance is larger then it never will return true after getting invis
++                            return false;
++                        }
++                    }
++                    // Leaves end - check range before getting visibility
+                     double d = this.testInvisible ? targetEntity.getVisibilityPercent(baseEntity) : 1.0;
+                     double e = Math.max((this.useFollowRange ? this.getFollowRange(baseEntity) : this.range) * d, 2.0); // Paper - Fix MC-145656
+-                    double f = baseEntity.distanceToSqr(targetEntity.getX(), targetEntity.getY(), targetEntity.getZ());
+                     if (f > e * e) {
+                         return false;
+                     }

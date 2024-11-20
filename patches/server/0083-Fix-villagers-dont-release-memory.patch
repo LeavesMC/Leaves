@@ -4,28 +4,40 @@ Date: Sat, 22 Jul 2023 12:00:59 +0800
 Subject: [PATCH] Fix villagers dont release memory
 
 
+diff --git a/src/main/java/net/minecraft/world/entity/Entity.java b/src/main/java/net/minecraft/world/entity/Entity.java
+index fa536b952668de17ace1e1c7538c48004010f047..2a9ef9770e3b08ad0041593dcce04876b935bd25 100644
+--- a/src/main/java/net/minecraft/world/entity/Entity.java
++++ b/src/main/java/net/minecraft/world/entity/Entity.java
+@@ -4057,7 +4057,7 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
+         return this;
+     }
+ 
+-    private Entity teleportCrossDimension(ServerLevel world, TeleportTransition teleportTarget) {
++    protected Entity teleportCrossDimension(ServerLevel world, TeleportTransition teleportTarget) { // Leaves - private -> protected
+         List<Entity> list = this.getPassengers();
+         List<Entity> list1 = new ArrayList(list.size());
+ 
 diff --git a/src/main/java/net/minecraft/world/entity/npc/Villager.java b/src/main/java/net/minecraft/world/entity/npc/Villager.java
-index b7a34f1c4d7b5ef3f7a843d152e33c839dcdedd5..a98f9c22f8485ff3a9812cce19d47a0b08f2c054 100644
+index b7a34f1c4d7b5ef3f7a843d152e33c839dcdedd5..662c46e465feaf3917a93a6f8942febb25590922 100644
 --- a/src/main/java/net/minecraft/world/entity/npc/Villager.java
 +++ b/src/main/java/net/minecraft/world/entity/npc/Villager.java
-@@ -1045,4 +1045,20 @@ public class Villager extends AbstractVillager implements ReputationEventHandler
+@@ -1045,4 +1045,19 @@ public class Villager extends AbstractVillager implements ReputationEventHandler
              return worldTime - olong < 24000L;
          }).isPresent();
      }
 +
 +    // Leaves start - fixes a memory leak when villagers get moved to another world
-+    @Nullable
 +    @Override
-+    public Entity changeDimension(net.minecraft.world.level.portal.DimensionTransition destination) {
++    public Entity teleportCrossDimension(ServerLevel world, net.minecraft.world.level.portal.TeleportTransition transition) {
 +        if (org.leavesmc.leaves.LeavesConfig.villagersDontReleaseMemoryFix) {
 +            this.releaseAllPois();
 +            this.getBrain().eraseMemory(MemoryModuleType.HOME);
 +            this.getBrain().eraseMemory(MemoryModuleType.JOB_SITE);
 +            this.getBrain().eraseMemory(MemoryModuleType.POTENTIAL_JOB_SITE);
 +            this.getBrain().eraseMemory(MemoryModuleType.MEETING_POINT);
-+            this.refreshBrain(destination.newLevel());
++            this.refreshBrain(transition.newLevel());
 +        }
-+        return super.changeDimension(destination);
++        return super.teleportCrossDimension(world, transition);
 +    }
 +    // Leaves end - fixes a memory leak when villagers get moved to another world
  }

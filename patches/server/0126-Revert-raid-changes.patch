@@ -5,43 +5,26 @@ Subject: [PATCH] Revert raid changes
 
 
 diff --git a/src/main/java/net/minecraft/world/effect/BadOmenMobEffect.java b/src/main/java/net/minecraft/world/effect/BadOmenMobEffect.java
-index 038ee9e1ef4c7fc6a92efbba0f2ec9063c236df5..391be234ad2635cabb0eb39eecb1e07d2d872518 100644
+index e33e8db5f24437081d2026e66c13256aa3893a15..90060d6782e1169f540addcfdca00d1412b5cba6 100644
 --- a/src/main/java/net/minecraft/world/effect/BadOmenMobEffect.java
 +++ b/src/main/java/net/minecraft/world/effect/BadOmenMobEffect.java
-@@ -1,5 +1,6 @@
- package net.minecraft.world.effect;
- 
-+import net.minecraft.core.BlockPos;
- import net.minecraft.server.level.ServerLevel;
- import net.minecraft.server.level.ServerPlayer;
- import net.minecraft.world.Difficulty;
-@@ -20,6 +21,11 @@ class BadOmenMobEffect extends MobEffect {
-     public boolean applyEffectTick(LivingEntity entity, int amplifier) {
-         if (entity instanceof ServerPlayer serverPlayer && !serverPlayer.isSpectator()) {
-             ServerLevel serverLevel = serverPlayer.serverLevel();
+@@ -22,6 +22,11 @@ class BadOmenMobEffect extends MobEffect {
+             && !serverPlayer.isSpectator()
+             && world.getDifficulty() != Difficulty.PEACEFUL
+             && world.isVillage(serverPlayer.blockPosition())) {
 +            // Leaves start - Revert raid changes
 +            if (org.leavesmc.leaves.LeavesConfig.allowBadOmenTriggerRaid) {
-+                return this.legacyApplyEffectTick(serverPlayer, serverLevel);
++                return world.getRaids().createOrExtendRaid(serverPlayer, serverPlayer.blockPosition()) != null;
 +            }
 +            // Leaves end - Revert raid changes
-             if (serverLevel.getDifficulty() != Difficulty.PEACEFUL && serverLevel.isVillage(serverPlayer.blockPosition())) {
-                 Raid raid = serverLevel.getRaidAt(serverPlayer.blockPosition());
-                 if (raid == null || raid.getRaidOmenLevel() < raid.getMaxRaidOmenLevel()) {
-@@ -32,4 +38,9 @@ class BadOmenMobEffect extends MobEffect {
- 
-         return true;
-     }
-+
-+    private boolean legacyApplyEffectTick(ServerPlayer player, ServerLevel world) {
-+        BlockPos blockPos = player.blockPosition();
-+        return world.getDifficulty() == Difficulty.PEACEFUL || !world.isVillage(blockPos) || world.getRaids().createOrExtendRaid(player, blockPos) == null;
-+    }
- }
+             Raid raid = world.getRaidAt(serverPlayer.blockPosition());
+             if (raid == null || raid.getRaidOmenLevel() < raid.getMaxRaidOmenLevel()) {
+                 serverPlayer.addEffect(new MobEffectInstance(MobEffects.RAID_OMEN, 600, amplifier));
 diff --git a/src/main/java/net/minecraft/world/entity/raid/Raider.java b/src/main/java/net/minecraft/world/entity/raid/Raider.java
-index 6e68f8fa8280a106b1a262d86aa130e89d4f5cce..2401ebf4f2cbc841c7938eba2e0bd7dd54124c9e 100644
+index 18e4c53cb5c65647c3633ab41305a593fdc67c02..73406fee7cf7cdf371e6b098e9f9ad9390806536 100644
 --- a/src/main/java/net/minecraft/world/entity/raid/Raider.java
 +++ b/src/main/java/net/minecraft/world/entity/raid/Raider.java
-@@ -16,8 +16,11 @@ import net.minecraft.network.syncher.EntityDataSerializers;
+@@ -17,8 +17,11 @@ import net.minecraft.network.syncher.EntityDataSerializers;
  import net.minecraft.network.syncher.SynchedEntityData;
  import net.minecraft.server.level.ServerLevel;
  import net.minecraft.sounds.SoundEvent;
@@ -51,9 +34,9 @@ index 6e68f8fa8280a106b1a262d86aa130e89d4f5cce..2401ebf4f2cbc841c7938eba2e0bd7dd
 +import net.minecraft.world.effect.MobEffectInstance;
 +import net.minecraft.world.effect.MobEffects;
  import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.entity.EntitySpawnReason;
  import net.minecraft.world.entity.EntityType;
- import net.minecraft.world.entity.EquipmentSlot;
-@@ -30,10 +33,13 @@ import net.minecraft.world.entity.ai.targeting.TargetingConditions;
+@@ -32,10 +35,13 @@ import net.minecraft.world.entity.ai.targeting.TargetingConditions;
  import net.minecraft.world.entity.ai.util.DefaultRandomPos;
  import net.minecraft.world.entity.ai.village.poi.PoiManager;
  import net.minecraft.world.entity.ai.village.poi.PoiTypes;
@@ -66,8 +49,8 @@ index 6e68f8fa8280a106b1a262d86aa130e89d4f5cce..2401ebf4f2cbc841c7938eba2e0bd7dd
 +import net.minecraft.world.level.GameRules;
  import net.minecraft.world.level.Level;
  import net.minecraft.world.level.ServerLevelAccessor;
- import net.minecraft.world.phys.Vec3;
-@@ -131,6 +137,43 @@ public abstract class Raider extends PatrollingMonster {
+ import net.minecraft.world.level.pathfinder.Path;
+@@ -134,6 +140,43 @@ public abstract class Raider extends PatrollingMonster {
  
                  raid.removeFromRaid(this, false);
              }

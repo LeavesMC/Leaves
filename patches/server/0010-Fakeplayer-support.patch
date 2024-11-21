@@ -1638,10 +1638,10 @@ index 0000000000000000000000000000000000000000..4f5e6e5c1b9d8bd38c98e97fd31b3833
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/BotList.java b/src/main/java/org/leavesmc/leaves/bot/BotList.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..bb33cad06036f188bd9228556fff6256391085c0
+index 0000000000000000000000000000000000000000..3eac675dccfa992d0aad4ebb84fcf6357761be2e
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/BotList.java
-@@ -0,0 +1,340 @@
+@@ -0,0 +1,297 @@
 +package org.leavesmc.leaves.bot;
 +
 +import com.google.common.collect.Maps;
@@ -1659,7 +1659,6 @@ index 0000000000000000000000000000000000000000..bb33cad06036f188bd9228556fff6256
 +import net.minecraft.server.level.ServerLevel;
 +import net.minecraft.server.level.ServerPlayer;
 +import net.minecraft.world.entity.Entity;
-+import net.minecraft.world.entity.EntityType;
 +import net.minecraft.world.level.Level;
 +import org.bukkit.Bukkit;
 +import org.bukkit.Location;
@@ -1675,7 +1674,6 @@ index 0000000000000000000000000000000000000000..bb33cad06036f188bd9228556fff6256
 +import org.leavesmc.leaves.event.bot.BotSpawnLocationEvent;
 +import org.slf4j.Logger;
 +
-+import java.util.Iterator;
 +import java.util.List;
 +import java.util.Locale;
 +import java.util.Map;
@@ -1762,7 +1760,10 @@ index 0000000000000000000000000000000000000000..bb33cad06036f188bd9228556fff6256
 +    }
 +
 +    public ServerBot placeNewBot(ServerBot bot, ServerLevel world, Location location, @Nullable CompoundTag nbt) {
++        Optional<CompoundTag> optional = Optional.ofNullable(nbt);
++
 +        bot.isRealPlayer = true;
++        bot.loginTime = System.currentTimeMillis();
 +        bot.connection = new ServerBotPacketListenerImpl(this.server, bot);
 +        bot.setServerLevel(world);
 +
@@ -1771,10 +1772,12 @@ index 0000000000000000000000000000000000000000..bb33cad06036f188bd9228556fff6256
 +        location = event.getSpawnLocation();
 +
 +        bot.spawnIn(world);
-+        bot.gameMode.setLevel((ServerLevel) bot.level());
++        bot.gameMode.setLevel(bot.serverLevel());
 +
 +        bot.setPosRaw(location.getX(), location.getY(), location.getZ());
 +        bot.setRot(location.getYaw(), location.getPitch());
++
++        bot.connection.teleport(bot.getX(), bot.getY(), bot.getZ(), bot.getYRot(), bot.getXRot());
 +
 +        this.bots.add(bot);
 +        this.botsByName.put(bot.getScoreboardName().toLowerCase(Locale.ROOT), bot);
@@ -1782,7 +1785,8 @@ index 0000000000000000000000000000000000000000..bb33cad06036f188bd9228556fff6256
 +
 +        bot.supressTrackerForLogin = true;
 +        world.addNewPlayer(bot);
-+        this.mountSavedVehicle(bot, world, nbt);
++        bot.loadAndSpawnEnderpearls(optional);
++        bot.loadAndSpawnParentVehicle(optional);
 +
 +        BotJoinEvent event1 = new BotJoinEvent(bot.getBukkitEntity(), PaperAdventure.asAdventure(Component.translatable("multiplayer.player.joined", bot.getDisplayName())).style(Style.style(NamedTextColor.YELLOW)));
 +        this.server.server.getPluginManager().callEvent(event1);
@@ -1794,57 +1798,10 @@ index 0000000000000000000000000000000000000000..bb33cad06036f188bd9228556fff6256
 +
 +        bot.renderAll();
 +        bot.supressTrackerForLogin = false;
++
 +        bot.serverLevel().getChunkSource().chunkMap.addEntity(bot);
 +        BotList.LOGGER.info("{}[{}] logged in with entity id {} at ([{}]{}, {}, {})", bot.getName().getString(), "Local", bot.getId(), bot.serverLevel().serverLevelData.getLevelName(), bot.getX(), bot.getY(), bot.getZ());
 +        return bot;
-+    }
-+
-+    private void mountSavedVehicle(ServerPlayer player, ServerLevel worldserver1, @Nullable CompoundTag nbt) {
-+        Optional<CompoundTag> optional = Optional.ofNullable(nbt);
-+        if (optional.isPresent() && optional.get().contains("RootVehicle", 10)) {
-+            CompoundTag nbttagcompound = optional.get().getCompound("RootVehicle");
-+            Entity entity = EntityType.loadEntityRecursive(nbttagcompound.getCompound("Entity"), worldserver1, (entity1) -> {
-+                return !worldserver1.addWithUUID(entity1, org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.MOUNT) ? null : entity1;
-+            });
-+
-+            if (entity != null) {
-+                UUID uuid;
-+
-+                if (nbttagcompound.hasUUID("Attach")) {
-+                    uuid = nbttagcompound.getUUID("Attach");
-+                } else {
-+                    uuid = null;
-+                }
-+
-+                Iterator<Entity> iterator;
-+                Entity entity1;
-+
-+                if (entity.getUUID().equals(uuid)) {
-+                    player.startRiding(entity, true);
-+                } else {
-+                    iterator = entity.getIndirectPassengers().iterator();
-+
-+                    while (iterator.hasNext()) {
-+                        entity1 = iterator.next();
-+                        if (entity1.getUUID().equals(uuid)) {
-+                            player.startRiding(entity1, true);
-+                            break;
-+                        }
-+                    }
-+                }
-+
-+                if (!player.isPassenger()) {
-+                    BotList.LOGGER.warn("Couldn't reattach entity to fakeplayer");
-+                    entity.discard();
-+                    iterator = entity.getIndirectPassengers().iterator();
-+
-+                    while (iterator.hasNext()) {
-+                        entity1 = iterator.next();
-+                        entity1.discard();
-+                    }
-+                }
-+            }
-+        }
 +    }
 +
 +    public boolean removeBot(@NotNull ServerBot bot, @NotNull BotRemoveEvent.RemoveReason reason, @Nullable CommandSender remover, boolean saved) {

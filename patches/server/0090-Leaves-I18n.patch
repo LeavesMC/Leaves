@@ -5,28 +5,30 @@ Subject: [PATCH] Leaves I18n
 
 
 diff --git a/src/main/java/net/minecraft/locale/Language.java b/src/main/java/net/minecraft/locale/Language.java
-index 93bf8a8adbf9082982fa01fc999d14d11afe0168..a5ecd14ebc36cc88b1f9ac930e8cdb4448547f2b 100644
+index 93bf8a8adbf9082982fa01fc999d14d11afe0168..f2ed44f4cf7ac490424ae84d21b3a4644f52acfd 100644
 --- a/src/main/java/net/minecraft/locale/Language.java
 +++ b/src/main/java/net/minecraft/locale/Language.java
-@@ -31,6 +31,41 @@ public abstract class Language {
+@@ -31,6 +31,42 @@ public abstract class Language {
      public static final String DEFAULT = "en_us";
      private static volatile Language instance = loadDefault();
  
 +    // Leaves start - i18n
 +    public static void loadI18N(String lang) {
-+        ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
-+        BiConsumer<String, String> biConsumer = builder::put;
++        DeprecatedTranslationsInfo deprecatedTranslationsInfo = DeprecatedTranslationsInfo.loadFromDefaultResource();
++        Map<String, String> map = new HashMap<>();
++        BiConsumer<String, String> biConsumer = map::put;
 +        parseTranslations(biConsumer, "/assets/minecraft/lang/" + lang + ".json");
-+        final Map<String, String> map = builder.build();
++        deprecatedTranslationsInfo.applyToMap(map);
++        final Map<String, String> map2 = Map.copyOf(map);
 +        Language language = new Language() {
 +            @Override
 +            public String getOrDefault(String key, String fallback) {
-+                return map.getOrDefault(key, fallback);
++                return map2.getOrDefault(key, fallback);
 +            }
 +
 +            @Override
 +            public boolean has(String key) {
-+                return map.containsKey(key);
++                return map2.containsKey(key);
 +            }
 +
 +            @Override
@@ -36,11 +38,10 @@ index 93bf8a8adbf9082982fa01fc999d14d11afe0168..a5ecd14ebc36cc88b1f9ac930e8cdb44
 +
 +            @Override
 +            public FormattedCharSequence getVisualOrder(FormattedText text) {
-+                return (visitor) -> {
-+                    return text.visit((style, string) -> {
-+                        return StringDecomposer.iterateFormatted(string, style, visitor) ? Optional.empty() : FormattedText.STOP_ITERATION;
-+                    }, Style.EMPTY).isPresent();
-+                };
++                return visitor -> text.visit(
++                        (style, string) -> StringDecomposer.iterateFormatted(string, style, visitor) ? Optional.empty() : FormattedText.STOP_ITERATION,
++                        Style.EMPTY
++                ).isPresent();
 +            }
 +        };
 +        inject(language);

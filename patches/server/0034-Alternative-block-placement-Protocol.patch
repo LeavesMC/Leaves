@@ -102,10 +102,10 @@ index 48ced9994219dc21d593a7deaa0a318f55dd00c7..c6e872633f6044e9c8e2a63bcef6332d
          return this.defaultBlockState();
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/CarpetAlternativeBlockPlacement.java b/src/main/java/org/leavesmc/leaves/protocol/CarpetAlternativeBlockPlacement.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..03978356d2716296f8c5e4173d10862db57a3193
+index 0000000000000000000000000000000000000000..e5c5bee2518ff2843270979d36d264f17a5cf0a6
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/CarpetAlternativeBlockPlacement.java
-@@ -0,0 +1,162 @@
+@@ -0,0 +1,167 @@
 +package org.leavesmc.leaves.protocol;
 +
 +import net.minecraft.core.BlockPos;
@@ -128,7 +128,7 @@ index 0000000000000000000000000000000000000000..03978356d2716296f8c5e4173d10862d
 +import net.minecraft.world.level.block.state.BlockState;
 +import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 +import net.minecraft.world.level.block.state.properties.ComparatorMode;
-+import net.minecraft.world.level.block.state.properties.DirectionProperty;
++import net.minecraft.world.level.block.state.properties.EnumProperty;
 +import net.minecraft.world.level.block.state.properties.Half;
 +import net.minecraft.world.level.block.state.properties.Property;
 +import net.minecraft.world.level.block.state.properties.SlabType;
@@ -152,7 +152,7 @@ index 0000000000000000000000000000000000000000..03978356d2716296f8c5e4173d10862d
 +            return null;
 +        }
 +
-+        DirectionProperty directionProp = getFirstDirectionProperty(state);
++        EnumProperty<Direction> directionProp = getFirstDirectionProperty(state);
 +        int protocolValue = ((int) relativeHitX - 2) / 2;
 +
 +        if (directionProp != null) {
@@ -209,7 +209,8 @@ index 0000000000000000000000000000000000000000..03978356d2716296f8c5e4173d10862d
 +        return state;
 +    }
 +
-+    public static BlockState alternativeBlockPlacementFix(Block block, BlockPlaceContext context) {
++    @Nullable
++    public static BlockState alternativeBlockPlacementFix(Block block, @NotNull BlockPlaceContext context) {
 +        Direction facing;
 +        Vec3 vec3d = context.getClickLocation();
 +        BlockPos pos = context.getClickedPos();
@@ -258,22 +259,26 @@ index 0000000000000000000000000000000000000000..03978356d2716296f8c5e4173d10862d
 +        return null;
 +    }
 +
++    @SuppressWarnings("unchecked")
 +    @Nullable
-+    public static DirectionProperty getFirstDirectionProperty(@NotNull BlockState state) {
++    public static EnumProperty<Direction> getFirstDirectionProperty(@NotNull BlockState state) {
 +        for (Property<?> prop : state.getProperties()) {
-+            if (prop instanceof DirectionProperty) {
-+                return (DirectionProperty) prop;
++            if (prop instanceof EnumProperty<?> enumProperty) {
++                if (enumProperty.getValueClass().equals(Direction.class)) {
++                    return (EnumProperty<Direction>) enumProperty;
++                }
 +            }
 +        }
++
 +        return null;
 +    }
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/LitematicaEasyPlaceProtocol.java b/src/main/java/org/leavesmc/leaves/protocol/LitematicaEasyPlaceProtocol.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..92f90ebf04f00341360e9e0ba1da5e0a4688f9eb
+index 0000000000000000000000000000000000000000..eceb1b8322fa50809990636e6caed491828e2fd6
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/LitematicaEasyPlaceProtocol.java
-@@ -0,0 +1,209 @@
+@@ -0,0 +1,214 @@
 +package org.leavesmc.leaves.protocol;
 +
 +import com.google.common.collect.ImmutableSet;
@@ -287,10 +292,11 @@ index 0000000000000000000000000000000000000000..92f90ebf04f00341360e9e0ba1da5e0a
 +import net.minecraft.world.level.block.BedBlock;
 +import net.minecraft.world.level.block.state.BlockState;
 +import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-+import net.minecraft.world.level.block.state.properties.DirectionProperty;
++import net.minecraft.world.level.block.state.properties.EnumProperty;
 +import net.minecraft.world.level.block.state.properties.Property;
 +import net.minecraft.world.level.block.state.properties.SlabType;
 +import net.minecraft.world.phys.Vec3;
++import org.jetbrains.annotations.NotNull;
 +import org.leavesmc.leaves.LeavesLogger;
 +
 +import javax.annotation.Nullable;
@@ -311,6 +317,8 @@ index 0000000000000000000000000000000000000000..92f90ebf04f00341360e9e0ba1da5e0a
 +            BlockStateProperties.CHEST_TYPE,
 +            BlockStateProperties.MODE_COMPARATOR,
 +            BlockStateProperties.DOOR_HINGE,
++            BlockStateProperties.FACING_HOPPER,
++            BlockStateProperties.HORIZONTAL_FACING,
 +            BlockStateProperties.ORIENTATION,
 +            BlockStateProperties.RAIL_SHAPE,
 +            BlockStateProperties.RAIL_SHAPE_STRAIGHT,
@@ -326,14 +334,15 @@ index 0000000000000000000000000000000000000000..92f90ebf04f00341360e9e0ba1da5e0a
 +        return applyPlacementProtocolV3(state, UseContext.from(context, context.getHand()));
 +    }
 +
-+    private static <T extends Comparable<T>> BlockState applyPlacementProtocolV3(BlockState state, UseContext context) {
++    @Nullable
++    private static <T extends Comparable<T>> BlockState applyPlacementProtocolV3(BlockState state, @NotNull UseContext context) {
 +        int protocolValue = (int) (context.getHitVec().x - (double) context.getPos().getX()) - 2;
 +        BlockState oldState = state;
 +        if (protocolValue < 0) {
 +            return oldState;
 +        }
 +
-+        @Nullable DirectionProperty property = CarpetAlternativeBlockPlacement.getFirstDirectionProperty(state);
++        EnumProperty<Direction> property = CarpetAlternativeBlockPlacement.getFirstDirectionProperty(state);
 +
 +        if (property != null && property != BlockStateProperties.VERTICAL_DIRECTION) {
 +            state = applyDirectionProperty(state, context, property, protocolValue);
@@ -358,7 +367,7 @@ index 0000000000000000000000000000000000000000..92f90ebf04f00341360e9e0ba1da5e0a
 +
 +        try {
 +            for (Property<?> p : propList) {
-+                if (!(p instanceof DirectionProperty) && WHITELISTED_PROPERTIES.contains(p)) {
++                if (((p instanceof EnumProperty<?> ep) && !ep.getValueClass().equals(Direction.class)) && WHITELISTED_PROPERTIES.contains(p)) {
 +                    @SuppressWarnings("unchecked")
 +                    Property<T> prop = (Property<T>) p;
 +                    List<T> list = new ArrayList<>(prop.getPossibleValues());
@@ -386,7 +395,7 @@ index 0000000000000000000000000000000000000000..92f90ebf04f00341360e9e0ba1da5e0a
 +                }
 +            }
 +        } catch (Exception e) {
-+            LeavesLogger.LOGGER.warning("Exception trying to apply placement protocol value");
++            LeavesLogger.LOGGER.warning("Exception trying to apply placement protocol value", e);
 +        }
 +
 +        if (state.canSurvive(context.getWorld(), context.getPos())) {
@@ -396,7 +405,7 @@ index 0000000000000000000000000000000000000000..92f90ebf04f00341360e9e0ba1da5e0a
 +        }
 +    }
 +
-+    private static BlockState applyDirectionProperty(BlockState state, UseContext context, DirectionProperty property, int protocolValue) {
++    private static BlockState applyDirectionProperty(BlockState state, UseContext context, EnumProperty<Direction> property, int protocolValue) {
 +        Direction facingOrig = state.getValue(property);
 +        Direction facing = facingOrig;
 +        int decodedFacingIndex = (protocolValue & 0xF) >> 1;
@@ -448,7 +457,8 @@ index 0000000000000000000000000000000000000000..92f90ebf04f00341360e9e0ba1da5e0a
 +            this.itemPlacementContext = itemPlacementContext;
 +        }
 +
-+        public static UseContext from(BlockPlaceContext ctx, InteractionHand hand) {
++        @NotNull
++        public static UseContext from(@NotNull BlockPlaceContext ctx, InteractionHand hand) {
 +            Vec3 pos = ctx.getClickLocation();
 +            return new UseContext(ctx.getLevel(), ctx.getClickedPos(), ctx.getClickedFace(), new Vec3(pos.x, pos.y, pos.z), ctx.getPlayer(), hand, ctx);
 +        }

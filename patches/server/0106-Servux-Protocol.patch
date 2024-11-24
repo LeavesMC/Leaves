@@ -141,10 +141,10 @@ index 0000000000000000000000000000000000000000..3a0e790f0d8e6866950601f9936984a8
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/servux/ServuxEntityDataProtocol.java b/src/main/java/org/leavesmc/leaves/protocol/servux/ServuxEntityDataProtocol.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..ffa483d369760faeb73555f9a93dac5f38c24530
+index 0000000000000000000000000000000000000000..344496a4dc2f5064b014581a98e4e5a563f5952a
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/servux/ServuxEntityDataProtocol.java
-@@ -0,0 +1,295 @@
+@@ -0,0 +1,278 @@
 +package org.leavesmc.leaves.protocol.servux;
 +
 +import io.netty.buffer.Unpooled;
@@ -157,7 +157,6 @@ index 0000000000000000000000000000000000000000..ffa483d369760faeb73555f9a93dac5f
 +import net.minecraft.server.level.ServerPlayer;
 +import net.minecraft.util.RandomSource;
 +import net.minecraft.world.entity.Entity;
-+import net.minecraft.world.level.ChunkPos;
 +import net.minecraft.world.level.block.entity.BlockEntity;
 +import org.leavesmc.leaves.LeavesConfig;
 +import org.leavesmc.leaves.LeavesLogger;
@@ -167,7 +166,6 @@ index 0000000000000000000000000000000000000000..ffa483d369760faeb73555f9a93dac5f
 +import org.leavesmc.leaves.protocol.core.ProtocolUtils;
 +
 +import java.util.HashMap;
-+import java.util.List;
 +import java.util.Map;
 +import java.util.UUID;
 +
@@ -290,9 +288,7 @@ index 0000000000000000000000000000000000000000..ffa483d369760faeb73555f9a93dac5f
 +        PACKET_S2C_NBT_RESPONSE_DATA(11),
 +        // For Packet Splitter (Oversize Packets, C2S)
 +        PACKET_C2S_NBT_RESPONSE_START(12),
-+        PACKET_C2S_NBT_RESPONSE_DATA(13),
-+        PACKET_C2S_LITEMATICA_PASTE(14),
-+        PACKET_C2S_REQUEST_ALL_ENTITIES_IN_CHUNK(15);
++        PACKET_C2S_NBT_RESPONSE_DATA(13);
 +
 +        private static final class Helper {
 +            static Map<Integer, EntityDataPayloadType> ID_TO_TYPE = new HashMap<>();
@@ -313,12 +309,11 @@ index 0000000000000000000000000000000000000000..ffa483d369760faeb73555f9a93dac5f
 +    public static class EntityDataPayload implements LeavesCustomPayload<EntityDataPayload> {
 +
 +        private final EntityDataPayloadType packetType;
-+        private int transactionId;
++        private final int transactionId;
 +        private int entityId;
 +        private BlockPos pos;
 +        private CompoundTag nbt;
 +        private FriendlyByteBuf buffer;
-+        private List<ChunkPos> requestingChunks;
 +
 +        private EntityDataPayload(EntityDataPayloadType type) {
 +            this.packetType = type;
@@ -382,14 +377,6 @@ index 0000000000000000000000000000000000000000..ffa483d369760faeb73555f9a93dac5f
 +                        payload.nbt.merge(nbt);
 +                    }
 +                }
-+
-+                case PACKET_C2S_LITEMATICA_PASTE -> {
-+                    payload.nbt = buffer.readNbt();
-+                }
-+
-+                case PACKET_C2S_REQUEST_ALL_ENTITIES_IN_CHUNK -> {
-+                    payload.requestingChunks = buffer.readList(FriendlyByteBuf::readChunkPos);
-+                }
 +            }
 +
 +            return payload;
@@ -424,11 +411,7 @@ index 0000000000000000000000000000000000000000..ffa483d369760faeb73555f9a93dac5f
 +                    buf.writeBytes(this.buffer.readBytes(this.buffer.readableBytes()));
 +                }
 +
-+                case PACKET_C2S_REQUEST_ALL_ENTITIES_IN_CHUNK -> {
-+                    buf.writeCollection(this.requestingChunks, FriendlyByteBuf::writeChunkPos);
-+                }
-+
-+                case PACKET_C2S_METADATA_REQUEST, PACKET_S2C_METADATA, PACKET_C2S_LITEMATICA_PASTE -> {
++                case PACKET_C2S_METADATA_REQUEST, PACKET_S2C_METADATA -> {
 +                    buf.writeNbt(this.nbt);
 +                }
 +            }

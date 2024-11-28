@@ -47,7 +47,7 @@ index e693a003ea8f022eef8b49e4332025b769333b30..49e03ba7c04381e263aaee5cda9ed6c0
      private DisconnectionDetails disconnectionDetails;
      private boolean encrypted;
 diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
-index 4514eed161e1e68b6429f0f7f88226a8863aba57..59d4bc687af52ffb2b8529ce91a5703492fce96f 100644
+index 904b9527eb88e0ad1a691cfa4806b8c1816300d9..5c1c598044c872f1b198f32aca8eb7e67fa59e35 100644
 --- a/src/main/java/net/minecraft/server/MinecraftServer.java
 +++ b/src/main/java/net/minecraft/server/MinecraftServer.java
 @@ -330,6 +330,8 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
@@ -205,7 +205,7 @@ index bf6c75f9d858eb7f944d4e9b24c71e42aead1ae4..abaa89fdb80da461a9720a31d2bfae8e
              }
  
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-index cffbd3300967e5d80b5973b35a76235bb2aa1b73..d9f3f70973b2df7c81124ddc614b55e25481eebb 100644
+index cffbd3300967e5d80b5973b35a76235bb2aa1b73..ec61019771703a8366e893481c3368905bc7ee7f 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
 @@ -234,7 +234,7 @@ public class ServerPlayer extends net.minecraft.world.entity.player.Player imple
@@ -261,7 +261,7 @@ index cffbd3300967e5d80b5973b35a76235bb2aa1b73..d9f3f70973b2df7c81124ddc614b55e2
                  this.lastSentFood = -1;
  
 +                // Leaves start - bot support
-+                if (org.leavesmc.leaves.LeavesConfig.fakeplayerSupport) {
++                if (org.leavesmc.leaves.LeavesConfig.modify.fakeplayer.enable) {
 +                    this.server.getBotList().bots.forEach(bot -> bot.sendFakeDataIfNeed(this, true)); // Leaves - render bot
 +                }
 +                // Leaves end - bot support
@@ -270,7 +270,7 @@ index cffbd3300967e5d80b5973b35a76235bb2aa1b73..d9f3f70973b2df7c81124ddc614b55e2
                  PlayerChangedWorldEvent changeEvent = new PlayerChangedWorldEvent(this.getBukkitEntity(), worldserver1.getWorld());
                  this.level().getCraftServer().getPluginManager().callEvent(changeEvent);
 diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
-index 9b1645cf1fa47b8d7592c7eda4a4497ad9d6bbf8..9fef90a243f7da86a0de48091ef14b820ed8db90 100644
+index 9b1645cf1fa47b8d7592c7eda4a4497ad9d6bbf8..9b3fbc13779ded07c696e151772d834ff8d61a7d 100644
 --- a/src/main/java/net/minecraft/server/players/PlayerList.java
 +++ b/src/main/java/net/minecraft/server/players/PlayerList.java
 @@ -124,6 +124,8 @@ import org.bukkit.event.player.PlayerRespawnEvent.RespawnReason;
@@ -287,7 +287,7 @@ index 9b1645cf1fa47b8d7592c7eda4a4497ad9d6bbf8..9fef90a243f7da86a0de48091ef14b82
          org.leavesmc.leaves.protocol.core.LeavesProtocolManager.handlePlayerJoin(player); // Leaves - protocol
  
 +        // Leaves start - bot support
-+        if (org.leavesmc.leaves.LeavesConfig.fakeplayerSupport) {
++        if (org.leavesmc.leaves.LeavesConfig.modify.fakeplayer.enable) {
 +            ServerBot bot = this.server.getBotList().getBotByName(player.getScoreboardName());
 +            if (bot != null) {
 +                this.server.getBotList().removeBot(bot, org.leavesmc.leaves.event.bot.BotRemoveEvent.RemoveReason.INTERNAL, player.getBukkitEntity(), false);
@@ -307,7 +307,7 @@ index 9b1645cf1fa47b8d7592c7eda4a4497ad9d6bbf8..9fef90a243f7da86a0de48091ef14b82
          // Paper end - Add PlayerPostRespawnEvent
  
 +        // Leaves start - bot support
-+        if (org.leavesmc.leaves.LeavesConfig.fakeplayerSupport) {
++        if (org.leavesmc.leaves.LeavesConfig.modify.fakeplayer.enable) {
 +            this.server.getBotList().bots.forEach(bot -> bot.sendFakeDataIfNeed(entityplayer1, true)); // Leaves - render bot
 +        }
 +        // Leaves end - bot support
@@ -638,7 +638,7 @@ index deba03eb37012c638e08e20cd1c98e9db190c790..dd718bd472f3967c0b4e838468f4c454
              return event;
 diff --git a/src/main/java/org/leavesmc/leaves/bot/BotCommand.java b/src/main/java/org/leavesmc/leaves/bot/BotCommand.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..527f01b206dcf0e677ac7ec8c27ebf5fbc27a190
+index 0000000000000000000000000000000000000000..4bf25cb267a8d01c2d04a2a9e34b9fc6a433cade
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/BotCommand.java
 @@ -0,0 +1,544 @@
@@ -703,13 +703,13 @@ index 0000000000000000000000000000000000000000..527f01b206dcf0e677ac7ec8c27ebf5f
 +        if (args.length <= 1) {
 +            list.add("create");
 +            list.add("remove");
-+            if (LeavesConfig.fakeplayerUseAction) {
++            if (LeavesConfig.modify.fakeplayer.canUseAction) {
 +                list.add("action");
 +            }
-+            if (LeavesConfig.fakeplayerModifyConfig) {
++            if (LeavesConfig.modify.fakeplayer.canModifyConfig) {
 +                list.add("config");
 +            }
-+            if (LeavesConfig.fakeplayerManualSaveAndLoad) {
++            if (LeavesConfig.modify.fakeplayer.canManualSaveAndLoad) {
 +                list.add("save");
 +                list.add("load");
 +            }
@@ -779,7 +779,7 @@ index 0000000000000000000000000000000000000000..527f01b206dcf0e677ac7ec8c27ebf5f
 +
 +    @Override
 +    public boolean execute(@NotNull CommandSender sender, @NotNull String commandLabel, String[] args) {
-+        if (!testPermission(sender) || !LeavesConfig.fakeplayerSupport) return true;
++        if (!testPermission(sender) || !LeavesConfig.modify.fakeplayer.enable) return true;
 +
 +        if (args.length == 0) {
 +            sender.sendMessage(unknownMessage);
@@ -851,12 +851,12 @@ index 0000000000000000000000000000000000000000..527f01b206dcf0e677ac7ec8c27ebf5f
 +            return false;
 +        }
 +
-+        if (org.leavesmc.leaves.LeavesConfig.unableFakeplayerNames.contains(name)) {
++        if (LeavesConfig.modify.fakeplayer.unableNames.contains(name)) {
 +            sender.sendMessage(text("This name is not allowed", NamedTextColor.RED));
 +            return false;
 +        }
 +
-+        if (botList.bots.size() >= org.leavesmc.leaves.LeavesConfig.fakeplayerLimit) {
++        if (botList.bots.size() >= LeavesConfig.modify.fakeplayer.limit) {
 +            sender.sendMessage(text("Fakeplayer limit is full", NamedTextColor.RED));
 +            return false;
 +        }
@@ -939,7 +939,7 @@ index 0000000000000000000000000000000000000000..527f01b206dcf0e677ac7ec8c27ebf5f
 +    }
 +
 +    private void onAction(CommandSender sender, String @NotNull [] args) {
-+        if (!LeavesConfig.fakeplayerUseAction) {
++        if (!LeavesConfig.modify.fakeplayer.canUseAction) {
 +            return;
 +        }
 +
@@ -1051,7 +1051,7 @@ index 0000000000000000000000000000000000000000..527f01b206dcf0e677ac7ec8c27ebf5f
 +    private static final List<String> acceptConfig = Configs.getConfigs().stream().map(config -> config.config.getName()).toList();
 +
 +    private void onConfig(CommandSender sender, String @NotNull [] args) {
-+        if (!LeavesConfig.fakeplayerModifyConfig) {
++        if (!LeavesConfig.modify.fakeplayer.canModifyConfig) {
 +            return;
 +        }
 +
@@ -1096,7 +1096,7 @@ index 0000000000000000000000000000000000000000..527f01b206dcf0e677ac7ec8c27ebf5f
 +    }
 +
 +    private void onSave(CommandSender sender, String @NotNull [] args) {
-+        if (!LeavesConfig.fakeplayerManualSaveAndLoad) {
++        if (!LeavesConfig.modify.fakeplayer.canManualSaveAndLoad) {
 +            return;
 +        }
 +
@@ -1119,7 +1119,7 @@ index 0000000000000000000000000000000000000000..527f01b206dcf0e677ac7ec8c27ebf5f
 +    }
 +
 +    private void onLoad(CommandSender sender, String @NotNull [] args) {
-+        if (!LeavesConfig.fakeplayerManualSaveAndLoad) {
++        if (!LeavesConfig.modify.fakeplayer.canManualSaveAndLoad) {
 +            return;
 +        }
 +
@@ -1153,7 +1153,7 @@ index 0000000000000000000000000000000000000000..527f01b206dcf0e677ac7ec8c27ebf5f
 +                botMap.get(bukkitBot.getWorld()).add(bukkitBot.getName());
 +            }
 +
-+            sender.sendMessage("Total number: (" + botList.bots.size() + "/" + org.leavesmc.leaves.LeavesConfig.fakeplayerLimit + ")");
++            sender.sendMessage("Total number: (" + botList.bots.size() + "/" + LeavesConfig.modify.fakeplayer.limit + ")");
 +            for (World world : botMap.keySet()) {
 +                sender.sendMessage(world.getName() + "(" + botMap.get(world).size() + "): " + formatPlayerNameList(botMap.get(world)));
 +            }
@@ -1188,7 +1188,7 @@ index 0000000000000000000000000000000000000000..527f01b206dcf0e677ac7ec8c27ebf5f
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/BotCreateState.java b/src/main/java/org/leavesmc/leaves/bot/BotCreateState.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..ebb3aa94718382e8fac2a8fa617c796a9387709b
+index 0000000000000000000000000000000000000000..bc09bb05fdccc7e6e51f441b0c23237145317e89
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/BotCreateState.java
 @@ -0,0 +1,120 @@
@@ -1242,7 +1242,7 @@ index 0000000000000000000000000000000000000000..ebb3aa94718382e8fac2a8fa617c796a
 +            this.realName = realName;
 +            this.location = location;
 +
-+            this.name = LeavesConfig.fakeplayerPrefix + realName + LeavesConfig.fakeplayerSuffix;
++            this.name = LeavesConfig.modify.fakeplayer.prefix + realName + LeavesConfig.modify.fakeplayer.suffix;
 +            this.skinName = this.realName;
 +            this.skin = null;
 +            this.createReason = BotCreateEvent.CreateReason.UNKNOWN;
@@ -1638,7 +1638,7 @@ index 0000000000000000000000000000000000000000..4f5e6e5c1b9d8bd38c98e97fd31b3833
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/BotList.java b/src/main/java/org/leavesmc/leaves/bot/BotList.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..3eac675dccfa992d0aad4ebb84fcf6357761be2e
+index 0000000000000000000000000000000000000000..3881aa5c5bd18a8859715ad31624dbd5e92e5721
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/BotList.java
 @@ -0,0 +1,297 @@
@@ -1874,13 +1874,13 @@ index 0000000000000000000000000000000000000000..3eac675dccfa992d0aad4ebb84fcf635
 +
 +    public void removeAll() {
 +        for (ServerBot bot : this.bots) {
-+            bot.resume = LeavesConfig.fakeplayerResident;
-+            this.removeBot(bot, BotRemoveEvent.RemoveReason.INTERNAL, null, LeavesConfig.fakeplayerResident);
++            bot.resume = LeavesConfig.modify.fakeplayer.canResident;
++            this.removeBot(bot, BotRemoveEvent.RemoveReason.INTERNAL, null, LeavesConfig.modify.fakeplayer.canResident);
 +        }
 +    }
 +
 +    public void loadResume() {
-+        if (LeavesConfig.fakeplayerSupport && LeavesConfig.fakeplayerResident) {
++        if (LeavesConfig.modify.fakeplayer.enable && LeavesConfig.modify.fakeplayer.canResident) {
 +            CompoundTag savedBotList = this.getSavedBotList().copy();
 +            for (String realName : savedBotList.getAllKeys()) {
 +                CompoundTag nbt = savedBotList.getCompound(realName);
@@ -1918,11 +1918,11 @@ index 0000000000000000000000000000000000000000..3eac675dccfa992d0aad4ebb84fcf635
 +            return false;
 +        }
 +
-+        if (LeavesConfig.unableFakeplayerNames.contains(name)) {
++        if (LeavesConfig.modify.fakeplayer.unableNames.contains(name)) {
 +            return false;
 +        }
 +
-+        return this.bots.size() < LeavesConfig.fakeplayerLimit;
++        return this.bots.size() < LeavesConfig.modify.fakeplayer.limit;
 +    }
 +
 +    public static class CustomGameProfile extends GameProfile {
@@ -2081,7 +2081,7 @@ index 0000000000000000000000000000000000000000..7ebe4d6c71e90be92387a585ea581c6b
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/MojangAPI.java b/src/main/java/org/leavesmc/leaves/bot/MojangAPI.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..517e3321b866abe9d17a6fe9e919528b50bb130a
+index 0000000000000000000000000000000000000000..4162df8802b1af73d9a0a76f846ab9ad953a1921
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/MojangAPI.java
 @@ -0,0 +1,39 @@
@@ -2102,7 +2102,7 @@ index 0000000000000000000000000000000000000000..517e3321b866abe9d17a6fe9e919528b
 +    private static final Map<String, String[]> CACHE = new HashMap<>();
 +
 +    public static String[] getSkin(String name) {
-+        if (LeavesConfig.fakeplayerCacheSkin && CACHE.containsKey(name)) {
++        if (LeavesConfig.modify.fakeplayer.useSkinCache && CACHE.containsKey(name)) {
 +            return CACHE.get(name);
 +        }
 +
@@ -2126,7 +2126,7 @@ index 0000000000000000000000000000000000000000..517e3321b866abe9d17a6fe9e919528b
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/ServerBot.java b/src/main/java/org/leavesmc/leaves/bot/ServerBot.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..5ade407ff2f3f770592ace5a0f7c82e0a2228ad3
+index 0000000000000000000000000000000000000000..40f46253389bd75afeebcc7954c1132ac7e97298
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/ServerBot.java
 @@ -0,0 +1,561 @@
@@ -2240,7 +2240,7 @@ index 0000000000000000000000000000000000000000..5ade407ff2f3f770592ace5a0f7c82e0
 +        this.tracingRange = world.spigotConfig.playerTrackingRange * world.spigotConfig.playerTrackingRange;
 +
 +        this.notSleepTicks = 0;
-+        this.fauxSleeping = LeavesConfig.fakeplayerSkipSleep;
++        this.fauxSleeping = LeavesConfig.modify.fakeplayer.canSkipSleep;
 +    }
 +
 +    public void sendPlayerInfo(ServerPlayer player) {
@@ -2349,10 +2349,10 @@ index 0000000000000000000000000000000000000000..5ade407ff2f3f770592ace5a0f7c82e0
 +            notSleepTicks++;
 +        }
 +
-+        if (LeavesConfig.fakeplayerRegenAmount > 0.0 && server.getTickCount() % 20 == 0) {
++        if (LeavesConfig.modify.fakeplayer.regenAmount > 0.0 && server.getTickCount() % 20 == 0) {
 +            float health = getHealth();
 +            float maxHealth = getMaxHealth();
-+            float regenAmount = (float) (LeavesConfig.fakeplayerRegenAmount * 20);
++            float regenAmount = (float) (LeavesConfig.modify.fakeplayer.regenAmount * 20);
 +            float amount;
 +
 +            if (health < maxHealth - regenAmount) {
@@ -2385,7 +2385,7 @@ index 0000000000000000000000000000000000000000..5ade407ff2f3f770592ace5a0f7c82e0
 +
 +    @Override
 +    public @NotNull InteractionResult interact(@NotNull Player player, @NotNull InteractionHand hand) {
-+        if (LeavesConfig.openFakeplayerInventory) {
++        if (LeavesConfig.modify.fakeplayer.canOpenInventory) {
 +            if (player instanceof ServerPlayer player1 && player.getMainHandItem().isEmpty()) {
 +                BotInventoryOpenEvent event = new BotInventoryOpenEvent(this.getBukkitEntity(), player1.getBukkitEntity());
 +                this.server.server.getPluginManager().callEvent(event);
@@ -2647,14 +2647,14 @@ index 0000000000000000000000000000000000000000..5ade407ff2f3f770592ace5a0f7c82e0
 +    }
 +
 +    private void runAction() {
-+        if (LeavesConfig.fakeplayerUseAction) {
++        if (LeavesConfig.modify.fakeplayer.canUseAction) {
 +            this.actions.forEach(action -> action.tryTick(this));
 +            this.actions.removeIf(BotAction::isCancelled);
 +        }
 +    }
 +
 +    public boolean addBotAction(BotAction<?> action, CommandSender sender) {
-+        if (!LeavesConfig.fakeplayerUseAction) {
++        if (!LeavesConfig.modify.fakeplayer.canUseAction) {
 +            return false;
 +        }
 +
@@ -4177,7 +4177,7 @@ index 0000000000000000000000000000000000000000..f8334858a7a0572d1c3dcf5f04696fbb
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/configs/AlwaysSendDataConfig.java b/src/main/java/org/leavesmc/leaves/bot/agent/configs/AlwaysSendDataConfig.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..9a584603edbbe4ccd8a88c90ef3e9125480635f1
+index 0000000000000000000000000000000000000000..31f68872652b3ac217d3b4f56e3bdd778314c27a
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/agent/configs/AlwaysSendDataConfig.java
 @@ -0,0 +1,45 @@
@@ -4200,7 +4200,7 @@ index 0000000000000000000000000000000000000000..9a584603edbbe4ccd8a88c90ef3e9125
 +
 +    public AlwaysSendDataConfig() {
 +        super("always_send_data", CommandArgument.of(CommandArgumentType.BOOLEAN).setTabComplete(0, List.of("ture", "false")), AlwaysSendDataConfig::new);
-+        this.value = LeavesConfig.alwaysSendFakeplayerData;
++        this.value = LeavesConfig.modify.fakeplayer.canSendDataAlways;
 +    }
 +
 +    @Override
@@ -4329,7 +4329,7 @@ index 0000000000000000000000000000000000000000..0d934910cff745ea9a53d651e2007963
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/bot/agent/configs/SpawnPhantomConfig.java b/src/main/java/org/leavesmc/leaves/bot/agent/configs/SpawnPhantomConfig.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..a3f978318a67c3c5e147a50eb2b6c01c3f549dc2
+index 0000000000000000000000000000000000000000..983b358a5cc03f07d36a3924d55275294b9a727e
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/bot/agent/configs/SpawnPhantomConfig.java
 @@ -0,0 +1,51 @@
@@ -4351,7 +4351,7 @@ index 0000000000000000000000000000000000000000..a3f978318a67c3c5e147a50eb2b6c01c
 +
 +    public SpawnPhantomConfig() {
 +        super("spawn_phantom", CommandArgument.of(CommandArgumentType.BOOLEAN).setTabComplete(0, List.of("ture", "false")), SpawnPhantomConfig::new);
-+        this.value = LeavesConfig.fakeplayerSpawnPhantom;
++        this.value = LeavesConfig.modify.fakeplayer.canSpawnPhantom;
 +    }
 +
 +    @Override

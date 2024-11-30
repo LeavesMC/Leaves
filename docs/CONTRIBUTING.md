@@ -23,8 +23,8 @@ See also [This issue](https://github.com/isaacs/github/issues/1681), and then yo
 Before coding, you need these softwares / tools as Dev Environment.
 
 - `git`
-- `JDK 17 or higher`
-  - We used Gradle's toolchains, so you can build Leaves using JRE 8. (When Gradle can't find JDK 17, it will download it automatically.)
+- `JDK 21 or higher`
+  - We used Gradle's toolchains, so you can build Leaves using JRE 8. (When Gradle can't find JDK 21, it will download it automatically.)
 
 If you're using Windows Operating System, you can use `WSL` to speed up building.
 

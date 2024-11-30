@@ -1,7 +1,7 @@
 Leaves
 ===========
 
-[![Leaves CI](https://github.com/LeavesMC/Leaves/actions/workflows/leaves.yml/badge.svg)](https://github.com/LeavesMC/Leaves/actions/workflows/leaves.yml)
+[![Leaves CI](https://github.com/LeavesMC/Leaves/actions/workflows/build.yml/badge.svg)](https://github.com/LeavesMC/Leaves/actions/workflows/leaves.yml)
 [![Leaves Download](https://img.shields.io/github/downloads/LeavesMC/Leaves/total?color=0&logo=github)](https://github.com/LeavesMC/Leaves/releases/latest)
 [![Discord](https://badgen.net/discord/online-members/5hgtU72w33?icon=discord&label=Discord&list=what)](https://discord.gg/5hgtU72w33)
 [![QQ](https://img.shields.io/badge/QQ_Unofficial-815857713-blue)](http://qm.qq.com/cgi-bin/qm/qr?_wv=1027&k=nisbmnCFeEJCcYWBQ10th4Fu99XWklH4&authKey=8VlUxSdrFCIwmIpxFQIGR8%2BXvIQ2II%2Bx2JfxuQ8amr9UKgINh%2BdXjudQfc%2FIeTO5&noverify=0&group_code=815857713)
@@ -30,7 +30,7 @@ maven {
 }
 
 dependencies {
-    compileOnly("org.leavesmc.leaves:leaves-api:1.21-R0.1-SNAPSHOT")
+    compileOnly("org.leavesmc.leaves:leaves-api:1.21.1-R0.1-SNAPSHOT")
 }
  ```
 
@@ -39,7 +39,7 @@ dependencies {
 Leaves-Server:
 ```kotlin
 dependencies {
-    compileOnly("org.leavesmc.leaves:leaves:1.21R0.1-SNAPSHOT")
+    compileOnly("org.leavesmc.leaves:leaves:1.21.1-R0.1-SNAPSHOT")
 }
  ```
 

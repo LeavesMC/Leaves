@@ -172,7 +172,7 @@ index 6a465d9b12c92b5385c394fef7456630be97c04d..6e4593e12408a23ce43a61fa0141ba48
          }
          // Paper end - rewrite chunk system
 diff --git a/src/main/java/net/minecraft/world/level/chunk/storage/RegionFileStorage.java b/src/main/java/net/minecraft/world/level/chunk/storage/RegionFileStorage.java
-index 78922c3e9a69db1774dd846047b79e9523d7cf41..6ce6037512a3eb5c01f87f5bf8d8011975e0990c 100644
+index 78922c3e9a69db1774dd846047b79e9523d7cf41..715b02f5308f46d8e308ce9d928f98f99e8e7e7f 100644
 --- a/src/main/java/net/minecraft/world/level/chunk/storage/RegionFileStorage.java
 +++ b/src/main/java/net/minecraft/world/level/chunk/storage/RegionFileStorage.java
 @@ -21,7 +21,7 @@ public class RegionFileStorage implements AutoCloseable, ca.spottedleaf.moonrise
@@ -189,12 +189,12 @@ index 78922c3e9a69db1774dd846047b79e9523d7cf41..6ce6037512a3eb5c01f87f5bf8d80119
      private final it.unimi.dsi.fastutil.longs.LongLinkedOpenHashSet nonExistingRegionFiles = new it.unimi.dsi.fastutil.longs.LongLinkedOpenHashSet();
      private static String getRegionFileName(final int chunkX, final int chunkZ) {
 -        return "r." + (chunkX >> REGION_SHIFT) + "." + (chunkZ >> REGION_SHIFT) + ".mca";
-+        return "r." + (chunkX >> REGION_SHIFT) + "." + (chunkZ >> REGION_SHIFT) + (org.leavesmc.leaves.LeavesConfig.regionFormat != org.leavesmc.leaves.region.RegionFileFormat.LINEAR ? ".mca" : ".linear"); // Leaves
++        return "r." + (chunkX >> REGION_SHIFT) + "." + (chunkZ >> REGION_SHIFT) + (org.leavesmc.leaves.LeavesConfig.region.format != org.leavesmc.leaves.region.RegionFileFormat.LINEAR ? ".mca" : ".linear"); // Leaves
      }
  
 +    // Leaves start
 +    private static String getOtherRegionFileName(final int chunkX, final int chunkZ) {
-+        return "r." + (chunkX >> REGION_SHIFT) + "." + (chunkZ >> REGION_SHIFT) + (org.leavesmc.leaves.LeavesConfig.regionFormat == org.leavesmc.leaves.region.RegionFileFormat.LINEAR ? ".mca" : ".linear");
++        return "r." + (chunkX >> REGION_SHIFT) + "." + (chunkZ >> REGION_SHIFT) + (org.leavesmc.leaves.LeavesConfig.region.format == org.leavesmc.leaves.region.RegionFileFormat.LINEAR ? ".mca" : ".linear");
 +    }
 +    // Leaves end
 +
@@ -353,9 +353,9 @@ index 78922c3e9a69db1774dd846047b79e9523d7cf41..6ce6037512a3eb5c01f87f5bf8d80119
 +            // Leaves start - auto convert anvil to linear
 +            DataOutputStream dataoutputstream;
 +
-+            if (regionfile instanceof RegionFile && org.leavesmc.leaves.LeavesConfig.regionFormat == org.leavesmc.leaves.region.RegionFileFormat.LINEAR && org.leavesmc.leaves.LeavesConfig.autoConvertAnvilToLinear) {
++            if (regionfile instanceof RegionFile && org.leavesmc.leaves.LeavesConfig.region.format == org.leavesmc.leaves.region.RegionFileFormat.LINEAR && org.leavesmc.leaves.LeavesConfig.region.linear.autoConvertAnvilToLinear) {
 +                Path linearFilePath = Path.of(regionfile.getPath().toString().replaceAll(".mca", ".linear"));
-+                try (org.leavesmc.leaves.region.LinearRegionFile linearRegionFile = new org.leavesmc.leaves.region.LinearRegionFile(linearFilePath, org.leavesmc.leaves.LeavesConfig.linearCompressionLevel)) {
++                try (org.leavesmc.leaves.region.LinearRegionFile linearRegionFile = new org.leavesmc.leaves.region.LinearRegionFile(linearFilePath, org.leavesmc.leaves.LeavesConfig.region.linear.compressionLevel)) {
 +                    DataInputStream regionDataInputStream = regionfile.getChunkDataInputStream(pos);
 +                    if (regionDataInputStream == null) {
 +                        continue;
@@ -447,7 +447,7 @@ index 0000000000000000000000000000000000000000..3f95d7ffa880c598242d38899f71174e
 +
 diff --git a/src/main/java/org/leavesmc/leaves/region/AbstractRegionFileFactory.java b/src/main/java/org/leavesmc/leaves/region/AbstractRegionFileFactory.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..72f4507aa10f2ecad545199ccb88038fd49dbe35
+index 0000000000000000000000000000000000000000..8df8f28d15736c4e363e2abdec0a56d6ccb15861
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/region/AbstractRegionFileFactory.java
 @@ -0,0 +1,24 @@
@@ -469,7 +469,7 @@ index 0000000000000000000000000000000000000000..72f4507aa10f2ecad545199ccb88038f
 +
 +    public static AbstractRegionFile getAbstractRegionFile(RegionStorageInfo storageKey, Path path, Path directory, RegionFileVersion compressionFormat, boolean dsync) throws IOException {
 +        if (path.toString().endsWith(".linear")) {
-+            return new LinearRegionFile(path, LeavesConfig.linearCompressionLevel);
++            return new LinearRegionFile(path, LeavesConfig.region.linear.compressionLevel);
 +        } else {
 +            return new RegionFile(storageKey, path, directory, compressionFormat, dsync);
 +        }
@@ -814,7 +814,7 @@ index 0000000000000000000000000000000000000000..f903895b53eada8795a6ee9ab33cf30b
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/region/LinearRegionFileFlusher.java b/src/main/java/org/leavesmc/leaves/region/LinearRegionFileFlusher.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..7793c1b870bfc223adc121e6bd98361a2e5d7117
+index 0000000000000000000000000000000000000000..ab6346b678dd619bb7e2fa5e79bd82b7268485f1
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/region/LinearRegionFileFlusher.java
 @@ -0,0 +1,56 @@
@@ -842,15 +842,15 @@ index 0000000000000000000000000000000000000000..7793c1b870bfc223adc121e6bd98361a
 +            .build()
 +    );
 +    private final ExecutorService executor = Executors.newFixedThreadPool(
-+        LeavesConfig.getLinearFlushThreads(),
++        LeavesConfig.region.linear.getLinearFlushThreads(),
 +        new ThreadFactoryBuilder()
 +            .setNameFormat("linear-flusher-%d")
 +            .build()
 +    );
 +
 +    public LinearRegionFileFlusher() {
-+        LeavesLogger.LOGGER.info("Using " + LeavesConfig.getLinearFlushThreads() + " threads for linear region flushing.");
-+        scheduler.scheduleAtFixedRate(this::pollAndFlush, 0L, LeavesConfig.linearFlushFrequency, TimeUnit.SECONDS);
++        LeavesLogger.LOGGER.info("Using " + LeavesConfig.region.linear.getLinearFlushThreads() + " threads for linear region flushing.");
++        scheduler.scheduleAtFixedRate(this::pollAndFlush, 0L, LeavesConfig.region.linear.flushFrequency, TimeUnit.SECONDS);
 +    }
 +
 +    public void scheduleSave(LinearRegionFile regionFile) {

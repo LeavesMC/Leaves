@@ -5,20 +5,20 @@ Subject: [PATCH] Build changes
 
 
 diff --git a/build.gradle.kts b/build.gradle.kts
-index de0474b8dce58cb419c00b7614d7dd66be832a02..0c537cd70a1b8a7d7ccd78ba212de0cae8cb6bbc 100644
+index faf3e3fd72e8c915e7a4803dacbe1bb576c6663e..d88a9d1908373ba44143013cda1ae51477a835cf 100644
 --- a/build.gradle.kts
 +++ b/build.gradle.kts
-@@ -13,7 +13,7 @@ configurations.named(log4jPlugins.compileClasspathConfigurationName) {
- val alsoShade: Configuration by configurations.creating
+@@ -25,7 +25,7 @@ abstract class MockitoAgentProvider : CommandLineArgumentProvider {
+ // Paper end - configure mockito agent that is needed in newer java versions
  
  dependencies {
 -    implementation(project(":paper-api"))
 +    implementation(project(":leaves-api")) // Leaves - build change
      // Paper start
-     implementation("org.jline:jline-terminal-jansi:3.21.0")
-     implementation("net.minecrell:terminalconsoleappender:1.3.0")
-@@ -72,6 +72,15 @@ paperweight {
-     craftBukkitPackageVersion.set("v1_21_R1") // also needs to be updated in MappingEnvironment
+     implementation("org.jline:jline-terminal-ffm:3.27.1") // use ffm on java 22+
+     implementation("org.jline:jline-terminal-jni:3.27.1") // fall back to jni on java 21
+@@ -86,6 +86,15 @@ paperweight {
+     craftBukkitPackageVersion.set("v1_21_R2") // also needs to be updated in MappingEnvironment
  }
  
 +// Leaves start - hide irrelevant compilation warnings
@@ -33,7 +33,7 @@ index de0474b8dce58cb419c00b7614d7dd66be832a02..0c537cd70a1b8a7d7ccd78ba212de0ca
  tasks.jar {
      archiveClassifier.set("dev")
  
-@@ -85,14 +94,14 @@ tasks.jar {
+@@ -99,14 +108,14 @@ tasks.jar {
          val gitBranch = git("rev-parse", "--abbrev-ref", "HEAD").getText().trim() // Paper
          attributes(
              "Main-Class" to "org.bukkit.craftbukkit.Main",
@@ -53,7 +53,7 @@ index de0474b8dce58cb419c00b7614d7dd66be832a02..0c537cd70a1b8a7d7ccd78ba212de0ca
              "Build-Number" to (build ?: ""),
              "Build-Time" to Instant.now().toString(),
              "Git-Branch" to gitBranch, // Paper
-@@ -153,7 +162,7 @@ fun TaskContainer.registerRunTask(
+@@ -172,7 +181,7 @@ fun TaskContainer.registerRunTask(
      name: String,
      block: JavaExec.() -> Unit
  ): TaskProvider<JavaExec> = register<JavaExec>(name) {
@@ -62,7 +62,7 @@ index de0474b8dce58cb419c00b7614d7dd66be832a02..0c537cd70a1b8a7d7ccd78ba212de0ca
      mainClass.set("org.bukkit.craftbukkit.Main")
      standardInput = System.`in`
      workingDir = rootProject.layout.projectDirectory
-@@ -222,13 +231,13 @@ tasks.registerRunTask("runReobfBundler") {
+@@ -241,13 +250,13 @@ tasks.registerRunTask("runReobfBundler") {
      classpath(rootProject.tasks.named<io.papermc.paperweight.tasks.CreateBundlerJar>("createReobfBundlerJar").flatMap { it.outputZip })
      mainClass.set(null as String?)
  }
@@ -82,8 +82,21 @@ index de0474b8dce58cb419c00b7614d7dd66be832a02..0c537cd70a1b8a7d7ccd78ba212de0ca
 +    classpath(rootProject.tasks.named<io.papermc.paperweight.tasks.CreatePaperclipJar>("createReobfLeavesclipJar").flatMap { it.outputZip })
      mainClass.set(null as String?)
  }
+diff --git a/src/main/java/ca/spottedleaf/moonrise/paper/PaperHooks.java b/src/main/java/ca/spottedleaf/moonrise/paper/PaperHooks.java
+index ca8b6a926dfff3fdd6b04228809a4480366120b2..f77f04f7312a528d3f898c6c4b8603ab295c14fd 100644
+--- a/src/main/java/ca/spottedleaf/moonrise/paper/PaperHooks.java
++++ b/src/main/java/ca/spottedleaf/moonrise/paper/PaperHooks.java
+@@ -25,7 +25,7 @@ import net.minecraft.world.phys.AABB;
+ import java.util.List;
+ import java.util.function.Predicate;
+ 
+-public final class PaperHooks implements PlatformHooks {
++public class PaperHooks implements PlatformHooks { // Leaves - not final
+ 
+     @Override
+     public String getBrand() {
 diff --git a/src/main/java/com/destroystokyo/paper/Metrics.java b/src/main/java/com/destroystokyo/paper/Metrics.java
-index 4b002e8b75d117b726b0de274a76d3596fce015b..03373e5a37a5f90d31434aab921ec8c6b6efef70 100644
+index 4b002e8b75d117b726b0de274a76d3596fce015b..f6b362894bbd0f0f09f0f51a931529d708ca9b9e 100644
 --- a/src/main/java/com/destroystokyo/paper/Metrics.java
 +++ b/src/main/java/com/destroystokyo/paper/Metrics.java
 @@ -593,7 +593,8 @@ public class Metrics {
@@ -109,7 +122,7 @@ index 4b002e8b75d117b726b0de274a76d3596fce015b..03373e5a37a5f90d31434aab921ec8c6
 +                    return "unknown";
 +                }));
 +
-+                if (org.leavesmc.leaves.LeavesConfig.bstatsPrivacyMode) {
++                if (org.leavesmc.leaves.LeavesConfig.mics.bstatsPrivacyMode) {
 +                    return;
 +                }
 +
@@ -184,10 +197,10 @@ index 790bad0494454ca12ee152e3de6da3da634d9b20..c060857cb0551fff8f5033553b887f3a
      private static final String BUILD_DEV = "DEV";
  
 diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
-index 696d075ca2883f3c37e35f983c4d020e5db89d16..f1b28f4f383c682a52b6aa44dfbdf30944537ecf 100644
+index 780582ebaa8deb0c0b0c8de17de5abcebafa4bd3..5201b1aaedabdf6021ea9ac3f84be70a6d03aa8f 100644
 --- a/src/main/java/net/minecraft/server/MinecraftServer.java
 +++ b/src/main/java/net/minecraft/server/MinecraftServer.java
-@@ -1243,7 +1243,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+@@ -1263,7 +1263,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
                  LOGGER.info("*************************************************************************************");
                  LOGGER.info("This is the first time you're starting this server.");
                  LOGGER.info("It's recommended you read our 'Getting Started' documentation for guidance.");
@@ -196,20 +209,20 @@ index 696d075ca2883f3c37e35f983c4d020e5db89d16..f1b28f4f383c682a52b6aa44dfbdf309
                  LOGGER.info("*************************************************************************************");
              }
              // Paper end - Add onboarding message for initial server start
-@@ -1940,7 +1940,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+@@ -2010,7 +2010,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
  
      @DontObfuscate
      public String getServerModName() {
 -        return io.papermc.paper.ServerBuildInfo.buildInfo().brandName(); // Paper
-+        return org.leavesmc.leaves.LeavesConfig.serverModName; // Leaves - Custom // Paper
++        return org.leavesmc.leaves.LeavesConfig.mics.serverModName; // Leaves - Custom // Paper
      }
  
      public SystemReport fillSystemReport(SystemReport details) {
 diff --git a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
-index dd56c8e041116ef3602a9f89c998c8208ab89b51..0b4a70ebd312038d5b128c9e1f990666d1642a1a 100644
+index 17a158ff6ce6520b69a5a0032ba4c05449dd0cf8..faeb700647522379046f3cb3abcf478ff5aae95d 100644
 --- a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
 +++ b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
-@@ -237,9 +237,10 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
+@@ -234,9 +234,10 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
          thread.start(); // Paper - Enhance console tab completions for brigadier commands; start console thread after MinecraftServer.console & PaperConfig are initialized
          io.papermc.paper.command.PaperCommands.registerCommands(this); // Paper - setup /paper command
          this.server.spark.registerCommandBeforePlugins(this.server); // Paper - spark
@@ -235,7 +248,7 @@ index 759062d219ff490a3cb19e710c4d18e3e08288e0..3952428c02fe87477f4139f4fa983815
  
          javax.swing.JLabel jLabel = new javax.swing.JLabel("If you need help setting up your server you can visit:");
 diff --git a/src/main/java/org/bukkit/craftbukkit/Main.java b/src/main/java/org/bukkit/craftbukkit/Main.java
-index b3ba6bccdbb08af27916f0c611c60b2595b90164..3f81f87def8e591938618c3ade8daaf5ab0f84a7 100644
+index be0d38544395a9b3befb898bb961f34e32fe9509..a41e6f5dc2d5516f081d7340e2dacffaf5663485 100644
 --- a/src/main/java/org/bukkit/craftbukkit/Main.java
 +++ b/src/main/java/org/bukkit/craftbukkit/Main.java
 @@ -267,7 +267,7 @@ public class Main {
@@ -260,6 +273,40 @@ index 774556a62eb240da42e84db4502e2ed43495be17..fdef98a7796d84c7b0ee61241859e10c
          Properties properties = new Properties();
  
          if (stream != null) {
+diff --git a/src/main/java/org/leavesmc/leaves/.editorconfig b/src/main/java/org/leavesmc/leaves/.editorconfig
+new file mode 100644
+index 0000000000000000000000000000000000000000..6f086600baf9c98d681c4f5be5bb29c0e2086e6a
+--- /dev/null
++++ b/src/main/java/org/leavesmc/leaves/.editorconfig
+@@ -0,0 +1,2 @@
++[*.java]
++ij_java_use_fq_class_names = false
+\ No newline at end of file
+diff --git a/src/main/java/org/leavesmc/leaves/region/LeavesHooks.java b/src/main/java/org/leavesmc/leaves/region/LeavesHooks.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..47b6241ba0a23a0579b8b046f1e45832117b6581
+--- /dev/null
++++ b/src/main/java/org/leavesmc/leaves/region/LeavesHooks.java
+@@ -0,0 +1,19 @@
++package org.leavesmc.leaves.region;
++
++import ca.spottedleaf.moonrise.paper.PaperHooks;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.world.level.chunk.LevelChunk;
++
++public final class LeavesHooks extends PaperHooks {
++
++    @Override
++    public String getBrand() {
++        return "Leaves";
++    }
++
++    @Override
++    public void onChunkWatch(ServerLevel world, LevelChunk chunk, ServerPlayer player) {
++        super.onChunkWatch(world, chunk, player);
++    }
++}
 diff --git a/src/main/java/org/spigotmc/WatchdogThread.java b/src/main/java/org/spigotmc/WatchdogThread.java
 index f7a4fee9bb25ff256dc2e5ea26bfbceca6a49167..f2087df445acca525aac789a5234bdd851890f35 100644
 --- a/src/main/java/org/spigotmc/WatchdogThread.java
@@ -306,6 +353,13 @@ index f7a4fee9bb25ff256dc2e5ea26bfbceca6a49167..f2087df445acca525aac789a5234bdd8
                  }
  
                  log.log( Level.SEVERE, "------------------------------" );
+diff --git a/src/main/resources/META-INF/services/ca.spottedleaf.moonrise.common.PlatformHooks b/src/main/resources/META-INF/services/ca.spottedleaf.moonrise.common.PlatformHooks
+index e57c3ca79677b1dfe7cf3db36f0406de7ea5bd0a..86edd824ec42e550dd1419fd57d93a21fe2d648d 100644
+--- a/src/main/resources/META-INF/services/ca.spottedleaf.moonrise.common.PlatformHooks
++++ b/src/main/resources/META-INF/services/ca.spottedleaf.moonrise.common.PlatformHooks
+@@ -1 +1 @@
+-ca.spottedleaf.moonrise.paper.PaperHooks
++org.leavesmc.leaves.region.LeavesHooks
 diff --git a/src/main/resources/logo.png b/src/main/resources/logo.png
 index 8b924977b7886df9ab8790b1e4ff9b1c04a2af45..e6a7ee1232cb34840f454187f50f44d17300ad9c 100644
 GIT binary patch

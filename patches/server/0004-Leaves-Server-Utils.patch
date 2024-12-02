@@ -5,18 +5,18 @@ Subject: [PATCH] Leaves Server Utils
 
 
 diff --git a/src/main/java/net/minecraft/world/entity/Entity.java b/src/main/java/net/minecraft/world/entity/Entity.java
-index 4b54d0ea31062972e68ee8fafe3cfaf68f65a5cd..b5283b7a59c76e75ba9a822f315ba0d813df8cfb 100644
+index a15546e433ebba6c0de01bdaaef201a3d99a87b5..922996adcf2b85e55a934191e90a12c42f169b0f 100644
 --- a/src/main/java/net/minecraft/world/entity/Entity.java
 +++ b/src/main/java/net/minecraft/world/entity/Entity.java
-@@ -429,6 +429,7 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
-     private UUID originWorld;
+@@ -389,6 +389,7 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
      public boolean freezeLocked = false; // Paper - Freeze Tick Lock API
      public boolean fixedPose = false; // Paper - Expand Pose API
+     private final int despawnTime; // Paper - entity despawn time limit
 +    private CompoundTag leavesData = new CompoundTag(); // Leaves - Leaves ex data
  
      public void setOrigin(@javax.annotation.Nonnull Location location) {
          this.origin = location.toVector();
-@@ -2558,6 +2559,7 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
+@@ -2690,6 +2691,7 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
                  nbttagcompound.putBoolean("Paper.FreezeLock", true);
              }
              // Paper end
@@ -24,7 +24,7 @@ index 4b54d0ea31062972e68ee8fafe3cfaf68f65a5cd..b5283b7a59c76e75ba9a822f315ba0d8
              return nbttagcompound;
          } catch (Throwable throwable) {
              CrashReport crashreport = CrashReport.forThrowable(throwable, "Saving entity NBT");
-@@ -2705,6 +2707,11 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
+@@ -2838,6 +2840,11 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
                  freezeLocked = nbt.getBoolean("Paper.FreezeLock");
              }
              // Paper end
@@ -36,8 +36,8 @@ index 4b54d0ea31062972e68ee8fafe3cfaf68f65a5cd..b5283b7a59c76e75ba9a822f315ba0d8
  
          } catch (Throwable throwable) {
              CrashReport crashreport = CrashReport.forThrowable(throwable, "Loading entity NBT");
-@@ -4992,4 +4999,10 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
-         return ((net.minecraft.server.level.ServerChunkCache) level.getChunkSource()).isPositionTicking(this);
+@@ -5325,4 +5332,10 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
+         return ((net.minecraft.server.level.ServerLevel) this.level).isPositionEntityTicking(this.blockPosition());
      }
      // Paper end - Expose entity id counter
 +
@@ -49,7 +49,7 @@ index 4b54d0ea31062972e68ee8fafe3cfaf68f65a5cd..b5283b7a59c76e75ba9a822f315ba0d8
  }
 diff --git a/src/main/java/org/leavesmc/leaves/LeavesLogger.java b/src/main/java/org/leavesmc/leaves/LeavesLogger.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..47347a3bdab2ff9818bf8198291d2dabec7da8c6
+index 0000000000000000000000000000000000000000..bc45935c96553c9bd9d9b6ab3a64e28f52862198
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/LeavesLogger.java
 @@ -0,0 +1,24 @@
@@ -70,11 +70,11 @@ index 0000000000000000000000000000000000000000..47347a3bdab2ff9818bf8198291d2dab
 +    }
 +
 +    public void severe(String msg, Exception exception) {
-+        this.severe(msg + ", " + exception.getCause() + ": " + exception.getMessage());
++        this.log(Level.SEVERE, msg, exception);
 +    }
 +
 +    public void warning(String msg, Exception exception) {
-+        this.warning(msg + ", " + exception.getCause() + ": " + exception.getMessage());
++        this.log(Level.WARNING, msg, exception);
 +    }
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/command/LeavesCommandUtil.java b/src/main/java/org/leavesmc/leaves/command/LeavesCommandUtil.java
@@ -324,24 +324,19 @@ index 0000000000000000000000000000000000000000..440c4d903e145229bc54eb5b6f3578fd
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/util/MathUtils.java b/src/main/java/org/leavesmc/leaves/util/MathUtils.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..a6a4fd61644815a7fb01ab1a5844a34f39e57e6d
+index 0000000000000000000000000000000000000000..56050158a7e2217f4fdad11067cc377dda9ca770
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/util/MathUtils.java
-@@ -0,0 +1,100 @@
+@@ -0,0 +1,96 @@
 +package org.leavesmc.leaves.util;
 +
 +import org.bukkit.util.NumberConversions;
 +import org.bukkit.util.Vector;
++import org.jetbrains.annotations.NotNull;
 +
 +import java.util.regex.Pattern;
 +
 +public class MathUtils {
-+    // Lag ?
-+    public static void clean(Vector vector) {
-+        if (!NumberConversions.isFinite(vector.getX())) vector.setX(0);
-+        if (!NumberConversions.isFinite(vector.getY())) vector.setY(0);
-+        if (!NumberConversions.isFinite(vector.getZ())) vector.setZ(0);
-+    }
 +
 +    private static final Pattern numericPattern = Pattern.compile("^-?[1-9]\\d*$|^0$");
 +
@@ -349,7 +344,7 @@ index 0000000000000000000000000000000000000000..a6a4fd61644815a7fb01ab1a5844a34f
 +        return numericPattern.matcher(str).matches();
 +    }
 +
-+    public static float[] fetchYawPitch(Vector dir) {
++    public static float @NotNull [] fetchYawPitch(@NotNull Vector dir) {
 +        double x = dir.getX();
 +        double z = dir.getZ();
 +
@@ -370,7 +365,7 @@ index 0000000000000000000000000000000000000000..a6a4fd61644815a7fb01ab1a5844a34f
 +        return out;
 +    }
 +
-+    public static float fetchPitch(Vector dir) {
++    public static float fetchPitch(@NotNull Vector dir) {
 +        double x = dir.getX();
 +        double z = dir.getZ();
 +
@@ -388,6 +383,7 @@ index 0000000000000000000000000000000000000000..a6a4fd61644815a7fb01ab1a5844a34f
 +        return result;
 +    }
 +
++    @NotNull
 +    public static Vector getDirection(double rotX, double rotY) {
 +        Vector vector = new Vector();
 +

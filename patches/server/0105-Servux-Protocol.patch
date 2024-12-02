@@ -1,0 +1,917 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Wed, 13 Sep 2023 19:31:20 +0800
+Subject: [PATCH] Servux Protocol
+
+
+diff --git a/src/main/java/net/minecraft/server/level/ServerLevel.java b/src/main/java/net/minecraft/server/level/ServerLevel.java
+index 6952bd0b9229aa2c1c4db5d5659c315374e927a9..e663b795f8656745ba27b24bb136491dab96c22d 100644
+--- a/src/main/java/net/minecraft/server/level/ServerLevel.java
++++ b/src/main/java/net/minecraft/server/level/ServerLevel.java
+@@ -2162,6 +2162,7 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+         }
+ 
+         this.lastSpawnChunkRadius = i;
++        org.leavesmc.leaves.protocol.servux.ServuxStructuresProtocol.refreshSpawnMetadata = true; // Leaves - servux
+     }
+ 
+     public LongSet getForcedChunks() {
+diff --git a/src/main/java/org/leavesmc/leaves/protocol/servux/PacketSplitter.java b/src/main/java/org/leavesmc/leaves/protocol/servux/PacketSplitter.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..3a0e790f0d8e6866950601f9936984a83a4cdf2c
+--- /dev/null
++++ b/src/main/java/org/leavesmc/leaves/protocol/servux/PacketSplitter.java
+@@ -0,0 +1,117 @@
++package org.leavesmc.leaves.protocol.servux;
++
++import io.netty.buffer.Unpooled;
++import net.minecraft.network.FriendlyByteBuf;
++import net.minecraft.server.level.ServerPlayer;
++
++import javax.annotation.Nullable;
++import java.util.HashMap;
++import java.util.Map;
++
++// Powered by Servux(https://github.com/sakura-ryoko/servux)
++
++/**
++ * Network packet splitter code from QuickCarpet by skyrising
++ *
++ * @author skyrising
++ * <p>
++ * Updated by Sakura to work with newer versions by changing the Reading Session keys,
++ * and using the HANDLER interface to send packets via the Payload system
++ * <p>
++ * Move to Leaves by violetc
++ */
++public class PacketSplitter {
++    public static final int MAX_TOTAL_PER_PACKET_S2C = 1048576;
++    public static final int MAX_PAYLOAD_PER_PACKET_S2C = MAX_TOTAL_PER_PACKET_S2C - 5;
++    public static final int MAX_TOTAL_PER_PACKET_C2S = 32767;
++    public static final int MAX_PAYLOAD_PER_PACKET_C2S = MAX_TOTAL_PER_PACKET_C2S - 5;
++    public static final int DEFAULT_MAX_RECEIVE_SIZE_C2S = 1048576;
++    public static final int DEFAULT_MAX_RECEIVE_SIZE_S2C = 67108864;
++
++    private static final Map<Long, ReadingSession> READING_SESSIONS = new HashMap<>();
++
++    public static boolean send(IPacketSplitterHandler handler, FriendlyByteBuf packet, ServerPlayer player) {
++        return send(handler, packet, player, MAX_PAYLOAD_PER_PACKET_S2C);
++    }
++
++    private static boolean send(IPacketSplitterHandler handler, FriendlyByteBuf packet, ServerPlayer player, int payloadLimit) {
++        int len = packet.writerIndex();
++
++        packet.resetReaderIndex();
++
++        for (int offset = 0; offset < len; offset += payloadLimit) {
++            int thisLen = Math.min(len - offset, payloadLimit);
++            FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer(thisLen));
++
++            buf.resetWriterIndex();
++
++            if (offset == 0) {
++                buf.writeVarInt(len);
++            }
++
++            buf.writeBytes(packet, thisLen);
++            handler.encode(player, buf);
++        }
++
++        packet.release();
++
++        return true;
++    }
++
++    public static FriendlyByteBuf receive(long key, FriendlyByteBuf buf) {
++        return receive(key, buf, DEFAULT_MAX_RECEIVE_SIZE_S2C);
++    }
++
++    @Nullable
++    private static FriendlyByteBuf receive(long key, FriendlyByteBuf buf, int maxLength) {
++        return READING_SESSIONS.computeIfAbsent(key, ReadingSession::new).receive(buf, maxLength);
++    }
++
++    /**
++     * I had to fix the `Pair.of` key mappings, because they were removed from MC;
++     * So I made it into a pre-shared random session 'key' between client and server.
++     * Generated using 'long key = Random.create(Util.getMeasuringTimeMs()).nextLong();'
++     * -
++     * It can be shared to the receiving end via a separate packet; or it can just be
++     * generated randomly on the receiving end per an expected Reading Session.
++     * It needs to be stored and changed for every unique session.
++     */
++    private static class ReadingSession {
++        private final long key;
++        private int expectedSize = -1;
++        private FriendlyByteBuf received;
++
++        private ReadingSession(long key) {
++            this.key = key;
++        }
++
++        @Nullable
++        private FriendlyByteBuf receive(FriendlyByteBuf data, int maxLength) {
++            data.readerIndex(0);
++            // data = PacketUtils.slice(data);
++
++            if (this.expectedSize < 0) {
++                this.expectedSize = data.readVarInt();
++
++                if (this.expectedSize > maxLength) {
++                    throw new IllegalArgumentException("Payload too large");
++                }
++
++                this.received = new FriendlyByteBuf(Unpooled.buffer(this.expectedSize));
++            }
++
++            this.received.writeBytes(data.readBytes(data.readableBytes()));
++
++            if (this.received.writerIndex() >= this.expectedSize) {
++                READING_SESSIONS.remove(this.key);
++                return this.received;
++            }
++
++            return null;
++        }
++    }
++
++    public interface IPacketSplitterHandler {
++        void encode(ServerPlayer player, FriendlyByteBuf buf);
++    }
++}
+diff --git a/src/main/java/org/leavesmc/leaves/protocol/servux/ServuxEntityDataProtocol.java b/src/main/java/org/leavesmc/leaves/protocol/servux/ServuxEntityDataProtocol.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..36cc207c87f7dc56309f2683f3a97fe2f9fff661
+--- /dev/null
++++ b/src/main/java/org/leavesmc/leaves/protocol/servux/ServuxEntityDataProtocol.java
+@@ -0,0 +1,278 @@
++package org.leavesmc.leaves.protocol.servux;
++
++import io.netty.buffer.Unpooled;
++import net.minecraft.Util;
++import net.minecraft.core.BlockPos;
++import net.minecraft.nbt.CompoundTag;
++import net.minecraft.network.FriendlyByteBuf;
++import net.minecraft.resources.ResourceLocation;
++import net.minecraft.server.MinecraftServer;
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.util.RandomSource;
++import net.minecraft.world.entity.Entity;
++import net.minecraft.world.level.block.entity.BlockEntity;
++import org.leavesmc.leaves.LeavesConfig;
++import org.leavesmc.leaves.LeavesLogger;
++import org.leavesmc.leaves.protocol.core.LeavesCustomPayload;
++import org.leavesmc.leaves.protocol.core.LeavesProtocol;
++import org.leavesmc.leaves.protocol.core.ProtocolHandler;
++import org.leavesmc.leaves.protocol.core.ProtocolUtils;
++
++import java.util.HashMap;
++import java.util.Map;
++import java.util.UUID;
++
++// Powered by Servux(https://github.com/sakura-ryoko/servux)
++
++@LeavesProtocol(namespace = "servux")
++public class ServuxEntityDataProtocol {
++
++    public static final ResourceLocation CHANNEL = ServuxProtocol.id("entity_data");
++    public static final int PROTOCOL_VERSION = 1;
++
++    private static final Map<UUID, Long> readingSessionKeys = new HashMap<>();
++
++    @ProtocolHandler.PlayerJoin
++    public static void onPlayerLoggedIn(ServerPlayer player) {
++        if (!LeavesConfig.protocol.servux.entityProtocol) {
++            return;
++        }
++
++        sendMetadata(player);
++    }
++
++    @ProtocolHandler.PayloadReceiver(payload = EntityDataPayload.class, payloadId = "entity_data")
++    public static void onPacketReceive(ServerPlayer player, EntityDataPayload payload) {
++        if (!LeavesConfig.protocol.servux.entityProtocol) {
++            return;
++        }
++
++        switch (payload.packetType) {
++            case PACKET_C2S_METADATA_REQUEST -> sendMetadata(player);
++            case PACKET_C2S_BLOCK_ENTITY_REQUEST -> onBlockEntityRequest(player, payload.pos);
++            case PACKET_C2S_ENTITY_REQUEST -> onEntityRequest(player, payload.entityId);
++            case PACKET_C2S_NBT_RESPONSE_DATA -> {
++                UUID uuid = player.getUUID();
++                long readingSessionKey;
++
++                if (!readingSessionKeys.containsKey(uuid)) {
++                    readingSessionKey = RandomSource.create(Util.getMillis()).nextLong();
++                    readingSessionKeys.put(uuid, readingSessionKey);
++                } else {
++                    readingSessionKey = readingSessionKeys.get(uuid);
++                }
++
++                FriendlyByteBuf fullPacket = PacketSplitter.receive(readingSessionKey, payload.buffer);
++
++                if (fullPacket != null) {
++                    readingSessionKeys.remove(uuid);
++                    LeavesLogger.LOGGER.warning("ServuxEntityDataProtocol,PACKET_C2S_NBT_RESPONSE_DATA NOT Implemented!");
++                }
++            }
++        }
++    }
++
++    public static void sendMetadata(ServerPlayer player) {
++        CompoundTag metadata = new CompoundTag();
++        metadata.putString("name", "entity_data");
++        metadata.putString("id", CHANNEL.toString());
++        metadata.putInt("version", PROTOCOL_VERSION);
++        metadata.putString("servux", ServuxProtocol.SERVUX_STRING);
++
++        EntityDataPayload payload = new EntityDataPayload(EntityDataPayloadType.PACKET_S2C_METADATA);
++        payload.nbt.merge(metadata);
++        sendPacket(player, payload);
++    }
++
++    public static void onBlockEntityRequest(ServerPlayer player, BlockPos pos) {
++        MinecraftServer.getServer().execute(() -> {
++            BlockEntity be = player.serverLevel().getBlockEntity(pos);
++            CompoundTag nbt = be != null ? be.saveWithoutMetadata(player.registryAccess()) : new CompoundTag();
++
++            EntityDataPayload payload = new EntityDataPayload(EntityDataPayloadType.PACKET_S2C_BLOCK_NBT_RESPONSE_SIMPLE);
++            payload.pos = pos.immutable();
++            payload.nbt.merge(nbt);
++            sendPacket(player, payload);
++        });
++    }
++
++    public static void onEntityRequest(ServerPlayer player, int entityId) {
++        MinecraftServer.getServer().execute(() -> {
++            Entity entity = player.serverLevel().getEntity(entityId);
++            CompoundTag nbt = entity != null ? entity.saveWithoutId(new CompoundTag()) : new CompoundTag();
++
++            EntityDataPayload payload = new EntityDataPayload(EntityDataPayloadType.PACKET_S2C_ENTITY_NBT_RESPONSE_SIMPLE);
++            payload.entityId = entityId;
++            payload.nbt.merge(nbt);
++            sendPacket(player, payload);
++        });
++    }
++
++    public static void sendPacket(ServerPlayer player, EntityDataPayload payload) {
++        if (!LeavesConfig.protocol.servux.entityProtocol) {
++            return;
++        }
++
++        if (payload.packetType == EntityDataPayloadType.PACKET_S2C_NBT_RESPONSE_START) {
++            FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
++            buffer.writeNbt(payload.nbt);
++            PacketSplitter.send(ServuxEntityDataProtocol::sendWithSplitter, buffer, player);
++        } else {
++            ProtocolUtils.sendPayloadPacket(player, payload);
++        }
++    }
++
++    private static void sendWithSplitter(ServerPlayer player, FriendlyByteBuf buf) {
++        EntityDataPayload payload = new EntityDataPayload(EntityDataPayloadType.PACKET_S2C_NBT_RESPONSE_DATA);
++        payload.buffer = buf;
++        payload.nbt = new CompoundTag();
++        sendPacket(player, payload);
++    }
++
++    public enum EntityDataPayloadType {
++        PACKET_S2C_METADATA(1),
++        PACKET_C2S_METADATA_REQUEST(2),
++        PACKET_C2S_BLOCK_ENTITY_REQUEST(3),
++        PACKET_C2S_ENTITY_REQUEST(4),
++        PACKET_S2C_BLOCK_NBT_RESPONSE_SIMPLE(5),
++        PACKET_S2C_ENTITY_NBT_RESPONSE_SIMPLE(6),
++        // For Packet Splitter (Oversize Packets, S2C)
++        PACKET_S2C_NBT_RESPONSE_START(10),
++        PACKET_S2C_NBT_RESPONSE_DATA(11),
++        // For Packet Splitter (Oversize Packets, C2S)
++        PACKET_C2S_NBT_RESPONSE_START(12),
++        PACKET_C2S_NBT_RESPONSE_DATA(13);
++
++        private static final class Helper {
++            static Map<Integer, EntityDataPayloadType> ID_TO_TYPE = new HashMap<>();
++        }
++
++        public final int type;
++
++        EntityDataPayloadType(int type) {
++            this.type = type;
++            EntityDataPayloadType.Helper.ID_TO_TYPE.put(type, this);
++        }
++
++        public static EntityDataPayloadType fromId(int id) {
++            return EntityDataPayloadType.Helper.ID_TO_TYPE.get(id);
++        }
++    }
++
++    public static class EntityDataPayload implements LeavesCustomPayload<EntityDataPayload> {
++
++        private final EntityDataPayloadType packetType;
++        private final int transactionId;
++        private int entityId;
++        private BlockPos pos;
++        private CompoundTag nbt;
++        private FriendlyByteBuf buffer;
++
++        private EntityDataPayload(EntityDataPayloadType type) {
++            this.packetType = type;
++            this.transactionId = -1;
++            this.entityId = -1;
++            this.pos = BlockPos.ZERO;
++            this.nbt = new CompoundTag();
++            this.clearPacket();
++        }
++
++        private void clearPacket() {
++            if (this.buffer != null) {
++                this.buffer.clear();
++                this.buffer = new FriendlyByteBuf(Unpooled.buffer());
++            }
++        }
++
++        @New
++        public static EntityDataPayload decode(ResourceLocation location, FriendlyByteBuf buffer) {
++            EntityDataPayloadType type = EntityDataPayloadType.fromId(buffer.readVarInt());
++            if (type == null) {
++                throw new IllegalStateException("invalid packet type received");
++            }
++
++            EntityDataPayload payload = new EntityDataPayload(type);
++            switch (type) {
++                case PACKET_C2S_BLOCK_ENTITY_REQUEST -> {
++                    buffer.readVarInt();
++                    payload.pos = buffer.readBlockPos().immutable();
++                }
++
++                case PACKET_C2S_ENTITY_REQUEST -> {
++                    buffer.readVarInt();
++                    payload.entityId = buffer.readVarInt();
++                }
++
++                case PACKET_S2C_BLOCK_NBT_RESPONSE_SIMPLE -> {
++                    payload.pos = buffer.readBlockPos().immutable();
++                    CompoundTag nbt = buffer.readNbt();
++                    if (nbt != null) {
++                        payload.nbt.merge(nbt);
++                    }
++                }
++
++                case PACKET_S2C_ENTITY_NBT_RESPONSE_SIMPLE -> {
++                    payload.entityId = buffer.readVarInt();
++                    CompoundTag nbt = buffer.readNbt();
++                    if (nbt != null) {
++                        payload.nbt.merge(nbt);
++                    }
++                }
++
++                case PACKET_S2C_NBT_RESPONSE_DATA, PACKET_C2S_NBT_RESPONSE_DATA -> {
++                    payload.buffer = new FriendlyByteBuf(buffer.readBytes(buffer.readableBytes()));
++                    payload.nbt = new CompoundTag();
++                }
++
++                case PACKET_C2S_METADATA_REQUEST, PACKET_S2C_METADATA -> {
++                    CompoundTag nbt = buffer.readNbt();
++                    if (nbt != null) {
++                        payload.nbt.merge(nbt);
++                    }
++                }
++            }
++
++            return payload;
++        }
++
++        @Override
++        public void write(FriendlyByteBuf buf) {
++            buf.writeVarInt(this.packetType.type);
++
++            switch (this.packetType) {
++                case PACKET_C2S_BLOCK_ENTITY_REQUEST -> {
++                    buf.writeVarInt(this.transactionId);
++                    buf.writeBlockPos(this.pos);
++                }
++
++                case PACKET_C2S_ENTITY_REQUEST -> {
++                    buf.writeVarInt(this.transactionId);
++                    buf.writeVarInt(this.entityId);
++                }
++
++                case PACKET_S2C_BLOCK_NBT_RESPONSE_SIMPLE -> {
++                    buf.writeBlockPos(this.pos);
++                    buf.writeNbt(this.nbt);
++                }
++
++                case PACKET_S2C_ENTITY_NBT_RESPONSE_SIMPLE -> {
++                    buf.writeVarInt(this.entityId);
++                    buf.writeNbt(this.nbt);
++                }
++
++                case PACKET_S2C_NBT_RESPONSE_DATA, PACKET_C2S_NBT_RESPONSE_DATA -> {
++                    buf.writeBytes(this.buffer.readBytes(this.buffer.readableBytes()));
++                }
++
++                case PACKET_C2S_METADATA_REQUEST, PACKET_S2C_METADATA -> {
++                    buf.writeNbt(this.nbt);
++                }
++            }
++        }
++
++        @Override
++        public ResourceLocation id() {
++            return CHANNEL;
++        }
++    }
++}
+diff --git a/src/main/java/org/leavesmc/leaves/protocol/servux/ServuxProtocol.java b/src/main/java/org/leavesmc/leaves/protocol/servux/ServuxProtocol.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..ea83d25b76f2e4814c82c1010ba4c0bca0758840
+--- /dev/null
++++ b/src/main/java/org/leavesmc/leaves/protocol/servux/ServuxProtocol.java
+@@ -0,0 +1,17 @@
++package org.leavesmc.leaves.protocol.servux;
++
++import net.minecraft.resources.ResourceLocation;
++import org.jetbrains.annotations.Contract;
++import org.jetbrains.annotations.NotNull;
++import org.leavesmc.leaves.protocol.core.ProtocolUtils;
++
++public class ServuxProtocol {
++
++    public static final String PROTOCOL_ID = "servux";
++    public static final String SERVUX_STRING = ProtocolUtils.buildProtocolVersion(PROTOCOL_ID);
++
++    @Contract("_ -> new")
++    public static @NotNull ResourceLocation id(String path) {
++        return new ResourceLocation(PROTOCOL_ID, path);
++    }
++}
+diff --git a/src/main/java/org/leavesmc/leaves/protocol/servux/ServuxStructuresProtocol.java b/src/main/java/org/leavesmc/leaves/protocol/servux/ServuxStructuresProtocol.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..fb5779d445d693e0a533a61b0a66d786f9b9cb0e
+--- /dev/null
++++ b/src/main/java/org/leavesmc/leaves/protocol/servux/ServuxStructuresProtocol.java
+@@ -0,0 +1,452 @@
++package org.leavesmc.leaves.protocol.servux;
++
++import io.netty.buffer.Unpooled;
++import it.unimi.dsi.fastutil.longs.LongIterator;
++import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
++import it.unimi.dsi.fastutil.longs.LongSet;
++import net.minecraft.core.BlockPos;
++import net.minecraft.nbt.CompoundTag;
++import net.minecraft.nbt.ListTag;
++import net.minecraft.network.FriendlyByteBuf;
++import net.minecraft.resources.ResourceLocation;
++import net.minecraft.server.MinecraftServer;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.world.level.ChunkPos;
++import net.minecraft.world.level.GameRules;
++import net.minecraft.world.level.Level;
++import net.minecraft.world.level.chunk.ChunkAccess;
++import net.minecraft.world.level.chunk.LevelChunk;
++import net.minecraft.world.level.chunk.status.ChunkStatus;
++import net.minecraft.world.level.levelgen.structure.Structure;
++import net.minecraft.world.level.levelgen.structure.StructureStart;
++import net.minecraft.world.level.levelgen.structure.pieces.StructurePieceSerializationContext;
++import org.jetbrains.annotations.NotNull;
++import org.leavesmc.leaves.LeavesConfig;
++import org.leavesmc.leaves.LeavesLogger;
++import org.leavesmc.leaves.protocol.core.LeavesCustomPayload;
++import org.leavesmc.leaves.protocol.core.LeavesProtocol;
++import org.leavesmc.leaves.protocol.core.ProtocolHandler;
++import org.leavesmc.leaves.protocol.core.ProtocolUtils;
++
++import java.util.HashMap;
++import java.util.HashSet;
++import java.util.Map;
++import java.util.Set;
++import java.util.UUID;
++import java.util.concurrent.ConcurrentHashMap;
++
++// Powered by Servux(https://github.com/sakura-ryoko/servux)
++
++@LeavesProtocol(namespace = "servux")
++public class ServuxStructuresProtocol {
++
++    public static final int PROTOCOL_VERSION = 2;
++
++    private static final int updateInterval = 40;
++    private static final int timeout = 30 * 20;
++
++    public static boolean refreshSpawnMetadata = false;
++    private static int retainDistance;
++
++    public static final ResourceLocation CHANNEL = ServuxProtocol.id("structures");
++
++    private static final Map<Integer, ServerPlayer> players = new ConcurrentHashMap<>();
++    private static final Map<UUID, Map<ChunkPos, Timeout>> timeouts = new HashMap<>();
++
++    @ProtocolHandler.PayloadReceiver(payload = StructuresPayload.class, payloadId = "structures")
++    public static void onPacketReceive(ServerPlayer player, StructuresPayload payload) {
++        if (!LeavesConfig.protocol.servux.structureProtocol) {
++            return;
++        }
++
++        switch (payload.packetType()) {
++            case PACKET_C2S_STRUCTURES_REGISTER -> onPlayerSubscribed(player);
++            case PACKET_C2S_REQUEST_SPAWN_METADATA -> refreshSpawnMetadata(player);
++            case PACKET_C2S_STRUCTURES_UNREGISTER -> {
++                onPlayerLoggedOut(player);
++                refreshSpawnMetadata(player);
++            }
++        }
++    }
++
++    @ProtocolHandler.PlayerJoin
++    public static void onPlayerLoggedIn(ServerPlayer player) {
++        if (!LeavesConfig.protocol.servux.structureProtocol) {
++            return;
++        }
++
++        onPlayerSubscribed(player);
++    }
++
++    @ProtocolHandler.PlayerLeave
++    public static void onPlayerLoggedOut(@NotNull ServerPlayer player) {
++        if (!LeavesConfig.protocol.servux.structureProtocol) {
++            return;
++        }
++
++        players.remove(player.getId());
++    }
++
++    @ProtocolHandler.Ticker
++    public static void tick() {
++        if (!LeavesConfig.protocol.servux.structureProtocol) {
++            return;
++        }
++
++        MinecraftServer server = MinecraftServer.getServer();
++        int tickCounter = server.getTickCount();
++        if ((tickCounter % updateInterval) == 0) {
++            retainDistance = server.getPlayerList().getViewDistance() + 2;
++            for (ServerPlayer player : players.values()) {
++                if (refreshSpawnMetadata) {
++                    refreshSpawnMetadata(player);
++                }
++
++                // TODO DimensionChange
++                refreshTrackedChunks(player, tickCounter);
++            }
++
++            if (refreshSpawnMetadata) {
++                refreshSpawnMetadata = false;
++            }
++        }
++    }
++
++    public static void onStartedWatchingChunk(ServerPlayer player, LevelChunk chunk) {
++        if (!LeavesConfig.protocol.servux.structureProtocol) {
++            return;
++        }
++
++        MinecraftServer server = player.getServer();
++
++        if (players.containsKey(player.getId()) && server != null) {
++            addChunkTimeoutIfHasReferences(player.getUUID(), chunk, server.getTickCount());
++        }
++    }
++
++    private static void addChunkTimeoutIfHasReferences(final UUID uuid, LevelChunk chunk, final int tickCounter) {
++        final ChunkPos pos = chunk.getPos();
++
++        if (chunkHasStructureReferences(pos.x, pos.z, chunk.getLevel())) {
++            final Map<ChunkPos, Timeout> map = timeouts.computeIfAbsent(uuid, (u) -> new HashMap<>());
++            map.computeIfAbsent(pos, (p) -> new Timeout(tickCounter - timeout));
++        }
++    }
++
++    private static boolean chunkHasStructureReferences(int chunkX, int chunkZ, Level world) {
++        if (!world.hasChunk(chunkX, chunkZ)) {
++            return false;
++        }
++
++        ChunkAccess chunk = world.getChunk(chunkX, chunkZ, ChunkStatus.STRUCTURE_STARTS, false);
++
++        for (Map.Entry<Structure, LongSet> entry : chunk.getAllReferences().entrySet()) {
++            if (!entry.getValue().isEmpty()) {
++                return true;
++            }
++        }
++
++        return false;
++    }
++
++
++    public static void onPlayerSubscribed(@NotNull ServerPlayer player) {
++        if (!players.containsKey(player.getId())) {
++            players.put(player.getId(), player);
++        } else {
++            LeavesLogger.LOGGER.warning(player.getScoreboardName() + " re-register servux:structures");
++        }
++
++        CompoundTag tag = new CompoundTag();
++        tag.putString("name", "structure_bounding_boxes");
++        tag.putString("id", CHANNEL.toString());
++        tag.putInt("version", PROTOCOL_VERSION);
++        tag.putString("servux", ServuxProtocol.SERVUX_STRING);
++        tag.putInt("timeout", timeout);
++
++        MinecraftServer server = MinecraftServer.getServer();
++        BlockPos spawnPos = server.overworld().levelData.getSpawnPos();
++        tag.putInt("spawnPosX", spawnPos.getX());
++        tag.putInt("spawnPosY", spawnPos.getY());
++        tag.putInt("spawnPosZ", spawnPos.getZ());
++        tag.putInt("spawnChunkRadius", server.getGameRules().getInt(GameRules.RULE_SPAWN_CHUNK_RADIUS));
++
++        sendPacket(player, new StructuresPayload(StructuresPayloadType.PACKET_S2C_METADATA, tag));
++        initialSyncStructures(player, player.moonrise$getViewDistanceHolder().getViewDistances().sendViewDistance() + 2, server.getTickCount());
++    }
++
++    public static void refreshSpawnMetadata(ServerPlayer player) {
++        CompoundTag tag = new CompoundTag();
++        tag.putString("id", CHANNEL.toString());
++        tag.putString("servux", ServuxProtocol.SERVUX_STRING);
++
++        MinecraftServer server = MinecraftServer.getServer();
++        BlockPos spawnPos = server.overworld().levelData.getSpawnPos();
++        tag.putInt("spawnPosX", spawnPos.getX());
++        tag.putInt("spawnPosY", spawnPos.getY());
++        tag.putInt("spawnPosZ", spawnPos.getZ());
++        tag.putInt("spawnChunkRadius", server.getGameRules().getInt(GameRules.RULE_SPAWN_CHUNK_RADIUS));
++
++        sendPacket(player, new StructuresPayload(StructuresPayloadType.PACKET_S2C_SPAWN_METADATA, tag));
++    }
++
++    public static void initialSyncStructures(ServerPlayer player, int chunkRadius, int tickCounter) {
++        UUID uuid = player.getUUID();
++        ChunkPos center = player.getLastSectionPos().chunk();
++        Map<Structure, LongSet> references = getStructureReferences(player.serverLevel(), center, chunkRadius);
++
++        timeouts.remove(uuid);
++
++        sendStructures(player, references, tickCounter);
++    }
++
++    public static Map<Structure, LongSet> getStructureReferences(ServerLevel world, ChunkPos center, int chunkRadius) {
++        Map<Structure, LongSet> references = new HashMap<>();
++
++        for (int cx = center.x - chunkRadius; cx <= center.x + chunkRadius; ++cx) {
++            for (int cz = center.z - chunkRadius; cz <= center.z + chunkRadius; ++cz) {
++                getReferencesFromChunk(cx, cz, world, references);
++            }
++        }
++
++        return references;
++    }
++
++    public static void getReferencesFromChunk(int chunkX, int chunkZ, Level world, Map<Structure, LongSet> references) {
++        if (!world.hasChunk(chunkX, chunkZ)) {
++            return;
++        }
++
++        ChunkAccess chunk = world.getChunk(chunkX, chunkZ, ChunkStatus.STRUCTURE_STARTS, false);
++
++        for (Map.Entry<Structure, LongSet> entry : chunk.getAllReferences().entrySet()) {
++            Structure feature = entry.getKey();
++            LongSet startChunks = entry.getValue();
++
++            // TODO add an option && feature != StructureFeature.MINESHAFT (?)
++            if (!startChunks.isEmpty()) {
++                references.merge(feature, startChunks, (oldSet, entrySet) -> {
++                    LongOpenHashSet newSet = new LongOpenHashSet(oldSet);
++                    newSet.addAll(entrySet);
++                    return newSet;
++                });
++            }
++        }
++    }
++
++    public static void sendStructures(ServerPlayer player, Map<Structure, LongSet> references, int tickCounter) {
++        ServerLevel world = player.serverLevel();
++        Map<ChunkPos, StructureStart> starts = getStructureStarts(world, references);
++
++        if (!starts.isEmpty()) {
++            addOrRefreshTimeouts(player.getUUID(), references, tickCounter);
++
++            ListTag structureList = getStructureList(starts, world);
++
++            if (players.containsKey(player.getId())) {
++                CompoundTag test = new CompoundTag();
++                test.put("Structures", structureList.copy());
++                sendPacket(player, new StructuresPayload(StructuresPayloadType.PACKET_S2C_STRUCTURE_DATA_START, test));
++            }
++        }
++    }
++
++    public static ListTag getStructureList(Map<ChunkPos, StructureStart> structures, ServerLevel world) {
++        ListTag list = new ListTag();
++        StructurePieceSerializationContext ctx = StructurePieceSerializationContext.fromLevel(world);
++
++        for (Map.Entry<ChunkPos, StructureStart> entry : structures.entrySet()) {
++            ChunkPos pos = entry.getKey();
++            list.add(entry.getValue().createTag(ctx, pos));
++        }
++
++        return list;
++    }
++
++    public static Map<ChunkPos, StructureStart> getStructureStarts(ServerLevel world, Map<Structure, LongSet> references) {
++        Map<ChunkPos, StructureStart> starts = new HashMap<>();
++
++        for (Map.Entry<Structure, LongSet> entry : references.entrySet()) {
++            Structure structure = entry.getKey();
++            LongSet startChunks = entry.getValue();
++            LongIterator iter = startChunks.iterator();
++
++            while (iter.hasNext()) {
++                ChunkPos pos = new ChunkPos(iter.nextLong());
++
++                if (!world.hasChunk(pos.x, pos.z)) {
++                    continue;
++                }
++
++                ChunkAccess chunk = world.getChunk(pos.x, pos.z, ChunkStatus.STRUCTURE_STARTS, false);
++                StructureStart start = chunk.getStartForStructure(structure);
++
++                if (start != null) {
++                    starts.put(pos, start);
++                }
++            }
++        }
++
++        return starts;
++    }
++
++    public static void refreshTrackedChunks(ServerPlayer player, int tickCounter) {
++        UUID uuid = player.getUUID();
++        Map<ChunkPos, Timeout> map = timeouts.get(uuid);
++
++        if (map != null) {
++            sendAndRefreshExpiredStructures(player, map, tickCounter);
++        }
++    }
++
++    public static void sendAndRefreshExpiredStructures(ServerPlayer player, Map<ChunkPos, Timeout> map, int tickCounter) {
++        Set<ChunkPos> positionsToUpdate = new HashSet<>();
++
++        for (Map.Entry<ChunkPos, Timeout> entry : map.entrySet()) {
++            Timeout out = entry.getValue();
++
++            if (out.needsUpdate(tickCounter, timeout)) {
++                positionsToUpdate.add(entry.getKey());
++            }
++        }
++
++        if (!positionsToUpdate.isEmpty()) {
++            ServerLevel world = player.serverLevel();
++            ChunkPos center = player.getLastSectionPos().chunk();
++            Map<Structure, LongSet> references = new HashMap<>();
++
++            for (ChunkPos pos : positionsToUpdate) {
++                if (isOutOfRange(pos, center)) {
++                    map.remove(pos);
++                } else {
++                    getReferencesFromChunk(pos.x, pos.z, world, references);
++
++                    Timeout timeout = map.get(pos);
++
++                    if (timeout != null) {
++                        timeout.setLastSync(tickCounter);
++                    }
++                }
++            }
++
++            if (!references.isEmpty()) {
++                sendStructures(player, references, tickCounter);
++            }
++        }
++    }
++
++    protected static boolean isOutOfRange(ChunkPos pos, ChunkPos center) {
++        return Math.abs(pos.x - center.x) > retainDistance || Math.abs(pos.z - center.z) > retainDistance;
++    }
++
++    public static void addOrRefreshTimeouts(final UUID uuid, final Map<Structure, LongSet> references, final int tickCounter) {
++        Map<ChunkPos, Timeout> map = timeouts.computeIfAbsent(uuid, (u) -> new HashMap<>());
++
++        for (LongSet chunks : references.values()) {
++            for (Long chunkPosLong : chunks) {
++                final ChunkPos pos = new ChunkPos(chunkPosLong);
++                map.computeIfAbsent(pos, (p) -> new Timeout(tickCounter)).setLastSync(tickCounter);
++            }
++        }
++    }
++
++    public enum StructuresPayloadType {
++        PACKET_S2C_METADATA(1),
++        PACKET_S2C_STRUCTURE_DATA(2),
++        PACKET_C2S_STRUCTURES_REGISTER(3),
++        PACKET_C2S_STRUCTURES_UNREGISTER(4),
++        PACKET_S2C_STRUCTURE_DATA_START(5),
++        PACKET_S2C_SPAWN_METADATA(10),
++        PACKET_C2S_REQUEST_SPAWN_METADATA(11);
++
++        private static final class Helper {
++            static Map<Integer, StructuresPayloadType> ID_TO_TYPE = new HashMap<>();
++        }
++
++        public final int type;
++
++        StructuresPayloadType(int type) {
++            this.type = type;
++            Helper.ID_TO_TYPE.put(type, this);
++        }
++
++        public static StructuresPayloadType fromId(int id) {
++            return Helper.ID_TO_TYPE.get(id);
++        }
++    }
++
++    public record StructuresPayload(StructuresPayloadType packetType, CompoundTag nbt, FriendlyByteBuf buffer) implements LeavesCustomPayload<StructuresPayload> {
++
++        public StructuresPayload(StructuresPayloadType packetType, CompoundTag nbt) {
++            this(packetType, nbt, null);
++        }
++
++        public StructuresPayload(StructuresPayloadType packetType, FriendlyByteBuf buffer) {
++            this(packetType, new CompoundTag(), buffer);
++        }
++
++        @New
++        private static StructuresPayload decode(ResourceLocation id, FriendlyByteBuf buf) {
++            int i = buf.readVarInt();
++            StructuresPayloadType type = StructuresPayloadType.fromId(i);
++
++            if (type == null) {
++                throw new IllegalStateException("invalid packet type received");
++            } else if (type.equals(StructuresPayloadType.PACKET_S2C_STRUCTURE_DATA)) {
++                return new StructuresPayload(type, new FriendlyByteBuf(buf.readBytes(buf.readableBytes())));
++            } else {
++                return new StructuresPayload(type, buf.readNbt());
++            }
++        }
++
++        @Override
++        public void write(FriendlyByteBuf buf) {
++            buf.writeVarInt(this.packetType.type);
++            if (this.packetType.equals(StructuresPayloadType.PACKET_S2C_STRUCTURE_DATA)) {
++                buf.writeBytes(this.buffer.readBytes(this.buffer.readableBytes()));
++            } else {
++                buf.writeNbt(this.nbt);
++            }
++        }
++
++        @Override
++        public ResourceLocation id() {
++            return CHANNEL;
++        }
++    }
++
++    public static class Timeout {
++        private int lastSync;
++
++        public Timeout(int currentTick) {
++            this.lastSync = currentTick;
++        }
++
++        public boolean needsUpdate(int currentTick, int timeout) {
++            return currentTick - this.lastSync >= timeout;
++        }
++
++        public void setLastSync(int tickCounter) {
++            this.lastSync = tickCounter;
++        }
++    }
++
++    public static void sendPacket(ServerPlayer player, StructuresPayload payload) {
++        if (!LeavesConfig.protocol.servux.structureProtocol) {
++            return;
++        }
++
++        if (payload.packetType() == StructuresPayloadType.PACKET_S2C_STRUCTURE_DATA_START) {
++            FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
++            buffer.writeNbt(payload.nbt());
++            PacketSplitter.send(ServuxStructuresProtocol::sendWithSplitter, buffer, player);
++        } else {
++            ProtocolUtils.sendPayloadPacket(player, payload);
++        }
++    }
++
++    private static void sendWithSplitter(ServerPlayer player, FriendlyByteBuf buf) {
++        sendPacket(player, new StructuresPayload(StructuresPayloadType.PACKET_S2C_STRUCTURE_DATA, buf));
++    }
++}
+diff --git a/src/main/java/org/leavesmc/leaves/region/LeavesHooks.java b/src/main/java/org/leavesmc/leaves/region/LeavesHooks.java
+index 47b6241ba0a23a0579b8b046f1e45832117b6581..59fe70c95e157824e12d9ebbf02a5da8cd95a107 100644
+--- a/src/main/java/org/leavesmc/leaves/region/LeavesHooks.java
++++ b/src/main/java/org/leavesmc/leaves/region/LeavesHooks.java
+@@ -15,5 +15,6 @@ public final class LeavesHooks extends PaperHooks {
+     @Override
+     public void onChunkWatch(ServerLevel world, LevelChunk chunk, ServerPlayer player) {
+         super.onChunkWatch(world, chunk, player);
++        org.leavesmc.leaves.protocol.servux.ServuxStructuresProtocol.onStartedWatchingChunk(player, chunk); // servux
+     }
+ }

@@ -1,7 +1,7 @@
 plugins {
     java
     `maven-publish`
-    id("org.leavesmc.leavesweight.patcher") version "1.0.0-SNAPSHOT"
+    id("org.leavesmc.leavesweight.patcher") version "1.0.1-SNAPSHOT"
 }
 
 allprojects {

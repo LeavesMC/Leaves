@@ -21,8 +21,8 @@ Contributing to Leaves
 在开始开发之前，您首先需要拥有以下软件作为开发环境：
 
 - `git`
-- `JDK 17 或更高版本`
-  - 我们使用了 Gradle 的工具链，这让你可以使用 JRE 8 就进行构建。(Gradle 在找不到 JDK 17 时会自动下载)
+- `JDK 21 或更高版本`
+  - 我们使用了 Gradle 的工具链，这让你可以使用 JRE 8 就进行构建。(Gradle 在找不到 JDK 21 时会自动下载)
 
 如果你使用 Windows 系统进行开发，那么你可以使用 `WSL` 来加速构建。
 

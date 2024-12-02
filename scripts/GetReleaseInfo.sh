@@ -20,9 +20,9 @@ commitid=$(git log --pretty='%h' -1)
 mcversion=$(prop mcVersion)
 gradleVersion=$(prop version)
 preVersion=$(prop preVersion)
-tagid="$mcversion-$commitid"
+tagid="$mcversion-$BUILD_NUMBER-$commitid"
 jarName="leaves-$mcversion.jar"
-leavesid="Leaves-$BUILD_NUMBER-$commitid"
+leavesid="Leaves-$tagid"
 releaseinfo="releaseinfo.md"
 discordmes="discordmes.json"
 make_latest=$([ "$preVersion" = "true" ] && echo "false" || echo "true")

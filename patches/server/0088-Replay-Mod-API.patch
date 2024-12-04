@@ -700,10 +700,10 @@ index 0000000000000000000000000000000000000000..0e8cd7e878ec1294d6cb830a004eeefd
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/replay/Recorder.java b/src/main/java/org/leavesmc/leaves/replay/Recorder.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..ba0dde3f006b43ef04d252f970ea1315566c45e6
+index 0000000000000000000000000000000000000000..d1fb2f08f2d357c6551de7832eb3cf6980d44fb5
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/replay/Recorder.java
-@@ -0,0 +1,286 @@
+@@ -0,0 +1,285 @@
 +package org.leavesmc.leaves.replay;
 +
 +import com.mojang.serialization.DynamicOps;
@@ -722,6 +722,7 @@ index 0000000000000000000000000000000000000000..ba0dde3f006b43ef04d252f970ea1315
 +import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket;
 +import net.minecraft.network.protocol.common.ClientboundDisconnectPacket;
 +import net.minecraft.network.protocol.common.ClientboundResourcePackPushPacket;
++import net.minecraft.network.protocol.common.ClientboundServerLinksPacket;
 +import net.minecraft.network.protocol.common.ClientboundUpdateTagsPacket;
 +import net.minecraft.network.protocol.common.custom.BrandPayload;
 +import net.minecraft.network.protocol.configuration.ClientboundFinishConfigurationPacket;
@@ -793,13 +794,12 @@ index 0000000000000000000000000000000000000000..ba0dde3f006b43ef04d252f970ea1315
 +
 +        metaData.singleplayer = false;
 +        metaData.serverName = recorderOption.serverName;
-+        metaData.generator = "leaves";
 +        metaData.date = startTime;
 +        metaData.mcversion = SharedConstants.getCurrentVersion().getName();
 +
 +        // TODO start event
-+        savePacket(new ClientboundLoginFinishedPacket(photographer.getGameProfile()), ConnectionProtocol.LOGIN);
-+        startConfiguration();
++        this.savePacket(new ClientboundLoginFinishedPacket(photographer.getGameProfile()), ConnectionProtocol.LOGIN);
++        this.startConfiguration();
 +
 +        if (recorderOption.forceWeather != null) {
 +            setWeather(recorderOption.forceWeather);
@@ -807,30 +807,29 @@ index 0000000000000000000000000000000000000000..ba0dde3f006b43ef04d252f970ea1315
 +    }
 +
 +    public void startConfiguration() {
-+        state = ConnectionProtocol.CONFIGURATION;
++        this.state = ConnectionProtocol.CONFIGURATION;
 +        MinecraftServer server = MinecraftServer.getServer();
-+        savePacket(new ClientboundCustomPayloadPacket(new BrandPayload(server.getServerModName())), ConnectionProtocol.CONFIGURATION);
 +
-+        savePacket(new ClientboundUpdateEnabledFeaturesPacket(FeatureFlags.REGISTRY.toNames(server.getWorldData().enabledFeatures())), ConnectionProtocol.CONFIGURATION);
++        this.savePacket(new ClientboundCustomPayloadPacket(new BrandPayload(server.getServerModName())), ConnectionProtocol.CONFIGURATION);
++        this.savePacket(new ClientboundServerLinksPacket(server.serverLinks().untrust()), ConnectionProtocol.CONFIGURATION);
++        this.savePacket(new ClientboundUpdateEnabledFeaturesPacket(FeatureFlags.REGISTRY.toNames(server.getWorldData().enabledFeatures())), ConnectionProtocol.CONFIGURATION);
 +
 +        List<KnownPack> knownPackslist = server.getResourceManager().listPacks().flatMap((iresourcepack) -> iresourcepack.location().knownPackInfo().stream()).toList();
++        this.savePacket(new ClientboundSelectKnownPacks(knownPackslist), ConnectionProtocol.CONFIGURATION);
++
++        server.getServerResourcePack().ifPresent((info) -> this.savePacket(new ClientboundResourcePackPushPacket(
++                info.id(), info.url(), info.hash(), info.isRequired(), Optional.ofNullable(info.prompt())
++        )));
++
 +        LayeredRegistryAccess<RegistryLayer> layeredregistryaccess = server.registries();
-+
-+        savePacket(new ClientboundSelectKnownPacks(knownPackslist), ConnectionProtocol.CONFIGURATION);
 +        DynamicOps<Tag> dynamicOps = layeredregistryaccess.compositeAccess().createSerializationContext(NbtOps.INSTANCE);
-+        RegistrySynchronization.packRegistries(
-+            dynamicOps,
-+            layeredregistryaccess.getAccessFrom(RegistryLayer.WORLDGEN),
-+            Set.copyOf(knownPackslist),
-+            (key, entries) -> savePacket(new ClientboundRegistryDataPacket(key, entries), ConnectionProtocol.CONFIGURATION)
++        RegistrySynchronization.packRegistries(dynamicOps, layeredregistryaccess.getAccessFrom(RegistryLayer.WORLDGEN), Set.copyOf(knownPackslist),
++                (key, entries) ->
++                        this.savePacket(new ClientboundRegistryDataPacket(key, entries), ConnectionProtocol.CONFIGURATION)
 +        );
-+        savePacket(new ClientboundUpdateTagsPacket(TagNetworkSerialization.serializeTagsToNetwork(layeredregistryaccess)), ConnectionProtocol.CONFIGURATION);
++        this.savePacket(new ClientboundUpdateTagsPacket(TagNetworkSerialization.serializeTagsToNetwork(layeredregistryaccess)), ConnectionProtocol.CONFIGURATION);
 +
-+        server.getServerResourcePack().ifPresent((info) -> {
-+            savePacket(new ClientboundResourcePackPushPacket(info.id(), info.url(), info.hash(), info.isRequired(), Optional.ofNullable(info.prompt())), ConnectionProtocol.CONFIGURATION);
-+        });
-+
-+        savePacket(ClientboundFinishConfigurationPacket.INSTANCE, ConnectionProtocol.CONFIGURATION);
++        this.savePacket(ClientboundFinishConfigurationPacket.INSTANCE, ConnectionProtocol.CONFIGURATION);
 +        state = ConnectionProtocol.PLAY;
 +    }
 +
@@ -1055,10 +1054,10 @@ index 0000000000000000000000000000000000000000..8978fe0c7ed092334618e27892f940ee
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/replay/ReplayFile.java b/src/main/java/org/leavesmc/leaves/replay/ReplayFile.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..331ced8677b28827c277c64ae0b31d4d9ecd1d9b
+index 0000000000000000000000000000000000000000..8d96445fa45db5c1976c4f4d6811184810951be0
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/replay/ReplayFile.java
-@@ -0,0 +1,199 @@
+@@ -0,0 +1,198 @@
 +package org.leavesmc.leaves.replay;
 +
 +import com.google.gson.Gson;
@@ -1067,19 +1066,16 @@ index 0000000000000000000000000000000000000000..331ced8677b28827c277c64ae0b31d4d
 +import io.netty.buffer.Unpooled;
 +import net.minecraft.SharedConstants;
 +import net.minecraft.network.ConnectionProtocol;
-+import net.minecraft.network.FriendlyByteBuf;
 +import net.minecraft.network.ProtocolInfo;
 +import net.minecraft.network.RegistryFriendlyByteBuf;
-+import net.minecraft.network.codec.StreamCodec;
 +import net.minecraft.network.protocol.Packet;
-+import net.minecraft.network.protocol.PacketFlow;
 +import net.minecraft.network.protocol.configuration.ConfigurationProtocols;
 +import net.minecraft.network.protocol.game.GameProtocols;
-+import net.minecraft.network.protocol.handshake.HandshakeProtocols;
 +import net.minecraft.network.protocol.login.LoginProtocols;
 +import net.minecraft.network.protocol.status.StatusProtocols;
 +import net.minecraft.server.MinecraftServer;
 +import org.jetbrains.annotations.NotNull;
++import org.leavesmc.leaves.protocol.core.ProtocolUtils;
 +import org.leavesmc.leaves.util.UUIDSerializer;
 +
 +import java.io.BufferedOutputStream;
@@ -1146,7 +1142,8 @@ index 0000000000000000000000000000000000000000..331ced8677b28827c277c64ae0b31d4d
 +        );
 +    }
 +
-+    private byte @NotNull [] getPacketBytes(Packet packet, ConnectionProtocol state) { // TODO: Fix this
++    @SuppressWarnings({"rawtypes", "unchecked"})
++    private byte @NotNull [] getPacketBytes(Packet packet, ConnectionProtocol state) {
 +        ProtocolInfo<?> protocol = this.protocols.get(state);
 +        if (protocol == null) {
 +            throw new IllegalArgumentException("Unknown protocol state " + state);
@@ -1172,6 +1169,7 @@ index 0000000000000000000000000000000000000000..331ced8677b28827c277c64ae0b31d4d
 +        data.fileFormat = "MCPR";
 +        data.fileFormatVersion = RecordMetaData.CURRENT_FILE_FORMAT_VERSION;
 +        data.protocol = SharedConstants.getCurrentVersion().getProtocolVersion();
++        data.generator = ProtocolUtils.buildProtocolVersion("replay");
 +
 +        try (Writer writer = new OutputStreamWriter(new FileOutputStream(metaFile), StandardCharsets.UTF_8)) {
 +            writer.write(META_GSON.toJson(data));

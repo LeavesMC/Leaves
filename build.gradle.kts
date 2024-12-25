@@ -1,7 +1,7 @@
 plugins {
     java
     `maven-publish`
-    id("org.leavesmc.leavesweight.patcher") version "1.0.1-SNAPSHOT"
+    id("org.leavesmc.leavesweight.patcher") version "1.0.2-SNAPSHOT"
 }
 
 allprojects {
@@ -67,7 +67,7 @@ paperweight {
     remapRepo.set("https://maven.fabricmc.net/")
     decompileRepo.set("https://files.minecraftforge.net/maven/")
 
-    usePaperUpstream(providers.gradleProperty("paperRef")) {
+    usePaperArchiveUpstream(providers.gradleProperty("paperRef")) {
         withPaperPatcher {
             apiPatchDir.set(layout.projectDirectory.dir("patches/api"))
             apiOutputDir.set(layout.projectDirectory.dir("leaves-api"))

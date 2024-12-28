@@ -124,13 +124,12 @@ index 30d0133a42ce990352f5c492fcf9beb105364848..1ab2eab686b3a89d406f127a6036c0e2
      protected CompositeLootItemCondition(List<LootItemCondition> terms, Predicate<LootContext> predicate) {
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/JadeProtocol.java b/src/main/java/org/leavesmc/leaves/protocol/jade/JadeProtocol.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..ccce630f67cd6329033d65156231e749eaf0c448
+index 0000000000000000000000000000000000000000..6fbd71ba1158b4451396936e4c08f8aaed8f4158
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/JadeProtocol.java
-@@ -0,0 +1,312 @@
+@@ -0,0 +1,280 @@
 +package org.leavesmc.leaves.protocol.jade;
 +
-+import com.google.common.base.Suppliers;
 +import net.minecraft.core.BlockPos;
 +import net.minecraft.core.registries.BuiltInRegistries;
 +import net.minecraft.core.registries.Registries;
@@ -147,12 +146,9 @@ index 0000000000000000000000000000000000000000..ccce630f67cd6329033d65156231e749
 +import net.minecraft.world.entity.animal.allay.Allay;
 +import net.minecraft.world.entity.animal.armadillo.Armadillo;
 +import net.minecraft.world.entity.animal.frog.Tadpole;
-+import net.minecraft.world.entity.boss.EnderDragonPart;
-+import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 +import net.minecraft.world.entity.monster.ZombieVillager;
 +import net.minecraft.world.item.ItemStack;
 +import net.minecraft.world.item.Items;
-+import net.minecraft.world.level.Level;
 +import net.minecraft.world.level.block.Block;
 +import net.minecraft.world.level.block.CampfireBlock;
 +import net.minecraft.world.level.block.entity.AbstractFurnaceBlockEntity;
@@ -167,9 +163,6 @@ index 0000000000000000000000000000000000000000..ccce630f67cd6329033d65156231e749
 +import net.minecraft.world.level.block.entity.JukeboxBlockEntity;
 +import net.minecraft.world.level.block.entity.LecternBlockEntity;
 +import net.minecraft.world.level.block.entity.TrialSpawnerBlockEntity;
-+import net.minecraft.world.level.block.state.BlockState;
-+import net.minecraft.world.phys.BlockHitResult;
-+import net.minecraft.world.phys.EntityHitResult;
 +import org.jetbrains.annotations.Contract;
 +import org.jetbrains.annotations.NotNull;
 +import org.leavesmc.leaves.LeavesConfig;
@@ -178,9 +171,7 @@ index 0000000000000000000000000000000000000000..ccce630f67cd6329033d65156231e749
 +import org.leavesmc.leaves.protocol.core.ProtocolHandler;
 +import org.leavesmc.leaves.protocol.core.ProtocolUtils;
 +import org.leavesmc.leaves.protocol.jade.accessor.BlockAccessor;
-+import org.leavesmc.leaves.protocol.jade.accessor.BlockAccessorImpl;
 +import org.leavesmc.leaves.protocol.jade.accessor.EntityAccessor;
-+import org.leavesmc.leaves.protocol.jade.accessor.EntityAccessorImpl;
 +import org.leavesmc.leaves.protocol.jade.payload.ReceiveDataPayload;
 +import org.leavesmc.leaves.protocol.jade.payload.RequestBlockPayload;
 +import org.leavesmc.leaves.protocol.jade.payload.RequestEntityPayload;
@@ -227,7 +218,7 @@ index 0000000000000000000000000000000000000000..ccce630f67cd6329033d65156231e749
 +
 +    public static final HierarchyLookup<IServerDataProvider<EntityAccessor>> entityDataProviders = new HierarchyLookup<>(Entity.class);
 +    public static final PairHierarchyLookup<IServerDataProvider<BlockAccessor>> blockDataProviders = new PairHierarchyLookup<>(new HierarchyLookup<>(Block.class), new HierarchyLookup<>(BlockEntity.class));
-+    public static final WrappedHierarchyLookup<IServerExtensionProvider<ItemStack>> itemStorageProviders = new WrappedHierarchyLookup<>();
++    public static final WrappedHierarchyLookup<IServerExtensionProvider<ItemStack>> itemStorageProviders = WrappedHierarchyLookup.forAccessor();
 +
 +    @Contract("_ -> new")
 +    public static @NotNull ResourceLocation id(String path) {
@@ -314,40 +305,28 @@ index 0000000000000000000000000000000000000000..ccce630f67cd6329033d65156231e749
 +            return;
 +        }
 +
-+        MinecraftServer server = MinecraftServer.getServer();
-+        server.execute(() -> {
-+            Level world = player.level();
-+            boolean showDetails = payload.data().showDetails();
-+            Entity entity = world.getEntity(payload.data().id());
-+            double maxDistance = Mth.square(player.entityInteractionRange() + 21);
++        MinecraftServer.getServer().execute(() -> {
++            EntityAccessor accessor = payload.data().unpack(player);
++            if (accessor == null) {
++                return;
++            }
 +
++            Entity entity = accessor.getEntity();
++            double maxDistance = Mth.square(player.entityInteractionRange() + 21);
 +            if (entity == null || player.distanceToSqr(entity) > maxDistance) {
 +                return;
 +            }
 +
-+            if (payload.data().partIndex() >= 0 && entity instanceof EnderDragon dragon) {
-+                EnderDragonPart[] parts = dragon.getSubEntities();
-+                if (payload.data().partIndex() < parts.length) {
-+                    entity = parts[payload.data().partIndex()];
-+                }
-+            }
-+
-+            var providers = entityDataProviders.get(entity);
++            List<IServerDataProvider<EntityAccessor>> providers = entityDataProviders.get(entity);
 +            if (providers.isEmpty()) {
 +                return;
 +            }
 +
-+            final Entity finalEntity = entity;
 +            CompoundTag tag = new CompoundTag();
-+            EntityAccessor accessor = new EntityAccessorImpl.Builder()
-+                    .level(world)
-+                    .player(player)
-+                    .showDetails(showDetails)
-+                    .entity(entity)
-+                    .hit(Suppliers.memoize(() -> new EntityHitResult(finalEntity, payload.data().hitVec())))
-+                    .build();
-+
 +            for (IServerDataProvider<EntityAccessor> provider : providers) {
++                if (!payload.dataProviders().contains(provider)) {
++                    continue;
++                }
 +                try {
 +                    provider.appendServerData(tag, accessor);
 +                } catch (Exception e) {
@@ -368,21 +347,17 @@ index 0000000000000000000000000000000000000000..ccce630f67cd6329033d65156231e749
 +
 +        MinecraftServer server = MinecraftServer.getServer();
 +        server.execute(() -> {
-+            Level world = player.level();
-+            BlockState blockState = payload.data().blockState();
-+            Block block = blockState.getBlock();
-+            BlockHitResult result = payload.data().hit();
-+            BlockPos pos = result.getBlockPos();
-+            boolean showDetails = payload.data().showDetails();
-+
-+            double maxDistance = Mth.square(player.blockInteractionRange() + 21);
-+            if (pos.distSqr(player.blockPosition()) > maxDistance || !world.isLoaded(pos)) {
++            BlockAccessor accessor = payload.data().unpack(player);
++            if (accessor == null) {
 +                return;
 +            }
 +
-+            BlockEntity blockEntity = null;
-+            if (blockState.hasBlockEntity()) {
-+                blockEntity = world.getBlockEntity(pos);
++            BlockPos pos = accessor.getPosition();
++            Block block = accessor.getBlock();
++            BlockEntity blockEntity = accessor.getBlockEntity();
++            double maxDistance = Mth.square(player.blockInteractionRange() + 21);
++            if (pos.distSqr(player.blockPosition()) > maxDistance || !accessor.getLevel().isLoaded(pos)) {
++                return;
 +            }
 +
 +            List<IServerDataProvider<BlockAccessor>> providers;
@@ -393,25 +368,18 @@ index 0000000000000000000000000000000000000000..ccce630f67cd6329033d65156231e749
 +            }
 +
 +            if (providers.isEmpty()) {
-+                player.getBukkitEntity().sendMessage("Provider is empty!");
 +                return;
 +            }
 +
 +            CompoundTag tag = new CompoundTag();
-+            BlockAccessor accessor = new BlockAccessorImpl.Builder()
-+                    .level(world)
-+                    .player(player)
-+                    .showDetails(showDetails)
-+                    .hit(result)
-+                    .blockState(blockState)
-+                    .blockEntity(blockEntity)
-+                    .build();
-+
 +            for (IServerDataProvider<BlockAccessor> provider : providers) {
++                if (!payload.dataProviders().contains(provider)) {
++                    continue;
++                }
 +                try {
 +                    provider.appendServerData(tag, accessor);
 +                } catch (Exception e) {
-+                    LeavesLogger.LOGGER.warning("Error while saving data for block " + blockState);
++                    LeavesLogger.LOGGER.warning("Error while saving data for block " + accessor.getBlockState());
 +                }
 +            }
 +            tag.putInt("x", pos.getX());
@@ -1068,7 +1036,7 @@ index 0000000000000000000000000000000000000000..480ec35f28c850bfbe4f787d080fd7bb
 \ No newline at end of file
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/payload/RequestEntityPayload.java b/src/main/java/org/leavesmc/leaves/protocol/jade/payload/RequestEntityPayload.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..ef7ee32f0f2fd78b7e7891d622f76cddb8cb0680
+index 0000000000000000000000000000000000000000..395138d427413e562a5a3df80b33b53cffacc637
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/payload/RequestEntityPayload.java
 @@ -0,0 +1,53 @@
@@ -1103,8 +1071,8 @@ index 0000000000000000000000000000000000000000..ef7ee32f0f2fd78b7e7891d622f76cdd
 +            ByteBufCodecs.<ByteBuf, IServerDataProvider<EntityAccessor>>list()
 +                    .apply(ByteBufCodecs.idMapper(
 +                            $ -> Objects.requireNonNull(entityDataProviders.idMapper()).byId($),
-+                            $ -> Objects.requireNonNull(entityDataProviders.idMapper())
-+                                    .getIdOrThrow($))),
++                            $ -> Objects.requireNonNull(entityDataProviders.idMapper()).getIdOrThrow($)
++                    )),
 +            RequestEntityPayload::dataProviders,
 +            RequestEntityPayload::new);
 +
@@ -1975,21 +1943,24 @@ index 0000000000000000000000000000000000000000..a70f4a81166221ec1971b1fbf06e4c73
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/provider/block/ObjectNameProvider.java b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/block/ObjectNameProvider.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..e97fb13707365cceaf28f2624791d0472e56169c
+index 0000000000000000000000000000000000000000..6a060c8a64f18a3bff232bcb43f20121b1da36b1
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/provider/block/ObjectNameProvider.java
-@@ -0,0 +1,57 @@
+@@ -0,0 +1,63 @@
 +package org.leavesmc.leaves.protocol.jade.provider.block;
 +
++import net.minecraft.core.component.DataComponents;
 +import net.minecraft.network.RegistryFriendlyByteBuf;
 +import net.minecraft.network.chat.Component;
 +import net.minecraft.network.chat.ComponentSerialization;
++import net.minecraft.network.chat.contents.TranslatableContents;
 +import net.minecraft.network.codec.StreamCodec;
 +import net.minecraft.resources.ResourceLocation;
 +import net.minecraft.world.MenuProvider;
 +import net.minecraft.world.Nameable;
 +import net.minecraft.world.level.block.ChestBlock;
 +import net.minecraft.world.level.block.entity.ChestBlockEntity;
++import net.minecraft.world.level.block.state.properties.ChestType;
 +import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
 +import org.leavesmc.leaves.protocol.jade.JadeProtocol;
@@ -2009,15 +1980,18 @@ index 0000000000000000000000000000000000000000..e97fb13707365cceaf28f2624791d047
 +            if (!(accessor.getBlockEntity() instanceof Nameable nameable)) {
 +                return null;
 +            }
-+            if (nameable instanceof ChestBlockEntity && accessor.getBlock() instanceof ChestBlock) {
++            if (nameable instanceof ChestBlockEntity && accessor.getBlock() instanceof ChestBlock && accessor.getBlockState().getValue(ChestBlock.TYPE) != ChestType.SINGLE) {
 +                MenuProvider menuProvider = accessor.getBlockState().getMenuProvider(accessor.getLevel(), accessor.getPosition());
 +                if (menuProvider != null) {
-+                    return menuProvider.getDisplayName();
++                    Component name = menuProvider.getDisplayName();
++                    if (!(name.getContents() instanceof TranslatableContents contents) || !"container.chestDouble".equals(contents.getKey())) {
++                        return name;
++                    }
 +                }
 +            } else if (nameable.hasCustomName()) {
 +                return nameable.getDisplayName();
 +            }
-+            return null;
++            return accessor.getBlockEntity().components().get(DataComponents.ITEM_NAME);
 +        }
 +
 +        @Override
@@ -2731,7 +2705,7 @@ index 0000000000000000000000000000000000000000..0070fd22b096281a094d1cd19c93fdbc
 \ No newline at end of file
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/util/IHierarchyLookup.java b/src/main/java/org/leavesmc/leaves/protocol/jade/util/IHierarchyLookup.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..137cdf619879390477b4fc8c4b7ecee5b762dc30
+index 0000000000000000000000000000000000000000..0536309cb016f05f296daaeb17dd9275777a7333
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/util/IHierarchyLookup.java
 @@ -0,0 +1,66 @@
@@ -2793,7 +2767,7 @@ index 0000000000000000000000000000000000000000..137cdf619879390477b4fc8c4b7ecee5
 +            idMapper = new IdMapper<>(list.size());
 +        }
 +        for (T provider : list) {
-+            if (idMapper.getId(provider) == -1) {
++            if (idMapper.getId(provider) == IdMapper.DEFAULT) {
 +                idMapper.add(provider);
 +            }
 +        }
@@ -2803,10 +2777,10 @@ index 0000000000000000000000000000000000000000..137cdf619879390477b4fc8c4b7ecee5
 +
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/util/ItemCollector.java b/src/main/java/org/leavesmc/leaves/protocol/jade/util/ItemCollector.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..8f57cb0714dc684bd90325a6d2e84d5b1b303d6e
+index 0000000000000000000000000000000000000000..408c81a0d0762f7d4b32aedc9b67c7ff546b43f3
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/util/ItemCollector.java
-@@ -0,0 +1,116 @@
+@@ -0,0 +1,118 @@
 +package org.leavesmc.leaves.protocol.jade.util;
 +
 +import it.unimi.dsi.fastutil.objects.Object2IntLinkedOpenHashMap;
@@ -2845,6 +2819,7 @@ index 0000000000000000000000000000000000000000..8f57cb0714dc684bd90325a6d2e84d5b
 +    private final ItemIterator<T> iterator;
 +    public long version;
 +    public long lastTimeFinished;
++    public boolean lastTimeIsEmpty;
 +    public List<ViewGroup<ItemStack>> mergedResult;
 +
 +    public ItemCollector(ItemIterator<T> iterator) {
@@ -2883,13 +2858,14 @@ index 0000000000000000000000000000000000000000..8f57cb0714dc684bd90325a6d2e84d5b
 +            updateCollectingProgress(mergedResult.getFirst());
 +            return mergedResult;
 +        }
-+        List<ItemStack> partialResult = items.object2IntEntrySet().stream().limit(54).map(entry -> {
++        List<ItemStack> partialResult = items.object2IntEntrySet().stream().limit(MAX_SIZE  ).map(entry -> {
 +            ItemDefinition def = entry.getKey();
 +            return def.toStack(entry.getIntValue());
 +        }).toList();
 +        List<ViewGroup<ItemStack>> groups = List.of(updateCollectingProgress(new ViewGroup<>(partialResult)));
 +        if (iterator.isFinished()) {
 +            mergedResult = groups;
++            lastTimeIsEmpty = mergedResult.getFirst().views.isEmpty();
 +            version = currentVersion;
 +            lastTimeFinished = gameTime;
 +            items.clear();
@@ -2898,12 +2874,12 @@ index 0000000000000000000000000000000000000000..8f57cb0714dc684bd90325a6d2e84d5b
 +    }
 +
 +    protected ViewGroup<ItemStack> updateCollectingProgress(ViewGroup<ItemStack> group) {
++        if (lastTimeIsEmpty && group.views.isEmpty()) {
++            return group;
++        }
 +        float progress = iterator.getCollectingProgress();
 +        CompoundTag data = group.getExtraData();
-+        if (Float.isNaN(progress)) {
-+            progress = 0;
-+        }
-+        if (progress >= 1) {
++        if (Float.isNaN(progress) || progress >= 1) {
 +            data.remove("Collecting");
 +        } else {
 +            data.putFloat("Collecting", progress);
@@ -3454,16 +3430,17 @@ index 0000000000000000000000000000000000000000..520eadbf6de55141524741b4e4063cd5
 +}
 diff --git a/src/main/java/org/leavesmc/leaves/protocol/jade/util/WrappedHierarchyLookup.java b/src/main/java/org/leavesmc/leaves/protocol/jade/util/WrappedHierarchyLookup.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..11d66b88327a954c8d530a002aa87c9abae8da12
+index 0000000000000000000000000000000000000000..9b49efd3255e4521824e1b21b88e3625eedcc7a5
 --- /dev/null
 +++ b/src/main/java/org/leavesmc/leaves/protocol/jade/util/WrappedHierarchyLookup.java
-@@ -0,0 +1,96 @@
+@@ -0,0 +1,104 @@
 +package org.leavesmc.leaves.protocol.jade.util;
 +
 +import com.google.common.collect.Lists;
 +import net.minecraft.resources.ResourceLocation;
 +import net.minecraft.world.level.block.Block;
 +import org.apache.commons.lang3.tuple.Pair;
++import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
 +import org.leavesmc.leaves.protocol.jade.accessor.Accessor;
 +import org.leavesmc.leaves.protocol.jade.accessor.BlockAccessor;
@@ -3480,13 +3457,20 @@ index 0000000000000000000000000000000000000000..11d66b88327a954c8d530a002aa87c9a
 +    private boolean empty = true;
 +
 +    public WrappedHierarchyLookup() {
-+        super(Object.class, true);
-+        overrides.add(Pair.of(new HierarchyLookup<>(Block.class, true), accessor -> {
-+            if (accessor instanceof BlockAccessor blockAccessor) {
-+                return blockAccessor.getBlock();
-+            }
-+            return null;
-+        }));
++        super(Object.class);
++    }
++
++    @NotNull
++    public static <T extends IJadeProvider> WrappedHierarchyLookup<T> forAccessor() {
++        WrappedHierarchyLookup<T> lookup = new WrappedHierarchyLookup<>();
++        lookup.overrides.add(Pair.of(
++                new HierarchyLookup<>(Block.class), accessor -> {
++                    if (accessor instanceof BlockAccessor blockAccessor) {
++                        return blockAccessor.getBlock();
++                    }
++                    return null;
++                }));
++        return lookup;
 +    }
 +
 +    public List<T> wrappedGet(Accessor<?> accessor) {

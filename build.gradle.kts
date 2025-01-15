@@ -39,7 +39,7 @@ subprojects {
         mavenLocal()
         mavenCentral()
         maven("https://oss.sonatype.org/content/groups/public/")
-        maven("https://papermc.io/repo/repository/maven-public/")
+        maven("https://repo.papermc.io/repository/maven-public/")
         maven("https://ci.emc.gs/nexus/content/groups/aikar/")
         maven("https://repo.aikar.co/content/groups/aikar")
         maven("https://repo.md-5.net/content/repositories/releases/")

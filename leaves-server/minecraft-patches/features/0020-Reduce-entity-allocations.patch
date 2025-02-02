@@ -5,18 +5,18 @@ Subject: [PATCH] Reduce entity allocations
 
 This patch is Powered by Pufferfish(https://github.com/pufferfish-gg/Pufferfish)
 
-diff --git a/src/main/java/net/minecraft/world/entity/ai/attributes/AttributeMap.java b/src/main/java/net/minecraft/world/entity/ai/attributes/AttributeMap.java
-index 94d04a20f97405e02d7cccaabadc7a7e86e336f7..6b5fd2f97b0d4bdf14a9e9059153b1ccc92ffd58 100644
---- a/src/main/java/net/minecraft/world/entity/ai/attributes/AttributeMap.java
-+++ b/src/main/java/net/minecraft/world/entity/ai/attributes/AttributeMap.java
+diff --git a/net/minecraft/world/entity/ai/attributes/AttributeMap.java b/net/minecraft/world/entity/ai/attributes/AttributeMap.java
+index 4c808c7ef336de74048f40bd1cc8b14131a9325d..22c315f936982e496d26a2846351969b32fe61e4 100644
+--- a/net/minecraft/world/entity/ai/attributes/AttributeMap.java
++++ b/net/minecraft/world/entity/ai/attributes/AttributeMap.java
 @@ -23,9 +23,11 @@ public class AttributeMap {
      private final Set<AttributeInstance> attributesToSync = new ObjectOpenHashSet<>();
      private final Set<AttributeInstance> attributesToUpdate = new ObjectOpenHashSet<>();
      private final AttributeSupplier supplier;
 +    private final java.util.function.Function<Holder<Attribute>, AttributeInstance> createInstance; // Leaves - reduce entity allocations
  
-     public AttributeMap(AttributeSupplier defaultAttributes) {
-         this.supplier = defaultAttributes;
+     public AttributeMap(AttributeSupplier supplier) {
+         this.supplier = supplier;
 +        this.createInstance = attribute -> this.supplier.createInstance(this::onAttributeModified, attribute);
      }
  
@@ -25,12 +25,12 @@ index 94d04a20f97405e02d7cccaabadc7a7e86e336f7..6b5fd2f97b0d4bdf14a9e9059153b1cc
  
      @Nullable
      public AttributeInstance getInstance(Holder<Attribute> attribute) {
--        return this.attributes.computeIfAbsent(attribute, attributex -> this.supplier.createInstance(this::onAttributeModified, attributex));
+-        return this.attributes.computeIfAbsent(attribute, holder -> this.supplier.createInstance(this::onAttributeModified, (Holder<Attribute>)holder));
 +        // Leaves start - cache lambda, as for some reason java allocates it anyways
 +        if (org.leavesmc.leaves.LeavesConfig.performance.reduceEntityAllocations) {
 +            return this.attributes.computeIfAbsent(attribute, this.createInstance);
 +        } else {
-+            return this.attributes.computeIfAbsent(attribute, attributex -> this.supplier.createInstance(this::onAttributeModified, attributex));
++            return this.attributes.computeIfAbsent(attribute, holder -> this.supplier.createInstance(this::onAttributeModified, (Holder<Attribute>)holder));
 +        }
 +        // Leaves end - cache lambda, as for some reason java allocates it anyways
      }

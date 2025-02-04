@@ -1,0 +1,34 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Lumine1909 <133463833+Lumine1909@users.noreply.github.com>
+Date: Mon, 3 Feb 2025 23:05:54 -0500
+Subject: [PATCH] Reduce lambda and Optional allocation in
+ EntityBasedExplosionDamageCalculator
+
+
+diff --git a/net/minecraft/world/level/EntityBasedExplosionDamageCalculator.java b/net/minecraft/world/level/EntityBasedExplosionDamageCalculator.java
+index 52cb2dcd714cf8c16f167466333eeb923e4ff183..8f2fbfb8d0a24d53697442addf940fa18ae4c69b 100644
+--- a/net/minecraft/world/level/EntityBasedExplosionDamageCalculator.java
++++ b/net/minecraft/world/level/EntityBasedExplosionDamageCalculator.java
+@@ -15,8 +15,20 @@ public class EntityBasedExplosionDamageCalculator extends ExplosionDamageCalcula
+ 
+     @Override
+     public Optional<Float> getBlockExplosionResistance(Explosion explosion, BlockGetter reader, BlockPos pos, BlockState state, FluidState fluid) {
+-        return super.getBlockExplosionResistance(explosion, reader, pos, state, fluid)
+-            .map(resistance -> this.source.getBlockExplosionResistance(explosion, reader, pos, state, fluid, resistance));
++        if (!org.leavesmc.leaves.LeavesConfig.performance.remove.damageLambda) {
++            return super.getBlockExplosionResistance(explosion, reader, pos, state, fluid)
++                    .map(max -> this.source.getBlockExplosionResistance(explosion, reader, pos, state, fluid, max));
++        } else {
++            Optional<Float> optionalBlastResistance = super.getBlockExplosionResistance(explosion, reader, pos, state, fluid);
++            if (optionalBlastResistance.isPresent()) {
++                float blastResistance = optionalBlastResistance.get();
++                float effectiveExplosionResistance = this.source.getBlockExplosionResistance(explosion, reader, pos, state, fluid, blastResistance);
++                if (effectiveExplosionResistance != blastResistance) {
++                    return Optional.of(effectiveExplosionResistance);
++                }
++            }
++            return optionalBlastResistance;
++        }
+     }
+ 
+     @Override

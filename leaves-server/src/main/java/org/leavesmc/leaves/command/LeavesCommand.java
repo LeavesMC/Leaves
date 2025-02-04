@@ -32,6 +32,8 @@ public final class LeavesCommand extends Command {
     private static final Map<String, LeavesSubcommand> SUBCOMMANDS = Util.make(() -> {
         final Map<Set<String>, LeavesSubcommand> commands = new HashMap<>();
         commands.put(Set.of("config"), new ConfigCommand());
+        commands.put(Set.of("update"), new UpdateCommand());
+        commands.put(Set.of("peaceful"), new PeacefulModeSwitchCommand());
 
         return commands.entrySet().stream()
             .flatMap(entry -> entry.getKey().stream().map(s -> Map.entry(s, entry.getValue())))

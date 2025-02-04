@@ -34,6 +34,7 @@ public final class LeavesCommand extends Command {
         commands.put(Set.of("config"), new ConfigCommand());
         commands.put(Set.of("update"), new UpdateCommand());
         commands.put(Set.of("peaceful"), new PeacefulModeSwitchCommand());
+        commands.put(Set.of("counter"), new CounterCommand());
 
         return commands.entrySet().stream()
             .flatMap(entry -> entry.getKey().stream().map(s -> Map.entry(s, entry.getValue())))

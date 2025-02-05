@@ -545,9 +545,6 @@ public final class LeavesConfig {
             @GlobalConfig("tick-guard-lambda")
             public boolean tickGuardLambda = true;
 
-            @GlobalConfig("inventory-contains-iterators")
-            public boolean inventoryContainsIterators = true;
-
             @GlobalConfig("damage-lambda")
             public boolean damageLambda = true;
         }
@@ -637,6 +634,7 @@ public final class LeavesConfig {
         @RemovedConfig(name = "improve-fluid-direction-caching", category = "performance")
         @RemovedConfig(name = "cache-BlockStatePairKey-hash", category = "performance")
         @RemovedConfig(name = "optimize-chunk-ticking", category = "performance")
+        @RemovedConfig(name = "inventory-contains-iterators", category = {"performance", "remove"})
         private final boolean removedPerformance = true;
     }
 
@@ -907,7 +905,11 @@ public final class LeavesConfig {
         @GlobalConfig(value = "format", lock = true, validator = RegionFormatValidator.class)
         public org.leavesmc.leaves.region.RegionFileFormat format = org.leavesmc.leaves.region.RegionFileFormat.ANVIL;
 
-        private static class RegionFormatValidator extends EnumConfigValidator<RegionFileFormat> {
+        private static class RegionFormatValidator extends EnumConfigValidator<org.leavesmc.leaves.region.RegionFileFormat> {
+            @Override
+            public void verify(RegionFileFormat old, RegionFileFormat value) throws IllegalArgumentException {
+                org.leavesmc.leaves.region.IRegionFileFactory.initFirstRegion(value);
+            }
         }
 
         public LinearConfig linear = new LinearConfig();
@@ -915,22 +917,31 @@ public final class LeavesConfig {
         @GlobalConfigCategory("linear")
         public static class LinearConfig {
 
-            @GlobalConfig(value = "flush-frequency", lock = true, validator = IntConfigValidator.class)
-            public int flushFrequency = 10;
+            @GlobalConfig(value = "version", lock = true, validator = LinearVersionValidator.class)
+            public org.leavesmc.leaves.region.linear.LinearVersion version = org.leavesmc.leaves.region.linear.LinearVersion.V2;
+
+            private static class LinearVersionValidator extends EnumConfigValidator<org.leavesmc.leaves.region.linear.LinearVersion> {
+            }
 
             @GlobalConfig(value = "auto-convert-anvil-to-linear", lock = true)
             public boolean autoConvertAnvilToLinear = false;
 
             @GlobalConfig(value = "flush-max-threads", lock = true, validator = IntConfigValidator.class)
-            public int flushThreads = 1;
+            public int flushThreads = 6;
 
             public int getLinearFlushThreads() {
-                if (flushThreads < 0) {
+                if (flushThreads <= 0) {
                     return Math.max(Runtime.getRuntime().availableProcessors() + flushThreads, 1);
                 } else {
-                    return Math.max(flushThreads, 1);
+                    return flushThreads;
                 }
             }
+
+            @GlobalConfig(value = "flush-delay-ms", lock = true, validator = IntConfigValidator.class)
+            public int flushDelayMs = 100;
+
+            @GlobalConfig(value = "use-virtual-thread", lock = true)
+            public boolean useVirtualThread = true;
 
             @GlobalConfig(value = "compression-level", lock = true, validator = LinearCompressValidator.class)
             public int compressionLevel = 1;
@@ -944,6 +955,7 @@ public final class LeavesConfig {
                 }
             }
 
+            @RemovedConfig(name = "flush-frequency", category = {"region", "linear"})
             @RemovedConfig(name = "crash-on-broken-symlink", category = {"region", "linear"})
             private final boolean linearCrashOnBrokenSymlink = true;
         }

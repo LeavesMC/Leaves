@@ -5,11 +5,11 @@ Subject: [PATCH] Vanilla hopper
 
 This is a temporary solution designed to attempt to restore the vanilla behavior of the funnel while preserving optimizations as much as possible. It should ultimately be replaced by the optimization solution provided by lithium.
 
-diff --git a/src/main/java/net/minecraft/world/level/block/entity/HopperBlockEntity.java b/src/main/java/net/minecraft/world/level/block/entity/HopperBlockEntity.java
-index af3846dbb29d4738d0cce20c85d2f40c7ccf4f70..1a2a7e100ad56d00e98844f4fa7f44cede6fa1d8 100644
---- a/src/main/java/net/minecraft/world/level/block/entity/HopperBlockEntity.java
-+++ b/src/main/java/net/minecraft/world/level/block/entity/HopperBlockEntity.java
-@@ -305,36 +305,49 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+diff --git a/net/minecraft/world/level/block/entity/HopperBlockEntity.java b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
+index bd8d949ff0f3d0b6a893d3b3ae608da380e715f0..5c29416b677d6b19db6bba43f69b465feb2dcb3d 100644
+--- a/net/minecraft/world/level/block/entity/HopperBlockEntity.java
++++ b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
+@@ -281,36 +281,48 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
          ItemStack movedItem = origItemStack;
          final int originalItemCount = origItemStack.getCount();
          final int movedItemCount = Math.min(level.spigotConfig.hopperAmount, originalItemCount);
@@ -21,7 +21,7 @@ index af3846dbb29d4738d0cce20c85d2f40c7ccf4f70..1a2a7e100ad56d00e98844f4fa7f44ce
 -            if (movedItem == null) { // cancelled
 -                origItemStack.setCount(originalItemCount);
 -                // Drastically improve performance by returning true.
--                // No plugin could of relied on the behavior of false as the other call
+-                // No plugin could have relied on the behavior of false as the other call
 -                // site for IMIE did not exhibit the same behavior
 +        // Leaves start - fix vanilla
 +        if (org.leavesmc.leaves.LeavesConfig.fix.vanillaHopper && movedItem.getCount() <= movedItemCount) {
@@ -32,6 +32,10 @@ index af3846dbb29d4738d0cce20c85d2f40c7ccf4f70..1a2a7e100ad56d00e98844f4fa7f44ce
                  return true;
              }
 -        }
++            container.setItem(i, movedItem);
++        } else {
++            container.setChanged(); // original logic always marks source inv as changed even if no move happens.
++            movedItem.setCount(movedItemCount);
  
 -        final ItemStack remainingItem = addItem(container, hopper, movedItem, null);
 -        final int remainingItemCount = remainingItem.getCount();
@@ -40,25 +44,20 @@ index af3846dbb29d4738d0cce20c85d2f40c7ccf4f70..1a2a7e100ad56d00e98844f4fa7f44ce
 -            origItemStack.setCount(originalItemCount);
 -            if (!origItemStack.isEmpty()) {
 -                origItemStack.setCount(originalItemCount - movedItemCount + remainingItemCount);
-+            container.setItem(i, movedItem);
-+        } else {
-+            container.setChanged(); // original logic always marks source inv as changed even if no move happens.
-+            movedItem.setCount(movedItemCount);
-+
 +            if (!skipPullModeEventFire) {
 +                movedItem = callPullMoveEvent(hopper, container, movedItem);
 +                if (movedItem == null) { // cancelled
 +                    origItemStack.setCount(originalItemCount);
 +                    // Drastically improve performance by returning true.
-+                    // No plugin could of relied on the behavior of false as the other call
++                    // No plugin could have relied on the behavior of false as the other call
 +                    // site for IMIE did not exhibit the same behavior
 +                    return true;
 +                }
              }
  
--            ignoreTileUpdates = true;
+-            ignoreBlockEntityUpdates = true;
 -            container.setItem(i, origItemStack);
--            ignoreTileUpdates = false;
+-            ignoreBlockEntityUpdates = false;
 -            container.setChanged();
 -            return true;
 +            final ItemStack remainingItem = addItem(container, hopper, movedItem, null);
@@ -70,9 +69,9 @@ index af3846dbb29d4738d0cce20c85d2f40c7ccf4f70..1a2a7e100ad56d00e98844f4fa7f44ce
 +                    origItemStack.setCount(originalItemCount - movedItemCount + remainingItemCount);
 +                }
 +
-+                ignoreTileUpdates = true;
++                ignoreBlockEntityUpdates = true;
 +                container.setItem(i, origItemStack);
-+                ignoreTileUpdates = false;
++                ignoreBlockEntityUpdates = false;
 +                container.setChanged();
 +                return true;
 +            }
@@ -82,13 +81,4 @@ index af3846dbb29d4738d0cce20c85d2f40c7ccf4f70..1a2a7e100ad56d00e98844f4fa7f44ce
 +        // Leaves end - fix vanilla
  
          if (level.paperConfig().hopper.cooldownWhenFull && !org.leavesmc.leaves.LeavesConfig.modify.mcTechnicalMode) { // Leaves
-             cooldownHopper(hopper);
-@@ -605,7 +618,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
- 
-             return false;
-         } else {
--            boolean flag = hopper.isGridAligned() && iblockdata.isCollisionShapeFullBlock(world, blockposition) && !iblockdata.is(BlockTags.DOES_NOT_BLOCK_HOPPERS);
-+            boolean flag = hopper.isGridAligned() && (org.leavesmc.leaves.LeavesConfig.modify.oldMC.oldHopperSuckInBehavior || iblockdata.isCollisionShapeFullBlock(world, blockposition)) && !iblockdata.is(BlockTags.DOES_NOT_BLOCK_HOPPERS);
- 
-             if (!flag) {
-                 Iterator iterator = HopperBlockEntity.getItemsAtAndAbove(world, hopper).iterator();
+             applyCooldown(hopper);

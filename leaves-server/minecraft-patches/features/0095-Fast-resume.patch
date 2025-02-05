@@ -1,0 +1,80 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Wed, 5 Feb 2025 23:42:44 +0800
+Subject: [PATCH] Fast resume
+
+
+diff --git a/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/ChunkHolderManager.java b/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/ChunkHolderManager.java
+index b5817aa8f537593f6d9fc6b612c82ccccb250ac7..920d925159ad8088de3e751591d464d22ffd2c06 100644
+--- a/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/ChunkHolderManager.java
++++ b/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/ChunkHolderManager.java
+@@ -603,6 +603,49 @@ public final class ChunkHolderManager {
+         }
+     }
+ 
++    // Leaves start - add custom ticket
++    public <T> void addTicketAtLevelCustom(final Ticket<T> ticket, final long chunk, final boolean lock) {
++        final long removeDelay = ticket.moonrise$getRemoveDelay();
++
++        final int chunkX = CoordinateUtils.getChunkX(chunk);
++        final int chunkZ = CoordinateUtils.getChunkZ(chunk);
++
++        final ReentrantAreaLock.Node ticketLock = lock ? this.ticketLockArea.lock(chunkX, chunkZ) : null;
++        try {
++            final SortedArraySet<Ticket<?>> ticketsAtChunk = this.tickets.computeIfAbsent(chunk, (final long keyInMap) -> SortedArraySet.create(4));
++
++            final int levelBefore = getTicketLevelAt(ticketsAtChunk);
++            final Ticket<T> current = (Ticket<T>)((ChunkSystemSortedArraySet<Ticket<?>>)ticketsAtChunk).moonrise$replace(ticket);
++            final int levelAfter = getTicketLevelAt(ticketsAtChunk);
++
++            if (current != ticket) {
++                final long oldRemoveDelay = ((ChunkSystemTicket<T>) current).moonrise$getRemoveDelay();
++                if (removeDelay != oldRemoveDelay) {
++                    if (oldRemoveDelay != NO_TIMEOUT_MARKER && removeDelay == NO_TIMEOUT_MARKER) {
++                        this.removeExpireCount(chunkX, chunkZ);
++                    } else if (oldRemoveDelay == NO_TIMEOUT_MARKER) {
++                        // since old != new, we have that NO_TIMEOUT_MARKER != new
++                        this.addExpireCount(chunkX, chunkZ);
++                    }
++                }
++            } else {
++                if (removeDelay != NO_TIMEOUT_MARKER) {
++                    this.addExpireCount(chunkX, chunkZ);
++                }
++            }
++
++            if (levelBefore != levelAfter) {
++                this.updateTicketLevel(chunk, levelAfter);
++            }
++
++        } finally {
++            if (ticketLock != null) {
++                this.ticketLockArea.unlock(ticketLock);
++            }
++        }
++    }
++    // Leaves end - add custom ticket
++
+     public <T> boolean removeTicketAtLevel(final TicketType<T> type, final ChunkPos chunkPos, final int level, final T identifier) {
+         return this.removeTicketAtLevel(type, CoordinateUtils.getChunkKey(chunkPos), level, identifier);
+     }
+diff --git a/net/minecraft/server/MinecraftServer.java b/net/minecraft/server/MinecraftServer.java
+index 164b8dc3f247aedd37bce24a7acb6ab1858e7d20..26e6fc29125fb129cbeb4c736dff222d4fe648b9 100644
+--- a/net/minecraft/server/MinecraftServer.java
++++ b/net/minecraft/server/MinecraftServer.java
+@@ -744,6 +744,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+ 
+         this.getBotList().loadResume(); // Leaves - load resident bot
+ 
++        org.leavesmc.leaves.util.TicketHelper.tryToLoadTickets(); // Leaves - load ticket
+         this.server.enablePlugins(org.bukkit.plugin.PluginLoadOrder.POSTWORLD);
+         this.server.spark.registerCommandBeforePlugins(this.server); // Paper - spark
+         this.server.spark.enableAfterPlugins(this.server); // Paper - spark
+@@ -990,6 +991,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+     // CraftBukkit end
+ 
+     public void stopServer() {
++        org.leavesmc.leaves.util.TicketHelper.tryToSaveTickets(); // Leaves - save ticket
+         // CraftBukkit start - prevent double stopping on multiple threads
+         synchronized(this.stopLock) {
+             if (this.hasStopped) return;

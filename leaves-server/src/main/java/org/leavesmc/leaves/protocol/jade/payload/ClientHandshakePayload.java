@@ -5,8 +5,8 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.MinecraftServer;
 import org.leavesmc.leaves.protocol.core.LeavesCustomPayload;
+import org.leavesmc.leaves.protocol.core.ProtocolUtils;
 import org.leavesmc.leaves.protocol.jade.JadeProtocol;
 
 public record ClientHandshakePayload(String protocolVersion) implements LeavesCustomPayload<ClientHandshakePayload> {
@@ -20,7 +20,7 @@ public record ClientHandshakePayload(String protocolVersion) implements LeavesCu
 
     @Override
     public void write(FriendlyByteBuf buf) {
-        CODEC.encode(new RegistryFriendlyByteBuf(buf, MinecraftServer.getServer().registryAccess()), this);
+        CODEC.encode(ProtocolUtils.decorate(buf), this);
     }
 
     @Override
@@ -30,6 +30,6 @@ public record ClientHandshakePayload(String protocolVersion) implements LeavesCu
 
     @New
     public static ClientHandshakePayload create(ResourceLocation location, FriendlyByteBuf buf) {
-        return CODEC.decode(new RegistryFriendlyByteBuf(buf, MinecraftServer.getServer().registryAccess()));
+        return CODEC.decode(ProtocolUtils.decorate(buf));
     }
 }

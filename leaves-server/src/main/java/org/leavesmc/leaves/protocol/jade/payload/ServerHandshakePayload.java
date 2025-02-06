@@ -9,21 +9,17 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.block.Block;
 import org.leavesmc.leaves.protocol.core.LeavesCustomPayload;
+import org.leavesmc.leaves.protocol.core.ProtocolUtils;
 import org.leavesmc.leaves.protocol.jade.JadeProtocol;
 
 import java.util.List;
 import java.util.Map;
 
-import static org.leavesmc.leaves.protocol.jade.JadeProtocol.PRIMITIVE_STREAM_CODEC;
+import static org.leavesmc.leaves.protocol.jade.util.JadeCodec.PRIMITIVE_STREAM_CODEC;
 
-public record ServerHandshakePayload(
-        Map<ResourceLocation, Object> serverConfig,
-        List<Block> shearableBlocks,
-        List<ResourceLocation> blockProviderIds,
-        List<ResourceLocation> entityProviderIds) implements LeavesCustomPayload<ServerHandshakePayload> {
+public record ServerHandshakePayload(Map<ResourceLocation, Object> serverConfig, List<Block> shearableBlocks, List<ResourceLocation> blockProviderIds, List<ResourceLocation> entityProviderIds) implements LeavesCustomPayload<ServerHandshakePayload> {
 
     private static final ResourceLocation PACKET_SERVER_HANDSHAKE = JadeProtocol.id("server_handshake");
     private static final StreamCodec<RegistryFriendlyByteBuf, ServerHandshakePayload> CODEC = StreamCodec.composite(
@@ -39,7 +35,7 @@ public record ServerHandshakePayload(
 
     @Override
     public void write(FriendlyByteBuf buf) {
-        CODEC.encode(new RegistryFriendlyByteBuf(buf, MinecraftServer.getServer().registryAccess()), this);
+        CODEC.encode(ProtocolUtils.decorate(buf), this);
     }
 
     @Override

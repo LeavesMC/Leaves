@@ -3,7 +3,7 @@ package org.leavesmc.leaves.protocol;
 import com.google.common.collect.Sets;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
@@ -12,6 +12,7 @@ import org.leavesmc.leaves.LeavesLogger;
 import org.leavesmc.leaves.protocol.core.LeavesCustomPayload;
 import org.leavesmc.leaves.protocol.core.LeavesProtocol;
 import org.leavesmc.leaves.protocol.core.ProtocolHandler;
+import org.leavesmc.leaves.protocol.core.ProtocolUtils;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -45,10 +46,10 @@ public class LmsPasterProtocol {
             case LmsPasterProtocol.C2S.HI -> {
                 String clientModVersion = nbt.getString("mod_version");
                 LeavesLogger.LOGGER.info(String.format("Player %s connected with %s @ %s", playerName, LmsPasterProtocol.MOD_NAME, clientModVersion));
-                player.connection.sendPacket(LmsPasterProtocol.S2C.packet(LmsPasterProtocol.S2C.HI, nbt2 -> {
+                ProtocolUtils.sendPayloadPacket(player, LmsPasterProtocol.S2C.build(LmsPasterProtocol.S2C.HI, nbt2 -> {
                     nbt2.putString("mod_version", LmsPasterProtocol.MOD_VERSION);
                 }));
-                player.connection.sendPacket(LmsPasterProtocol.S2C.packet(LmsPasterProtocol.S2C.ACCEPT_PACKETS, nbt2 -> {
+                ProtocolUtils.sendPayloadPacket(player, LmsPasterProtocol.S2C.build(LmsPasterProtocol.S2C.ACCEPT_PACKETS, nbt2 -> {
                     nbt2.putIntArray("ids", LmsPasterProtocol.C2S.ALL_PACKET_IDS);
                 }));
             }
@@ -114,14 +115,14 @@ public class LmsPasterProtocol {
         public static final int HI = 0;
         public static final int ACCEPT_PACKETS = 1;
 
-        public static ClientboundCustomPayloadPacket packet(int packetId, Consumer<CompoundTag> payloadBuilder) {
+        public static CustomPacketPayload build(int packetId, Consumer<CompoundTag> payloadBuilder) {
             CompoundTag nbt = new CompoundTag();
             payloadBuilder.accept(nbt);
-            return new ClientboundCustomPayloadPacket(new LmsPasterPayload(packetId, nbt));
+            return new LmsPasterPayload(packetId, nbt);
         }
     }
 
-    private static class LmsPasterPayload implements LeavesCustomPayload<LmsPasterPayload> {
+    public static class LmsPasterPayload implements LeavesCustomPayload<LmsPasterPayload> {
         private final int id;
         private final CompoundTag nbt;
 

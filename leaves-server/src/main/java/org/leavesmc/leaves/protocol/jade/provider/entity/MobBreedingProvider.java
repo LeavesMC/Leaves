@@ -7,6 +7,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.animal.allay.Allay;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.protocol.jade.JadeProtocol;
 import org.leavesmc.leaves.protocol.jade.accessor.EntityAccessor;
@@ -18,7 +19,7 @@ public enum MobBreedingProvider implements StreamServerDataProvider<EntityAccess
     private static final ResourceLocation MC_MOB_BREEDING = JadeProtocol.mc_id("mob_breeding");
 
     @Override
-    public @Nullable Integer streamData(EntityAccessor accessor) {
+    public @Nullable Integer streamData(@NotNull EntityAccessor accessor) {
         int time = 0;
         Entity entity = accessor.getEntity();
         if (entity instanceof Allay allay) {
@@ -32,7 +33,7 @@ public enum MobBreedingProvider implements StreamServerDataProvider<EntityAccess
     }
 
     @Override
-    public StreamCodec<RegistryFriendlyByteBuf, Integer> streamCodec() {
+    public @NotNull StreamCodec<RegistryFriendlyByteBuf, Integer> streamCodec() {
         return ByteBufCodecs.VAR_INT.cast();
     }
 

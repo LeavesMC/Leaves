@@ -6,6 +6,7 @@ import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.entity.BrewingStandBlockEntity;
+import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.protocol.jade.JadeProtocol;
 import org.leavesmc.leaves.protocol.jade.accessor.BlockAccessor;
 import org.leavesmc.leaves.protocol.jade.provider.StreamServerDataProvider;
@@ -16,13 +17,13 @@ public enum BrewingStandProvider implements StreamServerDataProvider<BlockAccess
     private static final ResourceLocation MC_BREWING_STAND = JadeProtocol.mc_id("brewing_stand");
 
     @Override
-    public Data streamData(BlockAccessor accessor) {
+    public @NotNull Data streamData(@NotNull BlockAccessor accessor) {
         BrewingStandBlockEntity brewingStand = (BrewingStandBlockEntity) accessor.getBlockEntity();
         return new Data(brewingStand.fuel, brewingStand.brewTime);
     }
 
     @Override
-    public StreamCodec<RegistryFriendlyByteBuf, Data> streamCodec() {
+    public @NotNull StreamCodec<RegistryFriendlyByteBuf, Data> streamCodec() {
         return Data.STREAM_CODEC.cast();
     }
 

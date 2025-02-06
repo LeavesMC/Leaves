@@ -9,6 +9,9 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.block.entity.CampfireBlockEntity;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.Unmodifiable;
 import org.leavesmc.leaves.protocol.jade.JadeProtocol;
 import org.leavesmc.leaves.protocol.jade.accessor.Accessor;
 import org.leavesmc.leaves.protocol.jade.provider.IServerExtensionProvider;
@@ -23,7 +26,7 @@ public enum CampfireProvider implements IServerExtensionProvider<ItemStack> {
     private static final ResourceLocation MC_CAMPFIRE = JadeProtocol.mc_id("campfire");
 
     @Override
-    public List<ViewGroup<ItemStack>> getGroups(Accessor<?> request) {
+    public @Nullable @Unmodifiable List<ViewGroup<ItemStack>> getGroups(@NotNull Accessor<?> request) {
         if (request.getTarget() instanceof CampfireBlockEntity campfire) {
             List<ItemStack> list = Lists.newArrayList();
             for (int i = 0; i < campfire.cookingTime.length; i++) {

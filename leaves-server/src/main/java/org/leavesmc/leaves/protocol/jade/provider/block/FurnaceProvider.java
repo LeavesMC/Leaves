@@ -7,6 +7,8 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.AbstractFurnaceBlockEntity;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.protocol.jade.JadeProtocol;
 import org.leavesmc.leaves.protocol.jade.accessor.BlockAccessor;
 import org.leavesmc.leaves.protocol.jade.provider.StreamServerDataProvider;
@@ -19,7 +21,7 @@ public enum FurnaceProvider implements StreamServerDataProvider<BlockAccessor, F
     private static final ResourceLocation MC_FURNACE = JadeProtocol.mc_id("furnace");
 
     @Override
-    public Data streamData(BlockAccessor accessor) {
+    public @Nullable Data streamData(@NotNull BlockAccessor accessor) {
         if (!(accessor.getTarget() instanceof AbstractFurnaceBlockEntity furnace)) {
             return null;
         }

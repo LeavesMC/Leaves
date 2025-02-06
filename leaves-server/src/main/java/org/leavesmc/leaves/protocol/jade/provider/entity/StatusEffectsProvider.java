@@ -6,6 +6,7 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.LivingEntity;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.protocol.jade.JadeProtocol;
 import org.leavesmc.leaves.protocol.jade.accessor.EntityAccessor;
@@ -23,7 +24,7 @@ public enum StatusEffectsProvider implements StreamServerDataProvider<EntityAcce
 
     @Override
     @Nullable
-    public List<MobEffectInstance> streamData(EntityAccessor accessor) {
+    public List<MobEffectInstance> streamData(@NotNull EntityAccessor accessor) {
         List<MobEffectInstance> effects = ((LivingEntity) accessor.getEntity()).getActiveEffects()
                 .stream()
                 .filter(MobEffectInstance::isVisible)

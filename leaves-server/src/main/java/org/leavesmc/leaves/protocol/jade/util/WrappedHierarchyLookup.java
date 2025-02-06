@@ -4,6 +4,7 @@ import com.google.common.collect.Lists;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.Block;
 import org.apache.commons.lang3.tuple.Pair;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.protocol.jade.accessor.Accessor;
 import org.leavesmc.leaves.protocol.jade.accessor.BlockAccessor;
@@ -12,7 +13,6 @@ import org.leavesmc.leaves.protocol.jade.provider.IJadeProvider;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -21,13 +21,20 @@ public class WrappedHierarchyLookup<T extends IJadeProvider> extends HierarchyLo
     private boolean empty = true;
 
     public WrappedHierarchyLookup() {
-        super(Object.class, true);
-        overrides.add(Pair.of(new HierarchyLookup<>(Block.class, true), accessor -> {
-            if (accessor instanceof BlockAccessor blockAccessor) {
-                return blockAccessor.getBlock();
-            }
-            return null;
-        }));
+        super(Object.class);
+    }
+
+    @NotNull
+    public static <T extends IJadeProvider> WrappedHierarchyLookup<T> forAccessor() {
+        WrappedHierarchyLookup<T> lookup = new WrappedHierarchyLookup<>();
+        lookup.overrides.add(Pair.of(
+                new HierarchyLookup<>(Block.class), accessor -> {
+                    if (accessor instanceof BlockAccessor blockAccessor) {
+                        return blockAccessor.getBlock();
+                    }
+                    return null;
+                }));
+        return lookup;
     }
 
     public List<T> wrappedGet(Accessor<?> accessor) {
@@ -40,15 +47,6 @@ public class WrappedHierarchyLookup<T extends IJadeProvider> extends HierarchyLo
         }
         list.addAll(get(accessor.getTarget()));
         return list;
-    }
-
-    public boolean hitsAny(Accessor<?> accessor, BiPredicate<T, Accessor<?>> predicate) {
-        for (T provider : wrappedGet(accessor)) {
-            if (predicate.test(provider, accessor)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     @Override

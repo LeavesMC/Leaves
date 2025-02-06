@@ -2,7 +2,8 @@ package org.leavesmc.leaves.protocol.jade.util;
 
 import com.google.common.collect.Lists;
 import net.minecraft.advancements.critereon.ItemPredicate;
-import net.minecraft.core.Registry;
+import net.minecraft.core.Holder;
+import net.minecraft.core.HolderGetter;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
@@ -14,22 +15,24 @@ import net.minecraft.world.level.storage.loot.entries.NestedLootTable;
 import net.minecraft.world.level.storage.loot.predicates.AnyOfCondition;
 import net.minecraft.world.level.storage.loot.predicates.LootItemCondition;
 import net.minecraft.world.level.storage.loot.predicates.MatchTool;
+import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.protocol.jade.tool.ShearsToolHandler;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Function;
 
 public class LootTableMineableCollector {
 
-    private final Registry<LootTable> lootRegistry;
+    private final HolderGetter<LootTable> lootRegistry;
     private final ItemStack toolItem;
 
-    public LootTableMineableCollector(Registry<LootTable> lootRegistry, ItemStack toolItem) {
+    public LootTableMineableCollector(HolderGetter<LootTable> lootRegistry, ItemStack toolItem) {
         this.lootRegistry = lootRegistry;
         this.toolItem = toolItem;
     }
 
-    public static List<Block> execute(Registry<LootTable> lootRegistry, ItemStack toolItem) {
+    public static @NotNull List<Block> execute(HolderGetter<LootTable> lootRegistry, ItemStack toolItem) {
         LootTableMineableCollector collector = new LootTableMineableCollector(lootRegistry, toolItem);
         List<Block> list = Lists.newArrayList();
         for (Block block : BuiltInRegistries.BLOCK) {
@@ -37,9 +40,11 @@ public class LootTableMineableCollector {
                 continue;
             }
 
-            LootTable lootTable = lootRegistry.get(block.getLootTable().orElseThrow()).orElseThrow().value();
-            if (collector.doLootTable(lootTable)) {
-                list.add(block);
+            if (block.getLootTable().isPresent()) {
+                LootTable lootTable = lootRegistry.get(block.getLootTable().get()).map(Holder::value).orElse(null);
+                if (collector.doLootTable(lootTable)) {
+                    list.add(block);
+                }
             }
         }
         return list;
@@ -58,7 +63,7 @@ public class LootTableMineableCollector {
         return false;
     }
 
-    private boolean doLootPool(LootPool lootPool) {
+    private boolean doLootPool(@NotNull LootPool lootPool) {
         for (LootPoolEntryContainer entry : lootPool.entries) {
             if (doLootPoolEntry(entry)) {
                 return true;
@@ -75,7 +80,7 @@ public class LootTableMineableCollector {
                 }
             }
         } else if (entry instanceof NestedLootTable nestedLootTable) {
-            LootTable lootTable = nestedLootTable.contents.map(item -> lootRegistry.get(item).orElseThrow().value(), Function.identity());
+            LootTable lootTable = nestedLootTable.contents.map($ -> lootRegistry.get($).map(Holder::value).orElse(null), Function.identity());
             return doLootTable(lootTable);
         } else {
             return isCorrectConditions(entry.conditions, toolItem);
@@ -83,14 +88,14 @@ public class LootTableMineableCollector {
         return false;
     }
 
-    public static boolean isCorrectConditions(List<LootItemCondition> conditions, ItemStack toolItem) {
+    public static boolean isCorrectConditions(@NotNull List<LootItemCondition> conditions, ItemStack toolItem) {
         if (conditions.size() != 1) {
             return false;
         }
 
         LootItemCondition condition = conditions.getFirst();
-        if (condition instanceof MatchTool matchTool) {
-            ItemPredicate itemPredicate = matchTool.predicate().orElse(null);
+        if (condition instanceof MatchTool(Optional<ItemPredicate> predicate)) {
+            ItemPredicate itemPredicate = predicate.orElse(null);
             return itemPredicate != null && itemPredicate.test(toolItem);
         } else if (condition instanceof AnyOfCondition anyOfCondition) {
             for (LootItemCondition child : anyOfCondition.terms) {

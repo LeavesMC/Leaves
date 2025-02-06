@@ -1,13 +1,6 @@
 package org.leavesmc.leaves.protocol.jade.accessor;
 
-import java.util.List;
-import java.util.function.Consumer;
-import java.util.function.Supplier;
-
-import org.jetbrains.annotations.Nullable;
-
 import com.google.common.base.Suppliers;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
@@ -26,11 +19,15 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
-import org.leavesmc.leaves.protocol.jade.JadeProtocol;
+import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.protocol.jade.payload.RequestBlockPayload;
 import org.leavesmc.leaves.protocol.jade.payload.ServerPayloadContext;
 import org.leavesmc.leaves.protocol.jade.provider.IServerDataProvider;
 import org.leavesmc.leaves.protocol.jade.util.CommonUtil;
+
+import java.util.List;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * Class to get information of block target and context.
@@ -109,11 +106,6 @@ public class BlockAccessorImpl extends AccessorImpl<BlockHitResult> implements B
         return getHitResult().getDirection();
     }
 
-    @Override
-    public ItemStack getPickedResult() {
-        return null;//TODO implement minecraft pick up result
-    }
-
     @Nullable
     @Override
     public Object getTarget() {
@@ -121,29 +113,8 @@ public class BlockAccessorImpl extends AccessorImpl<BlockHitResult> implements B
     }
 
     @Override
-    public boolean isFakeBlock() {
-        return !fakeBlock.isEmpty();
-    }
-
-    @Override
     public ItemStack getFakeBlock() {
         return fakeBlock;
-    }
-
-    public void setFakeBlock(ItemStack fakeBlock) {
-        this.fakeBlock = fakeBlock;
-    }
-
-    @Override
-    public boolean verifyData(CompoundTag data) {
-        if (!verify) {
-            return true;
-        }
-        int x = data.getInt("x");
-        int y = data.getInt("y");
-        int z = data.getInt("z");
-        BlockPos hitPos = getPosition();
-        return x == hitPos.getX() && y == hitPos.getY() && z == hitPos.getZ();
     }
 
     public static class Builder implements BlockAccessor.Builder {
@@ -168,18 +139,6 @@ public class BlockAccessorImpl extends AccessorImpl<BlockHitResult> implements B
         @Override
         public Builder player(Player player) {
             this.player = player;
-            return this;
-        }
-
-        @Override
-        public Builder serverData(CompoundTag serverData) {
-            this.serverData = serverData;
-            return this;
-        }
-
-        @Override
-        public Builder serverConnected(boolean connected) {
-            this.connected = connected;
             return this;
         }
 
@@ -228,12 +187,6 @@ public class BlockAccessorImpl extends AccessorImpl<BlockHitResult> implements B
         }
 
         @Override
-        public BlockAccessor.Builder requireVerification() {
-            verify = true;
-            return this;
-        }
-
-        @Override
         public BlockAccessor build() {
             BlockAccessorImpl accessor = new BlockAccessorImpl(this);
             if (verify) {
@@ -255,10 +208,6 @@ public class BlockAccessorImpl extends AccessorImpl<BlockHitResult> implements B
                 SyncData::fakeBlock,
                 SyncData::new
         );
-
-        public SyncData(BlockAccessor accessor) {
-            this(accessor.showDetails(), accessor.getHitResult(), accessor.getBlockState(), accessor.getFakeBlock());
-        }
 
         public BlockAccessor unpack(ServerPlayer player) {
             Supplier<BlockEntity> blockEntity = null;

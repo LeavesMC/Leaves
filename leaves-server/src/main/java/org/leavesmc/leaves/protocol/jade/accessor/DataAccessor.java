@@ -1,7 +1,6 @@
 package org.leavesmc.leaves.protocol.jade.accessor;
 
 import com.mojang.serialization.DynamicOps;
-import com.mojang.serialization.MapEncoder;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
@@ -23,10 +22,5 @@ public class DataAccessor extends CompoundTag {
         }
 
         return ops;
-    }
-
-    public <D> void writeMapData(MapEncoder<D> codec, D value) {
-        Tag tag = codec.encode(value, nbtOps(), nbtOps().mapBuilder()).build(new CompoundTag()).getOrThrow();
-        this.merge((CompoundTag) tag);
     }
 }

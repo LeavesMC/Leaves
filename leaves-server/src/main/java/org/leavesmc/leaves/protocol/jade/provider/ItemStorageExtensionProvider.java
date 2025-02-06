@@ -52,7 +52,7 @@ public enum ItemStorageExtensionProvider implements IServerExtensionProvider<Ite
             case RandomizableContainer te when te.getLootTable() != null -> {
                 return List.of();
             }
-            case ContainerEntity containerEntity when containerEntity.getLootTable() != null -> {
+            case ContainerEntity containerEntity when containerEntity.getContainerLootTable() != null -> {
                 return List.of();
             }
             default -> {

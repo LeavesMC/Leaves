@@ -1,6 +1,5 @@
 package org.leavesmc.leaves.protocol.jade.payload;
 
-
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;

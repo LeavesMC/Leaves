@@ -7,8 +7,4 @@ import java.util.List;
 
 public interface IServerExtensionProvider<T> extends IJadeProvider {
     List<ViewGroup<T>> getGroups(Accessor<?> request);
-
-    default boolean shouldRequestData(Accessor<?> accessor) {
-        return true;
-    }
 }

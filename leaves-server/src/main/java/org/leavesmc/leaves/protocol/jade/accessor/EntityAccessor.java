@@ -1,6 +1,5 @@
 package org.leavesmc.leaves.protocol.jade.accessor;
 
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
@@ -18,20 +17,11 @@ public interface EntityAccessor extends Accessor<EntityHitResult> {
      */
     Entity getRawEntity();
 
-    @Override
-    default Class<? extends Accessor<?>> getAccessorType() {
-        return EntityAccessor.class;
-    }
-
     @ApiStatus.NonExtendable
     interface Builder {
         Builder level(Level level);
 
         Builder player(Player player);
-
-        Builder serverData(CompoundTag serverData);
-
-        Builder serverConnected(boolean connected);
 
         Builder showDetails(boolean showDetails);
 
@@ -48,8 +38,6 @@ public interface EntityAccessor extends Accessor<EntityHitResult> {
         Builder entity(Supplier<Entity> entity);
 
         Builder from(EntityAccessor accessor);
-
-        Builder requireVerification();
 
         EntityAccessor build();
     }

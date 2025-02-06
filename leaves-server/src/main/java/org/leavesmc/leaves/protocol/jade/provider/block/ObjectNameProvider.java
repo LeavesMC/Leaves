@@ -44,11 +44,6 @@ public abstract class ObjectNameProvider implements StreamServerDataProvider<Blo
         public StreamCodec<RegistryFriendlyByteBuf, Component> streamCodec() {
             return ComponentSerialization.STREAM_CODEC;
         }
-
-        @Override
-        public boolean shouldRequestData(BlockAccessor accessor) {
-            return accessor.getBlockEntity() instanceof Nameable;
-        }
     }
 
 

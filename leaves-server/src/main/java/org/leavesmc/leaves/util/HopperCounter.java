@@ -251,7 +251,7 @@ public class HopperCounter {
 
         for (Recipe<?> recipe : getRecipesForOutput(server.getRecipeManager(), id, server.overworld())) {
             for (Ingredient ingredient : recipe.placementInfo().ingredients()) {
-                Optional<Holder<Item>> match = ingredient.items().stream().filter(stack -> fromItem(stack.value(), registryAccess) != null).findFirst();
+                Optional<Holder<Item>> match = ingredient.items().filter(stack -> fromItem(stack.value(), registryAccess) != null).findFirst();
                 if (match.isPresent()) {
                     return fromItem(match.get().value(), registryAccess);
                 }

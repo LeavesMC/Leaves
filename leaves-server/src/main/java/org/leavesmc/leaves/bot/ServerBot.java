@@ -29,7 +29,6 @@ import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.PositionMoveRotation;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -268,45 +267,42 @@ public class ServerBot extends ServerPlayer {
     }
 
     @Override
-    public void checkFallDamage(double heightDifference, boolean onGround, @NotNull BlockState state, @NotNull BlockPos landedPosition) {
+    public void checkFallDamage(double y, boolean onGround, @NotNull BlockState state, @NotNull BlockPos pos) {
+        ServerLevel serverLevel = this.serverLevel();
         if (onGround && this.fallDistance > 0.0F) {
-            this.onChangedBlock(this.serverLevel(), landedPosition);
-            double d1 = this.getAttributeValue(Attributes.SAFE_FALL_DISTANCE);
-
-            if ((double) this.fallDistance > d1 && !state.isAir()) {
-                double d2 = this.getX();
-                double d3 = this.getY();
-                double d4 = this.getZ();
-                BlockPos blockposition = this.blockPosition();
-
-                if (landedPosition.getX() != blockposition.getX() || landedPosition.getZ() != blockposition.getZ()) {
-                    double d5 = d2 - (double) landedPosition.getX() - 0.5D;
-                    double d6 = d4 - (double) landedPosition.getZ() - 0.5D;
-                    double d7 = Math.max(Math.abs(d5), Math.abs(d6));
-
-                    d2 = (double) landedPosition.getX() + 0.5D + d5 / d7 * 0.5D;
-                    d4 = (double) landedPosition.getZ() + 0.5D + d6 / d7 * 0.5D;
+            this.onChangedBlock(serverLevel, pos);
+            double attributeValue = this.getAttributeValue(Attributes.SAFE_FALL_DISTANCE);
+            if (this.fallDistance > attributeValue && !state.isAir()) {
+                double x = this.getX();
+                double y1 = this.getY();
+                double z = this.getZ();
+                BlockPos blockPos = this.blockPosition();
+                if (pos.getX() != blockPos.getX() || pos.getZ() != blockPos.getZ()) {
+                    double d = x - pos.getX() - 0.5;
+                    double d1 = z - pos.getZ() - 0.5;
+                    double max = Math.max(Math.abs(d), Math.abs(d1));
+                    x = pos.getX() + 0.5 + d / max * 0.5;
+                    z = pos.getZ() + 0.5 + d1 / max * 0.5;
                 }
 
-                float f = (float) Mth.ceil((double) this.fallDistance - d1);
-                double d8 = Math.min(0.2F + f / 15.0F, 2.5D);
-                int i = (int) (150.0D * d8);
-
-                this.serverLevel().sendParticles(this, new BlockParticleOption(ParticleTypes.BLOCK, state), d2, d3, d4, i, 0.0D, 0.0D, 0.0D, 0.15000000596046448D, false);
+                float f = Mth.ceil(this.fallDistance - attributeValue);
+                double min = Math.min(0.2F + f / 15.0F, 2.5);
+                int i = (int) (150.0 * min);
+                serverLevel.sendParticlesSource(this, new BlockParticleOption(ParticleTypes.BLOCK, state), false, false, x, y1, z, i, 0.0, 0.0, 0.0, 0.15F);
             }
         }
 
         if (onGround) {
             if (this.fallDistance > 0.0F) {
-                state.getBlock().fallOn(this.level(), state, landedPosition, this, this.fallDistance);
-                this.level().gameEvent(GameEvent.HIT_GROUND, this.position(), GameEvent.Context.of(this, this.mainSupportingBlockPos.map((blockposition1) -> {
-                    return this.level().getBlockState(blockposition1);
-                }).orElse(state)));
+                state.getBlock().fallOn(serverLevel, state, pos, this, this.fallDistance);
+                serverLevel.gameEvent(GameEvent.HIT_GROUND, this.position(),
+                        GameEvent.Context.of(this, this.mainSupportingBlockPos.map(supportingPos -> this.level().getBlockState(supportingPos)).orElse(state))
+                );
             }
 
             this.resetFallDistance();
-        } else if (heightDifference < 0.0D) {
-            this.fallDistance -= (float) heightDifference;
+        } else if (y < 0.0D) {
+            this.fallDistance -= (float) y;
         }
     }
 

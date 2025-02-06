@@ -91,8 +91,8 @@ public class JadeProtocol {
     public static final WrappedHierarchyLookup<IServerExtensionProvider<ItemStack>> itemStorageProviders = WrappedHierarchyLookup.forAccessor();
 
     @Contract("_ -> new")
-    public static @NotNull ResourceLocation id(String path) {
-        return new ResourceLocation(PROTOCOL_ID, path);
+    public static ResourceLocation id(String path) {
+        return ResourceLocation.tryBuild(PROTOCOL_ID, path);
     }
 
     @Contract("_ -> new")

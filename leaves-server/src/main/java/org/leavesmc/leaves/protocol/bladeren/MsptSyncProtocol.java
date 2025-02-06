@@ -25,8 +25,8 @@ public class MsptSyncProtocol {
     private static final List<ServerPlayer> players = new ArrayList<>();
 
     @Contract("_ -> new")
-    public static @NotNull ResourceLocation id(String path) {
-        return new ResourceLocation(PROTOCOL_ID, path);
+    public static ResourceLocation id(String path) {
+        return ResourceLocation.tryBuild(PROTOCOL_ID, path);
     }
 
     @ProtocolHandler.Init

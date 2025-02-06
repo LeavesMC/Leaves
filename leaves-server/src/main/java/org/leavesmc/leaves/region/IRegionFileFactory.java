@@ -69,7 +69,7 @@ public class IRegionFileFactory {
     @NotNull
     @Contract("_, _, _, _ -> new")
     public static IRegionFile createRegionFile(RegionStorageInfo info, Path filePath, @NotNull Path folder, boolean sync) throws IOException {
-        String extension = folder.getFileName().toString().split("\\.")[3];
+        String extension = filePath.getFileName().toString().split("\\.")[3];
 
         switch (extension) {
             case "mca" -> {

@@ -6,46 +6,30 @@ Subject: [PATCH] Faster chunk serialization
 This patch is Powered by Gale(https://github.com/GaleMC/Gale)
 
 diff --git a/net/minecraft/util/BitStorage.java b/net/minecraft/util/BitStorage.java
-index 02502d50f0255f5bbcc0ecb965abb48cc1a112da..02f586b89eeb60c19af2f8958e4beb8743f9a4d4 100644
+index 02502d50f0255f5bbcc0ecb965abb48cc1a112da..0abee1cd9d6a5a22d3136e3711de926c3a2d4d73 100644
 --- a/net/minecraft/util/BitStorage.java
 +++ b/net/minecraft/util/BitStorage.java
-@@ -1,5 +1,7 @@
- package net.minecraft.util;
- 
-+import net.minecraft.world.level.chunk.Palette;
-+
- import java.util.function.IntConsumer;
- 
- public interface BitStorage extends ca.spottedleaf.moonrise.patches.block_counting.BlockCountingBitStorage { // Paper - block counting
-@@ -21,6 +23,8 @@ public interface BitStorage extends ca.spottedleaf.moonrise.patches.block_counti
+@@ -21,6 +21,8 @@ public interface BitStorage extends ca.spottedleaf.moonrise.patches.block_counti
  
      BitStorage copy();
  
-+    <T> void compact(Palette<T> srcPalette, Palette<T> dstPalette, short[] out); // Leaves - faster chunk serialization
++    <T> void compact(net.minecraft.world.level.chunk.Palette<T> srcPalette, net.minecraft.world.level.chunk.Palette<T> dstPalette, short[] out); // Leaves - faster chunk serialization
 +
      // Paper start - block counting
      // provide default impl in case mods implement this...
      @Override
 diff --git a/net/minecraft/util/SimpleBitStorage.java b/net/minecraft/util/SimpleBitStorage.java
-index e6306a68c8652d4c5d22d5ecb1416f5f931f76ee..7ceff1a2a15e877c8237d2908f699b7fc32f4aba 100644
+index e6306a68c8652d4c5d22d5ecb1416f5f931f76ee..7b4b3b8a02be3ab5ecafdea1ab74c246daf37d98 100644
 --- a/net/minecraft/util/SimpleBitStorage.java
 +++ b/net/minecraft/util/SimpleBitStorage.java
-@@ -3,6 +3,7 @@ package net.minecraft.util;
- import java.util.function.IntConsumer;
- import javax.annotation.Nullable;
- import org.apache.commons.lang3.Validate;
-+import net.minecraft.world.level.chunk.Palette;
- 
- public class SimpleBitStorage implements BitStorage {
-     private static final int[] MAGIC = new int[]{
-@@ -465,4 +466,44 @@ public class SimpleBitStorage implements BitStorage {
+@@ -465,4 +465,44 @@ public class SimpleBitStorage implements BitStorage {
              super(message);
          }
      }
 +
 +    // Leaves start - faster chunk serialization
 +    @Override
-+    public <T> void compact(Palette<T> srcPalette, Palette<T> dstPalette, short[] out) {
++    public <T> void compact(net.minecraft.world.level.chunk.Palette<T> srcPalette, net.minecraft.world.level.chunk.Palette<T> dstPalette, short[] out) {
 +        if (this.size >= Short.MAX_VALUE) {
 +            throw new IllegalStateException("Array too large");
 +        }
@@ -84,22 +68,14 @@ index e6306a68c8652d4c5d22d5ecb1416f5f931f76ee..7ceff1a2a15e877c8237d2908f699b7f
 +    // Leaves end - faster chunk serialization
  }
 diff --git a/net/minecraft/util/ZeroBitStorage.java b/net/minecraft/util/ZeroBitStorage.java
-index 09fd99c9cbd23b5f3c899bfb00c9b89651948ed8..768ae8fe0886fde9e14c77ae93a92ddc0cd5d249 100644
+index 09fd99c9cbd23b5f3c899bfb00c9b89651948ed8..50993ce7519a77c6a9d36cb925125adccda7037f 100644
 --- a/net/minecraft/util/ZeroBitStorage.java
 +++ b/net/minecraft/util/ZeroBitStorage.java
-@@ -3,6 +3,7 @@ package net.minecraft.util;
- import java.util.Arrays;
- import java.util.function.IntConsumer;
- import org.apache.commons.lang3.Validate;
-+import net.minecraft.world.level.chunk.Palette;
- 
- public class ZeroBitStorage implements BitStorage {
-     public static final long[] RAW = new long[0];
-@@ -63,6 +64,8 @@ public class ZeroBitStorage implements BitStorage {
+@@ -63,6 +63,8 @@ public class ZeroBitStorage implements BitStorage {
          return this;
      }
  
-+    @Override public <T> void compact(Palette<T> srcPalette, Palette<T> dstPalette, short[] out) {}  // Leaves - faster chunk serialization
++    @Override public <T> void compact(net.minecraft.world.level.chunk.Palette<T> srcPalette, net.minecraft.world.level.chunk.Palette<T> dstPalette, short[] out) {}  // Leaves - faster chunk serialization
 +
      // Paper start - block counting
      @Override
@@ -116,14 +92,11 @@ index c723606fa0be811e580ba47de8c9c575583cc930..c768443c8c6a4b05018bbc70d54b6f41
      int onResize(int bits, T objectAdded);
  }
 diff --git a/net/minecraft/world/level/chunk/PalettedContainer.java b/net/minecraft/world/level/chunk/PalettedContainer.java
-index f5da433050fd3060e0335d4002d520ebe8cd691f..95daced94745d1640fc9b3dec9ed346a41283421 100644
+index f5da433050fd3060e0335d4002d520ebe8cd691f..afd78a03fb29c633cc8dc811a14df43aff69ba98 100644
 --- a/net/minecraft/world/level/chunk/PalettedContainer.java
 +++ b/net/minecraft/world/level/chunk/PalettedContainer.java
-@@ -23,8 +23,27 @@ import net.minecraft.util.Mth;
- import net.minecraft.util.SimpleBitStorage;
- import net.minecraft.util.ThreadingDetector;
+@@ -25,6 +25,24 @@ import net.minecraft.util.ThreadingDetector;
  import net.minecraft.util.ZeroBitStorage;
-+import org.leavesmc.leaves.lithium.common.world.chunk.LithiumHashPalette;
  
  public class PalettedContainer<T> implements PaletteResize<T>, PalettedContainerRO<T> {
 +
@@ -147,145 +120,7 @@ index f5da433050fd3060e0335d4002d520ebe8cd691f..95daced94745d1640fc9b3dec9ed346a
      private static final int MIN_PALETTE_BITS = 0;
      private final PaletteResize<T> dummyPaletteResize = (bits, objectAdded) -> 0;
      public final IdMap<T> registry;
-@@ -42,10 +61,12 @@ public class PalettedContainer<T> implements PaletteResize<T>, PalettedContainer
-     }
- 
-     // Paper start - Anti-Xray - Add preset values
--    @Deprecated @io.papermc.paper.annotation.DoNotUse
-+    @Deprecated
-+    @io.papermc.paper.annotation.DoNotUse
-     public static <T> Codec<PalettedContainer<T>> codecRW(IdMap<T> registry, Codec<T> codec, PalettedContainer.Strategy strategy, T value) {
-         return PalettedContainer.codecRW(registry, codec, strategy, value, null);
-     }
-+
-     public static <T> Codec<PalettedContainer<T>> codecRW(IdMap<T> registry, Codec<T> codec, PalettedContainer.Strategy strategy, T value, T @org.jetbrains.annotations.Nullable [] presetValues) {
-         PalettedContainerRO.Unpacker<T, PalettedContainer<T>> unpacker = (idListx, paletteProviderx, serialized) -> {
-             return unpack(idListx, paletteProviderx, serialized, value, presetValues);
-@@ -56,30 +77,30 @@ public class PalettedContainer<T> implements PaletteResize<T>, PalettedContainer
- 
-     public static <T> Codec<PalettedContainerRO<T>> codecRO(IdMap<T> registry, Codec<T> codec, PalettedContainer.Strategy strategy, T value) {
-         PalettedContainerRO.Unpacker<T, PalettedContainerRO<T>> unpacker = (registry1, strategy1, packedData) -> unpack(registry1, strategy1, packedData, value, null) // Paper - Anti-Xray - Add preset values
--            .map(container -> (PalettedContainerRO<T>)container);
-+                .map(container -> (PalettedContainerRO<T>) container);
-         return codec(registry, codec, strategy, value, unpacker);
-     }
- 
-     private static <T, C extends PalettedContainerRO<T>> Codec<C> codec(
--        IdMap<T> registry, Codec<T> codec, PalettedContainer.Strategy strategy, T value, PalettedContainerRO.Unpacker<T, C> unpacker
-+            IdMap<T> registry, Codec<T> codec, PalettedContainer.Strategy strategy, T value, PalettedContainerRO.Unpacker<T, C> unpacker
-     ) {
-         return RecordCodecBuilder.<PalettedContainerRO.PackedData>create(
--                instance -> instance.group(
--                        codec.mapResult(ExtraCodecs.orElsePartial(value)).listOf().fieldOf("palette").forGetter(PalettedContainerRO.PackedData::paletteEntries),
--                        Codec.LONG_STREAM.lenientOptionalFieldOf("data").forGetter(PalettedContainerRO.PackedData::storage)
--                    )
--                    .apply(instance, PalettedContainerRO.PackedData::new)
--            )
--            .comapFlatMap(
--                packedData -> unpacker.read(registry, strategy, (PalettedContainerRO.PackedData<T>)packedData), container -> container.pack(registry, strategy)
--            );
-+                        instance -> instance.group(
-+                                        codec.mapResult(ExtraCodecs.orElsePartial(value)).listOf().fieldOf("palette").forGetter(PalettedContainerRO.PackedData::paletteEntries),
-+                                        Codec.LONG_STREAM.lenientOptionalFieldOf("data").forGetter(PalettedContainerRO.PackedData::storage)
-+                                )
-+                                .apply(instance, PalettedContainerRO.PackedData::new)
-+                )
-+                .comapFlatMap(
-+                        packedData -> unpacker.read(registry, strategy, (PalettedContainerRO.PackedData<T>) packedData), container -> container.pack(registry, strategy)
-+                );
-     }
- 
-     // Paper start - optimise palette reads
-     private void updateData(final PalettedContainer.Data<T> data) {
-         if (data != null) {
--            ((ca.spottedleaf.moonrise.patches.fast_palette.FastPaletteData<T>)(Object)data).moonrise$setPalette(
--                ((ca.spottedleaf.moonrise.patches.fast_palette.FastPalette<T>)data.palette).moonrise$getRawPalette((ca.spottedleaf.moonrise.patches.fast_palette.FastPaletteData<T>)(Object)data)
-+            ((ca.spottedleaf.moonrise.patches.fast_palette.FastPaletteData<T>) (Object) data).moonrise$setPalette(
-+                    ((ca.spottedleaf.moonrise.patches.fast_palette.FastPalette<T>) data.palette).moonrise$getRawPalette((ca.spottedleaf.moonrise.patches.fast_palette.FastPaletteData<T>) (Object) data)
-             );
-         }
-     }
-@@ -89,7 +110,7 @@ public class PalettedContainer<T> implements PaletteResize<T>, PalettedContainer
-     }
- 
-     private T readPalette(final PalettedContainer.Data<T> data, final int paletteIdx) {
--        final T[] palette = ((ca.spottedleaf.moonrise.patches.fast_palette.FastPaletteData<T>)(Object)data).moonrise$getPalette();
-+        final T[] palette = ((ca.spottedleaf.moonrise.patches.fast_palette.FastPaletteData<T>) (Object) data).moonrise$getPalette();
-         if (palette == null) {
-             return this.readPaletteSlow(data, paletteIdx);
-         }
-@@ -103,12 +124,14 @@ public class PalettedContainer<T> implements PaletteResize<T>, PalettedContainer
-     // Paper end - optimise palette reads
- 
-     // Paper start - Anti-Xray - Add preset values
--    @Deprecated @io.papermc.paper.annotation.DoNotUse
-+    @Deprecated
-+    @io.papermc.paper.annotation.DoNotUse
-     public PalettedContainer(IdMap<T> registry, PalettedContainer.Strategy strategy, PalettedContainer.Configuration<T> configuration, BitStorage storage, List<T> values) {
-         this(registry, strategy, configuration, storage, values, null, null);
-     }
-+
-     public PalettedContainer(
--        IdMap<T> registry, PalettedContainer.Strategy strategy, PalettedContainer.Configuration<T> configuration, BitStorage storage, List<T> values, T defaultValue, T @org.jetbrains.annotations.Nullable [] presetValues
-+            IdMap<T> registry, PalettedContainer.Strategy strategy, PalettedContainer.Configuration<T> configuration, BitStorage storage, List<T> values, T defaultValue, T @org.jetbrains.annotations.Nullable [] presetValues
-     ) {
-         this.presetValues = presetValues;
-         this.registry = registry;
-@@ -157,10 +180,12 @@ public class PalettedContainer<T> implements PaletteResize<T>, PalettedContainer
-     }
- 
-     // Paper start - Anti-Xray - Add preset values
--    @Deprecated @io.papermc.paper.annotation.DoNotUse
-+    @Deprecated
-+    @io.papermc.paper.annotation.DoNotUse
-     public PalettedContainer(IdMap<T> registry, T palette, PalettedContainer.Strategy strategy) {
-         this(registry, palette, strategy, null);
-     }
-+
-     public PalettedContainer(IdMap<T> registry, T palette, PalettedContainer.Strategy strategy, T @org.jetbrains.annotations.Nullable [] presetValues) {
-         this.presetValues = presetValues;
-         // Paper end - Anti-Xray
-@@ -196,6 +221,7 @@ public class PalettedContainer<T> implements PaletteResize<T>, PalettedContainer
-         this.updateData(this.data); // Paper - optimise palette reads
-         return objectAdded == null ? -1 : data1.palette.idFor(objectAdded);
-     }
-+
-     private void addPresetValues() {
-         if (this.presetValues != null && this.data.configuration().factory() != PalettedContainer.Strategy.GLOBAL_PALETTE_FACTORY) {
-             for (T presetValue : this.presetValues) {
-@@ -215,7 +241,7 @@ public class PalettedContainer<T> implements PaletteResize<T>, PalettedContainer
-             this.release();
-         }
- 
--        return (T)var5;
-+        return (T) var5;
-     }
- 
-     public T getAndSetUnchecked(int x, int y, int z, T state) {
-@@ -284,10 +310,12 @@ public class PalettedContainer<T> implements PaletteResize<T>, PalettedContainer
- 
-     // Paper start - Anti-Xray; Add chunk packet info
-     @Override
--    @Deprecated @io.papermc.paper.annotation.DoNotUse
-+    @Deprecated
-+    @io.papermc.paper.annotation.DoNotUse
-     public void write(FriendlyByteBuf buffer) {
-         this.write(buffer, null, 0);
-     }
-+
-     @Override
-     public synchronized void write(FriendlyByteBuf buffer, @Nullable io.papermc.paper.antixray.ChunkPacketInfo<T> chunkPacketInfo, int chunkSectionIndex) { // Paper - Synchronize
-         this.acquire();
-@@ -304,7 +332,7 @@ public class PalettedContainer<T> implements PaletteResize<T>, PalettedContainer
-     }
- 
-     private static <T> DataResult<PalettedContainer<T>> unpack(
--        IdMap<T> registry, PalettedContainer.Strategy strategy, PalettedContainerRO.PackedData<T> packedData, T defaultValue, T @org.jetbrains.annotations.Nullable [] presetValues // Paper - Anti-Xray - Add preset values
-+            IdMap<T> registry, PalettedContainer.Strategy strategy, PalettedContainerRO.PackedData<T> packedData, T defaultValue, T @org.jetbrains.annotations.Nullable [] presetValues // Paper - Anti-Xray - Add preset values
-     ) {
-         List<T> list = packedData.paletteEntries();
-         int size = strategy.size();
-@@ -344,28 +372,76 @@ public class PalettedContainer<T> implements PaletteResize<T>, PalettedContainer
+@@ -344,28 +362,76 @@ public class PalettedContainer<T> implements PaletteResize<T>, PalettedContainer
      public synchronized PalettedContainerRO.PackedData<T> pack(IdMap<T> registry, PalettedContainer.Strategy strategy) { // Paper - synchronize
          this.acquire();
  
@@ -337,28 +172,28 @@ index f5da433050fd3060e0335d4002d520ebe8cd691f..95daced94745d1640fc9b3dec9ed346a
 +            List<T> elements = null;
 +            try {
 +                // The palette that will be serialized
-+                LithiumHashPalette<T> hashPalette = null;
++                org.leavesmc.leaves.lithium.common.world.chunk.LithiumHashPalette<T> hashPalette = null;
 +
 +                final Palette<T> palette = this.data.palette();
 +                final BitStorage storage = this.data.storage();
 +                if (storage instanceof ZeroBitStorage || palette.getSize() == 1) {
 +                    // If the palette only contains one entry, don't attempt to repack it.
 +                    elements = List.of(palette.valueFor(0));
-+                } else if (palette instanceof LithiumHashPalette<T> lithiumHashPalette) {
++                } else if (palette instanceof org.leavesmc.leaves.lithium.common.world.chunk.LithiumHashPalette<T> lithiumHashPalette) {
 +                    hashPalette = lithiumHashPalette;
 +                }
 +                if (elements == null) {
-+                    LithiumHashPalette<T> compactedPalette = new LithiumHashPalette<>(idList, storage.getBits(), this.dummyPaletteResize);
++                    org.leavesmc.leaves.lithium.common.world.chunk.LithiumHashPalette<T> compactedPalette = new org.leavesmc.leaves.lithium.common.world.chunk.LithiumHashPalette<>(registry, storage.getBits(), this.dummyPaletteResize);
 +                    short[] array = this.getOrCreate(strategy.size());
 +
 +                    storage.compact(this.data.palette(), compactedPalette, array);
 +
 +                    // If the palette didn't change during compaction, do a simple copy of the data array
-+                    if (hashPalette != null && hashPalette.getSize() == compactedPalette.getSize() && storage.getBits() == paletteProvider.calculateBitsForSerialization(idList, hashPalette.getSize())) { // paletteSize can de-sync from palette - see https://github.com/CaffeineMC/lithium-fabric/issues/279
++                    if (hashPalette != null && hashPalette.getSize() == compactedPalette.getSize() && storage.getBits() == strategy.calculateBitsForSerialization(registry, hashPalette.getSize())) { // paletteSize can de-sync from palette - see https://github.com/CaffeineMC/lithium-fabric/issues/279
 +                        data = this.asOptional(storage.getRaw().clone());
 +                        elements = hashPalette.getElements();
 +                    } else {
-+                        int bits = strategy.calculateBitsForSerialization(idList, compactedPalette.getSize());
++                        int bits = strategy.calculateBitsForSerialization(registry, compactedPalette.getSize());
 +                        if (bits != 0) {
 +                            // Re-pack the integer array as the palette has changed size
 +                            SimpleBitStorage copy = new SimpleBitStorage(bits, array.length);
@@ -382,7 +217,7 @@ index f5da433050fd3060e0335d4002d520ebe8cd691f..95daced94745d1640fc9b3dec9ed346a
      }
  
      private static <T> void swapPalette(int[] bits, IntUnaryOperator operator) {
-@@ -405,13 +481,47 @@ public class PalettedContainer<T> implements PaletteResize<T>, PalettedContainer
+@@ -405,13 +471,47 @@ public class PalettedContainer<T> implements PaletteResize<T>, PalettedContainer
  
      @Override
      public void count(PalettedContainer.CountConsumer<T> countConsumer) {

@@ -29,8 +29,8 @@ public class BladerenProtocol {
     private static final Map<String, BiConsumer<ServerPlayer, CompoundTag>> registeredFeatures = new HashMap<>();
 
     @Contract("_ -> new")
-    public static @NotNull ResourceLocation id(String path) {
-        return new ResourceLocation(PROTOCOL_ID, path);
+    public static ResourceLocation id(String path) {
+        return ResourceLocation.tryBuild(PROTOCOL_ID, path);
     }
 
     @ProtocolHandler.PayloadReceiver(payload = BladerenHelloPayload.class, payloadId = "hello")

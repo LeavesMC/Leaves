@@ -37,7 +37,7 @@ public class LootTableMineableCollector {
                 continue;
             }
 
-            LootTable lootTable = lootRegistry.get(block.getLootTable());
+            LootTable lootTable = lootRegistry.get(block.getLootTable().orElseThrow()).orElseThrow().value();
             if (collector.doLootTable(lootTable)) {
                 list.add(block);
             }
@@ -75,7 +75,7 @@ public class LootTableMineableCollector {
                 }
             }
         } else if (entry instanceof NestedLootTable nestedLootTable) {
-            LootTable lootTable = nestedLootTable.contents.map(lootRegistry::get, Function.identity());
+            LootTable lootTable = nestedLootTable.contents.map(item -> lootRegistry.get(item).orElseThrow().value(), Function.identity());
             return doLootTable(lootTable);
         } else {
             return isCorrectConditions(entry.conditions, toolItem);

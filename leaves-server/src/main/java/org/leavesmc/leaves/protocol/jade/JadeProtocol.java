@@ -189,7 +189,7 @@ public class JadeProtocol {
     }
 
     private static ResourceLocation getPrimaryKey(ResourceLocation key) {
-        return new ResourceLocation(key.getNamespace(), key.getPath().substring(0, key.getPath().indexOf('.')));
+        return ResourceLocation.tryBuild(key.getNamespace(), key.getPath().substring(0, key.getPath().indexOf('.')));
     }
 
     @ProtocolHandler.Init
@@ -254,7 +254,7 @@ public class JadeProtocol {
 
         try {
             shearableBlocks = Collections.unmodifiableList(LootTableMineableCollector.execute(
-                    MinecraftServer.getServer().reloadableRegistries().get().registryOrThrow(Registries.LOOT_TABLE),
+                    MinecraftServer.getServer().registryAccess().lookupOrThrow(Registries.LOOT_TABLE),
                     Items.SHEARS.getDefaultInstance()));
         } catch (Throwable ignore) {
             shearableBlocks = List.of();
@@ -269,7 +269,7 @@ public class JadeProtocol {
 
     @ProtocolHandler.PayloadReceiver(payload = ClientHandshakePayload.class, payloadId = "client_handshake")
     public static void clientHandshake(ServerPlayer player, ClientHandshakePayload payload) {
-        if (!LeavesConfig.jadeProtocol) {
+        if (!LeavesConfig.protocol.jadeProtocol) {
             return;
         }
         if (!payload.protocolVersion().equals(PROTOCOL_VERSION)) {
@@ -282,7 +282,7 @@ public class JadeProtocol {
 
     @ProtocolHandler.PayloadReceiver(payload = RequestEntityPayload.class, payloadId = "request_entity")
     public static void requestEntityData(ServerPlayer player, RequestEntityPayload payload) {
-        if (!LeavesConfig.jadeProtocol) {
+        if (!LeavesConfig.protocol.jadeProtocol) {
             return;
         }
 
@@ -335,7 +335,7 @@ public class JadeProtocol {
 
     @ProtocolHandler.PayloadReceiver(payload = RequestBlockPayload.class, payloadId = "request_block")
     public static void requestBlockData(ServerPlayer player, RequestBlockPayload payload) {
-        if (!LeavesConfig.jadeProtocol) {
+        if (!LeavesConfig.protocol.jadeProtocol) {
             return;
         }
 
@@ -398,7 +398,7 @@ public class JadeProtocol {
 
     @ProtocolHandler.ReloadServer
     public static void onServerReload() {
-        if (LeavesConfig.jadeProtocol) {
+        if (LeavesConfig.protocol.jadeProtocol) {
             enableAllPlayer();
         }
     }

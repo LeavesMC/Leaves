@@ -80,7 +80,7 @@ public class HierarchyLookup<T extends IJadeProvider> implements IHierarchyLooku
                 return list;
             });
         } catch (ExecutionException e) {
-            LeavesLogger.LOGGER.warning("HierarchyLookup error", e);
+            e.printStackTrace();
         }
         return List.of();
     }

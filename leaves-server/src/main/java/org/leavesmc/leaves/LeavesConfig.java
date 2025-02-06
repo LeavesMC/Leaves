@@ -779,6 +779,12 @@ public final class LeavesConfig {
 
         @GlobalConfig("leaves-carpet-support")
         public boolean leavesCarpetSupport = false;
+
+        @GlobalConfig("lms-paster-protocol")
+        public boolean lmsPasterProtocol = false;
+
+        @GlobalConfig("rei-server-protocol")
+        public boolean reiServerProtocol = false;
     }
 
     public static MiscConfig mics = new MiscConfig();

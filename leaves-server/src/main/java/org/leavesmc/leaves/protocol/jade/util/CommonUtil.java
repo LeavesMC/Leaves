@@ -7,11 +7,13 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.boss.EnderDragonPart;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.SkullBlockEntity;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.LeavesLogger;
 import org.leavesmc.leaves.protocol.jade.accessor.Accessor;
+import org.leavesmc.leaves.protocol.jade.accessor.BlockAccessor;
+import org.leavesmc.leaves.protocol.jade.provider.IServerDataProvider;
 import org.leavesmc.leaves.protocol.jade.provider.IServerExtensionProvider;
 
 import java.util.List;
@@ -19,10 +21,19 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.leavesmc.leaves.protocol.jade.JadeProtocol.blockDataProviders;
+
 public class CommonUtil {
 
-    public static @NotNull ResourceLocation getId(Block block) {
+    public static ResourceLocation getId(Block block) {
         return BuiltInRegistries.BLOCK.getKey(block);
+    }
+
+    public static List<IServerDataProvider<BlockAccessor>> getBlockNBTProviders(Block block, @Nullable BlockEntity blockEntity) {
+        if (blockEntity == null) {
+            return blockDataProviders.first.get(block);
+        }
+        return blockDataProviders.getMerged(block, blockEntity);
     }
 
     public static Entity wrapPartEntityParent(Entity target) {
@@ -30,6 +41,17 @@ public class CommonUtil {
             return part.parentMob;
         }
         return target;
+    }
+
+    public static int getPartEntityIndex(Entity entity) {
+        if (!(entity instanceof EnderDragonPart part)) {
+            return -1;
+        }
+        if (!(wrapPartEntityParent(entity) instanceof EnderDragon parent)) {
+            return -1;
+        }
+        EnderDragonPart[] parts = parent.getSubEntities();
+        return List.of(parts).indexOf(part);
     }
 
     public static Entity getPartEntity(Entity parent, int index) {

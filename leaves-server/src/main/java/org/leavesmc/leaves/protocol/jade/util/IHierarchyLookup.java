@@ -10,6 +10,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public interface IHierarchyLookup<T extends IJadeProvider> {
@@ -56,11 +58,24 @@ public interface IHierarchyLookup<T extends IJadeProvider> {
             idMapper = new IdMapper<>(list.size());
         }
         for (T provider : list) {
-            if (idMapper.getId(provider) == IdMapper.DEFAULT) {
+            if (idMapper.getId(provider) == -1) {
                 idMapper.add(provider);
             }
         }
         return idMapper;
+    }
+
+    default void remapIds(List<ResourceLocation> ids) {
+        IdMapper<T> idMapper = Objects.requireNonNull(idMapper());
+        Map<ResourceLocation, T> map = Streams.stream(idMapper).collect(Collectors.toMap(IJadeProvider::getUid, Function.identity()));
+        int i = 0;
+        for (ResourceLocation id : ids) {
+            T object = map.get(id);
+            if (object != null) {
+                idMapper.addMapping(object, i);
+            }
+            i++;
+        }
     }
 }
 

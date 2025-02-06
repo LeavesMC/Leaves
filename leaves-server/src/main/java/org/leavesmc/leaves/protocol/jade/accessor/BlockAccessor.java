@@ -3,6 +3,7 @@ package org.leavesmc.leaves.protocol.jade.accessor;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -24,6 +25,8 @@ public interface BlockAccessor extends Accessor<BlockHitResult> {
 
     Direction getSide();
 
+    ItemStack getFakeBlock();
+
     @ApiStatus.NonExtendable
     interface Builder {
         Builder level(Level level);
@@ -41,6 +44,8 @@ public interface BlockAccessor extends Accessor<BlockHitResult> {
         }
 
         Builder blockEntity(Supplier<BlockEntity> blockEntity);
+
+        Builder fakeBlock(ItemStack stack);
 
         Builder from(BlockAccessor accessor);
 

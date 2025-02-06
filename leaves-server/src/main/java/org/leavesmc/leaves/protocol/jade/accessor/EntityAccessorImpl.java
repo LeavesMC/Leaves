@@ -1,6 +1,7 @@
 package org.leavesmc.leaves.protocol.jade.accessor;
 
 import com.google.common.base.Suppliers;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
@@ -20,7 +21,7 @@ public class EntityAccessorImpl extends AccessorImpl<EntityHitResult> implements
     private final Supplier<Entity> entity;
 
     public EntityAccessorImpl(Builder builder) {
-        super(builder.level, builder.player, builder.hit, builder.connected, builder.showDetails);
+        super(builder.level, builder.player, builder.serverData, builder.hit, builder.connected, builder.showDetails);
         entity = builder.entity;
     }
 
@@ -45,9 +46,11 @@ public class EntityAccessorImpl extends AccessorImpl<EntityHitResult> implements
         public boolean showDetails;
         private Level level;
         private Player player;
+        private CompoundTag serverData;
         private boolean connected;
         private Supplier<EntityHitResult> hit;
         private Supplier<Entity> entity;
+        private boolean verify;
 
         @Override
         public Builder level(Level level) {
@@ -83,6 +86,7 @@ public class EntityAccessorImpl extends AccessorImpl<EntityHitResult> implements
         public Builder from(EntityAccessor accessor) {
             level = accessor.getLevel();
             player = accessor.getPlayer();
+            serverData = accessor.getServerData();
             connected = accessor.isServerConnected();
             showDetails = accessor.showDetails();
             hit = accessor::getHitResult;
@@ -92,7 +96,11 @@ public class EntityAccessorImpl extends AccessorImpl<EntityHitResult> implements
 
         @Override
         public EntityAccessor build() {
-            return new EntityAccessorImpl(this);
+            EntityAccessorImpl accessor = new EntityAccessorImpl(this);
+            if (verify) {
+                accessor.requireVerification();
+            }
+            return accessor;
         }
     }
 

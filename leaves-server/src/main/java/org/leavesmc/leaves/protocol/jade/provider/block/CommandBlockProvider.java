@@ -5,7 +5,6 @@ import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.entity.CommandBlockEntity;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.protocol.jade.JadeProtocol;
 import org.leavesmc.leaves.protocol.jade.accessor.BlockAccessor;
@@ -17,7 +16,7 @@ public enum CommandBlockProvider implements StreamServerDataProvider<BlockAccess
     private static final ResourceLocation MC_COMMAND_BLOCK = JadeProtocol.mc_id("command_block");
 
     @Nullable
-    public String streamData(@NotNull BlockAccessor accessor) {
+    public String streamData(BlockAccessor accessor) {
         if (!accessor.getPlayer().canUseGameMasterBlocks()) {
             return null;
         }
@@ -29,7 +28,7 @@ public enum CommandBlockProvider implements StreamServerDataProvider<BlockAccess
     }
 
     @Override
-    public @NotNull StreamCodec<RegistryFriendlyByteBuf, String> streamCodec() {
+    public StreamCodec<RegistryFriendlyByteBuf, String> streamCodec() {
         return ByteBufCodecs.STRING_UTF8.cast();
     }
 

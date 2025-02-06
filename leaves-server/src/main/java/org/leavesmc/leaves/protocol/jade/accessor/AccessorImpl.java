@@ -1,34 +1,41 @@
 package org.leavesmc.leaves.protocol.jade.accessor;
 
-import java.util.function.Supplier;
-
-import org.apache.commons.lang3.ArrayUtils;
-
+import com.mojang.serialization.DynamicOps;
 import io.netty.buffer.Unpooled;
 import net.minecraft.nbt.ByteArrayTag;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamEncoder;
+import net.minecraft.resources.RegistryOps;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.HitResult;
+import org.apache.commons.lang3.ArrayUtils;
+import org.jetbrains.annotations.NotNull;
+
+import java.util.function.Supplier;
 
 public abstract class AccessorImpl<T extends HitResult> implements Accessor<T> {
 
     private final Level level;
     private final Player player;
+    private final CompoundTag serverData;
     private final Supplier<T> hit;
     private final boolean serverConnected;
     private final boolean showDetails;
     protected boolean verify;
+    private DynamicOps<Tag> ops;
     private RegistryFriendlyByteBuf buffer;
 
-    public AccessorImpl(Level level, Player player, Supplier<T> hit, boolean serverConnected, boolean showDetails) {
+    public AccessorImpl(Level level, Player player, CompoundTag serverData, Supplier<T> hit, boolean serverConnected, boolean showDetails) {
         this.level = level;
         this.player = player;
         this.hit = hit;
         this.serverConnected = serverConnected;
         this.showDetails = showDetails;
+        this.serverData = serverData == null ? new CompoundTag() : serverData.copy();
     }
 
     @Override
@@ -39,6 +46,19 @@ public abstract class AccessorImpl<T extends HitResult> implements Accessor<T> {
     @Override
     public Player getPlayer() {
         return player;
+    }
+
+    @Override
+    public final @NotNull CompoundTag getServerData() {
+        return serverData;
+    }
+
+    @Override
+    public DynamicOps<Tag> nbtOps() {
+        if (ops == null) {
+            ops = RegistryOps.create(NbtOps.INSTANCE, level.registryAccess());
+        }
+        return ops;
     }
 
     private RegistryFriendlyByteBuf buffer() {
@@ -74,6 +94,10 @@ public abstract class AccessorImpl<T extends HitResult> implements Accessor<T> {
     @Override
     public boolean showDetails() {
         return showDetails;
+    }
+
+    public void requireVerification() {
+        verify = true;
     }
 
     @Override

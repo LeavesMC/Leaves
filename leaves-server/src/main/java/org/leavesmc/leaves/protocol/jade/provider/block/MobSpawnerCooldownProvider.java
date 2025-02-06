@@ -7,7 +7,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.entity.TrialSpawnerBlockEntity;
 import net.minecraft.world.level.block.entity.trialspawner.TrialSpawnerData;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.protocol.jade.JadeProtocol;
 import org.leavesmc.leaves.protocol.jade.accessor.BlockAccessor;
@@ -19,7 +18,7 @@ public enum MobSpawnerCooldownProvider implements StreamServerDataProvider<Block
     private static final ResourceLocation MC_MOB_SPAWNER_COOLDOWN = JadeProtocol.mc_id("mob_spawner.cooldown");
 
     @Override
-    public @Nullable Integer streamData(@NotNull BlockAccessor accessor) {
+    public @Nullable Integer streamData(BlockAccessor accessor) {
         TrialSpawnerBlockEntity spawner = (TrialSpawnerBlockEntity) accessor.getBlockEntity();
         TrialSpawnerData spawnerData = spawner.getTrialSpawner().getData();
         ServerLevel level = ((ServerLevel) accessor.getLevel());
@@ -30,7 +29,7 @@ public enum MobSpawnerCooldownProvider implements StreamServerDataProvider<Block
     }
 
     @Override
-    public @NotNull StreamCodec<RegistryFriendlyByteBuf, Integer> streamCodec() {
+    public StreamCodec<RegistryFriendlyByteBuf, Integer> streamCodec() {
         return ByteBufCodecs.VAR_INT.cast();
     }
 

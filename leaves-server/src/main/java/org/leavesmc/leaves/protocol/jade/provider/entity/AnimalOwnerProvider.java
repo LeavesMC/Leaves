@@ -6,7 +6,6 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.OwnableEntity;
-import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.protocol.jade.JadeProtocol;
 import org.leavesmc.leaves.protocol.jade.accessor.EntityAccessor;
 import org.leavesmc.leaves.protocol.jade.provider.StreamServerDataProvider;
@@ -20,12 +19,12 @@ public enum AnimalOwnerProvider implements StreamServerDataProvider<EntityAccess
     private static final ResourceLocation MC_ANIMAL_OWNER = JadeProtocol.mc_id("animal_owner");
 
     @Override
-    public String streamData(@NotNull EntityAccessor accessor) {
+    public String streamData(EntityAccessor accessor) {
         return CommonUtil.getLastKnownUsername(getOwnerUUID(accessor.getEntity()));
     }
 
     @Override
-    public @NotNull StreamCodec<RegistryFriendlyByteBuf, String> streamCodec() {
+    public StreamCodec<RegistryFriendlyByteBuf, String> streamCodec() {
         return ByteBufCodecs.STRING_UTF8.cast();
     }
 

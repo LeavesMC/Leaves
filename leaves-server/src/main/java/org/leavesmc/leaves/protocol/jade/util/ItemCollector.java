@@ -7,7 +7,6 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
-import org.leavesmc.leaves.protocol.jade.accessor.Accessor;
 
 import java.util.List;
 import java.util.Locale;
@@ -23,7 +22,7 @@ public class ItemCollector<T> {
         }
         CustomData customData = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY);
         if (customData.contains("CustomModelData")) {
-            CompoundTag tag = customData.copyTag();
+            CompoundTag tag = customData.getUnsafe();
             for (String key : tag.getAllKeys()) {
                 if (key.toLowerCase(Locale.ENGLISH).endsWith("clear") && tag.getBoolean(key)) {
                     return false;
@@ -36,23 +35,21 @@ public class ItemCollector<T> {
     private final ItemIterator<T> iterator;
     public long version;
     public long lastTimeFinished;
-    public boolean lastTimeIsEmpty;
     public List<ViewGroup<ItemStack>> mergedResult;
 
     public ItemCollector(ItemIterator<T> iterator) {
         this.iterator = iterator;
     }
 
-    public List<ViewGroup<ItemStack>> update(Accessor<?> request) {
+    public List<ViewGroup<ItemStack>> update(Object target, long gameTime) {
         if (iterator == null) {
             return null;
         }
-        T container = iterator.find(request.getTarget());
+        T container = iterator.find(target);
         if (container == null) {
             return null;
         }
         long currentVersion = iterator.getVersion(container);
-        long gameTime = request.getLevel().getGameTime();
         if (mergedResult != null && iterator.isFinished()) {
             if (version == currentVersion) {
                 return mergedResult; // content not changed
@@ -75,14 +72,13 @@ public class ItemCollector<T> {
             updateCollectingProgress(mergedResult.getFirst());
             return mergedResult;
         }
-        List<ItemStack> partialResult = items.object2IntEntrySet().stream().limit(MAX_SIZE  ).map(entry -> {
+        List<ItemStack> partialResult = items.object2IntEntrySet().stream().limit(54).map(entry -> {
             ItemDefinition def = entry.getKey();
             return def.toStack(entry.getIntValue());
         }).toList();
         List<ViewGroup<ItemStack>> groups = List.of(updateCollectingProgress(new ViewGroup<>(partialResult)));
         if (iterator.isFinished()) {
             mergedResult = groups;
-            lastTimeIsEmpty = mergedResult.getFirst().views.isEmpty();
             version = currentVersion;
             lastTimeFinished = gameTime;
             items.clear();
@@ -91,12 +87,12 @@ public class ItemCollector<T> {
     }
 
     protected ViewGroup<ItemStack> updateCollectingProgress(ViewGroup<ItemStack> group) {
-        if (lastTimeIsEmpty && group.views.isEmpty()) {
-            return group;
-        }
         float progress = iterator.getCollectingProgress();
         CompoundTag data = group.getExtraData();
-        if (Float.isNaN(progress) || progress >= 1) {
+        if (Float.isNaN(progress)) {
+            progress = 0;
+        }
+        if (progress >= 1) {
             data.remove("Collecting");
         } else {
             data.putFloat("Collecting", progress);

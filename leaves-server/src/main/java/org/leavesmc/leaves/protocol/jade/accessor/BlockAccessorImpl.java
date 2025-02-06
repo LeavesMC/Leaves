@@ -1,5 +1,7 @@
 package org.leavesmc.leaves.protocol.jade.accessor;
 
+import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import org.jetbrains.annotations.Nullable;
@@ -8,11 +10,14 @@ import com.google.common.base.Suppliers;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -21,6 +26,11 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
+import org.leavesmc.leaves.protocol.jade.JadeProtocol;
+import org.leavesmc.leaves.protocol.jade.payload.RequestBlockPayload;
+import org.leavesmc.leaves.protocol.jade.payload.ServerPayloadContext;
+import org.leavesmc.leaves.protocol.jade.provider.IServerDataProvider;
+import org.leavesmc.leaves.protocol.jade.util.CommonUtil;
 
 /**
  * Class to get information of block target and context.
@@ -30,11 +40,48 @@ public class BlockAccessorImpl extends AccessorImpl<BlockHitResult> implements B
     private final BlockState blockState;
     @Nullable
     private final Supplier<BlockEntity> blockEntity;
+    private ItemStack fakeBlock;
 
     private BlockAccessorImpl(Builder builder) {
-        super(builder.level, builder.player, Suppliers.ofInstance(builder.hit), builder.connected, builder.showDetails);
+        super(builder.level, builder.player, builder.serverData, Suppliers.ofInstance(builder.hit), builder.connected, builder.showDetails);
         blockState = builder.blockState;
         blockEntity = builder.blockEntity;
+        fakeBlock = builder.fakeBlock;
+    }
+
+    public static void handleRequest(RequestBlockPayload message, ServerPayloadContext context, Consumer<CompoundTag> responseSender) {
+        ServerPlayer player = context.player();
+        context.execute(() -> {
+            BlockAccessor accessor = message.data().unpack(player);
+            if (accessor == null) {
+                return;
+            }
+            BlockPos pos = accessor.getPosition();
+            ServerLevel world = player.serverLevel();
+            double maxDistance = Mth.square(player.blockInteractionRange() + 21);
+            if (pos.distSqr(player.blockPosition()) > maxDistance || !world.isLoaded(pos)) {
+                return;
+            }
+
+            List<IServerDataProvider<BlockAccessor>> providers = CommonUtil.getBlockNBTProviders(accessor.getBlock(), accessor.getBlockEntity());
+            CompoundTag tag = accessor.getServerData();
+            for (IServerDataProvider<BlockAccessor> provider : providers) {
+                if (!message.dataProviders().contains(provider)) {
+                    continue;
+                }
+                try {
+                    provider.appendServerData(tag, accessor);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }
+
+            tag.putInt("x", pos.getX());
+            tag.putInt("y", pos.getY());
+            tag.putInt("z", pos.getZ());
+            tag.putString("BlockId", CommonUtil.getId(accessor.getBlock()).toString());
+            responseSender.accept(tag);
+        });
     }
 
     @Override
@@ -62,21 +109,55 @@ public class BlockAccessorImpl extends AccessorImpl<BlockHitResult> implements B
         return getHitResult().getDirection();
     }
 
+    @Override
+    public ItemStack getPickedResult() {
+        return null;//TODO implement minecraft pick up result
+    }
+
     @Nullable
     @Override
     public Object getTarget() {
         return getBlockEntity();
     }
 
+    @Override
+    public boolean isFakeBlock() {
+        return !fakeBlock.isEmpty();
+    }
+
+    @Override
+    public ItemStack getFakeBlock() {
+        return fakeBlock;
+    }
+
+    public void setFakeBlock(ItemStack fakeBlock) {
+        this.fakeBlock = fakeBlock;
+    }
+
+    @Override
+    public boolean verifyData(CompoundTag data) {
+        if (!verify) {
+            return true;
+        }
+        int x = data.getInt("x");
+        int y = data.getInt("y");
+        int z = data.getInt("z");
+        BlockPos hitPos = getPosition();
+        return x == hitPos.getX() && y == hitPos.getY() && z == hitPos.getZ();
+    }
+
     public static class Builder implements BlockAccessor.Builder {
 
         private Level level;
         private Player player;
+        private CompoundTag serverData;
         private boolean connected;
         private boolean showDetails;
         private BlockHitResult hit;
         private BlockState blockState = Blocks.AIR.defaultBlockState();
         private Supplier<BlockEntity> blockEntity;
+        private ItemStack fakeBlock = ItemStack.EMPTY;
+        private boolean verify;
 
         @Override
         public Builder level(Level level) {
@@ -87,6 +168,18 @@ public class BlockAccessorImpl extends AccessorImpl<BlockHitResult> implements B
         @Override
         public Builder player(Player player) {
             this.player = player;
+            return this;
+        }
+
+        @Override
+        public Builder serverData(CompoundTag serverData) {
+            this.serverData = serverData;
+            return this;
+        }
+
+        @Override
+        public Builder serverConnected(boolean connected) {
+            this.connected = connected;
             return this;
         }
 
@@ -115,20 +208,38 @@ public class BlockAccessorImpl extends AccessorImpl<BlockHitResult> implements B
         }
 
         @Override
+        public Builder fakeBlock(ItemStack stack) {
+            fakeBlock = stack;
+            return this;
+        }
+
+        @Override
         public Builder from(BlockAccessor accessor) {
             level = accessor.getLevel();
             player = accessor.getPlayer();
+            serverData = accessor.getServerData();
             connected = accessor.isServerConnected();
             showDetails = accessor.showDetails();
             hit = accessor.getHitResult();
             blockEntity = accessor::getBlockEntity;
             blockState = accessor.getBlockState();
+            fakeBlock = accessor.getFakeBlock();
+            return this;
+        }
+
+        @Override
+        public BlockAccessor.Builder requireVerification() {
+            verify = true;
             return this;
         }
 
         @Override
         public BlockAccessor build() {
-            return new BlockAccessorImpl(this);
+            BlockAccessorImpl accessor = new BlockAccessorImpl(this);
+            if (verify) {
+                accessor.requireVerification();
+            }
+            return accessor;
         }
     }
 
@@ -145,6 +256,10 @@ public class BlockAccessorImpl extends AccessorImpl<BlockHitResult> implements B
                 SyncData::new
         );
 
+        public SyncData(BlockAccessor accessor) {
+            this(accessor.showDetails(), accessor.getHitResult(), accessor.getBlockState(), accessor.getFakeBlock());
+        }
+
         public BlockAccessor unpack(ServerPlayer player) {
             Supplier<BlockEntity> blockEntity = null;
             if (blockState.hasBlockEntity()) {
@@ -157,6 +272,7 @@ public class BlockAccessorImpl extends AccessorImpl<BlockHitResult> implements B
                     .hit(hit)
                     .blockState(blockState)
                     .blockEntity(blockEntity)
+                    .fakeBlock(fakeBlock)
                     .build();
         }
     }

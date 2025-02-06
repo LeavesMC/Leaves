@@ -7,7 +7,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.AgeableMob;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.animal.frog.Tadpole;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.protocol.jade.JadeProtocol;
 import org.leavesmc.leaves.protocol.jade.accessor.EntityAccessor;
@@ -19,7 +18,7 @@ public enum MobGrowthProvider implements StreamServerDataProvider<EntityAccessor
     private static final ResourceLocation MC_MOB_GROWTH = JadeProtocol.mc_id("mob_growth");
 
     @Override
-    public @Nullable Integer streamData(@NotNull EntityAccessor accessor) {
+    public @Nullable Integer streamData(EntityAccessor accessor) {
         int time = -1;
         Entity entity = accessor.getEntity();
         if (entity instanceof AgeableMob ageable) {
@@ -31,7 +30,7 @@ public enum MobGrowthProvider implements StreamServerDataProvider<EntityAccessor
     }
 
     @Override
-    public @NotNull StreamCodec<RegistryFriendlyByteBuf, Integer> streamCodec() {
+    public StreamCodec<RegistryFriendlyByteBuf, Integer> streamCodec() {
         return ByteBufCodecs.VAR_INT.cast();
     }
 

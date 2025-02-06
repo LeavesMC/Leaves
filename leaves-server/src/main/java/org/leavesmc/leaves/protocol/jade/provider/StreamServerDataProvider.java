@@ -19,6 +19,14 @@ public interface StreamServerDataProvider<T extends Accessor<?>, D> extends ISer
         }
     }
 
+    default Optional<D> decodeFromData(T accessor) {
+        Tag tag = accessor.getServerData().get(getUid().toString());
+        if (tag == null) {
+            return Optional.empty();
+        }
+        return accessor.decodeFromNbt(streamCodec(), tag);
+    }
+
     @Nullable
     D streamData(T accessor);
 

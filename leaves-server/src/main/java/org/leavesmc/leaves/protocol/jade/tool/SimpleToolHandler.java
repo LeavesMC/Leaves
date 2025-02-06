@@ -10,8 +10,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.Tool;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
-import org.jetbrains.annotations.Contract;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 
@@ -21,20 +19,18 @@ public class SimpleToolHandler implements ToolHandler {
     private final ResourceLocation uid;
     private final boolean skipInstaBreakingBlock;
 
-    protected SimpleToolHandler(ResourceLocation uid, @NotNull List<ItemStack> tools, boolean skipInstaBreakingBlock) {
+    protected SimpleToolHandler(ResourceLocation uid, List<ItemStack> tools, boolean skipInstaBreakingBlock) {
         this.uid = uid;
         Preconditions.checkArgument(!tools.isEmpty(), "tools cannot be empty");
         this.tools.addAll(tools);
         this.skipInstaBreakingBlock = skipInstaBreakingBlock;
     }
 
-    @Contract("_, _ -> new")
-    public static @NotNull SimpleToolHandler create(ResourceLocation uid, List<Item> tools) {
+    public static SimpleToolHandler create(ResourceLocation uid, List<Item> tools) {
         return create(uid, tools, true);
     }
 
-    @Contract("_, _, _ -> new")
-    public static @NotNull SimpleToolHandler create(ResourceLocation uid, List<Item> tools, boolean skipInstaBreakingBlock) {
+    public static SimpleToolHandler create(ResourceLocation uid, List<Item> tools, boolean skipInstaBreakingBlock) {
         return new SimpleToolHandler(uid, Lists.transform(tools, Item::getDefaultInstance), skipInstaBreakingBlock);
     }
 

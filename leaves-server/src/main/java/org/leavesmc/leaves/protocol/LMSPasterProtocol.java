@@ -23,7 +23,7 @@ import java.util.WeakHashMap;
 import java.util.function.Consumer;
 
 @LeavesProtocol(namespace = "lmspaster")
-public class LmsPasterProtocol {
+public class LMSPasterProtocol {
 
     public static final String MOD_NAME = "Litematica Server Paster";
     public static final String MOD_ID = "litematica-server-paster";
@@ -43,28 +43,28 @@ public class LmsPasterProtocol {
         int id = payload.getPacketId();
         CompoundTag nbt = payload.getNbt();
         switch (id) {
-            case LmsPasterProtocol.C2S.HI -> {
+            case LMSPasterProtocol.C2S.HI -> {
                 String clientModVersion = nbt.getString("mod_version");
-                LeavesLogger.LOGGER.info(String.format("Player %s connected with %s @ %s", playerName, LmsPasterProtocol.MOD_NAME, clientModVersion));
-                ProtocolUtils.sendPayloadPacket(player, LmsPasterProtocol.S2C.build(LmsPasterProtocol.S2C.HI, nbt2 -> {
-                    nbt2.putString("mod_version", LmsPasterProtocol.MOD_VERSION);
+                LeavesLogger.LOGGER.info(String.format("Player %s connected with %s @ %s", playerName, LMSPasterProtocol.MOD_NAME, clientModVersion));
+                ProtocolUtils.sendPayloadPacket(player, LMSPasterProtocol.S2C.build(LMSPasterProtocol.S2C.HI, nbt2 -> {
+                    nbt2.putString("mod_version", LMSPasterProtocol.MOD_VERSION);
                 }));
-                ProtocolUtils.sendPayloadPacket(player, LmsPasterProtocol.S2C.build(LmsPasterProtocol.S2C.ACCEPT_PACKETS, nbt2 -> {
-                    nbt2.putIntArray("ids", LmsPasterProtocol.C2S.ALL_PACKET_IDS);
+                ProtocolUtils.sendPayloadPacket(player, LMSPasterProtocol.S2C.build(LMSPasterProtocol.S2C.ACCEPT_PACKETS, nbt2 -> {
+                    nbt2.putIntArray("ids", LMSPasterProtocol.C2S.ALL_PACKET_IDS);
                 }));
             }
-            case LmsPasterProtocol.C2S.CHAT -> {
+            case LMSPasterProtocol.C2S.CHAT -> {
                 String message = nbt.getString("chat");
                 triggerCommand(player, playerName, message);
             }
-            case LmsPasterProtocol.C2S.VERY_LONG_CHAT_START -> {
+            case LMSPasterProtocol.C2S.VERY_LONG_CHAT_START -> {
                 VERY_LONG_CHATS.put(player.connection, new StringBuilder());
             }
-            case LmsPasterProtocol.C2S.VERY_LONG_CHAT_CONTENT -> {
+            case LMSPasterProtocol.C2S.VERY_LONG_CHAT_CONTENT -> {
                 String segment = nbt.getString("segment");
                 getVeryLongChatBuilder(player).ifPresent(builder -> builder.append(segment));
             }
-            case LmsPasterProtocol.C2S.VERY_LONG_CHAT_END -> {
+            case LMSPasterProtocol.C2S.VERY_LONG_CHAT_END -> {
                 getVeryLongChatBuilder(player).ifPresent(builder -> triggerCommand(player, playerName, builder.toString()));
                 VERY_LONG_CHATS.remove(player.connection);
             }

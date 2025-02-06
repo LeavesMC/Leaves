@@ -1,0 +1,69 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: huanli233 <392352840@qq.com>
+Date: Wed, 23 Oct 2024 23:10:48 +0800
+Subject: [PATCH] Revert raid changes
+
+
+diff --git a/net/minecraft/world/effect/BadOmenMobEffect.java b/net/minecraft/world/effect/BadOmenMobEffect.java
+index 80f17f33f670018240c854df589cf90cdeab6e70..4dea5d3898c82c54e7c40a6946038fcef3366289 100644
+--- a/net/minecraft/world/effect/BadOmenMobEffect.java
++++ b/net/minecraft/world/effect/BadOmenMobEffect.java
+@@ -22,6 +22,11 @@ class BadOmenMobEffect extends MobEffect {
+             && !serverPlayer.isSpectator()
+             && level.getDifficulty() != Difficulty.PEACEFUL
+             && level.isVillage(serverPlayer.blockPosition())) {
++            // Leaves start - Revert raid changes
++            if (org.leavesmc.leaves.LeavesConfig.modify.oldMC.raid.allowBadOmenTriggerRaid) {
++                return level.getRaids().createOrExtendRaid(serverPlayer, serverPlayer.blockPosition()) != null;
++            }
++            // Leaves end - Revert raid changes
+             Raid raidAt = level.getRaidAt(serverPlayer.blockPosition());
+             if (raidAt == null || raidAt.getRaidOmenLevel() < raidAt.getMaxRaidOmenLevel()) {
+                 serverPlayer.addEffect(new MobEffectInstance(MobEffects.RAID_OMEN, 600, amplifier));
+diff --git a/net/minecraft/world/entity/raid/Raider.java b/net/minecraft/world/entity/raid/Raider.java
+index 72551960faaedbf43d1c65ad061f6d366028a3e9..995a1b148be668fc1bc69a77799a72b79eb2968c 100644
+--- a/net/minecraft/world/entity/raid/Raider.java
++++ b/net/minecraft/world/entity/raid/Raider.java
+@@ -125,6 +125,42 @@ public abstract class Raider extends PatrollingMonster {
+ 
+                 currentRaid.removeFromRaid(this, false);
+             }
++
++            // Leaves start - Revert raid changes
++            if (this.level() instanceof ServerLevel serverLevel) {
++                if (org.leavesmc.leaves.LeavesConfig.modify.oldMC.raid.giveBadOmenWhenKillPatrolLeader && this.isPatrolLeader() && raid == null && serverLevel.getRaidAt(this.blockPosition()) == null) {
++                    ItemStack itemstack = this.getItemBySlot(EquipmentSlot.HEAD);
++                    net.minecraft.world.entity.player.Player entityhuman = null;
++                    if (entity instanceof net.minecraft.world.entity.player.Player player) {
++                        entityhuman = player;
++                    } else if (entity instanceof net.minecraft.world.entity.animal.Wolf wolf) {
++                        LivingEntity entityliving = wolf.getOwner();
++                        if (wolf.isTame() && entityliving instanceof net.minecraft.world.entity.player.Player player) {
++                            entityhuman = player;
++                        }
++                    }
++
++                    if (entityhuman != null && !itemstack.isEmpty() && ItemStack.matches(itemstack, Raid.getOminousBannerInstance(this.registryAccess().lookupOrThrow(Registries.BANNER_PATTERN)))) {
++                        net.minecraft.world.effect.MobEffectInstance mobeffect = entityhuman.getEffect(net.minecraft.world.effect.MobEffects.BAD_OMEN);
++                        int i = 1;
++
++                        if (mobeffect != null) {
++                            i += mobeffect.getAmplifier();
++                            entityhuman.removeEffectNoUpdate(net.minecraft.world.effect.MobEffects.BAD_OMEN);
++                        } else {
++                            --i;
++                        }
++
++                        i = net.minecraft.util.Mth.clamp(i, 0, 4);
++                        net.minecraft.world.effect.MobEffectInstance mobeffect1 = new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.BAD_OMEN, 120000, i, false, false, true);
++
++                        if (!serverLevel.getGameRules().getBoolean(net.minecraft.world.level.GameRules.RULE_DISABLE_RAIDS)) {
++                            entityhuman.addEffect(mobeffect1, org.bukkit.event.entity.EntityPotionEffectEvent.Cause.PATROL_CAPTAIN); // CraftBukkit
++                        }
++                    }
++                }
++            }
++            // Leaves end - Revert raid changes
+         }
+ 
+         super.die(cause);

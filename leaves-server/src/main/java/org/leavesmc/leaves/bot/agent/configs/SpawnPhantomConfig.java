@@ -15,7 +15,7 @@ public class SpawnPhantomConfig extends BotConfig<Boolean> {
     private boolean value;
 
     public SpawnPhantomConfig() {
-        super("spawn_phantom", CommandArgument.of(CommandArgumentType.BOOLEAN).setTabComplete(0, List.of("ture", "false")), SpawnPhantomConfig::new);
+        super("spawn_phantom", CommandArgument.of(CommandArgumentType.BOOLEAN).setTabComplete(0, List.of("true", "false")), SpawnPhantomConfig::new);
         this.value = LeavesConfig.modify.fakeplayer.canSpawnPhantom;
     }
 

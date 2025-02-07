@@ -125,7 +125,7 @@ public class LMSPasterProtocol {
         }
 
         @New
-        public LmsPasterPayload(FriendlyByteBuf buf) {
+        public LmsPasterPayload(ResourceLocation location, FriendlyByteBuf buf) {
             this(buf.readVarInt(), buf.readNbt());
         }
 

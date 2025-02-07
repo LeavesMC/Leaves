@@ -4,21 +4,14 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import org.leavesmc.leaves.protocol.core.LeavesCustomPayload;
+import org.leavesmc.leaves.protocol.rei.REIServerProtocol;
 
-public class CreateItemHotbarPayload implements LeavesCustomPayload<CreateItemHotbarPayload> {
+public record CreateItemHotbarPayload(ItemStack item, int hotbarSlot) implements LeavesCustomPayload<CreateItemHotbarPayload> {
 
-    private static final ResourceLocation ID = ResourceLocation.fromNamespaceAndPath("roughlyenoughitems", "create_item_hotbar");
-
-    private final ItemStack item;
-    private final int hotbarSlot;
-
-    public CreateItemHotbarPayload(final ItemStack item, final int hotbarSlot) {
-        this.item = item;
-        this.hotbarSlot = hotbarSlot;
-    }
+    private static final ResourceLocation ID = REIServerProtocol.id("create_item_hotbar");
 
     @New
-    public CreateItemHotbarPayload(FriendlyByteBuf buf) {
+    public CreateItemHotbarPayload(ResourceLocation location, FriendlyByteBuf buf) {
         this(buf.readJsonWithCodec(ItemStack.OPTIONAL_CODEC), buf.readVarInt());
     }
 
@@ -31,13 +24,5 @@ public class CreateItemHotbarPayload implements LeavesCustomPayload<CreateItemHo
     @Override
     public ResourceLocation id() {
         return ID;
-    }
-
-    public ItemStack getItem() {
-        return item;
-    }
-
-    public int getHotbarSlot() {
-        return hotbarSlot;
     }
 }

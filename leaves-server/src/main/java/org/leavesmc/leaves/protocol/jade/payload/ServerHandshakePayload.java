@@ -10,6 +10,7 @@ import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.Block;
+import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.protocol.core.LeavesCustomPayload;
 import org.leavesmc.leaves.protocol.core.ProtocolUtils;
 import org.leavesmc.leaves.protocol.jade.JadeProtocol;
@@ -41,6 +42,11 @@ public record ServerHandshakePayload(Map<ResourceLocation, Object> serverConfig,
     @Override
     public ResourceLocation id() {
         return PACKET_SERVER_HANDSHAKE;
+    }
+
+    @New
+    public static ServerHandshakePayload create(ResourceLocation location, FriendlyByteBuf buf) {
+        return CODEC.decode(ProtocolUtils.decorate(buf));
     }
 }
 

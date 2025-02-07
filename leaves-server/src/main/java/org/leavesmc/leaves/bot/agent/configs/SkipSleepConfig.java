@@ -13,7 +13,7 @@ import java.util.List;
 public class SkipSleepConfig extends BotConfig<Boolean> {
 
     public SkipSleepConfig() {
-        super("skip_sleep", CommandArgument.of(CommandArgumentType.BOOLEAN).setTabComplete(0, List.of("ture", "false")), SkipSleepConfig::new);
+        super("skip_sleep", CommandArgument.of(CommandArgumentType.BOOLEAN).setTabComplete(0, List.of("true", "false")), SkipSleepConfig::new);
     }
 
     @Override

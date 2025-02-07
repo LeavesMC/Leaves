@@ -2,32 +2,39 @@ package org.leavesmc.leaves.protocol.rei;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
+import org.jetbrains.annotations.Contract;
 import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.protocol.core.LeavesProtocol;
+import org.leavesmc.leaves.protocol.core.LeavesProtocolManager.EmptyPayload;
 import org.leavesmc.leaves.protocol.core.ProtocolHandler;
 import org.leavesmc.leaves.protocol.core.ProtocolUtils;
 import org.leavesmc.leaves.protocol.rei.payload.CreateItemGrabPayload;
 import org.leavesmc.leaves.protocol.rei.payload.CreateItemHotbarPayload;
 import org.leavesmc.leaves.protocol.rei.payload.CreateItemMessagePayload;
 import org.leavesmc.leaves.protocol.rei.payload.CreateItemPayload;
-import org.leavesmc.leaves.protocol.rei.payload.DeleteItemPayload;
 
-@LeavesProtocol(namespace = "rei")
+@LeavesProtocol(namespace = "roughlyenoughitems")
 public class REIServerProtocol {
 
-    @ProtocolHandler.PayloadReceiver(payload = DeleteItemPayload.class, payloadId = "delete_item")
-    public static void handleDeleteItem(ServerPlayer player, DeleteItemPayload payload) {
-        if (!LeavesConfig.protocol.reiServerProtocol) {
+    public static final String PROTOCOL_ID = "roughlyenoughitems";
+
+    @Contract("_ -> new")
+    public static ResourceLocation id(String path) {
+        return ResourceLocation.tryBuild(PROTOCOL_ID, path);
+    }
+
+    @ProtocolHandler.PayloadReceiver(payload = EmptyPayload.class, payloadId = "delete_item")
+    public static void handleDeleteItem(ServerPlayer player, EmptyPayload payload) {
+        if (!check(player, true)) {
             return;
         }
-        if (player.getServer().getProfilePermissions(player.getGameProfile()) < player.getServer().getOperatorUserPermissionLevel()) {
-            player.displayClientMessage(Component.translatable("text.rei.no_permission_cheat").withStyle(ChatFormatting.RED), false);
-            return;
-        }
+
         AbstractContainerMenu menu = player.containerMenu;
         if (!menu.getCarried().isEmpty()) {
             menu.setCarried(ItemStack.EMPTY);
@@ -37,14 +44,11 @@ public class REIServerProtocol {
 
     @ProtocolHandler.PayloadReceiver(payload = CreateItemPayload.class, payloadId = "create_item")
     public static void handleCreateItem(ServerPlayer player, CreateItemPayload payload) {
-        if (!LeavesConfig.protocol.reiServerProtocol) {
+        if (!check(player, true)) {
             return;
         }
-        if (player.getServer().getProfilePermissions(player.getGameProfile()) < player.getServer().getOperatorUserPermissionLevel()) {
-            player.displayClientMessage(Component.translatable("text.rei.no_permission_cheat").withStyle(ChatFormatting.RED), false);
-            return;
-        }
-        ItemStack stack = payload.getItem();
+
+        ItemStack stack = payload.item();
         if (player.getInventory().add(stack.copy())) {
             ProtocolUtils.sendPayloadPacket(player, new CreateItemMessagePayload(stack.copy(), player.getScoreboardName()));
         } else {
@@ -54,15 +58,12 @@ public class REIServerProtocol {
 
     @ProtocolHandler.PayloadReceiver(payload = CreateItemGrabPayload.class, payloadId = "create_item_grab")
     public static void handleCreateItemGrab(ServerPlayer player, CreateItemGrabPayload payload) {
-        if (!LeavesConfig.protocol.reiServerProtocol) {
+        if (!check(player, true)) {
             return;
         }
-        if (player.getServer().getProfilePermissions(player.getGameProfile()) < player.getServer().getOperatorUserPermissionLevel()) {
-            player.displayClientMessage(Component.translatable("text.rei.no_permission_cheat").withStyle(ChatFormatting.RED), false);
-            return;
-        }
+
         AbstractContainerMenu menu = player.containerMenu;
-        ItemStack itemStack = payload.getItem();
+        ItemStack itemStack = payload.item();
         ItemStack stack = itemStack.copy();
         if (!menu.getCarried().isEmpty() && ItemStack.isSameItemSameComponents(menu.getCarried(), stack)) {
             stack.setCount(Mth.clamp(stack.getCount() + menu.getCarried().getCount(), 1, stack.getMaxStackSize()));
@@ -76,15 +77,12 @@ public class REIServerProtocol {
 
     @ProtocolHandler.PayloadReceiver(payload = CreateItemHotbarPayload.class, payloadId = "create_item_hotbar")
     public static void handleCreateItemHotbar(ServerPlayer player, CreateItemHotbarPayload payload) {
-        if (!LeavesConfig.protocol.reiServerProtocol) {
+        if (!check(player, true)) {
             return;
         }
-        if (player.getServer().getProfilePermissions(player.getGameProfile()) < player.getServer().getOperatorUserPermissionLevel()) {
-            player.displayClientMessage(Component.translatable("text.rei.no_permission_cheat").withStyle(ChatFormatting.RED), false);
-            return;
-        }
-        ItemStack stack = payload.getItem();
-        int hotbarSlotId = payload.getHotbarSlot();
+
+        ItemStack stack = payload.item();
+        int hotbarSlotId = payload.hotbarSlot();
         if (hotbarSlotId >= 0 && hotbarSlotId < 9) {
             AbstractContainerMenu menu = player.containerMenu;
             player.getInventory().items.set(hotbarSlotId, stack.copy());
@@ -93,5 +91,17 @@ public class REIServerProtocol {
         } else {
             player.displayClientMessage(Component.translatable("text.rei.failed_cheat_items"), false);
         }
+    }
+
+    private static boolean check(ServerPlayer player, boolean needOP) {
+        if (!LeavesConfig.protocol.reiServerProtocol) {
+            return false;
+        }
+
+        if (needOP && MinecraftServer.getServer().getPlayerList().isOp(player.gameProfile)) { // TODO check permission node
+            player.displayClientMessage(Component.translatable("text.rei.no_permission_cheat").withStyle(ChatFormatting.RED), false);
+            return false;
+        }
+        return true;
     }
 }

@@ -40,14 +40,14 @@ public record RequestEntityPayload(EntityAccessorImpl.SyncData data, List<@Nulla
         CODEC.encode(ProtocolUtils.decorate(buf), this);
     }
 
-    @New
-    public static RequestEntityPayload create(ResourceLocation location, FriendlyByteBuf buf) {
-        return CODEC.decode(ProtocolUtils.decorate(buf));
-    }
-
     @Override
     @NotNull
     public ResourceLocation id() {
         return PACKET_REQUEST_ENTITY;
+    }
+
+    @New
+    public static RequestEntityPayload create(ResourceLocation location, FriendlyByteBuf buf) {
+        return CODEC.decode(ProtocolUtils.decorate(buf));
     }
 }

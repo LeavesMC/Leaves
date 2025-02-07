@@ -3,22 +3,21 @@ package org.leavesmc.leaves.protocol.rei.payload;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
+import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.protocol.core.LeavesCustomPayload;
+import org.leavesmc.leaves.protocol.rei.REIServerProtocol;
 
-public class CreateItemMessagePayload implements LeavesCustomPayload<CreateItemMessagePayload> {
+public record CreateItemMessagePayload(ItemStack item, String playerName) implements LeavesCustomPayload<CreateItemMessagePayload> {
 
-    private static final ResourceLocation ID = ResourceLocation.fromNamespaceAndPath("roughlyenoughitems", "ci_msg");
+    private static final ResourceLocation ID = REIServerProtocol.id("ci_msg");
 
-    private final ItemStack item;
-    private final String playerName;
-
-    public CreateItemMessagePayload(final ItemStack item, final String playerName) {
-        this.item = item;
-        this.playerName = playerName;
+    @New
+    public CreateItemMessagePayload(ResourceLocation location, @NotNull FriendlyByteBuf buf) {
+        this(buf.readJsonWithCodec(ItemStack.OPTIONAL_CODEC), buf.readUtf());
     }
 
     @Override
-    public void write(FriendlyByteBuf buf) {
+    public void write(@NotNull FriendlyByteBuf buf) {
         buf.writeJsonWithCodec(ItemStack.OPTIONAL_CODEC, item);
         buf.writeUtf(playerName);
     }
@@ -26,13 +25,5 @@ public class CreateItemMessagePayload implements LeavesCustomPayload<CreateItemM
     @Override
     public ResourceLocation id() {
         return ID;
-    }
-
-    public ItemStack getItem() {
-        return item;
-    }
-
-    public String getPlayerName() {
-        return playerName;
     }
 }

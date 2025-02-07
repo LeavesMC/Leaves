@@ -16,7 +16,7 @@ public class AlwaysSendDataConfig extends BotConfig<Boolean> {
     private boolean value;
 
     public AlwaysSendDataConfig() {
-        super("always_send_data", CommandArgument.of(CommandArgumentType.BOOLEAN).setTabComplete(0, List.of("ture", "false")), AlwaysSendDataConfig::new);
+        super("always_send_data", CommandArgument.of(CommandArgumentType.BOOLEAN).setTabComplete(0, List.of("true", "false")), AlwaysSendDataConfig::new);
         this.value = LeavesConfig.modify.fakeplayer.canSendDataAlways;
     }
 

@@ -87,48 +87,38 @@ public class ServerBotGameMode extends ServerPlayerGameMode {
 
     @NotNull
     @Override
-    public InteractionResult useItemOn(@NotNull ServerPlayer player, Level world, @NotNull ItemStack stack, @NotNull InteractionHand hand, BlockHitResult hitResult) {
-        BlockPos blockposition = hitResult.getBlockPos();
-        BlockState iblockdata = world.getBlockState(blockposition);
-        InteractionResult enuminteractionresult = InteractionResult.PASS;
+    public InteractionResult useItemOn(@NotNull ServerPlayer player, Level level, @NotNull ItemStack stack, @NotNull InteractionHand hand, BlockHitResult hitResult) {
+        BlockPos blockPos = hitResult.getBlockPos();
+        BlockState blockState = level.getBlockState(blockPos);
 
-        if (!iblockdata.getBlock().isEnabled(world.enabledFeatures())) {
+        if (!blockState.getBlock().isEnabled(level.enabledFeatures())) {
             return InteractionResult.FAIL;
         }
-
-        if (player.getCooldowns().isOnCooldown(stack)) {
-            return InteractionResult.PASS;
-        }
-
-        this.firedInteract = true;
-        this.interactResult = false;
-        this.interactPosition = blockposition.immutable();
-        this.interactHand = hand;
-        this.interactItemStack = stack.copy();
 
         boolean flag = !player.getMainHandItem().isEmpty() || !player.getOffhandItem().isEmpty();
         boolean flag1 = player.isSecondaryUseActive() && flag;
 
         if (!flag1) {
-            InteractionResult iteminteractionresult = iblockdata.useItemOn(player.getItemInHand(hand), world, player, hand, hitResult);
+            InteractionResult iteminteractionresult = blockState.useItemOn(player.getItemInHand(hand), level, player, hand, hitResult);
 
             if (iteminteractionresult.consumesAction()) {
                 return iteminteractionresult;
             }
 
-            if (iteminteractionresult == InteractionResult.PASS && hand == InteractionHand.MAIN_HAND) {
-                enuminteractionresult = iblockdata.useWithoutItem(world, player, hitResult);
-                if (enuminteractionresult.consumesAction()) {
-                    return enuminteractionresult;
+            if (iteminteractionresult instanceof InteractionResult.TryEmptyHandInteraction && hand == InteractionHand.MAIN_HAND) {
+                InteractionResult interactionResult = blockState.useWithoutItem(level, player, hitResult);
+                if (interactionResult.consumesAction()) {
+                    return interactionResult;
                 }
             }
         }
 
-        if (!stack.isEmpty() && enuminteractionresult != InteractionResult.SUCCESS && !this.interactResult) {
+        if (!stack.isEmpty() && !player.getCooldowns().isOnCooldown(stack)) {
             UseOnContext itemactioncontext = new UseOnContext(player, hand, hitResult);
             return stack.useOn(itemactioncontext);
+        } else {
+            return InteractionResult.PASS;
         }
-        return enuminteractionresult;
     }
 
     @Override

@@ -1,0 +1,100 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Thu, 3 Aug 2023 14:21:47 +0800
+Subject: [PATCH] Force peaceful mode switch
+
+
+diff --git a/net/minecraft/server/level/ServerChunkCache.java b/net/minecraft/server/level/ServerChunkCache.java
+index 6540b2d6a1062d883811ce240c49d30d1925b291..f4f44bf7d67f021b115b5d53c7394fe5bb138024 100644
+--- a/net/minecraft/server/level/ServerChunkCache.java
++++ b/net/minecraft/server/level/ServerChunkCache.java
+@@ -181,6 +181,12 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+     }
+     // Paper end - chunk tick iteration optimisations
+ 
++    // Leaves start - peaceful mode switch
++    public int peacefulModeSwitchTick = org.leavesmc.leaves.LeavesConfig.modify.forcePeacefulMode;
++    public int peacefulModeSwitchCount = -1;
++    private final List<Class<? extends Entity>> peacefulModeSwitchEntityTypes = List.of(net.minecraft.world.entity.boss.wither.WitherBoss.class, net.minecraft.world.entity.monster.Shulker.class, net.minecraft.world.entity.monster.warden.Warden.class);
++    // Leaves end - peaceful mode switch
++
+ 
+     public ServerChunkCache(
+         ServerLevel level,
+@@ -507,6 +513,20 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+         this.lastInhabitedUpdate = gameTime;
+         if (!this.level.isDebug()) {
+             ProfilerFiller profilerFiller = Profiler.get();
++            // Leaves start - peaceful mode switch
++            if (peacefulModeSwitchTick > 0) {
++                if (this.level.getLevelData().getGameTime() % peacefulModeSwitchTick == 0) {
++                    peacefulModeSwitchCount = 0;
++                    this.level.getAllEntities().forEach(entity -> {
++                        if (peacefulModeSwitchEntityTypes.contains(entity.getClass())) {
++                            peacefulModeSwitchCount++;
++                        }
++                    });
++                }
++            } else {
++                peacefulModeSwitchCount = -1;
++            }
++            // Leaves end - peaceful mode switch
+             profilerFiller.push("pollingChunks");
+             if (this.level.tickRateManager().runsNormally()) {
+                 List<LevelChunk> list = this.tickingChunks;
+@@ -598,6 +618,14 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+         boolean _boolean = this.level.getGameRules().getBoolean(GameRules.RULE_DOMOBSPAWNING) && !this.level.players().isEmpty(); // CraftBukkit
+         int _int = this.level.getGameRules().getInt(GameRules.RULE_RANDOMTICKING);
+         List<MobCategory> filteredSpawningCategories;
++        // Leaves start - peaceful mode switch
++        boolean peacefulModeSwitch = false;
++        if (lastSpawnState != null && peacefulModeSwitchCount != -1) {
++            if (peacefulModeSwitchCount >= NaturalSpawner.globalLimitForCategory(level, net.minecraft.world.entity.MobCategory.MONSTER, lastSpawnState.getSpawnableChunkCount())) {
++                peacefulModeSwitch = true;
++            }
++        }
++        // Leaves end - peaceful mode switch
+         if (_boolean && (this.spawnEnemies || this.spawnFriendlies)) {
+             // Paper start - PlayerNaturallySpawnCreaturesEvent
+             for (ServerPlayer entityPlayer : this.level.players()) {
+@@ -608,7 +636,7 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+             }
+             // Paper end - PlayerNaturallySpawnCreaturesEvent
+             boolean flag = this.level.ticksPerSpawnCategory.getLong(org.bukkit.entity.SpawnCategory.ANIMAL) != 0L && this.level.getLevelData().getGameTime() % this.level.ticksPerSpawnCategory.getLong(org.bukkit.entity.SpawnCategory.ANIMAL) == 0L; // CraftBukkit
+-            filteredSpawningCategories = NaturalSpawner.getFilteredSpawningCategories(spawnState, this.spawnFriendlies, this.spawnEnemies, flag, this.level); // CraftBukkit
++            filteredSpawningCategories = NaturalSpawner.getFilteredSpawningCategories(spawnState, this.spawnFriendlies, this.spawnEnemies, flag, this.level, peacefulModeSwitch); // CraftBukkit Leaves start - peaceful mode switch
+         } else {
+             filteredSpawningCategories = List.of();
+         }
+diff --git a/net/minecraft/world/level/NaturalSpawner.java b/net/minecraft/world/level/NaturalSpawner.java
+index 8fd9c191e5b14fc7dd90e8f7229acd6de97e0f9e..268a4489cc5f7d5358c6cd96e0acbaf65852f7d3 100644
+--- a/net/minecraft/world/level/NaturalSpawner.java
++++ b/net/minecraft/world/level/NaturalSpawner.java
+@@ -122,16 +122,26 @@ public final class NaturalSpawner {
+     static Biome getRoughBiome(BlockPos pos, ChunkAccess chunk) {
+         return chunk.getNoiseBiome(QuartPos.fromBlock(pos.getX()), QuartPos.fromBlock(pos.getY()), QuartPos.fromBlock(pos.getZ())).value();
+     }
+-
++    // Leaves start - peaceful mode switch
+     // CraftBukkit start - add server
+     public static List<MobCategory> getFilteredSpawningCategories(
+         NaturalSpawner.SpawnState spawnState, boolean spawnFriendlies, boolean spawnEnemies, boolean spawnPassives, ServerLevel level
+     ) {
++        return getFilteredSpawningCategories(spawnState, spawnFriendlies, spawnEnemies, spawnPassives, level, false);
++    }
++
++    public static List<MobCategory> getFilteredSpawningCategories(NaturalSpawner.SpawnState spawnState, boolean spawnFriendlies, boolean spawnEnemies, boolean spawnPassives, ServerLevel level, boolean peacefulModeSwitch) {
++        // Leaves end - peaceful mode switch
+         LevelData worlddata = level.getLevelData(); // CraftBukkit - Other mob type spawn tick rate
+         // CraftBukkit end
+         List<MobCategory> list = new ArrayList<>(SPAWNING_CATEGORIES.length);
+ 
+         for (MobCategory mobCategory : SPAWNING_CATEGORIES) {
++            // Leaves start - peaceful mode switch
++            if (mobCategory == MobCategory.MONSTER && peacefulModeSwitch) {
++                continue;
++            }
++            // Leaves end - peaceful mode switch
+             // CraftBukkit start - Use per-world spawn limits
+             boolean spawnThisTick = true;
+             int limit = mobCategory.getMaxInstancesPerChunk();

@@ -1,0 +1,393 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Wed, 14 Dec 2022 14:47:06 +0800
+Subject: [PATCH] Stackable ShulkerBoxes
+
+This patch is Powered by fabric-carpet(https://github.com/gnembon/fabric-carpet) and plusls-carpet-addition(https://github.com/plusls/plusls-carpet-addition)
+
+diff --git a/net/minecraft/network/protocol/game/ClientboundContainerSetContentPacket.java b/net/minecraft/network/protocol/game/ClientboundContainerSetContentPacket.java
+index 828fbe03e7beb860cd0816c7ac8adbffe196533b..513988c37de927ddf48f2bc9cf6905c70c41e75d 100644
+--- a/net/minecraft/network/protocol/game/ClientboundContainerSetContentPacket.java
++++ b/net/minecraft/network/protocol/game/ClientboundContainerSetContentPacket.java
+@@ -23,7 +23,7 @@ public class ClientboundContainerSetContentPacket implements Packet<ClientGamePa
+         this.items = NonNullList.withSize(items.size(), ItemStack.EMPTY);
+ 
+         for (int i = 0; i < items.size(); i++) {
+-            this.items.set(i, items.get(i).copy());
++            this.items.set(i, org.leavesmc.leaves.util.ShulkerBoxUtils.correctItemStackMaxStackSize(items.get(i).copy())); // Leaves - stackable shulker boxes
+         }
+ 
+         this.carriedItem = carriedItem.copy();
+diff --git a/net/minecraft/network/protocol/game/ClientboundContainerSetSlotPacket.java b/net/minecraft/network/protocol/game/ClientboundContainerSetSlotPacket.java
+index c1130f596cf3443eeb62eb1b12587172fe0859ee..ad51ad9f104f8f7238298b025e2d7485aa88a253 100644
+--- a/net/minecraft/network/protocol/game/ClientboundContainerSetSlotPacket.java
++++ b/net/minecraft/network/protocol/game/ClientboundContainerSetSlotPacket.java
+@@ -19,7 +19,7 @@ public class ClientboundContainerSetSlotPacket implements Packet<ClientGamePacke
+         this.containerId = containerId;
+         this.stateId = stateId;
+         this.slot = slot;
+-        this.itemStack = itemStack.copy();
++        this.itemStack = org.leavesmc.leaves.util.ShulkerBoxUtils.correctItemStackMaxStackSize(itemStack.copy()); // Leaves - stackable shulker boxes
+     }
+ 
+     private ClientboundContainerSetSlotPacket(RegistryFriendlyByteBuf buffer) {
+diff --git a/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index 882dbb1276c548316938bbc50f5f7e01f8547ff8..9955fc7bcf75dbe86c5fcbace2dd1f2ccf479207 100644
+--- a/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -3380,7 +3380,7 @@ public class ServerGamePacketListenerImpl
+             }
+ 
+             boolean flag1 = packet.slotNum() >= 1 && packet.slotNum() <= 45;
+-            boolean flag2 = itemStack.isEmpty() || itemStack.getCount() <= itemStack.getMaxStackSize();
++            boolean flag2 = itemStack.isEmpty() || itemStack.getCount() <= org.leavesmc.leaves.util.ShulkerBoxUtils.getItemStackMaxCount(itemStack); // Leaves - stackable shulker boxes
+             if (flag || (flag1 && !ItemStack.matches(this.player.inventoryMenu.getSlot(packet.slotNum()).getItem(), packet.itemStack()))) { // Insist on valid slot
+                 // CraftBukkit start - Call click event
+                 InventoryView inventory = this.player.inventoryMenu.getBukkitView();
+diff --git a/net/minecraft/world/Container.java b/net/minecraft/world/Container.java
+index 2d3721e311851c1801b090e99d4f9d0daf4e5f99..f779d27603e6d81435c061214a2db3a14a31c11e 100644
+--- a/net/minecraft/world/Container.java
++++ b/net/minecraft/world/Container.java
+@@ -30,6 +30,12 @@ public interface Container extends Clearable {
+         return Math.min(this.getMaxStackSize(), stack.getMaxStackSize());
+     }
+ 
++    // Leaves start - stackable shulker boxes
++    default int getMaxStackLeaves(ItemStack stack) {
++        return Math.min(this.getMaxStackSize(), org.leavesmc.leaves.util.ShulkerBoxUtils.getItemStackMaxCount(stack));
++    }
++    // Leaves end - stackable shulker boxes
++
+     void setChanged();
+ 
+     boolean stillValid(Player player);
+diff --git a/net/minecraft/world/SimpleContainer.java b/net/minecraft/world/SimpleContainer.java
+index 190190463086f2fcbe28f00fa2f23795bf11f279..6ee5ecc89e360ca30ed5f7f355ae943c5a6337ca 100644
+--- a/net/minecraft/world/SimpleContainer.java
++++ b/net/minecraft/world/SimpleContainer.java
+@@ -205,7 +205,7 @@ public class SimpleContainer implements Container, StackedContentsCompatible {
+     @Override
+     public void setItem(int index, ItemStack stack) {
+         this.items.set(index, stack);
+-        stack.limitSize(this.getMaxStackSize(stack));
++        stack.limitSize(this.getMaxStackLeaves(stack));
+         this.setChanged();
+     }
+ 
+@@ -280,7 +280,7 @@ public class SimpleContainer implements Container, StackedContentsCompatible {
+     }
+ 
+     private void moveItemsBetweenStacks(ItemStack stack, ItemStack other) {
+-        int maxStackSize = this.getMaxStackSize(other);
++        int maxStackSize = this.getMaxStackLeaves(other); // Leaves - stackable shulker boxes
+         int min = Math.min(stack.getCount(), maxStackSize - other.getCount());
+         if (min > 0) {
+             other.grow(min);
+diff --git a/net/minecraft/world/entity/item/ItemEntity.java b/net/minecraft/world/entity/item/ItemEntity.java
+index 52a7ed0d991758bad0dcedcb7f97fb15ac6c6d04..d2d258246e7f7332c0420077e33c05e222bda46d 100644
+--- a/net/minecraft/world/entity/item/ItemEntity.java
++++ b/net/minecraft/world/entity/item/ItemEntity.java
+@@ -274,10 +274,52 @@ public class ItemEntity extends Entity implements TraceableEntity {
+ 
+     private boolean isMergable() {
+         ItemStack item = this.getItem();
+-        return this.isAlive() && this.pickupDelay != 32767 && this.age != -32768 && this.age < this.despawnRate && item.getCount() < item.getMaxStackSize(); // Paper - Alternative item-despawn-rate
++        return this.isAlive() && this.pickupDelay != 32767 && this.age != -32768 && this.age < this.despawnRate && item.getCount() < org.leavesmc.leaves.util.ShulkerBoxUtils.getItemStackMaxCount(item); // Paper - Alternative item-despawn-rate // Leaves - stackable shulker boxes
+     }
+ 
++    // Leaves end - stackable shulker boxes
++    private boolean tryStackShulkerBoxes(ItemEntity other) {
++        ItemStack selfStack = this.getItem();
++        if (org.leavesmc.leaves.LeavesConfig.modify.shulkerBoxStackSize == 1 ||
++                !(selfStack.getItem() instanceof net.minecraft.world.item.BlockItem blockItem) ||
++                !(blockItem.getBlock() instanceof net.minecraft.world.level.block.ShulkerBoxBlock)
++        ) {
++            return false;
++        }
++
++        ItemStack otherStack = other.getItem();
++        if (selfStack.getItem() == otherStack.getItem()
++                && org.leavesmc.leaves.util.ShulkerBoxUtils.shulkerBoxNoItem(selfStack)
++                && org.leavesmc.leaves.util.ShulkerBoxUtils.shulkerBoxNoItem(otherStack)
++                && Objects.equals(selfStack.getComponents(), otherStack.getComponents()) // empty block entity tags are cleaned up when spawning
++                && selfStack.getCount() != org.leavesmc.leaves.LeavesConfig.modify.shulkerBoxStackSize) {
++            int amount = Math.min(otherStack.getCount(), org.leavesmc.leaves.LeavesConfig.modify.shulkerBoxStackSize - selfStack.getCount());
++
++            selfStack.grow(amount);
++            this.setItem(selfStack);
++
++            this.pickupDelay = Math.max(other.pickupDelay, this.pickupDelay);
++            this.age = Math.min(other.getAge(), this.age);
++
++            otherStack.shrink(amount);
++            if (otherStack.isEmpty()) {
++                other.discard();
++            }
++            else {
++                other.setItem(otherStack);
++            }
++            return true;
++        }
++        return false;
++    }
++    // Leaves end - stackable shulker boxes
++
+     private void tryToMerge(ItemEntity itemEntity) {
++        // Leaves start - stackable shulker boxes
++        if (tryStackShulkerBoxes(itemEntity)) {
++            return;
++        }
++        // Leaves end - stackable shulker boxes
+         ItemStack item = this.getItem();
+         ItemStack item1 = itemEntity.getItem();
+         if (Objects.equals(this.target, itemEntity.target) && areMergable(item, item1)) {
+diff --git a/net/minecraft/world/entity/player/Inventory.java b/net/minecraft/world/entity/player/Inventory.java
+index 839cbb67d3d38960d9114a4db5bab911b66a573c..9b628d553d3206a4881ed5e07fa6d2552b710cea 100644
+--- a/net/minecraft/world/entity/player/Inventory.java
++++ b/net/minecraft/world/entity/player/Inventory.java
+@@ -97,10 +97,12 @@ public class Inventory implements Container, Nameable {
+     }
+ 
+     private boolean hasRemainingSpaceForItem(ItemStack destination, ItemStack origin) {
++        // Leaves start - stackable shulker boxes
+         return !destination.isEmpty()
+-            && destination.isStackable()
+-            && destination.getCount() < this.getMaxStackSize(destination)
++            && org.leavesmc.leaves.util.ShulkerBoxUtils.isStackable(destination)
++            && destination.getCount() < org.leavesmc.leaves.util.ShulkerBoxUtils.getItemStackMaxCount(destination)
+             && ItemStack.isSameItemSameComponents(destination, origin); // Paper - check if itemstack is stackable first
++        // Leaves end - stackable shulker boxes
+     }
+ 
+     // CraftBukkit start - Watch method above! :D
+@@ -113,7 +115,7 @@ public class Inventory implements Container, Nameable {
+             }
+ 
+             if (this.hasRemainingSpaceForItem(itemInSlot, itemStack)) {
+-                remains -= (itemInSlot.getMaxStackSize() < this.getMaxStackSize() ? itemInSlot.getMaxStackSize() : this.getMaxStackSize()) - itemInSlot.getCount();
++                remains -= (org.leavesmc.leaves.util.ShulkerBoxUtils.getItemStackMaxCount(itemInSlot) < this.getMaxStackSize() ? org.leavesmc.leaves.util.ShulkerBoxUtils.getItemStackMaxCount(itemInSlot) : this.getMaxStackSize()) - itemInSlot.getCount(); // Leaves - stackable shulker boxes
+             }
+             if (remains <= 0) {
+                 return itemStack.getCount();
+@@ -122,7 +124,7 @@ public class Inventory implements Container, Nameable {
+ 
+         ItemStack itemInOffhand = this.getItem(this.items.size() + this.armor.size());
+         if (this.hasRemainingSpaceForItem(itemInOffhand, itemStack)) {
+-            remains -= (itemInOffhand.getMaxStackSize() < this.getMaxStackSize() ? itemInOffhand.getMaxStackSize() : this.getMaxStackSize()) - itemInOffhand.getCount();
++            remains -= (org.leavesmc.leaves.util.ShulkerBoxUtils.getItemStackMaxCount(itemInOffhand) < this.getMaxStackSize() ? org.leavesmc.leaves.util.ShulkerBoxUtils.getItemStackMaxCount(itemInOffhand) : this.getMaxStackSize()) - itemInOffhand.getCount(); // Leaves - stackable shulker boxes
+         }
+         if (remains <= 0) {
+             return itemStack.getCount();
+@@ -252,7 +254,7 @@ public class Inventory implements Container, Nameable {
+             this.setItem(slot, item);
+         }
+ 
+-        int i = this.getMaxStackSize(item) - item.getCount();
++        int i = this.getMaxStackLeaves(item) - item.getCount(); // Leaves - stackable shulker boxes
+         int min = Math.min(count, i);
+         if (min == 0) {
+             return count;
+@@ -359,7 +361,7 @@ public class Inventory implements Container, Nameable {
+                 break;
+             }
+ 
+-            int i = stack.getMaxStackSize() - this.getItem(slotWithRemainingSpace).getCount();
++            int i = org.leavesmc.leaves.util.ShulkerBoxUtils.getItemStackMaxCount(stack) - this.getItem(slotWithRemainingSpace).getCount(); // Leaves - stackable shulker boxes
+             if (this.add(slotWithRemainingSpace, stack.split(i)) && sendPacket && this.player instanceof ServerPlayer serverPlayer) {
+                 serverPlayer.connection.send(this.createInventoryUpdatePacket(slotWithRemainingSpace));
+             }
+diff --git a/net/minecraft/world/entity/vehicle/ContainerEntity.java b/net/minecraft/world/entity/vehicle/ContainerEntity.java
+index c18aea2bb5ddddadbc858b253ff4c08d82178a18..6a24b442a21298ef3bdbcb76de9bdcf006890c5d 100644
+--- a/net/minecraft/world/entity/vehicle/ContainerEntity.java
++++ b/net/minecraft/world/entity/vehicle/ContainerEntity.java
+@@ -164,7 +164,7 @@ public interface ContainerEntity extends Container, MenuProvider {
+     default void setChestVehicleItem(int slot, ItemStack stack) {
+         this.unpackChestVehicleLootTable(null);
+         this.getItemStacks().set(slot, stack);
+-        stack.limitSize(this.getMaxStackSize(stack));
++        stack.limitSize(this.getMaxStackLeaves(stack)); // Leaves - stackable shulker boxes
+     }
+ 
+     default SlotAccess getChestVehicleSlot(final int index) {
+diff --git a/net/minecraft/world/inventory/AbstractContainerMenu.java b/net/minecraft/world/inventory/AbstractContainerMenu.java
+index b7285c67ce3f6db2fa23a6dc91fcfa6a3d19f9b4..bca4a8528ec362471797c2d962cd3c903cae89f2 100644
+--- a/net/minecraft/world/inventory/AbstractContainerMenu.java
++++ b/net/minecraft/world/inventory/AbstractContainerMenu.java
+@@ -417,7 +417,7 @@ public abstract class AbstractContainerMenu {
+                             && (this.quickcraftType == 2 || carried1.getCount() >= this.quickcraftSlots.size())
+                             && this.canDragTo(slot1)) {
+                             int i2 = slot1.hasItem() ? slot1.getItem().getCount() : 0;
+-                            int min = Math.min(itemStack.getMaxStackSize(), slot1.getMaxStackSize(itemStack));
++                            int min = Math.min(org.leavesmc.leaves.util.ShulkerBoxUtils.getItemStackMaxCount(itemStack), slot1.getMaxStackSize(itemStack)); // Leaves - stackable shulker boxes
+                             int min1 = Math.min(getQuickCraftPlaceCount(this.quickcraftSlots, this.quickcraftType, itemStack) + i2, min);
+                             count -= min1 - i2;
+                             // slot1.setByPlayer(itemStack.copyWithCount(min1));
+@@ -531,7 +531,7 @@ public abstract class AbstractContainerMenu {
+                                 slot.setByPlayer(carried2);
+                             }
+                         } else if (ItemStack.isSameItemSameComponents(carried, carried2)) {
+-                            Optional<ItemStack> optional1 = slot.tryRemove(carried.getCount(), carried2.getMaxStackSize() - carried2.getCount(), player);
++                            Optional<ItemStack> optional1 = slot.tryRemove(carried.getCount(), org.leavesmc.leaves.util.ShulkerBoxUtils.getItemStackMaxCount(carried2) - carried2.getCount(), player); // Leaves - stackable shulker boxes
+                             optional1.ifPresent(stack -> {
+                                 carried2.grow(stack.getCount());
+                                 slot.onTake(player, stack);
+@@ -593,7 +593,7 @@ public abstract class AbstractContainerMenu {
+             Slot slot2 = this.slots.get(slotId);
+             if (slot2.hasItem()) {
+                 ItemStack itemStack = slot2.getItem();
+-                this.setCarried(itemStack.copyWithCount(itemStack.getMaxStackSize()));
++                this.setCarried(itemStack.copyWithCount(org.leavesmc.leaves.util.ShulkerBoxUtils.getItemStackMaxCount(itemStack))); // Leaves - stackable shulker boxes
+             }
+         } else if (clickType == ClickType.THROW && this.getCarried().isEmpty() && slotId >= 0) {
+             Slot slot2 = this.slots.get(slotId);
+@@ -624,15 +624,15 @@ public abstract class AbstractContainerMenu {
+                 int maxStackSize = button == 0 ? 1 : -1;
+ 
+                 for (int i3 = 0; i3 < 2; i3++) {
+-                    for (int i4 = count; i4 >= 0 && i4 < this.slots.size() && itemStack.getCount() < itemStack.getMaxStackSize(); i4 += maxStackSize) {
++                    for (int i4 = count; i4 >= 0 && i4 < this.slots.size() && itemStack.getCount() < org.leavesmc.leaves.util.ShulkerBoxUtils.getItemStackMaxCount(itemStack); i4 += maxStackSize) { // Leaves - stackable shulker boxes
+                         Slot slot3 = this.slots.get(i4);
+                         if (slot3.hasItem()
+                             && canItemQuickReplace(slot3, itemStack, true)
+                             && slot3.mayPickup(player)
+                             && this.canTakeItemForPickAll(itemStack, slot3)) {
+                             ItemStack item1 = slot3.getItem();
+-                            if (i3 != 0 || item1.getCount() != item1.getMaxStackSize()) {
+-                                ItemStack itemStack1 = slot3.safeTake(item1.getCount(), itemStack.getMaxStackSize() - itemStack.getCount(), player);
++                            if (i3 != 0 || item1.getCount() != org.leavesmc.leaves.util.ShulkerBoxUtils.getItemStackMaxCount(item1)) { // Leaves - stackable shulker boxes
++                                ItemStack itemStack1 = slot3.safeTake(item1.getCount(), org.leavesmc.leaves.util.ShulkerBoxUtils.getItemStackMaxCount(itemStack) - itemStack.getCount(), player); // Leaves - stackable shulker boxes
+                                 itemStack.grow(itemStack1.getCount());
+                             }
+                         }
+@@ -750,7 +750,7 @@ public abstract class AbstractContainerMenu {
+             i = endIndex - 1;
+         }
+ 
+-        if (stack.isStackable()) {
++        if (org.leavesmc.leaves.util.ShulkerBoxUtils.isStackable(stack)) { // Leaves - stackable shulker boxes
+             while (!stack.isEmpty() && (reverseDirection ? i >= startIndex : i < endIndex)) {
+                 Slot slot = this.slots.get(i);
+                 ItemStack item = slot.getItem();
+diff --git a/net/minecraft/world/inventory/MerchantContainer.java b/net/minecraft/world/inventory/MerchantContainer.java
+index a1576c3be00bdb19d02d52658c4b1818ea5c32db..be2f047bf1daab82473105865cd95955d4661a2a 100644
+--- a/net/minecraft/world/inventory/MerchantContainer.java
++++ b/net/minecraft/world/inventory/MerchantContainer.java
+@@ -109,7 +109,7 @@ public class MerchantContainer implements Container {
+     @Override
+     public void setItem(int index, ItemStack stack) {
+         this.itemStacks.set(index, stack);
+-        stack.limitSize(this.getMaxStackSize(stack));
++        stack.limitSize(this.getMaxStackLeaves(stack)); // Leaves - stackable shulker boxes
+         if (this.isPaymentSlot(index)) {
+             this.updateSellItem();
+         }
+diff --git a/net/minecraft/world/inventory/Slot.java b/net/minecraft/world/inventory/Slot.java
+index 5ceb8964476b40db4511bec91ff13c4f522a1357..371bad86218971d6e031c6d74307b2ab0d460997 100644
+--- a/net/minecraft/world/inventory/Slot.java
++++ b/net/minecraft/world/inventory/Slot.java
+@@ -75,7 +75,7 @@ public class Slot {
+     }
+ 
+     public int getMaxStackSize(ItemStack stack) {
+-        return Math.min(this.getMaxStackSize(), stack.getMaxStackSize());
++        return Math.min(this.getMaxStackSize(), org.leavesmc.leaves.util.ShulkerBoxUtils.getItemStackMaxCount(stack)); // Leaves - stackable shulker boxes
+     }
+ 
+     @Nullable
+diff --git a/net/minecraft/world/item/ItemStack.java b/net/minecraft/world/item/ItemStack.java
+index 76f50437396f8f856381d0fbef52953ef7c263f6..6bc431cd0724de406c92830d618c26d69bcd1918 100644
+--- a/net/minecraft/world/item/ItemStack.java
++++ b/net/minecraft/world/item/ItemStack.java
+@@ -199,7 +199,7 @@ public final class ItemStack implements DataComponentHolder {
+     @Deprecated
+     @Nullable
+     private Item item;
+-    PatchedDataComponentMap components;
++    public PatchedDataComponentMap components; // Leaves - stackable shulker boxes
+     @Nullable
+     private Entity entityRepresentation;
+ 
+diff --git a/net/minecraft/world/level/block/AbstractCauldronBlock.java b/net/minecraft/world/level/block/AbstractCauldronBlock.java
+index 648d22cdfcf261494038d589f5a5e32704083076..47e480515715376f568b7cb7468edf2bff3d4307 100644
+--- a/net/minecraft/world/level/block/AbstractCauldronBlock.java
++++ b/net/minecraft/world/level/block/AbstractCauldronBlock.java
+@@ -58,9 +58,27 @@ public abstract class AbstractCauldronBlock extends Block {
+         ItemStack stack, BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult
+     ) {
+         CauldronInteraction cauldronInteraction = this.interactions.map().get(stack.getItem());
+-        return cauldronInteraction.interact(state, level, pos, player, hand, stack, hitResult.getDirection()); // Paper - pass hit direction
++        return wrapInteractor(cauldronInteraction, state, level, pos, player, hand, stack, hitResult.getDirection()); // Paper - pass hit direction // Leaves - stackable shulker boxes
+     }
+ 
++    // Leaves start - stackable shulker boxes
++    private InteractionResult wrapInteractor(CauldronInteraction cauldronBehavior, BlockState blockState, Level world, BlockPos blockPos, Player playerEntity, InteractionHand hand, ItemStack itemStack, net.minecraft.core.Direction hitDirection) {
++        int count = -1;
++        if (org.leavesmc.leaves.LeavesConfig.modify.shulkerBoxStackSize > 1 && itemStack.getItem() instanceof net.minecraft.world.item.BlockItem bi &&
++            bi.getBlock() instanceof ShulkerBoxBlock) {
++            count = itemStack.getCount();
++        }
++        InteractionResult result = cauldronBehavior.interact(blockState, world, blockPos, playerEntity, hand, itemStack, hitDirection);
++        if (count > 0 && result.consumesAction()) {
++            ItemStack current = playerEntity.getItemInHand(hand);
++            if (current.getItem() instanceof net.minecraft.world.item.BlockItem bi && bi.getBlock() instanceof ShulkerBoxBlock) {
++                current.setCount(count);
++            }
++        }
++        return result;
++    }
++    // Leaves end - stackable shulker boxes
++
+     @Override
+     protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+         return SHAPE;
+diff --git a/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java b/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java
+index 77e7188180cce9ef881de64b263c704b219b610a..2f5fa4310f475ecbb29e69c0461c7d3276f8536d 100644
+--- a/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java
++++ b/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java
+@@ -414,7 +414,7 @@ public abstract class AbstractFurnaceBlockEntity extends BaseContainerBlockEntit
+         ItemStack itemStack = this.items.get(index);
+         boolean flag = !stack.isEmpty() && ItemStack.isSameItemSameComponents(itemStack, stack);
+         this.items.set(index, stack);
+-        stack.limitSize(this.getMaxStackSize(stack));
++        stack.limitSize(this.getMaxStackLeaves(stack)); // Leaves - stackable shulker boxes
+         if (index == 0 && !flag && this.level instanceof ServerLevel serverLevel) {
+             this.cookingTotalTime = getTotalCookTime(serverLevel, this, this.recipeType, this.cookSpeedMultiplier); // Paper - cook speed multiplier API
+             this.cookingTimer = 0;
+diff --git a/net/minecraft/world/level/block/entity/BaseContainerBlockEntity.java b/net/minecraft/world/level/block/entity/BaseContainerBlockEntity.java
+index 26db603ed681a6c302596627d4dd5bf8a9bafc4e..9fcb70b5bf1912a5499aa7daeaa089adbe60cc55 100644
+--- a/net/minecraft/world/level/block/entity/BaseContainerBlockEntity.java
++++ b/net/minecraft/world/level/block/entity/BaseContainerBlockEntity.java
+@@ -146,7 +146,7 @@ public abstract class BaseContainerBlockEntity extends BlockEntity implements Co
+     @Override
+     public void setItem(int slot, ItemStack stack) {
+         this.getItems().set(slot, stack);
+-        stack.limitSize(this.getMaxStackSize(stack));
++        stack.limitSize(this.getMaxStackLeaves(stack)); // Leaves - stackable shulker boxes
+         this.setChanged();
+     }
+ 
+diff --git a/net/minecraft/world/level/block/entity/HopperBlockEntity.java b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
+index 42a29e700d2549de7cd905c373212e9757bcfcf1..3122753c96e98e57fa900cd15005ab4874e4b1db 100644
+--- a/net/minecraft/world/level/block/entity/HopperBlockEntity.java
++++ b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
+@@ -109,7 +109,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+     public void setItem(int index, ItemStack stack) {
+         this.unpackLootTable(null);
+         this.getItems().set(index, stack);
+-        stack.limitSize(this.getMaxStackSize(stack));
++        stack.limitSize(this.getMaxStackLeaves(stack)); // Leaves - stackable shulker boxes
+     }
+ 
+     @Override
+@@ -688,9 +688,9 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+             if (item.isEmpty()) {
+                 // Spigot start - SPIGOT-6693, SimpleContainer#setItem
+                 ItemStack leftover = ItemStack.EMPTY; // Paper - Make hoppers respect inventory max stack size
+-                if (!stack.isEmpty() && stack.getCount() > destination.getMaxStackSize()) {
++                if (!stack.isEmpty() && (stack.getCount() > destination.getMaxStackSize() || stack.getCount() > stack.getMaxStackSize())) { // Leaves - stackable shulker boxes
+                     leftover = stack; // Paper - Make hoppers respect inventory max stack size
+-                    stack = stack.split(destination.getMaxStackSize());
++                    stack = stack.split(Math.min(destination.getMaxStackSize(), stack.getMaxStackSize())); // Leaves - stackable shulker boxes
+                 }
+                 // Spigot end
+                 ignoreBlockEntityUpdates = true; // Paper - Perf: Optimize Hoppers

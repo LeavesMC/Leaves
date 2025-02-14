@@ -41,7 +41,7 @@ The patching system is based on git, and you can learn about it at here: <https:
 If you have forked the main repository, then you should follow the steps below:
 
 1. Clone your repository to local
-2. Run Gradle's `applyPatches` task in your IDE or terminal (You can run `./gradlew applyPatches` directly in terminal.)
+2. Run Gradle's `applyAllPatches` task in your IDE or terminal (You can run `./gradlew applyAllPatches` directly in terminal.)
 3. Enter `leaves-api` or `leaves-server` directory to carry out modifications.
 
 BTW, `leaves-api` and `leaves-server` are not normal git repositories.
@@ -57,7 +57,7 @@ It's very easy to to add patches by following the steps below:
 1. Modify the code of `leaves-api` and / or `leaves-server`
 2. Add these changes to the local git repository (For example, `git add .`)
 3. Commit these changes using `git commit -m <Commit Message>`
-4. Run Gradle's task `rebuildPatches` to convert your commits to a new patch
+4. Run Gradle's task `rebuildAllServerPatches` to convert your commits to a new patch
 5. Push your patches to your repository
 
 After pushing, you can open a PR to submit your patches.
@@ -70,5 +70,5 @@ You can modify a existing patch by following the steps below:
 2. Run `git commit -a --fixup <hash>` in your terminal to make a fix-up commit
     - If you want to edit the commit message, replace `--fixup` with `--squash`.
 3. Run `git rebase -i --autosquash base` to rebase automatically, then just type `:q` to close the confirm page
-4. Run Gradle's task `rebuildPatches` to modify existing patches
+4. Run Gradle's task `rebuildAllServerPatches` to modify existing patches
 5. Push and PR again

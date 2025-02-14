@@ -1,0 +1,63 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Wed, 5 Jul 2023 17:42:24 +0800
+Subject: [PATCH] Cache ignite odds
+
+
+diff --git a/net/minecraft/world/level/block/FireBlock.java b/net/minecraft/world/level/block/FireBlock.java
+index 7340c664fdcf991a2549c8f07f6ab093bbe6e4e8..d9796f683de7c0c12f45f62597792f80c66c60b7 100644
+--- a/net/minecraft/world/level/block/FireBlock.java
++++ b/net/minecraft/world/level/block/FireBlock.java
+@@ -225,6 +225,7 @@ public class FireBlock extends BaseFireBlock {
+                 this.checkBurnOut(level, pos.south(), 300 + i, random, ageValue, pos);
+                 // CraftBukkit end
+                 BlockPos.MutableBlockPos mutableBlockPos = new BlockPos.MutableBlockPos();
++                Object2IntOpenHashMap<BlockPos> blockPositionIgniteCache = new Object2IntOpenHashMap<>(); // Leaves - cache ignite odds
+ 
+                 for (int i1 = -1; i1 <= 1; i1++) {
+                     for (int i2 = -1; i2 <= 1; i2++) {
+@@ -236,7 +237,7 @@ public class FireBlock extends BaseFireBlock {
+                                 }
+ 
+                                 mutableBlockPos.setWithOffset(pos, i1, i3, i2);
+-                                int igniteOdds = this.getIgniteOdds(level, mutableBlockPos);
++                                int igniteOdds = this.getIgniteOdds(level, mutableBlockPos, org.leavesmc.leaves.LeavesConfig.performance.cacheIgniteOdds ? blockPositionIgniteCache : null); // Leaves - cache ignite odds
+                                 if (igniteOdds > 0) {
+                                     int i5 = (igniteOdds + 40 + level.getDifficulty().getId() * 7) / (ageValue + 30);
+                                     if (isIncreasedFireBurnout) {
+@@ -340,20 +341,33 @@ public class FireBlock extends BaseFireBlock {
+         return false;
+     }
+ 
++    // Leaves start - cache ignite odds
+     private int getIgniteOdds(LevelReader level, BlockPos pos) {
++        return getIgniteOdds(level, pos, null);
++    }
++
++    private int getIgniteOdds(LevelReader level, BlockPos pos, @org.jetbrains.annotations.Nullable Object2IntOpenHashMap<BlockPos> cache) {
+         if (!level.isEmptyBlock(pos)) {
+             return 0;
+         } else {
+             int i = 0;
+ 
+             for (Direction direction : Direction.values()) {
+-                BlockState blockState = level.getBlockState(pos.relative(direction));
+-                i = Math.max(this.getIgniteOdds(blockState), i);
++                if (cache != null) {
++                    i = Math.max(cache.computeIfAbsent(pos, key -> {
++                        BlockState blockState = level.getBlockState(pos.relative(direction));
++                        return this.getIgniteOdds(blockState);
++                    }), i);
++                } else {
++                    BlockState blockState = level.getBlockState(pos.relative(direction));
++                    i = Math.max(this.getIgniteOdds(blockState), i);
++                }
+             }
+ 
+             return i;
+         }
+     }
++    // Leaves end - cache ignite odds
+ 
+     @Override
+     protected boolean canBurn(BlockState state) {

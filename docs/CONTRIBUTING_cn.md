@@ -38,7 +38,7 @@ Leaves 使用和 Paper 一样的补丁系统，并为了针对不同部分的修
 如果你已经 Fork 了主储存库，那么下面你应该这么做：
 
 1. 将你的仓库 clone 到本地；
-2. 在你的 IDE 或 终端 内执行 Gradle 的 `applyPatches` 任务，如果是在终端内，你可以执行 `./gradlew applyPatches`；
+2. 在你的 IDE 或 终端 内执行 Gradle 的 `applyAllPatches` 任务，如果是在终端内，你可以执行 `./gradlew applyAllPatches`；
 3. 进入 `leaves-api` 或 `leaves-server` 文件夹进行修改。
 
 By the way，`leaves-api` 和 `leaves-server` 并不是正常的 git 仓库。
@@ -54,7 +54,7 @@ By the way，`leaves-api` 和 `leaves-server` 并不是正常的 git 仓库。
 1. 对 `leaves-api` 或者 / 和 `leaves-server` 进行修改；
 2. 使用 git 添加你的修改，比如 `git add .`；
 3. 使用 `git commit -m <提交信息>` 进行提交；
-4. 运行 Gradle 任务 `rebuildPatches` 将你的提交转化为一个补丁；
+4. 运行 Gradle 任务 `rebuildAllServerPatches` 将你的提交转化为一个补丁；
 5. 将你生成的补丁文件进行推送。
 
 这样做以后，你就可以将你的补丁文件进行 PR 提交。
@@ -67,5 +67,5 @@ By the way，`leaves-api` 和 `leaves-server` 并不是正常的 git 仓库。
 2. 使用 `git commit -a --fixup <hash>` 来进行一个更正提交；
    - 如果你想要更改提交信息，你也可以用 `--squash` 来代替 `--fixup`。
 3. 使用 `git rebase -i --autosquash base` 来进行自动变基，你只需要输入 `:q` 来关闭确认页面即可；
-4. 运行 Gradle 任务 `rebuildPatches` 来修改已被修改的补丁；
+4. 运行 Gradle 任务 `rebuildAllServerPatches` 来修改已被修改的补丁；
 5. 将修改后的补丁 PR 发回储存库。

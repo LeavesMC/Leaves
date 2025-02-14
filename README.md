@@ -30,7 +30,7 @@ maven {
 }
 
 dependencies {
-    compileOnly("org.leavesmc.leaves:leaves-api:1.21.3-R0.1-SNAPSHOT")
+    compileOnly("org.leavesmc.leaves:leaves-api:1.21.4-R0.1-SNAPSHOT")
 }
  ```
 
@@ -40,7 +40,7 @@ Each time you want to update your dependency, you must re-build Leaves.
 Leaves-Server:
 ```kotlin
 dependencies {
-    compileOnly("org.leavesmc.leaves:leaves:1.21.3-R0.1-SNAPSHOT")
+    compileOnly("org.leavesmc.leaves:leaves:1.21.4-R0.1-SNAPSHOT")
 }
  ```
 
@@ -48,9 +48,9 @@ dependencies {
 
 You need JDK 21 and good Internet conditions
 
-Clone this repo, run `./gradlew applyPatches`, then run `./gradlew createMojmapLeavesclipJar` in your terminal.  
+Clone this repo, run `./gradlew applyAllPatches`, then run `./gradlew createMojmapLeavesclipJar` in your terminal.  
 
-You can find the jars in the `build/libs` directory.
+You can find the jars in the `leaves-server/build/libs` directory.
 
 ## Pull Requests
 

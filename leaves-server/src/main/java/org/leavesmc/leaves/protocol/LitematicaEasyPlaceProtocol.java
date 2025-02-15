@@ -49,10 +49,16 @@ public class LitematicaEasyPlaceProtocol {
             BlockStateProperties.ROTATION_16
     );
 
+    public static final ImmutableSet<Property<?>> BLACKLISTED_PROPERTIES = ImmutableSet.of(
+            BlockStateProperties.WATERLOGGED,
+            BlockStateProperties.POWERED
+    );
+
     public static BlockState applyPlacementProtocol(BlockState state, BlockPlaceContext context) {
         return applyPlacementProtocolV3(state, UseContext.from(context, context.getHand()));
     }
 
+    @SuppressWarnings("unchecked")
     @Nullable
     private static <T extends Comparable<T>> BlockState applyPlacementProtocolV3(BlockState state, @NotNull UseContext context) {
         int protocolValue = (int) (context.getHitVec().x - (double) context.getPos().getX()) - 2;
@@ -86,35 +92,47 @@ public class LitematicaEasyPlaceProtocol {
 
         try {
             for (Property<?> p : propList) {
-                if (((p instanceof EnumProperty<?> ep) && !ep.getValueClass().equals(Direction.class)) && WHITELISTED_PROPERTIES.contains(p)) {
-                    @SuppressWarnings("unchecked")
-                    Property<T> prop = (Property<T>) p;
-                    List<T> list = new ArrayList<>(prop.getPossibleValues());
-                    list.sort(Comparable::compareTo);
+                if (property != null && property.equals(p)) {
+                    continue;
+                }
+                if (!WHITELISTED_PROPERTIES.contains(p) || BLACKLISTED_PROPERTIES.contains(p)) {
+                    continue;
+                }
 
-                    int requiredBits = Mth.log2(Mth.smallestEncompassingPowerOfTwo(list.size()));
-                    int bitMask = ~(0xFFFFFFFF << requiredBits);
-                    int valueIndex = protocolValue & bitMask;
+                Property<T> prop = (Property<T>) p;
+                List<T> list = new ArrayList<>(prop.getPossibleValues());
+                list.sort(Comparable::compareTo);
 
-                    if (valueIndex < list.size()) {
-                        T value = list.get(valueIndex);
+                int requiredBits = Mth.log2(Mth.smallestEncompassingPowerOfTwo(list.size()));
+                int bitMask = ~(0xFFFFFFFF << requiredBits);
+                int valueIndex = protocolValue & bitMask;
 
-                        if (!state.getValue(prop).equals(value) && value != SlabType.DOUBLE) {
-                            state = state.setValue(prop, value);
+                if (valueIndex < list.size()) {
+                    T value = list.get(valueIndex);
 
-                            if (state.canSurvive(context.getWorld(), context.getPos())) {
-                                oldState = state;
-                            } else {
-                                state = oldState;
-                            }
+                    if (!state.getValue(prop).equals(value) && value != SlabType.DOUBLE) {
+                        state = state.setValue(prop, value);
+
+                        if (state.canSurvive(context.getWorld(), context.getPos())) {
+                            oldState = state;
+                        } else {
+                            state = oldState;
                         }
-
-                        protocolValue >>>= requiredBits;
                     }
+
+                    protocolValue >>>= requiredBits;
                 }
             }
         } catch (Exception e) {
             LeavesLogger.LOGGER.warning("Exception trying to apply placement protocol value", e);
+        }
+
+        for (Property<?> p : BLACKLISTED_PROPERTIES) {
+            if (state.hasProperty(p)) {
+                Property<T> prop = (Property<T>) p;
+                BlockState def = state.getBlock().defaultBlockState();
+                state = state.setValue(prop, def.getValue(prop));
+            }
         }
 
         if (state.canSurvive(context.getWorld(), context.getPos())) {

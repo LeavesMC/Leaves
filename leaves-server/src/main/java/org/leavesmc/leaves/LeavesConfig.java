@@ -747,6 +747,12 @@ public final class LeavesConfig {
 
             @GlobalConfig("entity-protocol")
             public boolean entityProtocol = false;
+
+            @GlobalConfig("hud-metadata-protocol")
+            public boolean hudMetadataProtocol = false;
+
+            @GlobalConfig("hud-metadata-protocol-share-seed")
+            public boolean hudMetadataShareSeed = true;
         }
 
         @GlobalConfig("bbor-protocol")

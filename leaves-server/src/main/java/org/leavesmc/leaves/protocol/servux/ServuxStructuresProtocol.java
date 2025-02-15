@@ -4,7 +4,6 @@ import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
-import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.network.FriendlyByteBuf;
@@ -13,7 +12,6 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.LevelChunk;
@@ -46,7 +44,6 @@ public class ServuxStructuresProtocol {
     private static final int updateInterval = 40;
     private static final int timeout = 30 * 20;
 
-    public static boolean refreshSpawnMetadata = false;
     private static int retainDistance;
 
     public static final ResourceLocation CHANNEL = ServuxProtocol.id("structures");
@@ -62,21 +59,9 @@ public class ServuxStructuresProtocol {
 
         switch (payload.packetType()) {
             case PACKET_C2S_STRUCTURES_REGISTER -> onPlayerSubscribed(player);
-            case PACKET_C2S_REQUEST_SPAWN_METADATA -> refreshSpawnMetadata(player);
-            case PACKET_C2S_STRUCTURES_UNREGISTER -> {
-                onPlayerLoggedOut(player);
-                refreshSpawnMetadata(player);
-            }
+            case PACKET_C2S_REQUEST_SPAWN_METADATA -> ServuxHudDataProtocol.refreshSpawnMetadata(player); // move to
+            case PACKET_C2S_STRUCTURES_UNREGISTER -> onPlayerLoggedOut(player);
         }
-    }
-
-    @ProtocolHandler.PlayerJoin
-    public static void onPlayerLoggedIn(ServerPlayer player) {
-        if (!LeavesConfig.protocol.servux.structureProtocol) {
-            return;
-        }
-
-        onPlayerSubscribed(player);
     }
 
     @ProtocolHandler.PlayerLeave
@@ -99,16 +84,8 @@ public class ServuxStructuresProtocol {
         if ((tickCounter % updateInterval) == 0) {
             retainDistance = server.getPlayerList().getViewDistance() + 2;
             for (ServerPlayer player : players.values()) {
-                if (refreshSpawnMetadata) {
-                    refreshSpawnMetadata(player);
-                }
-
                 // TODO DimensionChange
                 refreshTrackedChunks(player, tickCounter);
-            }
-
-            if (refreshSpawnMetadata) {
-                refreshSpawnMetadata = false;
             }
         }
     }
@@ -134,22 +111,23 @@ public class ServuxStructuresProtocol {
         }
     }
 
-    private static boolean chunkHasStructureReferences(int chunkX, int chunkZ, Level world) {
+    private static boolean chunkHasStructureReferences(int chunkX, int chunkZ, @NotNull Level world) {
         if (!world.hasChunk(chunkX, chunkZ)) {
             return false;
         }
 
         ChunkAccess chunk = world.getChunk(chunkX, chunkZ, ChunkStatus.STRUCTURE_STARTS, false);
 
-        for (Map.Entry<Structure, LongSet> entry : chunk.getAllReferences().entrySet()) {
-            if (!entry.getValue().isEmpty()) {
-                return true;
+        if (chunk != null) {
+            for (Map.Entry<Structure, LongSet> entry : chunk.getAllReferences().entrySet()) {
+                if (!entry.getValue().isEmpty()) {
+                    return true;
+                }
             }
         }
 
         return false;
     }
-
 
     public static void onPlayerSubscribed(@NotNull ServerPlayer player) {
         if (!players.containsKey(player.getId())) {
@@ -158,6 +136,7 @@ public class ServuxStructuresProtocol {
             LeavesLogger.LOGGER.warning(player.getScoreboardName() + " re-register servux:structures");
         }
 
+        MinecraftServer server = MinecraftServer.getServer();
         CompoundTag tag = new CompoundTag();
         tag.putString("name", "structure_bounding_boxes");
         tag.putString("id", CHANNEL.toString());
@@ -165,30 +144,8 @@ public class ServuxStructuresProtocol {
         tag.putString("servux", ServuxProtocol.SERVUX_STRING);
         tag.putInt("timeout", timeout);
 
-        MinecraftServer server = MinecraftServer.getServer();
-        BlockPos spawnPos = server.overworld().levelData.getSpawnPos();
-        tag.putInt("spawnPosX", spawnPos.getX());
-        tag.putInt("spawnPosY", spawnPos.getY());
-        tag.putInt("spawnPosZ", spawnPos.getZ());
-        tag.putInt("spawnChunkRadius", server.getGameRules().getInt(GameRules.RULE_SPAWN_CHUNK_RADIUS));
-
         sendPacket(player, new StructuresPayload(StructuresPayloadType.PACKET_S2C_METADATA, tag));
         initialSyncStructures(player, player.moonrise$getViewDistanceHolder().getViewDistances().sendViewDistance() + 2, server.getTickCount());
-    }
-
-    public static void refreshSpawnMetadata(ServerPlayer player) {
-        CompoundTag tag = new CompoundTag();
-        tag.putString("id", CHANNEL.toString());
-        tag.putString("servux", ServuxProtocol.SERVUX_STRING);
-
-        MinecraftServer server = MinecraftServer.getServer();
-        BlockPos spawnPos = server.overworld().levelData.getSpawnPos();
-        tag.putInt("spawnPosX", spawnPos.getX());
-        tag.putInt("spawnPosY", spawnPos.getY());
-        tag.putInt("spawnPosZ", spawnPos.getZ());
-        tag.putInt("spawnChunkRadius", server.getGameRules().getInt(GameRules.RULE_SPAWN_CHUNK_RADIUS));
-
-        sendPacket(player, new StructuresPayload(StructuresPayloadType.PACKET_S2C_SPAWN_METADATA, tag));
     }
 
     public static void initialSyncStructures(ServerPlayer player, int chunkRadius, int tickCounter) {
@@ -220,17 +177,19 @@ public class ServuxStructuresProtocol {
 
         ChunkAccess chunk = world.getChunk(chunkX, chunkZ, ChunkStatus.STRUCTURE_STARTS, false);
 
-        for (Map.Entry<Structure, LongSet> entry : chunk.getAllReferences().entrySet()) {
-            Structure feature = entry.getKey();
-            LongSet startChunks = entry.getValue();
+        if (chunk != null) {
+            for (Map.Entry<Structure, LongSet> entry : chunk.getAllReferences().entrySet()) {
+                Structure feature = entry.getKey();
+                LongSet startChunks = entry.getValue();
 
-            // TODO add an option && feature != StructureFeature.MINESHAFT (?)
-            if (!startChunks.isEmpty()) {
-                references.merge(feature, startChunks, (oldSet, entrySet) -> {
-                    LongOpenHashSet newSet = new LongOpenHashSet(oldSet);
-                    newSet.addAll(entrySet);
-                    return newSet;
-                });
+                // TODO add an option && feature != StructureFeature.MINESHAFT (?)
+                if (!startChunks.isEmpty()) {
+                    references.merge(feature, startChunks, (oldSet, entrySet) -> {
+                        LongOpenHashSet newSet = new LongOpenHashSet(oldSet);
+                        newSet.addAll(entrySet);
+                        return newSet;
+                    });
+                }
             }
         }
     }
@@ -280,7 +239,10 @@ public class ServuxStructuresProtocol {
                 }
 
                 ChunkAccess chunk = world.getChunk(pos.x, pos.z, ChunkStatus.STRUCTURE_STARTS, false);
-                StructureStart start = chunk.getStartForStructure(structure);
+                StructureStart start = null;
+                if (chunk != null) {
+                    start = chunk.getStartForStructure(structure);
+                }
 
                 if (start != null) {
                     starts.put(pos, start);

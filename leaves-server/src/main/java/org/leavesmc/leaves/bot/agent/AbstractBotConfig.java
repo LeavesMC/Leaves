@@ -9,20 +9,20 @@ import org.leavesmc.leaves.command.CommandArgumentResult;
 import java.util.List;
 import java.util.function.Supplier;
 
-public abstract class BotConfig<E> {
+public abstract class AbstractBotConfig<E> {
 
     private final String name;
     private final CommandArgument argument;
-    private final Supplier<BotConfig<E>> creator;
+    private final Supplier<AbstractBotConfig<E>> creator;
     protected ServerBot bot;
 
-    public BotConfig(String name, CommandArgument argument, Supplier<BotConfig<E>> creator) {
+    public AbstractBotConfig(String name, CommandArgument argument, Supplier<AbstractBotConfig<E>> creator) {
         this.name = name;
         this.argument = argument;
         this.creator = creator;
     }
 
-    public BotConfig<E> setBot(ServerBot bot) {
+    public AbstractBotConfig<E> setBot(ServerBot bot) {
         this.bot = bot;
         return this;
     }
@@ -48,7 +48,7 @@ public abstract class BotConfig<E> {
     }
 
     @NotNull
-    public BotConfig<E> create(ServerBot bot) {
+    public AbstractBotConfig<E> create(ServerBot bot) {
         return this.creator.get().setBot(bot);
     }
 

@@ -10,7 +10,7 @@ import org.leavesmc.leaves.bot.BotCreateState;
 import org.leavesmc.leaves.bot.BotList;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.bot.agent.Actions;
-import org.leavesmc.leaves.bot.agent.BotAction;
+import org.leavesmc.leaves.bot.agent.AbstractBotAction;
 import org.leavesmc.leaves.bot.agent.actions.CraftCustomBotAction;
 import org.leavesmc.leaves.entity.botaction.CustomBotAction;
 import org.leavesmc.leaves.event.bot.BotCreateEvent;
@@ -66,7 +66,7 @@ public class CraftBotManager implements BotManager {
 
     @Override
     public boolean unregisterCustomBotAction(String name) {
-        BotAction<?> action = Actions.getForName(name);
+        AbstractBotAction<?> action = Actions.getForName(name);
         if (action instanceof CraftCustomBotAction) {
             return Actions.unregister(name);
         }

@@ -5,14 +5,14 @@ import net.minecraft.server.level.ServerPlayer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.bot.agent.BotAction;
+import org.leavesmc.leaves.bot.agent.AbstractBotAction;
 import org.leavesmc.leaves.command.CommandArgument;
 import org.leavesmc.leaves.command.CommandArgumentResult;
 import org.leavesmc.leaves.command.CommandArgumentType;
 
 import java.util.List;
 
-public class RotationAction extends BotAction<RotationAction> {
+public class RotationAction extends AbstractBotAction<RotationAction> {
 
     public RotationAction() {
         super("rotation", CommandArgument.of(CommandArgumentType.FLOAT, CommandArgumentType.FLOAT), RotationAction::new);

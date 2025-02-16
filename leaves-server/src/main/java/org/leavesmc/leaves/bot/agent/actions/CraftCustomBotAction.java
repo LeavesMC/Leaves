@@ -5,12 +5,12 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.bot.agent.BotAction;
+import org.leavesmc.leaves.bot.agent.AbstractBotAction;
 import org.leavesmc.leaves.command.CommandArgument;
 import org.leavesmc.leaves.command.CommandArgumentResult;
 import org.leavesmc.leaves.entity.botaction.CustomBotAction;
 
-public class CraftCustomBotAction extends BotAction<CraftCustomBotAction> {
+public class CraftCustomBotAction extends AbstractBotAction<CraftCustomBotAction> {
 
     private final CustomBotAction realAction;
 

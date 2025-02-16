@@ -18,8 +18,8 @@ import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.LeavesLogger;
 import org.leavesmc.leaves.bot.agent.Actions;
-import org.leavesmc.leaves.bot.agent.BotAction;
-import org.leavesmc.leaves.bot.agent.BotConfig;
+import org.leavesmc.leaves.bot.agent.AbstractBotAction;
+import org.leavesmc.leaves.bot.agent.AbstractBotConfig;
 import org.leavesmc.leaves.bot.agent.Configs;
 import org.leavesmc.leaves.bot.agent.actions.CraftCustomBotAction;
 import org.leavesmc.leaves.command.CommandArgumentResult;
@@ -116,7 +116,7 @@ public class BotCommand extends Command {
                     list.add(String.valueOf(i));
                 }
             } else {
-                BotAction<?> action = Actions.getForName(args[2]);
+                AbstractBotAction<?> action = Actions.getForName(args[2]);
                 if (action != null) {
                     list.addAll(action.getArgument().tabComplete(args.length - 4));
                 }
@@ -326,9 +326,9 @@ public class BotCommand extends Command {
 
             String index = args[3];
             if (index.equals("all")) {
-                Set<BotAction<?>> forRemoval = new HashSet<>();
+                Set<AbstractBotAction<?>> forRemoval = new HashSet<>();
                 for (int i = 0; i < bot.getBotActions().size(); i++) {
-                    BotAction<?> action = bot.getBotActions().get(i);
+                    AbstractBotAction<?> action = bot.getBotActions().get(i);
                     BotActionStopEvent event = new BotActionStopEvent(
                             bot.getBukkitEntity(), action.getName(), action.getUUID(), BotActionStopEvent.Reason.COMMAND, sender
                     );
@@ -347,7 +347,7 @@ public class BotCommand extends Command {
                         return;
                     }
 
-                    BotAction<?> action = bot.getBotActions().get(i);
+                    AbstractBotAction<?> action = bot.getBotActions().get(i);
                     BotActionStopEvent event = new BotActionStopEvent(
                             bot.getBukkitEntity(), action.getName(), action.getUUID(), BotActionStopEvent.Reason.COMMAND, sender
                     );
@@ -364,7 +364,7 @@ public class BotCommand extends Command {
             return;
         }
 
-        BotAction<?> action = Actions.getForName(args[2]);
+        AbstractBotAction<?> action = Actions.getForName(args[2]);
         if (action == null) {
             sender.sendMessage(text("Invalid action", NamedTextColor.RED));
             return;
@@ -382,7 +382,7 @@ public class BotCommand extends Command {
             System.arraycopy(args, 3, realArgs, 0, realArgs.length);
         }
 
-        BotAction<?> newAction;
+        AbstractBotAction<?> newAction;
         try {
             if (action instanceof CraftCustomBotAction customBotAction) {
                 newAction = customBotAction.createCraft(player, realArgs);
@@ -427,7 +427,7 @@ public class BotCommand extends Command {
             return;
         }
 
-        BotConfig<?> config = Objects.requireNonNull(Configs.getConfig(args[2])).config;
+        AbstractBotConfig<?> config = Objects.requireNonNull(Configs.getConfig(args[2])).config;
         if (args.length < 4) {
             config.getMessage().forEach(sender::sendMessage);
         } else {

@@ -3,14 +3,14 @@ package org.leavesmc.leaves.bot.agent.configs;
 import net.minecraft.nbt.CompoundTag;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesConfig;
-import org.leavesmc.leaves.bot.agent.BotConfig;
+import org.leavesmc.leaves.bot.agent.AbstractBotConfig;
 import org.leavesmc.leaves.command.CommandArgument;
 import org.leavesmc.leaves.command.CommandArgumentResult;
 import org.leavesmc.leaves.command.CommandArgumentType;
 
 import java.util.List;
 
-public class SpawnPhantomConfig extends BotConfig<Boolean> {
+public class SpawnPhantomConfig extends AbstractBotConfig<Boolean> {
 
     private boolean value;
 

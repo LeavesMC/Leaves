@@ -4,11 +4,11 @@ import net.minecraft.server.level.ServerPlayer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.bot.agent.BotAction;
+import org.leavesmc.leaves.bot.agent.AbstractBotAction;
 import org.leavesmc.leaves.command.CommandArgument;
 import org.leavesmc.leaves.command.CommandArgumentResult;
 
-public class SneakAction extends BotAction<SneakAction> {
+public class SneakAction extends AbstractBotAction<SneakAction> {
 
     public SneakAction() {
         super("sneak", CommandArgument.EMPTY, SneakAction::new);

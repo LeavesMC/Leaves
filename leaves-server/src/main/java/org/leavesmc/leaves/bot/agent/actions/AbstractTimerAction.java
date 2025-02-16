@@ -3,7 +3,7 @@ package org.leavesmc.leaves.bot.agent.actions;
 import net.minecraft.server.level.ServerPlayer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.leavesmc.leaves.bot.agent.BotAction;
+import org.leavesmc.leaves.bot.agent.AbstractBotAction;
 import org.leavesmc.leaves.command.CommandArgument;
 import org.leavesmc.leaves.command.CommandArgumentResult;
 import org.leavesmc.leaves.command.CommandArgumentType;
@@ -11,7 +11,7 @@ import org.leavesmc.leaves.command.CommandArgumentType;
 import java.util.List;
 import java.util.function.Supplier;
 
-public abstract class AbstractTimerAction<E extends AbstractTimerAction<E>> extends BotAction<E> {
+public abstract class AbstractTimerAction<E extends AbstractTimerAction<E>> extends AbstractBotAction<E> {
 
     public AbstractTimerAction(String name, Supplier<E> creator) {
         super(name, CommandArgument.of(CommandArgumentType.INTEGER, CommandArgumentType.INTEGER), creator);

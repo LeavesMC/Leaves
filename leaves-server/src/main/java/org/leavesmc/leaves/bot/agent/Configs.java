@@ -9,6 +9,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
+@SuppressWarnings("unused")
 public class Configs<E> {
 
     private static final Map<String, Configs<?>> configs = new HashMap<>();
@@ -18,9 +19,9 @@ public class Configs<E> {
     public static final Configs<Boolean> SPAWN_PHANTOM = register(new SpawnPhantomConfig());
     public static final Configs<Integer> SIMULATION_DISTANCE = register(new SimulationDistanceConfig());
 
-    public final BotConfig<E> config;
+    public final AbstractBotConfig<E> config;
 
-    private Configs(BotConfig<E> config) {
+    private Configs(AbstractBotConfig<E> config) {
         this.config = config;
     }
 
@@ -36,7 +37,7 @@ public class Configs<E> {
     }
 
     @NotNull
-    private static <T> Configs<T> register(BotConfig<T> botConfig) {
+    private static <T> Configs<T> register(AbstractBotConfig<T> botConfig) {
         Configs<T> config = new Configs<>(botConfig);
         configs.put(botConfig.getName(), config);
         return config;

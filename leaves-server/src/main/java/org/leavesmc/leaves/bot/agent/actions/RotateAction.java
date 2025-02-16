@@ -5,11 +5,11 @@ import net.minecraft.server.level.ServerPlayer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.bot.agent.BotAction;
+import org.leavesmc.leaves.bot.agent.AbstractBotAction;
 import org.leavesmc.leaves.command.CommandArgument;
 import org.leavesmc.leaves.command.CommandArgumentResult;
 
-public class RotateAction extends BotAction<RotateAction> {
+public class RotateAction extends AbstractBotAction<RotateAction> {
 
     public RotateAction() {
         super("rotate", CommandArgument.EMPTY, RotateAction::new);

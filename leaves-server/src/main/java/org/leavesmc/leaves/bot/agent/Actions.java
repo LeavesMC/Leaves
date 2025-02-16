@@ -12,7 +12,7 @@ import java.util.Set;
 
 public class Actions {
 
-    private static final Map<String, BotAction<?>> actions = new HashMap<>();
+    private static final Map<String, AbstractBotAction<?>> actions = new HashMap<>();
 
     public static void registerAll() {
         register(new AttackAction());
@@ -33,7 +33,7 @@ public class Actions {
         register(new RotationAction());
     }
 
-    public static boolean register(@NotNull BotAction<?> action) {
+    public static boolean register(@NotNull AbstractBotAction<?> action) {
         if (!actions.containsKey(action.getName())) {
             actions.put(action.getName(), action);
             return true;
@@ -51,7 +51,7 @@ public class Actions {
 
     @NotNull
     @Contract(pure = true)
-    public static Collection<BotAction<?>> getAll() {
+    public static Collection<AbstractBotAction<?>> getAll() {
         return actions.values();
     }
 
@@ -61,7 +61,7 @@ public class Actions {
     }
 
     @Nullable
-    public static BotAction<?> getForName(String name) {
+    public static AbstractBotAction<?> getForName(String name) {
         return actions.get(name);
     }
 }

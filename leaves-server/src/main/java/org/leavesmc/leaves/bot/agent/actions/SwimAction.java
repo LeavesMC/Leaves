@@ -5,11 +5,11 @@ import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.bot.agent.BotAction;
+import org.leavesmc.leaves.bot.agent.AbstractBotAction;
 import org.leavesmc.leaves.command.CommandArgument;
 import org.leavesmc.leaves.command.CommandArgumentResult;
 
-public class SwimAction extends BotAction<SwimAction> {
+public class SwimAction extends AbstractBotAction<SwimAction> {
 
     public SwimAction() {
         super("swim", CommandArgument.EMPTY, SwimAction::new);

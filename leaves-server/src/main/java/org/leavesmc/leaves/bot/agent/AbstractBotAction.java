@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.function.Supplier;
 
-public abstract class BotAction<E extends BotAction<E>> {
+public abstract class AbstractBotAction<E extends AbstractBotAction<E>> {
 
     private final String name;
     private final CommandArgument argument;
@@ -28,7 +28,7 @@ public abstract class BotAction<E extends BotAction<E>> {
     private int needWaitTick;
     private int canDoNumber;
 
-    public BotAction(String name, CommandArgument argument, Supplier<E> creator) {
+    public AbstractBotAction(String name, CommandArgument argument, Supplier<E> creator) {
         this.name = name;
         this.argument = argument;
         this.uuid = UUID.randomUUID();

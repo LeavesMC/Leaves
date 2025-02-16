@@ -50,8 +50,8 @@ import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.LeavesLogger;
 import org.leavesmc.leaves.bot.agent.Actions;
-import org.leavesmc.leaves.bot.agent.BotAction;
-import org.leavesmc.leaves.bot.agent.BotConfig;
+import org.leavesmc.leaves.bot.agent.AbstractBotAction;
+import org.leavesmc.leaves.bot.agent.AbstractBotConfig;
 import org.leavesmc.leaves.bot.agent.Configs;
 import org.leavesmc.leaves.entity.CraftBot;
 import org.leavesmc.leaves.event.bot.BotActionScheduleEvent;
@@ -70,11 +70,10 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Predicate;
 
-// TODO test
 public class ServerBot extends ServerPlayer {
 
-    private final Map<Configs<?>, BotConfig<?>> configs;
-    private final List<BotAction<?>> actions;
+    private final Map<Configs<?>, AbstractBotConfig<?>> configs;
+    private final List<AbstractBotAction<?>> actions;
 
     public boolean resume = false;
     public BotCreateState createState;
@@ -97,7 +96,7 @@ public class ServerBot extends ServerPlayer {
         this.gameMode = new ServerBotGameMode(this);
         this.actions = new ArrayList<>();
 
-        ImmutableMap.Builder<Configs<?>, BotConfig<?>> configBuilder = ImmutableMap.builder();
+        ImmutableMap.Builder<Configs<?>, AbstractBotConfig<?>> configBuilder = ImmutableMap.builder();
         for (Configs<?> config : Configs.getConfigs()) {
             configBuilder.put(config, config.config.create(this));
         }
@@ -399,7 +398,7 @@ public class ServerBot extends ServerPlayer {
 
         if (!this.actions.isEmpty()) {
             ListTag actionNbt = new ListTag();
-            for (BotAction<?> action : this.actions) {
+            for (AbstractBotAction<?> action : this.actions) {
                 actionNbt.add(action.save(new CompoundTag()));
             }
             nbt.put("actions", actionNbt);
@@ -407,7 +406,7 @@ public class ServerBot extends ServerPlayer {
 
         if (!this.configs.isEmpty()) {
             ListTag configNbt = new ListTag();
-            for (BotConfig<?> config : this.configs.values()) {
+            for (AbstractBotConfig<?> config : this.configs.values()) {
                 configNbt.add(config.save(new CompoundTag()));
             }
             nbt.put("configs", configNbt);
@@ -442,9 +441,9 @@ public class ServerBot extends ServerPlayer {
             ListTag actionNbt = nbt.getList("actions", 10);
             for (int i = 0; i < actionNbt.size(); i++) {
                 CompoundTag actionTag = actionNbt.getCompound(i);
-                BotAction<?> action = Actions.getForName(actionTag.getString("actionName"));
+                AbstractBotAction<?> action = Actions.getForName(actionTag.getString("actionName"));
                 if (action != null) {
-                    BotAction<?> newAction = action.create();
+                    AbstractBotAction<?> newAction = action.create();
                     newAction.load(actionTag);
                     this.actions.add(newAction);
                 }
@@ -509,11 +508,11 @@ public class ServerBot extends ServerPlayer {
     private void runAction() {
         if (LeavesConfig.modify.fakeplayer.canUseAction) {
             this.actions.forEach(action -> action.tryTick(this));
-            this.actions.removeIf(BotAction::isCancelled);
+            this.actions.removeIf(AbstractBotAction::isCancelled);
         }
     }
 
-    public boolean addBotAction(BotAction<?> action, CommandSender sender) {
+    public boolean addBotAction(AbstractBotAction<?> action, CommandSender sender) {
         if (!LeavesConfig.modify.fakeplayer.canUseAction) {
             return false;
         }
@@ -527,7 +526,7 @@ public class ServerBot extends ServerPlayer {
         return true;
     }
 
-    public List<BotAction<?>> getBotActions() {
+    public List<AbstractBotAction<?>> getBotActions() {
         return actions;
     }
 
@@ -537,8 +536,8 @@ public class ServerBot extends ServerPlayer {
     }
 
     @SuppressWarnings("unchecked")
-    public <E> BotConfig<E> getConfig(Configs<E> config) {
-        return (BotConfig<E>) Objects.requireNonNull(this.configs.get(config));
+    public <E> AbstractBotConfig<E> getConfig(Configs<E> config) {
+        return (AbstractBotConfig<E>) Objects.requireNonNull(this.configs.get(config));
     }
 
     public <E> E getConfigValue(Configs<E> config) {

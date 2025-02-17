@@ -16,7 +16,7 @@ public @interface RemovedConfig {
 
     boolean transform() default false;
 
-    Class<? extends ConfigConverter<?>> convert() default ConfigValidatorImpl.BooleanConfigValidator.class;
+    Class<? extends ConfigTransformer<?, ?>> transformer() default AutoConfigTransformer.class;
 
     @Target(ElementType.FIELD)
     @Retention(RetentionPolicy.RUNTIME)

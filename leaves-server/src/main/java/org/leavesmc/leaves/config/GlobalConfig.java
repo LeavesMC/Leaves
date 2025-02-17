@@ -12,5 +12,5 @@ public @interface GlobalConfig {
 
     boolean lock() default false;
 
-    Class<? extends ConfigValidator<?>> validator() default ConfigValidatorImpl.BooleanConfigValidator.class;
+    Class<? extends ConfigValidator<?>> validator() default AutoConfigValidator.class;
 }

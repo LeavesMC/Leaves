@@ -6,7 +6,6 @@ import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.LeavesLogger;
 
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.HashMap;
@@ -113,7 +112,7 @@ public class GlobalConfigManager {
         return verifiedConfigs.keySet();
     }
 
-    public record RemovedVerifiedConfig(ConfigConverter<?> convert, boolean transform, Field field, Object upstreamField, String path) {
+    public record RemovedVerifiedConfig(ConfigTransformer<? super Object, ? super Object> transformer, boolean transform, Field field, Object upstreamField, String path) {
 
         public void run() {
             if (transform) {
@@ -121,9 +120,10 @@ public class GlobalConfigManager {
                     Object savedValue = LeavesConfig.config.get(path);
                     if (savedValue != null) {
                         try {
-                            if (savedValue.getClass() != convert.getFieldClass()) {
-                                savedValue = convert.loadConvert(savedValue);
+                            if (savedValue.getClass() != transformer.getFieldClass()) {
+                                savedValue = transformer.loadConvert(savedValue);
                             }
+                            savedValue = transformer.transform(savedValue);
                             field.set(upstreamField, savedValue);
                         } catch (IllegalAccessException | IllegalArgumentException e) {
                             LeavesLogger.LOGGER.warning("Failure to load leaves config" + path, e);
@@ -144,16 +144,14 @@ public class GlobalConfigManager {
             }
             path.append(config.name());
 
-            ConfigConverter<?> converter = null;
+            ConfigTransformer<? super Object, ? super Object> transformer = null;
             try {
-                Constructor<? extends ConfigConverter<?>> constructor = config.convert().getDeclaredConstructor();
-                constructor.setAccessible(true);
-                converter = constructor.newInstance();
+                transformer = createTransformer(config.transformer(), field);
             } catch (Exception e) {
                 LeavesLogger.LOGGER.warning("Failure to load leaves config" + path, e);
             }
 
-            return new RemovedVerifiedConfig(converter, config.transform(), field, upstreamField, path.toString());
+            return new RemovedVerifiedConfig(transformer, config.transform(), field, upstreamField, path.toString());
         }
     }
 
@@ -162,7 +160,7 @@ public class GlobalConfigManager {
         public void set(String stringValue) throws IllegalArgumentException {
             Object value;
             try {
-                value = validator.convert(stringValue);
+                value = validator.stringConvert(stringValue);
             } catch (IllegalArgumentException e) {
                 throw new IllegalArgumentException("value parse error: " + e.getMessage());
             }
@@ -210,7 +208,6 @@ public class GlobalConfigManager {
             return value.toString();
         }
 
-        @SuppressWarnings("unchecked")
         @NotNull
         @Contract("_, _, _, _ -> new")
         public static VerifiedConfig build(@NotNull GlobalConfig config, @NotNull Field field, @Nullable Object upstreamField, @NotNull String upstreamPath) {
@@ -218,15 +215,35 @@ public class GlobalConfigManager {
 
             ConfigValidator<? super Object> validator;
             try {
-                Constructor<? extends ConfigValidator<?>> constructor = config.validator().getDeclaredConstructor();
-                constructor.setAccessible(true);
-                validator = (ConfigValidator<? super Object>) constructor.newInstance();
+                validator = createValidator(config.validator(), field);
             } catch (Exception e) {
                 LeavesLogger.LOGGER.severe("Failure to load leaves config" + path, e);
                 throw new RuntimeException();
             }
 
             return new VerifiedConfig(validator, config.lock(), field, upstreamField, path);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static ConfigValidator<? super Object> createValidator(@NotNull Class<? extends ConfigValidator<?>> clazz, Field field) throws Exception {
+        if (clazz.equals(AutoConfigValidator.class)) {
+            return (ConfigValidator<? super Object>) AutoConfigValidator.createValidator(field);
+        } else {
+            var constructor = clazz.getDeclaredConstructor();
+            constructor.setAccessible(true);
+            return (ConfigValidator<? super Object>) constructor.newInstance();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static ConfigTransformer<? super Object, ? super Object> createTransformer(@NotNull Class<? extends ConfigTransformer<?, ?>> clazz, Field field) throws Exception {
+        if (clazz.equals(AutoConfigTransformer.class)) {
+            return (ConfigTransformer<? super Object, ? super Object>) AutoConfigTransformer.createValidator(field);
+        } else {
+            var constructor = clazz.getDeclaredConstructor();
+            constructor.setAccessible(true);
+            return (ConfigTransformer<? super Object, ? super Object>) constructor.newInstance();
         }
     }
 }

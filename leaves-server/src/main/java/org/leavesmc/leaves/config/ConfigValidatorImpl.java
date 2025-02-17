@@ -10,7 +10,7 @@ import java.util.Locale;
 
 public abstract class ConfigValidatorImpl<E> implements ConfigValidator<E> {
 
-    private Class<E> fieldClass;
+    protected Class<E> fieldClass;
 
     @SuppressWarnings("unchecked")
     public ConfigValidatorImpl() {
@@ -31,7 +31,7 @@ public abstract class ConfigValidatorImpl<E> implements ConfigValidator<E> {
     public static class BooleanConfigValidator extends ConfigValidatorImpl<Boolean> {
 
         @Override
-        public Boolean convert(String value) throws IllegalArgumentException {
+        public Boolean stringConvert(String value) throws IllegalArgumentException {
             return Boolean.parseBoolean(value);
         }
 
@@ -43,21 +43,21 @@ public abstract class ConfigValidatorImpl<E> implements ConfigValidator<E> {
 
     public static class IntConfigValidator extends ConfigValidatorImpl<Integer> {
         @Override
-        public Integer convert(String value) throws IllegalArgumentException {
+        public Integer stringConvert(String value) throws IllegalArgumentException {
             return Integer.parseInt(value);
         }
     }
 
     public static class StringConfigValidator extends ConfigValidatorImpl<String> {
         @Override
-        public String convert(String value) throws IllegalArgumentException {
+        public String stringConvert(String value) throws IllegalArgumentException {
             return value;
         }
     }
 
     public static class DoubleConfigValidator extends ConfigValidatorImpl<Double> {
         @Override
-        public Double convert(String value) throws IllegalArgumentException {
+        public Double stringConvert(String value) throws IllegalArgumentException {
             return Double.parseDouble(value);
         }
     }
@@ -67,32 +67,40 @@ public abstract class ConfigValidatorImpl<E> implements ConfigValidator<E> {
         }
 
         @Override
-        public List<E> convert(String value) throws IllegalArgumentException {
+        public List<E> stringConvert(String value) throws IllegalArgumentException {
             throw new IllegalArgumentException("not support"); // TODO
         }
     }
 
-    public abstract static class EnumConfigValidator<E extends Enum<E>> extends ConfigValidatorImpl<E> {
+    public static class EnumConfigValidator<E extends Enum<E>> extends ConfigValidatorImpl<E> {
 
         private final List<String> enumValues;
 
-        public EnumConfigValidator() {
-            super();
+        public EnumConfigValidator(@NotNull Class<E> enumClass) {
+            this.fieldClass = enumClass;
             this.enumValues = new ArrayList<>() {{
-                for (E e : getFieldClass().getEnumConstants()) {
+                for (E e : enumClass.getEnumConstants()) {
+                    add(e.name().toLowerCase(Locale.ROOT));
+                }
+            }};
+        }
+
+        public EnumConfigValidator() {
+            this.enumValues = new ArrayList<>() {{
+                for (E e : fieldClass.getEnumConstants()) {
                     add(e.name().toLowerCase(Locale.ROOT));
                 }
             }};
         }
 
         @Override
-        public E convert(@NotNull String value) throws IllegalArgumentException {
+        public E stringConvert(@NotNull String value) throws IllegalArgumentException {
             return Enum.valueOf(getFieldClass(), value.toUpperCase(Locale.ROOT));
         }
 
         @Override
         public E loadConvert(@NotNull Object value) throws IllegalArgumentException {
-            return this.convert(value.toString());
+            return this.stringConvert(value.toString());
         }
 
         @Override

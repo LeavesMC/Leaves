@@ -121,17 +121,17 @@ public final class LeavesConfig {
                 }
             }
 
-            @RemovedConfig(name = "unable-fakeplayer-names", category = "fakeplayer", convert = ListConfigValidator.STRING.class, transform = true)
-            @GlobalConfig(value = "unable-fakeplayer-names", validator = ListConfigValidator.STRING.class)
+            @RemovedConfig(name = "unable-fakeplayer-names", category = "fakeplayer", transform = true)
+            @GlobalConfig(value = "unable-fakeplayer-names")
             public List<String> unableNames = List.of("player-name");
 
-            @GlobalConfig(value = "limit", validator = IntConfigValidator.class)
+            @GlobalConfig(value = "limit")
             public int limit = 10;
 
-            @GlobalConfig(value = "prefix", validator = StringConfigValidator.class)
+            @GlobalConfig(value = "prefix")
             public String prefix = "";
 
-            @GlobalConfig(value = "suffix", validator = StringConfigValidator.class)
+            @GlobalConfig(value = "suffix")
             public String suffix = "";
 
             @GlobalConfig(value = "regen-amount", validator = RegenAmountValidator.class)
@@ -196,6 +196,10 @@ public final class LeavesConfig {
                 @RemovedConfig(name = "redstone-wire-dont-connect-if-on-trapdoor", category = {"modify", "minecraft-old"}, transform = true)
                 @GlobalConfig("redstone-wire-dont-connect-if-on-trapdoor")
                 public boolean redstoneDontCantOnTrapDoor = false;
+
+                @RemovedConfig(name = "old-block-entity-behaviour", category = {"modify", "minecraft-old"}, transform = true)
+                @GlobalConfig("old-block-entity-behaviour")
+                public boolean oldBlockEntityBehaviour = false;
             }
 
             @RemovedConfig(name = "shears-in-dispenser-can-zero-amount", category = {}, transform = true)
@@ -252,9 +256,6 @@ public final class LeavesConfig {
             @GlobalConfig("fix-fortress-mob-spawn")
             public boolean fixFortressMobSpawn = false;
 
-            @GlobalConfig("old-block-entity-behaviour")
-            public boolean oldBlockEntityBehaviour = false;
-
             @GlobalConfig("old-hopper-suck-in-behavior")
             public boolean oldHopperSuckInBehavior = false;
 
@@ -283,19 +284,19 @@ public final class LeavesConfig {
             @GlobalConfig("no-chunk-load")
             public boolean noChunk = false;
 
-            @GlobalConfig(value = "no-chunk-height", validator = DoubleConfigValidator.class)
+            @GlobalConfig(value = "no-chunk-height")
             public double noChunkHeight = 500.0D;
 
-            @GlobalConfig(value = "no-chunk-speed", validator = DoubleConfigValidator.class)
+            @GlobalConfig(value = "no-chunk-speed")
             public double noChunkSpeed = -1.0D;
 
             @GlobalConfig("message")
             public boolean noChunkMes = true;
 
-            @GlobalConfig(value = "message-start", validator = StringConfigValidator.class)
+            @GlobalConfig(value = "message-start")
             public String noChunkStartMes = "Flight enter cruise mode";
 
-            @GlobalConfig(value = "message-end", validator = StringConfigValidator.class)
+            @GlobalConfig(value = "message-end")
             public String noChunkEndMes = "Flight exit cruise mode";
         }
 
@@ -692,7 +693,7 @@ public final class LeavesConfig {
             @GlobalConfig("quota")
             public boolean useQuota = false;
 
-            @GlobalConfig(value = "quota-limit", validator = IntConfigValidator.class)
+            @GlobalConfig(value = "quota-limit")
             public int quotaLimit = 40000000;
         }
 
@@ -713,15 +714,12 @@ public final class LeavesConfig {
                 }
             }
 
-            @RemovedConfig(name = "pca-sync-player-entity", category = "protocol", convert = PcaPlayerEntityValidator.class, transform = true)
-            @GlobalConfig(value = "pca-sync-player-entity", validator = PcaPlayerEntityValidator.class)
+            @RemovedConfig(name = "pca-sync-player-entity", category = "protocol", transform = true)
+            @GlobalConfig(value = "pca-sync-player-entity")
             public PcaPlayerEntityType syncPlayerEntity = PcaPlayerEntityType.OPS;
 
             public enum PcaPlayerEntityType {
                 NOBODY, BOT, OPS, OPS_AND_SELF, EVERYONE
-            }
-
-            private static class PcaPlayerEntityValidator extends EnumConfigValidator<PcaPlayerEntityType> {
             }
         }
 
@@ -780,7 +778,7 @@ public final class LeavesConfig {
         @GlobalConfig("xaero-map-protocol")
         public boolean xaeroMapProtocol = false;
 
-        @GlobalConfig(value = "xaero-map-server-id", validator = IntConfigValidator.class)
+        @GlobalConfig(value = "xaero-map-server-id")
         public int xaeroMapServerID = new Random().nextInt();
 
         @GlobalConfig("leaves-carpet-support")
@@ -832,7 +830,7 @@ public final class LeavesConfig {
             @GlobalConfig("allow-experimental")
             public Boolean allowExperimental = false;
 
-            @GlobalConfig(value = "time", lock = true, validator = ListConfigValidator.STRING.class)
+            @GlobalConfig(value = "time", lock = true)
             public List<String> updateTime = List.of("14:00", "2:00");
         }
 
@@ -896,7 +894,7 @@ public final class LeavesConfig {
             }
         }
 
-        @GlobalConfig(value = "server-mod-name", validator = StringConfigValidator.class)
+        @GlobalConfig(value = "server-mod-name")
         public String serverModName = "Leaves";
 
         @GlobalConfig("bstats-privacy-mode")
@@ -929,16 +927,13 @@ public final class LeavesConfig {
         @GlobalConfigCategory("linear")
         public static class LinearConfig {
 
-            @GlobalConfig(value = "version", lock = true, validator = LinearVersionValidator.class)
+            @GlobalConfig(value = "version", lock = true)
             public org.leavesmc.leaves.region.linear.LinearVersion version = org.leavesmc.leaves.region.linear.LinearVersion.V2;
-
-            private static class LinearVersionValidator extends EnumConfigValidator<org.leavesmc.leaves.region.linear.LinearVersion> {
-            }
 
             @GlobalConfig(value = "auto-convert-anvil-to-linear", lock = true)
             public boolean autoConvertAnvilToLinear = false;
 
-            @GlobalConfig(value = "flush-max-threads", lock = true, validator = IntConfigValidator.class)
+            @GlobalConfig(value = "flush-max-threads", lock = true)
             public int flushThreads = 6;
 
             public int getLinearFlushThreads() {
@@ -949,7 +944,7 @@ public final class LeavesConfig {
                 }
             }
 
-            @GlobalConfig(value = "flush-delay-ms", lock = true, validator = IntConfigValidator.class)
+            @GlobalConfig(value = "flush-delay-ms", lock = true)
             public int flushDelayMs = 100;
 
             @GlobalConfig(value = "use-virtual-thread", lock = true)

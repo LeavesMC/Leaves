@@ -94,7 +94,7 @@ public class BotCommand extends Command {
             }
         }
 
-        if (args[0].equals("remove") && args.length >= 3) {
+        if (args[0].equals("remove") && args.length >= 4) {
             if (!Objects.equals(args[2], "cancel")) {
                 switch (args.length) {
                     case 4 -> list.add("[minute]");

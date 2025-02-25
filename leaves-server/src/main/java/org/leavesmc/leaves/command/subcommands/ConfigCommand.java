@@ -3,6 +3,7 @@ package org.leavesmc.leaves.command.subcommands;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.JoinConfiguration;
 import net.kyori.adventure.text.format.NamedTextColor;
+import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
 import org.leavesmc.leaves.command.LeavesCommandUtil;
 import org.leavesmc.leaves.command.LeavesSubcommand;
@@ -24,9 +25,9 @@ public class ConfigCommand implements LeavesSubcommand {
         GlobalConfigManager.VerifiedConfig verifiedConfig = GlobalConfigManager.getVerifiedConfig(args[0]);
         if (verifiedConfig == null) {
             sender.sendMessage(Component.join(JoinConfiguration.noSeparators(),
-                Component.text("Config ", NamedTextColor.GRAY),
-                Component.text(args[0], NamedTextColor.RED),
-                Component.text(" is Not Found.", NamedTextColor.GRAY)
+                    Component.text("Config ", NamedTextColor.GRAY),
+                    Component.text(args[0], NamedTextColor.RED),
+                    Component.text(" is Not Found.", NamedTextColor.GRAY)
             ));
             return true;
         }
@@ -35,25 +36,25 @@ public class ConfigCommand implements LeavesSubcommand {
             try {
                 verifiedConfig.set(args[1]);
                 sender.sendMessage(Component.join(JoinConfiguration.noSeparators(),
-                    Component.text("Config ", NamedTextColor.GRAY),
-                    Component.text(args[0], NamedTextColor.AQUA),
-                    Component.text(" changed to ", NamedTextColor.GRAY),
-                    Component.text(verifiedConfig.getString(), NamedTextColor.AQUA)
+                        Component.text("Config ", NamedTextColor.GRAY),
+                        Component.text(args[0], NamedTextColor.AQUA),
+                        Component.text(" changed to ", NamedTextColor.GRAY),
+                        Component.text(verifiedConfig.getString(), NamedTextColor.AQUA)
                 ));
             } catch (IllegalArgumentException exception) {
                 sender.sendMessage(Component.join(JoinConfiguration.noSeparators(),
-                    Component.text("Config ", NamedTextColor.GRAY),
-                    Component.text(args[0], NamedTextColor.RED),
-                    Component.text(" modify error by ", NamedTextColor.GRAY),
-                    Component.text(exception.getMessage(), NamedTextColor.RED)
+                        Component.text("Config ", NamedTextColor.GRAY),
+                        Component.text(args[0], NamedTextColor.RED),
+                        Component.text(" modify error by ", NamedTextColor.GRAY),
+                        Component.text(exception.getMessage(), NamedTextColor.RED)
                 ));
             }
         } else {
             sender.sendMessage(Component.join(JoinConfiguration.noSeparators(),
-                Component.text("Config ", NamedTextColor.GRAY),
-                Component.text(args[0], NamedTextColor.AQUA),
-                Component.text(" value is ", NamedTextColor.GRAY),
-                Component.text(verifiedConfig.getString(), NamedTextColor.AQUA)
+                    Component.text("Config ", NamedTextColor.GRAY),
+                    Component.text(args[0], NamedTextColor.AQUA),
+                    Component.text(" value is ", NamedTextColor.GRAY),
+                    Component.text(verifiedConfig.getString(), NamedTextColor.AQUA)
             ));
         }
 
@@ -61,7 +62,7 @@ public class ConfigCommand implements LeavesSubcommand {
     }
 
     @Override
-    public List<String> tabComplete(CommandSender sender, String subCommand, String[] args) {
+    public List<String> tabComplete(CommandSender sender, String subCommand, String[] args, Location location) {
         switch (args.length) {
             case 1 -> {
                 List<String> list = new ArrayList<>(GlobalConfigManager.getVerifiedConfigPaths());

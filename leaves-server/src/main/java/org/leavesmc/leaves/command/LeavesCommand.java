@@ -77,14 +77,14 @@ public final class LeavesCommand extends Command {
 
         final @Nullable Pair<String, LeavesSubcommand> subCommand = resolveCommand(args[0]);
         if (subCommand != null) {
-            return subCommand.second().tabComplete(sender, subCommand.first(), Arrays.copyOfRange(args, 1, args.length));
+            return subCommand.second().tabComplete(sender, subCommand.first(), Arrays.copyOfRange(args, 1, args.length), location);
         }
 
         return Collections.emptyList();
     }
 
     @Override
-    public boolean execute(final @NotNull CommandSender sender, final @NotNull String commandLabel, final String[] args) {
+    public boolean execute(final @NotNull CommandSender sender, final @NotNull String commandLabel, final String @NotNull [] args) {
         if (!testPermission(sender)) {
             return true;
         }

@@ -21,7 +21,7 @@ public class BotLoadCommand implements LeavesSubcommand {
         }
 
         if (args.length < 2) {
-            sender.sendMessage(text("Use /bot save <name> to save a fakeplayer", NamedTextColor.RED));
+            sender.sendMessage(text("Use /bot load <name> to save a fakeplayer", NamedTextColor.RED));
             return false;
         }
 
@@ -49,7 +49,7 @@ public class BotLoadCommand implements LeavesSubcommand {
         BotList botList = BotList.INSTANCE;
 
         if (args.length <= 1) {
-            list.addAll(botList.bots.stream().map(e -> e.getName().getString()).toList());
+            list.addAll(botList.getSavedBotList().getAllKeys());
         }
 
         return list;

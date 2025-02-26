@@ -11,6 +11,7 @@ import org.leavesmc.leaves.command.LeavesSubcommand;
 import org.leavesmc.leaves.event.bot.BotRemoveEvent;
 import org.leavesmc.leaves.plugin.MinecraftInternalPlugin;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static net.kyori.adventure.text.Component.text;
@@ -96,6 +97,13 @@ public class BotRemoveCommand implements LeavesSubcommand {
 
     @Override
     public List<String> tabComplete(CommandSender sender, String subCommand, String[] args, Location location) {
-        return LeavesSubcommand.super.tabComplete(sender, subCommand, args, location);
+        List<String> list = new ArrayList<>();
+        BotList botList = BotList.INSTANCE;
+
+        if (args.length <= 1) {
+            list.addAll(botList.bots.stream().map(e -> e.getName().getString()).toList());
+        }
+
+        return list;
     }
 }

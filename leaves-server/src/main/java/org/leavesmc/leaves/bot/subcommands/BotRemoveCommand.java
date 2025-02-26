@@ -104,6 +104,19 @@ public class BotRemoveCommand implements LeavesSubcommand {
             list.addAll(botList.bots.stream().map(e -> e.getName().getString()).toList());
         }
 
+        if (args.length == 2) {
+            list.add("cancel");
+            list.add("[hour]");
+        }
+
+        if (args.length > 2 && !args[1].equals("cancel")) {
+            switch (args.length) {
+                case 3 -> list.add("[minute]");
+                case 4 -> list.add("[second]");
+            }
+        }
+
+
         return list;
     }
 }

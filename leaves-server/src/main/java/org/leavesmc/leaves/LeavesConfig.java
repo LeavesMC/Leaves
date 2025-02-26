@@ -8,9 +8,9 @@ import org.bukkit.command.Command;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.command.LeavesCommand;
-import org.leavesmc.leaves.config.GlobalConfig;
-import org.leavesmc.leaves.config.GlobalConfigCategory;
-import org.leavesmc.leaves.config.RemovedConfig;
+import org.leavesmc.leaves.config.annotations.GlobalConfig;
+import org.leavesmc.leaves.config.annotations.GlobalConfigCategory;
+import org.leavesmc.leaves.config.annotations.RemovedConfig;
 import org.leavesmc.leaves.config.GlobalConfigManager;
 import org.leavesmc.leaves.region.RegionFileFormat;
 import org.leavesmc.leaves.util.MathUtils;
@@ -73,6 +73,22 @@ public final class LeavesConfig {
         GlobalConfigManager.init();
 
         registerCommand("leaves", new LeavesCommand("leaves"));
+    }
+
+    public static void reload() {
+        if (!LeavesConfig.configFile.exists()) {
+            throw new RuntimeException("Leaves config file not found, please restart the server");
+        }
+
+        try {
+            config.load(LeavesConfig.configFile);
+        } catch (final Exception ex) {
+            LeavesLogger.LOGGER.severe("Failure to reload leaves config", ex);
+            SneakyThrow.sneaky(ex);
+            throw new RuntimeException(ex);
+        }
+
+        GlobalConfigManager.reload();
     }
 
     public static void save() {
@@ -768,7 +784,7 @@ public final class LeavesConfig {
 
         private static class AlternativePlaceValidator extends EnumConfigValidator<AlternativePlaceType> {
             @Override
-            public void runAfterLoader(AlternativePlaceType value, boolean firstLoad) {
+            public void runAfterLoader(AlternativePlaceType value, boolean reload) {
                 if (value != AlternativePlaceType.NONE) {
                     LeavesConfig.modify.disableDistanceCheckForUseItem = true;
                 }
@@ -805,8 +821,8 @@ public final class LeavesConfig {
 
             private static class AutoUpdateValidator extends BooleanConfigValidator {
                 @Override
-                public void runAfterLoader(Boolean value, boolean firstLoad) {
-                    if (firstLoad) {
+                public void runAfterLoader(Boolean value, boolean reload) {
+                    if (reload) {
                         org.leavesmc.leaves.util.LeavesUpdateHelper.init();
                         if (value) {
                             LeavesLogger.LOGGER.warning("Auto-Update is not completely safe. Enabling it may cause data security problems!");

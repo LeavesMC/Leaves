@@ -10,6 +10,6 @@ public interface ConfigValidator<E> extends ConfigConverter<E> {
         return List.of("<value>");
     }
 
-    default void runAfterLoader(E value, boolean firstLoad) {
+    default void runAfterLoader(E value, boolean reload) {
     }
 }

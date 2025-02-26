@@ -1,4 +1,7 @@
-package org.leavesmc.leaves.config;
+package org.leavesmc.leaves.config.annotations;
+
+import org.leavesmc.leaves.config.AutoConfigTransformer;
+import org.leavesmc.leaves.config.ConfigTransformer;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Repeatable;

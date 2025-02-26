@@ -1,6 +1,7 @@
 package org.leavesmc.leaves.command.subcommands;
 
-import org.bukkit.ChatColor;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.CommandSender;
 import org.leavesmc.leaves.command.LeavesSubcommand;
 import org.leavesmc.leaves.util.LeavesUpdateHelper;
@@ -9,7 +10,7 @@ public class UpdateCommand implements LeavesSubcommand {
 
     @Override
     public boolean execute(CommandSender sender, String subCommand, String[] args) {
-        sender.sendMessage(ChatColor.GRAY + "Trying to update Leaves, see the console for more info.");
+        sender.sendMessage(Component.text("Trying to update Leaves, see the console for more info.", NamedTextColor.GRAY));
         LeavesUpdateHelper.tryUpdateLeaves();
         return true;
     }

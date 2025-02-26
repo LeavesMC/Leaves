@@ -1,4 +1,4 @@
-package org.leavesmc.leaves.config;
+package org.leavesmc.leaves.config.annotations;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

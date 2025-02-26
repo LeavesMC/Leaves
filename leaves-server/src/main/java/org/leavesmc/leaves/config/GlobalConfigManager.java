@@ -1,13 +1,15 @@
 package org.leavesmc.leaves.config;
 
-import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.LeavesLogger;
+import org.leavesmc.leaves.config.annotations.GlobalConfig;
+import org.leavesmc.leaves.config.annotations.GlobalConfigCategory;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -16,19 +18,34 @@ public class GlobalConfigManager {
 
     public final static String CONFIG_START = "settings.";
 
-    private static boolean firstLoad = true;
     private static final Map<String, VerifiedConfig> verifiedConfigs = new HashMap<>();
+    private static final ConfigNode rootNode = new ConfigNode("");
+
+    private static boolean loaded = false;
 
     public static void init() {
-        verifiedConfigs.clear();
+        if (loaded) {
+            return;
+        }
 
         for (Field field : LeavesConfig.class.getDeclaredFields()) {
             initField(field, null, CONFIG_START);
         }
+        verifiedConfigs.forEach((path, config) -> config.validator().runAfterLoader(config.get(), false));
+        LeavesConfig.save();
 
-        verifiedConfigs.forEach((path, config) -> config.validator.runAfterLoader(config.get(), firstLoad));
+        loaded = true;
+    }
 
-        firstLoad = false;
+    public static void reload() {
+        if (!loaded) {
+            return;
+        }
+
+        for (Field field : LeavesConfig.class.getDeclaredFields()) {
+            initField(field, null, CONFIG_START);
+        }
+        verifiedConfigs.forEach((path, config) -> config.validator().runAfterLoader(config.get(), true));
         LeavesConfig.save();
     }
 
@@ -39,6 +56,7 @@ public class GlobalConfigManager {
             for (Field field : categoryField.getType().getDeclaredFields()) {
                 initField(field, category, categoryPath);
             }
+            traverseToNodeOrCreate(categoryPath.substring(CONFIG_START.length()));
         } catch (Exception e) {
             LeavesLogger.LOGGER.severe("Failure to load leaves config" + upstreamPath, e);
         }
@@ -48,8 +66,8 @@ public class GlobalConfigManager {
         if (upstreamField != null || Modifier.isStatic(field.getModifiers())) {
             field.setAccessible(true);
 
-            for (RemovedConfig config : field.getAnnotationsByType(RemovedConfig.class)) {
-                RemovedVerifiedConfig.build(config, field, upstreamField).run();
+            for (org.leavesmc.leaves.config.annotations.RemovedConfig config : field.getAnnotationsByType(org.leavesmc.leaves.config.annotations.RemovedConfig.class)) {
+                VerifiedRemovedConfig.build(config, field, upstreamField).run();
             }
 
             GlobalConfig globalConfig = field.getAnnotation(GlobalConfig.class);
@@ -67,19 +85,20 @@ public class GlobalConfigManager {
 
     private static void initConfig(@NotNull Field field, GlobalConfig globalConfig, @Nullable Object upstreamField, @NotNull String upstreamPath) {
         try {
-            VerifiedConfig verifiedConfig = VerifiedConfig.build(globalConfig, field, upstreamField, upstreamPath);
-
-            if (globalConfig.lock() && !firstLoad) {
-                verifiedConfigs.put(verifiedConfig.path.substring(CONFIG_START.length()), verifiedConfig);
+            if (loaded && globalConfig.lock()) {
+                return;
             }
 
-            ConfigValidator<? super Object> validator = verifiedConfig.validator;
+            VerifiedConfig verifiedConfig = VerifiedConfig.build(globalConfig, field, upstreamField, upstreamPath);
+
+            ConfigValidator<? super Object> validator = verifiedConfig.validator();
+            String path = verifiedConfig.path();
 
             Object defValue = validator.saveConvert(field.get(upstreamField));
-            LeavesConfig.config.addDefault(verifiedConfig.path, defValue);
+            LeavesConfig.config.addDefault(path, defValue);
 
             try {
-                Object savedValue = LeavesConfig.config.get(verifiedConfig.path);
+                Object savedValue = LeavesConfig.config.get(path);
                 if (savedValue == null) {
                     throw new IllegalArgumentException("?");
                 }
@@ -92,11 +111,12 @@ public class GlobalConfigManager {
 
                 field.set(upstreamField, savedValue);
             } catch (IllegalArgumentException | ClassCastException e) {
-                LeavesConfig.config.set(verifiedConfig.path, defValue);
+                LeavesConfig.config.set(path, defValue);
                 LeavesLogger.LOGGER.warning(e.getMessage() + ", reset to " + defValue);
             }
 
-            verifiedConfigs.put(verifiedConfig.path.substring(CONFIG_START.length()), verifiedConfig);
+            verifiedConfigs.put(path.substring(CONFIG_START.length()), verifiedConfig);
+            traverseToNodeOrCreate(path.substring(CONFIG_START.length()));
         } catch (Exception e) {
             LeavesLogger.LOGGER.severe("Failure to load leaves config", e);
             throw new RuntimeException();
@@ -107,143 +127,49 @@ public class GlobalConfigManager {
         return verifiedConfigs.get(path);
     }
 
-    @Contract(pure = true)
-    public static @NotNull Set<String> getVerifiedConfigPaths() {
-        return verifiedConfigs.keySet();
-    }
+    private static class ConfigNode {
+        String name;
+        Map<String, ConfigNode> children;
 
-    public record RemovedVerifiedConfig(ConfigTransformer<? super Object, ? super Object> transformer, boolean transform, Field field, Object upstreamField, String path) {
-
-        public void run() {
-            if (transform) {
-                if (LeavesConfig.config.contains(path)) {
-                    Object savedValue = LeavesConfig.config.get(path);
-                    if (savedValue != null) {
-                        try {
-                            if (savedValue.getClass() != transformer.getFieldClass()) {
-                                savedValue = transformer.loadConvert(savedValue);
-                            }
-                            savedValue = transformer.transform(savedValue);
-                            field.set(upstreamField, savedValue);
-                        } catch (IllegalAccessException | IllegalArgumentException e) {
-                            LeavesLogger.LOGGER.warning("Failure to load leaves config" + path, e);
-                        }
-                    } else {
-                        LeavesLogger.LOGGER.warning("Failed to convert saved value for " + path + ", reset to default");
-                    }
-                }
-            }
-            LeavesConfig.config.set(path, null);
-        }
-
-        @Contract("_, _, _ -> new")
-        public static @NotNull RemovedVerifiedConfig build(@NotNull RemovedConfig config, @NotNull Field field, @Nullable Object upstreamField) {
-            StringBuilder path = new StringBuilder("settings.");
-            for (String category : config.category()) {
-                path.append(category).append(".");
-            }
-            path.append(config.name());
-
-            ConfigTransformer<? super Object, ? super Object> transformer = null;
-            try {
-                transformer = createTransformer(config.transformer(), field);
-            } catch (Exception e) {
-                LeavesLogger.LOGGER.warning("Failure to load leaves config" + path, e);
-            }
-
-            return new RemovedVerifiedConfig(transformer, config.transform(), field, upstreamField, path.toString());
+        public ConfigNode(String name) {
+            this.name = name;
+            this.children = new HashMap<>();
         }
     }
 
-    public record VerifiedConfig(ConfigValidator<? super Object> validator, boolean lock, Field field, Object upstreamField, String path) {
+    private static void traverseToNodeOrCreate(@NotNull String path) {
+        String[] parts = path.split("\\.");
+        ConfigNode current = rootNode;
 
-        public void set(String stringValue) throws IllegalArgumentException {
-            Object value;
-            try {
-                value = validator.stringConvert(stringValue);
-            } catch (IllegalArgumentException e) {
-                throw new IllegalArgumentException("value parse error: " + e.getMessage());
+        for (String part : parts) {
+            if (!part.isEmpty()) {
+                current = current.children.computeIfAbsent(part, ConfigNode::new);
             }
-
-            validator.verify(this.get(), value);
-
-            try {
-                LeavesConfig.config.set(path, validator.saveConvert(value));
-                LeavesConfig.save();
-                if (lock) {
-                    throw new IllegalArgumentException("locked, will load after restart");
-                }
-                field.set(upstreamField, value);
-            } catch (IllegalAccessException e) {
-                throw new IllegalArgumentException(e.getMessage());
-            }
-        }
-
-        public Object get() {
-            try {
-                return field.get(upstreamField);
-            } catch (IllegalAccessException e) {
-                LeavesLogger.LOGGER.severe("Failure to get " + path + " value", e);
-                return "<VALUE ERROR>";
-            }
-        }
-
-        public String getString() {
-            Object value = this.get();
-
-            Object savedValue = LeavesConfig.config.get(path);
-            try {
-                if (savedValue != null) {
-                    if (validator.getFieldClass() != savedValue.getClass()) {
-                        savedValue = validator.loadConvert(savedValue);
-                    }
-
-                    if (!savedValue.equals(value)) {
-                        return value.toString() + "(" + savedValue + " after restart)";
-                    }
-                }
-            } catch (IllegalArgumentException e) {
-                LeavesLogger.LOGGER.severe("Failure to get " + path + " value", e);
-            }
-            return value.toString();
-        }
-
-        @NotNull
-        @Contract("_, _, _, _ -> new")
-        public static VerifiedConfig build(@NotNull GlobalConfig config, @NotNull Field field, @Nullable Object upstreamField, @NotNull String upstreamPath) {
-            String path = upstreamPath + config.value();
-
-            ConfigValidator<? super Object> validator;
-            try {
-                validator = createValidator(config.validator(), field);
-            } catch (Exception e) {
-                LeavesLogger.LOGGER.severe("Failure to load leaves config" + path, e);
-                throw new RuntimeException();
-            }
-
-            return new VerifiedConfig(validator, config.lock(), field, upstreamField, path);
         }
     }
 
-    @SuppressWarnings("unchecked")
-    private static ConfigValidator<? super Object> createValidator(@NotNull Class<? extends ConfigValidator<?>> clazz, Field field) throws Exception {
-        if (clazz.equals(AutoConfigValidator.class)) {
-            return (ConfigValidator<? super Object>) AutoConfigValidator.createValidator(field);
-        } else {
-            var constructor = clazz.getDeclaredConstructor();
-            constructor.setAccessible(true);
-            return (ConfigValidator<? super Object>) constructor.newInstance();
+    @Nullable
+    private static ConfigNode traverseToNode(@NotNull String path) {
+        int index = path.lastIndexOf('.');
+        String[] parts = index == -1 ? new String[0] : path.substring(0, index).split("\\.");
+
+        ConfigNode current = rootNode;
+        for (String part : parts) {
+            current = current.children.get(part);
+            if (current == null) {
+                return null;
+            }
         }
+
+        return current;
     }
 
-    @SuppressWarnings("unchecked")
-    private static ConfigTransformer<? super Object, ? super Object> createTransformer(@NotNull Class<? extends ConfigTransformer<?, ?>> clazz, Field field) throws Exception {
-        if (clazz.equals(AutoConfigTransformer.class)) {
-            return (ConfigTransformer<? super Object, ? super Object>) AutoConfigTransformer.createValidator(field);
-        } else {
-            var constructor = clazz.getDeclaredConstructor();
-            constructor.setAccessible(true);
-            return (ConfigTransformer<? super Object, ? super Object>) constructor.newInstance();
+    @NotNull
+    public static Set<String> getVerifiedConfigSubPaths(@NotNull String prefix) {
+        ConfigNode current = traverseToNode(prefix);
+        if (current == null) {
+            return Collections.emptySet();
         }
+        return current.children.keySet();
     }
 }

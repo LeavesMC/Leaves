@@ -4,6 +4,8 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.LeavesConfig;
+import org.leavesmc.leaves.config.annotations.GlobalConfig;
+import org.leavesmc.leaves.config.annotations.GlobalConfigCategory;
 
 import java.io.File;
 import java.io.IOException;
@@ -75,7 +77,7 @@ public class GlobalConfigCreator {
 
     private static void initConfig(@NotNull Field field, GlobalConfig globalConfig, @Nullable Object upstreamField, @NotNull String upstreamPath) {
         try {
-            GlobalConfigManager.VerifiedConfig verifiedConfig = GlobalConfigManager.VerifiedConfig.build(globalConfig, field, upstreamField, upstreamPath);
+            VerifiedConfig verifiedConfig = VerifiedConfig.build(globalConfig, field, upstreamField, upstreamPath);
             config.set(verifiedConfig.path(), verifiedConfig.validator().saveConvert(field.get(upstreamField)));
         } catch (Exception e) {
             e.printStackTrace();

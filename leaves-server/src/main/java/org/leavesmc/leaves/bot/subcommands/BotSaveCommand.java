@@ -10,6 +10,7 @@ import org.leavesmc.leaves.command.LeavesSubcommand;
 import org.leavesmc.leaves.event.bot.BotRemoveEvent;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import static net.kyori.adventure.text.Component.text;
@@ -43,13 +44,22 @@ public class BotSaveCommand implements LeavesSubcommand {
 
     @Override
     public List<String> tabComplete(CommandSender sender, String subCommand, String[] args, Location location) {
+        if (!LeavesConfig.modify.fakeplayer.canManualSaveAndLoad) {
+            return Collections.emptyList();
+        }
+
         List<String> list = new ArrayList<>();
         BotList botList = BotList.INSTANCE;
 
-        if (args.length == 1) {
+        if (args.length <= 1) {
             list.addAll(botList.bots.stream().map(e -> e.getName().getString()).toList());
         }
 
         return list;
+    }
+
+    @Override
+    public boolean tabCompletes() {
+        return LeavesConfig.modify.fakeplayer.canManualSaveAndLoad;
     }
 }

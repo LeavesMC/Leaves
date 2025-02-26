@@ -4,6 +4,7 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
+import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.bot.BotList;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.bot.agent.AbstractBotConfig;
@@ -13,6 +14,7 @@ import org.leavesmc.leaves.command.LeavesSubcommand;
 import org.leavesmc.leaves.event.bot.BotConfigModifyEvent;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -23,6 +25,10 @@ public class BotConfigCommand implements LeavesSubcommand {
 
     @Override
     public boolean execute(CommandSender sender, String subCommand, String[] args) {
+        if (!LeavesConfig.modify.fakeplayer.canModifyConfig) {
+            return false;
+        }
+
         if (args.length < 3) {
             sender.sendMessage(text("Use /bot config <name> <config> to modify fakeplayer's config", NamedTextColor.RED));
             return false;
@@ -66,10 +72,14 @@ public class BotConfigCommand implements LeavesSubcommand {
 
     @Override
     public List<String> tabComplete(CommandSender sender, String subCommand, String[] args, Location location) {
+        if (!LeavesConfig.modify.fakeplayer.canModifyConfig) {
+            return Collections.emptyList();
+        }
+
         List<String> list = new ArrayList<>();
         BotList botList = BotList.INSTANCE;
 
-        if (args.length == 1) {
+        if (args.length <= 1) {
             list.addAll(botList.bots.stream().map(e -> e.getName().getString()).toList());
         }
 
@@ -85,5 +95,10 @@ public class BotConfigCommand implements LeavesSubcommand {
         }
 
         return list;
+    }
+
+    @Override
+    public boolean tabCompletes() {
+        return LeavesConfig.modify.fakeplayer.canModifyConfig;
     }
 }

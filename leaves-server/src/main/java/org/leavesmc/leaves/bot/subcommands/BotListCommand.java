@@ -64,7 +64,7 @@ public class BotListCommand implements LeavesSubcommand {
     public List<String> tabComplete(CommandSender sender, String subCommand, String[] args, Location location) {
         List<String> list = new ArrayList<>();
 
-        if (args.length == 1) {
+        if (args.length <= 1) {
             list.addAll(Bukkit.getWorlds().stream().map(WorldInfo::getName).toList());
         }
 

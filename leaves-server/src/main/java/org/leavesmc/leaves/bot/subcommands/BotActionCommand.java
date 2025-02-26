@@ -4,6 +4,7 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
+import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.bot.BotList;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.bot.agent.AbstractBotAction;
@@ -23,6 +24,10 @@ import static net.kyori.adventure.text.Component.text;
 public class BotActionCommand implements LeavesSubcommand {
     @Override
     public boolean execute(CommandSender sender, String subCommand, String[] args) {
+        if (!LeavesConfig.modify.fakeplayer.canUseAction) {
+            return false;
+        }
+
         if (args.length < 2) {
             sender.sendMessage(text("Use /bot action <name> <action> to make fakeplayer do action", NamedTextColor.RED));
             return false;
@@ -131,6 +136,10 @@ public class BotActionCommand implements LeavesSubcommand {
 
     @Override
     public List<String> tabComplete(CommandSender sender, String subCommand, String[] args, Location location) {
+        if (!LeavesConfig.modify.fakeplayer.canUseAction) {
+            return Collections.emptyList();
+        }
+
         List<String> list = new ArrayList<>();
         BotList botList = BotList.INSTANCE;
 
@@ -165,5 +174,10 @@ public class BotActionCommand implements LeavesSubcommand {
         }
 
         return list;
+    }
+
+    @Override
+    public boolean tabCompletes() {
+        return LeavesConfig.modify.fakeplayer.canUseAction;
     }
 }

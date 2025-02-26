@@ -62,10 +62,10 @@ public class BotCreateCommand implements LeavesSubcommand {
     @Override
     public List<String> tabComplete(CommandSender sender, String subCommand, String[] args, Location location) {
         List<String> list = new ArrayList<>();
-        if (args.length < 1) {
+        if (args.length <= 1) {
             list.add("<BotName>");
         }
-        if (args.length == 1) {
+        if (args.length == 2) {
             list.add("[SkinName]");
         }
         String[] locStr = {
@@ -73,18 +73,18 @@ public class BotCreateCommand implements LeavesSubcommand {
                 String.valueOf(location.getBlockY()),
                 String.valueOf(location.getBlockZ())
         };
-        if (args.length == 2) {
+        if (args.length == 3) {
             for (var world : sender.getServer().getWorlds()) {
                 list.add(world.getName());
             }
         }
-        if (args.length >= 3 && args.length < 6) {
-            list.add(locStr[args.length - 2]);
-        }
-        if (args.length == 3) {
-            list.add(String.join(" ", locStr));
+        if (args.length >= 4 && args.length <= 6) {
+            list.add(locStr[args.length - 4]);
         }
         if (args.length == 4) {
+            list.add(String.join(" ", locStr));
+        }
+        if (args.length == 5) {
             list.add(locStr[1] + " " + locStr[2]);
         }
         return list;

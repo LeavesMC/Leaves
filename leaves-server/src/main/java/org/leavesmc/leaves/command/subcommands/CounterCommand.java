@@ -6,6 +6,7 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.item.DyeColor;
+import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesConfig;
@@ -87,7 +88,7 @@ public class CounterCommand implements LeavesSubcommand {
     }
 
     @Override
-    public List<String> tabComplete(CommandSender sender, String subCommand, String[] args) {
+    public List<String> tabComplete(CommandSender sender, String subCommand, String[] args, Location location) {
         if (!LeavesConfig.modify.hopperCounter) {
             return Collections.emptyList();
         }

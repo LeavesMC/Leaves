@@ -3,6 +3,7 @@ package org.leavesmc.leaves.command.subcommands;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.JoinConfiguration;
 import net.kyori.adventure.text.format.NamedTextColor;
+import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
 import org.leavesmc.leaves.command.LeavesCommandUtil;
 import org.leavesmc.leaves.command.LeavesSubcommand;
@@ -61,7 +62,7 @@ public class ConfigCommand implements LeavesSubcommand {
     }
 
     @Override
-    public List<String> tabComplete(CommandSender sender, String subCommand, String[] args) {
+    public List<String> tabComplete(CommandSender sender, String subCommand, String[] args, Location location) {
         switch (args.length) {
             case 1 -> {
                 List<String> list = new ArrayList<>(GlobalConfigManager.getVerifiedConfigPaths());

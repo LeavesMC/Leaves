@@ -7,6 +7,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.level.NaturalSpawner;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.command.CommandSender;
 import org.bukkit.craftbukkit.CraftWorld;
@@ -73,7 +74,7 @@ public class PeacefulModeSwitchCommand implements LeavesSubcommand {
     }
 
     @Override
-    public List<String> tabComplete(final CommandSender sender, final String subCommand, final String[] args) {
+    public List<String> tabComplete(final CommandSender sender, final String subCommand, final String[] args, Location location) {
         return LeavesCommandUtil.getListMatchingLast(sender, args, this.suggestPeacefulModeSwitch(args));
     }
 

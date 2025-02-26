@@ -106,7 +106,13 @@ public class BotCommand extends Command {
     }
 
     public Collection<String> usableSubcommands() {
-        return SUBCOMMANDS.entrySet().stream().filter(entry -> entry.getValue().tabCompletes()).map(Map.Entry::getKey).collect(Collectors.toSet());
+        List<String> subcommands = new ArrayList<>();
+        for (var entry : SUBCOMMANDS.entrySet()) {
+            if (entry.getValue().tabCompletes()) {
+                subcommands.add(entry.getKey());
+            }
+        }
+        return subcommands;
     }
 
     public Component unknownMessage() {

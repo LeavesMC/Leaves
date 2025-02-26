@@ -68,24 +68,12 @@ public class BotCreateCommand implements LeavesSubcommand {
         if (args.length == 2) {
             list.add("[SkinName]");
         }
-        String[] locStr = {
-                String.valueOf(location.getBlockX()),
-                String.valueOf(location.getBlockY()),
-                String.valueOf(location.getBlockZ())
-        };
-        if (args.length == 3) {
-            for (var world : sender.getServer().getWorlds()) {
-                list.add(world.getName());
+        if (sender instanceof ConsoleCommandSender) {
+            if (args.length == 3) {
+                for (var world : sender.getServer().getWorlds()) {
+                    list.add(world.getName());
+                }
             }
-        }
-        if (args.length >= 4 && args.length <= 6) {
-            list.add(locStr[args.length - 4]);
-        }
-        if (args.length == 4) {
-            list.add(String.join(" ", locStr));
-        }
-        if (args.length == 5) {
-            list.add(locStr[1] + " " + locStr[2]);
         }
         return list;
     }

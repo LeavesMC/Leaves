@@ -26,6 +26,8 @@ import org.leavesmc.leaves.plugin.MinecraftInternalPlugin;
 import org.leavesmc.leaves.plugin.provider.configuration.LeavesPluginMeta;
 import org.leavesmc.leaves.util.LeavesVersionFetcher;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -73,7 +75,10 @@ public class ReportCommand implements LeavesSubcommand {
     }
 
     private void sendOnSuccess(CommandSender sender, String template, Component component) {
-        String finalUrl = template.replace("${version}", generateVersionMessage()).replace("${plugins}", generatePluginMessage()).replace("${datapacks}", generateDataPackMessage()).replaceAll(" ", "%20");
+        String finalUrl = template
+            .replace("${version}", URLEncoder.encode(generateVersionMessage(), StandardCharsets.UTF_8))
+            .replace("${plugins}", URLEncoder.encode(generatePluginMessage(), StandardCharsets.UTF_8))
+            .replace("${datapacks}", URLEncoder.encode(generateDataPackMessage(), StandardCharsets.UTF_8));
         if (sender instanceof ConsoleCommandSender) {
             sender.sendMessage(component.append(text(", please copy it as you are running this command in console")));
             sender.sendMessage(text(finalUrl, AQUA).decorate(TextDecoration.UNDERLINED));
@@ -135,7 +140,7 @@ public class ReportCommand implements LeavesSubcommand {
             pluginList.deleteCharAt(pluginList.length() - 1);
         }
 
-        return pluginList.toString().replaceAll("\\n", "%0a");
+        return pluginList.toString();
     }
 
     private static String generateDataPackMessage() {
@@ -167,7 +172,7 @@ public class ReportCommand implements LeavesSubcommand {
                 dataPackList.append(" ").append(pack.getChatLink(false).getString()).append(",");
             }
         }
-        return dataPackList.toString().replaceAll("\\n", "%0a");
+        return dataPackList.toString();
     }
 
 }

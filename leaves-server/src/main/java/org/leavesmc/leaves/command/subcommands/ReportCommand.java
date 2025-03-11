@@ -21,6 +21,7 @@ import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.leavesmc.leaves.command.LeavesCommandUtil;
 import org.leavesmc.leaves.command.LeavesSubcommand;
 import org.leavesmc.leaves.plugin.MinecraftInternalPlugin;
 import org.leavesmc.leaves.plugin.provider.configuration.LeavesPluginMeta;
@@ -42,8 +43,10 @@ public class ReportCommand implements LeavesSubcommand {
 
     private static final String BUG_REPORT_URL = "https://github.com/LeavesMC/Leaves/issues/new?template=1-bug-report.yml&leaves-version=${version}&plugin-list=${plugins}%0a%0a${datapacks}";
     private static final String NOT_VANILLA_URL = "https://github.com/LeavesMC/Leaves/issues/new?template=2-not-vanilla.yml&leaves-version=${version}";
+    private static final String COMMAND_PERM = "bukkit.command.leaves.report";
 
     private static final VersionFetcher versionFetcher = new LeavesVersionFetcher();
+
 
     @Override
     public boolean execute(CommandSender sender, String subCommand, String[] args) {
@@ -69,7 +72,7 @@ public class ReportCommand implements LeavesSubcommand {
     @Override
     public List<String> tabComplete(CommandSender sender, String subCommand, String[] args, Location location) {
         if (args.length <= 1) {
-            return List.of("bug-report", "not-vanilla");
+            return LeavesCommandUtil.getListMatchingLast(sender, args, List.of("bug-report", "not-vanilla"), COMMAND_PERM + ".", COMMAND_PERM);
         }
         return Collections.emptyList();
     }

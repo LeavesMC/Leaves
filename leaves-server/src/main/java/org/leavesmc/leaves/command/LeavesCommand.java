@@ -43,6 +43,7 @@ public final class LeavesCommand extends Command implements LeavesSuggestionComm
         commands.put(Set.of("peaceful"), new PeacefulModeSwitchCommand());
         commands.put(Set.of("counter"), new CounterCommand());
         commands.put(Set.of("reload"), new ReloadCommand());
+        commands.put(Set.of("report"), new ReportCommand());
 
         return commands.entrySet().stream()
             .flatMap(entry -> entry.getKey().stream().map(s -> Map.entry(s, entry.getValue())))

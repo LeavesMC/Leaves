@@ -1,6 +1,5 @@
 package org.leavesmc.leaves.command.subcommands;
 
-import com.destroystokyo.paper.util.VersionFetcher;
 import io.papermc.paper.plugin.configuration.PluginMeta;
 import io.papermc.paper.plugin.entrypoint.Entrypoint;
 import io.papermc.paper.plugin.entrypoint.LaunchEntryPointHandler;
@@ -11,7 +10,6 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
-import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackRepository;
@@ -38,15 +36,11 @@ import static net.kyori.adventure.text.Component.text;
 import static net.kyori.adventure.text.format.NamedTextColor.AQUA;
 import static net.kyori.adventure.text.format.NamedTextColor.RED;
 
-
 public class ReportCommand implements LeavesSubcommand {
 
     private static final String BUG_REPORT_URL = "https://github.com/LeavesMC/Leaves/issues/new?template=1-bug-report.yml&leaves-version=${version}&plugin-list=${plugins}%0a%0a${datapacks}";
     private static final String NOT_VANILLA_URL = "https://github.com/LeavesMC/Leaves/issues/new?template=2-not-vanilla.yml&leaves-version=${version}";
     private static final String COMMAND_PERM = "bukkit.command.leaves.report";
-
-    private static final VersionFetcher versionFetcher = new LeavesVersionFetcher();
-
 
     @Override
     public boolean execute(CommandSender sender, String subCommand, String[] args) {
@@ -79,7 +73,7 @@ public class ReportCommand implements LeavesSubcommand {
 
     private void sendOnSuccess(CommandSender sender, String template, Component component) {
         String finalUrl = template
-            .replace("${version}", URLEncoder.encode(generateVersionMessage(), StandardCharsets.UTF_8))
+            .replace("${version}", URLEncoder.encode(Bukkit.getVersionMessage(), StandardCharsets.UTF_8))
             .replace("${plugins}", URLEncoder.encode(generatePluginMessage(), StandardCharsets.UTF_8))
             .replace("${datapacks}", URLEncoder.encode(generateDataPackMessage(), StandardCharsets.UTF_8));
         if (sender instanceof ConsoleCommandSender) {
@@ -88,10 +82,6 @@ public class ReportCommand implements LeavesSubcommand {
         } else {
             sender.sendMessage(component.append(text(", click this message to open")).decorate(TextDecoration.UNDERLINED).hoverEvent(Component.text("Click to open the report url", NamedTextColor.WHITE)).clickEvent(ClickEvent.openUrl(finalUrl)));
         }
-    }
-
-    private static String generateVersionMessage() {
-        return PlainTextComponentSerializer.plainText().serialize(versionFetcher.getVersionMessage(Bukkit.getVersion())).replaceAll("\\n", ". ");
     }
 
     private static String generatePluginMessage() {
@@ -177,5 +167,4 @@ public class ReportCommand implements LeavesSubcommand {
         }
         return dataPackList.toString();
     }
-
 }

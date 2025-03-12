@@ -28,9 +28,9 @@ public class MojangAPI {
     public static String[] pullFromAPI(String name) {
         try {
             String uuid = JsonParser.parseReader(new InputStreamReader(URI.create("https://api.mojang.com/users/profiles/minecraft/" + name).toURL().openStream()))
-                    .getAsJsonObject().get("id").getAsString();
+                .getAsJsonObject().get("id").getAsString();
             JsonObject property = JsonParser.parseReader(new InputStreamReader(URI.create("https://sessionserver.mojang.com/session/minecraft/profile/" + uuid + "?unsigned=false").toURL().openStream()))
-                    .getAsJsonObject().get("properties").getAsJsonArray().get(0).getAsJsonObject();
+                .getAsJsonObject().get("properties").getAsJsonArray().get(0).getAsJsonObject();
             return new String[]{property.get("value").getAsString(), property.get("signature").getAsString()};
         } catch (IOException | IllegalStateException | IllegalArgumentException e) {
             return null;

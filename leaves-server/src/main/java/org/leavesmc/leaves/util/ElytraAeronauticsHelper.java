@@ -14,7 +14,7 @@ public class ElytraAeronauticsHelper {
     public static void flightBehaviour(Player player, Vec3 velocity) {
         if (LeavesConfig.modify.elytraAeronautics.noChunk) {
             if ((LeavesConfig.modify.elytraAeronautics.noChunkSpeed <= 0.0D || velocity.horizontalDistanceSqr() >= LeavesConfig.modify.elytraAeronautics.noChunkSpeed)
-                    && (LeavesConfig.modify.elytraAeronautics.noChunkHeight <= 0.0D || player.getY() >= LeavesConfig.modify.elytraAeronautics.noChunkHeight)) {
+                && (LeavesConfig.modify.elytraAeronautics.noChunkHeight <= 0.0D || player.getY() >= LeavesConfig.modify.elytraAeronautics.noChunkHeight)) {
                 if (!player.elytraAeronauticsNoChunk) {
                     player.elytraAeronauticsNoChunk = true;
                     ServerPlayer serverPlayer = (ServerPlayer) player;

@@ -27,9 +27,9 @@ public class LeavesCommandUtil {
 
     // Code from Mojang - copyright them
     public static List<String> getListMatchingLast(
-            final CommandSender sender,
-            final String[] args,
-            final String... matches
+        final CommandSender sender,
+        final String[] args,
+        final String... matches
     ) {
         return getListMatchingLast(sender, args, Arrays.asList(matches));
     }
@@ -39,19 +39,19 @@ public class LeavesCommandUtil {
     }
 
     public static List<String> getListMatchingLast(
-            final CommandSender sender,
-            final String[] strings,
-            final Collection<?> collection
+        final CommandSender sender,
+        final String[] strings,
+        final Collection<?> collection
     ) {
         return getListMatchingLast(sender, strings, collection, LeavesCommand.BASE_PERM, "bukkit.command.leaves");
     }
 
     public static List<String> getListMatchingLast(
-            final CommandSender sender,
-            final String[] strings,
-            final Collection<?> collection,
-            final String basePermission,
-            final String overridePermission
+        final CommandSender sender,
+        final String[] strings,
+        final Collection<?> collection,
+        final String basePermission,
+        final String overridePermission
     ) {
         String last = strings[strings.length - 1];
         ArrayList<String> results = Lists.newArrayList();
@@ -85,10 +85,10 @@ public class LeavesCommandUtil {
     // end copy stuff
 
     public static List<String> getListClosestMatchingLast(
-            final CommandSender sender,
-            final String last,
-            final Collection<?> collection,
-            final String overridePermission
+        final CommandSender sender,
+        final String last,
+        final Collection<?> collection,
+        final String overridePermission
     ) {
         ArrayList<Candidate> candidates = Lists.newArrayList();
 

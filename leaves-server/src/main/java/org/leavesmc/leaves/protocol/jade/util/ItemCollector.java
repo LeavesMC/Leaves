@@ -75,7 +75,7 @@ public class ItemCollector<T> {
             updateCollectingProgress(mergedResult.getFirst());
             return mergedResult;
         }
-        List<ItemStack> partialResult = items.object2IntEntrySet().stream().limit(MAX_SIZE  ).map(entry -> {
+        List<ItemStack> partialResult = items.object2IntEntrySet().stream().limit(MAX_SIZE).map(entry -> {
             ItemDefinition def = entry.getKey();
             return def.toStack(entry.getIntValue());
         }).toList();

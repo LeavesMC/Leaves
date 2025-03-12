@@ -31,54 +31,54 @@ public class LeavesPluginMeta extends PaperPluginMeta {
 
     public static LeavesPluginMeta create(BufferedReader reader) throws ConfigurateException {
         HoconConfigurationLoader loader = HoconConfigurationLoader.builder()
-                .prettyPrinting(true)
-                .emitComments(true)
-                .emitJsonCompatible(true)
-                .source(() -> reader)
-                .defaultOptions((options) ->
-                        options.serializers((serializers) ->
-                                serializers.register(new ScalarSerializer<>(ApiVersion.class) {
-                                            @Override
-                                            public ApiVersion deserialize(final Type type, final Object obj) throws SerializationException {
-                                                try {
-                                                    final ApiVersion version = ApiVersion.getOrCreateVersion(obj.toString());
-                                                    if (version.isOlderThan(MINIMUM)) {
-                                                        throw new SerializationException(version + " is too old for a leaves plugin!");
-                                                    }
-                                                    return version;
-                                                } catch (final IllegalArgumentException e) {
-                                                    throw new SerializationException(e);
-                                                }
-                                            }
+            .prettyPrinting(true)
+            .emitComments(true)
+            .emitJsonCompatible(true)
+            .source(() -> reader)
+            .defaultOptions((options) ->
+                options.serializers((serializers) ->
+                    serializers.register(new ScalarSerializer<>(ApiVersion.class) {
+                            @Override
+                            public ApiVersion deserialize(final Type type, final Object obj) throws SerializationException {
+                                try {
+                                    final ApiVersion version = ApiVersion.getOrCreateVersion(obj.toString());
+                                    if (version.isOlderThan(MINIMUM)) {
+                                        throw new SerializationException(version + " is too old for a leaves plugin!");
+                                    }
+                                    return version;
+                                } catch (final IllegalArgumentException e) {
+                                    throw new SerializationException(e);
+                                }
+                            }
 
-                                            @Override
-                                            protected Object serialize(final ApiVersion item, final Predicate<Class<?>> typeSupported) {
-                                                return item.getVersionString();
-                                            }
-                                        })
-                                        .register(new EnumValueSerializer())
-                                        .register(PermissionConfiguration.class, PermissionConfigurationSerializer.SERIALIZER)
-                                        .register(new ComponentSerializer())
-                                        .registerAnnotatedObjects(
-                                                ObjectMapper.factoryBuilder()
-                                                        .addConstraint(Constraint.class, new Constraint.Factory())
-                                                        .addConstraint(PluginConfigConstraints.PluginName.class, String.class, new PluginConfigConstraints.PluginName.Factory())
-                                                        .addConstraint(PluginConfigConstraints.PluginNameSpace.class, String.class, new PluginConfigConstraints.PluginNameSpace.Factory())
-                                                        .addNodeResolver(new FlattenedResolver.Factory())
-                                                        .build()
-                                        )
+                            @Override
+                            protected Object serialize(final ApiVersion item, final Predicate<Class<?>> typeSupported) {
+                                return item.getVersionString();
+                            }
+                        })
+                        .register(new EnumValueSerializer())
+                        .register(PermissionConfiguration.class, PermissionConfigurationSerializer.SERIALIZER)
+                        .register(new ComponentSerializer())
+                        .registerAnnotatedObjects(
+                            ObjectMapper.factoryBuilder()
+                                .addConstraint(Constraint.class, new Constraint.Factory())
+                                .addConstraint(PluginConfigConstraints.PluginName.class, String.class, new PluginConfigConstraints.PluginName.Factory())
+                                .addConstraint(PluginConfigConstraints.PluginNameSpace.class, String.class, new PluginConfigConstraints.PluginNameSpace.Factory())
+                                .addNodeResolver(new FlattenedResolver.Factory())
+                                .build()
                         )
                 )
-                .build();
+            )
+            .build();
         CommentedConfigurationNode node = loader.load();
         LegacyPaperMeta.migrate(node);
         LeavesPluginMeta pluginConfiguration = node.require(LeavesPluginMeta.class);
 
         if (!node.node("author").virtual()) {
             pluginConfiguration.authors = ImmutableList.<String>builder()
-                    .addAll(pluginConfiguration.authors)
-                    .add(node.node("author").getString())
-                    .build();
+                .addAll(pluginConfiguration.authors)
+                .add(node.node("author").getString())
+                .build();
         }
 
         return pluginConfiguration;

@@ -30,9 +30,9 @@ public class ConfigCommand implements LeavesSubcommand {
         VerifiedConfig verifiedConfig = GlobalConfigManager.getVerifiedConfig(args[0]);
         if (verifiedConfig == null) {
             sender.sendMessage(Component.join(JoinConfiguration.noSeparators(),
-                    Component.text("Config ", NamedTextColor.GRAY),
-                    Component.text(args[0], NamedTextColor.RED),
-                    Component.text(" is Not Found.", NamedTextColor.GRAY)
+                Component.text("Config ", NamedTextColor.GRAY),
+                Component.text(args[0], NamedTextColor.RED),
+                Component.text(" is Not Found.", NamedTextColor.GRAY)
             ));
             return true;
         }
@@ -41,25 +41,25 @@ public class ConfigCommand implements LeavesSubcommand {
             try {
                 verifiedConfig.set(args[1]);
                 sender.sendMessage(Component.join(JoinConfiguration.noSeparators(),
-                        Component.text("Config ", NamedTextColor.GRAY),
-                        Component.text(args[0], NamedTextColor.AQUA),
-                        Component.text(" changed to ", NamedTextColor.GRAY),
-                        Component.text(verifiedConfig.getString(), NamedTextColor.AQUA)
+                    Component.text("Config ", NamedTextColor.GRAY),
+                    Component.text(args[0], NamedTextColor.AQUA),
+                    Component.text(" changed to ", NamedTextColor.GRAY),
+                    Component.text(verifiedConfig.getString(), NamedTextColor.AQUA)
                 ));
             } catch (IllegalArgumentException exception) {
                 sender.sendMessage(Component.join(JoinConfiguration.noSeparators(),
-                        Component.text("Config ", NamedTextColor.GRAY),
-                        Component.text(args[0], NamedTextColor.RED),
-                        Component.text(" modify error by ", NamedTextColor.GRAY),
-                        Component.text(exception.getMessage(), NamedTextColor.RED)
+                    Component.text("Config ", NamedTextColor.GRAY),
+                    Component.text(args[0], NamedTextColor.RED),
+                    Component.text(" modify error by ", NamedTextColor.GRAY),
+                    Component.text(exception.getMessage(), NamedTextColor.RED)
                 ));
             }
         } else {
             sender.sendMessage(Component.join(JoinConfiguration.noSeparators(),
-                    Component.text("Config ", NamedTextColor.GRAY),
-                    Component.text(args[0], NamedTextColor.AQUA),
-                    Component.text(" value is ", NamedTextColor.GRAY),
-                    Component.text(verifiedConfig.getString(), NamedTextColor.AQUA)
+                Component.text("Config ", NamedTextColor.GRAY),
+                Component.text(args[0], NamedTextColor.AQUA),
+                Component.text(" value is ", NamedTextColor.GRAY),
+                Component.text(verifiedConfig.getString(), NamedTextColor.AQUA)
             ));
         }
 
@@ -86,7 +86,7 @@ public class ConfigCommand implements LeavesSubcommand {
             int dotIndex = arg.lastIndexOf(".");
             builder = builder.createOffset(builder.getInput().lastIndexOf(' ') + dotIndex + 2);
             LeavesCommandUtil.getListClosestMatchingLast(sender, arg.substring(dotIndex + 1), GlobalConfigManager.getVerifiedConfigSubPaths(arg), "bukkit.command.leaves.config")
-                    .forEach(builder::suggest);
+                .forEach(builder::suggest);
             return builder.buildFuture();
         }
         return null;

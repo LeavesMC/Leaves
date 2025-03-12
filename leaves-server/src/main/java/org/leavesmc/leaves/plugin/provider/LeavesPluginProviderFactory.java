@@ -33,7 +33,7 @@ public class LeavesPluginProviderFactory implements PluginTypeFactory<PaperPlugi
 
         if (configuration.getLoader() != null) {
             try (
-                    PaperSimplePluginClassLoader simplePluginClassLoader = new PaperSimplePluginClassLoader(source, file, configuration, this.getClass().getClassLoader())
+                PaperSimplePluginClassLoader simplePluginClassLoader = new PaperSimplePluginClassLoader(source, file, configuration, this.getClass().getClassLoader())
             ) {
                 PluginLoader loader = ProviderUtil.loadClass(configuration.getLoader(), PluginLoader.class, simplePluginClassLoader);
                 loader.classloader(builder);

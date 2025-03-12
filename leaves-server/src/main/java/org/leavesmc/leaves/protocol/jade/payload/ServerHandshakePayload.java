@@ -24,15 +24,15 @@ public record ServerHandshakePayload(Map<ResourceLocation, Object> serverConfig,
 
     private static final ResourceLocation PACKET_SERVER_HANDSHAKE = JadeProtocol.id("server_handshake");
     private static final StreamCodec<RegistryFriendlyByteBuf, ServerHandshakePayload> CODEC = StreamCodec.composite(
-            ByteBufCodecs.map(Maps::newHashMapWithExpectedSize, ResourceLocation.STREAM_CODEC, PRIMITIVE_STREAM_CODEC),
-            ServerHandshakePayload::serverConfig,
-            ByteBufCodecs.registry(Registries.BLOCK).apply(ByteBufCodecs.list()),
-            ServerHandshakePayload::shearableBlocks,
-            ByteBufCodecs.<ByteBuf, ResourceLocation>list().apply(ResourceLocation.STREAM_CODEC),
-            ServerHandshakePayload::blockProviderIds,
-            ByteBufCodecs.<ByteBuf, ResourceLocation>list().apply(ResourceLocation.STREAM_CODEC),
-            ServerHandshakePayload::entityProviderIds,
-            ServerHandshakePayload::new);
+        ByteBufCodecs.map(Maps::newHashMapWithExpectedSize, ResourceLocation.STREAM_CODEC, PRIMITIVE_STREAM_CODEC),
+        ServerHandshakePayload::serverConfig,
+        ByteBufCodecs.registry(Registries.BLOCK).apply(ByteBufCodecs.list()),
+        ServerHandshakePayload::shearableBlocks,
+        ByteBufCodecs.<ByteBuf, ResourceLocation>list().apply(ResourceLocation.STREAM_CODEC),
+        ServerHandshakePayload::blockProviderIds,
+        ByteBufCodecs.<ByteBuf, ResourceLocation>list().apply(ResourceLocation.STREAM_CODEC),
+        ServerHandshakePayload::entityProviderIds,
+        ServerHandshakePayload::new);
 
     @Override
     public void write(FriendlyByteBuf buf) {

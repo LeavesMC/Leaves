@@ -356,7 +356,7 @@ public final class LeavesConfig {
 
         public int shulkerBoxStackSize = 1;
         @GlobalConfig(value = "stackable-shulker-boxes", validator = StackableShulkerValidator.class)
-        private String stackableShulkerBoxes = "false";
+        private final String stackableShulkerBoxes = "false";
 
         private static class StackableShulkerValidator extends StringConfigValidator {
             @Override

@@ -163,7 +163,8 @@ public class PcaSyncProtocol {
                                 return;
                             }
                         }
-                        case EVERYONE -> {}
+                        case EVERYONE -> {
+                        }
                         case null -> LeavesLogger.LOGGER.warning("pcaSyncPlayerEntity wtf???");
                     }
                 }

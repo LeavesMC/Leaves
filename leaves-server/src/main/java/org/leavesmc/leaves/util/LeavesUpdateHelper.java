@@ -133,10 +133,10 @@ public class LeavesUpdateHelper {
                 Files.deleteIfExists(outFile);
 
                 try (
-                        final ReadableByteChannel source = Channels.newChannel(new URI(
-                                buildInfo.url + LeavesConfig.mics.autoUpdate.source).toURL().openStream()
-                        );
-                        final FileChannel fileChannel = FileChannel.open(outFile, CREATE, WRITE, TRUNCATE_EXISTING)
+                    final ReadableByteChannel source = Channels.newChannel(new URI(
+                        buildInfo.url + LeavesConfig.mics.autoUpdate.source).toURL().openStream()
+                    );
+                    final FileChannel fileChannel = FileChannel.open(outFile, CREATE, WRITE, TRUNCATE_EXISTING)
                 ) {
                     fileChannel.transferFrom(source, 0, Long.MAX_VALUE);
                     LeavesLogger.LOGGER.info("Download " + buildInfo.fileName + " completed.");
@@ -204,7 +204,7 @@ public class LeavesUpdateHelper {
     private static LeavesBuildInfo getLatestBuildInfo(String mcVersion, String gitHash) {
         try {
             HttpURLConnection connection = (HttpURLConnection) new URI(
-                    "https://api.leavesmc.org/v2/projects/leaves/versions/" + mcVersion + "/builds/latest"
+                "https://api.leavesmc.org/v2/projects/leaves/versions/" + mcVersion + "/builds/latest"
             ).toURL().openConnection();
             connection.connect();
             if (connection.getResponseCode() == HttpURLConnection.HTTP_NOT_FOUND) {
@@ -243,7 +243,7 @@ public class LeavesUpdateHelper {
         }
     }
 
-    private record LeavesBuildInfo(int build, String fileName, String sha256, boolean needUpdate,  String url) {
+    private record LeavesBuildInfo(int build, String fileName, String sha256, boolean needUpdate, String url) {
         public static LeavesBuildInfo ERROR = null;
     }
 }

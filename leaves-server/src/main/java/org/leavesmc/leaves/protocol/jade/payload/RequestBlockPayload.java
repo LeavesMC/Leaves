@@ -24,14 +24,14 @@ public record RequestBlockPayload(BlockAccessorImpl.SyncData data, List<@Nullabl
 
     private static final ResourceLocation PACKET_REQUEST_BLOCK = JadeProtocol.id("request_block");
     private static final StreamCodec<RegistryFriendlyByteBuf, RequestBlockPayload> CODEC = StreamCodec.composite(
-            BlockAccessorImpl.SyncData.STREAM_CODEC,
-            RequestBlockPayload::data,
-            ByteBufCodecs.<ByteBuf, IServerDataProvider<BlockAccessor>>list()
-                    .apply(ByteBufCodecs.idMapper(
-                            $ -> Objects.requireNonNull(blockDataProviders.idMapper()).byId($),
-                            $ -> Objects.requireNonNull(blockDataProviders.idMapper()).getIdOrThrow($))),
-            RequestBlockPayload::dataProviders,
-            RequestBlockPayload::new);
+        BlockAccessorImpl.SyncData.STREAM_CODEC,
+        RequestBlockPayload::data,
+        ByteBufCodecs.<ByteBuf, IServerDataProvider<BlockAccessor>>list()
+            .apply(ByteBufCodecs.idMapper(
+                $ -> Objects.requireNonNull(blockDataProviders.idMapper()).byId($),
+                $ -> Objects.requireNonNull(blockDataProviders.idMapper()).getIdOrThrow($))),
+        RequestBlockPayload::dataProviders,
+        RequestBlockPayload::new);
 
     @Override
     public void write(FriendlyByteBuf buf) {

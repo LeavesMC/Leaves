@@ -39,8 +39,8 @@ public class LeavesServerConfigProvider extends ServerConfigProvider {
     private static class YamlConfigParser implements ConfigParser {
         public static final YamlConfigParser INSTANCE = new YamlConfigParser();
         protected static final Gson GSON = new GsonBuilder()
-                .registerTypeAdapter(MemorySection.class, (JsonSerializer<MemorySection>) (obj, type, ctx) -> ctx.serialize(obj.getValues(false)))
-                .create();
+            .registerTypeAdapter(MemorySection.class, (JsonSerializer<MemorySection>) (obj, type, ctx) -> ctx.serialize(obj.getValues(false)))
+            .create();
 
         @Override
         public JsonElement load(String file, ExcludedConfigFilter filter) throws IOException {
@@ -104,32 +104,32 @@ public class LeavesServerConfigProvider extends ServerConfigProvider {
 
     static {
         ImmutableMap.Builder<String, ConfigParser> files = ImmutableMap.<String, ConfigParser>builder()
-                .put("server.properties", PropertiesConfigParser.INSTANCE)
-                .put("bukkit.yml", YamlConfigParser.INSTANCE)
-                .put("spigot.yml", YamlConfigParser.INSTANCE)
-                .put("paper/", SplitYamlConfigParser.INSTANCE)
-                .put("leaves.yml", YamlConfigParser.INSTANCE);
+            .put("server.properties", PropertiesConfigParser.INSTANCE)
+            .put("bukkit.yml", YamlConfigParser.INSTANCE)
+            .put("spigot.yml", YamlConfigParser.INSTANCE)
+            .put("paper/", SplitYamlConfigParser.INSTANCE)
+            .put("leaves.yml", YamlConfigParser.INSTANCE);
 
         for (String config : getSystemPropertyList("spark.serverconfigs.extra")) {
             files.put(config, YamlConfigParser.INSTANCE);
         }
 
         ImmutableSet.Builder<String> hiddenPaths = ImmutableSet.<String>builder()
-                .add("database")
-                .add("settings.bungeecord-addresses")
-                .add("settings.velocity-support.secret")
-                .add("proxies.velocity.secret")
-                .add("server-ip")
-                .add("motd")
-                .add("resource-pack")
-                .add("rcon<dot>password")
-                .add("rcon<dot>ip")
-                .add("level-seed")
-                .add("world-settings.*.feature-seeds")
-                .add("world-settings.*.seed-*")
-                .add("feature-seeds")
-                .add("seed-*")
-                .addAll(getSystemPropertyList("spark.serverconfigs.hiddenpaths"));
+            .add("database")
+            .add("settings.bungeecord-addresses")
+            .add("settings.velocity-support.secret")
+            .add("proxies.velocity.secret")
+            .add("server-ip")
+            .add("motd")
+            .add("resource-pack")
+            .add("rcon<dot>password")
+            .add("rcon<dot>ip")
+            .add("level-seed")
+            .add("world-settings.*.feature-seeds")
+            .add("world-settings.*.seed-*")
+            .add("feature-seeds")
+            .add("seed-*")
+            .addAll(getSystemPropertyList("spark.serverconfigs.hiddenpaths"));
 
         FILES = files.build();
         HIDDEN_PATHS = hiddenPaths.build();

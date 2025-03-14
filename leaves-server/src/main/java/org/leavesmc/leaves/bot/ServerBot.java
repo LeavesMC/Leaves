@@ -142,10 +142,10 @@ public class ServerBot extends ServerPlayer {
 
     public void renderAll() {
         this.server.getPlayerList().getPlayers().forEach(
-                player -> {
-                    this.sendPlayerInfo(player);
-                    this.sendFakeDataIfNeed(player, false);
-                }
+            player -> {
+                this.sendPlayerInfo(player);
+                this.sendFakeDataIfNeed(player, false);
+            }
         );
     }
 
@@ -295,7 +295,7 @@ public class ServerBot extends ServerPlayer {
             if (this.fallDistance > 0.0F) {
                 state.getBlock().fallOn(serverLevel, state, pos, this, this.fallDistance);
                 serverLevel.gameEvent(GameEvent.HIT_GROUND, this.position(),
-                        GameEvent.Context.of(this, this.mainSupportingBlockPos.map(supportingPos -> this.level().getBlockState(supportingPos)).orElse(state))
+                    GameEvent.Context.of(this, this.mainSupportingBlockPos.map(supportingPos -> this.level().getBlockState(supportingPos)).orElse(state))
                 );
             }
 

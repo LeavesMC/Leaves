@@ -6,7 +6,8 @@ import net.minecraft.server.level.ServerLevel;
 
 public class ArrayConstants {
 
-    private ArrayConstants() {}
+    private ArrayConstants() {
+    }
 
     public static final Object[] emptyObjectArray = new Object[0];
     public static final int[] emptyIntArray = new int[0];

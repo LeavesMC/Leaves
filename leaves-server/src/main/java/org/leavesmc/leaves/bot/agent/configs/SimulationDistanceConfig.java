@@ -40,7 +40,7 @@ public class SimulationDistanceConfig extends AbstractBotConfig<Integer> {
 
     @Override
     public void load(@NotNull CompoundTag nbt) {
-        this.setValue(new CommandArgumentResult(new ArrayList<>(){{
+        this.setValue(new CommandArgumentResult(new ArrayList<>() {{
             add(nbt.getInt("simulation_distance"));
         }}));
     }

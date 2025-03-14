@@ -37,8 +37,8 @@ public class IRegionFileFactory {
     @NotNull
     public static Pattern getRegionFileRegex() {
         String extensionsPattern = String.join("|", regionArguments.stream()
-                .map(extension -> extension.replace(".", ""))
-                .toList());
+            .map(extension -> extension.replace(".", ""))
+            .toList());
         return Pattern.compile("^r\\.(-?[0-9]+)\\.(-?[0-9]+)\\.(" + extensionsPattern + ")$");
     }
 

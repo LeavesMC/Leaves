@@ -17,7 +17,7 @@ public class ShulkerBoxUtils {
 
     public static int getItemStackMaxCount(ItemStack stack) {
         if (LeavesConfig.modify.shulkerBoxStackSize > 1 && stack.getItem() instanceof BlockItem bi &&
-                bi.getBlock() instanceof ShulkerBoxBlock && shulkerBoxNoItem(stack)) {
+            bi.getBlock() instanceof ShulkerBoxBlock && shulkerBoxNoItem(stack)) {
             return LeavesConfig.modify.shulkerBoxStackSize;
         }
         return stack.getMaxStackSize();

@@ -32,8 +32,8 @@ public class SpawnPhantomConfig extends AbstractBotConfig<Boolean> {
     @Override
     public List<String> getMessage() {
         return List.of(
-                bot.getScoreboardName() + "'s spawn_phantom: " + this.getValue(),
-                bot.getScoreboardName() + "'s not_sleeping_ticks: " + bot.notSleepTicks
+            bot.getScoreboardName() + "'s spawn_phantom: " + this.getValue(),
+            bot.getScoreboardName() + "'s not_sleeping_ticks: " + bot.notSleepTicks
         );
     }
 

@@ -108,21 +108,21 @@ public class HopperCounter {
         long total = getTotalItems();
         if (total <= 0) {
             return Collections.singletonList(Component.text()
-                    .append(Component.text("No items for "), coloredName)
-                    .append(Component.text(" yet ("), Component.text(String.format("%.2f ", ticks / (20.0 * 60.0)), Style.style(TextDecoration.BOLD)))
-                    .append(Component.text("min"), Component.text(realTime ? " - real time" : ""), Component.text(")"))
-                    .build());
+                .append(Component.text("No items for "), coloredName)
+                .append(Component.text(" yet ("), Component.text(String.format("%.2f ", ticks / (20.0 * 60.0)), Style.style(TextDecoration.BOLD)))
+                .append(Component.text("min"), Component.text(realTime ? " - real time" : ""), Component.text(")"))
+                .build());
         }
 
         List<Component> items = new ArrayList<>();
         items.add(Component.text()
-                .append(Component.text("Items for "), coloredName, Component.text(" "))
-                .append(Component.text("("), Component.text(String.format("%.2f ", ticks * 1.0 / (20 * 60)), Style.style(TextDecoration.BOLD)))
-                .append(Component.text("min"), Component.text(realTime ? " - real time" : ""), Component.text("), "))
-                .append(Component.text("total: "), Component.text(total, Style.style(TextDecoration.BOLD)), Component.text(", "))
-                .append(Component.text("("), Component.text(String.format("%.1f", total * 1.0 * (20 * 60 * 60) / ticks), Style.style(TextDecoration.BOLD)))
-                .append(Component.text("/h):"))
-                .build());
+            .append(Component.text("Items for "), coloredName, Component.text(" "))
+            .append(Component.text("("), Component.text(String.format("%.2f ", ticks * 1.0 / (20 * 60)), Style.style(TextDecoration.BOLD)))
+            .append(Component.text("min"), Component.text(realTime ? " - real time" : ""), Component.text("), "))
+            .append(Component.text("total: "), Component.text(total, Style.style(TextDecoration.BOLD)), Component.text(", "))
+            .append(Component.text("("), Component.text(String.format("%.1f", total * 1.0 * (20 * 60 * 60) / ticks), Style.style(TextDecoration.BOLD)))
+            .append(Component.text("/h):"))
+            .build());
 
         items.addAll(counter.object2LongEntrySet().stream().sorted((e, f) -> Long.compare(f.getLongValue(), e.getLongValue())).map(entry -> {
             Item item = entry.getKey();
@@ -137,102 +137,102 @@ public class HopperCounter {
 
             long count = entry.getLongValue();
             return Component.text()
-                    .append(Component.text("- ", NamedTextColor.GRAY))
-                    .append(name)
-                    .append(Component.text(": ", NamedTextColor.GRAY))
-                    .append(Component.text(count, Style.style(TextDecoration.BOLD)), Component.text(", ", NamedTextColor.GRAY))
-                    .append(Component.text(String.format("%.1f", count * (20.0 * 60.0 * 60.0) / ticks), Style.style(TextDecoration.BOLD)))
-                    .append(Component.text("/h"))
-                    .build();
+                .append(Component.text("- ", NamedTextColor.GRAY))
+                .append(name)
+                .append(Component.text(": ", NamedTextColor.GRAY))
+                .append(Component.text(count, Style.style(TextDecoration.BOLD)), Component.text(", ", NamedTextColor.GRAY))
+                .append(Component.text(String.format("%.1f", count * (20.0 * 60.0 * 60.0) / ticks), Style.style(TextDecoration.BOLD)))
+                .append(Component.text("/h"))
+                .build();
         }).toList());
         return items;
     }
 
     private static final Map<Item, Block> DEFAULTS = Map.<Item, Block>ofEntries(
-            entry(Items.DANDELION, Blocks.YELLOW_WOOL),
-            entry(Items.POPPY, Blocks.RED_WOOL),
-            entry(Items.BLUE_ORCHID, Blocks.LIGHT_BLUE_WOOL),
-            entry(Items.ALLIUM, Blocks.MAGENTA_WOOL),
-            entry(Items.AZURE_BLUET, Blocks.SNOW_BLOCK),
-            entry(Items.RED_TULIP, Blocks.RED_WOOL),
-            entry(Items.ORANGE_TULIP, Blocks.ORANGE_WOOL),
-            entry(Items.WHITE_TULIP, Blocks.SNOW_BLOCK),
-            entry(Items.PINK_TULIP, Blocks.PINK_WOOL),
-            entry(Items.OXEYE_DAISY, Blocks.SNOW_BLOCK),
-            entry(Items.CORNFLOWER, Blocks.BLUE_WOOL),
-            entry(Items.WITHER_ROSE, Blocks.BLACK_WOOL),
-            entry(Items.LILY_OF_THE_VALLEY, Blocks.WHITE_WOOL),
-            entry(Items.BROWN_MUSHROOM, Blocks.BROWN_MUSHROOM_BLOCK),
-            entry(Items.RED_MUSHROOM, Blocks.RED_MUSHROOM_BLOCK),
-            entry(Items.STICK, Blocks.OAK_PLANKS),
-            entry(Items.GOLD_INGOT, Blocks.GOLD_BLOCK),
-            entry(Items.IRON_INGOT, Blocks.IRON_BLOCK),
-            entry(Items.DIAMOND, Blocks.DIAMOND_BLOCK),
-            entry(Items.NETHERITE_INGOT, Blocks.NETHERITE_BLOCK),
-            entry(Items.SUNFLOWER, Blocks.YELLOW_WOOL),
-            entry(Items.LILAC, Blocks.MAGENTA_WOOL),
-            entry(Items.ROSE_BUSH, Blocks.RED_WOOL),
-            entry(Items.PEONY, Blocks.PINK_WOOL),
-            entry(Items.CARROT, Blocks.ORANGE_WOOL),
-            entry(Items.APPLE, Blocks.RED_WOOL),
-            entry(Items.WHEAT, Blocks.HAY_BLOCK),
-            entry(Items.PORKCHOP, Blocks.PINK_WOOL),
-            entry(Items.RABBIT, Blocks.PINK_WOOL),
-            entry(Items.CHICKEN, Blocks.WHITE_TERRACOTTA),
-            entry(Items.BEEF, Blocks.NETHERRACK),
-            entry(Items.ENCHANTED_GOLDEN_APPLE, Blocks.GOLD_BLOCK),
-            entry(Items.COD, Blocks.WHITE_TERRACOTTA),
-            entry(Items.SALMON, Blocks.ACACIA_PLANKS),
-            entry(Items.ROTTEN_FLESH, Blocks.BROWN_WOOL),
-            entry(Items.PUFFERFISH, Blocks.YELLOW_TERRACOTTA),
-            entry(Items.TROPICAL_FISH, Blocks.ORANGE_WOOL),
-            entry(Items.POTATO, Blocks.WHITE_TERRACOTTA),
-            entry(Items.MUTTON, Blocks.RED_WOOL),
-            entry(Items.BEETROOT, Blocks.NETHERRACK),
-            entry(Items.MELON_SLICE, Blocks.MELON),
-            entry(Items.POISONOUS_POTATO, Blocks.SLIME_BLOCK),
-            entry(Items.SPIDER_EYE, Blocks.NETHERRACK),
-            entry(Items.GUNPOWDER, Blocks.GRAY_WOOL),
-            entry(Items.TURTLE_SCUTE, Blocks.LIME_WOOL),
-            entry(Items.ARMADILLO_SCUTE, Blocks.ANCIENT_DEBRIS),
-            entry(Items.FEATHER, Blocks.WHITE_WOOL),
-            entry(Items.FLINT, Blocks.BLACK_WOOL),
-            entry(Items.LEATHER, Blocks.SPRUCE_PLANKS),
-            entry(Items.GLOWSTONE_DUST, Blocks.GLOWSTONE),
-            entry(Items.PAPER, Blocks.WHITE_WOOL),
-            entry(Items.BRICK, Blocks.BRICKS),
-            entry(Items.INK_SAC, Blocks.BLACK_WOOL),
-            entry(Items.SNOWBALL, Blocks.SNOW_BLOCK),
-            entry(Items.WATER_BUCKET, Blocks.WATER),
-            entry(Items.LAVA_BUCKET, Blocks.LAVA),
-            entry(Items.MILK_BUCKET, Blocks.WHITE_WOOL),
-            entry(Items.CLAY_BALL, Blocks.CLAY),
-            entry(Items.COCOA_BEANS, Blocks.COCOA),
-            entry(Items.BONE, Blocks.BONE_BLOCK),
-            entry(Items.COD_BUCKET, Blocks.BROWN_TERRACOTTA),
-            entry(Items.PUFFERFISH_BUCKET, Blocks.YELLOW_TERRACOTTA),
-            entry(Items.SALMON_BUCKET, Blocks.PINK_TERRACOTTA),
-            entry(Items.TROPICAL_FISH_BUCKET, Blocks.ORANGE_TERRACOTTA),
-            entry(Items.SUGAR, Blocks.WHITE_WOOL),
-            entry(Items.BLAZE_POWDER, Blocks.GOLD_BLOCK),
-            entry(Items.ENDER_PEARL, Blocks.WARPED_PLANKS),
-            entry(Items.NETHER_STAR, Blocks.DIAMOND_BLOCK),
-            entry(Items.PRISMARINE_CRYSTALS, Blocks.SEA_LANTERN),
-            entry(Items.PRISMARINE_SHARD, Blocks.PRISMARINE),
-            entry(Items.RABBIT_HIDE, Blocks.OAK_PLANKS),
-            entry(Items.CHORUS_FRUIT, Blocks.PURPUR_BLOCK),
-            entry(Items.SHULKER_SHELL, Blocks.SHULKER_BOX),
-            entry(Items.NAUTILUS_SHELL, Blocks.BONE_BLOCK),
-            entry(Items.HEART_OF_THE_SEA, Blocks.CONDUIT),
-            entry(Items.HONEYCOMB, Blocks.HONEYCOMB_BLOCK),
-            entry(Items.NAME_TAG, Blocks.BONE_BLOCK),
-            entry(Items.TOTEM_OF_UNDYING, Blocks.YELLOW_TERRACOTTA),
-            entry(Items.TRIDENT, Blocks.PRISMARINE),
-            entry(Items.GHAST_TEAR, Blocks.WHITE_WOOL),
-            entry(Items.PHANTOM_MEMBRANE, Blocks.BONE_BLOCK),
-            entry(Items.EGG, Blocks.BONE_BLOCK),
-            entry(Items.COPPER_INGOT, Blocks.COPPER_BLOCK),
-            entry(Items.AMETHYST_SHARD, Blocks.AMETHYST_BLOCK)
+        entry(Items.DANDELION, Blocks.YELLOW_WOOL),
+        entry(Items.POPPY, Blocks.RED_WOOL),
+        entry(Items.BLUE_ORCHID, Blocks.LIGHT_BLUE_WOOL),
+        entry(Items.ALLIUM, Blocks.MAGENTA_WOOL),
+        entry(Items.AZURE_BLUET, Blocks.SNOW_BLOCK),
+        entry(Items.RED_TULIP, Blocks.RED_WOOL),
+        entry(Items.ORANGE_TULIP, Blocks.ORANGE_WOOL),
+        entry(Items.WHITE_TULIP, Blocks.SNOW_BLOCK),
+        entry(Items.PINK_TULIP, Blocks.PINK_WOOL),
+        entry(Items.OXEYE_DAISY, Blocks.SNOW_BLOCK),
+        entry(Items.CORNFLOWER, Blocks.BLUE_WOOL),
+        entry(Items.WITHER_ROSE, Blocks.BLACK_WOOL),
+        entry(Items.LILY_OF_THE_VALLEY, Blocks.WHITE_WOOL),
+        entry(Items.BROWN_MUSHROOM, Blocks.BROWN_MUSHROOM_BLOCK),
+        entry(Items.RED_MUSHROOM, Blocks.RED_MUSHROOM_BLOCK),
+        entry(Items.STICK, Blocks.OAK_PLANKS),
+        entry(Items.GOLD_INGOT, Blocks.GOLD_BLOCK),
+        entry(Items.IRON_INGOT, Blocks.IRON_BLOCK),
+        entry(Items.DIAMOND, Blocks.DIAMOND_BLOCK),
+        entry(Items.NETHERITE_INGOT, Blocks.NETHERITE_BLOCK),
+        entry(Items.SUNFLOWER, Blocks.YELLOW_WOOL),
+        entry(Items.LILAC, Blocks.MAGENTA_WOOL),
+        entry(Items.ROSE_BUSH, Blocks.RED_WOOL),
+        entry(Items.PEONY, Blocks.PINK_WOOL),
+        entry(Items.CARROT, Blocks.ORANGE_WOOL),
+        entry(Items.APPLE, Blocks.RED_WOOL),
+        entry(Items.WHEAT, Blocks.HAY_BLOCK),
+        entry(Items.PORKCHOP, Blocks.PINK_WOOL),
+        entry(Items.RABBIT, Blocks.PINK_WOOL),
+        entry(Items.CHICKEN, Blocks.WHITE_TERRACOTTA),
+        entry(Items.BEEF, Blocks.NETHERRACK),
+        entry(Items.ENCHANTED_GOLDEN_APPLE, Blocks.GOLD_BLOCK),
+        entry(Items.COD, Blocks.WHITE_TERRACOTTA),
+        entry(Items.SALMON, Blocks.ACACIA_PLANKS),
+        entry(Items.ROTTEN_FLESH, Blocks.BROWN_WOOL),
+        entry(Items.PUFFERFISH, Blocks.YELLOW_TERRACOTTA),
+        entry(Items.TROPICAL_FISH, Blocks.ORANGE_WOOL),
+        entry(Items.POTATO, Blocks.WHITE_TERRACOTTA),
+        entry(Items.MUTTON, Blocks.RED_WOOL),
+        entry(Items.BEETROOT, Blocks.NETHERRACK),
+        entry(Items.MELON_SLICE, Blocks.MELON),
+        entry(Items.POISONOUS_POTATO, Blocks.SLIME_BLOCK),
+        entry(Items.SPIDER_EYE, Blocks.NETHERRACK),
+        entry(Items.GUNPOWDER, Blocks.GRAY_WOOL),
+        entry(Items.TURTLE_SCUTE, Blocks.LIME_WOOL),
+        entry(Items.ARMADILLO_SCUTE, Blocks.ANCIENT_DEBRIS),
+        entry(Items.FEATHER, Blocks.WHITE_WOOL),
+        entry(Items.FLINT, Blocks.BLACK_WOOL),
+        entry(Items.LEATHER, Blocks.SPRUCE_PLANKS),
+        entry(Items.GLOWSTONE_DUST, Blocks.GLOWSTONE),
+        entry(Items.PAPER, Blocks.WHITE_WOOL),
+        entry(Items.BRICK, Blocks.BRICKS),
+        entry(Items.INK_SAC, Blocks.BLACK_WOOL),
+        entry(Items.SNOWBALL, Blocks.SNOW_BLOCK),
+        entry(Items.WATER_BUCKET, Blocks.WATER),
+        entry(Items.LAVA_BUCKET, Blocks.LAVA),
+        entry(Items.MILK_BUCKET, Blocks.WHITE_WOOL),
+        entry(Items.CLAY_BALL, Blocks.CLAY),
+        entry(Items.COCOA_BEANS, Blocks.COCOA),
+        entry(Items.BONE, Blocks.BONE_BLOCK),
+        entry(Items.COD_BUCKET, Blocks.BROWN_TERRACOTTA),
+        entry(Items.PUFFERFISH_BUCKET, Blocks.YELLOW_TERRACOTTA),
+        entry(Items.SALMON_BUCKET, Blocks.PINK_TERRACOTTA),
+        entry(Items.TROPICAL_FISH_BUCKET, Blocks.ORANGE_TERRACOTTA),
+        entry(Items.SUGAR, Blocks.WHITE_WOOL),
+        entry(Items.BLAZE_POWDER, Blocks.GOLD_BLOCK),
+        entry(Items.ENDER_PEARL, Blocks.WARPED_PLANKS),
+        entry(Items.NETHER_STAR, Blocks.DIAMOND_BLOCK),
+        entry(Items.PRISMARINE_CRYSTALS, Blocks.SEA_LANTERN),
+        entry(Items.PRISMARINE_SHARD, Blocks.PRISMARINE),
+        entry(Items.RABBIT_HIDE, Blocks.OAK_PLANKS),
+        entry(Items.CHORUS_FRUIT, Blocks.PURPUR_BLOCK),
+        entry(Items.SHULKER_SHELL, Blocks.SHULKER_BOX),
+        entry(Items.NAUTILUS_SHELL, Blocks.BONE_BLOCK),
+        entry(Items.HEART_OF_THE_SEA, Blocks.CONDUIT),
+        entry(Items.HONEYCOMB, Blocks.HONEYCOMB_BLOCK),
+        entry(Items.NAME_TAG, Blocks.BONE_BLOCK),
+        entry(Items.TOTEM_OF_UNDYING, Blocks.YELLOW_TERRACOTTA),
+        entry(Items.TRIDENT, Blocks.PRISMARINE),
+        entry(Items.GHAST_TEAR, Blocks.WHITE_WOOL),
+        entry(Items.PHANTOM_MEMBRANE, Blocks.BONE_BLOCK),
+        entry(Items.EGG, Blocks.BONE_BLOCK),
+        entry(Items.COPPER_INGOT, Blocks.COPPER_BLOCK),
+        entry(Items.AMETHYST_SHARD, Blocks.AMETHYST_BLOCK)
     );
 
     @Nullable

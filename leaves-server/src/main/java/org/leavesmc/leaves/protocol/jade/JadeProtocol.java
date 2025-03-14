@@ -285,8 +285,8 @@ public class JadeProtocol {
     private static void rebuildShearableBlocks() {
         try {
             shearableBlocks = Collections.unmodifiableList(LootTableMineableCollector.execute(
-                    MinecraftServer.getServer().reloadableRegistries().lookup().lookupOrThrow(Registries.LOOT_TABLE),
-                    Items.SHEARS.getDefaultInstance()
+                MinecraftServer.getServer().reloadableRegistries().lookup().lookupOrThrow(Registries.LOOT_TABLE),
+                Items.SHEARS.getDefaultInstance()
             ));
         } catch (Throwable ignore) {
             shearableBlocks = List.of();

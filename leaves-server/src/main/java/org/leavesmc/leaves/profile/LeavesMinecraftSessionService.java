@@ -85,8 +85,8 @@ public class LeavesMinecraftSessionService extends PaperMinecraftSessionService 
                         }
 
                         final Set<ProfileActionType> profileActions = response.profileActions().stream()
-                                .map(ProfileAction::type)
-                                .collect(Collectors.toSet());
+                            .map(ProfileAction::type)
+                            .collect(Collectors.toSet());
                         return new ProfileResult(result1, profileActions);
                     }
                 } catch (final MinecraftClientException e) {

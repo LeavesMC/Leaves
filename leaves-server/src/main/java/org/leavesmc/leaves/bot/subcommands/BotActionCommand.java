@@ -59,7 +59,7 @@ public class BotActionCommand implements LeavesSubcommand {
                 for (int i = 0; i < bot.getBotActions().size(); i++) {
                     AbstractBotAction<?> action = bot.getBotActions().get(i);
                     BotActionStopEvent event = new BotActionStopEvent(
-                            bot.getBukkitEntity(), action.getName(), action.getUUID(), BotActionStopEvent.Reason.COMMAND, sender
+                        bot.getBukkitEntity(), action.getName(), action.getUUID(), BotActionStopEvent.Reason.COMMAND, sender
                     );
                     event.callEvent();
                     if (!event.isCancelled()) {
@@ -78,7 +78,7 @@ public class BotActionCommand implements LeavesSubcommand {
 
                     AbstractBotAction<?> action = bot.getBotActions().get(i);
                     BotActionStopEvent event = new BotActionStopEvent(
-                            bot.getBukkitEntity(), action.getName(), action.getUUID(), BotActionStopEvent.Reason.COMMAND, sender
+                        bot.getBukkitEntity(), action.getName(), action.getUUID(), BotActionStopEvent.Reason.COMMAND, sender
                     );
                     event.callEvent();
                     if (!event.isCancelled()) {

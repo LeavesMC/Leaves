@@ -24,15 +24,15 @@ public record RequestEntityPayload(EntityAccessorImpl.SyncData data, List<@Nulla
 
     private static final ResourceLocation PACKET_REQUEST_ENTITY = JadeProtocol.id("request_entity");
     private static final StreamCodec<RegistryFriendlyByteBuf, RequestEntityPayload> CODEC = StreamCodec.composite(
-            EntityAccessorImpl.SyncData.STREAM_CODEC,
-            RequestEntityPayload::data,
-            ByteBufCodecs.<ByteBuf, IServerDataProvider<EntityAccessor>>list()
-                    .apply(ByteBufCodecs.idMapper(
-                            $ -> Objects.requireNonNull(entityDataProviders.idMapper()).byId($),
-                            $ -> Objects.requireNonNull(entityDataProviders.idMapper()).getIdOrThrow($)
-                    )),
-            RequestEntityPayload::dataProviders,
-            RequestEntityPayload::new);
+        EntityAccessorImpl.SyncData.STREAM_CODEC,
+        RequestEntityPayload::data,
+        ByteBufCodecs.<ByteBuf, IServerDataProvider<EntityAccessor>>list()
+            .apply(ByteBufCodecs.idMapper(
+                $ -> Objects.requireNonNull(entityDataProviders.idMapper()).byId($),
+                $ -> Objects.requireNonNull(entityDataProviders.idMapper()).getIdOrThrow($)
+            )),
+        RequestEntityPayload::dataProviders,
+        RequestEntityPayload::new);
 
 
     @Override

@@ -54,8 +54,8 @@ public class BotCommand extends Command {
         commands.put(Set.of("list"), new BotListCommand());
 
         return commands.entrySet().stream()
-                .flatMap(entry -> entry.getKey().stream().map(s -> Map.entry(s, entry.getValue())))
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+            .flatMap(entry -> entry.getKey().stream().map(s -> Map.entry(s, entry.getValue())))
+            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     });
 
     @NotNull

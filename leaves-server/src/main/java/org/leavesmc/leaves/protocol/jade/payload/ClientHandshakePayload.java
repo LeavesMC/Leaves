@@ -14,9 +14,9 @@ public record ClientHandshakePayload(String protocolVersion) implements LeavesCu
     private static final ResourceLocation PACKET_CLIENT_HANDSHAKE = JadeProtocol.id("client_handshake");
 
     private static final StreamCodec<RegistryFriendlyByteBuf, ClientHandshakePayload> CODEC = StreamCodec.composite(
-            ByteBufCodecs.STRING_UTF8,
-            ClientHandshakePayload::protocolVersion,
-            ClientHandshakePayload::new);
+        ByteBufCodecs.STRING_UTF8,
+        ClientHandshakePayload::protocolVersion,
+        ClientHandshakePayload::new);
 
     @Override
     public void write(FriendlyByteBuf buf) {

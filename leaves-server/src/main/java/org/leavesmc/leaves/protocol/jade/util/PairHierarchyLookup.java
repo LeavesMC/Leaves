@@ -47,8 +47,8 @@ public class PairHierarchyLookup<T extends IJadeProvider> implements IHierarchyL
                     return firstList;
                 }
                 return ImmutableList.sortedCopyOf(
-                        Comparator.comparingInt(JadeProtocol.priorities::byValue),
-                        Iterables.concat(firstList, secondList)
+                    Comparator.comparingInt(JadeProtocol.priorities::byValue),
+                    Iterables.concat(firstList, secondList)
                 );
             });
         } catch (ExecutionException e) {

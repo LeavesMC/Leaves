@@ -26,32 +26,32 @@ import java.util.List;
 public class LitematicaEasyPlaceProtocol {
 
     public static final ImmutableSet<Property<?>> WHITELISTED_PROPERTIES = ImmutableSet.of(
-            BlockStateProperties.INVERTED,
-            BlockStateProperties.OPEN,
-            BlockStateProperties.BELL_ATTACHMENT,
-            BlockStateProperties.AXIS,
-            BlockStateProperties.BED_PART,
-            BlockStateProperties.HALF,
-            BlockStateProperties.ATTACH_FACE,
-            BlockStateProperties.CHEST_TYPE,
-            BlockStateProperties.MODE_COMPARATOR,
-            BlockStateProperties.DOOR_HINGE,
-            BlockStateProperties.FACING_HOPPER,
-            BlockStateProperties.HORIZONTAL_FACING,
-            BlockStateProperties.ORIENTATION,
-            BlockStateProperties.RAIL_SHAPE,
-            BlockStateProperties.RAIL_SHAPE_STRAIGHT,
-            BlockStateProperties.SLAB_TYPE,
-            BlockStateProperties.STAIRS_SHAPE,
-            BlockStateProperties.BITES,
-            BlockStateProperties.DELAY,
-            BlockStateProperties.NOTE,
-            BlockStateProperties.ROTATION_16
+        BlockStateProperties.INVERTED,
+        BlockStateProperties.OPEN,
+        BlockStateProperties.BELL_ATTACHMENT,
+        BlockStateProperties.AXIS,
+        BlockStateProperties.BED_PART,
+        BlockStateProperties.HALF,
+        BlockStateProperties.ATTACH_FACE,
+        BlockStateProperties.CHEST_TYPE,
+        BlockStateProperties.MODE_COMPARATOR,
+        BlockStateProperties.DOOR_HINGE,
+        BlockStateProperties.FACING_HOPPER,
+        BlockStateProperties.HORIZONTAL_FACING,
+        BlockStateProperties.ORIENTATION,
+        BlockStateProperties.RAIL_SHAPE,
+        BlockStateProperties.RAIL_SHAPE_STRAIGHT,
+        BlockStateProperties.SLAB_TYPE,
+        BlockStateProperties.STAIRS_SHAPE,
+        BlockStateProperties.BITES,
+        BlockStateProperties.DELAY,
+        BlockStateProperties.NOTE,
+        BlockStateProperties.ROTATION_16
     );
 
     public static final ImmutableSet<Property<?>> BLACKLISTED_PROPERTIES = ImmutableSet.of(
-            BlockStateProperties.WATERLOGGED,
-            BlockStateProperties.POWERED
+        BlockStateProperties.WATERLOGGED,
+        BlockStateProperties.POWERED
     );
 
     public static BlockState applyPlacementProtocol(BlockState state, BlockPlaceContext context) {

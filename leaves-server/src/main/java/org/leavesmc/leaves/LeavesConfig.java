@@ -284,6 +284,9 @@ public final class LeavesConfig {
 
                 @GlobalConfig("give-bad-omen-when-kill-patrol-leader")
                 public boolean giveBadOmenWhenKillPatrolLeader = false;
+
+                @GlobalConfig("skip-height-check")
+                public boolean skipHeightCheck = false;
             }
 
             @GlobalConfig("allow-anvil-destroy-item-entities")

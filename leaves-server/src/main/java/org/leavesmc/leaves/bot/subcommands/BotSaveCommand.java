@@ -16,19 +16,20 @@ import java.util.List;
 import static net.kyori.adventure.text.Component.text;
 
 public class BotSaveCommand implements LeavesSubcommand {
+
     @Override
     public boolean execute(CommandSender sender, String subCommand, String[] args) {
         if (!LeavesConfig.modify.fakeplayer.canManualSaveAndLoad) {
             return false;
         }
 
-        if (args.length < 2) {
+        if (args.length < 1) {
             sender.sendMessage(text("Use /bot save <name> to save a fakeplayer", NamedTextColor.RED));
             return false;
         }
 
         BotList botList = BotList.INSTANCE;
-        ServerBot bot = botList.getBotByName(args[1]);
+        ServerBot bot = botList.getBotByName(args[0]);
 
         if (bot == null) {
             sender.sendMessage(text("This fakeplayer is not in server", NamedTextColor.RED));

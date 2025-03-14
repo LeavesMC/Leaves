@@ -98,7 +98,7 @@ public class ServerBot extends ServerPlayer {
 
         ImmutableMap.Builder<Configs<?>, AbstractBotConfig<?>> configBuilder = ImmutableMap.builder();
         for (Configs<?> config : Configs.getConfigs()) {
-            configBuilder.put(config, config.config.create(this));
+            configBuilder.put(config, config.createConfig(this));
         }
         this.configs = configBuilder.build();
 

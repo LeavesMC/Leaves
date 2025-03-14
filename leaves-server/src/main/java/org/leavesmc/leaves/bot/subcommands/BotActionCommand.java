@@ -22,6 +22,7 @@ import java.util.Set;
 import static net.kyori.adventure.text.Component.text;
 
 public class BotActionCommand implements LeavesSubcommand {
+
     @Override
     public boolean execute(CommandSender sender, String subCommand, String[] args) {
         if (!LeavesConfig.modify.fakeplayer.canUseAction) {
@@ -53,7 +54,7 @@ public class BotActionCommand implements LeavesSubcommand {
                 return false;
             }
 
-            String index = args[4];
+            String index = args[2];
             if (index.equals("all")) {
                 Set<AbstractBotAction<?>> forRemoval = new HashSet<>();
                 for (int i = 0; i < bot.getBotActions().size(); i++) {
@@ -145,30 +146,29 @@ public class BotActionCommand implements LeavesSubcommand {
 
         if (args.length <= 1) {
             list.addAll(botList.bots.stream().map(e -> e.getName().getString()).toList());
-        }
-
-        if (args.length == 2) {
-            list.add("list");
-            list.add("stop");
-            list.addAll(Actions.getNames());
-        }
-
-        if (args.length >= 3) {
+        } else {
             ServerBot bot = botList.getBotByName(args[0]);
-
             if (bot == null) {
                 return Collections.singletonList("<" + args[0] + " not found>");
             }
 
-            if (args[1].equals("stop")) {
-                list.add("all");
-                for (int i = 0; i < bot.getBotActions().size(); i++) {
-                    list.add(String.valueOf(i));
-                }
-            } else {
-                AbstractBotAction<?> action = Actions.getForName(args[1]);
-                if (action != null) {
-                    list.addAll(action.getArgument().tabComplete(args.length - 3));
+            if (args.length == 2) {
+                list.add("list");
+                list.add("stop");
+                list.addAll(Actions.getNames());
+            }
+
+            if (args.length >= 3) {
+                if (args[1].equals("stop")) {
+                    list.add("all");
+                    for (int i = 0; i < bot.getBotActions().size(); i++) {
+                        list.add(String.valueOf(i));
+                    }
+                } else {
+                    AbstractBotAction<?> action = Actions.getForName(args[1]);
+                    if (action != null) {
+                        list.addAll(action.getArgument().tabComplete(args.length - 3));
+                    }
                 }
             }
         }

@@ -1,55 +1,42 @@
 package org.leavesmc.leaves.command;
 
+import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
+
+import java.util.function.Function;
 
 public abstract class CommandArgumentType<E> {
 
-    public static final CommandArgumentType<Integer> INTEGER = new CommandArgumentType<>() {
-        @Override
-        public Integer pasre(@NotNull String arg) {
-            try {
-                return Integer.parseInt(arg);
-            } catch (NumberFormatException e) {
-                return null;
+    public static final CommandArgumentType<Integer> INTEGER = CommandArgumentType.of(Integer.class, Integer::parseInt);
+    public static final CommandArgumentType<Double> DOUBLE = CommandArgumentType.of(Double.class, Double::parseDouble);
+    public static final CommandArgumentType<Float> FLOAT = CommandArgumentType.of(Float.class, Float::parseFloat);
+    public static final CommandArgumentType<String> STRING = CommandArgumentType.of(String.class, (arg) -> arg);
+    public static final CommandArgumentType<Boolean> BOOLEAN = CommandArgumentType.of(Boolean.class, Boolean::parseBoolean);
+
+    private final Class<E> type;
+
+    private CommandArgumentType(Class<E> type) {
+        this.type = type;
+    }
+
+    @NotNull
+    @Contract(value = "_, _ -> new", pure = true)
+    public static <E> CommandArgumentType<E> of(Class<E> type, Function<String, E> parse) {
+        return new CommandArgumentType<>(type) {
+            @Override
+            public E parse(@NotNull String arg) {
+                try {
+                    return parse.apply(arg);
+                } catch (Exception ignore) {
+                    return null;
+                }
             }
-        }
-    };
+        };
+    }
 
-    public static final CommandArgumentType<Double> DOUBLE = new CommandArgumentType<>() {
-        @Override
-        public Double pasre(@NotNull String arg) {
-            try {
-                return Double.parseDouble(arg);
-            } catch (NumberFormatException e) {
-                return null;
-            }
-        }
-    };
+    public Class<E> getType() {
+        return type;
+    }
 
-    public static final CommandArgumentType<Float> FLOAT = new CommandArgumentType<>() {
-        @Override
-        public Float pasre(@NotNull String arg) {
-            try {
-                return Float.parseFloat(arg);
-            } catch (NumberFormatException e) {
-                return null;
-            }
-        }
-    };
-
-    public static final CommandArgumentType<String> STRING = new CommandArgumentType<>() {
-        @Override
-        public String pasre(@NotNull String arg) {
-            return arg;
-        }
-    };
-
-    public static final CommandArgumentType<Boolean> BOOLEAN = new CommandArgumentType<>() {
-        @Override
-        public Boolean pasre(@NotNull String arg) {
-            return Boolean.parseBoolean(arg);
-        }
-    };
-
-    public abstract E pasre(@NotNull String arg);
+    public abstract E parse(@NotNull String arg);
 }

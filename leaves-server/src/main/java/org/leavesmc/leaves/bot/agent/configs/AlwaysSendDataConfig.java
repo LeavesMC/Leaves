@@ -6,17 +6,18 @@ import org.leavesmc.leaves.LeavesConfig;
 
 import org.leavesmc.leaves.bot.agent.AbstractBotConfig;
 import org.leavesmc.leaves.command.CommandArgument;
-import org.leavesmc.leaves.command.CommandArgumentResult;
 import org.leavesmc.leaves.command.CommandArgumentType;
 
 import java.util.List;
 
 public class AlwaysSendDataConfig extends AbstractBotConfig<Boolean> {
 
+    public static final String NAME = "always_send_data";
+
     private boolean value;
 
     public AlwaysSendDataConfig() {
-        super("always_send_data", CommandArgument.of(CommandArgumentType.BOOLEAN).setTabComplete(0, List.of("true", "false")), AlwaysSendDataConfig::new);
+        super(NAME, CommandArgument.of(CommandArgumentType.BOOLEAN).setTabComplete(0, List.of("true", "false")));
         this.value = LeavesConfig.modify.fakeplayer.canSendDataAlways;
     }
 
@@ -26,20 +27,20 @@ public class AlwaysSendDataConfig extends AbstractBotConfig<Boolean> {
     }
 
     @Override
-    public void setValue(@NotNull CommandArgumentResult result) throws IllegalArgumentException {
-        this.value = result.readBoolean(this.value);
+    public void setValue(Boolean value) {
+        this.value = value;
     }
 
     @Override
     @NotNull
     public CompoundTag save(@NotNull CompoundTag nbt) {
         super.save(nbt);
-        nbt.putBoolean("always_send_data", this.getValue());
+        nbt.putBoolean(NAME, this.getValue());
         return nbt;
     }
 
     @Override
     public void load(@NotNull CompoundTag nbt) {
-        this.value = nbt.getBoolean("always_send_data");
+        this.setValue(nbt.getBoolean(NAME));
     }
 }

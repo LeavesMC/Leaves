@@ -21,6 +21,7 @@ import java.util.Map;
 import static net.kyori.adventure.text.Component.text;
 
 public class BotListCommand implements LeavesSubcommand {
+
     @Override
     public boolean execute(CommandSender sender, String subCommand, String[] args) {
         BotList botList = BotList.INSTANCE;

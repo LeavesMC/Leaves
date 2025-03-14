@@ -17,6 +17,7 @@ import java.util.List;
 import static net.kyori.adventure.text.Component.text;
 
 public class BotRemoveCommand implements LeavesSubcommand {
+
     private final Component errorMessage = text("Usage: /bot remove <name> [hour] [minute] [second]", NamedTextColor.RED);
 
     @Override

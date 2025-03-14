@@ -7,19 +7,17 @@ import org.leavesmc.leaves.command.CommandArgument;
 import org.leavesmc.leaves.command.CommandArgumentResult;
 
 import java.util.List;
-import java.util.function.Supplier;
 
 public abstract class AbstractBotConfig<E> {
 
     private final String name;
     private final CommandArgument argument;
-    private final Supplier<AbstractBotConfig<E>> creator;
+
     protected ServerBot bot;
 
-    public AbstractBotConfig(String name, CommandArgument argument, Supplier<AbstractBotConfig<E>> creator) {
+    public AbstractBotConfig(String name, CommandArgument argument) {
         this.name = name;
         this.argument = argument;
-        this.creator = creator;
     }
 
     public AbstractBotConfig<E> setBot(ServerBot bot) {
@@ -29,7 +27,19 @@ public abstract class AbstractBotConfig<E> {
 
     public abstract E getValue();
 
-    public abstract void setValue(@NotNull CommandArgumentResult result) throws IllegalArgumentException;
+    public abstract void setValue(E value) throws IllegalArgumentException;
+
+    @SuppressWarnings("unchecked")
+    public void setFromCommand(@NotNull CommandArgumentResult result) throws IllegalArgumentException {
+        if (argument == CommandArgument.EMPTY) {
+            throw new IllegalArgumentException("No argument for " + this.getName());
+        }
+        try {
+            this.setValue((E) result.read(argument.getArgumentTypes().getFirst().getType()));
+        } catch (ClassCastException e) {
+            throw new IllegalArgumentException("Invalid argument type for " + this.getName() + ": " + e.getMessage());
+        }
+    }
 
     public List<String> getMessage() {
         return List.of(this.bot.getScoreboardName() + "'s " + this.getName() + ": " + this.getValue());
@@ -45,11 +55,6 @@ public abstract class AbstractBotConfig<E> {
 
     public CommandArgument getArgument() {
         return argument;
-    }
-
-    @NotNull
-    public AbstractBotConfig<E> create(ServerBot bot) {
-        return this.creator.get().setBot(bot);
     }
 
     @NotNull

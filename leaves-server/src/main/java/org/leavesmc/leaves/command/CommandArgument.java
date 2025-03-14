@@ -44,11 +44,15 @@ public class CommandArgument {
         return this;
     }
 
+    public List<CommandArgumentType<?>> getArgumentTypes() {
+        return argumentTypes;
+    }
+
     public CommandArgumentResult parse(int index, String @NotNull [] args) {
         Object[] result = new Object[argumentTypes.size()];
         Arrays.fill(result, null);
         for (int i = index, j = 0; i < args.length && j < result.length; i++, j++) {
-            result[j] = argumentTypes.get(j).pasre(args[i]);
+            result[j] = argumentTypes.get(j).parse(args[i]);
         }
         return new CommandArgumentResult(new ArrayList<>(Arrays.asList(result)));
     }

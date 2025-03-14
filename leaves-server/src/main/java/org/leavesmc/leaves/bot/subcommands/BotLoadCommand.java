@@ -14,18 +14,19 @@ import java.util.List;
 import static net.kyori.adventure.text.Component.text;
 
 public class BotLoadCommand implements LeavesSubcommand {
+
     @Override
     public boolean execute(CommandSender sender, String subCommand, String[] args) {
         if (!LeavesConfig.modify.fakeplayer.canManualSaveAndLoad) {
             return false;
         }
 
-        if (args.length < 2) {
+        if (args.length < 1) {
             sender.sendMessage(text("Use /bot load <name> to save a fakeplayer", NamedTextColor.RED));
             return false;
         }
 
-        String realName = args[1];
+        String realName = args[0];
         BotList botList = BotList.INSTANCE;
         if (!botList.getSavedBotList().contains(realName)) {
             sender.sendMessage(text("This fakeplayer is not saved", NamedTextColor.RED));

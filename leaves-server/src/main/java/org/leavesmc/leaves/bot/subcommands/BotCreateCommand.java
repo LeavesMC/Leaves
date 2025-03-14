@@ -21,6 +21,7 @@ import java.util.List;
 import static net.kyori.adventure.text.Component.text;
 
 public class BotCreateCommand implements LeavesSubcommand {
+
     @Override
     public boolean execute(CommandSender sender, String subCommand, String[] args) {
         if (args.length < 1) {

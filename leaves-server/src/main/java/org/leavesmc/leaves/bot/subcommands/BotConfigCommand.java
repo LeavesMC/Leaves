@@ -21,7 +21,6 @@ import java.util.Objects;
 import static net.kyori.adventure.text.Component.text;
 
 public class BotConfigCommand implements LeavesSubcommand {
-    private static final List<String> acceptConfig = Configs.getConfigs().stream().map(config -> config.config.getName()).toList();
 
     @Override
     public boolean execute(CommandSender sender, String subCommand, String[] args) {
@@ -29,28 +28,28 @@ public class BotConfigCommand implements LeavesSubcommand {
             return false;
         }
 
-        if (args.length < 3) {
+        if (args.length < 2) {
             sender.sendMessage(text("Use /bot config <name> <config> to modify fakeplayer's config", NamedTextColor.RED));
             return false;
         }
 
-        ServerBot bot = BotList.INSTANCE.getBotByName(args[1]);
+        ServerBot bot = BotList.INSTANCE.getBotByName(args[0]);
         if (bot == null) {
             sender.sendMessage(text("This fakeplayer is not in server", NamedTextColor.RED));
             return false;
         }
 
-        if (!acceptConfig.contains(args[2])) {
+        if (!Configs.getConfigNames().contains(args[1])) {
             sender.sendMessage(text("This config is not accept", NamedTextColor.RED));
             return false;
         }
 
-        AbstractBotConfig<?> config = Objects.requireNonNull(Configs.getConfig(args[2])).config;
-        if (args.length < 4) {
+        AbstractBotConfig<?> config = bot.getConfig(Objects.requireNonNull(Configs.getConfig(args[1])));
+        if (args.length < 3) {
             config.getMessage().forEach(sender::sendMessage);
         } else {
-            String[] realArgs = new String[args.length - 3];
-            System.arraycopy(args, 3, realArgs, 0, realArgs.length);
+            String[] realArgs = new String[args.length - 2];
+            System.arraycopy(args, 2, realArgs, 0, realArgs.length);
 
             BotConfigModifyEvent event = new BotConfigModifyEvent(bot.getBukkitEntity(), config.getName(), realArgs, sender);
             Bukkit.getPluginManager().callEvent(event);
@@ -61,7 +60,7 @@ public class BotConfigCommand implements LeavesSubcommand {
             CommandArgumentResult result = config.getArgument().parse(0, realArgs);
 
             try {
-                config.setValue(result);
+                config.setFromCommand(result);
                 config.getChangeMessage().forEach(sender::sendMessage);
             } catch (IllegalArgumentException e) {
                 sender.sendMessage(text(e.getMessage(), NamedTextColor.RED));
@@ -81,16 +80,23 @@ public class BotConfigCommand implements LeavesSubcommand {
 
         if (args.length <= 1) {
             list.addAll(botList.bots.stream().map(e -> e.getName().getString()).toList());
-        }
+        } else {
+            ServerBot bot = botList.getBotByName(args[0]);
+            if (bot == null) {
+                return Collections.singletonList("<" + args[0] + " not found>");
+            } else {
+                if (args.length == 2) {
+                    list.addAll(Configs.getConfigNames());
+                }
 
-        if (args.length == 2) {
-            list.addAll(acceptConfig);
-        }
-
-        if (args.length >= 3) {
-            Configs<?> config = Configs.getConfig(args[1]);
-            if (config != null) {
-                list.addAll(config.config.getArgument().tabComplete(args.length - 3));
+                if (args.length >= 3) {
+                    Configs<?> config = Configs.getConfig(args[1]);
+                    if (config != null) {
+                        list.addAll(bot.getConfig(config).getArgument().tabComplete(args.length - 3));
+                    } else {
+                        return Collections.singletonList("<" + args[1] + " not found>");
+                    }
+                }
             }
         }
 

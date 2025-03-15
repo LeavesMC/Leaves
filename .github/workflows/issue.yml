@@ -1,0 +1,59 @@
+name: Issues
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    if: ${{ !github.event.issue.pull_request }}
+    steps:
+      - name: Check version
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            if (
+              issue.labels.some((label) => label.name === "status: needs triage") &&
+              issue.state === "open"
+            ) {
+              const { owner, repo } = context.repo;
+              const { body } = issue;
+              const lines = body.split("\n");
+              const versionLineIndex = lines.findIndex((line) =>
+                line.includes("### 服务端版本 Leaves Version")
+              );
+              const versionLine = lines[versionLineIndex + 1];
+              const version = versionLine?.match(/(\d+\.\d+\.\d+)-(\d+)/);
+              if (version) {
+                console.log(`This server is running Leaves ${version[1]} (${version[2]}).`);
+                const API = `https://api.leavesmc.org/v2/projects/leaves/versions/${version[1]}/latestGroupBuildId`;
+                fetch(API)
+                  .then(response => response.text())
+                  .then(res => {
+                    console.log(`The latest build id of Leaves ${version[1]} is ${res}.`);
+                    if (version[2] === res) {
+                      console.log("This server is running the latest Leaves.");
+                    } else if (version[2] < res) {
+                      console.log("This server is running the old Leaves.");
+                      github.rest.issues.createComment({
+                        issue_number: context.issue.number,
+                        owner,
+                        repo,
+                        body: `## 👋 Hi, The LeavesMC Team here.\nYou are running an older version of Leaves, please go to [our website](https://leavesmc.org/downloads/leaves) and download the latest version, then retry.`,
+                      });
+                    }
+                  })
+                  .catch((error) => {
+                    console.error("Failed to fetch API: ", error);
+                  });
+              } else {
+                github.rest.issues.createComment({
+                  issue_number: context.issue.number,
+                  owner,
+                  repo,
+                  body: `## 👋 Hi, The LeavesMC Team here.\nI can't find the Leaves version info in this issue, please open issues via \`/leaves report\`.`,
+                });
+              }
+            }

@@ -22,86 +22,90 @@ jobs:
               const { owner, repo } = context.repo;
               const issueNumber = context.issue.number;
               const body = issue.body;
-            
-              const versionMatch = body.match(
-                /### 服务端版本 Leaves Version\n.*?(\d+\.\d+\.\d+)-(\d+).*?/
-              );
-              const gitVersionMatch = body.match(
-                /### 服务端版本 Leaves Version\ngit-Leaves-"[a-z0-9]{7}"/
-              );
-            
-              if (versionMatch) {
-                const version = versionMatch[1];
-                const buildId = versionMatch[2];
-                console.log(`This server is running Leaves ${version} (${buildId}).`);
-            
-                try {
-                  const response = await fetch(
-                    `https://api.leavesmc.org/v2/projects/leaves/versions/${version}/latestGroupBuildId`
-                  );
-                  const latestBuildId = await response.text();
-            
-                  console.log(
-                    `The latest build id of Leaves ${version} is ${latestBuildId}.`
-                  );
-            
-                  if (buildId === latestBuildId) {
-                    console.log("This server is running the latest Leaves.");
-                    return;
+
+              if (
+                body.includes("### 服务端版本 Leaves Version")
+              ) {
+                const versionMatch = body.match(
+                  /### 服务端版本 Leaves Version\n.*?(\d+\.\d+\.\d+)-(\d+).*?/
+                );
+                const gitVersionMatch = body.match(
+                  /### 服务端版本 Leaves Version\ngit-Leaves-"[a-z0-9]{7}"/
+                );
+
+                if (versionMatch) {
+                  const version = versionMatch[1];
+                  const buildId = versionMatch[2];
+                  console.log(`This server is running Leaves ${version} (${buildId}).`);
+
+                  try {
+                    const response = await fetch(
+                      `https://api.leavesmc.org/v2/projects/leaves/versions/${version}/latestGroupBuildId`
+                    );
+                    const latestBuildId = await response.text();
+
+                    console.log(
+                      `The latest build id of Leaves ${version} is ${latestBuildId}.`
+                    );
+
+                    if (buildId === latestBuildId) {
+                      console.log("This server is running the latest Leaves.");
+                      return;
+                    }
+
+                    console.log("This server is running the old Leaves.");
+                    createComment({
+                      issue_number: issueNumber,
+                      owner,
+                      repo,
+                      body: `## 👋 Hi, The LeavesMC Team here.\nYou are running an older version of Leaves, please go to [our website](https://leavesmc.org/downloads/leaves) and download the latest version, then retry.`,
+                    });
+                    addLabels({
+                      issue_number: issueNumber,
+                      owner,
+                      repo,
+                      labels: ["resolution: awaiting response"],
+                    });
+                  } catch (error) {
+                    console.error("Failed to fetch API: ", error);
                   }
-            
-                  console.log("This server is running the old Leaves.");
+                  return;
+                } else if (gitVersionMatch) {
+                  console.log("This server is running the unsupported Leaves.");
                   createComment({
                     issue_number: issueNumber,
                     owner,
                     repo,
-                    body: `## 👋 Hi, The LeavesMC Team here.\nYou are running an older version of Leaves, please go to [our website](https://leavesmc.org/downloads/leaves) and download the latest version, then retry.`,
+                    body: `## 👋 Hi, The LeavesMC Team here.\nWe no longer support this version, please consider upgrading your server to the latest version.`,
                   });
                   addLabels({
                     issue_number: issueNumber,
                     owner,
                     repo,
-                    labels: ["resolution: awaiting response"],
+                    labels: ["resolution: unsupported"],
                   });
-                } catch (error) {
-                  console.error("Failed to fetch API: ", error);
+                  update({
+                    owner,
+                    repo,
+                    issue_number: issueNumber,
+                    state: "closed",
+                    state_reason: "not_planned",
+                  });
+                  return;
+                } else {
+                  createComment({
+                    issue_number: issueNumber,
+                    owner,
+                    repo,
+                    body: `## 👋 Hi, The LeavesMC Team here.\nI can't find the Leaves version info in this issue, please open issues via \`/leaves report\`.`,
+                  });
+                  addLabels({
+                    issue_number: issueNumber,
+                    owner,
+                    repo,
+                    labels: ["resolution: invalid"],
+                  });
+                  return;
                 }
-                return;
-              } else if (gitVersionMatch) {
-                console.log("This server is running the unsupported Leaves.");
-                createComment({
-                  issue_number: issueNumber,
-                  owner,
-                  repo,
-                  body: `## 👋 Hi, The LeavesMC Team here.\nWe no longer support this version, please consider upgrading your server to the latest version.`,
-                });
-                addLabels({
-                  issue_number: issueNumber,
-                  owner,
-                  repo,
-                  labels: ["resolution: unsupported"],
-                });
-                update({
-                  owner,
-                  repo,
-                  issue_number: issueNumber,
-                  state: "closed",
-                  state_reason: "not_planned",
-                });
-                return;
-              } else {
-                createComment({
-                  issue_number: issueNumber,
-                  owner,
-                  repo,
-                  body: `## 👋 Hi, The LeavesMC Team here.\nI can't find the Leaves version info in this issue, please open issues via \`/leaves report\`.`,
-                });
-                addLabels({
-                  issue_number: issueNumber,
-                  owner,
-                  repo,
-                  labels: ["resolution: invalid"],
-                });
-                return;
               }
             }

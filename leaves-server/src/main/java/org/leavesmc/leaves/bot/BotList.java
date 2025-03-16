@@ -23,6 +23,7 @@ import org.bukkit.craftbukkit.CraftWorld;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.LeavesConfig;
+import org.leavesmc.leaves.bot.agent.Configs;
 import org.leavesmc.leaves.event.bot.BotCreateEvent;
 import org.leavesmc.leaves.event.bot.BotJoinEvent;
 import org.leavesmc.leaves.event.bot.BotLoadEvent;
@@ -248,7 +249,7 @@ public class BotList {
     }
 
     public void networkTick() {
-        this.bots.forEach(ServerBot::doTick);
+        this.bots.stream().filter(bot -> bot.getConfigValue(Configs.TICK_TYPE) == ServerBot.TickType.NETWORK).forEach(ServerBot::doTick); // TODO perf?
     }
 
     @Nullable

@@ -3,7 +3,6 @@ package org.leavesmc.leaves.bot;
 import com.google.common.collect.ImmutableMap;
 import com.mojang.authlib.GameProfile;
 import io.papermc.paper.adventure.PaperAdventure;
-import io.papermc.paper.event.entity.EntityKnockbackEvent;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
@@ -40,7 +39,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.gameevent.GameEvent;
 import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.phys.EntityHitResult;
-import net.minecraft.world.phys.Vec3;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
@@ -72,8 +70,8 @@ import java.util.function.Predicate;
 
 public class ServerBot extends ServerPlayer {
 
-    private final Map<Configs<?>, AbstractBotConfig<?>> configs;
     private final List<AbstractBotAction<?>> actions;
+    private final Map<Configs<?>, AbstractBotConfig<?>> configs;
 
     public boolean resume = false;
     public BotCreateState createState;
@@ -87,15 +85,13 @@ public class ServerBot extends ServerPlayer {
 
     public int removeTaskId = -1;
 
-    private Vec3 knockback = Vec3.ZERO;
-
     public ServerBot(MinecraftServer server, ServerLevel world, GameProfile profile) {
         super(server, world, profile, ClientInformation.createDefault());
         this.entityData.set(Player.DATA_PLAYER_MODE_CUSTOMISATION, (byte) -2);
 
         this.gameMode = new ServerBotGameMode(this);
-        this.actions = new ArrayList<>();
 
+        this.actions = new ArrayList<>();
         ImmutableMap.Builder<Configs<?>, AbstractBotConfig<?>> configBuilder = ImmutableMap.builder();
         for (Configs<?> config : Configs.getConfigs()) {
             configBuilder.put(config, config.createConfig(this));
@@ -108,78 +104,112 @@ public class ServerBot extends ServerPlayer {
 
         this.notSleepTicks = 0;
         this.fauxSleeping = LeavesConfig.modify.fakeplayer.canSkipSleep;
-    }
-
-    public void sendPlayerInfo(ServerPlayer player) {
-        player.connection.send(new ClientboundPlayerInfoUpdatePacket(EnumSet.of(ClientboundPlayerInfoUpdatePacket.Action.ADD_PLAYER, ClientboundPlayerInfoUpdatePacket.Action.UPDATE_LISTED, ClientboundPlayerInfoUpdatePacket.Action.UPDATE_DISPLAY_NAME), List.of(this)));
-    }
-
-    public boolean needSendFakeData(ServerPlayer player) {
-        return this.getConfigValue(Configs.ALWAYS_SEND_DATA) && (player.level() == this.level() && player.position().distanceToSqr(this.position()) > this.tracingRange);
-    }
-
-    public void sendFakeDataIfNeed(ServerPlayer player, boolean login) {
-        if (needSendFakeData(player)) {
-            this.sendFakeData(player.connection, login);
-        }
-    }
-
-    public void sendFakeData(ServerPlayerConnection playerConnection, boolean login) {
-        ChunkMap.TrackedEntity entityTracker = ((ServerLevel) this.level()).getChunkSource().chunkMap.entityMap.get(this.getId());
-
-        if (entityTracker == null) {
-            LeavesLogger.LOGGER.warning("Fakeplayer cant get entity tracker for " + this.getId());
-            return;
-        }
-
-        playerConnection.send(this.getAddEntityPacket(entityTracker.serverEntity));
-        if (login) {
-            Bukkit.getScheduler().runTaskLater(MinecraftInternalPlugin.INSTANCE, () -> playerConnection.send(new ClientboundRotateHeadPacket(this, (byte) ((getYRot() * 256f) / 360f))), 10);
-        } else {
-            playerConnection.send(new ClientboundRotateHeadPacket(this, (byte) ((getYRot() * 256f) / 360f)));
-        }
-    }
-
-    public void renderAll() {
-        this.server.getPlayerList().getPlayers().forEach(
-            player -> {
-                this.sendPlayerInfo(player);
-                this.sendFakeDataIfNeed(player, false);
-            }
-        );
-    }
-
-    private void sendPacket(Packet<?> packet) {
-        this.server.getPlayerList().getPlayers().forEach(player -> player.connection.send(packet));
+        this.setClientLoaded(true);
     }
 
     @Override
-    public void die(@NotNull DamageSource damageSource) {
-        boolean flag = this.serverLevel().getGameRules().getBoolean(GameRules.RULE_SHOWDEATHMESSAGES);
-        Component defaultMessage = this.getCombatTracker().getDeathMessage();
-
-        BotDeathEvent event = new BotDeathEvent(this.getBukkitEntity(), PaperAdventure.asAdventure(defaultMessage), flag);
-        this.server.server.getPluginManager().callEvent(event);
-
-        if (event.isCancelled()) {
-            if (this.getHealth() <= 0) {
-                this.setHealth(0.1f);
-            }
+    public void tick() {
+        if (!this.isAlive()) {
             return;
         }
 
-        this.gameEvent(GameEvent.ENTITY_DIE);
-
-        net.kyori.adventure.text.Component deathMessage = event.deathMessage();
-        if (event.isSendDeathMessage() && deathMessage != null && !deathMessage.equals(net.kyori.adventure.text.Component.empty())) {
-            this.server.getPlayerList().broadcastSystemMessage(PaperAdventure.asVanilla(deathMessage), false);
+        if (this.getConfigValue(Configs.TICK_TYPE) == TickType.ENTITY_LIST) {
+            this.runAction();
         }
 
-        this.server.getBotList().removeBot(this, BotRemoveEvent.RemoveReason.DEATH, null, false);
+        // copy ServerPlayer start
+        if (this.joining) {
+            this.joining = false;
+        }
+
+        this.gameMode.tick();
+        this.wardenSpawnTracker.tick();
+        if (this.invulnerableTime > 0) {
+            this.invulnerableTime--;
+        }
+        // copy ServerPlayer end
+
+        if (this.getConfigValue(Configs.SPAWN_PHANTOM)) {
+            notSleepTicks++;
+        }
+
+        if (LeavesConfig.modify.fakeplayer.regenAmount > 0.0 && server.getTickCount() % 20 == 0) {
+            float health = getHealth();
+            float maxHealth = getMaxHealth();
+            float regenAmount = (float) (LeavesConfig.modify.fakeplayer.regenAmount * 20);
+            float amount;
+
+            if (health < maxHealth - regenAmount) {
+                amount = health + regenAmount;
+            } else {
+                amount = maxHealth;
+            }
+
+            this.setHealth(amount);
+        }
+
+        if (this.getConfigValue(Configs.TICK_TYPE) == TickType.ENTITY_LIST) {
+            this.doTick();
+        }
     }
 
-    public void removeTab() {
-        this.sendPacket(new ClientboundPlayerInfoRemovePacket(List.of(this.getUUID())));
+    @Override
+    public void doTick() {
+        this.absMoveTo(this.getX(), this.getY(), this.getZ(), this.getYRot(), this.getXRot());
+
+        if (this.isPassenger()) {
+            this.setOnGround(false);
+        }
+
+        if (this.takeXpDelay > 0) {
+            --this.takeXpDelay;
+        }
+
+        if (this.isSleeping()) {
+            ++this.sleepCounter;
+            if (this.sleepCounter > 100) {
+                this.sleepCounter = 100;
+                this.notSleepTicks = 0;
+            }
+
+            if (!this.level().isClientSide && this.level().isDay()) {
+                this.stopSleepInBed(false, true);
+            }
+        } else if (this.sleepCounter > 0) {
+            ++this.sleepCounter;
+            if (this.sleepCounter >= 110) {
+                this.sleepCounter = 0;
+            }
+        }
+
+        this.updateIsUnderwater();
+
+        if (this.getConfigValue(Configs.TICK_TYPE) == TickType.NETWORK) {
+            this.server.scheduleOnMain(this::runAction);
+        }
+
+        this.livingEntityTick();
+
+        this.foodData.tick(this);
+
+        double d = Mth.clamp(this.getX(), -2.9999999E7, 2.9999999E7);
+        double d1 = Mth.clamp(this.getZ(), -2.9999999E7, 2.9999999E7);
+        if (d != this.getX() || d1 != this.getZ()) {
+            this.setPos(d, this.getY(), d1);
+        }
+
+        ++this.attackStrengthTicker;
+        ItemStack itemstack = this.getMainHandItem();
+        if (!ItemStack.matches(this.lastItemInMainHand, itemstack)) {
+            if (!ItemStack.isSameItem(this.lastItemInMainHand, itemstack)) {
+                this.resetAttackStrengthTicker();
+            }
+
+            this.lastItemInMainHand = itemstack.copy();
+        }
+
+        this.getCooldowns().tick();
+        this.updatePlayerPose();
     }
 
     @Override
@@ -203,33 +233,6 @@ public class ServerBot extends ServerPlayer {
 
     @Override
     public void handlePortal() {
-    }
-
-    @Override
-    public void tick() {
-        if (!this.isAlive()) {
-            return;
-        }
-        super.tick();
-
-        if (this.getConfigValue(Configs.SPAWN_PHANTOM)) {
-            notSleepTicks++;
-        }
-
-        if (LeavesConfig.modify.fakeplayer.regenAmount > 0.0 && server.getTickCount() % 20 == 0) {
-            float health = getHealth();
-            float maxHealth = getMaxHealth();
-            float regenAmount = (float) (LeavesConfig.modify.fakeplayer.regenAmount * 20);
-            float amount;
-
-            if (health < maxHealth - regenAmount) {
-                amount = health + regenAmount;
-            } else {
-                amount = maxHealth;
-            }
-
-            this.setHealth(amount);
-        }
     }
 
     @Override
@@ -302,71 +305,6 @@ public class ServerBot extends ServerPlayer {
             this.resetFallDistance();
         } else if (y < 0.0D) {
             this.fallDistance -= (float) y;
-        }
-    }
-
-    @Override
-    public void doTick() {
-        this.absMoveTo(this.getX(), this.getY(), this.getZ(), this.getYRot(), this.getXRot());
-
-        if (this.takeXpDelay > 0) {
-            --this.takeXpDelay;
-        }
-
-        if (this.isSleeping()) {
-            ++this.sleepCounter;
-            if (this.sleepCounter > 100) {
-                this.sleepCounter = 100;
-                this.notSleepTicks = 0;
-            }
-
-            if (!this.level().isClientSide && this.level().isDay()) {
-                this.stopSleepInBed(false, true);
-            }
-        } else if (this.sleepCounter > 0) {
-            ++this.sleepCounter;
-            if (this.sleepCounter >= 110) {
-                this.sleepCounter = 0;
-            }
-        }
-
-        this.updateIsUnderwater();
-
-        this.addDeltaMovement(knockback);
-        this.knockback = Vec3.ZERO;
-
-        this.server.scheduleOnMain(this::runAction);
-
-        this.livingEntityTick();
-
-        this.foodData.tick(this);
-
-        ++this.attackStrengthTicker;
-        ItemStack itemstack = this.getMainHandItem();
-        if (!ItemStack.matches(this.lastItemInMainHand, itemstack)) {
-            if (!ItemStack.isSameItem(this.lastItemInMainHand, itemstack)) {
-                this.resetAttackStrengthTicker();
-            }
-
-            this.lastItemInMainHand = itemstack.copy();
-        }
-
-        this.getCooldowns().tick();
-        this.updatePlayerPose();
-
-        if (this.hurtTime > 0) {
-            this.hurtTime -= 1;
-        }
-    }
-
-    @Override
-    public void knockback(double strength, double x, double z, @Nullable Entity attacker, @NotNull EntityKnockbackEvent.Cause cause) {
-        strength *= 1.0D - this.getAttributeValue(Attributes.KNOCKBACK_RESISTANCE);
-        if (strength > 0.0D) {
-            Vec3 vec3d = this.getDeltaMovement();
-            Vec3 vec3d1 = (new Vec3(x, 0.0D, z)).normalize().scale(strength);
-            this.hasImpulse = true;
-            this.knockback = new Vec3(vec3d.x / 2.0D - vec3d1.x, this.onGround() ? Math.min(0.4D, vec3d.y / 2.0D + strength) : vec3d.y, vec3d.z / 2.0D - vec3d1.z).subtract(vec3d);
         }
     }
 
@@ -462,6 +400,78 @@ public class ServerBot extends ServerPlayer {
         }
     }
 
+    public void sendPlayerInfo(ServerPlayer player) {
+        player.connection.send(new ClientboundPlayerInfoUpdatePacket(EnumSet.of(ClientboundPlayerInfoUpdatePacket.Action.ADD_PLAYER, ClientboundPlayerInfoUpdatePacket.Action.UPDATE_LISTED, ClientboundPlayerInfoUpdatePacket.Action.UPDATE_DISPLAY_NAME), List.of(this)));
+    }
+
+    public boolean needSendFakeData(ServerPlayer player) {
+        return this.getConfigValue(Configs.ALWAYS_SEND_DATA) && (player.level() == this.level() && player.position().distanceToSqr(this.position()) > this.tracingRange);
+    }
+
+    public void sendFakeDataIfNeed(ServerPlayer player, boolean login) {
+        if (needSendFakeData(player)) {
+            this.sendFakeData(player.connection, login);
+        }
+    }
+
+    public void sendFakeData(ServerPlayerConnection playerConnection, boolean login) {
+        ChunkMap.TrackedEntity entityTracker = ((ServerLevel) this.level()).getChunkSource().chunkMap.entityMap.get(this.getId());
+
+        if (entityTracker == null) {
+            LeavesLogger.LOGGER.warning("Fakeplayer cant get entity tracker for " + this.getId());
+            return;
+        }
+
+        playerConnection.send(this.getAddEntityPacket(entityTracker.serverEntity));
+        if (login) {
+            Bukkit.getScheduler().runTaskLater(MinecraftInternalPlugin.INSTANCE, () -> playerConnection.send(new ClientboundRotateHeadPacket(this, (byte) ((getYRot() * 256f) / 360f))), 10);
+        } else {
+            playerConnection.send(new ClientboundRotateHeadPacket(this, (byte) ((getYRot() * 256f) / 360f)));
+        }
+    }
+
+    public void renderAll() {
+        this.server.getPlayerList().getPlayers().forEach(
+            player -> {
+                this.sendPlayerInfo(player);
+                this.sendFakeDataIfNeed(player, false);
+            }
+        );
+    }
+
+    private void sendPacket(Packet<?> packet) {
+        this.server.getPlayerList().getPlayers().forEach(player -> player.connection.send(packet));
+    }
+
+    @Override
+    public void die(@NotNull DamageSource damageSource) {
+        boolean flag = this.serverLevel().getGameRules().getBoolean(GameRules.RULE_SHOWDEATHMESSAGES);
+        Component defaultMessage = this.getCombatTracker().getDeathMessage();
+
+        BotDeathEvent event = new BotDeathEvent(this.getBukkitEntity(), PaperAdventure.asAdventure(defaultMessage), flag);
+        this.server.server.getPluginManager().callEvent(event);
+
+        if (event.isCancelled()) {
+            if (this.getHealth() <= 0) {
+                this.setHealth(0.1f);
+            }
+            return;
+        }
+
+        this.gameEvent(GameEvent.ENTITY_DIE);
+
+        net.kyori.adventure.text.Component deathMessage = event.deathMessage();
+        if (event.isSendDeathMessage() && deathMessage != null && !deathMessage.equals(net.kyori.adventure.text.Component.empty())) {
+            this.server.getPlayerList().broadcastSystemMessage(PaperAdventure.asVanilla(deathMessage), false);
+        }
+
+        this.server.getBotList().removeBot(this, BotRemoveEvent.RemoveReason.DEATH, null, false);
+    }
+
+    public void removeTab() {
+        this.sendPacket(new ClientboundPlayerInfoRemovePacket(List.of(this.getUUID())));
+    }
+
     public void faceLocation(@NotNull Location loc) {
         this.look(loc.toVector().subtract(getLocation().toVector()), false);
     }
@@ -531,7 +541,8 @@ public class ServerBot extends ServerPlayer {
     }
 
     @Override
-    public @NotNull ServerStatsCounter getStats() {
+    @NotNull
+    public ServerStatsCounter getStats() {
         return stats;
     }
 
@@ -548,5 +559,10 @@ public class ServerBot extends ServerPlayer {
     @NotNull
     public CraftBot getBukkitEntity() {
         return (CraftBot) super.getBukkitEntity();
+    }
+
+    public enum TickType {
+        NETWORK,
+        ENTITY_LIST
     }
 }

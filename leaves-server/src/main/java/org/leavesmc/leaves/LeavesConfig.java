@@ -7,20 +7,24 @@ import net.minecraft.server.level.ServerLevel;
 import org.bukkit.command.Command;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.jetbrains.annotations.NotNull;
+import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.command.LeavesCommand;
+import org.leavesmc.leaves.config.ConfigValidatorImpl.BooleanConfigValidator;
+import org.leavesmc.leaves.config.ConfigValidatorImpl.DoubleConfigValidator;
+import org.leavesmc.leaves.config.ConfigValidatorImpl.EnumConfigValidator;
+import org.leavesmc.leaves.config.ConfigValidatorImpl.IntConfigValidator;
+import org.leavesmc.leaves.config.ConfigValidatorImpl.ListConfigValidator;
+import org.leavesmc.leaves.config.ConfigValidatorImpl.StringConfigValidator;
+import org.leavesmc.leaves.config.GlobalConfigManager;
 import org.leavesmc.leaves.config.annotations.GlobalConfig;
 import org.leavesmc.leaves.config.annotations.GlobalConfigCategory;
 import org.leavesmc.leaves.config.annotations.RemovedConfig;
-import org.leavesmc.leaves.config.GlobalConfigManager;
+import org.leavesmc.leaves.protocol.CarpetServerProtocol.CarpetRule;
+import org.leavesmc.leaves.protocol.CarpetServerProtocol.CarpetRules;
+import org.leavesmc.leaves.protocol.bladeren.BladerenProtocol.LeavesFeature;
+import org.leavesmc.leaves.protocol.bladeren.BladerenProtocol.LeavesFeatureSet;
 import org.leavesmc.leaves.region.RegionFileFormat;
 import org.leavesmc.leaves.util.MathUtils;
-
-import org.leavesmc.leaves.config.ConfigValidatorImpl.BooleanConfigValidator;
-import org.leavesmc.leaves.config.ConfigValidatorImpl.IntConfigValidator;
-import org.leavesmc.leaves.config.ConfigValidatorImpl.StringConfigValidator;
-import org.leavesmc.leaves.config.ConfigValidatorImpl.DoubleConfigValidator;
-import org.leavesmc.leaves.config.ConfigValidatorImpl.ListConfigValidator;
-import org.leavesmc.leaves.config.ConfigValidatorImpl.EnumConfigValidator;
 
 import java.io.File;
 import java.io.IOException;
@@ -28,12 +32,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Random;
-
-import org.leavesmc.leaves.protocol.CarpetServerProtocol.CarpetRule;
-import org.leavesmc.leaves.protocol.CarpetServerProtocol.CarpetRules;
-
-import org.leavesmc.leaves.protocol.bladeren.BladerenProtocol.LeavesFeatureSet;
-import org.leavesmc.leaves.protocol.bladeren.BladerenProtocol.LeavesFeature;
 
 public final class LeavesConfig {
 
@@ -188,6 +186,9 @@ public final class LeavesConfig {
 
             @GlobalConfig(value = "cache-skin", lock = true)
             public boolean useSkinCache = false;
+
+            @GlobalConfig(value = "tick-type")
+            public ServerBot.TickType tickType = ServerBot.TickType.NETWORK;
         }
 
         public MinecraftOLDConfig oldMC = new MinecraftOLDConfig();

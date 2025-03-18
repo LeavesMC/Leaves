@@ -10,7 +10,7 @@ import java.util.function.Consumer;
 
 public interface BotCreator {
 
-    default BotCreator of(String realName, Location location) {
+    static BotCreator of(String realName, Location location) {
         return Bukkit.getBotManager().botCreator(realName, location);
     }
 

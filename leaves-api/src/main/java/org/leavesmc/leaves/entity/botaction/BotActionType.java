@@ -13,8 +13,6 @@ public enum BotActionType {
     ROTATE("rotate"),
     ROTATION("rotation"),
     SNEAK("sneak"),
-    @Deprecated(forRemoval = true, since = "1.21.4")
-    STOP("stop"),
     SWIM("swim"),
     USE("use"),
     USE_ON("use_on"),

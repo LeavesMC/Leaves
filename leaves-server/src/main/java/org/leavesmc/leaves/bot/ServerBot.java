@@ -78,7 +78,7 @@ public class ServerBot extends ServerPlayer {
     public UUID createPlayer;
 
     private final int tracingRange;
-    private final ServerStatsCounter stats;
+    private final BotStatsCounter stats;
     private final BotInventoryContainer container;
 
     public int notSleepTicks;

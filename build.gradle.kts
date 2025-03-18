@@ -1,3 +1,7 @@
+import groovy.json.JsonBuilder
+import groovy.json.JsonSlurper
+import java.util.Locale
+
 plugins {
     java
     id("org.leavesmc.leavesweight.patcher") version "2.0.0-SNAPSHOT"
@@ -71,6 +75,191 @@ paperweight {
             excludes = setOf("build.gradle.kts")
             patchesDir = file("leaves-api/paper-patches")
             outputDir = file("paper-api")
+        }
+    }
+}
+
+val patchTasks = listOf(
+    "::applyPaperApiPatches" to "::rebuildPaperApiPatches",
+    "::applyPaperSingleFilePatches" to "::rebuildPaperSingleFilePatches",
+    ":leaves-server:applyMinecraftPatches" to ":leaves-server:rebuildMinecraftPatches",
+    ":leaves-server:applyPaperServerPatches" to ":leaves-server:rebuildPaperServerPatches"
+)
+
+val statusFile = layout.buildDirectory.file("patchTaskStatus.json").get().asFile
+fun readTaskStatus(): Map<String, String> {
+    if (!statusFile.exists()) {
+        return emptyMap()
+    }
+    try {
+        @Suppress("UNCHECKED_CAST")
+        return JsonSlurper().parse(statusFile) as Map<String, String>
+    } catch (_: Exception) {
+        return emptyMap()
+    }
+}
+
+fun writeTaskStatus(status: Map<String, String>) {
+    statusFile.writeText(JsonBuilder(status).toPrettyString())
+}
+
+fun executeTask(taskPath: String): Boolean {
+    val parts = taskPath.split(":")
+    val projectPath = if (parts.size > 2) parts.subList(0, parts.size - 1).joinToString(":") else ":"
+    val taskName = parts.last()
+    val fullTaskPath = if (projectPath == ":" || projectPath.isEmpty()) taskName else "$projectPath:$taskName"
+
+    try {
+        val gradlew = if (System.getProperty("os.name").lowercase(Locale.getDefault()).contains("windows"))
+            "${project.rootDir}\\gradlew.bat"
+        else
+            "${project.rootDir}/gradlew"
+
+        val processBuilder = ProcessBuilder(
+            gradlew,
+            fullTaskPath,
+            // "--console=verbose",
+            // "--info"
+        )
+        processBuilder.directory(project.rootDir)
+
+        val env = processBuilder.environment()
+        env["TERM"] = "xterm-256color"
+
+        val process = processBuilder.start()
+
+        val outputThread = Thread {
+            process.inputStream.bufferedReader().use { reader ->
+                var line: String?
+                while (reader.readLine().also { line = it } != null) {
+                    println(line)
+                }
+            }
+        }
+
+        val errorThread = Thread {
+            process.errorStream.bufferedReader().use { reader ->
+                var line: String?
+                while (reader.readLine().also { line = it } != null) {
+                    System.err.println(line)
+                }
+            }
+        }
+
+        outputThread.start()
+        errorThread.start()
+
+        val exitCode = process.waitFor()
+
+        outputThread.join()
+        errorThread.join()
+
+        if (exitCode != 0) {
+            throw GradleException("Task $fullTaskPath FAILED，$exitCode")
+        }
+
+        return true
+    } catch (e: Exception) {
+        println("⚠️ Task FAILED: $taskPath - ${e.message}")
+        throw e
+    }
+}
+
+tasks.register("applyAllPatchesSequentially") {
+    group = "leaves"
+    description = "Apply all patches sequentially, run rebuild after success, wait for manual fix if failed"
+
+    doFirst {
+        println("🚀 Starting sequential patch application...")
+    }
+
+    doLast {
+        val taskStatus = readTaskStatus().toMutableMap()
+        var currentIndex = 0
+
+        while (currentIndex < patchTasks.size) {
+            val (applyTaskPath, rebuildTaskPath) = patchTasks[currentIndex]
+
+            if (taskStatus[applyTaskPath] == "COMPLETED") {
+                println("⏩ Skipping completed task: $applyTaskPath")
+                currentIndex++
+                continue
+            }
+
+            if (taskStatus[applyTaskPath] == "FAILED") {
+                println("⚠️ Detected previous failure of $applyTaskPath, running $rebuildTaskPath first")
+                try {
+                    executeTask(rebuildTaskPath)
+                    println("✅ $rebuildTaskPath completed successfully")
+                } catch (e: Exception) {
+                    taskStatus[applyTaskPath] = "FAILED"
+                    writeTaskStatus(taskStatus)
+                    throw GradleException("$rebuildTaskPath failed: ${e.message}", e)
+                }
+            }
+
+            println("🔄 Running $applyTaskPath...")
+            try {
+                executeTask(applyTaskPath)
+                println("✅ $applyTaskPath completed successfully")
+
+                println("🔄 Running $rebuildTaskPath after successful apply...")
+                try {
+                    executeTask(rebuildTaskPath)
+                    println("✅ $rebuildTaskPath completed successfully")
+                } catch (e: Exception) {
+                    println("⚠️ $rebuildTaskPath failed, but continuing with next tasks: ${e.message}")
+                }
+
+                taskStatus[applyTaskPath] = "COMPLETED"
+                writeTaskStatus(taskStatus)
+                currentIndex++
+            } catch (e: Exception) {
+                taskStatus[applyTaskPath] = "FAILED"
+                writeTaskStatus(taskStatus)
+                throw GradleException("$applyTaskPath failed, please fix the issues and run this task again", e)
+            }
+        }
+
+        if (currentIndex >= patchTasks.size) {
+            tasks.named("resetPatchTaskStatus").get().actions.forEach { it.execute(tasks.named("resetPatchTaskStatus").get()) }
+            println("✨ All patch tasks completed successfully!")
+        }
+    }
+}
+
+tasks.register("resetPatchTaskStatus") {
+    group = "leaves"
+    description = "Reset the status of all patch tasks"
+
+    doLast {
+        if (statusFile.exists()) {
+            statusFile.delete()
+            println("🧹 All patch task statuses have been reset")
+        }
+    }
+}
+
+tasks.register("showPatchTaskStatus") {
+    group = "leaves"
+    description = "Show the current status of all patch tasks"
+
+    doLast {
+        val status = readTaskStatus()
+        println("📊 Patch Task Status:")
+
+        if (status.isEmpty()) {
+            println("  No tasks executed yet or status has been reset")
+        } else {
+            patchTasks.forEach { (applyTask, _) ->
+                val taskStatus = status[applyTask] ?: "PENDING"
+                val statusIcon = when (taskStatus) {
+                    "COMPLETED" -> "✅"
+                    "FAILED" -> "❌"
+                    else -> "⏳"
+                }
+                println("  $statusIcon $applyTask: $taskStatus")
+            }
         }
     }
 }

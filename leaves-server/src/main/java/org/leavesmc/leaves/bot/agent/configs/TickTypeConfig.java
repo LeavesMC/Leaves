@@ -13,7 +13,7 @@ import java.util.List;
 public class TickTypeConfig extends AbstractBotConfig<ServerBot.TickType> {
 
     private static final String NAME = "tick_type";
-    private static final CommandArgumentType<ServerBot.TickType> TICK_TYPE_ARGUMENT = CommandArgumentType.of(ServerBot.TickType.class, (string -> ServerBot.TickType.valueOf(string.toUpperCase())));
+    private static final CommandArgumentType<ServerBot.TickType> TICK_TYPE_ARGUMENT = CommandArgumentType.ofEnum(ServerBot.TickType.class);
 
     private ServerBot.TickType value;
 

@@ -48,10 +48,7 @@ public record VerifiedConfig(ConfigValidator<? super Object> validator, boolean 
         Object savedValue = LeavesConfig.config.get(path);
         try {
             if (savedValue != null) {
-                if (validator.getFieldClass() != savedValue.getClass()) {
-                    savedValue = validator.loadConvert(savedValue);
-                }
-
+                savedValue = validator.loadConvert(savedValue);
                 if (!savedValue.equals(value)) {
                     return value.toString() + "(" + savedValue + " after restart)";
                 }

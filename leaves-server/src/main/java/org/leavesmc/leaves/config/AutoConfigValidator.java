@@ -42,6 +42,8 @@ public final class AutoConfigValidator implements ConfigValidator<Object> {
                 if (typeArgs.length > 0 && typeArgs[0] instanceof Class<?> genericClass) {
                     if (genericClass.equals(String.class)) {
                         return new ConfigValidatorImpl.ListConfigValidator.STRING();
+                    } else if (genericClass.isEnum()) {
+                        return new ConfigValidatorImpl.ListConfigValidator.ENUM<>((Class<Enum>) genericClass);
                     }
                     throw new IllegalArgumentException("List type " + genericClass.getTypeName() + " is not supported.");
                 }
@@ -58,11 +60,6 @@ public final class AutoConfigValidator implements ConfigValidator<Object> {
 
     @Override
     public Object stringConvert(String value) throws IllegalArgumentException {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
-
-    @Override
-    public Class<Object> getFieldClass() {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 }

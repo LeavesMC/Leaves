@@ -4,6 +4,7 @@ import com.destroystokyo.paper.util.SneakyThrow;
 import io.papermc.paper.configuration.GlobalConfiguration;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.Entity;
 import org.bukkit.command.Command;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.jetbrains.annotations.NotNull;
@@ -24,14 +25,18 @@ import org.leavesmc.leaves.protocol.CarpetServerProtocol.CarpetRules;
 import org.leavesmc.leaves.protocol.bladeren.BladerenProtocol.LeavesFeature;
 import org.leavesmc.leaves.protocol.bladeren.BladerenProtocol.LeavesFeatureSet;
 import org.leavesmc.leaves.region.RegionFileFormat;
+import org.leavesmc.leaves.util.ForcePeacefulModeSwitchType;
 import org.leavesmc.leaves.util.MathUtils;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Random;
+import java.util.Set;
 
 public final class LeavesConfig {
 
@@ -531,14 +536,38 @@ public final class LeavesConfig {
         @GlobalConfig("fast-resume")
         public boolean fastResume = false;
 
-        @GlobalConfig(value = "force-peaceful-mode", validator = ForcePeacefulModeValidator.class)
-        public int forcePeacefulMode = -1;
+        public ForcePeacefulModeSwitchConfig peacefulModeSwitch = new ForcePeacefulModeSwitchConfig();
 
-        private static class ForcePeacefulModeValidator extends IntConfigValidator {
-            @Override
-            public void verify(Integer old, Integer value) throws IllegalArgumentException {
-                for (ServerLevel level : MinecraftServer.getServer().getAllLevels()) {
-                    level.chunkSource.peacefulModeSwitchTick = value;
+        @GlobalConfigCategory("force-peaceful-mode-switch")
+        public static class ForcePeacefulModeSwitchConfig {
+            @RemovedConfig(name = "force-peaceful-mode", category = "modify", transform = true)
+            @GlobalConfig(value = "tick", validator = TickValidator.class)
+            public int tick = -1;
+
+            private static class TickValidator extends IntConfigValidator {
+                @Override
+                public void verify(Integer old, Integer value) throws IllegalArgumentException {
+                    for (ServerLevel level : MinecraftServer.getServer().getAllLevels()) {
+                        level.chunkSource.peacefulModeSwitchTick = value;
+                    }
+                }
+            }
+
+            @GlobalConfig(value = "types", validator = TypeValidator.class)
+            public List<ForcePeacefulModeSwitchType> types = List.of(ForcePeacefulModeSwitchType.BLAZE, ForcePeacefulModeSwitchType.WITHER, ForcePeacefulModeSwitchType.SHULKER, ForcePeacefulModeSwitchType.WARDEN);
+            public Set<Class<? extends Entity>> classTypes = new HashSet<>();
+
+            private static class TypeValidator extends ListConfigValidator.ENUM<ForcePeacefulModeSwitchType> {
+                @Override
+                public void verify(List<ForcePeacefulModeSwitchType> old, @NotNull List<ForcePeacefulModeSwitchType> value) throws IllegalArgumentException {
+                    Set<Class<? extends Entity>> classes = new HashSet<>();
+                    for (ForcePeacefulModeSwitchType type : value) {
+                        classes.add(type.getEntityClass());
+                    }
+                    LeavesConfig.modify.peacefulModeSwitch.classTypes = classes;
+                    for (ServerLevel level : MinecraftServer.getServer().getAllLevels()) {
+                        level.chunkSource.peacefulModeSwitchEntityTypes = classes;
+                    }
                 }
             }
         }

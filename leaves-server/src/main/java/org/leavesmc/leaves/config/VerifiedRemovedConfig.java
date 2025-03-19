@@ -16,9 +16,7 @@ public record VerifiedRemovedConfig(ConfigTransformer<? super Object, ? super Ob
                 Object savedValue = LeavesConfig.config.get(path);
                 if (savedValue != null) {
                     try {
-                        if (savedValue.getClass() != transformer.getFieldClass()) {
-                            savedValue = transformer.loadConvert(savedValue);
-                        }
+                        savedValue = transformer.loadConvert(savedValue);
                         savedValue = transformer.transform(savedValue);
                         field.set(upstreamField, savedValue);
                     } catch (IllegalAccessException | IllegalArgumentException e) {

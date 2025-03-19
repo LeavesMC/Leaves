@@ -103,12 +103,8 @@ public class GlobalConfigManager {
                     throw new IllegalArgumentException("?");
                 }
 
-                if (savedValue.getClass() != validator.getFieldClass()) {
-                    savedValue = validator.loadConvert(savedValue);
-                }
-
+                savedValue = validator.loadConvert(savedValue);
                 validator.verify(null, savedValue);
-
                 field.set(upstreamField, savedValue);
             } catch (IllegalArgumentException | ClassCastException e) {
                 LeavesConfig.config.set(path, defValue);

@@ -16,6 +16,4 @@ public interface ConfigConverter<E> {
     default Object saveConvert(E value) {
         return value;
     }
-
-    Class<E> getFieldClass();
 }

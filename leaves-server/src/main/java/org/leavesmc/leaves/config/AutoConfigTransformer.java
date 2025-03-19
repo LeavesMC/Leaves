@@ -23,11 +23,6 @@ public class AutoConfigTransformer implements ConfigTransformer<Object, Object> 
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
-    @Override
-    public Class<Object> getFieldClass() {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
-
     @SuppressWarnings({"unchecked", "rawtypes"})
     public static class SimpleConfigTransformer implements ConfigTransformer<Object, Object> {
 
@@ -55,11 +50,6 @@ public class AutoConfigTransformer implements ConfigTransformer<Object, Object> 
         @Override
         public Object saveConvert(Object value) {
             return validator.saveConvert(value);
-        }
-
-        @Override
-        public Class<Object> getFieldClass() {
-            return validator.getFieldClass();
         }
     }
 }

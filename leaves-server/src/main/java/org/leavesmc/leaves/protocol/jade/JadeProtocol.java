@@ -53,6 +53,7 @@ import org.leavesmc.leaves.protocol.jade.provider.IJadeProvider;
 import org.leavesmc.leaves.protocol.jade.provider.IServerDataProvider;
 import org.leavesmc.leaves.protocol.jade.provider.IServerExtensionProvider;
 import org.leavesmc.leaves.protocol.jade.provider.ItemStorageExtensionProvider;
+import org.leavesmc.leaves.protocol.jade.provider.ItemStorageProvider;
 import org.leavesmc.leaves.protocol.jade.provider.block.BeehiveProvider;
 import org.leavesmc.leaves.protocol.jade.provider.block.BrewingStandProvider;
 import org.leavesmc.leaves.protocol.jade.provider.block.CampfireProvider;
@@ -60,7 +61,6 @@ import org.leavesmc.leaves.protocol.jade.provider.block.ChiseledBookshelfProvide
 import org.leavesmc.leaves.protocol.jade.provider.block.CommandBlockProvider;
 import org.leavesmc.leaves.protocol.jade.provider.block.FurnaceProvider;
 import org.leavesmc.leaves.protocol.jade.provider.block.HopperLockProvider;
-import org.leavesmc.leaves.protocol.jade.provider.ItemStorageProvider;
 import org.leavesmc.leaves.protocol.jade.provider.block.JukeboxProvider;
 import org.leavesmc.leaves.protocol.jade.provider.block.LecternProvider;
 import org.leavesmc.leaves.protocol.jade.provider.block.MobSpawnerCooldownProvider;

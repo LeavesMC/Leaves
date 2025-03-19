@@ -3,8 +3,8 @@ package org.leavesmc.leaves.bot.agent.actions;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
-import org.leavesmc.leaves.bot.agent.Actions;
 import org.leavesmc.leaves.bot.agent.AbstractBotAction;
+import org.leavesmc.leaves.bot.agent.Actions;
 import org.leavesmc.leaves.entity.botaction.BotActionType;
 import org.leavesmc.leaves.entity.botaction.LeavesBotAction;
 

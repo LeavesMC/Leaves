@@ -1,11 +1,6 @@
 package org.leavesmc.leaves.protocol.jade.accessor;
 
-import java.util.function.Supplier;
-
-import org.jetbrains.annotations.Nullable;
-
 import com.google.common.base.Suppliers;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.FriendlyByteBuf;
@@ -21,6 +16,9 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.function.Supplier;
 
 /**
  * Class to get information of block target and context.

@@ -23,7 +23,6 @@ import org.leavesmc.leaves.command.LeavesCommandUtil;
 import org.leavesmc.leaves.command.LeavesSubcommand;
 import org.leavesmc.leaves.plugin.MinecraftInternalPlugin;
 import org.leavesmc.leaves.plugin.provider.configuration.LeavesPluginMeta;
-import org.leavesmc.leaves.util.LeavesVersionFetcher;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;

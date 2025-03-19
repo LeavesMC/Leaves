@@ -4,7 +4,6 @@ import org.bukkit.command.CommandSender;
 import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.command.LeavesSubcommand;
 
-
 import static net.kyori.adventure.text.Component.text;
 import static net.kyori.adventure.text.format.NamedTextColor.GREEN;
 

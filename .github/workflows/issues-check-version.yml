@@ -1,0 +1,111 @@
+name: "Issues: Check version"
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    if: ${{ !github.event.issue.pull_request }}
+    steps:
+      - name: Check version
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            if (
+              issue.labels.some((label) => label.name === "status: needs triage") &&
+              issue.state === "open"
+            ) {
+              const { createComment, addLabels, update } = github.rest.issues;
+              const { owner, repo } = context.repo;
+              const issueNumber = context.issue.number;
+              const body = issue.body;
+
+              if (
+                body.includes("### 服务端版本 Leaves Version")
+              ) {
+                const versionMatch = body.match(
+                  /### 服务端版本 Leaves Version\n.*?(\d+\.\d+\.\d+)-(\d+).*?/
+                );
+                const gitVersionMatch = body.match(
+                  /### 服务端版本 Leaves Version\ngit-Leaves-"[a-z0-9]{7}"/
+                );
+
+                if (versionMatch) {
+                  const version = versionMatch[1];
+                  const buildId = versionMatch[2];
+                  console.log(`This server is running Leaves ${version} (${buildId}).`);
+
+                  try {
+                    const response = await fetch(
+                      `https://api.leavesmc.org/v2/projects/leaves/versions/${version}/latestGroupBuildId`
+                    );
+                    const latestBuildId = await response.text();
+
+                    console.log(
+                      `The latest build id of Leaves ${version} is ${latestBuildId}.`
+                    );
+
+                    if (buildId === latestBuildId) {
+                      console.log("This server is running the latest Leaves.");
+                      return;
+                    }
+
+                    console.log("This server is running the old Leaves.");
+                    createComment({
+                      issue_number: issueNumber,
+                      owner,
+                      repo,
+                      body: `## :wave: Hi, The LeavesMC Team here.\n:warning: You're using an outdated Leaves build.\nPlease update to the latest version from [our website](https://leavesmc.org/downloads/leaves) and try reproducing the issue.\n\n---\n## :wave: 嗨，这里是 LeavesMC 团队。\n:warning: 你正在使用旧版 Leaves 构建。\n请从[我们的网站](https://leavesmc.org/downloads/leaves)更新至最新版本并尝试复现此问题。`,
+                    });
+                    addLabels({
+                      issue_number: issueNumber,
+                      owner,
+                      repo,
+                      labels: ["resolution: awaiting response"],
+                    });
+                  } catch (error) {
+                    console.error("Failed to fetch API: ", error);
+                  }
+                  return;
+                } else if (gitVersionMatch) {
+                  console.log("This server is running the unsupported Leaves.");
+                  createComment({
+                    issue_number: issueNumber,
+                    owner,
+                    repo,
+                    body: `## :wave: Hi, The LeavesMC Team here.\n:x: The version you are using is no longer supported, therefore this issue will be closed.\nIt is highly recommended that you upgrade to the latest version to continue to receive updates and support.\n\n---\n## :wave: 嗨，这里是 LeavesMC 团队。\n:x: 你正在使用的版本已不受支持，因此问题将被关闭。\n强烈推荐你升级至最新版本以继续获取更新和支持。`,
+                  });
+                  addLabels({
+                    issue_number: issueNumber,
+                    owner,
+                    repo,
+                    labels: ["resolution: unsupported"],
+                  });
+                  update({
+                    owner,
+                    repo,
+                    issue_number: issueNumber,
+                    state: "closed",
+                    state_reason: "not_planned",
+                  });
+                  return;
+                } else {
+                  createComment({
+                    issue_number: issueNumber,
+                    owner,
+                    repo,
+                    body: `## :wave: Hi, The LeavesMC Team here.\n:information_source: Please make sure you have filled in the Leaves version correctly. (e.g. \`1.21.4-16\`).\nYou can generate pre-populated issue templates via \`/leaves report\`.\n\n---\n## :wave: 嗨，这里是 LeavesMC 团队。\n:information_source: 请确保你已正确填写 Leaves 版本字段（例如：\`1.21.4-16\`）。 \n你可以通过 \`/leaves report\` 生成预填充的问题模板。`,
+                  });
+                  addLabels({
+                    issue_number: issueNumber,
+                    owner,
+                    repo,
+                    labels: ["version: invalid"],
+                  });
+                  return;
+                }
+              }
+            }

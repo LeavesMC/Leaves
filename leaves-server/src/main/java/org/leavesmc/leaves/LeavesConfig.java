@@ -392,13 +392,20 @@ public final class LeavesConfig {
         @GlobalConfig("return-nether-portal-fix")
         public boolean netherPortalFix = false;
 
-        @GlobalConfig(value = "use-vanilla-random", lock = true, validator = UseVanillaRandomValidator.class)
-        public boolean useVanillaRandom = false;
+        @GlobalConfig(value = "random-source", lock = true, validator = RandomSourceValidator.class)
+        public String randomSource = "Paper";
 
-        private static class UseVanillaRandomValidator extends BooleanConfigValidator {
+        private static class RandomSourceValidator extends StringConfigValidator {
             @Override
-            public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
-                LeavesFeatureSet.register(LeavesFeature.of("use_vanilla_random", value));
+            public void verify(String old, String value) throws IllegalArgumentException {
+                switch (value.toLowerCase()) {
+                    case "paper" -> value = "Paper";
+                    case "vanilla" -> value = "Vanilla";
+                    case "legacy" -> value = "Legacy";
+                    default -> throw new IllegalArgumentException("The value of random source should only be \"Paper\", \"Vanilla\", or \"Legacy\"!");
+                }
+                LeavesFeatureSet.register(new LeavesFeature("random_source", value));
+                LeavesConfig.modify.randomSource = value;
             }
         }
 

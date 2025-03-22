@@ -29,7 +29,7 @@ public class RotationAction extends AbstractBotAction<RotationAction> {
             return;
         }
 
-        this.setYaw(result.readFloat(player.getYRot())).setPitch(result.readFloat(player.getXRot())).setTickDelay(0).setNumber(1);
+        this.setYaw(result.readFloat(player.getYRot())).setPitch(result.readFloat(player.getXRot())).setInitialTickDelay(0).setInitialTickInterval(1).setInitialNumber(1);
     }
 
     public RotationAction setYaw(float yaw) {

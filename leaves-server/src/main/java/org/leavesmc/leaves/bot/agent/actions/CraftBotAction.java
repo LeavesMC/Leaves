@@ -13,7 +13,7 @@ public class CraftBotAction extends LeavesBotAction {
     private final AbstractBotAction<?> handle;
 
     public CraftBotAction(@NotNull AbstractBotAction<?> action) {
-        super(BotActionType.valueOf(action.getName()), action.getTickDelay(), action.getCanDoNumber());
+        super(BotActionType.valueOf(action.getName()), action.getInitialTickInterval(), action.getCanDoNumber());
         this.handle = action;
     }
 

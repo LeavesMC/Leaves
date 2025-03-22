@@ -17,7 +17,7 @@ public class SwimAction extends AbstractBotAction<SwimAction> {
 
     @Override
     public void loadCommand(@Nullable ServerPlayer player, @NotNull CommandArgumentResult result) {
-        this.setTickDelay(0).setNumber(-1);
+        this.setInitialTickDelay(0).setInitialTickInterval(1).setInitialNumber(-1);
     }
 
     @Override

@@ -19,14 +19,15 @@ public abstract class AbstractBotAction<E extends AbstractBotAction<E>> {
     private final String name;
     private final CommandArgument argument;
     private final Supplier<E> creator;
-
-    private boolean cancel;
-    private int tickDelay;
-    private int number;
     private UUID uuid;
 
-    private int needWaitTick;
+    private int initialTickDelay;
+    private int initialTickInterval;
+    private int initialNumber;
+
+    private int tickToNext;
     private int canDoNumber;
+    private boolean cancel;
 
     public AbstractBotAction(String name, CommandArgument argument, Supplier<E> creator) {
         this.name = name;
@@ -35,14 +36,88 @@ public abstract class AbstractBotAction<E extends AbstractBotAction<E>> {
         this.creator = creator;
 
         this.cancel = false;
-        this.tickDelay = 20;
-        this.number = -1;
+        this.initialTickInterval = 20;
+        this.initialNumber = -1;
     }
 
     public void init() {
-        this.needWaitTick = 0;
-        this.canDoNumber = this.getNumber();
+        this.tickToNext = initialTickDelay;
+        this.canDoNumber = this.getInitialNumber();
         this.setCancelled(false);
+    }
+
+    public void tryTick(ServerBot bot) {
+        if (this.canDoNumber == 0) {
+            this.stop(bot, BotActionStopEvent.Reason.DONE);
+            return;
+        }
+
+        if (this.tickToNext <= 0) {
+            BotActionExecuteEvent event = new BotActionExecuteEvent(bot.getBukkitEntity(), name, uuid);
+
+            event.callEvent();
+            if (event.getResult() == BotActionExecuteEvent.Result.SOFT_CANCEL) {
+                this.tickToNext = this.getInitialTickInterval() - 1;
+                return;
+            } else if (event.getResult() == BotActionExecuteEvent.Result.HARD_CANCEL) {
+                if (this.canDoNumber > 0) {
+                    this.canDoNumber--;
+                }
+                this.tickToNext = this.getInitialTickInterval() - 1;
+                return;
+            }
+
+            if (this.doTick(bot)) {
+                if (this.canDoNumber > 0) {
+                    this.canDoNumber--;
+                }
+                this.tickToNext = this.getInitialTickInterval() - 1;
+            }
+        } else {
+            this.tickToNext--;
+        }
+    }
+
+    @NotNull
+    public CompoundTag save(@NotNull CompoundTag nbt) {
+        if (!this.cancel) {
+            nbt.putString("actionName", this.name);
+            nbt.putUUID("actionUUID", this.uuid);
+
+            nbt.putInt("initialTickDelay", this.initialTickDelay);
+            nbt.putInt("initialTickInterval", this.initialTickInterval);
+            nbt.putInt("initialNumber", this.initialNumber);
+
+            nbt.putInt("tickToNext", this.tickToNext);
+            nbt.putInt("canDoNumber", this.canDoNumber);
+        }
+        return nbt;
+    }
+
+    public void load(@NotNull CompoundTag nbt) {
+        this.uuid = nbt.getUUID("actionUUID");
+
+        this.initialTickDelay = nbt.getInt("initialTickDelay");
+        this.initialTickInterval = nbt.getInt("initialTickInterval");
+        this.initialNumber = nbt.getInt("initialNumber");
+
+        this.tickToNext = nbt.getInt("tickToNext");
+        this.canDoNumber = nbt.getInt("canDoNumber");
+    }
+
+    public void stop(@NotNull ServerBot bot, BotActionStopEvent.Reason reason) {
+        new BotActionStopEvent(bot.getBukkitEntity(), this.name, this.uuid, reason, null).callEvent();
+        this.setCancelled(true);
+    }
+
+    public abstract void loadCommand(@Nullable ServerPlayer player, @NotNull CommandArgumentResult result);
+
+    public abstract boolean doTick(@NotNull ServerBot bot);
+
+    @SuppressWarnings("unchecked")
+    public E setTabComplete(int index, List<String> list) {
+        this.argument.setTabComplete(index, list);
+        return (E) this;
     }
 
     public String getName() {
@@ -53,24 +128,38 @@ public abstract class AbstractBotAction<E extends AbstractBotAction<E>> {
         return uuid;
     }
 
-    public int getTickDelay() {
-        return this.tickDelay;
-    }
-
     @SuppressWarnings("unchecked")
-    public E setTickDelay(int tickDelay) {
-        this.tickDelay = Math.max(0, tickDelay);
+    public E setInitialTickDelay(int initialTickDelay) {
+        this.initialTickDelay = initialTickDelay;
         return (E) this;
     }
 
-    public int getNumber() {
-        return this.number;
+    public int getInitialTickDelay() {
+        return this.initialTickDelay;
+    }
+
+    public int getInitialTickInterval() {
+        return this.initialTickInterval;
     }
 
     @SuppressWarnings("unchecked")
-    public E setNumber(int number) {
-        this.number = Math.max(-1, number);
+    public E setInitialTickInterval(int initialTickInterval) {
+        this.initialTickInterval = Math.max(1, initialTickInterval);
         return (E) this;
+    }
+
+    public int getInitialNumber() {
+        return this.initialNumber;
+    }
+
+    @SuppressWarnings("unchecked")
+    public E setInitialNumber(int initialNumber) {
+        this.initialNumber = Math.max(-1, initialNumber);
+        return (E) this;
+    }
+
+    public int getTickToNext() {
+        return this.tickToNext;
     }
 
     public int getCanDoNumber() {
@@ -85,79 +174,12 @@ public abstract class AbstractBotAction<E extends AbstractBotAction<E>> {
         this.cancel = cancel;
     }
 
-    public void stop(@NotNull ServerBot bot, BotActionStopEvent.Reason reason) {
-        new BotActionStopEvent(bot.getBukkitEntity(), this.name, this.uuid, reason, null).callEvent();
-        this.setCancelled(true);
-    }
-
     public CommandArgument getArgument() {
         return this.argument;
-    }
-
-    @SuppressWarnings("unchecked")
-    public E setTabComplete(int index, List<String> list) {
-        this.argument.setTabComplete(index, list);
-        return (E) this;
-    }
-
-    public void tryTick(ServerBot bot) {
-        if (this.canDoNumber == 0) {
-            this.stop(bot, BotActionStopEvent.Reason.DONE);
-            return;
-        }
-
-        if (this.needWaitTick <= 0) {
-            BotActionExecuteEvent event = new BotActionExecuteEvent(bot.getBukkitEntity(), name, uuid);
-
-            event.callEvent();
-            if (event.getResult() == BotActionExecuteEvent.Result.SOFT_CANCEL) {
-                this.needWaitTick = this.getTickDelay();
-                return;
-            } else if (event.getResult() == BotActionExecuteEvent.Result.HARD_CANCEL) {
-                if (this.canDoNumber > 0) {
-                    this.canDoNumber--;
-                }
-                this.needWaitTick = this.getTickDelay();
-                return;
-            }
-
-            if (this.doTick(bot)) {
-                if (this.canDoNumber > 0) {
-                    this.canDoNumber--;
-                }
-                this.needWaitTick = this.getTickDelay();
-            }
-        } else {
-            this.needWaitTick--;
-        }
     }
 
     @NotNull
     public E create() {
         return this.creator.get();
     }
-
-    @NotNull
-    public CompoundTag save(@NotNull CompoundTag nbt) {
-        if (!this.cancel) {
-            nbt.putString("actionName", this.name);
-            nbt.putUUID("actionUUID", this.uuid);
-
-            nbt.putInt("canDoNumber", this.canDoNumber);
-            nbt.putInt("needWaitTick", this.needWaitTick);
-            nbt.putInt("tickDelay", this.tickDelay);
-        }
-        return nbt;
-    }
-
-    public void load(@NotNull CompoundTag nbt) {
-        this.tickDelay = nbt.getInt("tickDelay");
-        this.needWaitTick = nbt.getInt("needWaitTick");
-        this.canDoNumber = nbt.getInt("canDoNumber");
-        this.uuid = nbt.getUUID("actionUUID");
-    }
-
-    public abstract void loadCommand(@Nullable ServerPlayer player, @NotNull CommandArgumentResult result);
-
-    public abstract boolean doTick(@NotNull ServerBot bot);
 }

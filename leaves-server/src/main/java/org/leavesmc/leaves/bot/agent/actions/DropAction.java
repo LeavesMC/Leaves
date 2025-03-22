@@ -14,7 +14,7 @@ public class DropAction extends AbstractTimerAction<DropAction> {
 
     @Override
     public void loadCommand(@Nullable ServerPlayer player, @NotNull CommandArgumentResult result) {
-        this.setTickDelay(result.readInt(100)).setNumber(result.readInt(1));
+        this.setInitialTickDelay(result.readInt(100)).setInitialTickInterval(result.readInt(100)).setInitialNumber(result.readInt(1));
     }
 
     @Override

@@ -28,7 +28,7 @@ public class LookAction extends AbstractBotAction<LookAction> {
     public void loadCommand(@Nullable ServerPlayer player, @NotNull CommandArgumentResult result) throws IllegalArgumentException {
         Vector pos = result.readVector();
         if (pos != null) {
-            this.setPos(pos).setTickDelay(0).setNumber(1);
+            this.setPos(pos).setInitialTickDelay(0).setInitialTickInterval(1).setInitialNumber(1);
         } else {
             throw new IllegalArgumentException("pos?");
         }

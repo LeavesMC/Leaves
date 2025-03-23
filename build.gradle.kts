@@ -85,6 +85,12 @@ val patchTasks = listOf(
     ":leaves-server:applyMinecraftPatches" to ":leaves-server:rebuildMinecraftPatches",
     ":leaves-server:applyPaperServerPatches" to ":leaves-server:rebuildPaperServerPatches"
 )
+val patchDir = listOf(
+    "paper-api",
+    "leaves-server",
+    "leaves-server/src/minecraft/java",
+    "paper-server",
+)
 
 val statusFile = layout.buildDirectory.file("patchTaskStatus.json").get().asFile
 fun readTaskStatus(): Map<String, String> {
@@ -103,28 +109,10 @@ fun writeTaskStatus(status: Map<String, String>) {
     statusFile.writeText(JsonBuilder(status).toPrettyString())
 }
 
-fun executeTask(taskPath: String): Boolean {
-    val parts = taskPath.split(":")
-    val projectPath = if (parts.size > 2) parts.subList(0, parts.size - 1).joinToString(":") else ":"
-    val taskName = parts.last()
-    val fullTaskPath = if (projectPath == ":" || projectPath.isEmpty()) taskName else "$projectPath:$taskName"
-
+fun executeCommand(command: List<String>, directory: File): Boolean {
     try {
-        val gradlew = if (System.getProperty("os.name").lowercase(Locale.getDefault()).contains("windows"))
-            "${project.rootDir}\\gradlew.bat"
-        else
-            "${project.rootDir}/gradlew"
-
-        val processBuilder = ProcessBuilder(
-            gradlew,
-            fullTaskPath,
-            // "--console=verbose",
-            // "--info"
-        )
-        processBuilder.directory(project.rootDir)
-
-        val env = processBuilder.environment()
-        env["TERM"] = "xterm-256color"
+        val processBuilder = ProcessBuilder(command)
+        processBuilder.directory(directory)
 
         val process = processBuilder.start()
 
@@ -154,15 +142,36 @@ fun executeTask(taskPath: String): Boolean {
         outputThread.join()
         errorThread.join()
 
-        if (exitCode != 0) {
-            throw GradleException("Task $fullTaskPath FAILED，$exitCode")
-        }
-
-        return true
-    } catch (e: Exception) {
-        println("⚠️ Task FAILED: $taskPath - ${e.message}")
-        throw e
+        return exitCode == 0
+    } catch (_: Exception) {
+        return false
     }
+}
+
+fun hasGitChanges(directory: File): Boolean {
+    val process = ProcessBuilder("git", "status", "--porcelain").directory(directory).start()
+    val output = process.inputStream.bufferedReader().readText()
+    process.waitFor()
+
+    return output.isNotEmpty()
+}
+
+fun executeTask(taskPath: String): Boolean {
+    val parts = taskPath.split(":")
+    val projectPath = if (parts.size > 2) parts.subList(0, parts.size - 1).joinToString(":") else ":"
+    val taskName = parts.last()
+    val fullTaskPath = if (projectPath == ":" || projectPath.isEmpty()) taskName else "$projectPath:$taskName"
+
+    val gradlew = if (System.getProperty("os.name").lowercase(Locale.getDefault()).contains("windows"))
+        "${project.rootDir}\\gradlew.bat"
+    else
+        "${project.rootDir}/gradlew"
+
+    if (!executeCommand(listOf(gradlew, fullTaskPath), project.projectDir)) {
+        throw GradleException("Task $fullTaskPath FAILED")
+    }
+
+    return true
 }
 
 tasks.register("applyAllPatchesSequentially") {
@@ -224,6 +233,31 @@ tasks.register("applyAllPatchesSequentially") {
         if (currentIndex >= patchTasks.size) {
             tasks.named("resetPatchTaskStatus").get().actions.forEach { it.execute(tasks.named("resetPatchTaskStatus").get()) }
             println("✨ All patch tasks completed successfully!")
+        }
+    }
+}
+
+tasks.register("applyNextPatch") {
+    group = "leaves"
+    description = "Apply the next patch"
+
+    doLast {
+        val taskStatus = readTaskStatus().toMutableMap()
+
+        val failedIndex = patchTasks.indexOfFirst { (applyTaskPath, _) ->
+            taskStatus[applyTaskPath] == "FAILED"
+        }
+
+        if (failedIndex >= 0) {
+            val directory = project.projectDir.resolve(patchDir[failedIndex])
+
+            val gitCommand = if (hasGitChanges(directory)) {
+                listOf("git", "am", "--continue")
+            } else {
+                listOf("git", "am", "--skip")
+            }
+
+            executeCommand(gitCommand, directory)
         }
     }
 }

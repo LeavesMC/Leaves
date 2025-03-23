@@ -619,9 +619,6 @@ public final class LeavesConfig {
         @GlobalConfig("cache-climb-check")
         public boolean cacheClimbCheck = true;
 
-        @GlobalConfig(value = "biome-temperatures-use-aging-cache", lock = true)
-        public boolean biomeTemperaturesUseAgingCache = true;
-
         @GlobalConfig("reduce-chuck-load-and-lookup")
         public boolean reduceChuckLoadAndLookup = true;
 
@@ -661,6 +658,7 @@ public final class LeavesConfig {
         @GlobalConfig("fix-villagers-dont-release-memory")
         public boolean villagersDontReleaseMemoryFix = false;
 
+        @RemovedConfig(name = "biome-temperatures-use-aging-cache", category = "performance")
         @RemovedConfig(name = "cache-world-generator-sea-level", category = "performance")
         @RemovedConfig(name = "cache-ominous-banner-item", category = "performance")
         @RemovedConfig(name = "use-optimized-collection", category = "performance")

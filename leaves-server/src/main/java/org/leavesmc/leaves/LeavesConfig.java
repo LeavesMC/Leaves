@@ -831,7 +831,7 @@ public final class LeavesConfig {
         public boolean leavesCarpetSupport = false;
 
         @GlobalConfig("carpet-mspt-mobcapes-support")
-        public boolean carpetMSPTMobCapesSupport = false;
+        public boolean carpetMSPTMobCapsSupport = false;
 
         @GlobalConfig("lms-paster-protocol")
         public boolean lmsPasterProtocol = false;

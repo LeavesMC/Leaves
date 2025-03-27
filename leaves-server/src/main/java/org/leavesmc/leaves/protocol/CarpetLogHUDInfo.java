@@ -18,7 +18,7 @@ import java.util.List;
 public class CarpetLogHUDInfo {
     @ProtocolHandler.Ticker
     public static void onTick() {
-        if (LeavesConfig.protocol.carpetMSPTMobCapesSupport) {
+        if (LeavesConfig.protocol.carpetMSPTMobCapsSupport) {
             MinecraftServer server = MinecraftServer.getServer();
             List<ServerPlayer> realPlayers = server.getPlayerList().realPlayers;
             if (realPlayers.isEmpty()) return;

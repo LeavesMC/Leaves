@@ -838,6 +838,9 @@ public final class LeavesConfig {
 
         @GlobalConfig("rei-server-protocol")
         public boolean reiServerProtocol = false;
+
+        @GlobalConfig("recipe-send-all")
+        public boolean recipeSendAll = false;
     }
 
     public static MiscConfig mics = new MiscConfig();

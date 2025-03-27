@@ -19,7 +19,7 @@ import org.leavesmc.leaves.protocol.rei.payload.CreateItemHotbarPayload;
 import org.leavesmc.leaves.protocol.rei.payload.CreateItemMessagePayload;
 import org.leavesmc.leaves.protocol.rei.payload.CreateItemPayload;
 
-@LeavesProtocol(namespace = "roughlyenoughitems")
+// @LeavesProtocol(namespace = "roughlyenoughitems") TODO will fix
 public class REIServerProtocol {
 
     public static final String PROTOCOL_ID = "roughlyenoughitems";

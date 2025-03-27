@@ -78,9 +78,6 @@ public class CarpetLogHUDInfo {
                     Component.literal(String.format("%.1f", mspt)).withStyle(color)
                 );
 
-            // MobCategory
-
-
             // Send MobCaps Data
 
             Set<ServerLevel> levels = realPlayers.stream().map(ServerPlayer::serverLevel).collect(Collectors.toUnmodifiableSet());

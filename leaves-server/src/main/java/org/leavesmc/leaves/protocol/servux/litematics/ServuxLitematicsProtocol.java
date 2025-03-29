@@ -19,7 +19,13 @@ import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import org.bukkit.Bukkit;
+import org.bukkit.Server;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Player;
+import org.bukkit.permissions.Permission;
+import org.bukkit.permissions.PermissionDefault;
+import org.bukkit.plugin.PluginManager;
 import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.protocol.core.LeavesCustomPayload;
 import org.leavesmc.leaves.protocol.core.LeavesProtocol;
@@ -28,6 +34,7 @@ import org.leavesmc.leaves.protocol.core.ProtocolUtils;
 import org.leavesmc.leaves.protocol.servux.PacketSplitter;
 import org.leavesmc.leaves.protocol.servux.ServuxProtocol;
 import org.leavesmc.leaves.protocol.servux.litematics.schematic.placement.SchematicPlacement;
+import org.leavesmc.leaves.protocol.servux.litematics.schematic.utils.NbtUtils;
 import org.leavesmc.leaves.protocol.servux.litematics.schematic.utils.ReplaceBehavior;
 
 import javax.annotation.Nonnull;
@@ -59,6 +66,11 @@ public class ServuxLitematicsProtocol {
 
     @ProtocolHandler.Init
     public static void init() {
+        Server server = Bukkit.getServer();
+        PluginManager pluginManager = server.getPluginManager();
+        if (pluginManager.getPermission("leaves.protocol.litematics") == null) {
+            pluginManager.addPermission(new Permission("leaves.protocol.litematics", PermissionDefault.OP));
+        }
         metadata.putString("name", "litematic_data");
         metadata.putString("id", "servux:litematics");
         metadata.putInt("version", 1);
@@ -81,11 +93,12 @@ public class ServuxLitematicsProtocol {
     }
 
     public static boolean hasPermission(ServerPlayer player) {
-        return true;
+        CraftPlayer bukkitEntity = player.getBukkitEntity();
+        return bukkitEntity.hasPermission("leaves.protocol.litematics");
     }
 
     public static boolean isEnabled() {
-        return true;
+        return LeavesConfig.protocol.servux.litematicsProtocol;
     }
 
     public static void encodeServerData(ServerPlayer player, ServuxLitematicaPacket packet) {
@@ -190,11 +203,7 @@ public class ServuxLitematicsProtocol {
 
                 if (entity.save(entTag)) {
                     Vec3 posVec = new Vec3(entity.getX() - pos1.getX(), entity.getY() - pos1.getY(), entity.getZ() - pos1.getZ());
-                    ListTag pos = new ListTag();
-                    pos.add(DoubleTag.valueOf(posVec.x));
-                    pos.add(DoubleTag.valueOf(posVec.y));
-                    pos.add(DoubleTag.valueOf(posVec.z));
-                    entTag.put("Pos", pos);
+                    NbtUtils.writeEntityPositionToTag(posVec, entTag);
                     entTag.putInt("entityId", entity.getId());
                     entityList.add(entTag);
                 }

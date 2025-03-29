@@ -148,10 +148,10 @@ public class EntityUtils {
     public static List<Entity> getEntitiesWithinSubRegion(Level world, BlockPos origin, BlockPos regionPos, BlockPos regionSize,
                                                           SchematicPlacement schematicPlacement, SubRegionPlacement placement) {
         // These are the untransformed relative positions
-        BlockPos regionPosRelTransformed = fi.dy.masa.servux.util.position.PositionUtils.getTransformedBlockPos(regionPos, schematicPlacement.getMirror(), schematicPlacement.getRotation());
-        BlockPos posEndAbs = fi.dy.masa.servux.util.position.PositionUtils.getTransformedPlacementPosition(regionSize.offset(-1, -1, -1), schematicPlacement, placement).offset(regionPosRelTransformed).offset(origin);
+        BlockPos regionPosRelTransformed = PositionUtils.getTransformedBlockPos(regionPos, schematicPlacement.getMirror(), schematicPlacement.getRotation());
+        BlockPos posEndAbs = PositionUtils.getTransformedPlacementPosition(regionSize.offset(-1, -1, -1), schematicPlacement, placement).offset(regionPosRelTransformed).offset(origin);
         BlockPos regionPosAbs = regionPosRelTransformed.offset(origin);
-        AABB bb = fi.dy.masa.servux.util.position.PositionUtils.createEnclosingAABB(regionPosAbs, posEndAbs);
+        AABB bb = PositionUtils.createEnclosingAABB(regionPosAbs, posEndAbs);
 
         return world.getEntities((Entity) null, bb, EntityUtils.NOT_PLAYER);
     }

@@ -459,7 +459,7 @@ public class LitematicaSchematic {
                 double z = pos.z + offZ;
 
                 SchematicPlacingUtils.rotateEntity(entity, x, y, z, rotationCombined, mirrorMain, mirrorSub);
-                EntityUtils.createEntityAndPassengersFromNBT(entity, world);
+                EntityUtils.spawnEntityAndPassengersInWorld(entity, world);
             }
         }
     }

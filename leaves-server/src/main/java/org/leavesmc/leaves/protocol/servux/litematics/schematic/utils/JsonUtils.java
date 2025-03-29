@@ -8,106 +8,18 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Vec3i;
-import net.minecraft.world.phys.Vec3;
 import org.leavesmc.leaves.protocol.servux.litematics.ServuxLitematicsProtocol;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
-import java.util.UUID;
 
 public class JsonUtils {
     public static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-
-    @Nullable
-    public static JsonObject getNestedObject(JsonObject parent, String key, boolean create) {
-        if (parent.has(key) == false || parent.get(key).isJsonObject() == false) {
-            if (create == false) {
-                return null;
-            }
-
-            JsonObject obj = new JsonObject();
-            parent.add(key, obj);
-            return obj;
-        } else {
-            return parent.get(key).getAsJsonObject();
-        }
-    }
-
-    public static boolean hasBoolean(JsonObject obj, String name) {
-        JsonElement el = obj.get(name);
-
-        if (el != null && el.isJsonPrimitive()) {
-            try {
-                el.getAsBoolean();
-                return true;
-            } catch (Exception ignore) {
-            }
-        }
-
-        return false;
-    }
-
-    public static boolean hasInteger(JsonObject obj, String name) {
-        JsonElement el = obj.get(name);
-
-        if (el != null && el.isJsonPrimitive()) {
-            try {
-                el.getAsInt();
-                return true;
-            } catch (Exception ignore) {
-            }
-        }
-
-        return false;
-    }
-
-    public static boolean hasLong(JsonObject obj, String name) {
-        JsonElement el = obj.get(name);
-
-        if (el != null && el.isJsonPrimitive()) {
-            try {
-                el.getAsLong();
-                return true;
-            } catch (Exception ignore) {
-            }
-        }
-
-        return false;
-    }
-
-    public static boolean hasFloat(JsonObject obj, String name) {
-        JsonElement el = obj.get(name);
-
-        if (el != null && el.isJsonPrimitive()) {
-            try {
-                el.getAsFloat();
-                return true;
-            } catch (Exception ignore) {
-            }
-        }
-
-        return false;
-    }
-
-    public static boolean hasDouble(JsonObject obj, String name) {
-        JsonElement el = obj.get(name);
-
-        if (el != null && el.isJsonPrimitive()) {
-            try {
-                el.getAsDouble();
-                return true;
-            } catch (Exception ignore) {
-            }
-        }
-
-        return false;
-    }
 
     public static boolean hasString(JsonObject obj, String name) {
         JsonElement el = obj.get(name);
@@ -121,11 +33,6 @@ public class JsonUtils {
         }
 
         return false;
-    }
-
-    public static boolean hasObject(JsonObject obj, String name) {
-        JsonElement el = obj.get(name);
-        return el != null && el.isJsonObject();
     }
 
     public static boolean hasArray(JsonObject obj, String name) {
@@ -224,10 +131,6 @@ public class JsonUtils {
         return getStringOrDefault(obj, name, null);
     }
 
-    public static boolean hasBlockPos(JsonObject obj, String name) {
-        return blockPosFromJson(obj, name) != null;
-    }
-
     public static JsonArray blockPosToJson(Vec3i pos) {
         JsonArray arr = new JsonArray();
 
@@ -246,36 +149,6 @@ public class JsonUtils {
             if (arr.size() == 3) {
                 try {
                     return new BlockPos(arr.get(0).getAsInt(), arr.get(1).getAsInt(), arr.get(2).getAsInt());
-                } catch (Exception ignore) {
-                }
-            }
-        }
-
-        return null;
-    }
-
-    public static boolean hasVec3d(JsonObject obj, String name) {
-        return vec3dFromJson(obj, name) != null;
-    }
-
-    public static JsonArray vec3dToJson(Vec3 vec) {
-        JsonArray arr = new JsonArray();
-
-        arr.add(vec.x);
-        arr.add(vec.y);
-        arr.add(vec.z);
-
-        return arr;
-    }
-
-    @Nullable
-    public static Vec3 vec3dFromJson(JsonObject obj, String name) {
-        if (hasArray(obj, name)) {
-            JsonArray arr = obj.getAsJsonArray(name);
-
-            if (arr.size() == 3) {
-                try {
-                    return new Vec3(arr.get(0).getAsDouble(), arr.get(1).getAsDouble(), arr.get(2).getAsDouble());
                 } catch (Exception ignore) {
                 }
             }
@@ -319,17 +192,6 @@ public class JsonUtils {
             throw new UnsupportedOperationException("Unsupported element: " + jsonElement);
         }
     }
-
-    @Nullable
-    public static JsonElement parseJsonFromString(String str) {
-        try {
-            return JsonParser.parseString(str);
-        } catch (Exception ignore) {
-        }
-
-        return null;
-    }
-
     @Nullable
     public static JsonElement parseJsonFileAsPath(Path file) {
         if (file != null && Files.exists(file) && Files.isReadable(file)) {
@@ -343,46 +205,5 @@ public class JsonUtils {
         }
 
         return null;
-    }
-
-    /**
-     * Converts the given JsonElement tree into its string representation.
-     * If <b>compact</b> is true, then it's written in one line without spaces or line breaks.
-     */
-    public static String jsonToString(JsonElement element, boolean compact) {
-        Gson gson = compact ? new Gson() : GSON;
-        return gson.toJson(element);
-    }
-
-    public static boolean writeJsonToFileAsPath(JsonObject root, Path file) {
-        Path fileTemp = Path.of(file.toString() + ".tmp");
-
-        if (Files.exists(fileTemp)) {
-            fileTemp = Path.of(file.toString() + UUID.randomUUID() + ".tmp");
-        }
-
-        try (OutputStreamWriter writer = new OutputStreamWriter(Files.newOutputStream(fileTemp), StandardCharsets.UTF_8)) {
-            writer.write(GSON.toJson(root));
-            writer.close();
-
-            if (Files.exists(file)) {
-                try {
-                    Files.delete(file);
-                } catch (Exception err) {
-                    ServuxLitematicsProtocol.LOGGER.warn("writeJson: Failed to delete file '{}'", file.toString());
-                }
-            }
-
-            try {
-                Files.move(fileTemp, file);
-                return true;
-            } catch (Exception err) {
-                ServuxLitematicsProtocol.LOGGER.warn("writeJson: Failed to move file '{}'", file.toString());
-            }
-        } catch (Exception e) {
-            ServuxLitematicsProtocol.LOGGER.warn("writeJson: Failed to write JSON data to file '{}'", fileTemp.toString(), e);
-        }
-
-        return false;
     }
 }

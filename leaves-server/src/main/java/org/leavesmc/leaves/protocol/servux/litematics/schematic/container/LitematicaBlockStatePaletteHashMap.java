@@ -10,7 +10,6 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import org.leavesmc.leaves.protocol.servux.litematics.collections.Int2ObjectBiMap;
 
-import java.util.List;
 import javax.annotation.Nullable;
 
 public class LitematicaBlockStatePaletteHashMap implements ILitematicaBlockStatePalette {
@@ -44,12 +43,6 @@ public class LitematicaBlockStatePaletteHashMap implements ILitematicaBlockState
     public BlockState getBlockState(int indexKey) {
         return this.statePaletteMap.get(indexKey);
     }
-
-    @Override
-    public int getPaletteSize() {
-        return this.statePaletteMap.size();
-    }
-
     private void requestNewId(BlockState state) {
         final int origId = this.statePaletteMap.add(state);
 
@@ -96,16 +89,5 @@ public class LitematicaBlockStatePaletteHashMap implements ILitematicaBlockState
         }
 
         return tagList;
-    }
-
-    @Override
-    public boolean setMapping(List<BlockState> list) {
-        this.statePaletteMap.clear();
-
-        for (BlockState blockState : list) {
-            this.statePaletteMap.add(blockState);
-        }
-
-        return true;
     }
 }

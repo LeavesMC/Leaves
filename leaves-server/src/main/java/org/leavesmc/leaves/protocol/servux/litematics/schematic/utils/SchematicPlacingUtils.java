@@ -50,7 +50,7 @@ public class SchematicPlacingUtils {
         boolean allSuccess = true;
 
         try {
-            if (notifyNeighbors == false) {
+            if (!notifyNeighbors) {
                 NoBlockUpdateCommand.setPreventBlockUpdate(true);
             }
 
@@ -69,17 +69,17 @@ public class SchematicPlacingUtils {
                     Map<BlockPos, ScheduledTick<Block>> scheduledBlockTicks = schematic.getScheduledBlockTicksForRegion(regionName);
                     Map<BlockPos, ScheduledTick<Fluid>> scheduledFluidTicks = schematic.getScheduledFluidTicksForRegion(regionName);
 
-                    if (placeBlocksWithinChunk(world, chunkPos, regionName, container, blockEntityMap,
+                    if (!placeBlocksWithinChunk(world, chunkPos, regionName, container, blockEntityMap,
                         origin, schematicPlacement, placement, scheduledBlockTicks,
-                        scheduledFluidTicks, replace, notifyNeighbors) == false) {
+                        scheduledFluidTicks, replace, notifyNeighbors)) {
                         allSuccess = false;
                         ServuxLitematicsProtocol.LOGGER.warn("Invalid/missing schematic data in schematic '{}' for sub-region '{}'", schematic.getMetadata().getName(), regionName);
                     }
 
                     List<LitematicaSchematic.EntityInfo> entityList = schematic.getEntityListForRegion(regionName);
 
-                    if (schematicPlacement.ignoreEntities() == false &&
-                        placement.ignoreEntities() == false && entityList != null) {
+                    if (!schematicPlacement.ignoreEntities() &&
+                        !placement.ignoreEntities() && entityList != null) {
                         placeEntitiesToWorldWithinChunk(world, chunkPos, entityList, origin, schematicPlacement, placement);
                     }
                 }
@@ -117,8 +117,8 @@ public class SchematicPlacingUtils {
         BlockPos regionPosTransformed = PositionUtils.getTransformedBlockPos(regionPos, schematicPlacement.getMirror(), schematicPlacement.getRotation());
 
         // The relative offset of the affected region's corners, to the sub-region's origin corner
-        BlockPos boxMinRel = new BlockPos(bounds.minX - origin.getX() - regionPosTransformed.getX(), 0, bounds.minZ - origin.getZ() - regionPosTransformed.getZ());
-        BlockPos boxMaxRel = new BlockPos(bounds.maxX - origin.getX() - regionPosTransformed.getX(), 0, bounds.maxZ - origin.getZ() - regionPosTransformed.getZ());
+        BlockPos boxMinRel = new BlockPos(bounds.minX() - origin.getX() - regionPosTransformed.getX(), 0, bounds.minZ() - origin.getZ() - regionPosTransformed.getZ());
+        BlockPos boxMaxRel = new BlockPos(bounds.maxX() - origin.getX() - regionPosTransformed.getX(), 0, bounds.maxZ() - origin.getZ() - regionPosTransformed.getZ());
 
         // Reverse transform that relative offset, to get the untransformed orientation's offsets
         boxMinRel = PositionUtils.getReverseTransformedBlockPos(boxMinRel, placement.getMirror(), placement.getRotation());
@@ -188,8 +188,8 @@ public class SchematicPlacingUtils {
 
                     BlockState stateOld = world.getBlockState(pos);
 
-                    if ((replace == ReplaceBehavior.NONE && stateOld.isAir() == false) ||
-                        (replace == ReplaceBehavior.WITH_NON_AIR && state.isAir() == true)) {
+                    if ((replace == ReplaceBehavior.NONE && !stateOld.isAir()) ||
+                        (replace == ReplaceBehavior.WITH_NON_AIR && state.isAir())) {
                         continue;
                     }
 
@@ -222,16 +222,9 @@ public class SchematicPlacingUtils {
                             teNBT.putInt("y", pos.getY());
                             teNBT.putInt("z", pos.getZ());
 
-                            if (ignoreInventories) {
-                                teNBT.remove("Items");
-                            }
-
                             try {
                                 te.loadWithComponents(teNBT, world.registryAccess().freeze());
 
-                                if (ignoreInventories && te instanceof Container) {
-                                    ((Container) te).clearContent();
-                                }
                             } catch (Exception e) {
                                 ServuxLitematicsProtocol.LOGGER.warn("Failed to load BlockEntity data for {} @ {}", state, pos);
                             }
@@ -244,7 +237,7 @@ public class SchematicPlacingUtils {
         if (world instanceof ServerLevel serverWorld) {
             IntBoundingBox box = new IntBoundingBox(startX, startY, startZ, endX, endY, endZ);
 
-            if (scheduledBlockTicks != null && scheduledBlockTicks.isEmpty() == false) {
+            if (scheduledBlockTicks != null && !scheduledBlockTicks.isEmpty()) {
                 LevelTicks<Block> scheduler = serverWorld.getBlockTicks();
 
                 for (Map.Entry<BlockPos, ScheduledTick<Block>> entry : scheduledBlockTicks.entrySet()) {
@@ -266,7 +259,7 @@ public class SchematicPlacingUtils {
                 }
             }
 
-            if (scheduledFluidTicks != null && scheduledFluidTicks.isEmpty() == false) {
+            if (scheduledFluidTicks != null && !scheduledFluidTicks.isEmpty()) {
                 LevelTicks<Fluid> scheduler = serverWorld.getFluidTicks();
 
                 for (Map.Entry<BlockPos, ScheduledTick<Fluid>> entry : scheduledFluidTicks.entrySet()) {
@@ -338,7 +331,7 @@ public class SchematicPlacingUtils {
         }
 
         for (LitematicaSchematic.EntityInfo info : entityList) {
-            Vec3 pos = info.posVec;
+            Vec3 pos = info.posVec();
             pos = PositionUtils.getTransformedPosition(pos, schematicPlacement.getMirror(), schematicPlacement.getRotation());
             pos = PositionUtils.getTransformedPosition(pos, placement.getMirror(), placement.getRotation());
             double x = pos.x + offX;
@@ -347,7 +340,7 @@ public class SchematicPlacingUtils {
             float[] origRot = new float[2];
 
             if (x >= minX && x < maxX && z >= minZ && z < maxZ) {
-                CompoundTag tag = info.nbt.copy();
+                CompoundTag tag = info.nbt().copy();
                 String id = tag.getString("id");
 
                 // Avoid warning about invalid hanging position.

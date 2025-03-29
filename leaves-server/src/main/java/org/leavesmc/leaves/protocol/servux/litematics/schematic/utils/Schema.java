@@ -139,23 +139,6 @@ public enum Schema {
 
         return null;
     }
-
-    /**
-     * Returns the Schema of the exact String entry, if found
-     *
-     * @param str (MC Version)
-     * @return (Schema | null)
-     */
-    public static @Nullable Schema getSchemaByString(String str) {
-        for (Schema schema : Schema.values()) {
-            if (schema.getString().equals(str)) {
-                return schema;
-            }
-        }
-
-        return null;
-    }
-
     @Override
     public String toString() {
         return "MC: " + this.getString() + " [Schema: " + this.getDataVersion() + "]";

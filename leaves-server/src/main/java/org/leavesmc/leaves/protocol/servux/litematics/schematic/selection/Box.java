@@ -64,11 +64,6 @@ public class Box
         return this.name;
     }
 
-    public PositionUtils.Corner getSelectedCorner()
-    {
-        return this.selectedCorner;
-    }
-
     public void setPos1(@Nullable BlockPos pos)
     {
         this.pos1 = pos;
@@ -91,20 +86,6 @@ public class Box
         this.selectedCorner = corner;
     }
 
-    /*
-    public void rotate(Rotation rotation)
-    {
-        BlockPos pos = PositionUtils.getTransformedBlockPos(this.getSize(), Mirror.NONE, rotation);
-        this.setPos2(this.getPos1().add(pos).add(-1, -1, -1));
-    }
-
-    public void mirror(Mirror mirror)
-    {
-        BlockPos pos = PositionUtils.getTransformedBlockPos(this.getSize(), mirror, Rotation.NONE);
-        this.setPos2(this.getPos1().add(pos).add(-1, -1, -1));
-    }
-    */
-
     private void updateSize()
     {
         if (this.pos1 != null && this.pos2 != null)
@@ -122,41 +103,6 @@ public class Box
     public BlockPos getPosition(PositionUtils.Corner corner)
     {
         return corner == PositionUtils.Corner.CORNER_1 ? this.getPos1() : this.getPos2();
-    }
-
-    public int getCoordinate(PositionUtils.Corner corner, PositionUtils.CoordinateType type)
-    {
-        BlockPos pos = this.getPosition(corner);
-
-        switch (type)
-        {
-            case X:
-                return pos.getX();
-            case Y:
-                return pos.getY();
-            case Z:
-                return pos.getZ();
-        }
-
-        return 0;
-    }
-
-    protected void setPosition(BlockPos pos, PositionUtils.Corner corner)
-    {
-        if (corner == PositionUtils.Corner.CORNER_1)
-        {
-            this.setPos1(pos);
-        } else if (corner == PositionUtils.Corner.CORNER_2)
-        {
-            this.setPos2(pos);
-        }
-    }
-
-    public void setCoordinate(int value, PositionUtils.Corner corner, PositionUtils.CoordinateType type)
-    {
-        BlockPos pos = this.getPosition(corner);
-        pos = PositionUtils.getModifiedPosition(pos, value, type);
-        this.setPosition(pos, corner);
     }
 
     @Nullable

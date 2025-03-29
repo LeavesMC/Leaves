@@ -1,6 +1,5 @@
 package org.leavesmc.leaves.protocol.servux.litematics.schematic;
 
-import net.minecraft.core.BlockPos;
 import net.minecraft.core.Vec3i;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
@@ -22,11 +21,8 @@ public class SchematicMetadata {
     protected Schema schema;
     protected FileType type;
     private int regionCount;
-    protected int entityCount;
-    protected int blockEntityCount;
     private int totalVolume = -1;
     private int totalBlocks = -1;
-    private boolean modifiedSinceSaved;
     @Nullable
     protected int[] thumbnailPixelData;
 
@@ -41,74 +37,8 @@ public class SchematicMetadata {
     public String getDescription() {
         return this.description;
     }
-
-    @Nullable
-    public int[] getPreviewImagePixelData() {
-        return this.thumbnailPixelData;
-    }
-
-    public int getRegionCount() {
-        return this.regionCount;
-    }
-
-    public int getTotalVolume() {
-        return this.totalVolume;
-    }
-
-    public int getTotalBlocks() {
-        return this.totalBlocks;
-    }
-
-    public int getEntityCount() {
-        return this.entityCount;
-    }
-
-    public int getBlockEntityCount() {
-        return this.blockEntityCount;
-    }
-
-    public Vec3i getEnclosingSize() {
-        return this.enclosingSize;
-    }
-
-    public Vec3i getEnclosingSizeAsVanilla() {
-        return this.enclosingSize;
-    }
-
-    public BlockPos getEnclosingSizeAsBlockPos() {
-        return new BlockPos(this.enclosingSize);
-    }
-
-    public long getTimeCreated() {
-        return this.timeCreated;
-    }
-
-    public long getTimeModified() {
-        return this.timeModified;
-    }
-
-    public int getSchematicVersion() {
-        return this.schematicVersion;
-    }
-
-    public int getMinecraftDataVersion() {
-        return this.minecraftDataVersion;
-    }
-
-    public SchematicSchema getSchematicSchema() {
-        return new SchematicSchema(this.schematicVersion, this.minecraftDataVersion);
-    }
-
     public Schema getSchema() {
         return this.schema;
-    }
-
-    public String getMinecraftVersion() {
-        return this.schema.getString();
-    }
-
-    public String getSchemaString() {
-        return this.schema.toString();
     }
 
     public FileType getFileType() {
@@ -117,22 +47,6 @@ public class SchematicMetadata {
         }
 
         return FileType.UNKNOWN;
-    }
-
-    public boolean hasBeenModified() {
-        return this.timeCreated != this.timeModified;
-    }
-
-    public boolean wasModifiedSinceSaved() {
-        return this.modifiedSinceSaved;
-    }
-
-    public void setModifiedSinceSaved() {
-        this.modifiedSinceSaved = true;
-    }
-
-    public void clearModifiedSinceSaved() {
-        this.modifiedSinceSaved = false;
     }
 
     public void setName(String name) {
@@ -147,52 +61,6 @@ public class SchematicMetadata {
         this.description = description;
     }
 
-    public void setPreviewImagePixelData(@Nullable int[] pixelData) {
-        this.thumbnailPixelData = pixelData;
-    }
-
-    public void setRegionCount(int regionCount) {
-        this.regionCount = regionCount;
-    }
-
-    public void setTotalVolume(int totalVolume) {
-        this.totalVolume = totalVolume;
-    }
-
-    public void setTotalBlocks(int totalBlocks) {
-        this.totalBlocks = totalBlocks;
-    }
-
-    public void setEnclosingSize(Vec3i enclosingSize) {
-        this.enclosingSize = enclosingSize;
-    }
-
-    public void setEnclosingSize(BlockPos enclosingSize) {
-        this.enclosingSize = enclosingSize;
-    }
-
-    public void setTimeCreated(long timeCreated) {
-        this.timeCreated = timeCreated;
-    }
-
-    public void setTimeModified(long timeModified) {
-        this.timeModified = timeModified;
-    }
-
-    public void setTimeModifiedToNow() {
-        this.timeModified = System.currentTimeMillis();
-    }
-
-    public void setTimeModifiedToNowIfNotRecentlyCreated() {
-        long currentTime = System.currentTimeMillis();
-
-        // Allow 10 minutes to set the description and thumbnail image etc.
-        // without marking the schematic as modified
-        if (currentTime - this.timeCreated > 10L * 60L * 1000L) {
-            this.timeModified = currentTime;
-        }
-    }
-
     public void setSchematicVersion(int version) {
         this.schematicVersion = version;
     }
@@ -201,11 +69,6 @@ public class SchematicMetadata {
         this.minecraftDataVersion = minecraftDataVersion;
         this.schema = Schema.getSchemaByDataVersion(this.minecraftDataVersion);
     }
-
-    public void setSchema() {
-        this.schema = Schema.getSchemaByDataVersion(this.minecraftDataVersion);
-    }
-
     public void setFileType(FileType type) {
         this.type = type;
     }
@@ -220,7 +83,6 @@ public class SchematicMetadata {
         this.regionCount = other.regionCount;
         this.totalVolume = other.totalVolume;
         this.totalBlocks = other.totalBlocks;
-        this.modifiedSinceSaved = false;
 
         this.schematicVersion = other.schematicVersion;
         this.minecraftDataVersion = other.minecraftDataVersion;
@@ -234,43 +96,6 @@ public class SchematicMetadata {
             this.thumbnailPixelData = null;
         }
     }
-
-    public CompoundTag writeToNBT() {
-        CompoundTag nbt = new CompoundTag();
-
-        nbt.putString("Name", this.name);
-        nbt.putString("Author", this.author);
-        nbt.putString("Description", this.description);
-
-        if (this.regionCount > 0) {
-            nbt.putInt("RegionCount", this.regionCount);
-        }
-
-        if (this.totalVolume > 0) {
-            nbt.putInt("TotalVolume", this.totalVolume);
-        }
-
-        if (this.totalBlocks >= 0) {
-            nbt.putInt("TotalBlocks", this.totalBlocks);
-        }
-
-        if (this.timeCreated > 0) {
-            nbt.putLong("TimeCreated", this.timeCreated);
-        }
-
-        if (this.timeModified > 0) {
-            nbt.putLong("TimeModified", this.timeModified);
-        }
-
-        nbt.put("EnclosingSize", NbtUtils.createBlockPosTag(this.enclosingSize));
-
-        if (this.thumbnailPixelData != null) {
-            nbt.putIntArray("PreviewImageData", this.thumbnailPixelData);
-        }
-
-        return nbt;
-    }
-
     public void readFromNBT(CompoundTag nbt) {
         this.name = nbt.getString("Name");
         this.author = nbt.getString("Author");
@@ -291,7 +116,7 @@ public class SchematicMetadata {
             Vec3i size = NbtUtils.readVec3iFromTag(nbt.getCompound("EnclosingSize"));
 
             if (size != null) {
-                this.enclosingSize = size != null ? size : Vec3i.ZERO;
+                this.enclosingSize = size;
             }
         }
 

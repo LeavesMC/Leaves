@@ -17,42 +17,32 @@ import org.leavesmc.leaves.protocol.servux.litematics.ServuxLitematicsProtocol;
 import org.leavesmc.leaves.protocol.servux.litematics.malilib.IntBoundingBox;
 import org.leavesmc.leaves.protocol.servux.litematics.schematic.LitematicaSchematic;
 import org.leavesmc.leaves.protocol.servux.litematics.schematic.selection.Box;
+import org.leavesmc.leaves.protocol.servux.litematics.schematic.utils.PositionUtils;
 import org.leavesmc.leaves.protocol.servux.litematics.schematic.utils.ReplaceBehavior;
 import org.leavesmc.leaves.protocol.servux.litematics.schematic.utils.SchematicPlacingUtils;
 
 import javax.annotation.Nullable;
-import java.util.*;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
 
 public class SchematicPlacement {
-    private static final Set<Integer> USED_COLORS = new HashSet<>();
 
     private final Map<String, SubRegionPlacement> relativeSubRegionPlacements = new HashMap<>();
-    private final int subRegionCount;
     private final LitematicaSchematic schematic;
     private BlockPos origin;
     private String name;
     private Rotation rotation = Rotation.NONE;
     private Mirror mirror = Mirror.NONE;
-    private boolean ignoreEntities;
-    private boolean regionPlacementsModified;
-    private int coordinateLockMask;
-    @Nullable
-    private Box enclosingBox;
+    private final boolean ignoreEntities;
 
     private SchematicPlacement(LitematicaSchematic schematic, BlockPos origin, String name, boolean ignoreEntities) {
         this.schematic = schematic;
         this.origin = origin;
         this.name = name;
-        this.subRegionCount = schematic.getSubRegionCount();
         this.ignoreEntities = ignoreEntities;
-    }
-
-    public static SchematicPlacement createFor(LitematicaSchematic schematic, BlockPos origin, String name, boolean ignoreEntities) {
-        SchematicPlacement placement = new SchematicPlacement(schematic, origin, name, ignoreEntities);
-        placement.resetAllSubRegionsToSchematicValues();
-
-        return placement;
     }
 
     public static SchematicPlacement createFromNbt(CompoundTag tags) {
@@ -79,10 +69,6 @@ public class SchematicPlacement {
         return false;
     }
 
-    public boolean isRegionPlacementModified() {
-        return this.regionPlacementsModified;
-    }
-
     public boolean ignoreEntities() {
         return this.ignoreEntities;
     }
@@ -93,11 +79,6 @@ public class SchematicPlacement {
 
     public LitematicaSchematic getSchematic() {
         return schematic;
-    }
-
-    @Nullable
-    public Box getEclosingBox() {
-        return this.enclosingBox;
     }
 
     public void setName(String name) {
@@ -117,40 +98,10 @@ public class SchematicPlacement {
         return mirror;
     }
 
-
-    public int getSubRegionCount() {
-        return this.subRegionCount;
-    }
-
     @Nullable
     public SubRegionPlacement getRelativeSubRegionPlacement(String areaName) {
         return this.relativeSubRegionPlacements.get(areaName);
     }
-
-    public Collection<SubRegionPlacement> getAllSubRegionsPlacements() {
-        return this.relativeSubRegionPlacements.values();
-    }
-
-    public ImmutableMap<String, SubRegionPlacement> getEnabledRelativeSubRegionPlacements() {
-        ImmutableMap.Builder<String, SubRegionPlacement> builder = ImmutableMap.builder();
-
-        for (Map.Entry<String, SubRegionPlacement> entry : this.relativeSubRegionPlacements.entrySet()) {
-            SubRegionPlacement placement = entry.getValue();
-
-            if (placement.matchesRequirement(SubRegionPlacement.RequiredEnabled.PLACEMENT_ENABLED)) {
-                builder.put(entry.getKey(), entry.getValue());
-            }
-        }
-
-        return builder.build();
-    }
-
-    /*
-    public ImmutableMap<String, Box> getAllSubRegionBoxes()
-    {
-        return this.getSubRegionBoxes(RequiredEnabled.ANY);
-    }
-    */
 
     private void updateEnclosingBox() {
         if (this.shouldRenderEnclosingBox()) {
@@ -176,24 +127,7 @@ public class SchematicPlacement {
                     pos2 = BlockPos.max(tmp, pos2);
                 }
             }
-
-            if (pos1 != null && pos2 != null) {
-                this.enclosingBox = new Box(pos1, pos2, "Enclosing Box");
-            }
         }
-    }
-
-
-    private static BlockPos getRelativeEndPositionFromAreaSize(BlockPos size) {
-        int x = size.getX();
-        int y = size.getY();
-        int z = size.getZ();
-
-        x = x >= 0 ? x - 1 : x + 1;
-        y = y >= 0 ? y - 1 : y + 1;
-        z = z >= 0 ? z - 1 : z + 1;
-
-        return new BlockPos(x, y, z);
     }
 
     public ImmutableMap<String, Box> getSubRegionBoxes(SubRegionPlacement.RequiredEnabled required) {
@@ -215,7 +149,7 @@ public class SchematicPlacement {
                 BlockPos boxOriginRelative = placement.getPos();
 
                 BlockPos boxOriginAbsolute = StructureTemplate.transform(boxOriginRelative, this.mirror, this.rotation, this.origin);
-                BlockPos pos2 = getRelativeEndPositionFromAreaSize(areaSize);
+                BlockPos pos2 = PositionUtils.getRelativeEndPositionFromAreaSize(areaSize);
                 pos2 = StructureTemplate.transform(pos2, this.mirror, this.rotation, BlockPos.ZERO);
                 pos2 = StructureTemplate.transform(pos2, placement.getMirror(), placement.getRotation(), boxOriginAbsolute);
 
@@ -239,7 +173,7 @@ public class SchematicPlacement {
 
         boolean notOverlapping = boxXMin > chunkXMax || boxZMin > chunkZMax || boxXMax < chunkXMin || boxZMax < chunkZMin;
 
-        if (notOverlapping == false) {
+        if (!notOverlapping) {
             final int xMin = Math.max(chunkXMin, boxXMin);
             final int yMin = Math.min(box.getPos1().getY(), box.getPos2().getY());
             final int zMin = Math.max(chunkZMin, boxZMin);
@@ -251,21 +185,6 @@ public class SchematicPlacement {
         }
 
         return null;
-    }
-
-    public static ImmutableMap<String, IntBoundingBox> getBoxesWithinChunk(int chunkX, int chunkZ, ImmutableMap<String, Box> subRegions) {
-        ImmutableMap.Builder<String, IntBoundingBox> builder = new ImmutableMap.Builder<>();
-
-        for (Map.Entry<String, Box> entry : subRegions.entrySet()) {
-            Box box = entry.getValue();
-            IntBoundingBox bb = box != null ? getBoundsWithinChunkForBox(box, chunkX, chunkZ) : null;
-
-            if (bb != null) {
-                builder.put(entry.getKey(), bb);
-            }
-        }
-
-        return builder.build();
     }
 
     public ImmutableMap<String, Box> getSubRegionBoxFor(String regionName, SubRegionPlacement.RequiredEnabled required) {
@@ -281,7 +200,7 @@ public class SchematicPlacement {
                 if (areaSize != null) {
                     BlockPos boxOriginRelative = placement.getPos();
                     BlockPos boxOriginAbsolute = StructureTemplate.transform(boxOriginRelative, this.mirror, this.rotation, this.origin);
-                    BlockPos pos2 = getRelativeEndPositionFromAreaSize(areaSize);
+                    BlockPos pos2 = PositionUtils.getRelativeEndPositionFromAreaSize(areaSize);
                     pos2 = StructureTemplate.transform(pos2, this.mirror, this.rotation, BlockPos.ZERO);
                     pos2 = StructureTemplate.transform(pos2, placement.getMirror(), placement.getRotation(), boxOriginAbsolute);
 
@@ -312,17 +231,12 @@ public class SchematicPlacement {
 
             boolean notOverlapping = boxXMin > chunkXMax || boxZMin > chunkZMax || boxXMax < chunkXMin || boxZMax < chunkZMin;
 
-            if (notOverlapping == false) {
+            if (!notOverlapping) {
                 set.add(entry.getKey());
             }
         }
 
         return set;
-    }
-
-    public ImmutableMap<String, IntBoundingBox> getBoxesWithinChunk(int chunkX, int chunkZ) {
-        ImmutableMap<String, Box> subRegions = this.getSubRegionBoxes(SubRegionPlacement.RequiredEnabled.PLACEMENT_ENABLED);
-        return getBoxesWithinChunk(chunkX, chunkZ, subRegions);
     }
 
     @Nullable
@@ -331,148 +245,10 @@ public class SchematicPlacement {
         return box != null ? getBoundsWithinChunkForBox(box, chunkX, chunkZ) : null;
     }
 
-    public static Set<ChunkPos> getTouchedChunks(ImmutableMap<String, Box> boxes) {
-        return getTouchedChunksForBoxes(boxes.values());
-    }
-
-    public static Set<ChunkPos> getTouchedChunksForBoxes(Collection<Box> boxes) {
-        Set<ChunkPos> set = new HashSet<>();
-
-        for (Box box : boxes) {
-            final int boxXMin = Math.min(box.getPos1().getX(), box.getPos2().getX()) >> 4;
-            final int boxZMin = Math.min(box.getPos1().getZ(), box.getPos2().getZ()) >> 4;
-            final int boxXMax = Math.max(box.getPos1().getX(), box.getPos2().getX()) >> 4;
-            final int boxZMax = Math.max(box.getPos1().getZ(), box.getPos2().getZ()) >> 4;
-
-            for (int cz = boxZMin; cz <= boxZMax; ++cz) {
-                for (int cx = boxXMin; cx <= boxXMax; ++cx) {
-                    set.add(new ChunkPos(cx, cz));
-                }
-            }
-        }
-
-        return set;
-    }
-
-    public Set<ChunkPos> getTouchedChunks() {
-        return getTouchedChunks(this.getSubRegionBoxes(SubRegionPlacement.RequiredEnabled.PLACEMENT_ENABLED));
-    }
-
-    public Set<ChunkPos> getTouchedChunksForRegion(String regionName) {
-        return getTouchedChunks(this.getSubRegionBoxFor(regionName, SubRegionPlacement.RequiredEnabled.PLACEMENT_ENABLED));
-    }
-
-    private void checkAreSubRegionsModified() {
-        Map<String, BlockPos> areaPositions = this.schematic.getAreaPositions();
-
-        if (areaPositions.size() != this.relativeSubRegionPlacements.size()) {
-            this.regionPlacementsModified = true;
-            return;
-        }
-
-        for (Map.Entry<String, BlockPos> entry : areaPositions.entrySet()) {
-            SubRegionPlacement placement = this.relativeSubRegionPlacements.get(entry.getKey());
-
-            if (placement == null || placement.isRegionPlacementModified(entry.getValue())) {
-                this.regionPlacementsModified = true;
-                return;
-            }
-        }
-
-        this.regionPlacementsModified = false;
-    }
-
-    /**
-     * Moves the sub-region to the given <b>absolute</b> position.
-     *
-     * @param regionName
-     * @param newPos
-     */
-    public void moveSubRegionTo(String regionName, BlockPos newPos) {
-        if (this.relativeSubRegionPlacements.containsKey(regionName)) {
-            // Marks the currently touched chunks before doing the modification
-
-
-            // The input argument position is an absolute position, so need to convert to relative position here
-            newPos = newPos.subtract(this.origin);
-            // The absolute-based input position needs to be transformed if the entire placement has been rotated or mirrored
-            newPos = StructureTemplate.transform(newPos, this.mirror, this.rotation, BlockPos.ZERO);
-
-            this.relativeSubRegionPlacements.get(regionName).setPos(newPos);
-            this.onModified();
-        }
-    }
-
-    public void setSubRegionRotation(String regionName, Rotation rotation) {
-
-
-        if (this.relativeSubRegionPlacements.containsKey(regionName)) {
-            // Marks the currently touched chunks before doing the modification
-
-
-            this.relativeSubRegionPlacements.get(regionName).setRotation(rotation);
-            this.onModified();
-        }
-    }
-
-    public void setSubRegionMirror(String regionName, Mirror mirror) {
-
-        if (this.relativeSubRegionPlacements.containsKey(regionName)) {
-            // Marks the currently touched chunks before doing the modification
-
-
-            this.relativeSubRegionPlacements.get(regionName).setMirror(mirror);
-            this.onModified();
-        }
-    }
-
-
-    public void resetAllSubRegionsToSchematicValues() {
-        this.resetAllSubRegionsToSchematicValues(true);
-    }
-
-    public void resetAllSubRegionsToSchematicValues(boolean updatePlacementManager) {
-
-        if (updatePlacementManager) {
-            // Marks the currently touched chunks before doing the modification
-
-        }
-
-        Map<String, BlockPos> areaPositions = this.schematic.getAreaPositions();
-        this.relativeSubRegionPlacements.clear();
-        this.regionPlacementsModified = false;
-
-        for (Map.Entry<String, BlockPos> entry : areaPositions.entrySet()) {
-            String name = entry.getKey();
-            this.relativeSubRegionPlacements.put(name, new SubRegionPlacement(entry.getValue(), name));
-        }
-
-        if (updatePlacementManager) {
-            this.updateEnclosingBox();
-        }
-    }
-
-    public void resetSubRegionToSchematicValues(String regionName) {
-
-        BlockPos pos = this.schematic.getSubRegionPosition(regionName);
-        SubRegionPlacement placement = this.relativeSubRegionPlacements.get(regionName);
-
-        if (pos != null && placement != null) {
-            // Marks the currently touched chunks before doing the modification
-
-
-            placement.resetToOriginalValues();
-            this.onModified();
-        }
-    }
-
     public enum CoordinateType {
         X,
         Y,
-        Z;
-
-        private CoordinateType() {
-        }
+        Z
     }
 
     public static BlockPos getModifiedPartiallyLockedPosition(BlockPos posOriginal, BlockPos posNew, int lockMask) {
@@ -502,7 +278,7 @@ public class SchematicPlacement {
     public SchematicPlacement setOrigin(BlockPos origin) {
 
 
-        origin = getModifiedPartiallyLockedPosition(this.origin, origin, this.coordinateLockMask);
+        origin = getModifiedPartiallyLockedPosition(this.origin, origin, 0);
 
         if (!this.origin.equals(origin)) {
             // Marks the currently touched chunks before doing the modification
@@ -540,16 +316,6 @@ public class SchematicPlacement {
         return this;
     }
 
-    private void onModified() {
-        this.checkAreSubRegionsModified();
-        this.updateEnclosingBox();
-    }
-
-    public void onRemoved() {
-        if (USED_COLORS.isEmpty()) {
-        }
-    }
-
     private Box getEnclosingBox() {
         ImmutableMap<String, Box> boxes = this.getSubRegionBoxes(SubRegionPlacement.RequiredEnabled.ANY);
         BlockPos pos1 = null;
@@ -574,7 +340,7 @@ public class SchematicPlacement {
             }
         }
 
-        if (pos1 != null && pos2 != null) {
+        if (pos1 != null) {
             return new Box(pos1, pos2, "Enclosing Box (Servux)");
         }
 

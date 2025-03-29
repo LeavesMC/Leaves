@@ -1,8 +1,6 @@
 package org.leavesmc.leaves.protocol.servux.litematics.schematic.utils;
 
 import com.google.common.collect.ImmutableList;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
@@ -11,57 +9,13 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.AABB;
-import org.leavesmc.leaves.protocol.servux.litematics.schematic.placement.SchematicPlacement;
-import org.leavesmc.leaves.protocol.servux.litematics.schematic.placement.SubRegionPlacement;
 
 import javax.annotation.Nullable;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.function.Predicate;
 
 public class EntityUtils {
-    public static final Predicate<Entity> NOT_PLAYER = entity -> (entity instanceof Player) == false;
-
-    public static boolean isCreativeMode(Player player) {
-        return player.isCreative();
-    }
-
-    public static Direction getHorizontalLookingDirection(Entity entity) {
-        return Direction.fromYRot(entity.getYRot());
-    }
-
-    public static Direction getVerticalLookingDirection(Entity entity) {
-        return entity.getXRot() > 0 ? Direction.DOWN : Direction.UP;
-    }
-
-    public static Direction getClosestLookingDirection(Entity entity) {
-        if (entity.getXRot() > 60.0f) {
-            return Direction.DOWN;
-        } else if (-entity.getXRot() > 60.0f) {
-            return Direction.UP;
-        }
-
-        return getHorizontalLookingDirection(entity);
-    }
-
-    @Nullable
-    public static <T extends Entity> T findEntityByUUID(List<T> list, UUID uuid) {
-        if (uuid == null) {
-            return null;
-        }
-
-        for (T entity : list) {
-            if (entity.getUUID().equals(uuid)) {
-                return entity;
-            }
-        }
-
-        return null;
-    }
 
     public static String getEntityId(Entity entity) {
         EntityType<?> entitytype = entity.getType();
@@ -143,16 +97,5 @@ public class EntityUtils {
             livingBase.yHeadRotO = yaw;
             livingBase.yBodyRotO = yaw;
         }
-    }
-
-    public static List<Entity> getEntitiesWithinSubRegion(Level world, BlockPos origin, BlockPos regionPos, BlockPos regionSize,
-                                                          SchematicPlacement schematicPlacement, SubRegionPlacement placement) {
-        // These are the untransformed relative positions
-        BlockPos regionPosRelTransformed = PositionUtils.getTransformedBlockPos(regionPos, schematicPlacement.getMirror(), schematicPlacement.getRotation());
-        BlockPos posEndAbs = PositionUtils.getTransformedPlacementPosition(regionSize.offset(-1, -1, -1), schematicPlacement, placement).offset(regionPosRelTransformed).offset(origin);
-        BlockPos regionPosAbs = regionPosRelTransformed.offset(origin);
-        AABB bb = PositionUtils.createEnclosingAABB(regionPosAbs, posEndAbs);
-
-        return world.getEntities((Entity) null, bb, EntityUtils.NOT_PLAYER);
     }
 }

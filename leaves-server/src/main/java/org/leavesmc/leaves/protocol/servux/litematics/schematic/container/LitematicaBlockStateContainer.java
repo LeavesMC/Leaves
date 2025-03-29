@@ -1,10 +1,8 @@
 package org.leavesmc.leaves.protocol.servux.litematics.schematic.container;
 
-import io.netty.buffer.Unpooled;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Vec3i;
 import net.minecraft.nbt.ListTag;
-import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -22,19 +20,6 @@ public class LitematicaBlockStateContainer implements ILitematicaBlockStatePalet
     protected final int sizeLayer;
     protected final long totalVolume;
     protected int bits;
-    /** Note: This is currently only used for the temporary Sponge schematic support */
-    protected long[] blockCounts = new long[0];
-
-    public LitematicaBlockStateContainer(int sizeX, int sizeY, int sizeZ)
-    {
-        this(sizeX, sizeY, sizeZ, 2, null);
-    }
-
-    public LitematicaBlockStateContainer(Vec3i size, int bits, @Nullable long[] backingLongArray)
-    {
-        this(size.getX(), size.getY(), size.getZ(), bits, backingLongArray);
-    }
-
     public LitematicaBlockStateContainer(int sizeX, int sizeY, int sizeZ, int bits, @Nullable long[] backingLongArray)
     {
         this.sizeX = sizeX;
@@ -55,11 +40,6 @@ public class LitematicaBlockStateContainer implements ILitematicaBlockStatePalet
     public LitematicaBitArray getArray()
     {
         return this.storage;
-    }
-
-    public long[] getBlockCounts()
-    {
-        return this.blockCounts;
     }
 
     public BlockState get(int x, int y, int z)
@@ -135,11 +115,6 @@ public class LitematicaBlockStateContainer implements ILitematicaBlockStatePalet
         return this.palette.idFor(state);
     }
 
-    public long[] getBackingLongArray()
-    {
-        return this.storage.getBackingLongArray();
-    }
-
     public ILitematicaBlockStatePalette getPalette()
     {
         return this.palette;
@@ -151,45 +126,5 @@ public class LitematicaBlockStateContainer implements ILitematicaBlockStatePalet
         LitematicaBlockStateContainer container = new LitematicaBlockStateContainer(size.getX(), size.getY(), size.getZ(), bits, blockStates);
         container.palette.readFromNBT(palette);
         return container;
-    }
-
-    @Nullable
-    public static LitematicaBlockStateContainer createContainer(int paletteSize, byte[] blockData, Vec3i size)
-    {
-        int bits = Math.max(2, Integer.SIZE - Integer.numberOfLeadingZeros(paletteSize - 1));
-        SpongeBlockstateConverterResults results = convertVarIntByteArrayToPackedLongArray(size, bits, blockData);
-        LitematicaBlockStateContainer container = new LitematicaBlockStateContainer(size, bits, results.backingArray);
-        //container.palette = createPalette(bits, container);
-        container.blockCounts = results.blockCounts;
-        return container;
-    }
-
-    public static SpongeBlockstateConverterResults convertVarIntByteArrayToPackedLongArray(Vec3i size, int bits, byte[] blockStates)
-    {
-        int volume = size.getX() * size.getY() * size.getZ();
-        LitematicaBitArray bitArray = new LitematicaBitArray(bits, volume);
-        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.wrappedBuffer(blockStates));
-        long[] blockCounts = new long[1 << bits];
-
-        for (int i = 0; i < volume; ++i)
-        {
-            int id = buf.readVarInt();
-            bitArray.setAt(i, id);
-            ++blockCounts[id];
-        }
-
-        return new SpongeBlockstateConverterResults(bitArray.getBackingLongArray(), blockCounts);
-    }
-
-    public static class SpongeBlockstateConverterResults
-    {
-        public final long[] backingArray;
-        public final long[] blockCounts;
-
-        protected SpongeBlockstateConverterResults(long[] backingArray, long[] blockCounts)
-        {
-            this.backingArray = backingArray;
-            this.blockCounts = blockCounts;
-        }
     }
 }

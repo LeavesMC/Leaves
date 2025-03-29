@@ -3,6 +3,7 @@ package org.leavesmc.leaves.protocol.servux.litematics.schematic.container;
 import org.apache.commons.lang3.Validate;
 
 import javax.annotation.Nullable;
+import java.util.Objects;
 
 public class LitematicaBitArray
 {
@@ -30,20 +31,11 @@ public class LitematicaBitArray
         this.bitsPerEntry = bitsPerEntryIn;
         this.maxEntryValue = (1L << bitsPerEntryIn) - 1L;
 
-        if (longArrayIn != null)
-        {
-            this.longArray = longArrayIn;
-        }
-        else
-        {
-            this.longArray = new long[(int) (roundUp(arraySizeIn * bitsPerEntryIn, 64L) / 64L)];
-        }
+        this.longArray = Objects.requireNonNullElseGet(longArrayIn, () -> new long[(int) (roundUp(arraySizeIn * bitsPerEntryIn, 64L) / 64L)]);
     }
 
     public void setAt(long index, int value)
     {
-        //Validate.inclusiveBetween(0L, this.arraySize - 1L, index);
-        //Validate.inclusiveBetween(0L, this.maxEntryValue, value);
         long startOffset = index * (long) this.bitsPerEntry;
         int startArrIndex = (int) (startOffset >> 6); // startOffset / 64
         int endArrIndex = (int) (((index + 1L) * (long) this.bitsPerEntry - 1L) >> 6);
@@ -75,11 +67,6 @@ public class LitematicaBitArray
             int endOffset = 64 - startBitOffset;
             return (int) ((this.longArray[startArrIndex] >>> startBitOffset | this.longArray[endArrIndex] << endOffset) & this.maxEntryValue);
         }
-    }
-
-    public long[] getBackingLongArray()
-    {
-        return this.longArray;
     }
 
     public long size()

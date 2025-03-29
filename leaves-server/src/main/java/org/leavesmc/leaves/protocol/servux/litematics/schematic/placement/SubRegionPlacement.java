@@ -10,8 +10,7 @@ import org.leavesmc.leaves.protocol.servux.litematics.ServuxLitematicsProtocol;
 
 public class SubRegionPlacement {
     private final String name;
-    private final BlockPos defaultPos;
-    private BlockPos pos;
+    private final BlockPos pos;
     public Rotation rotation = Rotation.NONE;
     public Mirror mirror = Mirror.NONE;
     public boolean enabled = true;
@@ -19,7 +18,6 @@ public class SubRegionPlacement {
 
     public SubRegionPlacement(BlockPos pos, String name) {
         this.pos = pos;
-        this.defaultPos = pos;
         this.name = name;
     }
 
@@ -60,42 +58,6 @@ public class SubRegionPlacement {
         return this.mirror;
     }
 
-    void toggleIgnoreEntities() {
-        this.ignoreEntities = !this.ignoreEntities;
-    }
-
-    void setPos(BlockPos pos) {
-        this.pos = pos;
-    }
-
-    void setRotation(Rotation rotation) {
-        this.rotation = rotation;
-    }
-
-    void setMirror(Mirror mirror) {
-        this.mirror = mirror;
-    }
-
-    void resetToOriginalValues() {
-        this.pos = this.defaultPos;
-        this.rotation = Rotation.NONE;
-        this.mirror = Mirror.NONE;
-        this.enabled = true;
-        this.ignoreEntities = false;
-    }
-
-    public boolean isRegionPlacementModifiedFromDefault() {
-        return this.isRegionPlacementModified(this.defaultPos);
-    }
-
-    public boolean isRegionPlacementModified(BlockPos originalPosition) {
-        return this.isEnabled() == false ||
-            this.ignoreEntities() ||
-            this.getMirror() != Mirror.NONE ||
-            this.getRotation() != Rotation.NONE ||
-            this.getPos().equals(originalPosition) == false;
-    }
-
     public JsonObject toJson() {
         JsonObject obj = new JsonObject();
         JsonArray arr = new JsonArray();
@@ -120,6 +82,6 @@ public class SubRegionPlacement {
     public enum RequiredEnabled {
         ANY,
         PLACEMENT_ENABLED,
-        RENDERING_ENABLED;
+        RENDERING_ENABLED
     }
 }

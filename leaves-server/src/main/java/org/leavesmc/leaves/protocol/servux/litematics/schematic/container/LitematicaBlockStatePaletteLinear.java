@@ -9,7 +9,6 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 
-import java.util.List;
 import javax.annotation.Nullable;
 
 public class LitematicaBlockStatePaletteLinear implements ILitematicaBlockStatePalette {
@@ -47,11 +46,6 @@ public class LitematicaBlockStatePaletteLinear implements ILitematicaBlockStateP
     @Nullable
     public BlockState getBlockState(int indexKey) {
         return indexKey >= 0 && indexKey < this.currentSize ? this.states[indexKey] : null;
-    }
-
-    @Override
-    public int getPaletteSize() {
-        return this.currentSize;
     }
 
     private void requestNewId(BlockState state) {
@@ -104,22 +98,5 @@ public class LitematicaBlockStatePaletteLinear implements ILitematicaBlockStateP
         }
 
         return tagList;
-    }
-
-    @Override
-    public boolean setMapping(List<BlockState> list) {
-        final int size = list.size();
-
-        if (size <= this.states.length) {
-            for (int id = 0; id < size; ++id) {
-                this.states[id] = list.get(id);
-            }
-
-            this.currentSize = size;
-
-            return true;
-        }
-
-        return false;
     }
 }

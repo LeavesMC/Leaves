@@ -2,6 +2,7 @@ package org.leavesmc.leaves.protocol.servux.litematics;
 
 import io.netty.buffer.Unpooled;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.TextComponent;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.DoubleTag;
@@ -19,6 +20,7 @@ import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.bukkit.entity.Player;
+import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.protocol.core.LeavesCustomPayload;
 import org.leavesmc.leaves.protocol.core.LeavesProtocol;
 import org.leavesmc.leaves.protocol.core.ProtocolHandler;
@@ -44,6 +46,16 @@ public class ServuxLitematicsProtocol {
 
     private static final CompoundTag metadata = new CompoundTag();
     private static final Map<UUID, Long> playerSession = new HashMap<>();
+    private static final Map<String, Map<String, String>> translations = new HashMap<>(
+        Map.of(
+            "en_us", Map.of(
+                "servux.litematics.success.pasted", "servux.litematics.success.pasted"
+            ),
+            "zh_cn", Map.of(
+                "servux.litematics.success.pasted", "已将 §b%s§r 粘贴至世界 §d%s§r，耗时 §a%s§r 毫秒"
+            )
+        )
+    );
 
     @ProtocolHandler.Init
     public static void init() {
@@ -51,6 +63,21 @@ public class ServuxLitematicsProtocol {
         metadata.putString("id", "servux:litematics");
         metadata.putInt("version", 1);
         metadata.putString("servux", ServuxProtocol.SERVUX_STRING);
+    }
+
+    @Nullable
+    public static String getTranslation(String key) {
+        Map<String, String> translation = translations.computeIfAbsent(LeavesConfig.mics.serverLang, ignored -> translations.get("en_us"));
+        return translation.get(key);
+    }
+
+    public static Component getTranslationComponent(String key, Object... args) {
+        String translation = getTranslation(key);
+        List<TextComponent> components = Stream.of(args).map(Object::toString).map(Component::text).toList();
+        if (translation != null) {
+            return Component.translatable(key, translation, components);
+        }
+        return Component.translatable(key, components);
     }
 
     public static boolean hasPermission(ServerPlayer player) {
@@ -196,7 +223,7 @@ public class ServuxLitematicsProtocol {
             server.scheduleOnMain(() -> {
                 placement.pasteTo(serverLevel, replaceMode);
                 long timeElapsed = System.currentTimeMillis() - timeStart;
-                player.getBukkitEntity().sendActionBar(Component.translatable("servux.litematics.success.pasted", Stream.of(placement.getName(), serverLevel.registryAccess().toString(), String.valueOf(timeElapsed)).map(Component::text).toList()));
+                player.getBukkitEntity().sendActionBar(getTranslationComponent("servux.litematics.success.pasted", placement.getName(), serverLevel.registryAccess(), timeElapsed));
             });
         }
     }

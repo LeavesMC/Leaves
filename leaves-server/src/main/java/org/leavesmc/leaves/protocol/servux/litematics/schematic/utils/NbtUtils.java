@@ -17,11 +17,10 @@ import java.nio.file.Path;
 
 public class NbtUtils {
 
-    public static CompoundTag writeBlockPosToTag(Vec3i pos, CompoundTag tag) {
+    public static void writeBlockPosToTag(Vec3i pos, CompoundTag tag) {
         tag.putInt("x", pos.getX());
         tag.putInt("y", pos.getY());
         tag.putInt("z", pos.getZ());
-        return tag;
     }
 
     @Nullable
@@ -36,7 +35,7 @@ public class NbtUtils {
         return null;
     }
 
-    public static CompoundTag writeEntityPositionToTag(Vec3 pos, CompoundTag tag) {
+    public static void writeEntityPositionToTag(Vec3 pos, CompoundTag tag) {
         ListTag posList = new ListTag();
 
         posList.add(DoubleTag.valueOf(pos.x));
@@ -44,7 +43,6 @@ public class NbtUtils {
         posList.add(DoubleTag.valueOf(pos.z));
         tag.put("Pos", posList);
 
-        return tag;
     }
 
     @Nullable

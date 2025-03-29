@@ -39,15 +39,14 @@ import java.util.Map;
 import java.util.Set;
 
 public class SchematicPlacingUtils {
-    public static boolean placeToWorldWithinChunk(Level world,
-                                                  ChunkPos chunkPos,
-                                                  SchematicPlacement schematicPlacement,
-                                                  ReplaceBehavior replace,
-                                                  boolean notifyNeighbors) {
+    public static void placeToWorldWithinChunk(Level world,
+                                               ChunkPos chunkPos,
+                                               SchematicPlacement schematicPlacement,
+                                               ReplaceBehavior replace,
+                                               boolean notifyNeighbors) {
         LitematicaSchematic schematic = schematicPlacement.getSchematic();
         Set<String> regionsTouchingChunk = schematicPlacement.getRegionsTouchingChunk(chunkPos.x, chunkPos.z);
         BlockPos origin = schematicPlacement.getOrigin();
-        boolean allSuccess = true;
 
         try {
             if (!notifyNeighbors) {
@@ -58,12 +57,14 @@ public class SchematicPlacingUtils {
                 LitematicaBlockStateContainer container = schematic.getSubRegionContainer(regionName);
 
                 if (container == null) {
-                    allSuccess = false;
                     continue;
                 }
 
                 SubRegionPlacement placement = schematicPlacement.getRelativeSubRegionPlacement(regionName);
-
+                if (placement == null) {
+                    ServuxProtocol.LOGGER.error("receiver a null placement for region: {}", regionName);
+                    continue;
+                }
                 if (placement.isEnabled()) {
                     Map<BlockPos, CompoundTag> blockEntityMap = schematic.getBlockEntityMapForRegion(regionName);
                     Map<BlockPos, ScheduledTick<Block>> scheduledBlockTicks = schematic.getScheduledBlockTicksForRegion(regionName);
@@ -72,7 +73,6 @@ public class SchematicPlacingUtils {
                     if (!placeBlocksWithinChunk(world, chunkPos, regionName, container, blockEntityMap,
                         origin, schematicPlacement, placement, scheduledBlockTicks,
                         scheduledFluidTicks, replace, notifyNeighbors)) {
-                        allSuccess = false;
                         ServuxProtocol.LOGGER.warn("Invalid/missing schematic data in schematic '{}' for sub-region '{}'", schematic.getMetadata().getName(), regionName);
                     }
 
@@ -88,7 +88,6 @@ public class SchematicPlacingUtils {
             NoBlockUpdateCommand.setPreventBlockUpdate(false);
         }
 
-        return allSuccess;
     }
 
     public static boolean placeBlocksWithinChunk(Level world, ChunkPos chunkPos, String regionName,
@@ -138,15 +137,9 @@ public class SchematicPlacingUtils {
         final int startZ = posMin.getZ();
         final int endX = posMax.getX();
         final int endZ = posMax.getZ();
-
-        ServuxProtocol.LOGGER.info("origin: {}, posMin: {}, posMax: {}, bmir: {}, bmar: {}", origin, posMin, posMax, boxMinRel, boxMaxRel);
-
         final int startY = 0;
         final int endY = Math.abs(regionSize.getY()) - 1;
         BlockPos.MutableBlockPos posMutable = new BlockPos.MutableBlockPos();
-
-        //System.out.printf("sx: %d, sy: %d, sz: %d => ex: %d, ey: %d, ez: %d\n", startX, startY, startZ, endX, endY, endZ);
-
         if (startX < 0 || startZ < 0 || endX >= container.getSize().getX() || endZ >= container.getSize().getZ()) {
             System.out.printf("DEBUG ============= OUT OF BOUNDS - region: %s, sx: %d, sz: %d, ex: %d, ez: %d - size x: %d z: %d =============\n",
                 regionName, startX, startZ, endX, endZ, container.getSize().getX(), container.getSize().getZ());
@@ -220,9 +213,7 @@ public class SchematicPlacingUtils {
 
                         if (te != null) {
                             teNBT = teNBT.copy();
-                            teNBT.putInt("x", pos.getX());
-                            teNBT.putInt("y", pos.getY());
-                            teNBT.putInt("z", pos.getZ());
+                            NbtUtils.writeBlockPosToTag(pos, teNBT);
 
                             try {
                                 te.loadWithComponents(teNBT, world.registryAccess().freeze());

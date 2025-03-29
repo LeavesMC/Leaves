@@ -2,7 +2,10 @@ package org.leavesmc.leaves.protocol.servux.litematics.schematic.selection;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
+import net.minecraft.core.BlockBox;
 import net.minecraft.core.BlockPos;
+import org.leavesmc.leaves.protocol.servux.litematics.schematic.utils.JsonUtils;
+import org.leavesmc.leaves.protocol.servux.litematics.schematic.utils.PositionUtils;
 
 import javax.annotation.Nullable;
 
@@ -206,18 +209,12 @@ public class Box
         return this.pos1 != null || this.pos2 != null ? obj : null;
     }
 
-    public net.minecraft.util.math.BlockBox toVanilla()
+    public BlockBox toVanilla()
     {
         if (pos1 != null && pos2 != null)
         {
-            return new BlockBox(
-                    Math.min(pos1.getX(), pos2.getX()),
-                    Math.min(pos1.getY(), pos2.getY()),
-                    Math.min(pos1.getZ(), pos2.getZ()),
-                    Math.max(pos1.getX(), pos2.getX()),
-                    Math.max(pos1.getY(), pos2.getY()),
-                    Math.max(pos1.getZ(), pos2.getZ())
-            );
+
+            return new BlockBox(pos1, pos2);
         }
         return null;
     }

@@ -24,6 +24,8 @@ import org.leavesmc.leaves.protocol.core.ProtocolHandler;
 import org.leavesmc.leaves.protocol.core.ProtocolUtils;
 import org.leavesmc.leaves.protocol.servux.PacketSplitter;
 import org.leavesmc.leaves.protocol.servux.ServuxProtocol;
+import org.leavesmc.leaves.protocol.servux.litematics.schematic.placement.SchematicPlacement;
+import org.leavesmc.leaves.protocol.servux.litematics.schematic.utils.ReplaceBehavior;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,6 +37,8 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @LeavesProtocol(namespace = "servux")
 public class ServuxLitematicsProtocol {
@@ -183,8 +187,7 @@ public class ServuxLitematicsProtocol {
     }
 
     public static void handleClientPasteRequest(ServerPlayer player, int transactionId, CompoundTag tags) {
-        if (tags.getString("Task").equals("LitematicaPaste"))
-        {
+        if (tags.getString("Task").equals("LitematicaPaste")) {
             LOGGER.debug("litematic_data: Servux Paste request from player {}", player.getName().getString());
             ServerLevel serverLevel = player.serverLevel();
             long timeStart = System.currentTimeMillis();
@@ -192,7 +195,7 @@ public class ServuxLitematicsProtocol {
             ReplaceBehavior replaceMode = ReplaceBehavior.fromStringStatic(tags.getString("ReplaceMode"));
             placement.pasteTo(serverLevel, replaceMode);
             long timeElapsed = System.currentTimeMillis() - timeStart;
-            player.getBukkitEntity().sendActionBar(Component.translatable("servux.litematics.success.pasted", placement.getName(), serverLevel.registryAccess().toString(), timeElapsed));
+            player.getBukkitEntity().sendActionBar(Component.translatable("servux.litematics.success.pasted", Stream.of(placement.getName(), serverLevel.registryAccess().toString(), String.valueOf(timeElapsed)).map(Component::text).collect(Collectors.toUnmodifiableList())));
         }
     }
 

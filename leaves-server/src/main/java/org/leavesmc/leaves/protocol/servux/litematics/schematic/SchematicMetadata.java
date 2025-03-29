@@ -2,6 +2,11 @@ package org.leavesmc.leaves.protocol.servux.litematics.schematic;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Vec3i;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
+import org.leavesmc.leaves.protocol.servux.litematics.schematic.utils.FileType;
+import org.leavesmc.leaves.protocol.servux.litematics.schematic.utils.NbtUtils;
+import org.leavesmc.leaves.protocol.servux.litematics.schematic.utils.Schema;
 
 import javax.annotation.Nullable;
 
@@ -230,8 +235,8 @@ public class SchematicMetadata {
         }
     }
 
-    public NbtCompound writeToNBT() {
-        NbtCompound nbt = new NbtCompound();
+    public CompoundTag writeToNBT() {
+        CompoundTag nbt = new CompoundTag();
 
         nbt.putString("Name", this.name);
         nbt.putString("Author", this.author);
@@ -266,7 +271,7 @@ public class SchematicMetadata {
         return nbt;
     }
 
-    public void readFromNBT(NbtCompound nbt) {
+    public void readFromNBT(CompoundTag nbt) {
         this.name = nbt.getString("Name");
         this.author = nbt.getString("Author");
         this.description = nbt.getString("Description");
@@ -274,15 +279,15 @@ public class SchematicMetadata {
         this.timeCreated = nbt.getLong("TimeCreated");
         this.timeModified = nbt.getLong("TimeModified");
 
-        if (nbt.contains("TotalVolume", Constants.NBT.TAG_ANY_NUMERIC)) {
+        if (nbt.contains("TotalVolume", Tag.TAG_ANY_NUMERIC)) {
             this.totalVolume = nbt.getInt("TotalVolume");
         }
 
-        if (nbt.contains("TotalBlocks", Constants.NBT.TAG_ANY_NUMERIC)) {
+        if (nbt.contains("TotalBlocks", Tag.TAG_ANY_NUMERIC)) {
             this.totalBlocks = nbt.getInt("TotalBlocks");
         }
 
-        if (nbt.contains("EnclosingSize", Constants.NBT.TAG_COMPOUND)) {
+        if (nbt.contains("EnclosingSize", Tag.TAG_COMPOUND)) {
             Vec3i size = NbtUtils.readVec3iFromTag(nbt.getCompound("EnclosingSize"));
 
             if (size != null) {
@@ -290,7 +295,7 @@ public class SchematicMetadata {
             }
         }
 
-        if (nbt.contains("PreviewImageData", Constants.NBT.TAG_INT_ARRAY)) {
+        if (nbt.contains("PreviewImageData", Tag.TAG_INT_ARRAY)) {
             this.thumbnailPixelData = nbt.getIntArray("PreviewImageData");
         } else {
             this.thumbnailPixelData = null;

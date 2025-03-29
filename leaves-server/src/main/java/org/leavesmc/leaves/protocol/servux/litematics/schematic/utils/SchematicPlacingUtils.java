@@ -110,29 +110,29 @@ public class SchematicPlacingUtils {
         BlockPos regionPos = placement.getPos();
 
         // These are the untransformed relative positions
-        BlockPos posEndRel = (new BlockPos(fi.dy.masa.servux.util.position.PositionUtils.getRelativeEndPositionFromAreaSize(regionSize))).offset(regionPos);
-        BlockPos posMinRel = fi.dy.masa.servux.util.position.PositionUtils.getMinCorner(regionPos, posEndRel);
+        BlockPos posEndRel = (new BlockPos(PositionUtils.getRelativeEndPositionFromAreaSize(regionSize))).offset(regionPos);
+        BlockPos posMinRel = PositionUtils.getMinCorner(regionPos, posEndRel);
 
         // The transformed sub-region origin position
-        BlockPos regionPosTransformed = fi.dy.masa.servux.util.position.PositionUtils.getTransformedBlockPos(regionPos, schematicPlacement.getMirror(), schematicPlacement.getRotation());
+        BlockPos regionPosTransformed = PositionUtils.getTransformedBlockPos(regionPos, schematicPlacement.getMirror(), schematicPlacement.getRotation());
 
         // The relative offset of the affected region's corners, to the sub-region's origin corner
         BlockPos boxMinRel = new BlockPos(bounds.minX - origin.getX() - regionPosTransformed.getX(), 0, bounds.minZ - origin.getZ() - regionPosTransformed.getZ());
         BlockPos boxMaxRel = new BlockPos(bounds.maxX - origin.getX() - regionPosTransformed.getX(), 0, bounds.maxZ - origin.getZ() - regionPosTransformed.getZ());
 
         // Reverse transform that relative offset, to get the untransformed orientation's offsets
-        boxMinRel = fi.dy.masa.servux.util.position.PositionUtils.getReverseTransformedBlockPos(boxMinRel, placement.getMirror(), placement.getRotation());
-        boxMaxRel = fi.dy.masa.servux.util.position.PositionUtils.getReverseTransformedBlockPos(boxMaxRel, placement.getMirror(), placement.getRotation());
+        boxMinRel = PositionUtils.getReverseTransformedBlockPos(boxMinRel, placement.getMirror(), placement.getRotation());
+        boxMaxRel = PositionUtils.getReverseTransformedBlockPos(boxMaxRel, placement.getMirror(), placement.getRotation());
 
-        boxMinRel = fi.dy.masa.servux.util.position.PositionUtils.getReverseTransformedBlockPos(boxMinRel, schematicPlacement.getMirror(), schematicPlacement.getRotation());
-        boxMaxRel = fi.dy.masa.servux.util.position.PositionUtils.getReverseTransformedBlockPos(boxMaxRel, schematicPlacement.getMirror(), schematicPlacement.getRotation());
+        boxMinRel = PositionUtils.getReverseTransformedBlockPos(boxMinRel, schematicPlacement.getMirror(), schematicPlacement.getRotation());
+        boxMaxRel = PositionUtils.getReverseTransformedBlockPos(boxMaxRel, schematicPlacement.getMirror(), schematicPlacement.getRotation());
 
         // Get the offset relative to the sub-region's minimum corner, instead of the origin corner (which can be at any corner)
         boxMinRel = boxMinRel.subtract(posMinRel.subtract(regionPos));
         boxMaxRel = boxMaxRel.subtract(posMinRel.subtract(regionPos));
 
-        BlockPos posMin = fi.dy.masa.servux.util.position.PositionUtils.getMinCorner(boxMinRel, boxMaxRel);
-        BlockPos posMax = fi.dy.masa.servux.util.position.PositionUtils.getMaxCorner(boxMinRel, boxMaxRel);
+        BlockPos posMin = PositionUtils.getMinCorner(boxMinRel, boxMaxRel);
+        BlockPos posMax = PositionUtils.getMaxCorner(boxMinRel, boxMaxRel);
 
         final int startX = posMin.getX();
         final int startZ = posMin.getZ();
@@ -183,8 +183,8 @@ public class SchematicPlacingUtils {
                         posMinRelMinusRegY + y,
                         posMinRelMinusRegZ + z);
 
-                    BlockPos pos = fi.dy.masa.servux.util.position.PositionUtils.getTransformedPlacementPosition(posMutable, schematicPlacement, placement);
-                    pos = pos.add(regionPosTransformed).add(origin);
+                    BlockPos pos = PositionUtils.getTransformedPlacementPosition(posMutable, schematicPlacement, placement);
+                    pos = pos.offset(regionPosTransformed).offset(origin);
 
                     BlockState stateOld = world.getBlockState(pos);
 
@@ -255,7 +255,7 @@ public class SchematicPlacingUtils {
                             posMinRelMinusRegY + pos.getY(),
                             posMinRelMinusRegZ + pos.getZ());
 
-                        pos = fi.dy.masa.servux.util.position.PositionUtils.getTransformedPlacementPosition(posMutable, schematicPlacement, placement);
+                        pos = PositionUtils.getTransformedPlacementPosition(posMutable, schematicPlacement, placement);
                         pos = pos.offset(regionPosTransformed).offset(origin);
                         ScheduledTick<Block> tick = entry.getValue();
 
@@ -277,7 +277,7 @@ public class SchematicPlacingUtils {
                             posMinRelMinusRegY + pos.getY(),
                             posMinRelMinusRegZ + pos.getZ());
 
-                        pos = fi.dy.masa.servux.util.position.PositionUtils.getTransformedPlacementPosition(posMutable, schematicPlacement, placement);
+                        pos = PositionUtils.getTransformedPlacementPosition(posMutable, schematicPlacement, placement);
                         pos = pos.offset(regionPosTransformed).offset(origin);
                         ScheduledTick<Fluid> tick = entry.getValue();
 
@@ -296,7 +296,7 @@ public class SchematicPlacingUtils {
                         posMutable.set(posMinRelMinusRegX + x,
                             posMinRelMinusRegY + y,
                             posMinRelMinusRegZ + z);
-                        BlockPos pos = fi.dy.masa.servux.util.position.PositionUtils.getTransformedPlacementPosition(posMutable, schematicPlacement, placement);
+                        BlockPos pos = PositionUtils.getTransformedPlacementPosition(posMutable, schematicPlacement, placement);
                         pos = pos.offset(regionPosTransformed).offset(origin);
                         world.updateNeighborsAt(pos, world.getBlockState(pos).getBlock());
                     }
@@ -318,7 +318,7 @@ public class SchematicPlacingUtils {
             return;
         }
 
-        BlockPos regionPosRelTransformed = fi.dy.masa.servux.util.position.PositionUtils.getTransformedBlockPos(regionPos, schematicPlacement.getMirror(), schematicPlacement.getRotation());
+        BlockPos regionPosRelTransformed = PositionUtils.getTransformedBlockPos(regionPos, schematicPlacement.getMirror(), schematicPlacement.getRotation());
         final int offX = regionPosRelTransformed.getX() + origin.getX();
         final int offY = regionPosRelTransformed.getY() + origin.getY();
         final int offZ = regionPosRelTransformed.getZ() + origin.getZ();
@@ -327,7 +327,7 @@ public class SchematicPlacingUtils {
         final double maxX = (chunkPos.x << 4) + 16;
         final double maxZ = (chunkPos.z << 4) + 16;
 
-        final Rotation rotationCombined = schematicPlacement.getRotation().rotate(placement.getRotation());
+        final Rotation rotationCombined = schematicPlacement.getRotation().getRotated(placement.getRotation());
         final Mirror mirrorMain = schematicPlacement.getMirror();
         Mirror mirrorSub = placement.getMirror();
 
@@ -339,8 +339,8 @@ public class SchematicPlacingUtils {
 
         for (LitematicaSchematic.EntityInfo info : entityList) {
             Vec3 pos = info.posVec;
-            pos = fi.dy.masa.servux.util.position.PositionUtils.getTransformedPosition(pos, schematicPlacement.getMirror(), schematicPlacement.getRotation());
-            pos = fi.dy.masa.servux.util.position.PositionUtils.getTransformedPosition(pos, placement.getMirror(), placement.getRotation());
+            pos = PositionUtils.getTransformedPosition(pos, schematicPlacement.getMirror(), schematicPlacement.getRotation());
+            pos = PositionUtils.getTransformedPosition(pos, placement.getMirror(), placement.getRotation());
             double x = pos.x + offX;
             double y = pos.y + offY;
             double z = pos.z + offZ;
@@ -423,20 +423,20 @@ public class SchematicPlacingUtils {
 
     public static void rotateEntity(Entity entity, double x, double y, double z,
                                     Rotation rotationCombined, Mirror mirrorMain, Mirror mirrorSub) {
-        float rotationYaw = entity.getYaw();
+        float rotationYaw = entity.getYRot();
 
         if (mirrorMain != Mirror.NONE) {
-            rotationYaw = entity.applyMirror(mirrorMain);
+            rotationYaw = entity.mirror(mirrorMain);
         }
         if (mirrorSub != Mirror.NONE) {
-            rotationYaw = entity.applyMirror(mirrorSub);
+            rotationYaw = entity.mirror(mirrorSub);
         }
         if (rotationCombined != Rotation.NONE) {
-            rotationYaw += entity.getYaw() - entity.applyRotation(rotationCombined);
+            rotationYaw += entity.getYRot() - entity.rotate(rotationCombined);
         }
 
-        entity.refreshPositionAndAngles(x, y, z, rotationYaw, entity.getPitch());
-        EntityUtils.setEntityRotations(entity, rotationYaw, entity.getPitch());
+        entity.absMoveTo(x, y, z, rotationYaw, entity.getXRot());
+        EntityUtils.setEntityRotations(entity, rotationYaw, entity.getXRot());
     }
 }
 

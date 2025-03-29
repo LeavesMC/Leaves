@@ -4,12 +4,12 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.Nullable;
+
 import com.google.gson.JsonElement;
+import org.leavesmc.leaves.protocol.servux.litematics.schematic.utils.JsonUtils;
 
-import fi.dy.masa.servux.util.JsonUtils;
 
-public class SelectionManager
-{
+public class SelectionManager {
     private final Map<String, AreaSelection> selections = new HashMap<>();
     private final Map<String, AreaSelection> readOnlySelections = new HashMap<>();
     @Nullable
@@ -17,36 +17,30 @@ public class SelectionManager
     private SelectionMode mode = SelectionMode.SIMPLE;
 
     @Nullable
-    public String getCurrentSelectionId()
-    {
+    public String getCurrentSelectionId() {
         return this.mode == SelectionMode.NORMAL ? this.currentSelectionId : null;
     }
 
     @Nullable
-    public String getCurrentNormalSelectionId()
-    {
+    public String getCurrentNormalSelectionId() {
         return this.currentSelectionId;
     }
 
     @Nullable
-    protected AreaSelection getNormalSelection(@Nullable String selectionId)
-    {
+    protected AreaSelection getNormalSelection(@Nullable String selectionId) {
         return selectionId != null ? this.selections.get(selectionId) : null;
     }
 
     @Nullable
-    private AreaSelection tryLoadSelectionFromFile(String selectionId)
-    {
+    private AreaSelection tryLoadSelectionFromFile(String selectionId) {
         return tryLoadSelectionFromFile(Path.of(selectionId));
     }
 
     @Nullable
-    public static AreaSelection tryLoadSelectionFromFile(Path file)
-    {
+    public static AreaSelection tryLoadSelectionFromFile(Path file) {
         JsonElement el = JsonUtils.parseJsonFileAsPath(file);
 
-        if (el != null && el.isJsonObject())
-        {
+        if (el != null && el.isJsonObject()) {
             return AreaSelection.fromJson(el.getAsJsonObject());
         }
 
@@ -54,8 +48,7 @@ public class SelectionManager
     }
 
 
-    public void clear()
-    {
+    public void clear() {
         this.currentSelectionId = null;
         this.selections.clear();
         this.readOnlySelections.clear();

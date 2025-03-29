@@ -2,7 +2,9 @@ package org.leavesmc.leaves.protocol.servux.litematics.schematic.placement;
 
 import com.google.common.collect.ImmutableMap;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import net.minecraft.core.BlockBox;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.SectionPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtUtils;
 import net.minecraft.server.level.ServerLevel;
@@ -15,9 +17,12 @@ import org.leavesmc.leaves.protocol.servux.litematics.ServuxLitematicsProtocol;
 import org.leavesmc.leaves.protocol.servux.litematics.malilib.IntBoundingBox;
 import org.leavesmc.leaves.protocol.servux.litematics.schematic.LitematicaSchematic;
 import org.leavesmc.leaves.protocol.servux.litematics.schematic.selection.Box;
+import org.leavesmc.leaves.protocol.servux.litematics.schematic.utils.ReplaceBehavior;
+import org.leavesmc.leaves.protocol.servux.litematics.schematic.utils.SchematicPlacingUtils;
 
 import javax.annotation.Nullable;
 import java.util.*;
+import java.util.stream.Stream;
 
 public class SchematicPlacement {
     private static final Set<Integer> USED_COLORS = new HashSet<>();
@@ -576,9 +581,17 @@ public class SchematicPlacement {
         return null;
     }
 
+    public Stream<ChunkPos> streamChunkPos(BlockBox box) {
+        AABB aabb = box.aabb();
+        int i = SectionPos.blockToSectionCoord(aabb.minX);
+        int j = SectionPos.blockToSectionCoord(aabb.minZ);
+        int k = SectionPos.blockToSectionCoord(aabb.maxX);
+        int l = SectionPos.blockToSectionCoord(aabb.maxZ);
+        return ChunkPos.rangeClosed(new ChunkPos(i, j), new ChunkPos(k, l));
+    }
+
     public void pasteTo(ServerLevel serverWorld, ReplaceBehavior replaceBehavior) {
-        this.getEnclosingBox().toVanilla().streamChunkPos().forEach(chunkPos ->
-            SchematicPlacingUtils.placeToWorldWithinChunk(serverWorld, chunkPos, this, replaceBehavior, false));
+        streamChunkPos(this.getEnclosingBox().toVanilla()).forEach(chunkPos -> SchematicPlacingUtils.placeToWorldWithinChunk(serverWorld, chunkPos, this, replaceBehavior, false));
         // todo
     }
 }

@@ -1,13 +1,10 @@
-package fi.dy.masa.servux.dataproviders;
+package org.leavesmc.leaves.protocol.servux.litematics.schematic.utils;
 
 import com.google.gson.JsonObject;
-import fi.dy.masa.servux.settings.IServuxSetting;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.profiler.Profiler;
-
-import fi.dy.masa.servux.network.IPluginServerPlayHandler;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.profiling.Profiler;
 
 import java.util.List;
 
@@ -36,7 +33,7 @@ public interface IDataProvider
      * for incoming data requests and to respond and send the requested data.
      * @return
      */
-    Identifier getNetworkChannel();
+    ResourceLocation getNetworkChannel();
 
     /**
      * Returns the current protocol version this provider supports
@@ -111,21 +108,21 @@ public interface IDataProvider
      * Returns the network packet handler used for this data provider.
      * @return ()
      */
-    default IPluginServerPlayHandler<?> getPacketHandler() { return null; }
+    // default IPluginServerPlayHandler<?> getPacketHandler() { return null; }
 
     /**
      * Return if this player is registered to use this Data Provider
      * @param player (Player to be checked)
      * @return (True|False)
      */
-    boolean isPlayerRegistered(ServerPlayerEntity player);
+    boolean isPlayerRegistered(ServerPlayer player);
 
     /**
      * Determine if Player has permissions to this Data Provider
      * @param player (Player to test permissions for)
      * @return (true|false)
      */
-    boolean hasPermission(ServerPlayerEntity player);
+    boolean hasPermission(ServerPlayer player);
 
     /**
      * Signal The Data Providers when the server is shutting down
@@ -142,5 +139,5 @@ public interface IDataProvider
 
     void fromJson(JsonObject obj);
 
-    List<IServuxSetting<?>> getSettings();
+    // List<IServuxSetting<?>> getSettings();
 }

@@ -1,28 +1,17 @@
-package fi.dy.masa.servux.dataproviders;
+package org.leavesmc.leaves.protocol.servux.litematics.schematic.utils;
 
-import java.nio.file.Files;
+import com.google.common.collect.ImmutableList;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.util.profiling.Profiler;
+
+import javax.annotation.Nonnull;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Optional;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import com.google.common.collect.ImmutableList;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonPrimitive;
 
-import net.minecraft.registry.DynamicRegistryManager;
-import net.minecraft.server.MinecraftServer;
-import net.minecraft.util.profiler.Profiler;
-
-import fi.dy.masa.servux.Reference;
-import fi.dy.masa.servux.Servux;
-import fi.dy.masa.servux.settings.IServuxSetting;
-import fi.dy.masa.servux.util.JsonUtils;
-
-public class DataProviderManager
-{
+public class DataProviderManager {
     public static final DataProviderManager INSTANCE = new DataProviderManager();
 
     /**
@@ -32,31 +21,25 @@ public class DataProviderManager
     protected ImmutableList<IDataProvider> providersImmutable = ImmutableList.of();
     protected ArrayList<IDataProvider> providersTicking = new ArrayList<>();
 
-    public ImmutableList<IDataProvider> getAllProviders()
-    {
+    public ImmutableList<IDataProvider> getAllProviders() {
         return this.providersImmutable;
     }
+
     protected Path configDir = null;
-    protected DynamicRegistryManager.Immutable immutable = DynamicRegistryManager.EMPTY;
+    protected RegistryAccess.Frozen immutable = RegistryAccess.EMPTY;
 
     /**
      * Registers the given data provider, if it's not already registered
+     *
      * @param provider ()
      * @return true if the provider did not exist yet and was successfully registered
      */
-    public boolean registerDataProvider(IDataProvider provider)
-    {
+    public boolean registerDataProvider(IDataProvider provider) {
         String name = provider.getName().toLowerCase();
 
-        if (this.providers.containsKey(name) == false)
-        {
+        if (this.providers.containsKey(name) == false) {
             this.providers.put(name, provider);
             this.providersImmutable = ImmutableList.copyOf(this.providers.values());
-
-            if (Reference.DEV_DEBUG)
-            {
-                System.out.printf("registerDataProvider: %s\n", provider);
-            }
 
             return true;
         }
@@ -64,32 +47,21 @@ public class DataProviderManager
         return false;
     }
 
-    public boolean setProviderEnabled(String providerName, boolean enabled)
-    {
+    public boolean setProviderEnabled(String providerName, boolean enabled) {
         IDataProvider provider = this.providers.get(providerName);
         return provider != null && this.setProviderEnabled(provider, enabled);
     }
 
-    public boolean setProviderEnabled(IDataProvider provider, boolean enabled)
-    {
+    public boolean setProviderEnabled(IDataProvider provider, boolean enabled) {
         boolean wasEnabled = provider.isEnabled();
 
-        if (Reference.DEV_DEBUG)
-        {
-            System.out.printf("setProviderEnabled: %s (%s)\n", enabled, provider);
-        }
-
-        if (enabled || wasEnabled != enabled)
-        {
+        if (enabled || wasEnabled != enabled) {
             provider.setEnabled(enabled);
             this.updatePacketHandlerRegistration(provider);
 
-            if (enabled && provider.shouldTick() && this.providersTicking.contains(provider) == false)
-            {
+            if (enabled && provider.shouldTick() && this.providersTicking.contains(provider) == false) {
                 this.providersTicking.add(provider);
-            }
-            else
-            {
+            } else {
                 this.providersTicking.remove(provider);
             }
 
@@ -99,72 +71,55 @@ public class DataProviderManager
         return false;
     }
 
-    public void tickProviders(MinecraftServer server, int tickCounter, Profiler profiler)
-    {
-        if (this.providersTicking.isEmpty() == false)
-        {
-            for (IDataProvider provider : this.providersTicking)
-            {
-                if ((tickCounter % provider.getTickInterval()) == 0)
-                {
+    public void tickProviders(MinecraftServer server, int tickCounter, Profiler profiler) {
+        if (this.providersTicking.isEmpty() == false) {
+            for (IDataProvider provider : this.providersTicking) {
+                if ((tickCounter % provider.getTickInterval()) == 0) {
                     provider.tick(server, tickCounter, profiler);
                 }
             }
         }
     }
 
-    protected void registerEnabledPacketHandlers()
-    {
-        for (IDataProvider provider : this.providersImmutable)
-        {
+    protected void registerEnabledPacketHandlers() {
+        for (IDataProvider provider : this.providersImmutable) {
             this.updatePacketHandlerRegistration(provider);
         }
     }
 
-    protected void updatePacketHandlerRegistration(IDataProvider provider)
-    {
-        if (provider.isEnabled())
-        {
+    protected void updatePacketHandlerRegistration(IDataProvider provider) {
+        if (provider.isEnabled()) {
             provider.registerHandler();
-        }
-        else
-        {
+        } else {
             provider.unregisterHandler();
         }
     }
 
-    public void onCaptureImmutable(@Nonnull DynamicRegistryManager.Immutable immutable)
-    {
+    public void onCaptureImmutable(@Nonnull RegistryAccess.Frozen immutable) {
         this.immutable = immutable;
     }
 
-    public DynamicRegistryManager.Immutable getRegistryManager()
-    {
+    public RegistryAccess.Frozen getRegistryManager() {
         return this.immutable;
     }
 
-    public void onServerTickEndPre()
-    {
-        for (IDataProvider provider : this.providersImmutable)
-        {
+    public void onServerTickEndPre() {
+        for (IDataProvider provider : this.providersImmutable) {
             provider.onTickEndPre();
         }
     }
 
-    public void onServerTickEndPost()
-    {
-        for (IDataProvider provider : this.providersImmutable)
-        {
+    public void onServerTickEndPost() {
+        for (IDataProvider provider : this.providersImmutable) {
             provider.onTickEndPost();
         }
     }
 
-    public Optional<IDataProvider> getProviderByName(String providerName)
-    {
+    public Optional<IDataProvider> getProviderByName(String providerName) {
         return Optional.ofNullable(this.providers.get(providerName));
     }
 
-    public @Nullable IServuxSetting<?> getSettingByName(String name)
+    /* public @Nullable IServuxSetting<?> getSettingByName(String name)
     {
         if (name.contains(":"))
         {
@@ -199,7 +154,8 @@ public class DataProviderManager
         }
         return null;
     }
-
+    */
+    /*
     public void readFromConfig()
     {
         JsonElement el = JsonUtils.parseJsonFileAsPath(this.getConfigFile());
@@ -254,14 +210,14 @@ public class DataProviderManager
                 this.setProviderEnabled(provider, !provider.getName().equals("debug_data"));
             }
         }
-    }
+    } */
 
-    public void writeToConfig()
+    /* public void writeToConfig()
     {
         JsonObject root = new JsonObject();
         JsonObject objToggles = new JsonObject();
 
-        Servux.debugLog("DataProviderManager#writeToConfig()");
+        ServuxLitematicsProtocol.LOGGER.debug("DataProviderManager#writeToConfig()");
 
         for (IDataProvider provider : this.providersImmutable)
         {
@@ -278,9 +234,9 @@ public class DataProviderManager
         }
 
         JsonUtils.writeJsonToFileAsPath(root, this.getConfigFile());
-    }
+    } */
 
-    protected Path getConfigFile()
+    /* protected Path getConfigFile()
     {
         if (this.configDir == null)
         {
@@ -300,5 +256,5 @@ public class DataProviderManager
         }
 
         return this.configDir.resolve("servux.json");
-    }
+    } */
 }

@@ -31,7 +31,7 @@ public class GlobalConfigManager {
         for (Field field : LeavesConfig.class.getDeclaredFields()) {
             initField(field, null, CONFIG_START);
         }
-        verifiedConfigs.forEach((path, config) -> config.validator().runAfterLoader(config.get(), false));
+        verifiedConfigs.values().forEach(config -> config.validator().runAfterLoader(config.get(), false));
         LeavesConfig.save();
 
         loaded = true;
@@ -45,7 +45,7 @@ public class GlobalConfigManager {
         for (Field field : LeavesConfig.class.getDeclaredFields()) {
             initField(field, null, CONFIG_START);
         }
-        verifiedConfigs.forEach((path, config) -> config.validator().runAfterLoader(config.get(), true));
+        verifiedConfigs.values().stream().filter(config -> !config.lock()).forEach(config -> config.validator().runAfterLoader(config.get(), true));
         LeavesConfig.save();
     }
 

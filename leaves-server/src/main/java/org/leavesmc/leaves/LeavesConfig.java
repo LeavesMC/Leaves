@@ -813,6 +813,14 @@ public final class LeavesConfig {
         }
 
         private static class AlternativePlaceValidator extends EnumConfigValidator<AlternativePlaceType> {
+
+            @Override
+            public void verify(AlternativePlaceType old, AlternativePlaceType value) throws IllegalArgumentException {
+                if (value != AlternativePlaceType.NONE) {
+                    LeavesConfig.modify.disableDistanceCheckForUseItem = true;
+                }
+            }
+
             @Override
             public void runAfterLoader(AlternativePlaceType value, boolean reload) {
                 if (value != AlternativePlaceType.NONE) {
@@ -855,7 +863,7 @@ public final class LeavesConfig {
             private static class AutoUpdateValidator extends BooleanConfigValidator {
                 @Override
                 public void runAfterLoader(Boolean value, boolean reload) {
-                    if (reload) {
+                    if (!reload) {
                         org.leavesmc.leaves.util.LeavesUpdateHelper.init();
                         if (value) {
                             LeavesLogger.LOGGER.warning("Auto-Update is not completely safe. Enabling it may cause data security problems!");

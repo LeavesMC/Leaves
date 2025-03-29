@@ -8,7 +8,7 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.Tag;
 import net.minecraft.world.phys.Vec3;
-import org.leavesmc.leaves.protocol.servux.litematics.ServuxLitematicsProtocol;
+import org.leavesmc.leaves.protocol.servux.ServuxProtocol;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -16,9 +16,6 @@ import java.io.OutputStream;
 import java.nio.file.Path;
 
 public class NbtUtils {
-    public static CompoundTag createBlockPosTag(Vec3i pos) {
-        return writeBlockPosToTag(pos, new CompoundTag());
-    }
 
     public static CompoundTag writeBlockPosToTag(Vec3i pos, CompoundTag tag) {
         tag.putInt("x", pos.getX());
@@ -93,7 +90,7 @@ public class NbtUtils {
         try {
             NbtIo.writeCompressed(tag, outputStream);
         } catch (Exception err) {
-            ServuxLitematicsProtocol.LOGGER.warn("writeCompressed: Failed to write NBT data to output stream");
+            ServuxProtocol.LOGGER.warn("writeCompressed: Failed to write NBT data to output stream");
         }
     }
 
@@ -101,7 +98,7 @@ public class NbtUtils {
         try {
             NbtIo.writeCompressed(tag, file);
         } catch (Exception err) {
-            ServuxLitematicsProtocol.LOGGER.warn("writeCompressed: Failed to write NBT data to file");
+            ServuxProtocol.LOGGER.warn("writeCompressed: Failed to write NBT data to file");
         }
     }
 }

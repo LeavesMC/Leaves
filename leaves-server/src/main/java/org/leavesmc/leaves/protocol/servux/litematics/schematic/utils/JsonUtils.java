@@ -5,17 +5,11 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Vec3i;
-import org.leavesmc.leaves.protocol.servux.litematics.ServuxLitematicsProtocol;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Map;
 
 public class JsonUtils {
@@ -191,19 +185,5 @@ public class JsonUtils {
         } else {
             throw new UnsupportedOperationException("Unsupported element: " + jsonElement);
         }
-    }
-    @Nullable
-    public static JsonElement parseJsonFileAsPath(Path file) {
-        if (file != null && Files.exists(file) && Files.isReadable(file)) {
-            String fileName = file.toString();
-
-            try (InputStreamReader reader = new InputStreamReader(Files.newInputStream(file), StandardCharsets.UTF_8)) {
-                return JsonParser.parseReader(reader);
-            } catch (Exception e) {
-                ServuxLitematicsProtocol.LOGGER.error("parseJson: Failed to parse the JSON file '{}'", fileName, e);
-            }
-        }
-
-        return null;
     }
 }

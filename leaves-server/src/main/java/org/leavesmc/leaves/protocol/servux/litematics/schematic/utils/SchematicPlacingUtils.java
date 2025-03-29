@@ -26,7 +26,7 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.ticks.LevelTicks;
 import net.minecraft.world.ticks.ScheduledTick;
 import org.leavesmc.leaves.command.NoBlockUpdateCommand;
-import org.leavesmc.leaves.protocol.servux.litematics.ServuxLitematicsProtocol;
+import org.leavesmc.leaves.protocol.servux.ServuxProtocol;
 import org.leavesmc.leaves.protocol.servux.litematics.malilib.IntBoundingBox;
 import org.leavesmc.leaves.protocol.servux.litematics.schematic.LitematicaSchematic;
 import org.leavesmc.leaves.protocol.servux.litematics.schematic.container.LitematicaBlockStateContainer;
@@ -73,7 +73,7 @@ public class SchematicPlacingUtils {
                         origin, schematicPlacement, placement, scheduledBlockTicks,
                         scheduledFluidTicks, replace, notifyNeighbors)) {
                         allSuccess = false;
-                        ServuxLitematicsProtocol.LOGGER.warn("Invalid/missing schematic data in schematic '{}' for sub-region '{}'", schematic.getMetadata().getName(), regionName);
+                        ServuxProtocol.LOGGER.warn("Invalid/missing schematic data in schematic '{}' for sub-region '{}'", schematic.getMetadata().getName(), regionName);
                     }
 
                     List<LitematicaSchematic.EntityInfo> entityList = schematic.getEntityListForRegion(regionName);
@@ -139,7 +139,7 @@ public class SchematicPlacingUtils {
         final int endX = posMax.getX();
         final int endZ = posMax.getZ();
 
-        ServuxLitematicsProtocol.LOGGER.info("origin: {}, posMin: {}, posMax: {}, bmir: {}, bmar: {}", origin, posMin, posMax, boxMinRel, boxMaxRel);
+        ServuxProtocol.LOGGER.info("origin: {}, posMin: {}, posMax: {}, bmir: {}, bmar: {}", origin, posMin, posMax, boxMinRel, boxMaxRel);
 
         final int startY = 0;
         final int endY = Math.abs(regionSize.getY()) - 1;
@@ -228,7 +228,7 @@ public class SchematicPlacingUtils {
                                 te.loadWithComponents(teNBT, world.registryAccess().freeze());
 
                             } catch (Exception e) {
-                                ServuxLitematicsProtocol.LOGGER.warn("Failed to load BlockEntity data for {} @ {}", state, pos);
+                                ServuxProtocol.LOGGER.warn("Failed to load BlockEntity data for {} @ {}", state, pos);
                             }
                         }
                     }

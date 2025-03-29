@@ -7,7 +7,7 @@ import java.util.HashMap;
 public class DataProviderManager {
     public static final DataProviderManager INSTANCE = new DataProviderManager();
     protected final HashMap<String, IDataProvider> providers = new HashMap<>();
-    protected RegistryAccess.Frozen immutable = RegistryAccess.EMPTY;
+    protected final RegistryAccess.Frozen immutable = RegistryAccess.EMPTY;
     public RegistryAccess.Frozen getRegistryManager() {
         return this.immutable;
     }

@@ -12,7 +12,7 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.phys.AABB;
-import org.leavesmc.leaves.protocol.servux.litematics.ServuxLitematicsProtocol;
+import org.leavesmc.leaves.protocol.servux.ServuxProtocol;
 import org.leavesmc.leaves.protocol.servux.litematics.malilib.IntBoundingBox;
 import org.leavesmc.leaves.protocol.servux.litematics.schematic.LitematicaSchematic;
 import org.leavesmc.leaves.protocol.servux.litematics.schematic.selection.Box;
@@ -35,18 +35,16 @@ public class SchematicPlacement {
     private String name;
     private Rotation rotation = Rotation.NONE;
     private Mirror mirror = Mirror.NONE;
-    private final boolean ignoreEntities;
 
-    private SchematicPlacement(LitematicaSchematic schematic, BlockPos origin, String name, boolean ignoreEntities) {
+    private SchematicPlacement(LitematicaSchematic schematic, BlockPos origin, String name) {
         this.schematic = schematic;
         this.origin = origin;
         this.name = name;
-        this.ignoreEntities = ignoreEntities;
     }
 
     public static SchematicPlacement createFromNbt(CompoundTag tags) {
         try {
-            SchematicPlacement placement = new SchematicPlacement(new LitematicaSchematic(tags.getCompound("Schematics")), NbtUtils.readBlockPos(tags, "Origin").orElseThrow(), tags.getString("Name"), false);
+            SchematicPlacement placement = new SchematicPlacement(new LitematicaSchematic(tags.getCompound("Schematics")), NbtUtils.readBlockPos(tags, "Origin").orElseThrow(), tags.getString("Name"));
             placement.mirror = Mirror.values()[tags.getInt("Mirror")];
             placement.rotation = Rotation.values()[tags.getInt("Rotation")];
             for (String name : tags.getCompound("SubRegions").getAllKeys()) {
@@ -69,7 +67,7 @@ public class SchematicPlacement {
     }
 
     public boolean ignoreEntities() {
-        return this.ignoreEntities;
+        return false;
     }
 
     public String getName() {
@@ -138,7 +136,7 @@ public class SchematicPlacement {
             BlockPos areaSize = areaSizes.get(name);
 
             if (areaSize == null) {
-                ServuxLitematicsProtocol.LOGGER.warn("SchematicPlacement.getSubRegionBoxes(): Size for sub-region '{}' not found in the schematic '{}'", name, this.schematic.getMetadata().getName());
+                ServuxProtocol.LOGGER.warn("SchematicPlacement.getSubRegionBoxes(): Size for sub-region '{}' not found in the schematic '{}'", name, this.schematic.getMetadata().getName());
                 continue;
             }
 
@@ -205,7 +203,7 @@ public class SchematicPlacement {
 
                     builder.put(regionName, new Box(boxOriginAbsolute, pos2, regionName));
                 } else {
-                    ServuxLitematicsProtocol.LOGGER.warn("SchematicPlacement.getSubRegionBoxFor(): Size for sub-region '{}' not found in the schematic '{}'", regionName, this.schematic.getMetadata().getName());
+                    ServuxProtocol.LOGGER.warn("SchematicPlacement.getSubRegionBoxFor(): Size for sub-region '{}' not found in the schematic '{}'", regionName, this.schematic.getMetadata().getName());
                 }
             }
         }

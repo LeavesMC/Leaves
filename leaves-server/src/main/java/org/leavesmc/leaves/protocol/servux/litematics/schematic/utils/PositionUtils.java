@@ -6,13 +6,8 @@ import net.minecraft.core.Vec3i;
 import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.phys.Vec3;
-import org.apache.commons.lang3.tuple.Pair;
 import org.leavesmc.leaves.protocol.servux.litematics.schematic.placement.SchematicPlacement;
 import org.leavesmc.leaves.protocol.servux.litematics.schematic.placement.SubRegionPlacement;
-import org.leavesmc.leaves.protocol.servux.litematics.schematic.selection.Box;
-
-import javax.annotation.Nullable;
-import java.util.Collection;
 
 public class PositionUtils {
     public static Vec3 setValue(CoordinateType type, Vec3 valueIn, double newValue) {
@@ -89,67 +84,6 @@ public class PositionUtils {
         z = z >= 0 ? z - 1 : z + 1;
 
         return new BlockPos(x, y, z);
-    }
-
-    /**
-     * Returns the min and max corners of the enclosing box around the given collection of boxes.
-     * The minimum corner is the left entry and the maximum corner is the right entry of the pair.
-     *
-     * @param boxes
-     * @return
-     */
-    @Nullable
-    public static Pair<BlockPos, BlockPos> getEnclosingAreaCorners(Collection<Box> boxes) {
-        if (boxes.isEmpty()) {
-            return null;
-        }
-
-        BlockPos.MutableBlockPos posMin = new BlockPos.MutableBlockPos(60000000, 60000000, 60000000);
-        BlockPos.MutableBlockPos posMax = new BlockPos.MutableBlockPos(-60000000, -60000000, -60000000);
-
-        for (Box box : boxes) {
-            getMinMaxCoords(posMin, posMax, box.getPos1());
-            getMinMaxCoords(posMin, posMax, box.getPos2());
-        }
-
-        return Pair.of(posMin.immutable(), posMax.immutable());
-    }
-
-    private static void getMinMaxCoords(BlockPos.MutableBlockPos posMin, BlockPos.MutableBlockPos posMax, @Nullable BlockPos posToCheck) {
-        if (posToCheck != null) {
-            posMin.set(Math.min(posMin.getX(), posToCheck.getX()),
-                Math.min(posMin.getY(), posToCheck.getY()),
-                Math.min(posMin.getZ(), posToCheck.getZ()));
-
-            posMax.set(Math.max(posMax.getX(), posToCheck.getX()),
-                Math.max(posMax.getY(), posToCheck.getY()),
-                Math.max(posMax.getZ(), posToCheck.getZ()));
-        }
-    }
-    /**
-     * Returns the given position adjusted such that the coordinate indicated by <b>type</b>
-     * is set to the value in <b>value</b>
-     *
-     * @param pos
-     * @param value
-     * @param type
-     * @return
-     */
-    public static BlockPos getModifiedPosition(BlockPos pos, int value, CoordinateType type) {
-
-        switch (type) {
-            case X:
-                pos = new BlockPos(value, pos.getY(), pos.getZ());
-                break;
-            case Y:
-                pos = new BlockPos(pos.getX(), value, pos.getZ());
-                break;
-            case Z:
-                pos = new BlockPos(pos.getX(), pos.getY(), value);
-                break;
-        }
-
-        return pos;
     }
 
     /**

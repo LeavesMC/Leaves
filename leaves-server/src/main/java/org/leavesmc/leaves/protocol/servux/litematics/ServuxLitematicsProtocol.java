@@ -27,8 +27,6 @@ import org.leavesmc.leaves.protocol.servux.PacketSplitter;
 import org.leavesmc.leaves.protocol.servux.ServuxProtocol;
 import org.leavesmc.leaves.protocol.servux.litematics.schematic.placement.SchematicPlacement;
 import org.leavesmc.leaves.protocol.servux.litematics.schematic.utils.ReplaceBehavior;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -38,13 +36,12 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @LeavesProtocol(namespace = "servux")
 public class ServuxLitematicsProtocol {
 
-    public static final Logger LOGGER = LoggerFactory.getLogger(ServuxLitematicsProtocol.class);
+
     private static final CompoundTag metadata = new CompoundTag();
     private static final Map<UUID, Long> playerSession = new HashMap<>();
 
@@ -136,7 +133,7 @@ public class ServuxLitematicsProtocol {
         }
         if ((req.contains("Task") && req.getString("Task").equals("BulkEntityRequest")) ||
             !req.contains("Task")) {
-            LOGGER.debug("litematic_data: Sending Bulk NBT Data for ChunkPos [{}] to player {}", chunkPos, player.getName().getString());
+            ServuxProtocol.LOGGER.debug("litematic_data: Sending Bulk NBT Data for ChunkPos [{}] to player {}", chunkPos, player.getName().getString());
 
             long timeStart = System.currentTimeMillis();
             ListTag tileList = new ListTag();
@@ -189,7 +186,7 @@ public class ServuxLitematicsProtocol {
 
     public static void handleClientPasteRequest(ServerPlayer player, int transactionId, CompoundTag tags) {
         if (tags.getString("Task").equals("LitematicaPaste")) {
-            LOGGER.debug("litematic_data: Servux Paste request from player {}", player.getName().getString());
+            ServuxProtocol.LOGGER.debug("litematic_data: Servux Paste request from player {}", player.getName().getString());
             ServerLevel serverLevel = player.serverLevel();
             long timeStart = System.currentTimeMillis();
             SchematicPlacement placement = SchematicPlacement.createFromNbt(tags);
@@ -198,7 +195,7 @@ public class ServuxLitematicsProtocol {
             server.scheduleOnMain(() -> {
                 placement.pasteTo(serverLevel, replaceMode);
                 long timeElapsed = System.currentTimeMillis() - timeStart;
-                player.getBukkitEntity().sendActionBar(Component.translatable("servux.litematics.success.pasted", Stream.of(placement.getName(), serverLevel.registryAccess().toString(), String.valueOf(timeElapsed)).map(Component::text).collect(Collectors.toUnmodifiableList())));
+                player.getBukkitEntity().sendActionBar(Component.translatable("servux.litematics.success.pasted", Stream.of(placement.getName(), serverLevel.registryAccess().toString(), String.valueOf(timeElapsed)).map(Component::text).toList()));
             });
         }
     }
@@ -297,12 +294,6 @@ public class ServuxLitematicsProtocol {
             return packet;
         }
 
-        public static ServuxLitematicaPacket ResponseC2SStart(@Nonnull CompoundTag nbt) {
-            var packet = new ServuxLitematicaPacket(Type.PACKET_C2S_NBT_RESPONSE_START);
-            packet.nbt.merge(nbt);
-            return packet;
-        }
-
         public static ServuxLitematicaPacket ResponseC2SData(@Nonnull FriendlyByteBuf buffer) {
             var packet = new ServuxLitematicaPacket(Type.PACKET_C2S_NBT_RESPONSE_DATA);
             packet.buffer = new FriendlyByteBuf(buffer.copy());
@@ -325,25 +316,8 @@ public class ServuxLitematicsProtocol {
             return this.packetType.get();
         }
 
-        public int getTotalSize() {
-            int total = 2;
-
-            if (this.nbt != null && !this.nbt.isEmpty()) {
-                total += this.nbt.sizeInBytes();
-            }
-            if (this.buffer != null) {
-                total += this.buffer.readableBytes();
-            }
-
-            return total;
-        }
-
         public Type getType() {
             return this.packetType;
-        }
-
-        public void setTransactionId(int id) {
-            this.transactionId = id;
         }
 
         public int getTransactionId() {
@@ -392,7 +366,7 @@ public class ServuxLitematicsProtocol {
                         output.writeVarInt(this.transactionId);
                         output.writeBlockPos(this.pos);
                     } catch (Exception e) {
-                        LOGGER.error("ServuxLitematicaPacket#toPacket: error writing Block Entity Request to packet: [{}]", e.getLocalizedMessage());
+                        ServuxProtocol.LOGGER.error("ServuxLitematicaPacket#toPacket: error writing Block Entity Request to packet: [{}]", e.getLocalizedMessage());
                     }
                 }
                 case PACKET_C2S_ENTITY_REQUEST -> {
@@ -401,7 +375,7 @@ public class ServuxLitematicsProtocol {
                         output.writeVarInt(this.transactionId);
                         output.writeVarInt(this.entityId);
                     } catch (Exception e) {
-                        LOGGER.error("ServuxLitematicaPacket#toPacket: error writing Entity Request to packet: [{}]", e.getLocalizedMessage());
+                        ServuxProtocol.LOGGER.error("ServuxLitematicaPacket#toPacket: error writing Entity Request to packet: [{}]", e.getLocalizedMessage());
                     }
                 }
                 case PACKET_S2C_BLOCK_NBT_RESPONSE_SIMPLE -> {
@@ -409,7 +383,7 @@ public class ServuxLitematicsProtocol {
                         output.writeBlockPos(this.pos);
                         output.writeNbt(this.nbt);
                     } catch (Exception e) {
-                        LOGGER.error("ServuxLitematicaPacket#toPacket: error writing Block Entity Response to packet: [{}]", e.getLocalizedMessage());
+                        ServuxProtocol.LOGGER.error("ServuxLitematicaPacket#toPacket: error writing Block Entity Response to packet: [{}]", e.getLocalizedMessage());
                     }
                 }
                 case PACKET_S2C_ENTITY_NBT_RESPONSE_SIMPLE -> {
@@ -417,7 +391,7 @@ public class ServuxLitematicsProtocol {
                         output.writeVarInt(this.entityId);
                         output.writeNbt(this.nbt);
                     } catch (Exception e) {
-                        LOGGER.error("ServuxLitematicaPacket#toPacket: error writing Entity Response to packet: [{}]", e.getLocalizedMessage());
+                        ServuxProtocol.LOGGER.error("ServuxLitematicaPacket#toPacket: error writing Entity Response to packet: [{}]", e.getLocalizedMessage());
                     }
                 }
                 case PACKET_C2S_BULK_ENTITY_NBT_REQUEST -> {
@@ -425,7 +399,7 @@ public class ServuxLitematicsProtocol {
                         output.writeChunkPos(this.chunkPos);
                         output.writeNbt(this.nbt);
                     } catch (Exception e) {
-                        LOGGER.error("ServuxLitematicaPacket#toPacket: error writing Bulk Entity Request to packet: [{}]", e.getLocalizedMessage());
+                        ServuxProtocol.LOGGER.error("ServuxLitematicaPacket#toPacket: error writing Bulk Entity Request to packet: [{}]", e.getLocalizedMessage());
                     }
                 }
                 case PACKET_S2C_NBT_RESPONSE_DATA, PACKET_C2S_NBT_RESPONSE_DATA -> {
@@ -438,7 +412,7 @@ public class ServuxLitematicsProtocol {
 
                         output.writeBytes(this.buffer.copy());
                     } catch (Exception e) {
-                        LOGGER.error("ServuxLitematicaPacket#toPacket: error writing buffer data to packet: [{}]", e.getLocalizedMessage());
+                        ServuxProtocol.LOGGER.error("ServuxLitematicaPacket#toPacket: error writing buffer data to packet: [{}]", e.getLocalizedMessage());
                     }
                 }
                 case PACKET_C2S_METADATA_REQUEST, PACKET_S2C_METADATA -> {
@@ -446,10 +420,10 @@ public class ServuxLitematicsProtocol {
                     try {
                         output.writeNbt(this.nbt);
                     } catch (Exception e) {
-                        LOGGER.error("ServuxLitematicaPacket#toPacket: error writing NBT to packet: [{}]", e.getLocalizedMessage());
+                        ServuxProtocol.LOGGER.error("ServuxLitematicaPacket#toPacket: error writing NBT to packet: [{}]", e.getLocalizedMessage());
                     }
                 }
-                default -> LOGGER.error("ServuxLitematicaPacket#toPacket: Unknown packet type!");
+                default -> ServuxProtocol.LOGGER.error("ServuxLitematicaPacket#toPacket: Unknown packet type!");
             }
         }
 
@@ -460,7 +434,7 @@ public class ServuxLitematicsProtocol {
 
             if (type == null) {
                 // Invalid Type
-                LOGGER.warn("ServuxLitematicaPacket#fromPacket: invalid packet type received");
+                ServuxProtocol.LOGGER.warn("ServuxLitematicaPacket#fromPacket: invalid packet type received");
                 return null;
             }
             switch (type) {
@@ -470,7 +444,7 @@ public class ServuxLitematicsProtocol {
                         input.readVarInt(); // todo: old code compat
                         return ServuxLitematicaPacket.BlockEntityRequest(input.readBlockPos());
                     } catch (Exception e) {
-                        LOGGER.error("ServuxLitematicaPacket#fromPacket: error reading Block Entity Request from packet: [{}]", e.getLocalizedMessage());
+                        ServuxProtocol.LOGGER.error("ServuxLitematicaPacket#fromPacket: error reading Block Entity Request from packet: [{}]", e.getLocalizedMessage());
                     }
                 }
                 case PACKET_C2S_ENTITY_REQUEST -> {
@@ -479,28 +453,28 @@ public class ServuxLitematicsProtocol {
                         input.readVarInt(); // todo: old code compat
                         return ServuxLitematicaPacket.EntityRequest(input.readVarInt());
                     } catch (Exception e) {
-                        LOGGER.error("ServuxLitematicaPacket#fromPacket: error reading Entity Request from packet: [{}]", e.getLocalizedMessage());
+                        ServuxProtocol.LOGGER.error("ServuxLitematicaPacket#fromPacket: error reading Entity Request from packet: [{}]", e.getLocalizedMessage());
                     }
                 }
                 case PACKET_S2C_BLOCK_NBT_RESPONSE_SIMPLE -> {
                     try {
                         return ServuxLitematicaPacket.SimpleBlockResponse(input.readBlockPos(), input.readNbt());
                     } catch (Exception e) {
-                        LOGGER.error("ServuxLitematicaPacket#fromPacket: error reading Block Entity Response from packet: [{}]", e.getLocalizedMessage());
+                        ServuxProtocol.LOGGER.error("ServuxLitematicaPacket#fromPacket: error reading Block Entity Response from packet: [{}]", e.getLocalizedMessage());
                     }
                 }
                 case PACKET_S2C_ENTITY_NBT_RESPONSE_SIMPLE -> {
                     try {
                         return ServuxLitematicaPacket.SimpleEntityResponse(input.readVarInt(), input.readNbt());
                     } catch (Exception e) {
-                        LOGGER.error("ServuxLitematicaPacket#fromPacket: error reading Entity Response from packet: [{}]", e.getLocalizedMessage());
+                        ServuxProtocol.LOGGER.error("ServuxLitematicaPacket#fromPacket: error reading Entity Response from packet: [{}]", e.getLocalizedMessage());
                     }
                 }
                 case PACKET_C2S_BULK_ENTITY_NBT_REQUEST -> {
                     try {
                         return ServuxLitematicaPacket.BulkNbtRequest(input.readChunkPos(), input.readNbt());
                     } catch (Exception e) {
-                        LOGGER.error("ServuxLitematicaPacket#fromPacket: error reading Bulk Entity Request from packet: [{}]", e.getLocalizedMessage());
+                        ServuxProtocol.LOGGER.error("ServuxLitematicaPacket#fromPacket: error reading Bulk Entity Request from packet: [{}]", e.getLocalizedMessage());
                     }
                 }
                 case PACKET_S2C_NBT_RESPONSE_DATA -> {
@@ -508,7 +482,7 @@ public class ServuxLitematicsProtocol {
                     try {
                         return ServuxLitematicaPacket.ResponseS2CData(new FriendlyByteBuf(input.readBytes(input.readableBytes())));
                     } catch (Exception e) {
-                        LOGGER.error("ServuxLitematicaPacket#fromPacket: error reading S2C Bulk Response Buffer from packet: [{}]", e.getLocalizedMessage());
+                        ServuxProtocol.LOGGER.error("ServuxLitematicaPacket#fromPacket: error reading S2C Bulk Response Buffer from packet: [{}]", e.getLocalizedMessage());
                     }
                 }
                 case PACKET_C2S_NBT_RESPONSE_DATA -> {
@@ -516,7 +490,7 @@ public class ServuxLitematicsProtocol {
                     try {
                         return ServuxLitematicaPacket.ResponseC2SData(new FriendlyByteBuf(input.readBytes(input.readableBytes())));
                     } catch (Exception e) {
-                        LOGGER.error("ServuxLitematicaPacket#fromPacket: error reading C2S Bulk Response Buffer from packet: [{}]", e.getLocalizedMessage());
+                        ServuxProtocol.LOGGER.error("ServuxLitematicaPacket#fromPacket: error reading C2S Bulk Response Buffer from packet: [{}]", e.getLocalizedMessage());
                     }
                 }
                 case PACKET_C2S_METADATA_REQUEST -> {
@@ -524,7 +498,7 @@ public class ServuxLitematicsProtocol {
                     try {
                         return ServuxLitematicaPacket.MetadataRequest(input.readNbt());
                     } catch (Exception e) {
-                        LOGGER.error("ServuxLitematicaPacket#fromPacket: error reading Metadata Request from packet: [{}]", e.getLocalizedMessage());
+                        ServuxProtocol.LOGGER.error("ServuxLitematicaPacket#fromPacket: error reading Metadata Request from packet: [{}]", e.getLocalizedMessage());
                     }
                 }
                 case PACKET_S2C_METADATA -> {
@@ -532,10 +506,10 @@ public class ServuxLitematicsProtocol {
                     try {
                         return ServuxLitematicaPacket.MetadataResponse(input.readNbt());
                     } catch (Exception e) {
-                        LOGGER.error("ServuxLitematicaPacket#fromPacket: error reading Metadata Response from packet: [{}]", e.getLocalizedMessage());
+                        ServuxProtocol.LOGGER.error("ServuxLitematicaPacket#fromPacket: error reading Metadata Response from packet: [{}]", e.getLocalizedMessage());
                     }
                 }
-                default -> LOGGER.error("ServuxLitematicaPacket#fromPacket: Unknown packet type!");
+                default -> ServuxProtocol.LOGGER.error("ServuxLitematicaPacket#fromPacket: Unknown packet type!");
             }
 
             return null;

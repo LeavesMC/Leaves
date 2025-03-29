@@ -6,7 +6,7 @@ import com.google.gson.JsonPrimitive;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.Rotation;
-import org.leavesmc.leaves.protocol.servux.litematics.ServuxLitematicsProtocol;
+import org.leavesmc.leaves.protocol.servux.ServuxProtocol;
 
 public class SubRegionPlacement {
     private final String name;
@@ -38,7 +38,7 @@ public class SubRegionPlacement {
             return this.isEnabled();
         }
 
-        ServuxLitematicsProtocol.LOGGER.warn("RequiredEnabled.RENDERING_ENABLED is not supported on server side!");
+        ServuxProtocol.LOGGER.warn("RequiredEnabled.RENDERING_ENABLED is not supported on server side!");
         return false;
     }
 

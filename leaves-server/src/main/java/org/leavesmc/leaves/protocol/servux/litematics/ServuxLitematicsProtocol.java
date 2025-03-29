@@ -82,9 +82,7 @@ public class ServuxLitematicsProtocol {
         if (!hasPermission(player)) return;
         ServuxLitematicaPacket data = payload.data;
         switch (data.packetType) {
-            case PACKET_C2S_METADATA_REQUEST -> {
-                ProtocolUtils.sendPayloadPacket(player, new ServuxLitematicaPacket.Payload(ServuxLitematicaPacket.MetadataResponse(metadata)));
-            }
+            case PACKET_C2S_METADATA_REQUEST -> ProtocolUtils.sendPayloadPacket(player, new ServuxLitematicaPacket.Payload(ServuxLitematicaPacket.MetadataResponse(metadata)));
             case PACKET_C2S_BLOCK_ENTITY_REQUEST -> {
                 BlockPos pos = data.getPos();
                 System.out.println(pos);
@@ -101,21 +99,24 @@ public class ServuxLitematicsProtocol {
                 // entity
             }
             case PACKET_C2S_NBT_RESPONSE_DATA -> {
-                System.out.println("nbt response data");
+                ServuxProtocol.LOGGER.debug("nbt response data");
                 UUID uuid = player.getUUID();
                 Long session = playerSession.getOrDefault(uuid, new Random().nextLong());
                 playerSession.put(uuid, session);
                 FriendlyByteBuf fullPacket = PacketSplitter.receive(session, data.getBuffer());
                 if (fullPacket == null) {
-                    System.out.println("packet is none");
+                    ServuxProtocol.LOGGER.debug("packet is none");
                     return;
                 }
                 playerSession.remove(uuid);
-                handleClientPasteRequest(player, fullPacket.readVarInt(), fullPacket.readNbt());
+                CompoundTag compoundTag = fullPacket.readNbt();
+                if (compoundTag == null) {
+                    ServuxProtocol.LOGGER.error("cannot read nbt tag from packet");
+                    return;
+                }
+                fullPacket.readVarInt();
+                handleClientPasteRequest(player, compoundTag);
                 // paste
-            }
-            default -> {
-                System.out.println(data.packetType);
             }
         }
     }
@@ -179,12 +180,12 @@ public class ServuxLitematicsProtocol {
             output.putInt("chunkX", chunkPos.x);
             output.putInt("chunkZ", chunkPos.z);
             long timeElapsed = System.currentTimeMillis() - timeStart;
-
+            ServuxProtocol.LOGGER.debug("process bulk entity used: {}ms", timeElapsed);
             encodeServerData(player, ServuxLitematicaPacket.ResponseS2CStart(output));
         }
     }
 
-    public static void handleClientPasteRequest(ServerPlayer player, int transactionId, CompoundTag tags) {
+    public static void handleClientPasteRequest(ServerPlayer player, CompoundTag tags) {
         if (tags.getString("Task").equals("LitematicaPaste")) {
             ServuxProtocol.LOGGER.debug("litematic_data: Servux Paste request from player {}", player.getName().getString());
             ServerLevel serverLevel = player.serverLevel();
@@ -199,11 +200,6 @@ public class ServuxLitematicsProtocol {
             });
         }
     }
-
-    public static Map<UUID, Long> getPlayerSession() {
-        return playerSession;
-    }
-
     public static class ServuxLitematicaPacket {
         private Type packetType;
         private int transactionId;
@@ -405,11 +401,6 @@ public class ServuxLitematicsProtocol {
                 case PACKET_S2C_NBT_RESPONSE_DATA, PACKET_C2S_NBT_RESPONSE_DATA -> {
                     // Write Packet Buffer (Slice)
                     try {
-                    /*
-                    PacketByteBuf serverReplay = new PacketByteBuf(this.buffer.copy());
-                    output.writeBytes(serverReplay.readBytes(serverReplay.readableBytes()));
-                     */
-
                         output.writeBytes(this.buffer.copy());
                     } catch (Exception e) {
                         ServuxProtocol.LOGGER.error("ServuxLitematicaPacket#toPacket: error writing buffer data to packet: [{}]", e.getLocalizedMessage());
@@ -572,7 +563,7 @@ public class ServuxLitematicsProtocol {
 
             @Nonnull
             @New
-            public static Payload read(ResourceLocation id, FriendlyByteBuf buf) {
+            public static Payload read(ResourceLocation ignoredId, FriendlyByteBuf buf) {
                 return new Payload(buf);
             }
 

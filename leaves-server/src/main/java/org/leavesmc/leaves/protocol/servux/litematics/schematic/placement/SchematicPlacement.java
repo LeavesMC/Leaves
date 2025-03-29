@@ -107,8 +107,11 @@ public class SchematicPlacement {
             BlockPos pos2 = null;
 
             for (Box box : boxes.values()) {
+                BlockPos boxPos1 = box.getPos1();
+                BlockPos boxPos2 = box.getPos2();
+                if (boxPos1 == null || boxPos2 == null) continue;
                 BlockPos tmp;
-                tmp = BlockPos.min(box.getPos1(), box.getPos2());
+                tmp = BlockPos.min(boxPos1, boxPos2);
 
                 if (pos1 == null) {
                     pos1 = tmp;
@@ -116,7 +119,7 @@ public class SchematicPlacement {
                     pos1 = BlockPos.min(tmp, pos1);
                 }
 
-                tmp = BlockPos.max(box.getPos1(), box.getPos2());
+                tmp = BlockPos.max(boxPos1, boxPos2);
 
                 if (pos2 == null) {
                     pos2 = tmp;
@@ -143,18 +146,22 @@ public class SchematicPlacement {
             SubRegionPlacement placement = entry.getValue();
 
             if (placement.matchesRequirement(required)) {
-                BlockPos boxOriginRelative = placement.getPos();
-
-                BlockPos boxOriginAbsolute = PositionUtils.getTransformedBlockPos(boxOriginRelative, this.mirror, this.rotation).offset(this.origin);
-                BlockPos pos2 = PositionUtils.getRelativeEndPositionFromAreaSize(areaSize);
-                pos2 = PositionUtils.getTransformedBlockPos(pos2, this.mirror, this.rotation);
-                pos2 = PositionUtils.getTransformedBlockPos(pos2, placement.getMirror(), placement.getRotation()).offset(boxOriginAbsolute);
-
-                builder.put(name, new Box(boxOriginAbsolute, pos2, name));
+                putBoxPosIntoBuilder(builder, name, areaSize, placement);
             }
         }
 
         return builder.build();
+    }
+
+    private void putBoxPosIntoBuilder(ImmutableMap.Builder<String, Box> builder, String name, BlockPos areaSize, SubRegionPlacement placement) {
+        BlockPos boxOriginRelative = placement.getPos();
+
+        BlockPos boxOriginAbsolute = PositionUtils.getTransformedBlockPos(boxOriginRelative, this.mirror, this.rotation).offset(this.origin);
+        BlockPos pos2 = PositionUtils.getRelativeEndPositionFromAreaSize(areaSize);
+        pos2 = PositionUtils.getTransformedBlockPos(pos2, this.mirror, this.rotation);
+        pos2 = PositionUtils.getTransformedBlockPos(pos2, placement.getMirror(), placement.getRotation()).offset(boxOriginAbsolute);
+
+        builder.put(name, new Box(boxOriginAbsolute, pos2, name));
     }
 
     public static IntBoundingBox getBoundsWithinChunkForBox(Box box, int chunkX, int chunkZ) {
@@ -162,20 +169,28 @@ public class SchematicPlacement {
         final int chunkZMin = chunkZ << 4;
         final int chunkXMax = chunkXMin + 15;
         final int chunkZMax = chunkZMin + 15;
-
-        final int boxXMin = Math.min(box.getPos1().getX(), box.getPos2().getX());
-        final int boxZMin = Math.min(box.getPos1().getZ(), box.getPos2().getZ());
-        final int boxXMax = Math.max(box.getPos1().getX(), box.getPos2().getX());
-        final int boxZMax = Math.max(box.getPos1().getZ(), box.getPos2().getZ());
+        BlockPos boxPos1 = box.getPos1();
+        BlockPos boxPos2 = box.getPos2();
+        if (boxPos1 == null || boxPos2 == null) return null;
+        int x1 = boxPos1.getX();
+        int x2 = boxPos2.getX();
+        int y1 = boxPos1.getY();
+        int y2 = boxPos2.getY();
+        int z1 = boxPos1.getZ();
+        int z2 = boxPos2.getZ();
+        final int boxXMin = Math.min(x1, x2);
+        final int boxZMin = Math.min(z1, z2);
+        final int boxXMax = Math.max(x1, x2);
+        final int boxZMax = Math.max(z1, z2);
 
         boolean notOverlapping = boxXMin > chunkXMax || boxZMin > chunkZMax || boxXMax < chunkXMin || boxZMax < chunkZMin;
 
         if (!notOverlapping) {
             final int xMin = Math.max(chunkXMin, boxXMin);
-            final int yMin = Math.min(box.getPos1().getY(), box.getPos2().getY());
+            final int yMin = Math.min(y1, y2);
             final int zMin = Math.max(chunkZMin, boxZMin);
             final int xMax = Math.min(chunkXMax, boxXMax);
-            final int yMax = Math.max(box.getPos1().getY(), box.getPos2().getY());
+            final int yMax = Math.max(y1, y2);
             final int zMax = Math.min(chunkZMax, boxZMax);
 
             return new IntBoundingBox(xMin, yMin, zMin, xMax, yMax, zMax);
@@ -195,13 +210,7 @@ public class SchematicPlacement {
                 BlockPos areaSize = areaSizes.get(regionName);
 
                 if (areaSize != null) {
-                    BlockPos boxOriginRelative = placement.getPos();
-                    BlockPos boxOriginAbsolute = PositionUtils.getTransformedBlockPos(boxOriginRelative, this.mirror, this.rotation).offset(this.origin);
-                    BlockPos pos2 = PositionUtils.getRelativeEndPositionFromAreaSize(areaSize);
-                    pos2 = PositionUtils.getTransformedBlockPos(pos2, this.mirror, this.rotation);
-                    pos2 = PositionUtils.getTransformedBlockPos(pos2, placement.getMirror(), placement.getRotation()).offset(boxOriginAbsolute);
-
-                    builder.put(regionName, new Box(boxOriginAbsolute, pos2, regionName));
+                    putBoxPosIntoBuilder(builder, regionName, areaSize, placement);
                 } else {
                     ServuxProtocol.LOGGER.warn("SchematicPlacement.getSubRegionBoxFor(): Size for sub-region '{}' not found in the schematic '{}'", regionName, this.schematic.getMetadata().getName());
                 }
@@ -221,10 +230,17 @@ public class SchematicPlacement {
 
         for (Map.Entry<String, Box> entry : map.entrySet()) {
             Box box = entry.getValue();
-            final int boxXMin = Math.min(box.getPos1().getX(), box.getPos2().getX());
-            final int boxZMin = Math.min(box.getPos1().getZ(), box.getPos2().getZ());
-            final int boxXMax = Math.max(box.getPos1().getX(), box.getPos2().getX());
-            final int boxZMax = Math.max(box.getPos1().getZ(), box.getPos2().getZ());
+            BlockPos boxPos1 = box.getPos1();
+            BlockPos boxPos2 = box.getPos2();
+            if (boxPos1 == null || boxPos2 == null) continue;
+            int x1 = boxPos1.getX();
+            int x2 = boxPos2.getX();
+            int z1 = boxPos1.getZ();
+            int z2 = boxPos2.getZ();
+            final int boxXMin = Math.min(x1, x2);
+            final int boxZMin = Math.min(z1, z2);
+            final int boxXMax = Math.max(x1, x2);
+            final int boxZMax = Math.max(z1, z2);
 
             boolean notOverlapping = boxXMin > chunkXMax || boxZMin > chunkZMax || boxXMax < chunkXMin || boxZMax < chunkZMin;
 
@@ -320,7 +336,10 @@ public class SchematicPlacement {
 
         for (Box box : boxes.values()) {
             BlockPos tmp;
-            tmp = PositionUtils.getMinCorner(box.getPos1(), box.getPos2());
+            BlockPos boxPos1 = box.getPos1();
+            BlockPos boxPos2 = box.getPos2();
+            if (boxPos1 == null || boxPos2 == null) continue;
+            tmp = PositionUtils.getMinCorner(boxPos1, boxPos2);
 
             if (pos1 == null) {
                 pos1 = tmp;
@@ -328,7 +347,7 @@ public class SchematicPlacement {
                 pos1 = PositionUtils.getMinCorner(tmp, pos1);
             }
 
-            tmp = PositionUtils.getMaxCorner(box.getPos1(), box.getPos2());
+            tmp = PositionUtils.getMaxCorner(boxPos1, boxPos2);
 
             if (pos2 == null) {
                 pos2 = tmp;
@@ -354,6 +373,11 @@ public class SchematicPlacement {
     }
 
     public void pasteTo(ServerLevel serverWorld, ReplaceBehavior replaceBehavior) {
-        streamChunkPos(this.getEnclosingBox().toVanilla()).forEach(chunkPos -> SchematicPlacingUtils.placeToWorldWithinChunk(serverWorld, chunkPos, this, replaceBehavior, false));
+        Box enclosingBox = this.getEnclosingBox();
+        if (enclosingBox == null) {
+            ServuxProtocol.LOGGER.error("receiver a null enclosing box");
+            return;
+        }
+        streamChunkPos(enclosingBox.toVanilla()).forEach(chunkPos -> SchematicPlacingUtils.placeToWorldWithinChunk(serverWorld, chunkPos, this, replaceBehavior, false));
     }
 }

@@ -6,10 +6,9 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.HolderLookup;
+import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.LongArrayTag;
@@ -19,14 +18,13 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.ticks.ScheduledTick;
 import net.minecraft.world.ticks.TickPriority;
+import org.leavesmc.leaves.protocol.servux.ServuxProtocol;
 import org.leavesmc.leaves.protocol.servux.litematics.schematic.container.LitematicaBlockStateContainer;
-import org.leavesmc.leaves.protocol.servux.litematics.schematic.utils.DataProviderManager;
 import org.leavesmc.leaves.protocol.servux.litematics.schematic.utils.FileType;
 import org.leavesmc.leaves.protocol.servux.litematics.schematic.utils.NbtUtils;
 import org.leavesmc.leaves.protocol.servux.litematics.schematic.utils.PositionUtils;
@@ -37,6 +35,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 public class LitematicaSchematic {
     public static final int MINECRAFT_DATA_VERSION = SharedConstants.getProtocolVersion();
@@ -108,7 +107,7 @@ public class LitematicaSchematic {
         return this.pendingFluidTicks.get(regionName);
     }
 
-    private boolean readFromNBT(CompoundTag nbt) throws CommandSyntaxException {
+    private void readFromNBT(CompoundTag nbt) throws CommandSyntaxException {
         this.blockContainers.clear();
         this.tileEntities.clear();
         this.entities.clear();
@@ -128,14 +127,12 @@ public class LitematicaSchematic {
                 this.metadata.setFileType(FileType.LITEMATICA_SCHEMATIC);
                 this.readSubRegionsFromNBT(nbt.getCompound("Regions"), version, minecraftDataVersion);
 
-                return true;
             } else {
                 error("servux.litematics.error.schematic_load.unsupported_schematic_version");
             }
         } else {
             error("servux.litematics.error.schematic_load.no_schematic_version_information");
         }
-        return false;
     }
 
     private void error(String s) throws CommandSyntaxException {
@@ -144,11 +141,13 @@ public class LitematicaSchematic {
 
     private void readSubRegionsFromNBT(CompoundTag tag, int version, int minecraftDataVersion) {
         for (String regionName : tag.getAllKeys()) {
-            if (tag.get(regionName).getId() == Tag.TAG_COMPOUND) {
+            Tag region = tag.get(regionName);
+            if (region == null) throw new RuntimeException("Unknown region: " + regionName);
+            if (region.getId() == Tag.TAG_COMPOUND) {
                 CompoundTag regionTag = tag.getCompound(regionName);
                 BlockPos regionPos = NbtUtils.readBlockPos(regionTag.getCompound("Position"));
                 BlockPos regionSize = NbtUtils.readBlockPos(regionTag.getCompound("Size"));
-                Map<BlockPos, CompoundTag> tiles = null;
+                Map<BlockPos, CompoundTag> tiles;
 
                 if (regionPos != null && regionSize != null) {
                     this.subRegionPositions.put(regionName, regionPos);
@@ -191,7 +190,8 @@ public class LitematicaSchematic {
                         LitematicaBlockStateContainer container = LitematicaBlockStateContainer.createFrom(palette, blockStateArr, size);
 
                         if (minecraftDataVersion < MINECRAFT_DATA_VERSION) {
-                            this.postProcessContainerIfNeeded(palette, container, tiles);
+                            ServuxProtocol.LOGGER.warn("Cannot process minecraft data version: {}", minecraftDataVersion);
+                            // this.postProcessContainerIfNeeded(palette, container, tiles);
                         }
 
                         this.blockContainers.put(regionName, container);
@@ -199,28 +199,6 @@ public class LitematicaSchematic {
                 }
             }
         }
-    }
-
-    private void postProcessContainerIfNeeded(ListTag palette, LitematicaBlockStateContainer container, @Nullable Map<BlockPos, CompoundTag> tiles) {
-        List<BlockState> states = getStatesFromPaletteTag(palette);
-    }
-
-    public static List<BlockState> getStatesFromPaletteTag(ListTag palette) {
-        List<BlockState> states = new ArrayList<>();
-        //RegistryEntryLookup<Block> lookup = Registries.createEntryLookup(Registries.BLOCK);
-        HolderLookup.RegistryLookup<Block> lookup = DataProviderManager.INSTANCE.getRegistryManager().lookupOrThrow(Registries.BLOCK);
-        final int size = palette.size();
-
-        for (int i = 0; i < size; ++i) {
-            CompoundTag tag = palette.getCompound(i);
-            BlockState state = net.minecraft.nbt.NbtUtils.readBlockState(lookup, tag);
-
-            if (i > 0 || state != LitematicaBlockStateContainer.AIR_BLOCK_STATE) {
-                states.add(state);
-            }
-        }
-
-        return states;
     }
 
     private List<EntityInfo> readEntitiesFromNBT(ListTag tagList) {
@@ -269,7 +247,11 @@ public class LitematicaSchematic {
 
                 // Don't crash on invalid ResourceLocation in 1.13+
                 try {
-                    target = registry.get(ResourceLocation.tryParse(tag.getString(tagName))).get().value();
+                    ResourceLocation resourceLocation = ResourceLocation.tryParse(tag.getString(tagName));
+                    if (resourceLocation == null) throw new RuntimeException("Unknown resource: " + tag);
+                    Optional<Holder.Reference<T>> tReference = registry.get(resourceLocation);
+                    if (tReference.isEmpty()) throw new RuntimeException("Unknown reference: " + tagName);
+                    target = tReference.get().value();
 
                     if (target == emptyValue) {
                         continue;

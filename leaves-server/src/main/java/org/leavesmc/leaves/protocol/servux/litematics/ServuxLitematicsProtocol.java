@@ -8,6 +8,7 @@ import net.minecraft.nbt.DoubleTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
@@ -193,9 +194,12 @@ public class ServuxLitematicsProtocol {
             long timeStart = System.currentTimeMillis();
             SchematicPlacement placement = SchematicPlacement.createFromNbt(tags);
             ReplaceBehavior replaceMode = ReplaceBehavior.fromStringStatic(tags.getString("ReplaceMode"));
-            placement.pasteTo(serverLevel, replaceMode);
-            long timeElapsed = System.currentTimeMillis() - timeStart;
-            player.getBukkitEntity().sendActionBar(Component.translatable("servux.litematics.success.pasted", Stream.of(placement.getName(), serverLevel.registryAccess().toString(), String.valueOf(timeElapsed)).map(Component::text).collect(Collectors.toUnmodifiableList())));
+            MinecraftServer server = MinecraftServer.getServer();
+            server.scheduleOnMain(() -> {
+                placement.pasteTo(serverLevel, replaceMode);
+                long timeElapsed = System.currentTimeMillis() - timeStart;
+                player.getBukkitEntity().sendActionBar(Component.translatable("servux.litematics.success.pasted", Stream.of(placement.getName(), serverLevel.registryAccess().toString(), String.valueOf(timeElapsed)).map(Component::text).collect(Collectors.toUnmodifiableList())));
+            });
         }
     }
 

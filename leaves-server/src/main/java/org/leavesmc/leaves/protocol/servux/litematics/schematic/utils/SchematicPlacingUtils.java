@@ -139,6 +139,8 @@ public class SchematicPlacingUtils {
         final int endX = posMax.getX();
         final int endZ = posMax.getZ();
 
+        ServuxLitematicsProtocol.LOGGER.info("origin: {}, posMin: {}, posMax: {}, bmir: {}, bmar: {}", origin, posMin, posMax, boxMinRel, boxMaxRel);
+
         final int startY = 0;
         final int endY = Math.abs(regionSize.getY()) - 1;
         BlockPos.MutableBlockPos posMutable = new BlockPos.MutableBlockPos();

@@ -11,7 +11,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.Rotation;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraft.world.phys.AABB;
 import org.leavesmc.leaves.protocol.servux.litematics.ServuxLitematicsProtocol;
 import org.leavesmc.leaves.protocol.servux.litematics.malilib.IntBoundingBox;
@@ -148,10 +147,10 @@ public class SchematicPlacement {
             if (placement.matchesRequirement(required)) {
                 BlockPos boxOriginRelative = placement.getPos();
 
-                BlockPos boxOriginAbsolute = StructureTemplate.transform(boxOriginRelative, this.mirror, this.rotation, this.origin);
+                BlockPos boxOriginAbsolute = PositionUtils.getTransformedBlockPos(boxOriginRelative, this.mirror, this.rotation).offset(this.origin);
                 BlockPos pos2 = PositionUtils.getRelativeEndPositionFromAreaSize(areaSize);
-                pos2 = StructureTemplate.transform(pos2, this.mirror, this.rotation, BlockPos.ZERO);
-                pos2 = StructureTemplate.transform(pos2, placement.getMirror(), placement.getRotation(), boxOriginAbsolute);
+                pos2 = PositionUtils.getTransformedBlockPos(pos2, this.mirror, this.rotation);
+                pos2 = PositionUtils.getTransformedBlockPos(pos2, placement.getMirror(), placement.getRotation()).offset(boxOriginAbsolute);
 
                 builder.put(name, new Box(boxOriginAbsolute, pos2, name));
             }
@@ -199,10 +198,10 @@ public class SchematicPlacement {
 
                 if (areaSize != null) {
                     BlockPos boxOriginRelative = placement.getPos();
-                    BlockPos boxOriginAbsolute = StructureTemplate.transform(boxOriginRelative, this.mirror, this.rotation, this.origin);
+                    BlockPos boxOriginAbsolute = PositionUtils.getTransformedBlockPos(boxOriginRelative, this.mirror, this.rotation).offset(this.origin);
                     BlockPos pos2 = PositionUtils.getRelativeEndPositionFromAreaSize(areaSize);
-                    pos2 = StructureTemplate.transform(pos2, this.mirror, this.rotation, BlockPos.ZERO);
-                    pos2 = StructureTemplate.transform(pos2, placement.getMirror(), placement.getRotation(), boxOriginAbsolute);
+                    pos2 = PositionUtils.getTransformedBlockPos(pos2, this.mirror, this.rotation);
+                    pos2 = PositionUtils.getTransformedBlockPos(pos2, placement.getMirror(), placement.getRotation()).offset(boxOriginAbsolute);
 
                     builder.put(regionName, new Box(boxOriginAbsolute, pos2, regionName));
                 } else {
@@ -323,20 +322,20 @@ public class SchematicPlacement {
 
         for (Box box : boxes.values()) {
             BlockPos tmp;
-            tmp = BlockPos.min(box.getPos1(), box.getPos2());
+            tmp = PositionUtils.getMinCorner(box.getPos1(), box.getPos2());
 
             if (pos1 == null) {
                 pos1 = tmp;
             } else if (tmp.getX() < pos1.getX() || tmp.getY() < pos1.getY() || tmp.getZ() < pos1.getZ()) {
-                pos1 = BlockPos.min(tmp, pos1);
+                pos1 = PositionUtils.getMinCorner(tmp, pos1);
             }
 
-            tmp = BlockPos.max(box.getPos1(), box.getPos2());
+            tmp = PositionUtils.getMaxCorner(box.getPos1(), box.getPos2());
 
             if (pos2 == null) {
                 pos2 = tmp;
             } else if (tmp.getX() > pos2.getX() || tmp.getY() > pos2.getY() || tmp.getZ() > pos2.getZ()) {
-                pos2 = BlockPos.max(tmp, pos2);
+                pos2 = PositionUtils.getMaxCorner(tmp, pos2);
             }
         }
 
@@ -358,6 +357,5 @@ public class SchematicPlacement {
 
     public void pasteTo(ServerLevel serverWorld, ReplaceBehavior replaceBehavior) {
         streamChunkPos(this.getEnclosingBox().toVanilla()).forEach(chunkPos -> SchematicPlacingUtils.placeToWorldWithinChunk(serverWorld, chunkPos, this, replaceBehavior, false));
-        // todo
     }
 }

@@ -38,6 +38,7 @@ import java.util.Map;
 import java.util.Optional;
 
 public class LitematicaSchematic {
+
     public static final int MINECRAFT_DATA_VERSION = SharedConstants.getProtocolVersion();
     public static final int SCHEMATIC_VERSION = 7;
 
@@ -82,6 +83,7 @@ public class LitematicaSchematic {
     public BlockPos getAreaSize(String regionName) {
         return this.subRegionSizes.get(regionName);
     }
+
     @Nullable
     public LitematicaBlockStateContainer getSubRegionContainer(String regionName) {
         return this.blockContainers.get(regionName);
@@ -314,20 +316,20 @@ public class LitematicaSchematic {
     }
 
     public record EntityInfo(Vec3 posVec, CompoundTag nbt) {
-            public EntityInfo(Vec3 posVec, CompoundTag nbt) {
-                this.posVec = posVec;
+        public EntityInfo(Vec3 posVec, CompoundTag nbt) {
+            this.posVec = posVec;
 
-                if (nbt.contains("SleepingX", Tag.TAG_INT)) {
-                    nbt.putInt("SleepingX", Mth.floor(posVec.x));
-                }
-                if (nbt.contains("SleepingY", Tag.TAG_INT)) {
-                    nbt.putInt("SleepingY", Mth.floor(posVec.y));
-                }
-                if (nbt.contains("SleepingZ", Tag.TAG_INT)) {
-                    nbt.putInt("SleepingZ", Mth.floor(posVec.z));
-                }
-
-                this.nbt = nbt;
+            if (nbt.contains("SleepingX", Tag.TAG_INT)) {
+                nbt.putInt("SleepingX", Mth.floor(posVec.x));
             }
+            if (nbt.contains("SleepingY", Tag.TAG_INT)) {
+                nbt.putInt("SleepingY", Mth.floor(posVec.y));
+            }
+            if (nbt.contains("SleepingZ", Tag.TAG_INT)) {
+                nbt.putInt("SleepingZ", Mth.floor(posVec.z));
+            }
+
+            this.nbt = nbt;
         }
+    }
 }

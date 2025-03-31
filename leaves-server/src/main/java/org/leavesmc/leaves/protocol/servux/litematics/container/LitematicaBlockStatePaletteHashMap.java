@@ -13,6 +13,7 @@ import org.leavesmc.leaves.protocol.servux.litematics.utils.Int2ObjectBiMap;
 import javax.annotation.Nullable;
 
 public class LitematicaBlockStatePaletteHashMap implements ILitematicaBlockStatePalette {
+
     private final Int2ObjectBiMap<BlockState> statePaletteMap;
     private final ILitematicaBlockStatePaletteResizer paletteResizer;
     private final int bits;
@@ -43,6 +44,7 @@ public class LitematicaBlockStatePaletteHashMap implements ILitematicaBlockState
     public BlockState getBlockState(int indexKey) {
         return this.statePaletteMap.get(indexKey);
     }
+
     private void requestNewId(BlockState state) {
         final int origId = this.statePaletteMap.add(state);
 

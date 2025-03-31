@@ -47,46 +47,37 @@ public class SchematicPlacingUtils {
         Set<String> regionsTouchingChunk = schematicPlacement.getRegionsTouchingChunk(chunkPos.x, chunkPos.z);
         BlockPos origin = schematicPlacement.getOrigin();
 
-        try {
-            if (!notifyNeighbors) {
-                NoBlockUpdateCommand.setPreventBlockUpdate(true);
+        for (String regionName : regionsTouchingChunk) {
+            LitematicaBlockStateContainer container = schematic.getSubRegionContainer(regionName);
+
+            if (container == null) {
+                continue;
             }
 
-            for (String regionName : regionsTouchingChunk) {
-                LitematicaBlockStateContainer container = schematic.getSubRegionContainer(regionName);
+            SubRegionPlacement placement = schematicPlacement.getRelativeSubRegionPlacement(regionName);
+            if (placement == null) {
+                ServuxProtocol.LOGGER.error("receiver a null placement for region: {}", regionName);
+                continue;
+            }
+            if (placement.isEnabled()) {
+                Map<BlockPos, CompoundTag> blockEntityMap = schematic.getBlockEntityMapForRegion(regionName);
+                Map<BlockPos, ScheduledTick<Block>> scheduledBlockTicks = schematic.getScheduledBlockTicksForRegion(regionName);
+                Map<BlockPos, ScheduledTick<Fluid>> scheduledFluidTicks = schematic.getScheduledFluidTicksForRegion(regionName);
 
-                if (container == null) {
-                    continue;
+                if (!placeBlocksWithinChunk(world, chunkPos, regionName, container, blockEntityMap,
+                    origin, schematicPlacement, placement, scheduledBlockTicks,
+                    scheduledFluidTicks, replace, notifyNeighbors)) {
+                    ServuxProtocol.LOGGER.warn("Invalid/missing schematic data in schematic '{}' for sub-region '{}'", schematic.getMetadata().getName(), regionName);
                 }
 
-                SubRegionPlacement placement = schematicPlacement.getRelativeSubRegionPlacement(regionName);
-                if (placement == null) {
-                    ServuxProtocol.LOGGER.error("receiver a null placement for region: {}", regionName);
-                    continue;
-                }
-                if (placement.isEnabled()) {
-                    Map<BlockPos, CompoundTag> blockEntityMap = schematic.getBlockEntityMapForRegion(regionName);
-                    Map<BlockPos, ScheduledTick<Block>> scheduledBlockTicks = schematic.getScheduledBlockTicksForRegion(regionName);
-                    Map<BlockPos, ScheduledTick<Fluid>> scheduledFluidTicks = schematic.getScheduledFluidTicksForRegion(regionName);
+                List<LitematicaSchematic.EntityInfo> entityList = schematic.getEntityListForRegion(regionName);
 
-                    if (!placeBlocksWithinChunk(world, chunkPos, regionName, container, blockEntityMap,
-                        origin, schematicPlacement, placement, scheduledBlockTicks,
-                        scheduledFluidTicks, replace, notifyNeighbors)) {
-                        ServuxProtocol.LOGGER.warn("Invalid/missing schematic data in schematic '{}' for sub-region '{}'", schematic.getMetadata().getName(), regionName);
-                    }
-
-                    List<LitematicaSchematic.EntityInfo> entityList = schematic.getEntityListForRegion(regionName);
-
-                    if (!schematicPlacement.ignoreEntities() &&
-                        !placement.ignoreEntities() && entityList != null) {
-                        placeEntitiesToWorldWithinChunk(world, chunkPos, entityList, origin, schematicPlacement, placement);
-                    }
+                if (!schematicPlacement.ignoreEntities() &&
+                    !placement.ignoreEntities() && entityList != null) {
+                    placeEntitiesToWorldWithinChunk(world, chunkPos, entityList, origin, schematicPlacement, placement);
                 }
             }
-        } finally {
-            NoBlockUpdateCommand.setPreventBlockUpdate(false);
         }
-
     }
 
     public static boolean placeBlocksWithinChunk(Level world, ChunkPos chunkPos, String regionName,
@@ -204,10 +195,10 @@ public class SchematicPlacingUtils {
                             ((Container) te).clearContent();
                         }
 
-                        world.setBlock(pos, barrier, 0x14);
+                        world.setBlock(pos, barrier, 4 | 16 | (notifyNeighbors ? 0 : 1024));
                     }
 
-                    if (world.setBlock(pos, state, 0x12) && teNBT != null) {
+                    if (world.setBlock(pos, state, 2 | 16 | (notifyNeighbors ? 0 : 1024)) && teNBT != null) {
                         te = world.getBlockEntity(pos);
 
                         if (te != null) {

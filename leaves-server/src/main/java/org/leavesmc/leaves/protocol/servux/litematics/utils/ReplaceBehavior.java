@@ -1,4 +1,4 @@
-package org.leavesmc.leaves.protocol.servux.litematics.schematic.utils;
+package org.leavesmc.leaves.protocol.servux.litematics.utils;
 
 public enum ReplaceBehavior {
     NONE("none"),

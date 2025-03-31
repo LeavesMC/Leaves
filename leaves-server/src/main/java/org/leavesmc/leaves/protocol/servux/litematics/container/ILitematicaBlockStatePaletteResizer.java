@@ -1,4 +1,4 @@
-package org.leavesmc.leaves.protocol.servux.litematics.schematic.container;
+package org.leavesmc.leaves.protocol.servux.litematics.container;
 
 import net.minecraft.world.level.block.state.BlockState;
 

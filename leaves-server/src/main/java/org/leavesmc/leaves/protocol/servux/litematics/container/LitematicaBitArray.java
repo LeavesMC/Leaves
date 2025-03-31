@@ -1,4 +1,4 @@
-package org.leavesmc.leaves.protocol.servux.litematics.schematic.container;
+package org.leavesmc.leaves.protocol.servux.litematics.container;
 
 import org.apache.commons.lang3.Validate;
 

@@ -1,11 +1,11 @@
-package org.leavesmc.leaves.protocol.servux.litematics.schematic;
+package org.leavesmc.leaves.protocol.servux.litematics;
 
 import net.minecraft.core.Vec3i;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
-import org.leavesmc.leaves.protocol.servux.litematics.schematic.utils.FileType;
-import org.leavesmc.leaves.protocol.servux.litematics.schematic.utils.NbtUtils;
-import org.leavesmc.leaves.protocol.servux.litematics.schematic.utils.Schema;
+import org.leavesmc.leaves.protocol.servux.litematics.utils.FileType;
+import org.leavesmc.leaves.protocol.servux.litematics.utils.NbtUtils;
+import org.leavesmc.leaves.protocol.servux.litematics.utils.Schema;
 
 import javax.annotation.Nullable;
 

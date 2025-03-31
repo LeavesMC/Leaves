@@ -1,4 +1,4 @@
-package org.leavesmc.leaves.protocol.servux.litematics.schematic.placement;
+package org.leavesmc.leaves.protocol.servux.litematics.placement;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;

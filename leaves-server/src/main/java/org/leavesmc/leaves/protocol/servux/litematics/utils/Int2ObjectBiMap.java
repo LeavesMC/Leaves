@@ -1,15 +1,14 @@
-package org.leavesmc.leaves.protocol.servux.litematics.collections;
+package org.leavesmc.leaves.protocol.servux.litematics.utils;
 
 import com.google.common.base.Predicates;
 import com.google.common.collect.Iterators;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Arrays;
 import java.util.Iterator;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-public class Int2ObjectBiMap<K> implements IndexedIterable<K> {
+public class Int2ObjectBiMap<K> implements Iterable<K> {
     private static final Object EMPTY = null;
     private K[] values;
     private int[] ids;
@@ -34,14 +33,11 @@ public class Int2ObjectBiMap<K> implements IndexedIterable<K> {
     public static <A> Int2ObjectBiMap<A> create(int expectedSize) {
         return new Int2ObjectBiMap<>((int) ((float) expectedSize / 0.8F));
     }
-
-    @Override
     public int getRawId(@Nullable K value) {
         return this.getIdFromIndex(this.findIndex(value, this.getIdealIndex(value)));
     }
 
     @Nullable
-    @Override
     public K get(int index) {
         return index >= 0 && index < this.idToValues.length ? this.idToValues[index] : null;
     }
@@ -176,12 +172,20 @@ public class Int2ObjectBiMap<K> implements IndexedIterable<K> {
         this.size = 0;
     }
 
-    @Override
     public int size() {
         return this.size;
     }
 
     public Int2ObjectBiMap<K> copy() {
         return new Int2ObjectBiMap<>(this.values.clone(), this.ids.clone(), this.idToValues.clone(), this.nextId, this.size);
+    }
+
+    public K getOrThrow(int index) {
+        K object = this.get(index);
+        if (object == null) {
+            throw new IllegalArgumentException("No value with id " + index);
+        } else {
+            return object;
+        }
     }
 }

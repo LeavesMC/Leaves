@@ -1,4 +1,4 @@
-package org.leavesmc.leaves.protocol.servux.litematics.schematic.container;
+package org.leavesmc.leaves.protocol.servux.litematics.container;
 
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;

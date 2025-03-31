@@ -1,4 +1,4 @@
-package org.leavesmc.leaves.protocol.servux.litematics.schematic.container;
+package org.leavesmc.leaves.protocol.servux.litematics.container;
 
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
@@ -8,7 +8,7 @@ import net.minecraft.nbt.NbtUtils;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
-import org.leavesmc.leaves.protocol.servux.litematics.collections.Int2ObjectBiMap;
+import org.leavesmc.leaves.protocol.servux.litematics.utils.Int2ObjectBiMap;
 
 import javax.annotation.Nullable;
 

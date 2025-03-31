@@ -1,4 +1,4 @@
-package org.leavesmc.leaves.protocol.servux.litematics.schematic.utils;
+package org.leavesmc.leaves.protocol.servux.litematics.utils;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -27,11 +27,10 @@ import net.minecraft.world.ticks.LevelTicks;
 import net.minecraft.world.ticks.ScheduledTick;
 import org.leavesmc.leaves.command.NoBlockUpdateCommand;
 import org.leavesmc.leaves.protocol.servux.ServuxProtocol;
-import org.leavesmc.leaves.protocol.servux.litematics.malilib.IntBoundingBox;
-import org.leavesmc.leaves.protocol.servux.litematics.schematic.LitematicaSchematic;
-import org.leavesmc.leaves.protocol.servux.litematics.schematic.container.LitematicaBlockStateContainer;
-import org.leavesmc.leaves.protocol.servux.litematics.schematic.placement.SchematicPlacement;
-import org.leavesmc.leaves.protocol.servux.litematics.schematic.placement.SubRegionPlacement;
+import org.leavesmc.leaves.protocol.servux.litematics.LitematicaSchematic;
+import org.leavesmc.leaves.protocol.servux.litematics.container.LitematicaBlockStateContainer;
+import org.leavesmc.leaves.protocol.servux.litematics.placement.SchematicPlacement;
+import org.leavesmc.leaves.protocol.servux.litematics.placement.SubRegionPlacement;
 
 import javax.annotation.Nullable;
 import java.util.List;

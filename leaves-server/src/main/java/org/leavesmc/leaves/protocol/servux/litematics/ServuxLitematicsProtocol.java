@@ -5,7 +5,6 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.DoubleTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
@@ -33,9 +32,9 @@ import org.leavesmc.leaves.protocol.core.ProtocolHandler;
 import org.leavesmc.leaves.protocol.core.ProtocolUtils;
 import org.leavesmc.leaves.protocol.servux.PacketSplitter;
 import org.leavesmc.leaves.protocol.servux.ServuxProtocol;
-import org.leavesmc.leaves.protocol.servux.litematics.schematic.placement.SchematicPlacement;
-import org.leavesmc.leaves.protocol.servux.litematics.schematic.utils.NbtUtils;
-import org.leavesmc.leaves.protocol.servux.litematics.schematic.utils.ReplaceBehavior;
+import org.leavesmc.leaves.protocol.servux.litematics.placement.SchematicPlacement;
+import org.leavesmc.leaves.protocol.servux.litematics.utils.NbtUtils;
+import org.leavesmc.leaves.protocol.servux.litematics.utils.ReplaceBehavior;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -109,34 +108,24 @@ public class ServuxLitematicsProtocol {
             PacketSplitter.send(ServuxLitematicsProtocol::sendWithSplitter, buffer, player);
             return;
         }
-        ProtocolUtils.sendPayloadPacket(player, new ServuxLitematicaPacket.Payload(packet));
+        ProtocolUtils.sendPayloadPacket(player, new ServuxLitematicaPacket.ServuxLitematicaPayload(packet));
     }
 
     private static void sendWithSplitter(ServerPlayer player, FriendlyByteBuf buf) {
-        ProtocolUtils.sendPayloadPacket(player, new ServuxLitematicaPacket.Payload(ServuxLitematicaPacket.ResponseS2CData(buf)));
+        ProtocolUtils.sendPayloadPacket(player, new ServuxLitematicaPacket.ServuxLitematicaPayload(ServuxLitematicaPacket.ResponseS2CData(buf)));
     }
 
-    @ProtocolHandler.PayloadReceiver(payload = ServuxLitematicaPacket.Payload.class, payloadId = "litematics")
-    public static void onPacketReceive(ServerPlayer player, ServuxLitematicaPacket.Payload payload) {
+    @ProtocolHandler.PayloadReceiver(payload = ServuxLitematicaPacket.ServuxLitematicaPayload.class, payloadId = "litematics")
+    public static void onPacketReceive(ServerPlayer player, ServuxLitematicaPacket.ServuxLitematicaPayload payload) {
         if (!isEnabled()) return;
         if (!hasPermission(player)) return;
         ServuxLitematicaPacket data = payload.data;
         switch (data.packetType) {
-            case PACKET_C2S_METADATA_REQUEST -> ProtocolUtils.sendPayloadPacket(player, new ServuxLitematicaPacket.Payload(ServuxLitematicaPacket.MetadataResponse(metadata)));
-            case PACKET_C2S_BLOCK_ENTITY_REQUEST -> {
-                BlockPos pos = data.getPos();
-                System.out.println(pos);
-                // block entity
-            }
+            case PACKET_C2S_METADATA_REQUEST -> ProtocolUtils.sendPayloadPacket(player, new ServuxLitematicaPacket.ServuxLitematicaPayload(ServuxLitematicaPacket.MetadataResponse(metadata)));
             case PACKET_C2S_BULK_ENTITY_NBT_REQUEST -> {
                 ChunkPos pos = data.getChunkPos();
                 CompoundTag compound = data.getCompound();
                 onBulkEntityRequest(player, pos, compound);
-            }
-            case PACKET_C2S_ENTITY_REQUEST -> {
-                int entityId = data.getEntityId();
-                System.out.println(entityId);
-                // entity
             }
             case PACKET_C2S_NBT_RESPONSE_DATA -> {
                 ServuxProtocol.LOGGER.debug("nbt response data");
@@ -156,7 +145,6 @@ public class ServuxLitematicsProtocol {
                 }
                 fullPacket.readVarInt();
                 handleClientPasteRequest(player, compoundTag);
-                // paste
             }
         }
     }
@@ -237,8 +225,8 @@ public class ServuxLitematicsProtocol {
         }
     }
     public static class ServuxLitematicaPacket {
-        private Type packetType;
-        private int transactionId;
+        private final Type packetType;
+        private final int transactionId;
         private int entityId;
         private BlockPos pos;
         private CompoundTag nbt;
@@ -542,19 +530,9 @@ public class ServuxLitematicsProtocol {
             return null;
         }
 
-        public void clear() {
-            if (this.nbt != null && !this.nbt.isEmpty()) {
-                this.nbt = new CompoundTag();
-            }
-            this.clearPacket();
-            this.transactionId = -1;
-            this.entityId = -1;
-            this.pos = BlockPos.ZERO;
-            this.packetType = null;
-        }
-
         @Nullable
         public static Type getType(int input) {
+
             for (Type type : Type.values()) {
                 if (type.get() == input) {
                     return type;
@@ -590,17 +568,17 @@ public class ServuxLitematicsProtocol {
             }
         }
 
-        public record Payload(ServuxLitematicaPacket data) implements LeavesCustomPayload<Payload> {
-            public static final ResourceLocation ID = ResourceLocation.fromNamespaceAndPath("servux", "litematics");
+        public record ServuxLitematicaPayload(ServuxLitematicaPacket data) implements LeavesCustomPayload<ServuxLitematicaPayload> {
+            public static final ResourceLocation ID = ResourceLocation.fromNamespaceAndPath(ServuxProtocol.PROTOCOL_ID, "litematics");
 
-            public Payload(FriendlyByteBuf input) {
+            public ServuxLitematicaPayload(FriendlyByteBuf input) {
                 this(fromPacket(input));
             }
 
             @Nonnull
             @New
-            public static Payload read(ResourceLocation ignoredId, FriendlyByteBuf buf) {
-                return new Payload(buf);
+            public static ServuxLitematicaPayload read(ResourceLocation ignoredId, FriendlyByteBuf buf) {
+                return new ServuxLitematicaPayload(buf);
             }
 
             public void write(FriendlyByteBuf output) {

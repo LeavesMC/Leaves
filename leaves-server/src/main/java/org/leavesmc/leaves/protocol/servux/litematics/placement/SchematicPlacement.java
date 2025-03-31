@@ -1,4 +1,4 @@
-package org.leavesmc.leaves.protocol.servux.litematics.schematic.placement;
+package org.leavesmc.leaves.protocol.servux.litematics.placement;
 
 import com.google.common.collect.ImmutableMap;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -13,12 +13,12 @@ import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.phys.AABB;
 import org.leavesmc.leaves.protocol.servux.ServuxProtocol;
-import org.leavesmc.leaves.protocol.servux.litematics.malilib.IntBoundingBox;
-import org.leavesmc.leaves.protocol.servux.litematics.schematic.LitematicaSchematic;
-import org.leavesmc.leaves.protocol.servux.litematics.schematic.selection.Box;
-import org.leavesmc.leaves.protocol.servux.litematics.schematic.utils.PositionUtils;
-import org.leavesmc.leaves.protocol.servux.litematics.schematic.utils.ReplaceBehavior;
-import org.leavesmc.leaves.protocol.servux.litematics.schematic.utils.SchematicPlacingUtils;
+import org.leavesmc.leaves.protocol.servux.litematics.utils.IntBoundingBox;
+import org.leavesmc.leaves.protocol.servux.litematics.LitematicaSchematic;
+import org.leavesmc.leaves.protocol.servux.litematics.selection.Box;
+import org.leavesmc.leaves.protocol.servux.litematics.utils.PositionUtils;
+import org.leavesmc.leaves.protocol.servux.litematics.utils.ReplaceBehavior;
+import org.leavesmc.leaves.protocol.servux.litematics.utils.SchematicPlacingUtils;
 
 import javax.annotation.Nullable;
 import java.util.HashMap;

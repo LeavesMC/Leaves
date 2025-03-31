@@ -1,4 +1,4 @@
-package org.leavesmc.leaves.protocol.servux.litematics.malilib;
+package org.leavesmc.leaves.protocol.servux.litematics.utils;
 
 import net.minecraft.core.Vec3i;
 

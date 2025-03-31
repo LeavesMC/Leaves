@@ -1,4 +1,4 @@
-package org.leavesmc.leaves.protocol.servux.litematics.schematic.utils;
+package org.leavesmc.leaves.protocol.servux.litematics.utils;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -6,8 +6,8 @@ import net.minecraft.core.Vec3i;
 import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.phys.Vec3;
-import org.leavesmc.leaves.protocol.servux.litematics.schematic.placement.SchematicPlacement;
-import org.leavesmc.leaves.protocol.servux.litematics.schematic.placement.SubRegionPlacement;
+import org.leavesmc.leaves.protocol.servux.litematics.placement.SchematicPlacement;
+import org.leavesmc.leaves.protocol.servux.litematics.placement.SubRegionPlacement;
 
 public class PositionUtils {
     public static Vec3 setValue(CoordinateType type, Vec3 valueIn, double newValue) {

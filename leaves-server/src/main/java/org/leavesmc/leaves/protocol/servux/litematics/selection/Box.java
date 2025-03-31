@@ -1,11 +1,11 @@
-package org.leavesmc.leaves.protocol.servux.litematics.schematic.selection;
+package org.leavesmc.leaves.protocol.servux.litematics.selection;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import net.minecraft.core.BlockBox;
 import net.minecraft.core.BlockPos;
-import org.leavesmc.leaves.protocol.servux.litematics.schematic.utils.JsonUtils;
-import org.leavesmc.leaves.protocol.servux.litematics.schematic.utils.PositionUtils;
+import org.leavesmc.leaves.protocol.servux.litematics.utils.JsonUtils;
+import org.leavesmc.leaves.protocol.servux.litematics.utils.PositionUtils;
 
 import javax.annotation.Nullable;
 

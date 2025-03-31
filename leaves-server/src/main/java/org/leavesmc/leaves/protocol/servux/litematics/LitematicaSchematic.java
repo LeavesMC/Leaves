@@ -1,4 +1,4 @@
-package org.leavesmc.leaves.protocol.servux.litematics.schematic;
+package org.leavesmc.leaves.protocol.servux.litematics;
 
 
 import com.google.common.collect.ImmutableMap;
@@ -24,10 +24,10 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.ticks.ScheduledTick;
 import net.minecraft.world.ticks.TickPriority;
 import org.leavesmc.leaves.protocol.servux.ServuxProtocol;
-import org.leavesmc.leaves.protocol.servux.litematics.schematic.container.LitematicaBlockStateContainer;
-import org.leavesmc.leaves.protocol.servux.litematics.schematic.utils.FileType;
-import org.leavesmc.leaves.protocol.servux.litematics.schematic.utils.NbtUtils;
-import org.leavesmc.leaves.protocol.servux.litematics.schematic.utils.PositionUtils;
+import org.leavesmc.leaves.protocol.servux.litematics.container.LitematicaBlockStateContainer;
+import org.leavesmc.leaves.protocol.servux.litematics.utils.FileType;
+import org.leavesmc.leaves.protocol.servux.litematics.utils.NbtUtils;
+import org.leavesmc.leaves.protocol.servux.litematics.utils.PositionUtils;
 
 import javax.annotation.Nullable;
 import java.nio.file.Path;

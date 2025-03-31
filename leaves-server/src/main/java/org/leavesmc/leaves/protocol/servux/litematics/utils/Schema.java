@@ -1,4 +1,4 @@
-package org.leavesmc.leaves.protocol.servux.litematics.schematic.utils;
+package org.leavesmc.leaves.protocol.servux.litematics.utils;
 
 import javax.annotation.Nullable;
 

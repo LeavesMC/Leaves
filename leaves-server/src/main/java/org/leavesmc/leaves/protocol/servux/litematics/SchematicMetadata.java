@@ -10,6 +10,7 @@ import org.leavesmc.leaves.protocol.servux.litematics.utils.Schema;
 import javax.annotation.Nullable;
 
 public class SchematicMetadata {
+
     private String name = "?";
     private String author = "?";
     private String description = "";
@@ -37,6 +38,7 @@ public class SchematicMetadata {
     public String getDescription() {
         return this.description;
     }
+
     public Schema getSchema() {
         return this.schema;
     }
@@ -69,6 +71,7 @@ public class SchematicMetadata {
         this.minecraftDataVersion = minecraftDataVersion;
         this.schema = Schema.getSchemaByDataVersion(this.minecraftDataVersion);
     }
+
     public void setFileType(FileType type) {
         this.type = type;
     }
@@ -96,6 +99,7 @@ public class SchematicMetadata {
             this.thumbnailPixelData = null;
         }
     }
+
     public void readFromNBT(CompoundTag nbt) {
         this.name = nbt.getString("Name");
         this.author = nbt.getString("Author");

@@ -9,6 +9,7 @@ import net.minecraft.world.level.block.Rotation;
 import org.leavesmc.leaves.protocol.servux.ServuxProtocol;
 
 public class SubRegionPlacement {
+
     private final String name;
     private final BlockPos pos;
     public Rotation rotation = Rotation.NONE;

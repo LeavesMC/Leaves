@@ -46,10 +46,6 @@ public class NoBlockUpdateCommand extends Command {
         return true;
     }
 
-    public static void setPreventBlockUpdate(boolean preventBlockUpdate) {
-        noBlockUpdate = !preventBlockUpdate;
-    }
-
     public static boolean isNoBlockUpdate() {
         return LeavesConfig.modify.noBlockUpdateCommand && noBlockUpdate;
     }

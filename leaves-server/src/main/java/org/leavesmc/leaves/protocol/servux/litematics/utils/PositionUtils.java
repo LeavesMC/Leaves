@@ -10,6 +10,7 @@ import org.leavesmc.leaves.protocol.servux.litematics.placement.SchematicPlaceme
 import org.leavesmc.leaves.protocol.servux.litematics.placement.SubRegionPlacement;
 
 public class PositionUtils {
+
     public static Vec3 setValue(CoordinateType type, Vec3 valueIn, double newValue) {
         return switch (type) {
             case X -> new Vec3(newValue, valueIn.y, valueIn.z);
@@ -46,6 +47,7 @@ public class PositionUtils {
         Y,
         Z
     }
+
     public static BlockPos getMinCorner(BlockPos pos1, BlockPos pos2) {
         return new BlockPos(Math.min(pos1.getX(), pos2.getX()), Math.min(pos1.getY(), pos2.getY()), Math.min(pos1.getZ(), pos2.getZ()));
     }

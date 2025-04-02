@@ -8,8 +8,8 @@ import net.minecraft.world.level.block.state.BlockState;
 
 import javax.annotation.Nullable;
 
-public class LitematicaBlockStateContainer implements ILitematicaBlockStatePaletteResizer
-{
+public class LitematicaBlockStateContainer implements ILitematicaBlockStatePaletteResizer {
+
     public static final BlockState AIR_BLOCK_STATE = Blocks.AIR.defaultBlockState();
     protected LitematicaBitArray storage;
     protected ILitematicaBlockStatePalette palette;
@@ -20,8 +20,8 @@ public class LitematicaBlockStateContainer implements ILitematicaBlockStatePalet
     protected final int sizeLayer;
     protected final long totalVolume;
     protected int bits;
-    public LitematicaBlockStateContainer(int sizeX, int sizeY, int sizeZ, int bits, @Nullable long[] backingLongArray)
-    {
+
+    public LitematicaBlockStateContainer(int sizeX, int sizeY, int sizeZ, int bits, @Nullable long[] backingLongArray) {
         this.sizeX = sizeX;
         this.sizeY = sizeY;
         this.sizeZ = sizeZ;
@@ -32,71 +32,56 @@ public class LitematicaBlockStateContainer implements ILitematicaBlockStatePalet
         this.setBits(bits, backingLongArray);
     }
 
-    public Vec3i getSize()
-    {
+    public Vec3i getSize() {
         return this.size;
     }
 
-    public LitematicaBitArray getArray()
-    {
+    public LitematicaBitArray getArray() {
         return this.storage;
     }
 
-    public BlockState get(int x, int y, int z)
-    {
+    public BlockState get(int x, int y, int z) {
         BlockState state = this.palette.getBlockState(this.storage.getAt(this.getIndex(x, y, z)));
         return state == null ? AIR_BLOCK_STATE : state;
     }
 
-    public void set(int x, int y, int z, BlockState state)
-    {
+    public void set(int x, int y, int z, BlockState state) {
         int id = this.palette.idFor(state);
         this.storage.setAt(this.getIndex(x, y, z), id);
     }
 
-    protected void set(int index, BlockState state)
-    {
+    protected void set(int index, BlockState state) {
         int id = this.palette.idFor(state);
         this.storage.setAt(index, id);
     }
 
-    protected int getIndex(int x, int y, int z)
-    {
+    protected int getIndex(int x, int y, int z) {
         return (y * this.sizeLayer) + z * this.sizeX + x;
     }
 
-    protected void setBits(int bitsIn, @Nullable long[] backingLongArray)
-    {
-        if (bitsIn != this.bits)
-        {
+    protected void setBits(int bitsIn, @Nullable long[] backingLongArray) {
+        if (bitsIn != this.bits) {
             this.bits = bitsIn;
 
-            if (this.bits <= 4)
-            {
+            if (this.bits <= 4) {
                 this.bits = Math.max(2, this.bits);
                 this.palette = new LitematicaBlockStatePaletteLinear(this.bits, this);
-            }
-            else
-            {
+            } else {
                 this.palette = new LitematicaBlockStatePaletteHashMap(this.bits, this);
             }
 
             this.palette.idFor(AIR_BLOCK_STATE);
 
-            if (backingLongArray != null)
-            {
+            if (backingLongArray != null) {
                 this.storage = new LitematicaBitArray(this.bits, this.totalVolume, backingLongArray);
-            }
-            else
-            {
+            } else {
                 this.storage = new LitematicaBitArray(this.bits, this.totalVolume);
             }
         }
     }
 
     @Override
-    public int onResize(int bits, BlockState state)
-    {
+    public int onResize(int bits, BlockState state) {
         LitematicaBitArray oldStorage = this.storage;
         ILitematicaBlockStatePalette oldPalette = this.palette;
         final long storageLength = oldStorage.size();
@@ -105,8 +90,7 @@ public class LitematicaBlockStateContainer implements ILitematicaBlockStatePalet
 
         LitematicaBitArray newStorage = this.storage;
 
-        for (long index = 0; index < storageLength; ++index)
-        {
+        for (long index = 0; index < storageLength; ++index) {
             newStorage.setAt(index, oldStorage.getAt(index));
         }
 
@@ -115,13 +99,11 @@ public class LitematicaBlockStateContainer implements ILitematicaBlockStatePalet
         return this.palette.idFor(state);
     }
 
-    public ILitematicaBlockStatePalette getPalette()
-    {
+    public ILitematicaBlockStatePalette getPalette() {
         return this.palette;
     }
 
-    public static LitematicaBlockStateContainer createFrom(ListTag palette, long[] blockStates, BlockPos size)
-    {
+    public static LitematicaBlockStateContainer createFrom(ListTag palette, long[] blockStates, BlockPos size) {
         int bits = Math.max(2, Integer.SIZE - Integer.numberOfLeadingZeros(palette.size() - 1));
         LitematicaBlockStateContainer container = new LitematicaBlockStateContainer(size.getX(), size.getY(), size.getZ(), bits, blockStates);
         container.palette.readFromNBT(palette);

@@ -12,6 +12,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import javax.annotation.Nullable;
 
 public class LitematicaBlockStatePaletteLinear implements ILitematicaBlockStatePalette {
+
     private final BlockState[] states;
     private final ILitematicaBlockStatePaletteResizer resizeHandler;
     private final int bits;

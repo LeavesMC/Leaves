@@ -1,7 +1,5 @@
 package org.leavesmc.leaves.protocol.servux.litematics.utils;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -13,7 +11,6 @@ import javax.annotation.Nullable;
 import java.util.Map;
 
 public class JsonUtils {
-    public static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     public static boolean hasString(JsonObject obj, String name) {
         JsonElement el = obj.get(name);

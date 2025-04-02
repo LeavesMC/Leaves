@@ -52,21 +52,20 @@ public class EntityUtils {
 
         if (entity == null) {
             return null;
-        } else {
-            if (nbt.contains("Passengers", Tag.TAG_LIST)) {
-                ListTag taglist = nbt.getList("Passengers", Tag.TAG_LIST);
+        }
+        if (nbt.contains("Passengers", Tag.TAG_LIST)) {
+            ListTag taglist = nbt.getList("Passengers", Tag.TAG_LIST);
 
-                for (int i = 0; i < taglist.size(); ++i) {
-                    Entity passenger = createEntityAndPassengersFromNBT(taglist.getCompound(i), world);
+            for (int i = 0; i < taglist.size(); ++i) {
+                Entity passenger = createEntityAndPassengersFromNBT(taglist.getCompound(i), world);
 
-                    if (passenger != null) {
-                        passenger.startRiding(entity, true);
-                    }
+                if (passenger != null) {
+                    passenger.startRiding(entity, true);
                 }
             }
-
-            return entity;
         }
+
+        return entity;
     }
 
     public static void spawnEntityAndPassengersInWorld(Entity entity, Level world) {
@@ -77,7 +76,8 @@ public class EntityUtils {
                     entity.getX(),
                     entity.getY() + entity.getPassengerRidingPosition(passenger).y(),
                     entity.getZ(),
-                    passenger.getYRot(), passenger.getXRot());
+                    passenger.getYRot(), passenger.getXRot()
+                );
                 setEntityRotations(passenger, passenger.getYRot(), passenger.getXRot());
                 spawnEntityAndPassengersInWorld(passenger, world);
             }

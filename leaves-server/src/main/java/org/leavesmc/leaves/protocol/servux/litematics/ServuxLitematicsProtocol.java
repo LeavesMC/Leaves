@@ -49,7 +49,6 @@ import java.util.stream.Stream;
 @LeavesProtocol(namespace = "servux")
 public class ServuxLitematicsProtocol {
 
-
     private static final CompoundTag metadata = new CompoundTag();
     private static final Map<UUID, Long> playerSession = new HashMap<>();
     private static final Map<String, Map<String, String>> translations = new HashMap<>(
@@ -224,7 +223,9 @@ public class ServuxLitematicsProtocol {
             });
         }
     }
+
     public static class ServuxLitematicaPacket {
+
         private final Type packetType;
         private final int transactionId;
         private int entityId;

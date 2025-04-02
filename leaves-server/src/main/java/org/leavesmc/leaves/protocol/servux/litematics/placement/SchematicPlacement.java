@@ -101,31 +101,32 @@ public class SchematicPlacement {
     }
 
     private void updateEnclosingBox() {
-        if (this.shouldRenderEnclosingBox()) {
-            ImmutableMap<String, Box> boxes = this.getSubRegionBoxes(SubRegionPlacement.RequiredEnabled.ANY);
-            BlockPos pos1 = null;
-            BlockPos pos2 = null;
+        if (!this.shouldRenderEnclosingBox()) {
+            return;
+        }
+        ImmutableMap<String, Box> boxes = this.getSubRegionBoxes(SubRegionPlacement.RequiredEnabled.ANY);
+        BlockPos pos1 = null;
+        BlockPos pos2 = null;
 
-            for (Box box : boxes.values()) {
-                BlockPos boxPos1 = box.getPos1();
-                BlockPos boxPos2 = box.getPos2();
-                if (boxPos1 == null || boxPos2 == null) continue;
-                BlockPos tmp;
-                tmp = BlockPos.min(boxPos1, boxPos2);
+        for (Box box : boxes.values()) {
+            BlockPos boxPos1 = box.getPos1();
+            BlockPos boxPos2 = box.getPos2();
+            if (boxPos1 == null || boxPos2 == null) continue;
+            BlockPos tmp;
+            tmp = BlockPos.min(boxPos1, boxPos2);
 
-                if (pos1 == null) {
-                    pos1 = tmp;
-                } else if (tmp.getX() < pos1.getX() || tmp.getY() < pos1.getY() || tmp.getZ() < pos1.getZ()) {
-                    pos1 = BlockPos.min(tmp, pos1);
-                }
+            if (pos1 == null) {
+                pos1 = tmp;
+            } else if (tmp.getX() < pos1.getX() || tmp.getY() < pos1.getY() || tmp.getZ() < pos1.getZ()) {
+                pos1 = BlockPos.min(tmp, pos1);
+            }
 
-                tmp = BlockPos.max(boxPos1, boxPos2);
+            tmp = BlockPos.max(boxPos1, boxPos2);
 
-                if (pos2 == null) {
-                    pos2 = tmp;
-                } else if (tmp.getX() > pos2.getX() || tmp.getY() > pos2.getY() || tmp.getZ() > pos2.getZ()) {
-                    pos2 = BlockPos.max(tmp, pos2);
-                }
+            if (pos2 == null) {
+                pos2 = tmp;
+            } else if (tmp.getX() > pos2.getX() || tmp.getY() > pos2.getY() || tmp.getZ() > pos2.getZ()) {
+                pos2 = BlockPos.max(tmp, pos2);
             }
         }
     }
@@ -289,13 +290,10 @@ public class SchematicPlacement {
     }
 
     public SchematicPlacement setOrigin(BlockPos origin) {
-
-
         origin = getModifiedPartiallyLockedPosition(this.origin, origin, 0);
 
         if (!this.origin.equals(origin)) {
             // Marks the currently touched chunks before doing the modification
-
 
             this.origin = origin;
             this.updateEnclosingBox();
@@ -320,7 +318,6 @@ public class SchematicPlacement {
     public SchematicPlacement setMirror(Mirror mirror) {
         if (this.mirror != mirror) {
             // Marks the currently touched chunks before doing the modification
-
 
             this.mirror = mirror;
             this.updateEnclosingBox();

@@ -9,6 +9,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 
 public class Int2ObjectBiMap<K> implements Iterable<K> {
+
     private static final Object EMPTY = null;
     private K[] values;
     private int[] ids;
@@ -33,6 +34,7 @@ public class Int2ObjectBiMap<K> implements Iterable<K> {
     public static <A> Int2ObjectBiMap<A> create(int expectedSize) {
         return new Int2ObjectBiMap<>((int) ((float) expectedSize / 0.8F));
     }
+
     public int getRawId(@Nullable K value) {
         return this.getIdFromIndex(this.findIndex(value, this.getIdealIndex(value)));
     }

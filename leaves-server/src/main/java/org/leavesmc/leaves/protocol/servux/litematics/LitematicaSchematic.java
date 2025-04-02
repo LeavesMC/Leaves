@@ -116,7 +116,6 @@ public class LitematicaSchematic {
         this.pendingBlockTicks.clear();
         this.subRegionPositions.clear();
         this.subRegionSizes.clear();
-        //this.metadata.clearModifiedSinceSaved();
 
         if (nbt.contains("Version", Tag.TAG_INT)) {
             final int version = nbt.getInt("Version");
@@ -130,15 +129,15 @@ public class LitematicaSchematic {
                 this.readSubRegionsFromNBT(nbt.getCompound("Regions"), version, minecraftDataVersion);
 
             } else {
-                error("servux.litematics.error.schematic_load.unsupported_schematic_version");
+                error("Unsupported or future schematic version");
             }
         } else {
-            error("servux.litematics.error.schematic_load.no_schematic_version_information");
+            error("The schematic doesn't have version information, and can't be safely loaded!");
         }
     }
 
     private void error(String s) throws CommandSyntaxException {
-        throw new SimpleCommandExceptionType(Component.translatable(s)).create();
+        throw new SimpleCommandExceptionType(Component.literal(s)).create();
     }
 
     private void readSubRegionsFromNBT(CompoundTag tag, int version, int minecraftDataVersion) {

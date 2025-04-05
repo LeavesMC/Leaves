@@ -40,12 +40,12 @@ public class ChatImageProtocol {
         if (title.total != blocks.size()) {
             return;
         }
-        List<String> names = SERVER_BLOCK_CACHE.getUsers(title.url);
+        List<UUID> names = SERVER_BLOCK_CACHE.getUsers(title.url);
         if (names == null || player == null) {
             return;
         }
-        for (String uuid : names) {
-            ServerPlayer serverPlayer = server.getPlayerList().getPlayer(UUID.fromString(uuid));
+        for (UUID uuid : names) {
+            ServerPlayer serverPlayer = server.getPlayerList().getPlayer(uuid);
             ProtocolUtils.sendPayloadPacket(serverPlayer, new FileInfoChannelPayload("true->" + title.url));
         }
     }
@@ -60,7 +60,7 @@ public class ChatImageProtocol {
         Map<Integer, String> list = SERVER_BLOCK_CACHE.getBlock(url);
         if (list == null) {
             ProtocolUtils.sendPayloadPacket(player, new FileInfoChannelPayload("null->" + url));
-            SERVER_BLOCK_CACHE.tryAddUser(url, player.getStringUUID());
+            SERVER_BLOCK_CACHE.tryAddUser(url, player.getUUID());
             return;
         }
         for (Map.Entry<Integer, String> entry : list.entrySet()) {

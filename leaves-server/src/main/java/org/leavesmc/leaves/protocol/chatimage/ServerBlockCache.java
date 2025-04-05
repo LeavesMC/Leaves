@@ -8,13 +8,14 @@ import org.leavesmc.leaves.LeavesLogger;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 public class ServerBlockCache {
 
     public static final ServerBlockCache SERVER_BLOCK_CACHE = new ServerBlockCache();
 
-    public Cache<String, List<String>> userCache = CacheBuilder.newBuilder().expireAfterAccess(60, TimeUnit.SECONDS).build();
+    public Cache<String, List<UUID>> userCache = CacheBuilder.newBuilder().expireAfterAccess(60, TimeUnit.SECONDS).build();
     public Cache<String, Map<Integer, String>> blockCache = CacheBuilder.newBuilder().expireAfterAccess(60, TimeUnit.SECONDS).build();
     public Cache<String, Integer> fileCount = CacheBuilder.newBuilder().expireAfterAccess(60, TimeUnit.SECONDS).build();
 
@@ -42,9 +43,9 @@ public class ServerBlockCache {
         return null;
     }
 
-    public void tryAddUser(String url, String uuid) {
+    public void tryAddUser(String url, UUID uuid) {
         try {
-            List<String> names = this.userCache.get(url, Lists::newArrayList);
+            List<UUID> names = this.userCache.get(url, Lists::newArrayList);
             names.add(uuid);
             this.userCache.put(url, names);
         } catch (Exception e) {
@@ -52,8 +53,8 @@ public class ServerBlockCache {
         }
     }
 
-    public List<String> getUsers(String url) {
-        List<String> names;
+    public List<UUID> getUsers(String url) {
+        List<UUID> names;
         if ((names = this.userCache.getIfPresent(url)) != null) {
             this.userCache.put(url, Lists.newArrayList());
             return names;

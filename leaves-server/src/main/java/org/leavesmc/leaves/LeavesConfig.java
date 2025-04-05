@@ -797,6 +797,9 @@ public final class LeavesConfig {
 
             @GlobalConfig("hud-metadata-protocol-share-seed")
             public boolean hudMetadataShareSeed = true;
+
+            @GlobalConfig("litematics-procotol")
+            public boolean litematicsProtocol = false;
         }
 
         @GlobalConfig("bbor-protocol")

@@ -15,16 +15,12 @@ public class ServerBlockCache {
     public static final ServerBlockCache SERVER_BLOCK_CACHE = new ServerBlockCache();
 
     public Cache<String, List<String>> userCache = CacheBuilder.newBuilder().expireAfterAccess(60, TimeUnit.SECONDS).build();
-    public Cache<String, Long> blockCacheTime = CacheBuilder.newBuilder().expireAfterAccess(60, TimeUnit.SECONDS).build();
     public Cache<String, Map<Integer, String>> blockCache = CacheBuilder.newBuilder().expireAfterAccess(60, TimeUnit.SECONDS).build();
     public Cache<String, Integer> fileCount = CacheBuilder.newBuilder().expireAfterAccess(60, TimeUnit.SECONDS).build();
 
     public Map<Integer, String> createBlock(ChatImageIndex title, String imgBytes) {
         try {
             Map<Integer, String> blocks = this.blockCache.get(title.url, HashMap::new);
-            if (blocks.isEmpty()) {
-                this.blockCacheTime.put(title.url, System.currentTimeMillis());
-            }
             blocks.put(title.index, imgBytes);
             this.blockCache.put(title.url, blocks);
             this.fileCount.put(title.url, title.total);

@@ -1,5 +1,8 @@
 package org.leavesmc.leaves.protocol.chatimage;
 
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
+
 public class ChatImageIndex {
 
     public int index;

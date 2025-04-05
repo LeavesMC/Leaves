@@ -46,7 +46,9 @@ public class ChatImageProtocol {
         }
         for (UUID uuid : names) {
             ServerPlayer serverPlayer = server.getPlayerList().getPlayer(uuid);
-            ProtocolUtils.sendPayloadPacket(serverPlayer, new FileInfoChannelPayload("true->" + title.url));
+            if (serverPlayer != null) {
+                ProtocolUtils.sendPayloadPacket(serverPlayer, new FileInfoChannelPayload("true->" + title.url));
+            }
         }
     }
 

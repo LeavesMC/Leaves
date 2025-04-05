@@ -844,6 +844,9 @@ public final class LeavesConfig {
         @GlobalConfig("rei-server-protocol")
         public boolean reiServerProtocol = false;
 
+        @GlobalConfig("chat-image-protocol")
+        public boolean chatImageProtocol = false;
+
         @GlobalConfig("recipe-send-all")
         public boolean recipeSendAll = false;
     }
@@ -1031,6 +1034,9 @@ public final class LeavesConfig {
     public static class FixConfig {
         @GlobalConfig("vanilla-hopper")
         public boolean vanillaHopper = false;
+
+        @GlobalConfig("vanilla-display-name")
+        public boolean vanillaDisplayName = false;
 
         @RemovedConfig(name = "spigot-EndPlatform-destroy", category = "fix")
         private final boolean spigotEndPlatformDestroy = false;

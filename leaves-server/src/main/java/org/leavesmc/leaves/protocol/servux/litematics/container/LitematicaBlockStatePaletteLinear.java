@@ -67,9 +67,7 @@ public class LitematicaBlockStatePaletteLinear implements ILitematicaBlockStateP
 
     @Override
     public void readFromNBT(ListTag tagList) {
-        //RegistryEntryLookup<Block> lookup = Registries.BLOCK.getReadOnlyWrapper();
         Registry<Block> lookup = MinecraftServer.getServer().registryAccess().lookupOrThrow(Registries.BLOCK);
-        // Ugly, but it should work, without changing the ILitematicaBlockStatePalette interface.
 
         final int size = tagList.size();
 

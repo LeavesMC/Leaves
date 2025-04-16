@@ -59,8 +59,6 @@ public class LitematicaBlockStatePaletteHashMap implements ILitematicaBlockState
 
     @Override
     public void readFromNBT(ListTag tagList) {
-        //RegistryEntryLookup<Block> lookup = Registries.BLOCK.getReadOnlyWrapper();
-        // Ugly, but it should work, without changing the ILitematicaBlockStatePalette interface.
         Registry<Block> lookup = MinecraftServer.getServer().registryAccess().lookupOrThrow(Registries.BLOCK);
 
         final int size = tagList.size();

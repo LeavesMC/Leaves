@@ -52,7 +52,6 @@ public class LitematicaBitArray {
     }
 
     public int getAt(long index) {
-        //Validate.inclusiveBetween(0L, this.arraySize - 1L, index);
         long startOffset = index * (long) this.bitsPerEntry;
         int startArrIndex = (int) (startOffset >> 6); // startOffset / 64
         int endArrIndex = (int) (((index + 1L) * (long) this.bitsPerEntry - 1L) >> 6);

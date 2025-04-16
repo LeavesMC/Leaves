@@ -17,6 +17,7 @@ public class Int2ObjectBiMap<K> implements Iterable<K> {
     private int nextId;
     private int size;
 
+    @SuppressWarnings("unchecked")
     private Int2ObjectBiMap(int size) {
         this.values = (K[]) (new Object[size]);
         this.ids = new int[size];

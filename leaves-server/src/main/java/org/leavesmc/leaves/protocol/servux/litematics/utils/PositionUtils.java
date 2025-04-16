@@ -17,7 +17,6 @@ public class PositionUtils {
             case Y -> new Vec3(valueIn.x, newValue, valueIn.z);
             case Z -> new Vec3(valueIn.x, valueIn.y, newValue);
         };
-
     }
 
     public static BlockPos setValue(CoordinateType type, BlockPos valueIn, int newValue) {
@@ -26,7 +25,6 @@ public class PositionUtils {
             case Y -> BlockPos.containing(valueIn.getX(), newValue, valueIn.getZ());
             case Z -> BlockPos.containing(valueIn.getX(), valueIn.getY(), newValue);
         };
-
     }
 
     public static Direction rotateYCounterclockwise(Direction direction) {
@@ -62,7 +60,6 @@ public class PositionUtils {
         pos = getTransformedBlockPos(pos, placement.getMirror(), placement.getRotation());
         return pos;
     }
-
 
     public static BlockPos getAreaSizeFromRelativeEndPosition(BlockPos posEndRelative) {
         int x = posEndRelative.getX();
@@ -184,7 +181,6 @@ public class PositionUtils {
             default -> transformed ? new Vec3(x, y, z) : originalPos;
         };
     }
-
 
     public enum Corner {
         NONE,

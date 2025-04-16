@@ -53,7 +53,6 @@ public class LitematicaSchematic {
     @Nullable
     private final Path schematicFile;
 
-
     public LitematicaSchematic(CompoundTag nbtCompound) throws CommandSyntaxException {
         this.readFromNBT(nbtCompound);
         this.schematicFile = Path.of("/");
@@ -192,7 +191,6 @@ public class LitematicaSchematic {
 
                         if (minecraftDataVersion < MINECRAFT_DATA_VERSION) {
                             ServuxProtocol.LOGGER.warn("Cannot process minecraft data version: {}", minecraftDataVersion);
-                            // this.postProcessContainerIfNeeded(palette, container, tiles);
                         }
 
                         this.blockContainers.put(regionName, container);

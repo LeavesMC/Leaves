@@ -81,6 +81,7 @@ public class NbtUtils {
 
         return null;
     }
+
     /**
      * Write the compound tag, gzipped, to the output stream.
      */

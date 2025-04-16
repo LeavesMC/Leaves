@@ -139,6 +139,7 @@ public enum Schema {
 
         return null;
     }
+
     @Override
     public String toString() {
         return "MC: " + this.getString() + " [Schema: " + this.getDataVersion() + "]";

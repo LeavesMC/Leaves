@@ -55,13 +55,6 @@ public class LitematicaBlockStatePaletteLinear implements ILitematicaBlockStateP
         if (size < this.states.length) {
             this.states[size] = state;
             ++this.currentSize;
-        } else {
-            int newId = this.resizeHandler.onResize(this.bits + 1, LitematicaBlockStateContainer.AIR_BLOCK_STATE);
-
-            if (newId <= size) {
-                this.states[size] = state;
-                ++this.currentSize;
-            }
         }
     }
 

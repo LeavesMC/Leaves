@@ -11,7 +11,6 @@ import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.LongArrayTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -143,59 +142,44 @@ public class LitematicaSchematic {
         for (String regionName : tag.getAllKeys()) {
             Tag region = tag.get(regionName);
             if (region == null) throw new RuntimeException("Unknown region: " + regionName);
-            if (region.getId() == Tag.TAG_COMPOUND) {
-                CompoundTag regionTag = tag.getCompound(regionName);
-                BlockPos regionPos = NbtUtils.readBlockPos(regionTag.getCompound("Position"));
-                BlockPos regionSize = NbtUtils.readBlockPos(regionTag.getCompound("Size"));
-                Map<BlockPos, CompoundTag> tiles;
-
-                if (regionPos != null && regionSize != null) {
-                    this.subRegionPositions.put(regionName, regionPos);
-                    this.subRegionSizes.put(regionName, regionSize);
-
-                    if (version >= 2) {
-                        tiles = this.readTileEntitiesFromNBT(regionTag.getList("TileEntities", Tag.TAG_COMPOUND));
-                        this.tileEntities.put(regionName, tiles);
-
-                        ListTag entities = regionTag.getList("Entities", Tag.TAG_COMPOUND);
-                        this.entities.put(regionName, this.readEntitiesFromNBT(entities));
-                    } else if (version == 1) {
-                        tiles = this.readTileEntitiesFromNBT_v1(regionTag.getList("TileEntities", Tag.TAG_COMPOUND));
-                        this.tileEntities.put(regionName, tiles);
-                        this.entities.put(regionName, this.readEntitiesFromNBT_v1(regionTag.getList("Entities", Tag.TAG_COMPOUND)));
-                    }
-
-                    if (version >= 3) {
-                        ListTag list = regionTag.getList("PendingBlockTicks", Tag.TAG_COMPOUND);
-                        this.pendingBlockTicks.put(regionName, this.readPendingTicksFromNBT(list, BuiltInRegistries.BLOCK, "Block", Blocks.AIR));
-                    }
-
-                    if (version >= 5) {
-                        ListTag list = regionTag.getList("PendingFluidTicks", Tag.TAG_COMPOUND);
-                        this.pendingFluidTicks.put(regionName, this.readPendingTicksFromNBT(list, BuiltInRegistries.FLUID, "Fluid", Fluids.EMPTY));
-                    }
-
-                    Tag nbtBase = regionTag.get("BlockStates");
-
-                    // There are no convenience methods in NBTTagCompound yet in 1.12, so we'll have to do it the ugly way...
-                    if (nbtBase != null && nbtBase.getId() == Tag.TAG_LONG_ARRAY) {
-                        ListTag palette = regionTag.getList("BlockStatePalette", Tag.TAG_COMPOUND);
-                        long[] blockStateArr = ((LongArrayTag) nbtBase).getAsLongArray();
-
-                        BlockPos posEndRel = PositionUtils.getRelativeEndPositionFromAreaSize(regionSize).offset(regionPos);
-                        BlockPos posMin = PositionUtils.getMinCorner(regionPos, posEndRel);
-                        BlockPos posMax = PositionUtils.getMaxCorner(regionPos, posEndRel);
-                        BlockPos size = posMax.subtract(posMin).offset(1, 1, 1);
-
-                        LitematicaBlockStateContainer container = LitematicaBlockStateContainer.createFrom(palette, blockStateArr, size);
-
-                        if (minecraftDataVersion < MINECRAFT_DATA_VERSION) {
-                            ServuxProtocol.LOGGER.warn("Cannot process minecraft data version: {}", minecraftDataVersion);
-                        }
-
-                        this.blockContainers.put(regionName, container);
-                    }
+            if (region.getId() != Tag.TAG_COMPOUND) continue;
+            CompoundTag regionTag = tag.getCompound(regionName);
+            BlockPos regionPos = NbtUtils.readBlockPos(regionTag.getCompound("Position"));
+            BlockPos regionSize = NbtUtils.readBlockPos(regionTag.getCompound("Size"));
+            Map<BlockPos, CompoundTag> tiles;
+            if (regionPos == null || regionSize == null) continue;
+            this.subRegionPositions.put(regionName, regionPos);
+            this.subRegionSizes.put(regionName, regionSize);
+            if (version >= 2) {
+                tiles = this.readTileEntitiesFromNBT(regionTag.getList("TileEntities", Tag.TAG_COMPOUND));
+                this.tileEntities.put(regionName, tiles);
+                ListTag entities = regionTag.getList("Entities", Tag.TAG_COMPOUND);
+                this.entities.put(regionName, this.readEntitiesFromNBT(entities));
+            } else if (version == 1) {
+                tiles = this.readTileEntitiesFromNBT_v1(regionTag.getList("TileEntities", Tag.TAG_COMPOUND));
+                this.tileEntities.put(regionName, tiles);
+                this.entities.put(regionName, this.readEntitiesFromNBT_v1(regionTag.getList("Entities", Tag.TAG_COMPOUND)));
+            }
+            if (version >= 3) {
+                ListTag list = regionTag.getList("PendingBlockTicks", Tag.TAG_COMPOUND);
+                this.pendingBlockTicks.put(regionName, this.readPendingTicksFromNBT(list, BuiltInRegistries.BLOCK, "Block", Blocks.AIR));
+            }
+            if (version >= 5) {
+                ListTag list = regionTag.getList("PendingFluidTicks", Tag.TAG_COMPOUND);
+                this.pendingFluidTicks.put(regionName, this.readPendingTicksFromNBT(list, BuiltInRegistries.FLUID, "Fluid", Fluids.EMPTY));
+            }
+            if (regionTag.contains("BlockStates", Tag.TAG_LONG_ARRAY)) {
+                ListTag palette = regionTag.getList("BlockStatePalette", Tag.TAG_COMPOUND);
+                long[] blockStateArr = regionTag.getLongArray("BlockStates");
+                BlockPos posEndRel = PositionUtils.getRelativeEndPositionFromAreaSize(regionSize).offset(regionPos);
+                BlockPos posMin = PositionUtils.getMinCorner(regionPos, posEndRel);
+                BlockPos posMax = PositionUtils.getMaxCorner(regionPos, posEndRel);
+                BlockPos size = posMax.subtract(posMin).offset(1, 1, 1);
+                LitematicaBlockStateContainer container = LitematicaBlockStateContainer.createFrom(palette, blockStateArr, size);
+                if (minecraftDataVersion < MINECRAFT_DATA_VERSION) {
+                    ServuxProtocol.LOGGER.warn("Cannot process minecraft data version: {}", minecraftDataVersion);
                 }
+                this.blockContainers.put(regionName, container);
             }
         }
     }
@@ -236,36 +220,22 @@ public class LitematicaSchematic {
                                                                         String tagName, T emptyValue) {
         Map<BlockPos, ScheduledTick<T>> tickMap = new HashMap<>();
         final int size = tagList.size();
-
         for (int i = 0; i < size; ++i) {
             CompoundTag tag = tagList.getCompound(i);
-
             if (tag.contains("Time", Tag.TAG_ANY_NUMERIC)) // XXX these were accidentally saved as longs in version 3
             {
-                T target = null;
-
-                // Don't crash on invalid ResourceLocation in 1.13+
-                try {
-                    ResourceLocation resourceLocation = ResourceLocation.tryParse(tag.getString(tagName));
-                    if (resourceLocation == null) throw new RuntimeException("Unknown resource: " + tag);
-                    Optional<Holder.Reference<T>> tReference = registry.get(resourceLocation);
-                    if (tReference.isEmpty()) throw new RuntimeException("Unknown reference: " + tagName);
-                    target = tReference.get().value();
-
-                    if (target == emptyValue) {
-                        continue;
-                    }
-                } catch (Exception ignore) {
-                }
-
-                if (target != null) {
-                    BlockPos pos = new BlockPos(tag.getInt("x"), tag.getInt("y"), tag.getInt("z"));
-                    TickPriority priority = TickPriority.byValue(tag.getInt("Priority"));
-                    // Note: the time is a relative delay at this point
-                    int scheduledTime = tag.getInt("Time");
-                    long subTick = tag.getLong("SubTick");
-                    tickMap.put(pos, new ScheduledTick<>(target, pos, scheduledTime, priority, subTick));
-                }
+                T target;
+                ResourceLocation resourceLocation = ResourceLocation.tryParse(tag.getString(tagName));
+                if (resourceLocation == null) continue;
+                Optional<Holder.Reference<T>> tReference = registry.get(resourceLocation);
+                if (tReference.isEmpty()) continue;
+                target = tReference.get().value();
+                if (target == emptyValue) continue;
+                BlockPos pos = new BlockPos(tag.getInt("x"), tag.getInt("y"), tag.getInt("z"));
+                TickPriority priority = TickPriority.byValue(tag.getInt("Priority"));
+                int scheduledTime = tag.getInt("Time");
+                long subTick = tag.getLong("SubTick");
+                tickMap.put(pos, new ScheduledTick<>(target, pos, scheduledTime, priority, subTick));
             }
         }
 

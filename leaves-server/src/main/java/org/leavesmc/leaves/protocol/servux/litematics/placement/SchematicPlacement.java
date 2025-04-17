@@ -201,20 +201,18 @@ public class SchematicPlacement {
     }
 
     public ImmutableMap<String, Box> getSubRegionBoxFor(String regionName, SubRegionPlacement.RequiredEnabled required) {
+        SubRegionPlacement placement = this.relativeSubRegionPlacements.get(regionName);
+        if (placement == null) return ImmutableMap.of();
         ImmutableMap.Builder<String, Box> builder = ImmutableMap.builder();
         Map<String, BlockPos> areaSizes = this.schematic.getAreaSizes();
 
-        SubRegionPlacement placement = this.relativeSubRegionPlacements.get(regionName);
+        if (placement.matchesRequirement(required)) {
+            BlockPos areaSize = areaSizes.get(regionName);
 
-        if (placement != null) {
-            if (placement.matchesRequirement(required)) {
-                BlockPos areaSize = areaSizes.get(regionName);
-
-                if (areaSize != null) {
-                    putBoxPosIntoBuilder(builder, regionName, areaSize, placement);
-                } else {
-                    ServuxProtocol.LOGGER.warn("SchematicPlacement.getSubRegionBoxFor(): Size for sub-region '{}' not found in the schematic '{}'", regionName, this.schematic.getMetadata().getName());
-                }
+            if (areaSize != null) {
+                putBoxPosIntoBuilder(builder, regionName, areaSize, placement);
+            } else {
+                ServuxProtocol.LOGGER.warn("SchematicPlacement.getSubRegionBoxFor(): Size for sub-region '{}' not found in the schematic '{}'", regionName, this.schematic.getMetadata().getName());
             }
         }
 

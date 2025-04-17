@@ -213,50 +213,48 @@ public class SchematicPlacingUtils {
                 }
             }
         }
+        ServerLevel serverWorld = (ServerLevel) world;
+        IntBoundingBox box = new IntBoundingBox(startX, startY, startZ, endX, endY, endZ);
 
-        if (world instanceof ServerLevel serverWorld) {
-            IntBoundingBox box = new IntBoundingBox(startX, startY, startZ, endX, endY, endZ);
+        if (scheduledBlockTicks != null && !scheduledBlockTicks.isEmpty()) {
+            LevelTicks<Block> scheduler = serverWorld.getBlockTicks();
 
-            if (scheduledBlockTicks != null && !scheduledBlockTicks.isEmpty()) {
-                LevelTicks<Block> scheduler = serverWorld.getBlockTicks();
+            for (Map.Entry<BlockPos, ScheduledTick<Block>> entry : scheduledBlockTicks.entrySet()) {
+                BlockPos pos = entry.getKey();
 
-                for (Map.Entry<BlockPos, ScheduledTick<Block>> entry : scheduledBlockTicks.entrySet()) {
-                    BlockPos pos = entry.getKey();
+                if (box.containsPos(pos)) {
+                    posMutable.set(posMinRelMinusRegX + pos.getX(),
+                        posMinRelMinusRegY + pos.getY(),
+                        posMinRelMinusRegZ + pos.getZ());
 
-                    if (box.containsPos(pos)) {
-                        posMutable.set(posMinRelMinusRegX + pos.getX(),
-                            posMinRelMinusRegY + pos.getY(),
-                            posMinRelMinusRegZ + pos.getZ());
+                    pos = PositionUtils.getTransformedPlacementPosition(posMutable, schematicPlacement, placement);
+                    pos = pos.offset(regionPosTransformed).offset(origin);
+                    ScheduledTick<Block> tick = entry.getValue();
 
-                        pos = PositionUtils.getTransformedPlacementPosition(posMutable, schematicPlacement, placement);
-                        pos = pos.offset(regionPosTransformed).offset(origin);
-                        ScheduledTick<Block> tick = entry.getValue();
-
-                        if (world.getBlockState(pos).getBlock() == tick.type()) {
-                            scheduler.schedule(new ScheduledTick<>(tick.type(), pos, tick.triggerTick(), tick.priority(), tick.subTickOrder()));
-                        }
+                    if (world.getBlockState(pos).getBlock() == tick.type()) {
+                        scheduler.schedule(new ScheduledTick<>(tick.type(), pos, tick.triggerTick(), tick.priority(), tick.subTickOrder()));
                     }
                 }
             }
+        }
 
-            if (scheduledFluidTicks != null && !scheduledFluidTicks.isEmpty()) {
-                LevelTicks<Fluid> scheduler = serverWorld.getFluidTicks();
+        if (scheduledFluidTicks != null && !scheduledFluidTicks.isEmpty()) {
+            LevelTicks<Fluid> scheduler = serverWorld.getFluidTicks();
 
-                for (Map.Entry<BlockPos, ScheduledTick<Fluid>> entry : scheduledFluidTicks.entrySet()) {
-                    BlockPos pos = entry.getKey();
+            for (Map.Entry<BlockPos, ScheduledTick<Fluid>> entry : scheduledFluidTicks.entrySet()) {
+                BlockPos pos = entry.getKey();
 
-                    if (box.containsPos(pos)) {
-                        posMutable.set(posMinRelMinusRegX + pos.getX(),
-                            posMinRelMinusRegY + pos.getY(),
-                            posMinRelMinusRegZ + pos.getZ());
+                if (box.containsPos(pos)) {
+                    posMutable.set(posMinRelMinusRegX + pos.getX(),
+                        posMinRelMinusRegY + pos.getY(),
+                        posMinRelMinusRegZ + pos.getZ());
 
-                        pos = PositionUtils.getTransformedPlacementPosition(posMutable, schematicPlacement, placement);
-                        pos = pos.offset(regionPosTransformed).offset(origin);
-                        ScheduledTick<Fluid> tick = entry.getValue();
+                    pos = PositionUtils.getTransformedPlacementPosition(posMutable, schematicPlacement, placement);
+                    pos = pos.offset(regionPosTransformed).offset(origin);
+                    ScheduledTick<Fluid> tick = entry.getValue();
 
-                        if (world.getBlockState(pos).getFluidState().getType() == tick.type()) {
-                            scheduler.schedule(new ScheduledTick<>(tick.type(), pos, tick.triggerTick(), tick.priority(), tick.subTickOrder()));
-                        }
+                    if (world.getBlockState(pos).getFluidState().getType() == tick.type()) {
+                        scheduler.schedule(new ScheduledTick<>(tick.type(), pos, tick.triggerTick(), tick.priority(), tick.subTickOrder()));
                     }
                 }
             }

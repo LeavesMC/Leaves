@@ -2,6 +2,7 @@ package org.leavesmc.leaves.protocol.servux.litematics;
 
 import io.netty.buffer.Unpooled;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -191,7 +192,14 @@ public class ServuxLitematicsProtocol {
             server.scheduleOnMain(() -> {
                 placement.pasteTo(serverLevel, replaceMode);
                 long timeElapsed = System.currentTimeMillis() - timeStart;
-                player.getBukkitEntity().sendActionBar(Component.text("Pasted §b" + placement.getName() + "§r to world §d" + serverLevel.serverLevelData.getLevelName() + "§r in §a " + timeElapsed + "§rms."));
+                player.getBukkitEntity().sendActionBar(
+                    Component.text("Pasted ")
+                        .append(Component.text(placement.getName()).color(NamedTextColor.AQUA))
+                        .append(Component.text(" to world "))
+                        .append(Component.text(serverLevel.serverLevelData.getLevelName()).color(NamedTextColor.LIGHT_PURPLE))
+                        .append(Component.text(" in "))
+                        .append(Component.text(timeElapsed).color(NamedTextColor.GREEN))
+                        .append(Component.text("ms")));
             });
         }
     }

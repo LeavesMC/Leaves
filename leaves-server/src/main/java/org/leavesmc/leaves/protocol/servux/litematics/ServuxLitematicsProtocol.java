@@ -107,12 +107,12 @@ public class ServuxLitematicsProtocol {
                     return;
                 }
                 playerSession.remove(uuid);
+                fullPacket.readVarInt();
                 CompoundTag compoundTag = fullPacket.readNbt();
                 if (compoundTag == null) {
                     ServuxProtocol.LOGGER.error("cannot read nbt tag from packet");
                     return;
                 }
-                fullPacket.readVarInt();
                 handleClientPasteRequest(player, compoundTag);
             }
         }

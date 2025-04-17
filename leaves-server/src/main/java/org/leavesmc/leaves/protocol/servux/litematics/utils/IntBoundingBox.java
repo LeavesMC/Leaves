@@ -23,15 +23,4 @@ public record IntBoundingBox(int minX, int minY, int minZ, int maxX, int maxY, i
     public IntBoundingBox shrink(int x, int y, int z) {
         return this.expand(-x, -y, -z);
     }
-
-    public boolean equals(Object obj) {
-        if (this == obj) {
-            return true;
-        } else if (obj != null && this.getClass() == obj.getClass()) {
-            IntBoundingBox other = (IntBoundingBox) obj;
-            return this.maxX == other.maxX && this.maxY == other.maxY && this.maxZ == other.maxZ && this.minX == other.minX && this.minY == other.minY && this.minZ == other.minZ;
-        } else {
-            return false;
-        }
-    }
 }

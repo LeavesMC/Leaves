@@ -7,6 +7,9 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import org.bukkit.command.Command;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.permissions.Permission;
+import org.bukkit.permissions.PermissionDefault;
+import org.bukkit.plugin.PluginManager;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.command.LeavesCommand;
@@ -797,6 +800,23 @@ public final class LeavesConfig {
 
             @GlobalConfig("hud-metadata-protocol-share-seed")
             public boolean hudMetadataShareSeed = true;
+
+            @GlobalConfig(value = "litematics-protocol", validator = LitematicsProtocolValidator.class)
+            public boolean litematicsProtocol = false;
+
+            public static class LitematicsProtocolValidator extends BooleanConfigValidator {
+                @Override
+                public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
+                    PluginManager pluginManager = MinecraftServer.getServer().server.getPluginManager();
+                    if (value) {
+                        if (pluginManager.getPermission("leaves.protocol.litematics") == null) {
+                            pluginManager.addPermission(new Permission("leaves.protocol.litematics", PermissionDefault.OP));
+                        }
+                    } else {
+                        pluginManager.removePermission("leaves.protocol.litematics");
+                    }
+                }
+            }
         }
 
         @GlobalConfig("bbor-protocol")

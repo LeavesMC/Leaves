@@ -136,7 +136,7 @@ public final class LeavesCommand extends Command implements LeavesSuggestionComm
     }
 
     public Component unknownMessage() {
-        return text("Usage: /bot [" + String.join(" | ", usableSubcommands()) + "]", RED);
+        return text("Usage: /leaves [" + String.join(" | ", usableSubcommands()) + "]", RED);
     }
 
     @Nullable

@@ -142,12 +142,16 @@ public class LitematicaSchematic {
         for (String regionName : tag.getAllKeys()) {
             Tag region = tag.get(regionName);
             if (region == null) throw new RuntimeException("Unknown region: " + regionName);
-            if (region.getId() != Tag.TAG_COMPOUND) continue;
+            if (region.getId() != Tag.TAG_COMPOUND) {
+                continue;
+            }
             CompoundTag regionTag = tag.getCompound(regionName);
             BlockPos regionPos = NbtUtils.readBlockPos(regionTag.getCompound("Position"));
             BlockPos regionSize = NbtUtils.readBlockPos(regionTag.getCompound("Size"));
             Map<BlockPos, CompoundTag> tiles;
-            if (regionPos == null || regionSize == null) continue;
+            if (regionPos == null || regionSize == null) {
+                continue;
+            }
             this.subRegionPositions.put(regionName, regionPos);
             this.subRegionSizes.put(regionName, regionSize);
             if (version >= 2) {
@@ -226,11 +230,17 @@ public class LitematicaSchematic {
             {
                 T target;
                 ResourceLocation resourceLocation = ResourceLocation.tryParse(tag.getString(tagName));
-                if (resourceLocation == null) continue;
+                if (resourceLocation == null) {
+                    continue;
+                }
                 Optional<Holder.Reference<T>> tReference = registry.get(resourceLocation);
-                if (tReference.isEmpty()) continue;
+                if (tReference.isEmpty()) {
+                    continue;
+                }
                 target = tReference.get().value();
-                if (target == emptyValue) continue;
+                if (target == emptyValue) {
+                    continue;
+                }
                 BlockPos pos = new BlockPos(tag.getInt("x"), tag.getInt("y"), tag.getInt("z"));
                 TickPriority priority = TickPriority.byValue(tag.getInt("Priority"));
                 int scheduledTime = tag.getInt("Time");

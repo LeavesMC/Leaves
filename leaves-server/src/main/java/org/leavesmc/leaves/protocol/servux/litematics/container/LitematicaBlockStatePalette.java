@@ -5,7 +5,7 @@ import net.minecraft.world.level.block.state.BlockState;
 
 import javax.annotation.Nullable;
 
-public interface ILitematicaBlockStatePalette {
+public interface LitematicaBlockStatePalette {
     /**
      * Gets the palette id for the given block state and adds
      * the state to the palette if it doesn't exist there yet.

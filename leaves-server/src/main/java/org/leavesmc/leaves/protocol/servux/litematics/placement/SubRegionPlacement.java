@@ -79,7 +79,6 @@ public class SubRegionPlacement {
         return obj;
     }
 
-
     public enum RequiredEnabled {
         ANY,
         PLACEMENT_ENABLED,

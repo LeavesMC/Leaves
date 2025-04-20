@@ -37,11 +37,13 @@ import java.util.Map;
 import java.util.Set;
 
 public class SchematicPlacingUtils {
-    public static void placeToWorldWithinChunk(Level world,
-                                               ChunkPos chunkPos,
-                                               SchematicPlacement schematicPlacement,
-                                               ReplaceBehavior replace,
-                                               boolean notifyNeighbors) {
+    public static void placeToWorldWithinChunk(
+        Level world,
+        ChunkPos chunkPos,
+        SchematicPlacement schematicPlacement,
+        ReplaceBehavior replace,
+        boolean notifyNeighbors
+    ) {
         LitematicaSchematic schematic = schematicPlacement.getSchematic();
         Set<String> regionsTouchingChunk = schematicPlacement.getRegionsTouchingChunk(chunkPos.x, chunkPos.z);
         BlockPos origin = schematicPlacement.getOrigin();
@@ -58,36 +60,39 @@ public class SchematicPlacingUtils {
                 ServuxProtocol.LOGGER.error("receiver a null placement for region: {}", regionName);
                 continue;
             }
-            if (placement.isEnabled()) {
-                Map<BlockPos, CompoundTag> blockEntityMap = schematic.getBlockEntityMapForRegion(regionName);
-                Map<BlockPos, ScheduledTick<Block>> scheduledBlockTicks = schematic.getScheduledBlockTicksForRegion(regionName);
-                Map<BlockPos, ScheduledTick<Fluid>> scheduledFluidTicks = schematic.getScheduledFluidTicksForRegion(regionName);
+            if (!placement.isEnabled()) {
+                continue;
+            }
+            Map<BlockPos, CompoundTag> blockEntityMap = schematic.getBlockEntityMapForRegion(regionName);
+            Map<BlockPos, ScheduledTick<Block>> scheduledBlockTicks = schematic.getScheduledBlockTicksForRegion(regionName);
+            Map<BlockPos, ScheduledTick<Fluid>> scheduledFluidTicks = schematic.getScheduledFluidTicksForRegion(regionName);
 
-                if (!placeBlocksWithinChunk(world, chunkPos, regionName, container, blockEntityMap,
-                    origin, schematicPlacement, placement, scheduledBlockTicks,
-                    scheduledFluidTicks, replace, notifyNeighbors)) {
-                    ServuxProtocol.LOGGER.warn("Invalid/missing schematic data in schematic '{}' for sub-region '{}'", schematic.getMetadata().getName(), regionName);
-                }
+            if (!placeBlocksWithinChunk(world, chunkPos, regionName, container, blockEntityMap,
+                origin, schematicPlacement, placement, scheduledBlockTicks,
+                scheduledFluidTicks, replace, notifyNeighbors)) {
+                ServuxProtocol.LOGGER.warn("Invalid/missing schematic data in schematic '{}' for sub-region '{}'", schematic.getMetadata().getName(), regionName);
+            }
 
-                List<LitematicaSchematic.EntityInfo> entityList = schematic.getEntityListForRegion(regionName);
+            List<LitematicaSchematic.EntityInfo> entityList = schematic.getEntityListForRegion(regionName);
 
-                if (!schematicPlacement.ignoreEntities() &&
-                    !placement.ignoreEntities() && entityList != null) {
-                    placeEntitiesToWorldWithinChunk(world, chunkPos, entityList, origin, schematicPlacement, placement);
-                }
+            if (!schematicPlacement.ignoreEntities() &&
+                !placement.ignoreEntities() && entityList != null) {
+                placeEntitiesToWorldWithinChunk(world, chunkPos, entityList, origin, schematicPlacement, placement);
             }
         }
     }
 
-    public static boolean placeBlocksWithinChunk(Level world, ChunkPos chunkPos, String regionName,
-                                                 LitematicaBlockStateContainer container,
-                                                 Map<BlockPos, CompoundTag> blockEntityMap,
-                                                 BlockPos origin,
-                                                 SchematicPlacement schematicPlacement,
-                                                 SubRegionPlacement placement,
-                                                 @Nullable Map<BlockPos, ScheduledTick<Block>> scheduledBlockTicks,
-                                                 @Nullable Map<BlockPos, ScheduledTick<Fluid>> scheduledFluidTicks,
-                                                 ReplaceBehavior replace, boolean notifyNeighbors) {
+    public static boolean placeBlocksWithinChunk(
+        Level world, ChunkPos chunkPos, String regionName,
+        LitematicaBlockStateContainer container,
+        Map<BlockPos, CompoundTag> blockEntityMap,
+        BlockPos origin,
+        SchematicPlacement schematicPlacement,
+        SubRegionPlacement placement,
+        @Nullable Map<BlockPos, ScheduledTick<Block>> scheduledBlockTicks,
+        @Nullable Map<BlockPos, ScheduledTick<Fluid>> scheduledFluidTicks,
+        ReplaceBehavior replace, boolean notifyNeighbors
+    ) {
         IntBoundingBox bounds = schematicPlacement.getBoxWithinChunkForRegion(regionName, chunkPos.x, chunkPos.z);
         Vec3i regionSize = schematicPlacement.getSchematic().getAreaSize(regionName);
 
@@ -198,16 +203,17 @@ public class SchematicPlacingUtils {
                     if (world.setBlock(pos, state, 2 | 16 | (notifyNeighbors ? 0 : 1024)) && teNBT != null) {
                         te = world.getBlockEntity(pos);
 
-                        if (te != null) {
-                            teNBT = teNBT.copy();
-                            NbtUtils.writeBlockPosToTag(pos, teNBT);
+                        if (te == null) {
+                            continue;
+                        }
+                        teNBT = teNBT.copy();
+                        NbtUtils.writeBlockPosToTag(pos, teNBT);
 
-                            try {
-                                te.loadWithComponents(teNBT, world.registryAccess().freeze());
+                        try {
+                            te.loadWithComponents(teNBT, world.registryAccess().freeze());
 
-                            } catch (Exception e) {
-                                ServuxProtocol.LOGGER.warn("Failed to load BlockEntity data for {} @ {}", state, pos);
-                            }
+                        } catch (Exception e) {
+                            ServuxProtocol.LOGGER.warn("Failed to load BlockEntity data for {} @ {}", state, pos);
                         }
                     }
                 }
@@ -222,18 +228,19 @@ public class SchematicPlacingUtils {
             for (Map.Entry<BlockPos, ScheduledTick<Block>> entry : scheduledBlockTicks.entrySet()) {
                 BlockPos pos = entry.getKey();
 
-                if (box.containsPos(pos)) {
-                    posMutable.set(posMinRelMinusRegX + pos.getX(),
-                        posMinRelMinusRegY + pos.getY(),
-                        posMinRelMinusRegZ + pos.getZ());
+                if (!box.containsPos(pos)) {
+                    continue;
+                }
+                posMutable.set(posMinRelMinusRegX + pos.getX(),
+                    posMinRelMinusRegY + pos.getY(),
+                    posMinRelMinusRegZ + pos.getZ());
 
-                    pos = PositionUtils.getTransformedPlacementPosition(posMutable, schematicPlacement, placement);
-                    pos = pos.offset(regionPosTransformed).offset(origin);
-                    ScheduledTick<Block> tick = entry.getValue();
+                pos = PositionUtils.getTransformedPlacementPosition(posMutable, schematicPlacement, placement);
+                pos = pos.offset(regionPosTransformed).offset(origin);
+                ScheduledTick<Block> tick = entry.getValue();
 
-                    if (world.getBlockState(pos).getBlock() == tick.type()) {
-                        scheduler.schedule(new ScheduledTick<>(tick.type(), pos, tick.triggerTick(), tick.priority(), tick.subTickOrder()));
-                    }
+                if (world.getBlockState(pos).getBlock() == tick.type()) {
+                    scheduler.schedule(new ScheduledTick<>(tick.type(), pos, tick.triggerTick(), tick.priority(), tick.subTickOrder()));
                 }
             }
         }
@@ -244,33 +251,35 @@ public class SchematicPlacingUtils {
             for (Map.Entry<BlockPos, ScheduledTick<Fluid>> entry : scheduledFluidTicks.entrySet()) {
                 BlockPos pos = entry.getKey();
 
-                if (box.containsPos(pos)) {
-                    posMutable.set(posMinRelMinusRegX + pos.getX(),
-                        posMinRelMinusRegY + pos.getY(),
-                        posMinRelMinusRegZ + pos.getZ());
+                if (!box.containsPos(pos)) {
+                    continue;
+                }
+                posMutable.set(posMinRelMinusRegX + pos.getX(),
+                    posMinRelMinusRegY + pos.getY(),
+                    posMinRelMinusRegZ + pos.getZ());
 
-                    pos = PositionUtils.getTransformedPlacementPosition(posMutable, schematicPlacement, placement);
-                    pos = pos.offset(regionPosTransformed).offset(origin);
-                    ScheduledTick<Fluid> tick = entry.getValue();
+                pos = PositionUtils.getTransformedPlacementPosition(posMutable, schematicPlacement, placement);
+                pos = pos.offset(regionPosTransformed).offset(origin);
+                ScheduledTick<Fluid> tick = entry.getValue();
 
-                    if (world.getBlockState(pos).getFluidState().getType() == tick.type()) {
-                        scheduler.schedule(new ScheduledTick<>(tick.type(), pos, tick.triggerTick(), tick.priority(), tick.subTickOrder()));
-                    }
+                if (world.getBlockState(pos).getFluidState().getType() == tick.type()) {
+                    scheduler.schedule(new ScheduledTick<>(tick.type(), pos, tick.triggerTick(), tick.priority(), tick.subTickOrder()));
                 }
             }
         }
 
-        if (notifyNeighbors) {
-            for (int y = startY; y <= endY; ++y) {
-                for (int z = startZ; z <= endZ; ++z) {
-                    for (int x = startX; x <= endX; ++x) {
-                        posMutable.set(posMinRelMinusRegX + x,
-                            posMinRelMinusRegY + y,
-                            posMinRelMinusRegZ + z);
-                        BlockPos pos = PositionUtils.getTransformedPlacementPosition(posMutable, schematicPlacement, placement);
-                        pos = pos.offset(regionPosTransformed).offset(origin);
-                        world.updateNeighborsAt(pos, world.getBlockState(pos).getBlock());
-                    }
+        if (!notifyNeighbors) {
+            return true;
+        }
+        for (int y = startY; y <= endY; ++y) {
+            for (int z = startZ; z <= endZ; ++z) {
+                for (int x = startX; x <= endX; ++x) {
+                    posMutable.set(posMinRelMinusRegX + x,
+                        posMinRelMinusRegY + y,
+                        posMinRelMinusRegZ + z);
+                    BlockPos pos = PositionUtils.getTransformedPlacementPosition(posMutable, schematicPlacement, placement);
+                    pos = pos.offset(regionPosTransformed).offset(origin);
+                    world.updateNeighborsAt(pos, world.getBlockState(pos).getBlock());
                 }
             }
         }
@@ -278,11 +287,13 @@ public class SchematicPlacingUtils {
         return true;
     }
 
-    public static void placeEntitiesToWorldWithinChunk(Level world, ChunkPos chunkPos,
-                                                       List<LitematicaSchematic.EntityInfo> entityList,
-                                                       BlockPos origin,
-                                                       SchematicPlacement schematicPlacement,
-                                                       SubRegionPlacement placement) {
+    public static void placeEntitiesToWorldWithinChunk(
+        Level world, ChunkPos chunkPos,
+        List<LitematicaSchematic.EntityInfo> entityList,
+        BlockPos origin,
+        SchematicPlacement schematicPlacement,
+        SubRegionPlacement placement
+    ) {
         BlockPos regionPos = placement.getPos();
 
         if (entityList == null) {
@@ -317,82 +328,86 @@ public class SchematicPlacingUtils {
             double z = pos.z + offZ;
             float[] origRot = new float[2];
 
-            if (x >= minX && x < maxX && z >= minZ && z < maxZ) {
-                CompoundTag tag = info.nbt().copy();
-                String id = tag.getString("id");
+            if (!(x >= minX && x < maxX && z >= minZ && z < maxZ)) {
+                continue;
+            }
+            CompoundTag tag = info.nbt().copy();
+            String id = tag.getString("id");
 
-                // Avoid warning about invalid hanging position.
-                // Note that this position isn't technically correct, but it only needs to be within 16 blocks
-                // of the entity position to avoid the warning.
-                if (id.equals("minecraft:glow_item_frame") ||
-                    id.equals("minecraft:item_frame") ||
-                    id.equals("minecraft:leash_knot") ||
-                    id.equals("minecraft:painting")) {
-                    Vec3 p = NbtUtils.readEntityPositionFromTag(tag);
+            // Avoid warning about invalid hanging position.
+            // Note that this position isn't technically correct, but it only needs to be within 16 blocks
+            // of the entity position to avoid the warning.
+            if (id.equals("minecraft:glow_item_frame") ||
+                id.equals("minecraft:item_frame") ||
+                id.equals("minecraft:leash_knot") ||
+                id.equals("minecraft:painting")) {
+                Vec3 p = NbtUtils.readEntityPositionFromTag(tag);
 
-                    if (p == null) {
-                        p = new Vec3(x, y, z);
-                        NbtUtils.writeEntityPositionToTag(p, tag);
-                    }
-
-                    tag.putInt("TileX", (int) p.x);
-                    tag.putInt("TileY", (int) p.y);
-                    tag.putInt("TileZ", (int) p.z);
+                if (p == null) {
+                    p = new Vec3(x, y, z);
+                    NbtUtils.writeEntityPositionToTag(p, tag);
                 }
 
-                ListTag rotation = tag.getList("Rotation", Tag.TAG_FLOAT);
-                origRot[0] = rotation.getFloat(0);
-                origRot[1] = rotation.getFloat(1);
+                tag.putInt("TileX", (int) p.x);
+                tag.putInt("TileY", (int) p.y);
+                tag.putInt("TileZ", (int) p.z);
+            }
 
-                Entity entity = EntityUtils.createEntityAndPassengersFromNBT(tag, world);
+            ListTag rotation = tag.getList("Rotation", Tag.TAG_FLOAT);
+            origRot[0] = rotation.getFloat(0);
+            origRot[1] = rotation.getFloat(1);
 
-                if (entity != null) {
-                    rotateEntity(entity, x, y, z, rotationCombined, mirrorMain, mirrorSub);
+            Entity entity = EntityUtils.createEntityAndPassengersFromNBT(tag, world);
 
-                    // Update the sleeping position to the current position
-                    if (entity instanceof LivingEntity living && living.isSleeping()) {
-                        living.setSleepingPos(BlockPos.containing(x, y, z));
-                    }
+            if (entity == null) {
+                continue;
+            }
+            rotateEntity(entity, x, y, z, rotationCombined, mirrorMain, mirrorSub);
 
-                    // Hack fix to fix the painting position offsets.
-                    // The vanilla code will end up moving the position by one in two of the orientations,
-                    // because it sets the hanging position to the given position (floored)
-                    // and then it offsets the position from the hanging position
-                    // by 0.5 or 1.0 blocks depending on the painting size.
-                    if (entity instanceof Painting paintingEntity) {
-                        Direction right = PositionUtils.rotateYCounterclockwise(paintingEntity.getDirection());
+            // Update the sleeping position to the current position
+            if (entity instanceof LivingEntity living && living.isSleeping()) {
+                living.setSleepingPos(BlockPos.containing(x, y, z));
+            }
 
-                        if ((paintingEntity.getVariant().value().width() % 2) == 0 &&
-                            right.getAxisDirection() == Direction.AxisDirection.POSITIVE) {
-                            x -= 1.0 * right.getStepX();
-                            z -= 1.0 * right.getStepZ();
-                        }
+            // Hack fix to fix the painting position offsets.
+            // The vanilla code will end up moving the position by one in two of the orientations,
+            // because it sets the hanging position to the given position (floored)
+            // and then it offsets the position from the hanging position
+            // by 0.5 or 1.0 blocks depending on the painting size.
+            if (entity instanceof Painting paintingEntity) {
+                Direction right = PositionUtils.rotateYCounterclockwise(paintingEntity.getDirection());
 
-                        if ((paintingEntity.getVariant().value().height() % 2) == 0) {
-                            y -= 1.0;
-                        }
-
-                        entity.teleportTo(x, y, z);
-                    }
-                    if (entity instanceof ItemFrame frameEntity) {
-                        if (frameEntity.getYRot() != origRot[0] && (frameEntity.getXRot() == 90.0F || frameEntity.getXRot() == -90.0F)) {
-                            // Fix Yaw only if Pitch is +/- 90.0F (Floor, Ceiling mounted)
-                            frameEntity.setYRot(origRot[0]);
-                        }
-                    }
-
-                    EntityUtils.spawnEntityAndPassengersInWorld(entity, world);
-
-                    if (entity instanceof Display) {
-                        entity.tick(); // Required to set the full data for rendering
-                    }
+                if ((paintingEntity.getVariant().value().width() % 2) == 0 &&
+                    right.getAxisDirection() == Direction.AxisDirection.POSITIVE) {
+                    x -= 1.0 * right.getStepX();
+                    z -= 1.0 * right.getStepZ();
                 }
+
+                if ((paintingEntity.getVariant().value().height() % 2) == 0) {
+                    y -= 1.0;
+                }
+
+                entity.teleportTo(x, y, z);
+            }
+            if (entity instanceof ItemFrame frameEntity) {
+                if (frameEntity.getYRot() != origRot[0] && (frameEntity.getXRot() == 90.0F || frameEntity.getXRot() == -90.0F)) {
+                    // Fix Yaw only if Pitch is +/- 90.0F (Floor, Ceiling mounted)
+                    frameEntity.setYRot(origRot[0]);
+                }
+            }
+
+            EntityUtils.spawnEntityAndPassengersInWorld(entity, world);
+
+            if (entity instanceof Display) {
+                entity.tick(); // Required to set the full data for rendering
             }
         }
     }
 
-    public static void rotateEntity(Entity entity, double x, double y, double z,
-                                    Rotation rotationCombined, Mirror mirrorMain, Mirror mirrorSub) {
+    public static void rotateEntity(
+        Entity entity, double x, double y, double z,
+        Rotation rotationCombined, Mirror mirrorMain, Mirror mirrorSub
+    ) {
         float rotationYaw = entity.getYRot();
 
         if (mirrorMain != Mirror.NONE) {
@@ -409,4 +424,3 @@ public class SchematicPlacingUtils {
         EntityUtils.setEntityRotations(entity, rotationYaw, entity.getXRot());
     }
 }
-

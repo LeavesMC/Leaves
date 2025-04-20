@@ -54,10 +54,10 @@ public class EntityUtils {
             return null;
         }
         if (nbt.contains("Passengers", Tag.TAG_LIST)) {
-            ListTag taglist = nbt.getList("Passengers", Tag.TAG_LIST);
+            ListTag tagList = nbt.getList("Passengers", Tag.TAG_LIST);
 
-            for (int i = 0; i < taglist.size(); ++i) {
-                Entity passenger = createEntityAndPassengersFromNBT(taglist.getCompound(i), world);
+            for (int i = 0; i < tagList.size(); ++i) {
+                Entity passenger = createEntityAndPassengersFromNBT(tagList.getCompound(i), world);
 
                 if (passenger != null) {
                     passenger.startRiding(entity, true);

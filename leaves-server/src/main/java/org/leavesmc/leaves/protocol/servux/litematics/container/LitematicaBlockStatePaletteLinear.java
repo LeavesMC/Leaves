@@ -11,17 +11,17 @@ import net.minecraft.world.level.block.state.BlockState;
 
 import javax.annotation.Nullable;
 
-public class LitematicaBlockStatePaletteLinear implements ILitematicaBlockStatePalette {
+public class LitematicaBlockStatePaletteLinear implements LitematicaBlockStatePalette {
 
     private final BlockState[] states;
-    private final ILitematicaBlockStatePaletteResizer resizeHandler;
+    private final LitematicaBlockStateContainer blockStateContainer;
     private final int bits;
     private int currentSize;
 
-    public LitematicaBlockStatePaletteLinear(int bitsIn, ILitematicaBlockStatePaletteResizer resizeHandler) {
+    public LitematicaBlockStatePaletteLinear(int bitsIn, LitematicaBlockStateContainer blockStateContainer) {
         this.states = new BlockState[1 << bitsIn];
         this.bits = bitsIn;
-        this.resizeHandler = resizeHandler;
+        this.blockStateContainer = blockStateContainer;
     }
 
     @Override
@@ -39,7 +39,7 @@ public class LitematicaBlockStatePaletteLinear implements ILitematicaBlockStateP
             ++this.currentSize;
             return size;
         } else {
-            return this.resizeHandler.onResize(this.bits + 1, state);
+            return this.blockStateContainer.onResize(this.bits + 1, state);
         }
     }
 

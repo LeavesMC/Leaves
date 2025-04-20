@@ -226,27 +226,29 @@ public class LitematicaSchematic {
         final int size = tagList.size();
         for (int i = 0; i < size; ++i) {
             CompoundTag tag = tagList.getCompound(i);
-            if (tag.contains("Time", Tag.TAG_ANY_NUMERIC)) // XXX these were accidentally saved as longs in version 3
-            {
-                T target;
-                ResourceLocation resourceLocation = ResourceLocation.tryParse(tag.getString(tagName));
-                if (resourceLocation == null) {
-                    continue;
-                }
-                Optional<Holder.Reference<T>> tReference = registry.get(resourceLocation);
-                if (tReference.isEmpty()) {
-                    continue;
-                }
-                target = tReference.get().value();
-                if (target == emptyValue) {
-                    continue;
-                }
-                BlockPos pos = new BlockPos(tag.getInt("x"), tag.getInt("y"), tag.getInt("z"));
-                TickPriority priority = TickPriority.byValue(tag.getInt("Priority"));
-                int scheduledTime = tag.getInt("Time");
-                long subTick = tag.getLong("SubTick");
-                tickMap.put(pos, new ScheduledTick<>(target, pos, scheduledTime, priority, subTick));
+
+            // XXX these were accidentally saved as longs in version 3
+            if (!tag.contains("Time", Tag.TAG_ANY_NUMERIC)) {
+                continue;
             }
+            T target;
+            ResourceLocation resourceLocation = ResourceLocation.tryParse(tag.getString(tagName));
+            if (resourceLocation == null) {
+                continue;
+            }
+            Optional<Holder.Reference<T>> tReference = registry.get(resourceLocation);
+            if (tReference.isEmpty()) {
+                continue;
+            }
+            target = tReference.get().value();
+            if (target == emptyValue) {
+                continue;
+            }
+            BlockPos pos = new BlockPos(tag.getInt("x"), tag.getInt("y"), tag.getInt("z"));
+            TickPriority priority = TickPriority.byValue(tag.getInt("Priority"));
+            int scheduledTime = tag.getInt("Time");
+            long subTick = tag.getLong("SubTick");
+            tickMap.put(pos, new ScheduledTick<>(target, pos, scheduledTime, priority, subTick));
         }
 
         return tickMap;

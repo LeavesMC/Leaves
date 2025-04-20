@@ -44,12 +44,19 @@ public class SchematicPlacement {
 
     public static SchematicPlacement createFromNbt(CompoundTag tags) {
         try {
-            SchematicPlacement placement = new SchematicPlacement(new LitematicaSchematic(tags.getCompound("Schematics")), NbtUtils.readBlockPos(tags, "Origin").orElseThrow(), tags.getString("Name"));
+            SchematicPlacement placement = new SchematicPlacement(
+                new LitematicaSchematic(tags.getCompound("Schematics")),
+                NbtUtils.readBlockPos(tags, "Origin").orElseThrow(),
+                tags.getString("Name")
+            );
             placement.mirror = Mirror.values()[tags.getInt("Mirror")];
             placement.rotation = Rotation.values()[tags.getInt("Rotation")];
             for (String name : tags.getCompound("SubRegions").getAllKeys()) {
                 CompoundTag compound = tags.getCompound("SubRegions").getCompound(name);
-                var sub = new SubRegionPlacement(NbtUtils.readBlockPos(compound, "Pos").orElseThrow(), compound.getString("Name"));
+                var sub = new SubRegionPlacement(
+                    NbtUtils.readBlockPos(compound, "Pos").orElseThrow(),
+                    compound.getString("Name")
+                );
                 sub.mirror = Mirror.values()[compound.getInt("Mirror")];
                 sub.rotation = Rotation.values()[compound.getInt("Rotation")];
                 sub.ignoreEntities = compound.getBoolean("IgnoreEntities");

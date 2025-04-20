@@ -12,15 +12,15 @@ import org.leavesmc.leaves.protocol.servux.litematics.utils.Int2ObjectBiMap;
 
 import javax.annotation.Nullable;
 
-public class LitematicaBlockStatePaletteHashMap implements ILitematicaBlockStatePalette {
+public class LitematicaBlockStatePaletteHashMap implements LitematicaBlockStatePalette {
 
     private final Int2ObjectBiMap<BlockState> statePaletteMap;
-    private final ILitematicaBlockStatePaletteResizer paletteResizer;
+    private final LitematicaBlockStateContainer blockStateContainer;
     private final int bits;
 
-    public LitematicaBlockStatePaletteHashMap(int bitsIn, ILitematicaBlockStatePaletteResizer paletteResizer) {
+    public LitematicaBlockStatePaletteHashMap(int bitsIn, LitematicaBlockStateContainer blockStateContainer) {
         this.bits = bitsIn;
-        this.paletteResizer = paletteResizer;
+        this.blockStateContainer = blockStateContainer;
         this.statePaletteMap = Int2ObjectBiMap.create(1 << bitsIn);
     }
 
@@ -32,7 +32,7 @@ public class LitematicaBlockStatePaletteHashMap implements ILitematicaBlockState
             i = this.statePaletteMap.add(state);
 
             if (i >= (1 << this.bits)) {
-                i = this.paletteResizer.onResize(this.bits + 1, state);
+                i = this.blockStateContainer.onResize(this.bits + 1, state);
             }
         }
 
@@ -49,7 +49,7 @@ public class LitematicaBlockStatePaletteHashMap implements ILitematicaBlockState
         final int origId = this.statePaletteMap.add(state);
 
         if (origId >= (1 << this.bits)) {
-            int newId = this.paletteResizer.onResize(this.bits + 1, LitematicaBlockStateContainer.AIR_BLOCK_STATE);
+            int newId = this.blockStateContainer.onResize(this.bits + 1, LitematicaBlockStateContainer.AIR_BLOCK_STATE);
 
             if (newId <= origId) {
                 this.statePaletteMap.add(state);

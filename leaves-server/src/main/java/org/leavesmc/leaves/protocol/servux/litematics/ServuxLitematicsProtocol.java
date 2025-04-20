@@ -199,7 +199,8 @@ public class ServuxLitematicsProtocol {
                         .append(Component.text(serverLevel.serverLevelData.getLevelName()).color(NamedTextColor.LIGHT_PURPLE))
                         .append(Component.text(" in "))
                         .append(Component.text(timeElapsed).color(NamedTextColor.GREEN))
-                        .append(Component.text("ms")));
+                        .append(Component.text("ms"))
+                );
             });
         }
     }

@@ -8,11 +8,11 @@ import net.minecraft.world.level.block.state.BlockState;
 
 import javax.annotation.Nullable;
 
-public class LitematicaBlockStateContainer implements ILitematicaBlockStatePaletteResizer {
+public class LitematicaBlockStateContainer {
 
     public static final BlockState AIR_BLOCK_STATE = Blocks.AIR.defaultBlockState();
     protected LitematicaBitArray storage;
-    protected ILitematicaBlockStatePalette palette;
+    protected LitematicaBlockStatePalette palette;
     protected final Vec3i size;
     protected final int sizeX;
     protected final int sizeY;
@@ -80,10 +80,9 @@ public class LitematicaBlockStateContainer implements ILitematicaBlockStatePalet
         }
     }
 
-    @Override
     public int onResize(int bits, BlockState state) {
         LitematicaBitArray oldStorage = this.storage;
-        ILitematicaBlockStatePalette oldPalette = this.palette;
+        LitematicaBlockStatePalette oldPalette = this.palette;
         final long storageLength = oldStorage.size();
 
         this.setBits(bits, null);
@@ -99,7 +98,7 @@ public class LitematicaBlockStateContainer implements ILitematicaBlockStatePalet
         return this.palette.idFor(state);
     }
 
-    public ILitematicaBlockStatePalette getPalette() {
+    public LitematicaBlockStatePalette getPalette() {
         return this.palette;
     }
 

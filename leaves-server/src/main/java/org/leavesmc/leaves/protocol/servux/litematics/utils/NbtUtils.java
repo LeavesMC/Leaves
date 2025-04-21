@@ -5,15 +5,10 @@ import net.minecraft.core.Vec3i;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.DoubleTag;
 import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.Tag;
 import net.minecraft.world.phys.Vec3;
-import org.leavesmc.leaves.protocol.servux.ServuxProtocol;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.io.OutputStream;
-import java.nio.file.Path;
 
 public class NbtUtils {
 
@@ -42,7 +37,6 @@ public class NbtUtils {
         posList.add(DoubleTag.valueOf(pos.y));
         posList.add(DoubleTag.valueOf(pos.z));
         tag.put("Pos", posList);
-
     }
 
     @Nullable
@@ -80,24 +74,5 @@ public class NbtUtils {
         }
 
         return null;
-    }
-
-    /**
-     * Write the compound tag, gzipped, to the output stream.
-     */
-    public static void writeCompressed(@Nonnull CompoundTag tag, @Nonnull OutputStream outputStream) {
-        try {
-            NbtIo.writeCompressed(tag, outputStream);
-        } catch (Exception err) {
-            ServuxProtocol.LOGGER.warn("writeCompressed: Failed to write NBT data to output stream");
-        }
-    }
-
-    public static void writeCompressed(@Nonnull CompoundTag tag, @Nonnull Path file) {
-        try {
-            NbtIo.writeCompressed(tag, file);
-        } catch (Exception err) {
-            ServuxProtocol.LOGGER.warn("writeCompressed: Failed to write NBT data to file");
-        }
     }
 }

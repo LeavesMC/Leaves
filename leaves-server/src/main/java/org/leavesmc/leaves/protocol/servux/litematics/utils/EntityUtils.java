@@ -4,7 +4,6 @@ import com.google.common.collect.ImmutableList;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
@@ -16,12 +15,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 public class EntityUtils {
-
-    public static String getEntityId(Entity entity) {
-        EntityType<?> entitytype = entity.getType();
-        ResourceLocation resourcelocation = EntityType.getKey(entitytype);
-        return resourcelocation.toString();
-    }
 
     @Nullable
     private static Entity createEntityFromNBTSingle(CompoundTag nbt, Level world) {

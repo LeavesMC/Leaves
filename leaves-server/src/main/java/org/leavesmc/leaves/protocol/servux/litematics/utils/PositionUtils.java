@@ -11,22 +11,6 @@ import org.leavesmc.leaves.protocol.servux.litematics.placement.SubRegionPlaceme
 
 public class PositionUtils {
 
-    public static Vec3 setValue(CoordinateType type, Vec3 valueIn, double newValue) {
-        return switch (type) {
-            case X -> new Vec3(newValue, valueIn.y, valueIn.z);
-            case Y -> new Vec3(valueIn.x, newValue, valueIn.z);
-            case Z -> new Vec3(valueIn.x, valueIn.y, newValue);
-        };
-    }
-
-    public static BlockPos setValue(CoordinateType type, BlockPos valueIn, int newValue) {
-        return switch (type) {
-            case X -> BlockPos.containing(newValue, valueIn.getY(), valueIn.getZ());
-            case Y -> BlockPos.containing(valueIn.getX(), newValue, valueIn.getZ());
-            case Z -> BlockPos.containing(valueIn.getX(), valueIn.getY(), newValue);
-        };
-    }
-
     public static Direction rotateYCounterclockwise(Direction direction) {
         Direction var10000;
         switch (direction.ordinal()) {
@@ -40,12 +24,6 @@ public class PositionUtils {
         return var10000;
     }
 
-    public enum CoordinateType {
-        X,
-        Y,
-        Z
-    }
-
     public static BlockPos getMinCorner(BlockPos pos1, BlockPos pos2) {
         return new BlockPos(Math.min(pos1.getX(), pos2.getX()), Math.min(pos1.getY(), pos2.getY()), Math.min(pos1.getZ(), pos2.getZ()));
     }
@@ -57,20 +35,8 @@ public class PositionUtils {
     public static BlockPos getTransformedPlacementPosition(BlockPos posWithinSub, SchematicPlacement schematicPlacement, SubRegionPlacement placement) {
         BlockPos pos = posWithinSub;
         pos = getTransformedBlockPos(pos, schematicPlacement.getMirror(), schematicPlacement.getRotation());
-        pos = getTransformedBlockPos(pos, placement.getMirror(), placement.getRotation());
+        pos = getTransformedBlockPos(pos, placement.mirror(), placement.rotation());
         return pos;
-    }
-
-    public static BlockPos getAreaSizeFromRelativeEndPosition(BlockPos posEndRelative) {
-        int x = posEndRelative.getX();
-        int y = posEndRelative.getY();
-        int z = posEndRelative.getZ();
-
-        x = x >= 0 ? x + 1 : x - 1;
-        y = y >= 0 ? y + 1 : y - 1;
-        z = z >= 0 ? z + 1 : z - 1;
-
-        return new BlockPos(x, y, z);
     }
 
     public static BlockPos getRelativeEndPositionFromAreaSize(Vec3i size) {
@@ -95,16 +61,9 @@ public class PositionUtils {
         boolean isMirrored = true;
 
         switch (mirror) {
-            // LEFT_RIGHT is essentially NORTH_SOUTH
-            case LEFT_RIGHT:
-                z = -z;
-                break;
-            // FRONT_BACK is essentially EAST_WEST
-            case FRONT_BACK:
-                x = -x;
-                break;
-            default:
-                isMirrored = false;
+            case LEFT_RIGHT -> z = -z; // LEFT_RIGHT is essentially NORTH_SOUTH
+            case FRONT_BACK -> x = -x; // FRONT_BACK is essentially EAST_WEST
+            default -> isMirrored = false;
         }
 
         return switch (rotation) {
@@ -123,35 +82,29 @@ public class PositionUtils {
         int tmp = x;
 
         switch (rotation) {
-            case CLOCKWISE_90:
+            case CLOCKWISE_90 -> {
                 x = z;
                 z = -tmp;
-                break;
-            case COUNTERCLOCKWISE_90:
+            }
+            case COUNTERCLOCKWISE_90 -> {
                 x = -z;
                 z = tmp;
-                break;
-            case CLOCKWISE_180:
+            }
+            case CLOCKWISE_180 -> {
                 x = -x;
                 z = -z;
-                break;
-            default:
-                isRotated = false;
+            }
+            default -> isRotated = false;
         }
 
         switch (mirror) {
-            // LEFT_RIGHT is essentially NORTH_SOUTH
-            case LEFT_RIGHT:
-                z = -z;
-                break;
-            // FRONT_BACK is essentially EAST_WEST
-            case FRONT_BACK:
-                x = -x;
-                break;
-            default:
+            case LEFT_RIGHT -> z = -z; // LEFT_RIGHT is essentially NORTH_SOUTH
+            case FRONT_BACK -> x = -x; // FRONT_BACK is essentially EAST_WEST
+            default -> {
                 if (!isRotated) {
                     return pos;
                 }
+            }
         }
 
         return new BlockPos(x, y, z);
@@ -164,14 +117,9 @@ public class PositionUtils {
         boolean transformed = true;
 
         switch (mirror) {
-            case LEFT_RIGHT:
-                z = 1.0D - z;
-                break;
-            case FRONT_BACK:
-                x = 1.0D - x;
-                break;
-            default:
-                transformed = false;
+            case LEFT_RIGHT -> z = 1.0D - z;
+            case FRONT_BACK -> x = 1.0D - x;
+            default -> transformed = false;
         }
 
         return switch (rotation) {
@@ -180,11 +128,5 @@ public class PositionUtils {
             case CLOCKWISE_180 -> new Vec3(1.0D - x, y, 1.0D - z);
             default -> transformed ? new Vec3(x, y, z) : originalPos;
         };
-    }
-
-    public enum Corner {
-        NONE,
-        CORNER_1,
-        CORNER_2
     }
 }

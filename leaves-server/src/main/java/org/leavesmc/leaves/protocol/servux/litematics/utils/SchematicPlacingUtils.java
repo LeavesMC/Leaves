@@ -49,7 +49,8 @@ public class SchematicPlacingUtils {
         BlockPos origin = schematicPlacement.getOrigin();
 
         for (String regionName : regionsTouchingChunk) {
-            LitematicaBlockStateContainer container = schematic.getSubRegionContainer(regionName);
+            LitematicaSchematic.SubRegion subRegion = schematic.getSubRegion(regionName);
+            LitematicaBlockStateContainer container = subRegion.blockContainers();
 
             if (container == null) {
                 continue;
@@ -60,20 +61,19 @@ public class SchematicPlacingUtils {
                 ServuxProtocol.LOGGER.error("receiver a null placement for region: {}", regionName);
                 continue;
             }
-            if (!placement.isEnabled()) {
+            if (!placement.enabled()) {
                 continue;
             }
-            Map<BlockPos, CompoundTag> blockEntityMap = schematic.getBlockEntityMapForRegion(regionName);
-            Map<BlockPos, ScheduledTick<Block>> scheduledBlockTicks = schematic.getScheduledBlockTicksForRegion(regionName);
-            Map<BlockPos, ScheduledTick<Fluid>> scheduledFluidTicks = schematic.getScheduledFluidTicksForRegion(regionName);
+            Map<BlockPos, CompoundTag> blockEntityMap = subRegion.tileEntities();
+            Map<BlockPos, ScheduledTick<Block>> scheduledBlockTicks = subRegion.pendingBlockTicks();
+            Map<BlockPos, ScheduledTick<Fluid>> scheduledFluidTicks = subRegion.pendingFluidTicks();
 
             if (!placeBlocksWithinChunk(world, chunkPos, regionName, container, blockEntityMap,
-                origin, schematicPlacement, placement, scheduledBlockTicks,
-                scheduledFluidTicks, replace, notifyNeighbors)) {
-                ServuxProtocol.LOGGER.warn("Invalid/missing schematic data in schematic '{}' for sub-region '{}'", schematic.getMetadata().getName(), regionName);
+                origin, schematicPlacement, placement, scheduledBlockTicks, scheduledFluidTicks, replace, notifyNeighbors)) {
+                ServuxProtocol.LOGGER.warn("Invalid/missing schematic data in schematic '{}' for sub-region '{}'", schematic.metadata().name(), regionName);
             }
 
-            List<LitematicaSchematic.EntityInfo> entityList = schematic.getEntityListForRegion(regionName);
+            List<LitematicaSchematic.EntityInfo> entityList = subRegion.entities();
 
             if (!schematicPlacement.ignoreEntities() &&
                 !placement.ignoreEntities() && entityList != null) {
@@ -94,13 +94,13 @@ public class SchematicPlacingUtils {
         ReplaceBehavior replace, boolean notifyNeighbors
     ) {
         IntBoundingBox bounds = schematicPlacement.getBoxWithinChunkForRegion(regionName, chunkPos.x, chunkPos.z);
-        Vec3i regionSize = schematicPlacement.getSchematic().getAreaSize(regionName);
+        Vec3i regionSize = schematicPlacement.getSchematic().getSubRegion(regionName).size();
 
         if (bounds == null || container == null || blockEntityMap == null || regionSize == null) {
             return false;
         }
 
-        BlockPos regionPos = placement.getPos();
+        BlockPos regionPos = placement.pos();
 
         // These are the untransformed relative positions
         BlockPos posEndRel = (new BlockPos(PositionUtils.getRelativeEndPositionFromAreaSize(regionSize))).offset(regionPos);
@@ -114,8 +114,8 @@ public class SchematicPlacingUtils {
         BlockPos boxMaxRel = new BlockPos(bounds.maxX() - origin.getX() - regionPosTransformed.getX(), 0, bounds.maxZ() - origin.getZ() - regionPosTransformed.getZ());
 
         // Reverse transform that relative offset, to get the untransformed orientation's offsets
-        boxMinRel = PositionUtils.getReverseTransformedBlockPos(boxMinRel, placement.getMirror(), placement.getRotation());
-        boxMaxRel = PositionUtils.getReverseTransformedBlockPos(boxMaxRel, placement.getMirror(), placement.getRotation());
+        boxMinRel = PositionUtils.getReverseTransformedBlockPos(boxMinRel, placement.mirror(), placement.rotation());
+        boxMaxRel = PositionUtils.getReverseTransformedBlockPos(boxMaxRel, placement.mirror(), placement.rotation());
 
         boxMinRel = PositionUtils.getReverseTransformedBlockPos(boxMinRel, schematicPlacement.getMirror(), schematicPlacement.getRotation());
         boxMaxRel = PositionUtils.getReverseTransformedBlockPos(boxMaxRel, schematicPlacement.getMirror(), schematicPlacement.getRotation());
@@ -138,10 +138,10 @@ public class SchematicPlacingUtils {
             return false;
         }
 
-        final Rotation rotationCombined = schematicPlacement.getRotation().getRotated(placement.getRotation());
+        final Rotation rotationCombined = schematicPlacement.getRotation().getRotated(placement.rotation());
         final Mirror mirrorMain = schematicPlacement.getMirror();
         final BlockState barrier = Blocks.BARRIER.defaultBlockState();
-        Mirror mirrorSub = placement.getMirror();
+        Mirror mirrorSub = placement.mirror();
         final boolean ignoreInventories = false;
 
         if (mirrorSub != Mirror.NONE &&
@@ -294,7 +294,7 @@ public class SchematicPlacingUtils {
         SchematicPlacement schematicPlacement,
         SubRegionPlacement placement
     ) {
-        BlockPos regionPos = placement.getPos();
+        BlockPos regionPos = placement.pos();
 
         if (entityList == null) {
             return;
@@ -309,9 +309,9 @@ public class SchematicPlacingUtils {
         final double maxX = (chunkPos.x << 4) + 16;
         final double maxZ = (chunkPos.z << 4) + 16;
 
-        final Rotation rotationCombined = schematicPlacement.getRotation().getRotated(placement.getRotation());
+        final Rotation rotationCombined = schematicPlacement.getRotation().getRotated(placement.rotation());
         final Mirror mirrorMain = schematicPlacement.getMirror();
-        Mirror mirrorSub = placement.getMirror();
+        Mirror mirrorSub = placement.mirror();
 
         if (mirrorSub != Mirror.NONE &&
             (schematicPlacement.getRotation() == Rotation.CLOCKWISE_90 ||
@@ -322,7 +322,7 @@ public class SchematicPlacingUtils {
         for (LitematicaSchematic.EntityInfo info : entityList) {
             Vec3 pos = info.posVec();
             pos = PositionUtils.getTransformedPosition(pos, schematicPlacement.getMirror(), schematicPlacement.getRotation());
-            pos = PositionUtils.getTransformedPosition(pos, placement.getMirror(), placement.getRotation());
+            pos = PositionUtils.getTransformedPosition(pos, placement.mirror(), placement.rotation());
             double x = pos.x + offX;
             double y = pos.y + offY;
             double z = pos.z + offZ;

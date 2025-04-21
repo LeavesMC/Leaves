@@ -45,16 +45,6 @@ public class LitematicaBlockStateContainer {
         return state == null ? AIR_BLOCK_STATE : state;
     }
 
-    public void set(int x, int y, int z, BlockState state) {
-        int id = this.palette.idFor(state);
-        this.storage.setAt(this.getIndex(x, y, z), id);
-    }
-
-    protected void set(int index, BlockState state) {
-        int id = this.palette.idFor(state);
-        this.storage.setAt(index, id);
-    }
-
     protected int getIndex(int x, int y, int z) {
         return (y * this.sizeLayer) + z * this.sizeX + x;
     }

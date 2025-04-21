@@ -20,6 +20,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Player;
+import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.protocol.core.LeavesCustomPayload;
 import org.leavesmc.leaves.protocol.core.LeavesProtocol;
@@ -64,7 +65,7 @@ public class ServuxLitematicsProtocol {
         return LeavesConfig.protocol.servux.litematicsProtocol;
     }
 
-    public static void encodeServerData(ServerPlayer player, ServuxLitematicaPayload packet) {
+    public static void encodeServerData(ServerPlayer player, @NotNull ServuxLitematicaPayload packet) {
         if (packet.packetType.equals(ServuxLitematicaPayloadType.PACKET_S2C_NBT_RESPONSE_START)) {
             FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
             buffer.writeVarInt(packet.getTransactionId());
@@ -181,7 +182,7 @@ public class ServuxLitematicsProtocol {
         }
     }
 
-    public static void handleClientPasteRequest(ServerPlayer player, CompoundTag tags) {
+    public static void handleClientPasteRequest(ServerPlayer player, @NotNull CompoundTag tags) {
         if (tags.getString("Task").equals("LitematicaPaste")) {
             ServuxProtocol.LOGGER.debug("litematic_data: Servux Paste request from player {}", player.getName().getString());
             ServerLevel serverLevel = player.serverLevel();
@@ -254,14 +255,6 @@ public class ServuxLitematicsProtocol {
             this.pos = BlockPos.ZERO;
             this.chunkPos = ChunkPos.ZERO;
             this.nbt = new CompoundTag();
-            this.clearPacket();
-        }
-
-        private void clearPacket() {
-            if (this.buffer != null) {
-                this.buffer.clear();
-                this.buffer = new FriendlyByteBuf(Unpooled.buffer());
-            }
         }
 
         public int getVersion() {

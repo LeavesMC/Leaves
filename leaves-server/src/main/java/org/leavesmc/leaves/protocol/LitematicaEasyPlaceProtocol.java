@@ -1,5 +1,6 @@
 package org.leavesmc.leaves.protocol;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -22,6 +23,7 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 
 public class LitematicaEasyPlaceProtocol {
 
@@ -49,9 +51,9 @@ public class LitematicaEasyPlaceProtocol {
         BlockStateProperties.ROTATION_16
     );
 
-    public static final ImmutableSet<Property<?>> BLACKLISTED_PROPERTIES = ImmutableSet.of(
-        BlockStateProperties.WATERLOGGED,
-        BlockStateProperties.POWERED
+    public static final ImmutableMap<Property<?>, ?> BLACKLISTED_PROPERTIES = ImmutableMap.of(
+        BlockStateProperties.WATERLOGGED, false,
+        BlockStateProperties.POWERED, false
     );
 
     public static BlockState applyPlacementProtocol(BlockState state, BlockPlaceContext context) {
@@ -95,7 +97,7 @@ public class LitematicaEasyPlaceProtocol {
                 if (property != null && property.equals(p)) {
                     continue;
                 }
-                if (!WHITELISTED_PROPERTIES.contains(p) || BLACKLISTED_PROPERTIES.contains(p)) {
+                if (!WHITELISTED_PROPERTIES.contains(p) || BLACKLISTED_PROPERTIES.containsKey(p)) {
                     continue;
                 }
 
@@ -127,11 +129,9 @@ public class LitematicaEasyPlaceProtocol {
             LeavesLogger.LOGGER.warning("Exception trying to apply placement protocol value", e);
         }
 
-        for (Property<?> p : BLACKLISTED_PROPERTIES) {
-            if (state.hasProperty(p)) {
-                Property<T> prop = (Property<T>) p;
-                BlockState def = state.getBlock().defaultBlockState();
-                state = state.setValue(prop, def.getValue(prop));
+        for (Map.Entry<Property<?>, ?> p : BLACKLISTED_PROPERTIES.entrySet()) {
+            if (state.hasProperty(p.getKey())) {
+                state = state.setValue((Property<T>) p.getKey(), (T) p.getValue());
             }
         }
 

@@ -26,9 +26,7 @@ public class ShulkerBoxUtils {
     public static ItemStack correctItemStackMaxStackSize(ItemStack itemStack) {
         int trulyMaxStackSize = getItemStackMaxCount(itemStack);
         if (itemStack.getMaxStackSize() != trulyMaxStackSize) {
-            org.bukkit.inventory.ItemStack bkStack = CraftItemStack.asBukkitCopy(itemStack);
-            bkStack.editMeta(meta -> meta.setMaxStackSize(trulyMaxStackSize));
-            itemStack = CraftItemStack.asNMSCopy(bkStack);
+            itemStack.set(DataComponents.MAX_STACK_SIZE, trulyMaxStackSize);
         }
         return itemStack;
     }

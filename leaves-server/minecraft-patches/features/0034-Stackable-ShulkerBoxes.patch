@@ -6,18 +6,27 @@ Subject: [PATCH] Stackable ShulkerBoxes
 This patch is Powered by fabric-carpet(https://github.com/gnembon/fabric-carpet) and plusls-carpet-addition(https://github.com/plusls/plusls-carpet-addition)
 
 diff --git a/net/minecraft/network/protocol/game/ClientboundContainerSetContentPacket.java b/net/minecraft/network/protocol/game/ClientboundContainerSetContentPacket.java
-index 828fbe03e7beb860cd0816c7ac8adbffe196533b..513988c37de927ddf48f2bc9cf6905c70c41e75d 100644
+index f550a87a93b51704b48e9ea25f669bcd930e26e4..988e3bdb8cdb61f4a9d63a3de28dba997c1ee439 100644
 --- a/net/minecraft/network/protocol/game/ClientboundContainerSetContentPacket.java
 +++ b/net/minecraft/network/protocol/game/ClientboundContainerSetContentPacket.java
-@@ -23,7 +23,7 @@ public class ClientboundContainerSetContentPacket implements Packet<ClientGamePa
-         this.items = NonNullList.withSize(items.size(), ItemStack.EMPTY);
+@@ -19,9 +19,16 @@ public record ClientboundContainerSetContentPacket(int containerId, int stateId,
+         ClientboundContainerSetContentPacket::items,
+         ItemStack.OPTIONAL_STREAM_CODEC,
+         ClientboundContainerSetContentPacket::carriedItem,
+-        ClientboundContainerSetContentPacket::new
++        ClientboundContainerSetContentPacket::create // Leaves - stackable shulker boxes
+     );
  
-         for (int i = 0; i < items.size(); i++) {
--            this.items.set(i, items.get(i).copy());
-+            this.items.set(i, org.leavesmc.leaves.util.ShulkerBoxUtils.correctItemStackMaxStackSize(items.get(i).copy())); // Leaves - stackable shulker boxes
-         }
- 
-         this.carriedItem = carriedItem.copy();
++    // Leaves start - stackable shulker boxes
++    private static ClientboundContainerSetContentPacket create(int containerId, int stateId, List<ItemStack> items, ItemStack carriedItem) {
++        items.forEach(org.leavesmc.leaves.util.ShulkerBoxUtils::correctItemStackMaxStackSize);
++        return new ClientboundContainerSetContentPacket(containerId, stateId, items, carriedItem);
++    }
++    // Leaves end - stackable shulker boxes
++
+     // Paper start - Handle large packets disconnecting client
+     @Override
+     public boolean hasLargePacketFallback() {
 diff --git a/net/minecraft/network/protocol/game/ClientboundContainerSetSlotPacket.java b/net/minecraft/network/protocol/game/ClientboundContainerSetSlotPacket.java
 index c1130f596cf3443eeb62eb1b12587172fe0859ee..ad51ad9f104f8f7238298b025e2d7485aa88a253 100644
 --- a/net/minecraft/network/protocol/game/ClientboundContainerSetSlotPacket.java
@@ -32,10 +41,10 @@ index c1130f596cf3443eeb62eb1b12587172fe0859ee..ad51ad9f104f8f7238298b025e2d7485
  
      private ClientboundContainerSetSlotPacket(RegistryFriendlyByteBuf buffer) {
 diff --git a/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index 876d207996724727ca26b139af759eab2e6f4131..7ad093e90299b9d3d6667e7425ac1bf13c61e1a5 100644
+index f49a2c18ec20a7181951389066b7d062b48d43fa..6fadb391ef8025b2c4ca0ca73bdb41b9349dfbca 100644
 --- a/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-@@ -3395,7 +3395,7 @@ public class ServerGamePacketListenerImpl
+@@ -3386,7 +3386,7 @@ public class ServerGamePacketListenerImpl
              }
  
              boolean flag1 = packet.slotNum() >= 1 && packet.slotNum() <= 45;
@@ -43,12 +52,12 @@ index 876d207996724727ca26b139af759eab2e6f4131..7ad093e90299b9d3d6667e7425ac1bf1
 +            boolean flag2 = itemStack.isEmpty() || itemStack.getCount() <= org.leavesmc.leaves.util.ShulkerBoxUtils.getItemStackMaxCount(itemStack); // Leaves - stackable shulker boxes
              if (flag || (flag1 && !ItemStack.matches(this.player.inventoryMenu.getSlot(packet.slotNum()).getItem(), packet.itemStack()))) { // Insist on valid slot
                  // CraftBukkit start - Call click event
-                 InventoryView inventory = this.player.inventoryMenu.getBukkitView();
+                 org.bukkit.inventory.InventoryView inventory = this.player.inventoryMenu.getBukkitView();
 diff --git a/net/minecraft/world/Container.java b/net/minecraft/world/Container.java
-index 2d3721e311851c1801b090e99d4f9d0daf4e5f99..f779d27603e6d81435c061214a2db3a14a31c11e 100644
+index b382665cc125b8b5c0938e5e55984e4bf91d37ff..f575b464a8ce430646cb872ae6206a9a0677736b 100644
 --- a/net/minecraft/world/Container.java
 +++ b/net/minecraft/world/Container.java
-@@ -30,6 +30,12 @@ public interface Container extends Clearable {
+@@ -32,6 +32,12 @@ public interface Container extends Clearable, Iterable<ItemStack> {
          return Math.min(this.getMaxStackSize(), stack.getMaxStackSize());
      }
  
@@ -62,10 +71,10 @@ index 2d3721e311851c1801b090e99d4f9d0daf4e5f99..f779d27603e6d81435c061214a2db3a1
  
      boolean stillValid(Player player);
 diff --git a/net/minecraft/world/SimpleContainer.java b/net/minecraft/world/SimpleContainer.java
-index 190190463086f2fcbe28f00fa2f23795bf11f279..6ee5ecc89e360ca30ed5f7f355ae943c5a6337ca 100644
+index 133e042371bcf84f1935903ec57d204e3b7abd84..4ad80c7f8239d1e81f2fd2671f9bf974751c25cb 100644
 --- a/net/minecraft/world/SimpleContainer.java
 +++ b/net/minecraft/world/SimpleContainer.java
-@@ -205,7 +205,7 @@ public class SimpleContainer implements Container, StackedContentsCompatible {
+@@ -211,7 +211,7 @@ public class SimpleContainer implements Container, StackedContentsCompatible {
      @Override
      public void setItem(int index, ItemStack stack) {
          this.items.set(index, stack);
@@ -74,7 +83,7 @@ index 190190463086f2fcbe28f00fa2f23795bf11f279..6ee5ecc89e360ca30ed5f7f355ae943c
          this.setChanged();
      }
  
-@@ -280,7 +280,7 @@ public class SimpleContainer implements Container, StackedContentsCompatible {
+@@ -286,7 +286,7 @@ public class SimpleContainer implements Container, StackedContentsCompatible {
      }
  
      private void moveItemsBetweenStacks(ItemStack stack, ItemStack other) {
@@ -84,10 +93,10 @@ index 190190463086f2fcbe28f00fa2f23795bf11f279..6ee5ecc89e360ca30ed5f7f355ae943c
          if (min > 0) {
              other.grow(min);
 diff --git a/net/minecraft/world/entity/item/ItemEntity.java b/net/minecraft/world/entity/item/ItemEntity.java
-index 52a7ed0d991758bad0dcedcb7f97fb15ac6c6d04..d2d258246e7f7332c0420077e33c05e222bda46d 100644
+index 6c0ebfb2be4e8b884456a2aa3d5fdc87e45a0e3c..b0e60d1d2a44bb35c87c35e82a172a38406b6c54 100644
 --- a/net/minecraft/world/entity/item/ItemEntity.java
 +++ b/net/minecraft/world/entity/item/ItemEntity.java
-@@ -274,10 +274,52 @@ public class ItemEntity extends Entity implements TraceableEntity {
+@@ -281,10 +281,52 @@ public class ItemEntity extends Entity implements TraceableEntity {
  
      private boolean isMergable() {
          ItemStack item = this.getItem();
@@ -142,10 +151,10 @@ index 52a7ed0d991758bad0dcedcb7f97fb15ac6c6d04..d2d258246e7f7332c0420077e33c05e2
          ItemStack item1 = itemEntity.getItem();
          if (Objects.equals(this.target, itemEntity.target) && areMergable(item, item1)) {
 diff --git a/net/minecraft/world/entity/player/Inventory.java b/net/minecraft/world/entity/player/Inventory.java
-index 839cbb67d3d38960d9114a4db5bab911b66a573c..9b628d553d3206a4881ed5e07fa6d2552b710cea 100644
+index d9cb4f0ed0c4f63362c837aeef3c4194911455c9..57bf2819271b3293a065b58d31b609f8463811b4 100644
 --- a/net/minecraft/world/entity/player/Inventory.java
 +++ b/net/minecraft/world/entity/player/Inventory.java
-@@ -97,10 +97,12 @@ public class Inventory implements Container, Nameable {
+@@ -148,10 +148,12 @@ public class Inventory implements Container, Nameable {
      }
  
      private boolean hasRemainingSpaceForItem(ItemStack destination, ItemStack origin) {
@@ -160,7 +169,7 @@ index 839cbb67d3d38960d9114a4db5bab911b66a573c..9b628d553d3206a4881ed5e07fa6d255
      }
  
      // CraftBukkit start - Watch method above! :D
-@@ -113,7 +115,7 @@ public class Inventory implements Container, Nameable {
+@@ -164,7 +166,7 @@ public class Inventory implements Container, Nameable {
              }
  
              if (this.hasRemainingSpaceForItem(itemInSlot, itemStack)) {
@@ -169,16 +178,16 @@ index 839cbb67d3d38960d9114a4db5bab911b66a573c..9b628d553d3206a4881ed5e07fa6d255
              }
              if (remains <= 0) {
                  return itemStack.getCount();
-@@ -122,7 +124,7 @@ public class Inventory implements Container, Nameable {
+@@ -173,7 +175,7 @@ public class Inventory implements Container, Nameable {
  
-         ItemStack itemInOffhand = this.getItem(this.items.size() + this.armor.size());
+         ItemStack itemInOffhand = this.equipment.get(EquipmentSlot.OFFHAND);
          if (this.hasRemainingSpaceForItem(itemInOffhand, itemStack)) {
 -            remains -= (itemInOffhand.getMaxStackSize() < this.getMaxStackSize() ? itemInOffhand.getMaxStackSize() : this.getMaxStackSize()) - itemInOffhand.getCount();
 +            remains -= (org.leavesmc.leaves.util.ShulkerBoxUtils.getItemStackMaxCount(itemInOffhand) < this.getMaxStackSize() ? org.leavesmc.leaves.util.ShulkerBoxUtils.getItemStackMaxCount(itemInOffhand) : this.getMaxStackSize()) - itemInOffhand.getCount(); // Leaves - stackable shulker boxes
          }
          if (remains <= 0) {
              return itemStack.getCount();
-@@ -252,7 +254,7 @@ public class Inventory implements Container, Nameable {
+@@ -297,7 +299,7 @@ public class Inventory implements Container, Nameable {
              this.setItem(slot, item);
          }
  
@@ -187,7 +196,7 @@ index 839cbb67d3d38960d9114a4db5bab911b66a573c..9b628d553d3206a4881ed5e07fa6d255
          int min = Math.min(count, i);
          if (min == 0) {
              return count;
-@@ -359,7 +361,7 @@ public class Inventory implements Container, Nameable {
+@@ -403,7 +405,7 @@ public class Inventory implements Container, Nameable {
                  break;
              }
  
@@ -197,10 +206,10 @@ index 839cbb67d3d38960d9114a4db5bab911b66a573c..9b628d553d3206a4881ed5e07fa6d255
                  serverPlayer.connection.send(this.createInventoryUpdatePacket(slotWithRemainingSpace));
              }
 diff --git a/net/minecraft/world/entity/vehicle/ContainerEntity.java b/net/minecraft/world/entity/vehicle/ContainerEntity.java
-index c18aea2bb5ddddadbc858b253ff4c08d82178a18..6a24b442a21298ef3bdbcb76de9bdcf006890c5d 100644
+index feebd1610ebd3c26a337259c14f5c774dc72b937..7df6ff842e41763aec2d88d1f8a5f7503932d905 100644
 --- a/net/minecraft/world/entity/vehicle/ContainerEntity.java
 +++ b/net/minecraft/world/entity/vehicle/ContainerEntity.java
-@@ -164,7 +164,7 @@ public interface ContainerEntity extends Container, MenuProvider {
+@@ -163,7 +163,7 @@ public interface ContainerEntity extends Container, MenuProvider {
      default void setChestVehicleItem(int slot, ItemStack stack) {
          this.unpackChestVehicleLootTable(null);
          this.getItemStacks().set(slot, stack);
@@ -210,10 +219,10 @@ index c18aea2bb5ddddadbc858b253ff4c08d82178a18..6a24b442a21298ef3bdbcb76de9bdcf0
  
      default SlotAccess getChestVehicleSlot(final int index) {
 diff --git a/net/minecraft/world/inventory/AbstractContainerMenu.java b/net/minecraft/world/inventory/AbstractContainerMenu.java
-index b4721c4e81cc2ae989765d86bd51ebf0be41758c..f5a6d01037235b120e13cde9134e5ac0fc2d2c00 100644
+index d86f35e50d25628d610700618c7f3684132562ef..ca02b10c0491e7f5b41157ce8613c299c91d13c0 100644
 --- a/net/minecraft/world/inventory/AbstractContainerMenu.java
 +++ b/net/minecraft/world/inventory/AbstractContainerMenu.java
-@@ -427,7 +427,7 @@ public abstract class AbstractContainerMenu {
+@@ -428,7 +428,7 @@ public abstract class AbstractContainerMenu {
                              && (this.quickcraftType == 2 || carried1.getCount() >= this.quickcraftSlots.size())
                              && this.canDragTo(slot1)) {
                              int i2 = slot1.hasItem() ? slot1.getItem().getCount() : 0;
@@ -222,16 +231,16 @@ index b4721c4e81cc2ae989765d86bd51ebf0be41758c..f5a6d01037235b120e13cde9134e5ac0
                              int min1 = Math.min(getQuickCraftPlaceCount(this.quickcraftSlots, this.quickcraftType, itemStack) + i2, min);
                              count -= min1 - i2;
                              // slot1.setByPlayer(itemStack.copyWithCount(min1));
-@@ -541,7 +541,7 @@ public abstract class AbstractContainerMenu {
+@@ -542,7 +542,7 @@ public abstract class AbstractContainerMenu {
                                  slot.setByPlayer(carried2);
                              }
                          } else if (ItemStack.isSameItemSameComponents(carried, carried2)) {
 -                            Optional<ItemStack> optional1 = slot.tryRemove(carried.getCount(), carried2.getMaxStackSize() - carried2.getCount(), player);
 +                            Optional<ItemStack> optional1 = slot.tryRemove(carried.getCount(), org.leavesmc.leaves.util.ShulkerBoxUtils.getItemStackMaxCount(carried2) - carried2.getCount(), player); // Leaves - stackable shulker boxes
-                             optional1.ifPresent(stack -> {
-                                 carried2.grow(stack.getCount());
-                                 slot.onTake(player, stack);
-@@ -603,7 +603,7 @@ public abstract class AbstractContainerMenu {
+                             optional1.ifPresent(itemStack2 -> {
+                                 carried2.grow(itemStack2.getCount());
+                                 slot.onTake(player, itemStack2);
+@@ -604,7 +604,7 @@ public abstract class AbstractContainerMenu {
              Slot slot2 = this.slots.get(slotId);
              if (slot2.hasItem()) {
                  ItemStack itemStack = slot2.getItem();
@@ -240,7 +249,7 @@ index b4721c4e81cc2ae989765d86bd51ebf0be41758c..f5a6d01037235b120e13cde9134e5ac0
              }
          } else if (clickType == ClickType.THROW && this.getCarried().isEmpty() && slotId >= 0) {
              Slot slot2 = this.slots.get(slotId);
-@@ -634,15 +634,15 @@ public abstract class AbstractContainerMenu {
+@@ -635,15 +635,15 @@ public abstract class AbstractContainerMenu {
                  int maxStackSize = button == 0 ? 1 : -1;
  
                  for (int i3 = 0; i3 < 2; i3++) {
@@ -259,7 +268,7 @@ index b4721c4e81cc2ae989765d86bd51ebf0be41758c..f5a6d01037235b120e13cde9134e5ac0
                                  itemStack.grow(itemStack1.getCount());
                              }
                          }
-@@ -760,7 +760,7 @@ public abstract class AbstractContainerMenu {
+@@ -761,7 +761,7 @@ public abstract class AbstractContainerMenu {
              i = endIndex - 1;
          }
  
@@ -269,7 +278,7 @@ index b4721c4e81cc2ae989765d86bd51ebf0be41758c..f5a6d01037235b120e13cde9134e5ac0
                  Slot slot = this.slots.get(i);
                  ItemStack item = slot.getItem();
 diff --git a/net/minecraft/world/inventory/MerchantContainer.java b/net/minecraft/world/inventory/MerchantContainer.java
-index a1576c3be00bdb19d02d52658c4b1818ea5c32db..be2f047bf1daab82473105865cd95955d4661a2a 100644
+index 1e5dfb1f9e371fa23cdfa9280797aa0e183d4cd2..cf87267130c0aebd38206556261929d6f6383bc9 100644
 --- a/net/minecraft/world/inventory/MerchantContainer.java
 +++ b/net/minecraft/world/inventory/MerchantContainer.java
 @@ -109,7 +109,7 @@ public class MerchantContainer implements Container {
@@ -295,10 +304,10 @@ index 5ceb8964476b40db4511bec91ff13c4f522a1357..371bad86218971d6e031c6d74307b2ab
  
      @Nullable
 diff --git a/net/minecraft/world/item/ItemStack.java b/net/minecraft/world/item/ItemStack.java
-index 76f50437396f8f856381d0fbef52953ef7c263f6..6bc431cd0724de406c92830d618c26d69bcd1918 100644
+index 77c4bf12c8344dd3699142decaec42330100f1e7..88fdef1e4705b2a89b8dbec5a4e40dd38c6e8c64 100644
 --- a/net/minecraft/world/item/ItemStack.java
 +++ b/net/minecraft/world/item/ItemStack.java
-@@ -199,7 +199,7 @@ public final class ItemStack implements DataComponentHolder {
+@@ -165,7 +165,7 @@ public final class ItemStack implements DataComponentHolder {
      @Deprecated
      @Nullable
      private Item item;
@@ -308,10 +317,10 @@ index 76f50437396f8f856381d0fbef52953ef7c263f6..6bc431cd0724de406c92830d618c26d6
      private Entity entityRepresentation;
  
 diff --git a/net/minecraft/world/level/block/AbstractCauldronBlock.java b/net/minecraft/world/level/block/AbstractCauldronBlock.java
-index 648d22cdfcf261494038d589f5a5e32704083076..47e480515715376f568b7cb7468edf2bff3d4307 100644
+index ad3f32888afd8b5f0038445a1b0fcc8cacec9fe2..18b7b7fe68c54a400f269f5ff1d09fe9e3d519b8 100644
 --- a/net/minecraft/world/level/block/AbstractCauldronBlock.java
 +++ b/net/minecraft/world/level/block/AbstractCauldronBlock.java
-@@ -58,9 +58,27 @@ public abstract class AbstractCauldronBlock extends Block {
+@@ -62,9 +62,27 @@ public abstract class AbstractCauldronBlock extends Block {
          ItemStack stack, BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult
      ) {
          CauldronInteraction cauldronInteraction = this.interactions.map().get(stack.getItem());
@@ -341,10 +350,10 @@ index 648d22cdfcf261494038d589f5a5e32704083076..47e480515715376f568b7cb7468edf2b
      protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
          return SHAPE;
 diff --git a/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java b/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java
-index 77e7188180cce9ef881de64b263c704b219b610a..2f5fa4310f475ecbb29e69c0461c7d3276f8536d 100644
+index 7729c33cad94cf2b4162324be75713650fc9d378..78b3bdb668320e9cf2fb09b59929fac43cf56aca 100644
 --- a/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java
 +++ b/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java
-@@ -414,7 +414,7 @@ public abstract class AbstractFurnaceBlockEntity extends BaseContainerBlockEntit
+@@ -409,7 +409,7 @@ public abstract class AbstractFurnaceBlockEntity extends BaseContainerBlockEntit
          ItemStack itemStack = this.items.get(index);
          boolean flag = !stack.isEmpty() && ItemStack.isSameItemSameComponents(itemStack, stack);
          this.items.set(index, stack);
@@ -354,10 +363,10 @@ index 77e7188180cce9ef881de64b263c704b219b610a..2f5fa4310f475ecbb29e69c0461c7d32
              this.cookingTotalTime = getTotalCookTime(serverLevel, this, this.recipeType, this.cookSpeedMultiplier); // Paper - cook speed multiplier API
              this.cookingTimer = 0;
 diff --git a/net/minecraft/world/level/block/entity/BaseContainerBlockEntity.java b/net/minecraft/world/level/block/entity/BaseContainerBlockEntity.java
-index 26db603ed681a6c302596627d4dd5bf8a9bafc4e..9fcb70b5bf1912a5499aa7daeaa089adbe60cc55 100644
+index c63370fd458fb4f7190b79b1a8174fcc92d88f9c..4cca3fbbb93bb76d5d501dfad6997d909211809e 100644
 --- a/net/minecraft/world/level/block/entity/BaseContainerBlockEntity.java
 +++ b/net/minecraft/world/level/block/entity/BaseContainerBlockEntity.java
-@@ -146,7 +146,7 @@ public abstract class BaseContainerBlockEntity extends BlockEntity implements Co
+@@ -148,7 +148,7 @@ public abstract class BaseContainerBlockEntity extends BlockEntity implements Co
      @Override
      public void setItem(int slot, ItemStack stack) {
          this.getItems().set(slot, stack);
@@ -367,10 +376,10 @@ index 26db603ed681a6c302596627d4dd5bf8a9bafc4e..9fcb70b5bf1912a5499aa7daeaa089ad
      }
  
 diff --git a/net/minecraft/world/level/block/entity/HopperBlockEntity.java b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
-index 42a29e700d2549de7cd905c373212e9757bcfcf1..3122753c96e98e57fa900cd15005ab4874e4b1db 100644
+index 2d979850378c05ce569782d8e04a452f986612a7..a2fe5fdf50ae731e423821a0d1c52141b478e0be 100644
 --- a/net/minecraft/world/level/block/entity/HopperBlockEntity.java
 +++ b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
-@@ -109,7 +109,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+@@ -113,7 +113,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
      public void setItem(int index, ItemStack stack) {
          this.unpackLootTable(null);
          this.getItems().set(index, stack);
@@ -379,7 +388,7 @@ index 42a29e700d2549de7cd905c373212e9757bcfcf1..3122753c96e98e57fa900cd15005ab48
      }
  
      @Override
-@@ -688,9 +688,9 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+@@ -692,9 +692,9 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
              if (item.isEmpty()) {
                  // Spigot start - SPIGOT-6693, SimpleContainer#setItem
                  ItemStack leftover = ItemStack.EMPTY; // Paper - Make hoppers respect inventory max stack size

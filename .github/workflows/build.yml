@@ -8,6 +8,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    if: github.repository == 'LeavesMC/Leaves'
     steps:
       - name: Get repository
         uses: actions/checkout@v4
@@ -37,7 +38,9 @@ jobs:
         env:
           BUILD_NUMBER: ${{ env.BUILD_NUMBER }}
       - name: Publish to Maven repo
-        run: ./gradlew :leaves-api:publish
+        run: |
+          ./gradlew :leaves-api:publish
+          ./gradlew :leaves-server:publishDevBundlePublicationToLeavesRepository -PpublishDevBundle=true
         env:
           LEAVES_USERNAME: ${{ secrets.NEW_REPO_USERNAME }}
           LEAVES_PASSWORD: ${{ secrets.NEW_REPO_PASSWORD }}
@@ -95,11 +98,3 @@ jobs:
           secret_v2: ${{ secrets.API_V2_PUSH_TOKEN }}
           tag: ${{ env.tag }}
         run: sh scripts/PushToAPI.sh
-      - name: Upload to cloud
-        if: "!contains(github.event.commits[0].message, '[release-skip]')"
-        continue-on-error: true
-        uses: wei/rclone@v1
-        env:
-          RCLONE_CONF: ${{ secrets.RCLONE_CONF }}
-        with:
-          args: copy ${{ env.jar }} FTP:${{ env.tag }} --contimeout 10s --progress

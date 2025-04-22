@@ -841,13 +841,22 @@ public final class LeavesConfig {
         @GlobalConfig("lms-paster-protocol")
         public boolean lmsPasterProtocol = false;
 
-        @GlobalConfig("rei-server-protocol")
+        @GlobalConfig(value = "rei-server-protocol", validator = ReiValidator.class)
         public boolean reiServerProtocol = false;
+
+        public static class ReiValidator extends BooleanConfigValidator {
+            @Override
+            public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
+                if (old != value && value != null) {
+                    org.leavesmc.leaves.protocol.rei.REIServerProtocol.onConfigModify(value);
+                }
+            }
+        }
 
         @GlobalConfig("chat-image-protocol")
         public boolean chatImageProtocol = false;
 
-        @GlobalConfig("recipe-send-all")
+        @RemovedConfig(name = "recipe-send-all", category = {"protocol"})
         public boolean recipeSendAll = false;
     }
 

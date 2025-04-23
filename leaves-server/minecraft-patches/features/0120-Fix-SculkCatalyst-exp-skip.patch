@@ -4,6 +4,35 @@ Date: Sun, 6 Apr 2025 10:42:45 +0800
 Subject: [PATCH] Fix SculkCatalyst exp skip
 
 
+diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
+index 311d4abc9cbd99e6b03135dadbd8ee93e7bc4a48..43fcd9c0fa419ed36c677003d75cfa84ea93baa2 100644
+--- a/net/minecraft/server/level/ServerPlayer.java
++++ b/net/minecraft/server/level/ServerPlayer.java
+@@ -1153,7 +1153,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+         }
+ 
+         // SPIGOT-5478 must be called manually now
+-        if (event.shouldDropExperience()) this.dropExperience(this.serverLevel(), cause.getEntity()); // Paper - tie to event
++        if (shouldDropExperience(event.shouldDropExperience(), event.forceUseEventDropStatus())) this.dropExperience(this.serverLevel(), cause.getEntity()); // Paper - tie to event // Leaves - exp fix
+         // we clean the player's inventory after the EntityDeathEvent is called so plugins can get the exact state of the inventory.
+         if (!event.getKeepInventory()) {
+             // Paper start - PlayerDeathEvent#getItemsToKeep
+@@ -1187,6 +1187,15 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+         this.setClientLoaded(false);
+     }
+ 
++    // Leaves start - exp fix
++    private boolean shouldDropExperience(boolean eventResult, boolean forceUseEvent) {
++        if (forceUseEvent) {
++            return eventResult;
++        }
++        return wasExperienceConsumed() ? false : eventResult;
++    }
++    // Leaves end - exp fix
++
+     private void tellNeutralMobsThatIDied() {
+         AABB aabb = new AABB(this.blockPosition()).inflate(32.0, 10.0, 32.0);
+         this.level()
 diff --git a/net/minecraft/world/entity/LivingEntity.java b/net/minecraft/world/entity/LivingEntity.java
 index b1b738bcd20cbc927bdbac6ab10e28f79fd8a23b..e61e5c5b3777c8861f090ada2a4ddaaf88116329 100644
 --- a/net/minecraft/world/entity/LivingEntity.java

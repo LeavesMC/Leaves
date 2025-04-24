@@ -1,5 +1,6 @@
 package org.leavesmc.leaves.bot.agent;
 
+import net.minecraft.core.UUIDUtil;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
 import org.jetbrains.annotations.NotNull;
@@ -141,7 +142,7 @@ public abstract class AbstractBotAction<E extends AbstractBotAction<E>> {
     public CompoundTag save(@NotNull CompoundTag nbt) {
         if (!this.cancel) {
             nbt.putString("actionName", this.name);
-            nbt.putUUID("actionUUID", this.uuid);
+            nbt.store("actionUUID", UUIDUtil.CODEC, this.uuid);
 
             nbt.putInt("canDoNumber", this.canDoNumber);
             nbt.putInt("needWaitTick", this.needWaitTick);
@@ -151,10 +152,10 @@ public abstract class AbstractBotAction<E extends AbstractBotAction<E>> {
     }
 
     public void load(@NotNull CompoundTag nbt) {
-        this.tickDelay = nbt.getInt("tickDelay");
-        this.needWaitTick = nbt.getInt("needWaitTick");
-        this.canDoNumber = nbt.getInt("canDoNumber");
-        this.uuid = nbt.getUUID("actionUUID");
+        this.tickDelay = nbt.getInt("tickDelay").orElse(0);
+        this.needWaitTick = nbt.getInt("needWaitTick").orElse(0);
+        this.canDoNumber = nbt.getInt("canDoNumber").orElse(0);
+        this.uuid = nbt.read("actionUUID", UUIDUtil.CODEC).orElseThrow();
     }
 
     public abstract void loadCommand(@Nullable ServerPlayer player, @NotNull CommandArgumentResult result);

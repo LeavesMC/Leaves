@@ -1,6 +1,7 @@
 package org.leavesmc.leaves.bot;
 
 import com.mojang.logging.LogUtils;
+import net.minecraft.core.UUIDUtil;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.nbt.NbtIo;
@@ -64,7 +65,7 @@ public class BotDataStorage implements IPlayerDataStorage {
         if (flag && player instanceof ServerBot bot) {
             CompoundTag nbt = new CompoundTag();
             nbt.putString("name", bot.createState.name());
-            nbt.putUUID("uuid", bot.getUUID());
+            nbt.store("uuid", UUIDUtil.CODEC, bot.getUUID());
             nbt.putBoolean("resume", bot.resume);
             this.savedBotList.put(bot.createState.realName(), nbt);
             this.saveBotList();

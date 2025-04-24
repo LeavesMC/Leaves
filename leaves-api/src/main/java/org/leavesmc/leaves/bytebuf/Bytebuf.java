@@ -103,5 +103,7 @@ public interface Bytebuf {
 
     Bytebuf copy();
 
+    void retain();
+
     boolean release();
 }

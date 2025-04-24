@@ -23,7 +23,7 @@ public enum BotActionType {
 
     private final String name;
 
-    private BotActionType(String name) {
+    BotActionType(String name) {
         this.name = name;
     }
 

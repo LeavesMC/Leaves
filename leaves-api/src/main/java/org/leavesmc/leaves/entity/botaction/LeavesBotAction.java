@@ -8,58 +8,50 @@ import java.util.UUID;
 public class LeavesBotAction {
 
     private final String actionName;
-    private int tickToExecute;
-    private int executeInterval;
-    private int remainingExecuteTime;
     private final UUID uuid;
+    private final int initialTickDelay;
+    private final int initialTickInterval;
+    private final int initialNumber;
+
     private Player actionPlayer;
+    private int tickToNext;
+    private int numberRemaining;
+    private boolean cancel;
 
-    public LeavesBotAction(BotActionType type, int executeInterval, int remainingExecuteTime) {
-        this(type.getName(), executeInterval, remainingExecuteTime, UUID.randomUUID());
+    public LeavesBotAction(BotActionType type, int initialTickInterval, int initialNumber) {
+        this(type.getName(), UUID.randomUUID(), 0, initialTickInterval, initialNumber);
     }
 
-    public LeavesBotAction(String name, int executeInterval, int remainingExecuteTime) {
-        this(name, executeInterval, remainingExecuteTime, UUID.randomUUID());
+    public LeavesBotAction(BotActionType type, int initialTickDelay, int initialTickInterval, int initialNumber) {
+        this(type.getName(), UUID.randomUUID(), initialTickDelay, initialTickInterval, initialNumber);
     }
 
-    protected LeavesBotAction(String name, int executeInterval, int remainingExecuteTime, UUID actionUUID) {
+    protected LeavesBotAction(String name, UUID actionUUID, int initialTickDelay, int initialTickInterval, int initialNumber) {
         this.actionName = name;
-        this.remainingExecuteTime = remainingExecuteTime;
-        this.executeInterval = executeInterval;
         this.uuid = actionUUID;
-        this.tickToExecute = executeInterval;
-    }
-
-    public void setTickToExecute(int tickToExecute) {
-        this.tickToExecute = tickToExecute;
-    }
-
-    public int getTickToExecute() {
-        return tickToExecute;
-    }
-
-    public void setExecuteInterval(int executeInterval) {
-        this.executeInterval = executeInterval;
-    }
-
-    public int getExecuteInterval() {
-        return executeInterval;
-    }
-
-    public void setRemainingExecuteTime(int remainingExecuteTime) {
-        this.remainingExecuteTime = remainingExecuteTime;
-    }
-
-    public int getRemainingExecuteTime() {
-        return remainingExecuteTime;
+        this.initialTickDelay = initialTickDelay;
+        this.initialTickInterval = initialTickInterval;
+        this.initialNumber = initialNumber;
     }
 
     public String getActionName() {
         return actionName;
     }
 
-    public void setActionPlayer(@Nullable Player actionPlayer) {
-        this.actionPlayer = actionPlayer;
+    public UUID getUuid() {
+        return uuid;
+    }
+
+    public int getInitialTickDelay() {
+        return initialTickDelay;
+    }
+
+    public int getInitialTickInterval() {
+        return initialTickInterval;
+    }
+
+    public int getInitialNumber() {
+        return initialNumber;
     }
 
     @Nullable
@@ -67,7 +59,31 @@ public class LeavesBotAction {
         return actionPlayer;
     }
 
-    public UUID getUuid() {
-        return uuid;
+    public void setActionPlayer(@Nullable Player actionPlayer) {
+        this.actionPlayer = actionPlayer;
+    }
+
+    public boolean isCancel() {
+        return cancel;
+    }
+
+    public void setCancel(boolean cancel) {
+        this.cancel = cancel;
+    }
+
+    public int getNumberRemaining() {
+        return numberRemaining;
+    }
+
+    public void setNumberRemaining(int numberRemaining) {
+        this.numberRemaining = numberRemaining;
+    }
+
+    public int getTickToNext() {
+        return tickToNext;
+    }
+
+    public void setTickToNext(int tickToNext) {
+        this.tickToNext = tickToNext;
     }
 }

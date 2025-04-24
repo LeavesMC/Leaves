@@ -14,13 +14,15 @@ public class FishAction extends AbstractTimerAction<FishAction> {
         super("fish", FishAction::new);
     }
 
-    private int delay = 0;
-    private int nowDelay = 0;
+    private static final int CATCH_ENTITY_DELAY = 20;
+
+    private int initialFishInterval = 0;
+    private int tickToNextFish = 0;
 
     @Override
-    public FishAction setTickDelay(int tickDelay) {
-        super.setTickDelay(0);
-        this.delay = tickDelay;
+    public FishAction setInitialTickInterval(int initialTickInterval) {
+        super.setInitialTickInterval(1);
+        this.initialFishInterval = initialTickInterval;
         return this;
     }
 
@@ -28,22 +30,22 @@ public class FishAction extends AbstractTimerAction<FishAction> {
     @NotNull
     public CompoundTag save(@NotNull CompoundTag nbt) {
         super.save(nbt);
-        nbt.putInt("fishDelay", this.delay);
-        nbt.putInt("fishNowDelay", this.nowDelay);
+        nbt.putInt("initialFishInterval", this.initialFishInterval);
+        nbt.putInt("tickToNextFish", this.tickToNextFish);
         return nbt;
     }
 
     @Override
     public void load(@NotNull CompoundTag nbt) {
         super.load(nbt);
-        this.delay = nbt.getInt("fishDelay");
-        this.nowDelay = nbt.getInt("fishNowDelay");
+        this.initialFishInterval = nbt.getInt("initialFishInterval");
+        this.tickToNextFish = nbt.getInt("tickToNextFish");
     }
 
     @Override
     public boolean doTick(@NotNull ServerBot bot) {
-        if (this.nowDelay > 0) {
-            this.nowDelay--;
+        if (this.tickToNextFish > 0) {
+            this.tickToNextFish--;
             return false;
         }
 
@@ -56,12 +58,12 @@ public class FishAction extends AbstractTimerAction<FishAction> {
         if (fishingHook != null) {
             if (fishingHook.currentState == FishingHook.FishHookState.HOOKED_IN_ENTITY) {
                 mainHand.use(bot.level(), bot, InteractionHand.MAIN_HAND);
-                this.nowDelay = 20;
+                this.tickToNextFish = CATCH_ENTITY_DELAY;
                 return false;
             }
             if (fishingHook.nibble > 0) {
                 mainHand.use(bot.level(), bot, InteractionHand.MAIN_HAND);
-                this.nowDelay = this.delay;
+                this.tickToNextFish = this.initialFishInterval - 1;
                 return true;
             }
         } else {

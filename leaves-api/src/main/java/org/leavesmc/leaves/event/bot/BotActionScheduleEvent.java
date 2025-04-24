@@ -12,13 +12,16 @@ import java.util.UUID;
 public class BotActionScheduleEvent extends BotActionEvent implements Cancellable {
 
     private static final HandlerList handlers = new HandlerList();
-
-    private boolean cancel = false;
     private final CommandSender sender;
+    private boolean cancel = false;
 
     public BotActionScheduleEvent(@NotNull Bot who, String actionName, UUID actionUUID, CommandSender sender) {
         super(who, actionName, actionUUID);
         this.sender = sender;
+    }
+
+    public static HandlerList getHandlerList() {
+        return handlers;
     }
 
     @Override
@@ -39,10 +42,6 @@ public class BotActionScheduleEvent extends BotActionEvent implements Cancellabl
     @Override
     @NotNull
     public HandlerList getHandlers() {
-        return handlers;
-    }
-
-    public static HandlerList getHandlerList() {
         return handlers;
     }
 }

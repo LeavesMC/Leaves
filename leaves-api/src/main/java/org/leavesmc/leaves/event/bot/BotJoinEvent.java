@@ -26,6 +26,11 @@ public class BotJoinEvent extends BotEvent {
         this.joinMessage = joinMessage != null ? LegacyComponentSerializer.legacySection().deserialize(joinMessage) : null;
     }
 
+    @NotNull
+    public static HandlerList getHandlerList() {
+        return handlers;
+    }
+
     public void joinMessage(@Nullable final Component joinMessage) {
         this.joinMessage = joinMessage;
     }
@@ -57,11 +62,6 @@ public class BotJoinEvent extends BotEvent {
     @Override
     @NotNull
     public HandlerList getHandlers() {
-        return handlers;
-    }
-
-    @NotNull
-    public static HandlerList getHandlerList() {
         return handlers;
     }
 }

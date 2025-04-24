@@ -19,6 +19,11 @@ public class BotInventoryOpenEvent extends BotEvent implements Cancellable {
         this.player = player;
     }
 
+    @NotNull
+    public static HandlerList getHandlerList() {
+        return handlers;
+    }
+
     @Override
     public boolean isCancelled() {
         return cancel;
@@ -36,11 +41,6 @@ public class BotInventoryOpenEvent extends BotEvent implements Cancellable {
 
     @Override
     public @NotNull HandlerList getHandlers() {
-        return handlers;
-    }
-
-    @NotNull
-    public static HandlerList getHandlerList() {
         return handlers;
     }
 }

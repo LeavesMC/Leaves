@@ -14,11 +14,11 @@ public interface BotCreator {
         return Bukkit.getBotManager().botCreator(realName, location);
     }
 
-    public BotCreator name(String name);
+    BotCreator name(String name);
 
-    public BotCreator skinName(String skinName);
+    BotCreator skinName(String skinName);
 
-    public BotCreator skin(String[] skin);
+    BotCreator skin(String[] skin);
 
     /**
      * Sets the skin of the bot using the Mojang API based on the provided skin name.
@@ -27,19 +27,18 @@ public interface BotCreator {
      *
      * @return BotCreator
      */
-    public BotCreator mojangAPISkin();
+    BotCreator mojangAPISkin();
 
-    public BotCreator location(@NotNull Location location);
+    BotCreator location(@NotNull Location location);
 
-    public BotCreator creator(@Nullable CommandSender creator);
+    BotCreator creator(@Nullable CommandSender creator);
 
     /**
      * Create a bot directly
      *
      * @return a bot, null spawn fail
      */
-    @Nullable
-    public Bot spawn();
+    @Nullable Bot spawn();
 
     /**
      * Create a bot and apply skin of player names `skinName` from MojangAPI
@@ -49,5 +48,5 @@ public interface BotCreator {
      *
      * @param consumer Consumer
      */
-    public void spawnWithSkin(Consumer<Bot> consumer);
+    void spawnWithSkin(Consumer<Bot> consumer);
 }

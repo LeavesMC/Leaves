@@ -19,8 +19,7 @@ public interface BotManager {
      * @param uuid the uuid to look up
      * @return a fakeplayer if one was found, null otherwise
      */
-    @Nullable
-    public Bot getBot(@NotNull UUID uuid);
+    @Nullable Bot getBot(@NotNull UUID uuid);
 
     /**
      * Gets a fakeplayer object by the given name.
@@ -28,15 +27,14 @@ public interface BotManager {
      * @param name the name to look up
      * @return a fakeplayer if one was found, null otherwise
      */
-    @Nullable
-    public Bot getBot(@NotNull String name);
+    @Nullable Bot getBot(@NotNull String name);
 
     /**
      * Gets a view of all currently logged in fakeplayers. This view is a reused object, making some operations like Collection.size() zero-allocation.
      *
      * @return a view of fakeplayers.
      */
-    public Collection<Bot> getBots();
+    Collection<Bot> getBots();
 
     /**
      * Register a custom bot action.
@@ -45,7 +43,7 @@ public interface BotManager {
      * @param action action executor
      * @return true if success, or false
      */
-    public boolean registerCustomBotAction(String name, CustomBotAction action);
+    boolean registerCustomBotAction(String name, CustomBotAction action);
 
     /**
      * Unregister a custom bot action.
@@ -53,7 +51,7 @@ public interface BotManager {
      * @param name action name
      * @return true if success, or false
      */
-    public boolean unregisterCustomBotAction(String name);
+    boolean unregisterCustomBotAction(String name);
 
-    public BotCreator botCreator(@NotNull String realName, @NotNull Location location);
+    BotCreator botCreator(@NotNull String realName, @NotNull Location location);
 }

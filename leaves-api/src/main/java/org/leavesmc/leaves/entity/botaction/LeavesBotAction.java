@@ -5,6 +5,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.UUID;
 
+@org.jetbrains.annotations.ApiStatus.Experimental
 public class LeavesBotAction {
 
     private final String actionName;

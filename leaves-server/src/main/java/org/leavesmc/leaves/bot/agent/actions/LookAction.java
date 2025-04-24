@@ -47,7 +47,13 @@ public class LookAction extends AbstractBotAction<LookAction> {
     @Override
     public void load(@NotNull CompoundTag nbt) {
         super.load(nbt);
-        this.setPos(new Vector(nbt.getDouble("x"), nbt.getDouble("y"), nbt.getDouble("z")));
+        this.setPos(
+            new Vector(
+                nbt.getDouble("x").orElse(0.0),
+                nbt.getDouble("y").orElse(0.0),
+                nbt.getDouble("z").orElse(0.0)
+            )
+        );
     }
 
     public LookAction setPos(Vector pos) {

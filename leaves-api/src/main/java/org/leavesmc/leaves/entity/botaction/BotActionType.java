@@ -3,6 +3,8 @@ package org.leavesmc.leaves.entity.botaction;
 /**
  * A Leaves bot action enum
  */
+
+@org.jetbrains.annotations.ApiStatus.Experimental
 public enum BotActionType {
     ATTACK("attack"),
     BREAK("break"),

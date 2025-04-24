@@ -31,7 +31,7 @@ public class CraftBotAction extends LeavesBotAction {
         }
 
         AbstractBotAction<?> newAction = null;
-        String[] args = new String[]{String.valueOf(action.getExecuteInterval()), String.valueOf(action.getRemainingExecuteTime())};
+        String[] args = new String[]{String.valueOf(action.getInitialTickDelay()), String.valueOf(action.getInitialTickInterval()), String.valueOf(action.getInitialNumber())};
         try {
             if (act instanceof CraftCustomBotAction customBotAction) {
                 newAction = customBotAction.createCraft(action.getActionPlayer(), args);

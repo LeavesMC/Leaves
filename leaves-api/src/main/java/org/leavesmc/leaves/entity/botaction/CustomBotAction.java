@@ -10,6 +10,7 @@ import java.util.List;
 /**
  * Represents a class which contains methods for a custom bot action
  */
+@org.jetbrains.annotations.ApiStatus.Experimental
 public interface CustomBotAction {
 
     /**

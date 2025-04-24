@@ -38,6 +38,7 @@ public interface Bot extends Player {
      *
      * @param action bot action
      */
+    @org.jetbrains.annotations.ApiStatus.Experimental
     void addAction(@NotNull LeavesBotAction action);
 
     /**
@@ -46,6 +47,7 @@ public interface Bot extends Player {
      * @param index index of actions
      * @return Action of that index
      */
+    @org.jetbrains.annotations.ApiStatus.Experimental
     LeavesBotAction getAction(int index);
 
     /**

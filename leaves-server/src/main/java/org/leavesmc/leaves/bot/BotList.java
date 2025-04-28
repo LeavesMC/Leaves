@@ -103,7 +103,7 @@ public class BotList {
 
         ResourceKey<Level> resourcekey = null;
         if (optional.get().contains("WorldUUIDMost") && optional.get().contains("WorldUUIDLeast")) {
-            org.bukkit.World bWorld = Bukkit.getServer().getWorld(new UUID(optional.get().getLong("WorldUUIDMost"), optional.get().getLong("WorldUUIDLeast")));
+            org.bukkit.World bWorld = Bukkit.getServer().getWorld(new UUID(optional.get().getLong("WorldUUIDMost").orElseThrow(), optional.get().getLong("WorldUUIDLeast").orElseThrow()));
             if (bWorld != null) {
                 resourcekey = ((CraftWorld) bWorld).getHandle().dimension();
             }
@@ -117,7 +117,7 @@ public class BotList {
     }
 
     public ServerBot placeNewBot(ServerBot bot, ServerLevel world, Location location, @Nullable CompoundTag nbt) {
-        Optional<CompoundTag> optional = Optional.ofNullable(nbt);
+        Optional<CompoundTag> optional = Optional.of(nbt == null ? new CompoundTag() : nbt);
 
         bot.isRealPlayer = true;
         bot.loginTime = System.currentTimeMillis();
@@ -142,8 +142,8 @@ public class BotList {
 
         bot.supressTrackerForLogin = true;
         world.addNewPlayer(bot);
-        bot.loadAndSpawnEnderpearls(optional);
-        bot.loadAndSpawnParentVehicle(optional);
+        bot.loadAndSpawnEnderPearls(optional.orElseThrow());
+        bot.loadAndSpawnParentVehicle(optional.orElseThrow());
 
         BotJoinEvent event1 = new BotJoinEvent(bot.getBukkitEntity(), PaperAdventure.asAdventure(Component.translatable("multiplayer.player.joined", bot.getDisplayName())).style(Style.style(NamedTextColor.YELLOW)));
         this.server.server.getPluginManager().callEvent(event1);
@@ -239,9 +239,9 @@ public class BotList {
     public void loadResume() {
         if (LeavesConfig.modify.fakeplayer.enable && LeavesConfig.modify.fakeplayer.canResident) {
             CompoundTag savedBotList = this.getSavedBotList().copy();
-            for (String realName : savedBotList.getAllKeys()) {
-                CompoundTag nbt = savedBotList.getCompound(realName);
-                if (nbt.getBoolean("resume")) {
+            for (String realName : savedBotList.keySet()) {
+                CompoundTag nbt = savedBotList.getCompound(realName).orElseThrow();
+                if (nbt.getBoolean("resume").orElse(false)) {
                     this.loadNewBot(realName);
                 }
             }

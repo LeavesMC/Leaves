@@ -42,6 +42,6 @@ public class TickTypeConfig extends AbstractBotConfig<ServerBot.TickType> {
 
     @Override
     public void load(@NotNull CompoundTag nbt) {
-        this.setValue(TICK_TYPE_ARGUMENT.parse(nbt.getString(NAME)));
+        this.setValue(TICK_TYPE_ARGUMENT.parse(nbt.getString(NAME).orElseThrow()));
     }
 }

@@ -1,0 +1,80 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Sun, 2 Jul 2023 09:25:00 +0800
+Subject: [PATCH] Elytra aeronautics no chunk load
+
+
+diff --git a/net/minecraft/server/level/ChunkMap.java b/net/minecraft/server/level/ChunkMap.java
+index 4785f9d6c53e18419a3df4a1be9c8a4f9d8cadfb..adba1c30d38f9d42c9c763f0ed2321d46363ca96 100644
+--- a/net/minecraft/server/level/ChunkMap.java
++++ b/net/minecraft/server/level/ChunkMap.java
+@@ -854,7 +854,8 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+     }
+ 
+     private boolean skipPlayer(ServerPlayer player) {
+-        return player.isSpectator() && !this.level.getGameRules().getBoolean(GameRules.RULE_SPECTATORSGENERATECHUNKS);
++        return (player.isSpectator() && !this.level.getGameRules().getBoolean(GameRules.RULE_SPECTATORSGENERATECHUNKS))
++            || (org.leavesmc.leaves.LeavesConfig.modify.elytraAeronautics.noChunk && player.elytraAeronauticsNoChunk); // Leaves - Elytra aeronautics
+     }
+ 
+     void updatePlayerStatus(ServerPlayer player, boolean track) {
+@@ -888,6 +889,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+     }
+ 
+     public void move(ServerPlayer player) {
++        if (player.elytraAeronauticsNoChunk) return; // Leaves - no chunk
+         // Paper - optimise entity tracker
+ 
+         SectionPos lastSectionPos = player.getLastSectionPos();
+diff --git a/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index f1372015cf5991ef80a07e7fcbd1fb9d65e9d74f..0c811363c9b8ac2bed9039ccd86b4c72538e5e4e 100644
+--- a/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -541,7 +541,7 @@ public class ServerGamePacketListenerImpl
+                 speed *= 2f; // TODO: Get the speed of the vehicle instead of the player
+ 
+                 // Paper start - Prevent moving into unloaded chunks
+-                if (this.player.level().paperConfig().chunks.preventMovingIntoUnloadedChunks && (
++                if (this.player.level().paperConfig().chunks.preventMovingIntoUnloadedChunks && !player.elytraAeronauticsNoChunk && ( // Leaves - no chunk load
+                     !serverLevel.areChunksLoadedForMove(this.player.getBoundingBox().expandTowards(new Vec3(toX, toY, toZ).subtract(this.player.position()))) ||
+                         !serverLevel.areChunksLoadedForMove(rootVehicle.getBoundingBox().expandTowards(new Vec3(toX, toY, toZ).subtract(rootVehicle.position())))
+                 )) {
+diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
+index 0e5c4aa2b8856c7b88ff90031715a55c4a1bf89e..962eff9d67fc31e444dbe54c95cb6e8274f6713b 100644
+--- a/net/minecraft/world/entity/Entity.java
++++ b/net/minecraft/world/entity/Entity.java
+@@ -1092,7 +1092,13 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
+                     return;
+                 }
+             }
+-
++            // Leaves start - elytra aeronautics
++            if (org.leavesmc.leaves.LeavesConfig.modify.elytraAeronautics.noChunk && this instanceof Player player) {
++                if (type == MoverType.PLAYER && player.isFallFlying()) {
++                    org.leavesmc.leaves.util.ElytraAeronauticsHelper.flightBehaviour(player, movement);
++                }
++            }
++            // Leaves end - elytra aeronautics
+             ProfilerFiller profilerFiller = Profiler.get();
+             profilerFiller.push("move");
+             if (this.stuckSpeedMultiplier.lengthSqr() > 1.0E-7) {
+@@ -2053,6 +2059,7 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
+         this.yo = y;
+         this.zo = d1;
+         this.setPos(d, y, d1);
++        if (this instanceof Player player && player.elytraAeronauticsNoChunk) return; // Leaves - elytra aeronautics
+         if (this.valid) this.level.getChunk((int) Math.floor(this.getX()) >> 4, (int) Math.floor(this.getZ()) >> 4); // CraftBukkit
+     }
+ 
+diff --git a/net/minecraft/world/entity/player/Player.java b/net/minecraft/world/entity/player/Player.java
+index 9f792a7cf9da888e502b79d6b1d1075e9f084f43..e3de8bba5d37c2dc8c91d09e2225463ffbc2f7e5 100644
+--- a/net/minecraft/world/entity/player/Player.java
++++ b/net/minecraft/world/entity/player/Player.java
+@@ -210,6 +210,7 @@ public abstract class Player extends LivingEntity {
+     private int currentImpulseContextResetGraceTime = 0;
+     public boolean affectsSpawning = true; // Paper - Affects Spawning API
+     public net.kyori.adventure.util.TriState flyingFallDamage = net.kyori.adventure.util.TriState.NOT_SET; // Paper - flying fall damage
++    public boolean elytraAeronauticsNoChunk = false; // Leaves - Elytra aeronautics
+ 
+     // CraftBukkit start
+     public boolean fauxSleeping;

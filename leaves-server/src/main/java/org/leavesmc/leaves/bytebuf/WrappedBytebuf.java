@@ -271,6 +271,11 @@ public class WrappedBytebuf implements Bytebuf {
     }
 
     @Override
+    public void retain() {
+        this.buf.retain();
+    }
+
+    @Override
     public boolean release() {
         return this.buf.release();
     }

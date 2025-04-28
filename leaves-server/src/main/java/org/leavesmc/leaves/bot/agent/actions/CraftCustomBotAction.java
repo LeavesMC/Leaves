@@ -33,13 +33,18 @@ public class CraftCustomBotAction extends AbstractBotAction<CraftCustomBotAction
     }
 
     @Override
-    public int getNumber() {
-        return realAction.getNumber();
+    public int getInitialNumber() {
+        return realAction.getInitialNumber();
     }
 
     @Override
-    public int getTickDelay() {
-        return realAction.getTickDelay();
+    public int getInitialTickDelay() {
+        return realAction.getInitialTickDelay();
+    }
+
+    @Override
+    public int getInitialTickInterval() {
+        return realAction.getInitialTickInterval();
     }
 
     @Override

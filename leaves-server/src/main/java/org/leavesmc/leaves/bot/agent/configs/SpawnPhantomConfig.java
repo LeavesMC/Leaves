@@ -47,6 +47,6 @@ public class SpawnPhantomConfig extends AbstractBotConfig<Boolean> {
 
     @Override
     public void load(@NotNull CompoundTag nbt) {
-        this.setValue(nbt.getBoolean(NAME));
+        this.setValue(nbt.getBoolean(NAME).orElseThrow());
     }
 }

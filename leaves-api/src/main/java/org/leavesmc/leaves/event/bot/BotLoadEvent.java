@@ -23,6 +23,11 @@ public class BotLoadEvent extends Event implements Cancellable {
         this.botUUID = uuid;
     }
 
+    @NotNull
+    public static HandlerList getHandlerList() {
+        return handlers;
+    }
+
     /**
      * Gets the fakeplayer name
      *
@@ -49,11 +54,6 @@ public class BotLoadEvent extends Event implements Cancellable {
     @Override
     @NotNull
     public HandlerList getHandlers() {
-        return handlers;
-    }
-
-    @NotNull
-    public static HandlerList getHandlerList() {
         return handlers;
     }
 }

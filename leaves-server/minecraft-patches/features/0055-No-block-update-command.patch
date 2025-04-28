@@ -1,0 +1,93 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Mon, 3 Feb 2025 19:16:16 +0800
+Subject: [PATCH] No block update command
+
+
+diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
+index 26a20dea38628c7acd88f172a09b12af02a82d09..e1962e123dc2d6a3cf97ba723532e30863bf400f 100644
+--- a/net/minecraft/server/level/ServerLevel.java
++++ b/net/minecraft/server/level/ServerLevel.java
+@@ -1786,6 +1786,7 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+ 
+     @Override
+     public void updateNeighborsAt(BlockPos pos, Block block, @Nullable Orientation orientation) {
++        if (org.leavesmc.leaves.command.NoBlockUpdateCommand.isNoBlockUpdate()) return; // Leaves - no block update
+         if (captureBlockStates) { return; } // Paper - Cancel all physics during placement
+         this.neighborUpdater.updateNeighborsAtExceptFromFacing(pos, block, null, orientation);
+     }
+diff --git a/net/minecraft/world/item/ItemStack.java b/net/minecraft/world/item/ItemStack.java
+index 88fdef1e4705b2a89b8dbec5a4e40dd38c6e8c64..b5349e377f0a0a843f5f0629c2c867b3fef5261f 100644
+--- a/net/minecraft/world/item/ItemStack.java
++++ b/net/minecraft/world/item/ItemStack.java
+@@ -479,7 +479,7 @@ public final class ItemStack implements DataComponentHolder {
+                         net.minecraft.world.level.block.state.BlockState block = serverLevel.getBlockState(newPos);
+ 
+                         if (!(block.getBlock() instanceof net.minecraft.world.level.block.BaseEntityBlock)) { // Containers get placed automatically
+-                            block.onPlace(serverLevel, newPos, oldBlock, true, context);
++                            if (!org.leavesmc.leaves.command.NoBlockUpdateCommand.isNoBlockUpdate()) block.onPlace(serverLevel, newPos, oldBlock, true, context); // Leaves - no block update
+                         }
+ 
+                         serverLevel.notifyAndUpdatePhysics(newPos, null, oldBlock, block, serverLevel.getBlockState(newPos), updateFlags, net.minecraft.world.level.block.Block.UPDATE_LIMIT); // send null chunk as chunk.k() returns false by this point
+diff --git a/net/minecraft/world/level/chunk/LevelChunk.java b/net/minecraft/world/level/chunk/LevelChunk.java
+index bf731da711ce629c0f9250a7bd4025d363623773..9714752bfe7019b2578b3b993801d797d642ff96 100644
+--- a/net/minecraft/world/level/chunk/LevelChunk.java
++++ b/net/minecraft/world/level/chunk/LevelChunk.java
+@@ -413,7 +413,7 @@ public class LevelChunk extends ChunkAccess implements ca.spottedleaf.moonrise.p
+                     return null;
+                 } else {
+                     if (!this.level.isClientSide && (flags & 512) == 0 && (!this.level.captureBlockStates || block instanceof net.minecraft.world.level.block.BaseEntityBlock)) { // CraftBukkit - Don't place while processing the BlockPlaceEvent, unless it's a BlockContainer. Prevents blocks such as TNT from activating when cancelled.
+-                        state.onPlace(this.level, pos, blockState, flag1);
++                        if (!org.leavesmc.leaves.command.NoBlockUpdateCommand.isNoBlockUpdate()) state.onPlace(this.level, pos, blockState, flag1); // Leaves - no block update
+                     }
+ 
+                     if (state.hasBlockEntity()) {
+diff --git a/net/minecraft/world/level/material/FlowingFluid.java b/net/minecraft/world/level/material/FlowingFluid.java
+index ace1099a12c762b2e73b71dd3551cf351fedf067..0ccc884066b0a217c7b833c33d3fe96dd7ad0a0b 100644
+--- a/net/minecraft/world/level/material/FlowingFluid.java
++++ b/net/minecraft/world/level/material/FlowingFluid.java
+@@ -476,6 +476,7 @@ public abstract class FlowingFluid extends Fluid {
+ 
+     @Override
+     public void tick(ServerLevel level, BlockPos pos, BlockState blockState, FluidState fluidState) {
++        if (org.leavesmc.leaves.command.NoBlockUpdateCommand.isNoBlockUpdate()) return; // Leaves - no block update
+         if (!fluidState.isSource()) {
+             FluidState newLiquid = this.getNewLiquid(level, pos, level.getBlockState(pos));
+             int spreadDelay = this.getSpreadDelay(level, pos, fluidState, newLiquid);
+diff --git a/net/minecraft/world/level/redstone/CollectingNeighborUpdater.java b/net/minecraft/world/level/redstone/CollectingNeighborUpdater.java
+index 028eae2f9a459b60e92f3344091083aa93b54485..63684402f7c89c7c5d71902db4bfb23132b1d28d 100644
+--- a/net/minecraft/world/level/redstone/CollectingNeighborUpdater.java
++++ b/net/minecraft/world/level/redstone/CollectingNeighborUpdater.java
+@@ -47,6 +47,7 @@ public class CollectingNeighborUpdater implements NeighborUpdater {
+     }
+ 
+     private void addAndRun(BlockPos pos, CollectingNeighborUpdater.NeighborUpdates updates) {
++        if (org.leavesmc.leaves.command.NoBlockUpdateCommand.isNoBlockUpdate()) return; // Leaves - no block update
+         boolean flag = this.count > 0;
+         boolean flag1 = this.maxChainedNeighborUpdates >= 0 && this.count >= this.maxChainedNeighborUpdates;
+         this.count++;
+diff --git a/net/minecraft/world/level/redstone/InstantNeighborUpdater.java b/net/minecraft/world/level/redstone/InstantNeighborUpdater.java
+index d0da64e325f83ab073221a3fa7284e42b6a88534..32e10dccde3e80969641ba1fb67479b5a0bada06 100644
+--- a/net/minecraft/world/level/redstone/InstantNeighborUpdater.java
++++ b/net/minecraft/world/level/redstone/InstantNeighborUpdater.java
+@@ -16,17 +16,20 @@ public class InstantNeighborUpdater implements NeighborUpdater {
+ 
+     @Override
+     public void shapeUpdate(Direction direction, BlockState state, BlockPos pos, BlockPos neighborPos, int flags, int recursionLevel) {
++        if (org.leavesmc.leaves.command.NoBlockUpdateCommand.isNoBlockUpdate()) return; // Leaves - no block update
+         NeighborUpdater.executeShapeUpdate(this.level, direction, pos, neighborPos, state, flags, recursionLevel - 1);
+     }
+ 
+     @Override
+     public void neighborChanged(BlockPos pos, Block neighborBlock, @Nullable Orientation orientation) {
++        if (org.leavesmc.leaves.command.NoBlockUpdateCommand.isNoBlockUpdate()) return; // Leaves - no block update
+         BlockState blockState = this.level.getBlockState(pos);
+         this.neighborChanged(blockState, pos, neighborBlock, orientation, false);
+     }
+ 
+     @Override
+     public void neighborChanged(BlockState state, BlockPos pos, Block neighborBlock, @Nullable Orientation orientation, boolean movedByPiston) {
++        if (org.leavesmc.leaves.command.NoBlockUpdateCommand.isNoBlockUpdate()) return; // Leaves - no block update
+         NeighborUpdater.executeUpdate(this.level, state, pos, neighborBlock, orientation, movedByPiston);
+     }
+ }

@@ -13,7 +13,7 @@ public class SkipSleepConfig extends AbstractBotConfig<Boolean> {
     public static final String NAME = "skip_sleep";
 
     public SkipSleepConfig() {
-        super(NAME, CommandArgument.of(CommandArgumentType.BOOLEAN).setTabComplete(0, List.of("true", "false")));
+        super(NAME, CommandArgument.of(CommandArgumentType.BOOLEAN).setSuggestion(0, List.of("true", "false")));
     }
 
     @Override

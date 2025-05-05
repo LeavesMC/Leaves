@@ -1,6 +1,7 @@
 package org.leavesmc.leaves.bot.agent.configs;
 
 import net.minecraft.nbt.CompoundTag;
+import org.apache.commons.lang3.tuple.Pair;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.bot.agent.AbstractBotConfig;
@@ -16,7 +17,7 @@ public class AlwaysSendDataConfig extends AbstractBotConfig<Boolean> {
     private boolean value;
 
     public AlwaysSendDataConfig() {
-        super(NAME, CommandArgument.of(CommandArgumentType.BOOLEAN).setTabComplete(0, List.of("true", "false")));
+        super(NAME, CommandArgument.of(CommandArgumentType.BOOLEAN).setSuggestion(0, List.of("true", "false")));
         this.value = LeavesConfig.modify.fakeplayer.canSendDataAlways;
     }
 

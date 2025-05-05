@@ -18,7 +18,7 @@ public class TickTypeConfig extends AbstractBotConfig<ServerBot.TickType> {
     private ServerBot.TickType value;
 
     public TickTypeConfig() {
-        super(NAME, CommandArgument.of(TICK_TYPE_ARGUMENT).setTabComplete(0, List.of("network", "entity_list")));
+        super(NAME, CommandArgument.of(TICK_TYPE_ARGUMENT).setSuggestion(0, List.of("network", "entity_list")));
         this.value = LeavesConfig.modify.fakeplayer.tickType;
     }
 

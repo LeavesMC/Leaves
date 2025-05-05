@@ -1,6 +1,7 @@
 package org.leavesmc.leaves.bot.agent.actions;
 
 import net.minecraft.server.level.ServerPlayer;
+import org.apache.commons.lang3.tuple.Pair;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.bot.agent.AbstractBotAction;
@@ -15,7 +16,9 @@ public abstract class AbstractTimerAction<E extends AbstractTimerAction<E>> exte
 
     public AbstractTimerAction(String name, Supplier<E> creator) {
         super(name, CommandArgument.of(CommandArgumentType.INTEGER, CommandArgumentType.INTEGER), creator);
-        this.setTabComplete(0, Collections.singletonList("[TickDelay]")).setTabComplete(1, Collections.singletonList("[TickInterval]")).setTabComplete(2, Collections.singletonList("[DoNumber]"));
+        this.setSuggestion(0, Pair.of(Collections.singletonList("0"), "[TickDelay]"));
+        this.setSuggestion(1, Pair.of(Collections.singletonList("20"), "[TickInterval]"));
+        this.setSuggestion(2, Pair.of(Collections.singletonList("-1"), "[DoNumber]"));
     }
 
     @Override

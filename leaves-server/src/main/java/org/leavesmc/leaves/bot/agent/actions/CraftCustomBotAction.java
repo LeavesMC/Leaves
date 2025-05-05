@@ -15,7 +15,7 @@ public class CraftCustomBotAction extends AbstractBotAction<CraftCustomBotAction
     private final CustomBotAction realAction;
 
     public CraftCustomBotAction(String name, @NotNull CustomBotAction realAction) {
-        super(name, CommandArgument.of().setAllTabComplete(realAction.getTabComplete()), null);
+        super(name, CommandArgument.EMPTY, null);
         this.realAction = realAction;
     }
 

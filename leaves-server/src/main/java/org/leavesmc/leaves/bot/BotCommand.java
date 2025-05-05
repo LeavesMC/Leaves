@@ -1,5 +1,7 @@
 package org.leavesmc.leaves.bot;
 
+import com.mojang.brigadier.suggestion.Suggestions;
+import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import it.unimi.dsi.fastutil.Pair;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -23,13 +25,23 @@ import org.leavesmc.leaves.bot.subcommands.BotRemoveCommand;
 import org.leavesmc.leaves.bot.subcommands.BotSaveCommand;
 import org.leavesmc.leaves.command.LeavesCommandUtil;
 import org.leavesmc.leaves.command.LeavesSubcommand;
+import org.leavesmc.leaves.command.LeavesSuggestionCommand;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import static net.kyori.adventure.text.Component.text;
 
-public class BotCommand extends Command {
+public class BotCommand extends Command implements LeavesSuggestionCommand {
 
     public BotCommand(String name) {
         super(name);
@@ -72,6 +84,17 @@ public class BotCommand extends Command {
         }
 
         return Collections.emptyList();
+    }
+
+    @Override
+    public @Nullable CompletableFuture<Suggestions> tabSuggestion(@NotNull CommandSender sender, @NotNull String alias, @NotNull String @NotNull [] args, @Nullable Location location, @NotNull SuggestionsBuilder builder) throws IllegalArgumentException {
+        if (args.length > 1) {
+            final @Nullable Pair<String, LeavesSubcommand> subCommand = resolveCommand(args[0]);
+            if (subCommand != null) {
+                return subCommand.second().tabSuggestion(sender, subCommand.first(), Arrays.copyOfRange(args, 1, args.length), location, builder);
+            }
+        }
+        return null;
     }
 
     @Override

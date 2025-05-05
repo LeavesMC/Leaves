@@ -3,6 +3,8 @@ package org.leavesmc.leaves.bot.agent;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
+import org.apache.commons.lang3.tuple.Pair;
+import org.bukkit.command.CommandSender;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.bot.ServerBot;
@@ -13,6 +15,7 @@ import org.leavesmc.leaves.event.bot.BotActionStopEvent;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
 public abstract class AbstractBotAction<E extends AbstractBotAction<E>> {
@@ -90,7 +93,7 @@ public abstract class AbstractBotAction<E extends AbstractBotAction<E>> {
             nbt.putInt("initialNumber", this.initialNumber);
 
             nbt.putInt("tickToNext", this.tickToNext);
-            nbt.putInt("canDoNumber", this.numberRemaining);
+            nbt.putInt("numberRemaining", this.numberRemaining);
         }
         return nbt;
     }
@@ -103,7 +106,7 @@ public abstract class AbstractBotAction<E extends AbstractBotAction<E>> {
         this.initialNumber = nbt.getInt("initialNumber").orElse(0);
 
         this.tickToNext = nbt.getInt("tickToNext").orElse(0);
-        this.numberRemaining = nbt.getInt("canDoNumber").orElse(0);
+        this.numberRemaining = nbt.getInt("numberRemaining").orElse(0);
     }
 
     public void stop(@NotNull ServerBot bot, BotActionStopEvent.Reason reason) {
@@ -116,9 +119,17 @@ public abstract class AbstractBotAction<E extends AbstractBotAction<E>> {
     public abstract boolean doTick(@NotNull ServerBot bot);
 
     @SuppressWarnings("unchecked")
-    public E setTabComplete(int index, List<String> list) {
-        this.argument.setTabComplete(index, list);
+    public E setSuggestion(int n, BiFunction<CommandSender, String, Pair<List<String>, String>> suggestion) {
+        this.argument.setSuggestion(n, suggestion);
         return (E) this;
+    }
+
+    public E setSuggestion(int n, Pair<List<String>, String> suggestion) {
+        return this.setSuggestion(n, (sender, arg) -> suggestion);
+    }
+
+    public E setSuggestion(int n, List<String> tabComplete) {
+        return this.setSuggestion(n, Pair.of(tabComplete, null));
     }
 
     public String getName() {

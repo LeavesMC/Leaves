@@ -38,8 +38,8 @@ public class FishAction extends AbstractTimerAction<FishAction> {
     @Override
     public void load(@NotNull CompoundTag nbt) {
         super.load(nbt);
-        this.initialFishInterval = nbt.getInt("initialFishInterval");
-        this.tickToNextFish = nbt.getInt("tickToNextFish");
+        this.initialFishInterval = nbt.getInt("initialFishInterval").orElseThrow();
+        this.tickToNextFish = nbt.getInt("tickToNextFish").orElseThrow();
     }
 
     @Override

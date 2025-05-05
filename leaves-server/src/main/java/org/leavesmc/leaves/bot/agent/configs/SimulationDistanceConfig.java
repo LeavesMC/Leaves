@@ -1,6 +1,7 @@
 package org.leavesmc.leaves.bot.agent.configs;
 
 import net.minecraft.nbt.CompoundTag;
+import org.apache.commons.lang3.tuple.Pair;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.agent.AbstractBotConfig;
 import org.leavesmc.leaves.command.CommandArgument;
@@ -13,7 +14,7 @@ public class SimulationDistanceConfig extends AbstractBotConfig<Integer> {
     public static final String NAME = "simulation_distance";
 
     public SimulationDistanceConfig() {
-        super(NAME, CommandArgument.of(CommandArgumentType.INTEGER).setTabComplete(0, List.of("2", "10", "<INT 2 - 32>")));
+        super(NAME, CommandArgument.of(CommandArgumentType.INTEGER).setSuggestion(0, Pair.of(List.of("2", "10"), "<INT 2 - 32>")));
     }
 
     @Override

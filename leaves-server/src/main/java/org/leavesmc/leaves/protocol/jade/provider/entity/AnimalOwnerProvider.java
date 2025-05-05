@@ -5,6 +5,8 @@ import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityReference;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.OwnableEntity;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.protocol.jade.JadeProtocol;
@@ -31,7 +33,10 @@ public enum AnimalOwnerProvider implements StreamServerDataProvider<EntityAccess
 
     public static UUID getOwnerUUID(Entity entity) {
         if (entity instanceof OwnableEntity ownableEntity) {
-            return ownableEntity.getOwnerUUID();
+            EntityReference<LivingEntity> reference = ownableEntity.getOwnerReference();
+            if (reference != null) {
+                return reference.getUUID();
+            }
         }
         return null;
     }

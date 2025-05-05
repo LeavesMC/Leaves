@@ -55,8 +55,4 @@ public class ViewGroup<T> {
         }
         return extraData;
     }
-
-    public void setProgress(float progress) {
-        getExtraData().putFloat("Progress", progress);
-    }
 }

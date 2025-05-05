@@ -42,10 +42,10 @@ public class BladerenProtocol {
             LeavesLogger.LOGGER.info("Player " + player.getScoreboardName() + " joined with bladeren " + clientVersion);
 
             if (tag != null) {
-                CompoundTag featureNbt = tag.getCompound("Features");
-                for (String name : featureNbt.getAllKeys()) {
+                CompoundTag featureNbt = tag.getCompound("Features").orElseThrow();
+                for (String name : featureNbt.keySet()) {
                     if (registeredFeatures.containsKey(name)) {
-                        registeredFeatures.get(name).accept(player, featureNbt.getCompound(name));
+                        registeredFeatures.get(name).accept(player, featureNbt.getCompound(name).orElseThrow());
                     }
                 }
             }

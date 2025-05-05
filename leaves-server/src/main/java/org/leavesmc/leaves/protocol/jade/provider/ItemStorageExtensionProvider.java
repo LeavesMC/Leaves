@@ -133,6 +133,6 @@ public enum ItemStorageExtensionProvider implements IServerExtensionProvider<Ite
 
     @Override
     public int getDefaultPriority() {
-        return IServerExtensionProvider.super.getDefaultPriority() + 1000;
+        return 9999;
     }
 }

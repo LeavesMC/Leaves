@@ -5,7 +5,6 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.Vec3i;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.Display;
@@ -332,7 +331,7 @@ public class SchematicPlacingUtils {
                 continue;
             }
             CompoundTag tag = info.nbt().copy();
-            String id = tag.getString("id");
+            String id = tag.getStringOr("id", "");
 
             // Avoid warning about invalid hanging position.
             // Note that this position isn't technically correct, but it only needs to be within 16 blocks
@@ -353,9 +352,9 @@ public class SchematicPlacingUtils {
                 tag.putInt("TileZ", (int) p.z);
             }
 
-            ListTag rotation = tag.getList("Rotation", Tag.TAG_FLOAT);
-            origRot[0] = rotation.getFloat(0);
-            origRot[1] = rotation.getFloat(1);
+            ListTag rotation = tag.getListOrEmpty("Rotation");
+            origRot[0] = rotation.getFloatOr(0, 0F);
+            origRot[1] = rotation.getFloatOr(1, 0F);
 
             Entity entity = EntityUtils.createEntityAndPassengersFromNBT(tag, world);
 
@@ -420,7 +419,7 @@ public class SchematicPlacingUtils {
             rotationYaw += entity.getYRot() - entity.rotate(rotationCombined);
         }
 
-        entity.absMoveTo(x, y, z, rotationYaw, entity.getXRot());
+        entity.snapTo(x, y, z, rotationYaw, entity.getXRot());
         EntityUtils.setEntityRotations(entity, rotationYaw, entity.getXRot());
     }
 }

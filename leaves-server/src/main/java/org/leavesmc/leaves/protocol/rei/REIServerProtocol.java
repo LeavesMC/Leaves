@@ -290,7 +290,7 @@ public class REIServerProtocol {
             int hotbarSlotId = tmpBuf.readVarInt();
             if (hotbarSlotId >= 0 && hotbarSlotId < 9) {
                 AbstractContainerMenu menu = player.containerMenu;
-                player.getInventory().items.set(hotbarSlotId, stack.copy());
+                player.getInventory().getNonEquipmentItems().set(hotbarSlotId, stack.copy());
                 menu.broadcastChanges();
                 RegistryFriendlyByteBuf s2cWholeBuf = ProtocolUtils.decorate(Unpooled.buffer());
                 s2cWholeBuf.writeJsonWithCodec(ItemStack.OPTIONAL_CODEC, stack.copy());

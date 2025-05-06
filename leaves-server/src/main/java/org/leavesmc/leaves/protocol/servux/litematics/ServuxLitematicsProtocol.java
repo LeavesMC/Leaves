@@ -131,15 +131,14 @@ public class ServuxLitematicsProtocol {
         if (chunk == null) {
             return;
         }
-        if ((req.contains("Task") && req.getString("Task").equals("BulkEntityRequest")) ||
-            !req.contains("Task")) {
+        if (!req.contains("Task") || req.getStringOr("Task", "").equals("BulkEntityRequest")) {
             ServuxProtocol.LOGGER.debug("litematic_data: Sending Bulk NBT Data for ChunkPos [{}] to player {}", chunkPos, player.getName().getString());
 
             long timeStart = System.currentTimeMillis();
             ListTag tileList = new ListTag();
             ListTag entityList = new ListTag();
-            int minY = req.getInt("minY");
-            int maxY = req.getInt("maxY");
+            int minY = req.getIntOr("minY", -64);
+            int maxY = req.getIntOr("maxY", 319);
             BlockPos pos1 = new BlockPos(chunkPos.getMinBlockX(), minY, chunkPos.getMinBlockZ());
             BlockPos pos2 = new BlockPos(chunkPos.getMaxBlockX(), maxY, chunkPos.getMaxBlockZ());
             AABB bb = AABB.encapsulatingFullBlocks(pos1, pos2);
@@ -183,12 +182,12 @@ public class ServuxLitematicsProtocol {
     }
 
     public static void handleClientPasteRequest(ServerPlayer player, @NotNull CompoundTag tags) {
-        if (tags.getString("Task").equals("LitematicaPaste")) {
+        if (tags.getStringOr("Task", "").equals("LitematicaPaste")) {
             ServuxProtocol.LOGGER.debug("litematic_data: Servux Paste request from player {}", player.getName().getString());
             ServerLevel serverLevel = player.serverLevel();
             long timeStart = System.currentTimeMillis();
             SchematicPlacement placement = SchematicPlacement.createFromNbt(tags);
-            ReplaceBehavior replaceMode = ReplaceBehavior.fromStringStatic(tags.getString("ReplaceMode"));
+            ReplaceBehavior replaceMode = ReplaceBehavior.fromStringStatic(tags.getStringOr("ReplaceMode", ReplaceBehavior.NONE.name()));
             MinecraftServer server = MinecraftServer.getServer();
             server.scheduleOnMain(() -> {
                 placement.pasteTo(serverLevel, replaceMode);

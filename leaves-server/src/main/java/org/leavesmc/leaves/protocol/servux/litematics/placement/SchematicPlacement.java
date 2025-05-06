@@ -5,7 +5,6 @@ import net.minecraft.core.BlockBox;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtUtils;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Mirror;
@@ -16,6 +15,7 @@ import org.leavesmc.leaves.protocol.servux.ServuxProtocol;
 import org.leavesmc.leaves.protocol.servux.litematics.LitematicaSchematic;
 import org.leavesmc.leaves.protocol.servux.litematics.selection.Box;
 import org.leavesmc.leaves.protocol.servux.litematics.utils.IntBoundingBox;
+import org.leavesmc.leaves.protocol.servux.litematics.utils.NbtUtils;
 import org.leavesmc.leaves.protocol.servux.litematics.utils.PositionUtils;
 import org.leavesmc.leaves.protocol.servux.litematics.utils.ReplaceBehavior;
 import org.leavesmc.leaves.protocol.servux.litematics.utils.SchematicPlacingUtils;
@@ -45,21 +45,21 @@ public class SchematicPlacement {
 
     public static SchematicPlacement createFromNbt(CompoundTag tags) {
         SchematicPlacement placement = new SchematicPlacement(
-            LitematicaSchematic.readFromNBT(tags.getCompound("Schematics")),
-            NbtUtils.readBlockPos(tags, "Origin").orElseThrow(),
-            tags.getString("Name")
+            LitematicaSchematic.readFromNBT(tags.getCompoundOrEmpty("Schematics")),
+            NbtUtils.readBlockPosFromArrayTag(tags, "Origin"),
+            tags.getStringOr("Name", "")
         );
-        placement.mirror = Mirror.values()[tags.getInt("Mirror")];
-        placement.rotation = Rotation.values()[tags.getInt("Rotation")];
-        for (String name : tags.getCompound("SubRegions").getAllKeys()) {
-            CompoundTag compound = tags.getCompound("SubRegions").getCompound(name);
+        placement.mirror = Mirror.values()[tags.getIntOr("Mirror", 0)];
+        placement.rotation = Rotation.values()[tags.getIntOr("Rotation", 0)];
+        for (String name : tags.getCompoundOrEmpty("SubRegions").keySet()) {
+            CompoundTag compound = tags.getCompoundOrEmpty("SubRegions").getCompoundOrEmpty(name);
             var sub = new SubRegionPlacement(
-                compound.getString("Name"),
-                NbtUtils.readBlockPos(compound, "Pos").orElseThrow(),
-                Rotation.values()[compound.getInt("Rotation")],
-                Mirror.values()[compound.getInt("Mirror")],
-                compound.getBoolean("Enabled"),
-                compound.getBoolean("IgnoreEntities")
+                compound.getStringOr("Name", "?"),
+                NbtUtils.readBlockPosFromArrayTag(compound, "Pos"),
+                Rotation.values()[compound.getIntOr("Rotation", 0)],
+                Mirror.values()[compound.getIntOr("Mirror", 0)],
+                compound.getBooleanOr("Enabled", true),
+                compound.getBooleanOr("IgnoreEntities", false)
             );
             placement.relativeSubRegionPlacements.put(name, sub);
         }

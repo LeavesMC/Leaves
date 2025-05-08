@@ -15,7 +15,7 @@ import java.util.function.Supplier;
 public abstract class AbstractTimerAction<E extends AbstractTimerAction<E>> extends AbstractBotAction<E> {
 
     public AbstractTimerAction(String name, Supplier<E> creator) {
-        super(name, CommandArgument.of(CommandArgumentType.INTEGER, CommandArgumentType.INTEGER), creator);
+        super(name, CommandArgument.of(CommandArgumentType.INTEGER, CommandArgumentType.INTEGER, CommandArgumentType.INTEGER), creator);
         this.setSuggestion(0, Pair.of(Collections.singletonList("0"), "[TickDelay]"));
         this.setSuggestion(1, Pair.of(Collections.singletonList("20"), "[TickInterval]"));
         this.setSuggestion(2, Pair.of(Collections.singletonList("-1"), "[DoNumber]"));

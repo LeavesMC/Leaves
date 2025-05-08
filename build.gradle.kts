@@ -4,7 +4,7 @@ import java.util.Locale
 
 plugins {
     java
-    id("io.papermc.paperweight.patcher") version "2.0.0-beta.16"
+    id("org.leavesmc.leavesweight.patcher") version "2.0.0-SNAPSHOT"
 }
 
 subprojects {

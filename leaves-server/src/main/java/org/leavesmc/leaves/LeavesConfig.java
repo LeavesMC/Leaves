@@ -1070,6 +1070,25 @@ public final class LeavesConfig {
         @GlobalConfig("vanilla-creative-pickup-behavior")
         public boolean vanillaCreativePickupBehavior = false;
 
+        @GlobalConfig(value = "collision-behavior-status", validator = CollisionBehaviorValidator.class)
+        public CollisionBehavior collisionBehavior = CollisionBehavior.BLOCK_SHAPE_VANILLA;
+
+        private static class CollisionBehaviorValidator extends StringConfigValidator {
+            @Override
+            public void verify(String old, String value) throws IllegalArgumentException {
+                LeavesConfig.fix.collisionBehavior = switch (value.toLowerCase()) {
+                    case "vanilla" -> CollisionBehavior.VANILLA;
+                    case "paper" -> CollisionBehavior.PAPER;
+                    case "block-shape-vanilla" -> CollisionBehavior.BLOCK_SHAPE_VANILLA;
+                    default -> throw new IllegalArgumentException("Behavior can only be \"paper\", \"vanilla\", or \"block-shape-vanilla\"");
+                };
+            }
+        }
+
+        public enum CollisionBehavior {
+            VANILLA, BLOCK_SHAPE_VANILLA, PAPER
+        }
+
         @RemovedConfig(name = "spigot-EndPlatform-destroy", category = "fix")
         private final boolean spigotEndPlatformDestroy = false;
     }

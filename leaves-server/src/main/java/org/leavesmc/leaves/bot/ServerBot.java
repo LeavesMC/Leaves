@@ -28,6 +28,7 @@ import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.PositionMoveRotation;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -271,6 +272,9 @@ public class ServerBot extends ServerPlayer {
     @Override
     public void checkFallDamage(double y, boolean onGround, @NotNull BlockState state, @NotNull BlockPos pos) {
         ServerLevel serverLevel = this.serverLevel();
+        if (!this.isInWater() && y < 0.0) {
+            this.fallDistance -= (float)y;
+        }
         if (onGround && this.fallDistance > 0.0F) {
             this.onChangedBlock(serverLevel, pos);
             double attributeValue = this.getAttributeValue(Attributes.SAFE_FALL_DISTANCE);
@@ -398,6 +402,11 @@ public class ServerBot extends ServerPlayer {
                 }
             }
         }
+    }
+
+    @Override
+    public boolean isClientAuthoritative() {
+        return false;
     }
 
     public void sendPlayerInfo(ServerPlayer player) {

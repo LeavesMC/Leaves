@@ -217,7 +217,7 @@ public class BotList {
 
         bot.removeTab();
         for (ServerPlayer player : bot.serverLevel().players()) {
-            if (!(player instanceof ServerBot) && !bot.needSendFakeData(player)) {
+            if (!(player instanceof ServerBot)) {
                 player.connection.send(new ClientboundRemoveEntitiesPacket(bot.getId()));
             }
         }

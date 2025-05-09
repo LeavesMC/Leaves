@@ -12,6 +12,7 @@ import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.LeavesLogger;
 import org.leavesmc.leaves.bot.BotCreateState;
 import org.leavesmc.leaves.bot.BotList;
+import org.leavesmc.leaves.bot.BotUtil;
 import org.leavesmc.leaves.command.LeavesSubcommand;
 import org.leavesmc.leaves.event.bot.BotCreateEvent;
 
@@ -30,7 +31,8 @@ public class BotCreateCommand implements LeavesSubcommand {
         }
 
         String botName = args[0];
-        if (this.canCreate(sender, botName)) {
+        String fullName = BotUtil.getFullName(botName);
+        if (this.canCreate(sender, fullName)) {
             BotCreateState.Builder builder = BotCreateState.builder(botName, Bukkit.getWorlds().getFirst().getSpawnLocation()).createReason(BotCreateEvent.CreateReason.COMMAND).creator(sender);
 
             if (args.length >= 2) {

@@ -60,7 +60,7 @@ public class BotList {
 
     public ServerBot createNewBot(BotCreateState state) {
         BotCreateEvent event = new BotCreateEvent(state.name(), state.skinName(), state.location(), state.createReason(), state.creator());
-        event.setCancelled(!isCreateLegal(state.name()));
+        event.setCancelled(!BotUtil.isCreateLegal(state.name()));
         this.server.server.getPluginManager().callEvent(event);
 
         if (event.isCancelled()) {
@@ -264,22 +264,6 @@ public class BotList {
 
     public CompoundTag getSavedBotList() {
         return this.dataStorage.getSavedBotList();
-    }
-
-    public boolean isCreateLegal(@NotNull String name) {
-        if (!name.matches("^[a-zA-Z0-9_]{4,16}$")) {
-            return false;
-        }
-
-        if (Bukkit.getPlayerExact(name) != null || this.getBotByName(name) != null) {
-            return false;
-        }
-
-        if (LeavesConfig.modify.fakeplayer.unableNames.contains(name)) {
-            return false;
-        }
-
-        return this.bots.size() < LeavesConfig.modify.fakeplayer.limit;
     }
 
     public static class CustomGameProfile extends GameProfile {

@@ -1067,6 +1067,9 @@ public final class LeavesConfig {
         @GlobalConfig("vanilla-display-name")
         public boolean vanillaDisplayName = false;
 
+        @GlobalConfig("vanilla-creative-pickup-behavior")
+        public boolean vanillaCreativePickupBehavior = false;
+
         @RemovedConfig(name = "spigot-EndPlatform-destroy", category = "fix")
         private final boolean spigotEndPlatformDestroy = false;
     }

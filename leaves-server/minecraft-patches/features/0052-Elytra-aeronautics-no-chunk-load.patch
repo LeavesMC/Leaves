@@ -27,7 +27,7 @@ index 4785f9d6c53e18419a3df4a1be9c8a4f9d8cadfb..adba1c30d38f9d42c9c763f0ed2321d4
  
          SectionPos lastSectionPos = player.getLastSectionPos();
 diff --git a/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index f1372015cf5991ef80a07e7fcbd1fb9d65e9d74f..0d891fa536d01cb076e29e625299f0361f465c08 100644
+index f1372015cf5991ef80a07e7fcbd1fb9d65e9d74f..beb655f93d7e4cd0eaef627b1f750cae72c0dfa2 100644
 --- a/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 @@ -541,7 +541,7 @@ public class ServerGamePacketListenerImpl
@@ -39,15 +39,14 @@ index f1372015cf5991ef80a07e7fcbd1fb9d65e9d74f..0d891fa536d01cb076e29e625299f036
                      !serverLevel.areChunksLoadedForMove(this.player.getBoundingBox().expandTowards(new Vec3(toX, toY, toZ).subtract(this.player.position()))) ||
                          !serverLevel.areChunksLoadedForMove(rootVehicle.getBoundingBox().expandTowards(new Vec3(toX, toY, toZ).subtract(rootVehicle.position())))
                  )) {
-@@ -1548,7 +1548,7 @@ public class ServerGamePacketListenerImpl
+@@ -1547,6 +1547,7 @@ public class ServerGamePacketListenerImpl
+                                         teleportBack = this.hasNewCollision(serverLevel, this.player, boundingBox, newBox);
                                      } // else: no collision at all detected, why do we care?
                                  }
++                                teleportBack = teleportBack && !player.elytraAeronauticsNoChunk; // Leaves - Elytra aeronautics
                                  // Paper end - optimise out extra getCubes
--                                if (teleportBack) {
-+                                if (teleportBack && !player.elytraAeronauticsNoChunk) { // Leaves - Elytra aeronautics
+                                 if (teleportBack) {
                                      io.papermc.paper.event.player.PlayerFailMoveEvent event = fireFailMove(io.papermc.paper.event.player.PlayerFailMoveEvent.FailReason.CLIPPED_INTO_BLOCK,
-                                             toX, toY, toZ, toYaw, toPitch, false);
-                                     if (event.isAllowed()) {
 diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
 index 0e5c4aa2b8856c7b88ff90031715a55c4a1bf89e..962eff9d67fc31e444dbe54c95cb6e8274f6713b 100644
 --- a/net/minecraft/world/entity/Entity.java
@@ -104,54 +103,31 @@ index 9f792a7cf9da888e502b79d6b1d1075e9f084f43..e3de8bba5d37c2dc8c91d09e2225463f
      // CraftBukkit start
      public boolean fauxSleeping;
 diff --git a/net/minecraft/world/item/FireworkRocketItem.java b/net/minecraft/world/item/FireworkRocketItem.java
-index 18d63d2da49451a2d5e1da7bf0c00e05e2f192bc..29e34e861457eebf6c9f7d074206e88c52ea2bf3 100644
+index 18d63d2da49451a2d5e1da7bf0c00e05e2f192bc..6c78a59b6518799c9b199c96cc4592fb48229e9a 100644
 --- a/net/minecraft/world/item/FireworkRocketItem.java
 +++ b/net/minecraft/world/item/FireworkRocketItem.java
-@@ -58,20 +58,38 @@ public class FireworkRocketItem extends Item implements ProjectileItem {
+@@ -57,6 +57,24 @@ public class FireworkRocketItem extends Item implements ProjectileItem {
+         if (player.isFallFlying()) {
              ItemStack itemInHand = player.getItemInHand(hand);
              if (level instanceof ServerLevel serverLevel) {
-                 // Paper start - PlayerElytraBoostEvent
--                final Projectile.Delayed<FireworkRocketEntity> delayed = Projectile.spawnProjectileDelayed(new FireworkRocketEntity(level, itemInHand, player), serverLevel, itemInHand, f -> f.spawningEntity = player.getUUID()); // Paper - firework api - assign spawning entity uuid
--                com.destroystokyo.paper.event.player.PlayerElytraBoostEvent event = new com.destroystokyo.paper.event.player.PlayerElytraBoostEvent((org.bukkit.entity.Player) player.getBukkitEntity(), org.bukkit.craftbukkit.inventory.CraftItemStack.asCraftMirror(itemInHand), (org.bukkit.entity.Firework) firework.getBukkitEntity(), org.bukkit.craftbukkit.CraftEquipmentSlot.getHand(hand));
--                if (event.callEvent() && delayed.attemptSpawn()) {
--                    player.awardStat(Stats.ITEM_USED.get(this)); // Moved up from below
--                    if (event.shouldConsume() && !player.hasInfiniteMaterials()) {
--                        itemInHand.shrink(1); // Moved up from below
 +                // Leaves start - Elytra aeronautics
 +                if (player instanceof net.minecraft.server.level.ServerPlayer sp && sp.elytraAeronauticsNoChunk) {
 +                    final FireworkRocketEntity firework = new FireworkRocketEntity(level, itemInHand, player);
 +                    firework.spawningEntity = player.getUUID();
-+                    com.destroystokyo.paper.event.player.PlayerElytraBoostEvent event = new com.destroystokyo.paper.event.player.PlayerElytraBoostEvent((org.bukkit.entity.Player) player.getBukkitEntity(), org.bukkit.craftbukkit.inventory.CraftItemStack.asCraftMirror(itemInHand), (org.bukkit.entity.Firework) delayed.projectile().getBukkitEntity(), org.bukkit.craftbukkit.CraftEquipmentSlot.getHand(hand));
++                    com.destroystokyo.paper.event.player.PlayerElytraBoostEvent event = new com.destroystokyo.paper.event.player.PlayerElytraBoostEvent((org.bukkit.entity.Player) player.getBukkitEntity(), org.bukkit.craftbukkit.inventory.CraftItemStack.asCraftMirror(itemInHand), (org.bukkit.entity.Firework) firework.getBukkitEntity(), org.bukkit.craftbukkit.CraftEquipmentSlot.getHand(hand));
 +                    if (event.callEvent() && org.leavesmc.leaves.util.ElytraAeronauticsHelper.proxySpawnAndTick(firework)) {
-+                        player.awardStat(Stats.ITEM_USED.get(this)); // Moved up from below
++                        player.awardStat(Stats.ITEM_USED.get(this));
 +                        if (event.shouldConsume() && !player.hasInfiniteMaterials()) {
-+                            itemInHand.shrink(1); // Moved up from below
-+                        } else {
-+                            player.containerMenu.sendAllDataToRemote();
-+                        }
-                     } else {
-                         player.containerMenu.sendAllDataToRemote();
-                     }
-                 } else {
--                    player.containerMenu.sendAllDataToRemote();
-+                    final Projectile.Delayed<FireworkRocketEntity> delayed = Projectile.spawnProjectileDelayed(new FireworkRocketEntity(level, itemInHand, player), serverLevel, itemInHand, f -> f.spawningEntity = player.getUUID()); // Paper - firework api - assign spawning entity uuid
-+                    com.destroystokyo.paper.event.player.PlayerElytraBoostEvent event = new com.destroystokyo.paper.event.player.PlayerElytraBoostEvent((org.bukkit.entity.Player) player.getBukkitEntity(), org.bukkit.craftbukkit.inventory.CraftItemStack.asCraftMirror(itemInHand), (org.bukkit.entity.Firework) delayed.projectile().getBukkitEntity(), org.bukkit.craftbukkit.CraftEquipmentSlot.getHand(hand));
-+                    if (event.callEvent() && delayed.attemptSpawn()) {
-+                        player.awardStat(Stats.ITEM_USED.get(this)); // Moved up from below
-+                        if (event.shouldConsume() && !player.hasInfiniteMaterials()) {
-+                            itemInHand.shrink(1); // Moved up from below
++                            itemInHand.shrink(1);
 +                        } else {
 +                            player.containerMenu.sendAllDataToRemote();
 +                        }
 +                    } else {
 +                        player.containerMenu.sendAllDataToRemote();
 +                    }
-+                    // Moved up consume and changed consume to shrink
-+                    // Paper end - PlayerElytraBoostEvent
-                 }
--                // Moved up consume and changed consume to shrink
--                // Paper end - PlayerElytraBoostEvent
++                    return InteractionResult.SUCCESS;
++                }
 +                // Leaves end - Elytra aeronautics
-             }
- 
-             return InteractionResult.SUCCESS;
+                 // Paper start - PlayerElytraBoostEvent
+                 final Projectile.Delayed<FireworkRocketEntity> delayed = Projectile.spawnProjectileDelayed(new FireworkRocketEntity(level, itemInHand, player), serverLevel, itemInHand, f -> f.spawningEntity = player.getUUID()); // Paper - firework api - assign spawning entity uuid
+                 com.destroystokyo.paper.event.player.PlayerElytraBoostEvent event = new com.destroystokyo.paper.event.player.PlayerElytraBoostEvent((org.bukkit.entity.Player) player.getBukkitEntity(), org.bukkit.craftbukkit.inventory.CraftItemStack.asCraftMirror(itemInHand), (org.bukkit.entity.Firework) delayed.projectile().getBukkitEntity(), org.bukkit.craftbukkit.CraftEquipmentSlot.getHand(hand));

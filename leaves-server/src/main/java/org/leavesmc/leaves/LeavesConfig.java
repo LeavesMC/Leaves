@@ -1075,9 +1075,6 @@ public final class LeavesConfig {
         @GlobalConfig("vanilla-display-name")
         public boolean vanillaDisplayName = false;
 
-        @GlobalConfig("vanilla-creative-pickup-behavior")
-        public boolean vanillaCreativePickupBehavior = false;
-
         @GlobalConfig(value = "collision-behavior")
         public CollisionBehavior collisionBehavior = CollisionBehavior.BLOCK_SHAPE_VANILLA;
 

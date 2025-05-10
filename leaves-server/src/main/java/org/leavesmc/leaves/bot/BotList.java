@@ -100,10 +100,11 @@ public class BotList {
         if (optional.isEmpty()) {
             return null;
         }
+        CompoundTag nbt = optional.get();
 
         ResourceKey<Level> resourcekey = null;
-        if (optional.get().contains("WorldUUIDMost") && optional.get().contains("WorldUUIDLeast")) {
-            org.bukkit.World bWorld = Bukkit.getServer().getWorld(new UUID(optional.get().getLong("WorldUUIDMost").orElseThrow(), optional.get().getLong("WorldUUIDLeast").orElseThrow()));
+        if (nbt.contains("WorldUUIDMost") && nbt.contains("WorldUUIDLeast")) {
+            org.bukkit.World bWorld = Bukkit.getServer().getWorld(new UUID(nbt.getLong("WorldUUIDMost").orElseThrow(), nbt.getLong("WorldUUIDLeast").orElseThrow()));
             if (bWorld != null) {
                 resourcekey = ((CraftWorld) bWorld).getHandle().dimension();
             }
@@ -113,11 +114,11 @@ public class BotList {
         }
 
         ServerLevel world = this.server.getLevel(resourcekey);
-        return this.placeNewBot(bot, world, bot.getLocation(), optional.get());
+        return this.placeNewBot(bot, world, bot.getLocation(), nbt);
     }
 
-    public ServerBot placeNewBot(ServerBot bot, ServerLevel world, Location location, @Nullable CompoundTag nbt) {
-        Optional<CompoundTag> optional = Optional.of(nbt == null ? new CompoundTag() : nbt);
+    public ServerBot placeNewBot(@NotNull ServerBot bot, ServerLevel world, Location location, @Nullable CompoundTag save) {
+        Optional<CompoundTag> optional = Optional.ofNullable(save);
 
         bot.isRealPlayer = true;
         bot.loginTime = System.currentTimeMillis();
@@ -142,8 +143,10 @@ public class BotList {
 
         bot.supressTrackerForLogin = true;
         world.addNewPlayer(bot);
-        bot.loadAndSpawnEnderPearls(optional.orElseThrow());
-        bot.loadAndSpawnParentVehicle(optional.orElseThrow());
+        optional.ifPresent(nbt -> {
+            bot.loadAndSpawnEnderPearls(nbt);
+            bot.loadAndSpawnParentVehicle(nbt);
+        });
 
         BotJoinEvent event1 = new BotJoinEvent(bot.getBukkitEntity(), PaperAdventure.asAdventure(Component.translatable("multiplayer.player.joined", bot.getDisplayName())).style(Style.style(NamedTextColor.YELLOW)));
         this.server.server.getPluginManager().callEvent(event1);
@@ -188,7 +191,7 @@ public class BotList {
             bot.dropAll();
         }
 
-        if (bot.isPassenger()) {
+        if (bot.isPassenger() && event.shouldSave()) {
             Entity entity = bot.getRootVehicle();
             if (entity.hasExactlyOnePlayerPassenger()) {
                 bot.stopRiding();

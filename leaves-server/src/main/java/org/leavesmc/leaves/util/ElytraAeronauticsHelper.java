@@ -4,6 +4,7 @@ import ca.spottedleaf.moonrise.common.PlatformHooks;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import net.minecraft.core.SectionPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -39,6 +40,9 @@ public class ElytraAeronauticsHelper {
                         continue;
                     }
                     if (firework.attachedToEntity.isFallFlying()) {
+                        if (firework.attachedToEntity instanceof ServerPlayer player) {
+                            player.connection.send(new ClientboundSetEntityMotionPacket(player));
+                        }
                         Vec3 lookAngle = firework.attachedToEntity.getLookAngle();
                         Vec3 deltaMovement = firework.attachedToEntity.getDeltaMovement();
                         firework.attachedToEntity.setDeltaMovement(deltaMovement.add(

@@ -27,7 +27,7 @@ index 4785f9d6c53e18419a3df4a1be9c8a4f9d8cadfb..adba1c30d38f9d42c9c763f0ed2321d4
  
          SectionPos lastSectionPos = player.getLastSectionPos();
 diff --git a/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index f1372015cf5991ef80a07e7fcbd1fb9d65e9d74f..0c811363c9b8ac2bed9039ccd86b4c72538e5e4e 100644
+index f1372015cf5991ef80a07e7fcbd1fb9d65e9d74f..0d891fa536d01cb076e29e625299f0361f465c08 100644
 --- a/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 @@ -541,7 +541,7 @@ public class ServerGamePacketListenerImpl
@@ -39,6 +39,15 @@ index f1372015cf5991ef80a07e7fcbd1fb9d65e9d74f..0c811363c9b8ac2bed9039ccd86b4c72
                      !serverLevel.areChunksLoadedForMove(this.player.getBoundingBox().expandTowards(new Vec3(toX, toY, toZ).subtract(this.player.position()))) ||
                          !serverLevel.areChunksLoadedForMove(rootVehicle.getBoundingBox().expandTowards(new Vec3(toX, toY, toZ).subtract(rootVehicle.position())))
                  )) {
+@@ -1548,7 +1548,7 @@ public class ServerGamePacketListenerImpl
+                                     } // else: no collision at all detected, why do we care?
+                                 }
+                                 // Paper end - optimise out extra getCubes
+-                                if (teleportBack) {
++                                if (teleportBack && !player.elytraAeronauticsNoChunk) { // Leaves - Elytra aeronautics
+                                     io.papermc.paper.event.player.PlayerFailMoveEvent event = fireFailMove(io.papermc.paper.event.player.PlayerFailMoveEvent.FailReason.CLIPPED_INTO_BLOCK,
+                                             toX, toY, toZ, toYaw, toPitch, false);
+                                     if (event.isAllowed()) {
 diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
 index 0e5c4aa2b8856c7b88ff90031715a55c4a1bf89e..962eff9d67fc31e444dbe54c95cb6e8274f6713b 100644
 --- a/net/minecraft/world/entity/Entity.java
@@ -66,6 +75,22 @@ index 0e5c4aa2b8856c7b88ff90031715a55c4a1bf89e..962eff9d67fc31e444dbe54c95cb6e82
          if (this.valid) this.level.getChunk((int) Math.floor(this.getX()) >> 4, (int) Math.floor(this.getZ()) >> 4); // CraftBukkit
      }
  
+diff --git a/net/minecraft/world/entity/LivingEntity.java b/net/minecraft/world/entity/LivingEntity.java
+index 6893ca36cd4ae9a62fecedb1167cc6cf797a7f8f..a95fec1506af042bd3d4424e93aa3f4de9627487 100644
+--- a/net/minecraft/world/entity/LivingEntity.java
++++ b/net/minecraft/world/entity/LivingEntity.java
+@@ -3276,6 +3276,11 @@ public abstract class LivingEntity extends Entity implements Attackable {
+             this.fallFlyTicks++;
+         } else {
+             this.fallFlyTicks = 0;
++            // Leaves start - Elytra aeronautics
++            if (this instanceof ServerPlayer player) {
++                org.leavesmc.leaves.util.ElytraAeronauticsHelper.handleCruiseDeactivate(player);
++            }
++            // Leaves end - Elytra aeronautics
+         }
+ 
+         if (this.isSleeping()) {
 diff --git a/net/minecraft/world/entity/player/Player.java b/net/minecraft/world/entity/player/Player.java
 index 9f792a7cf9da888e502b79d6b1d1075e9f084f43..e3de8bba5d37c2dc8c91d09e2225463ffbc2f7e5 100644
 --- a/net/minecraft/world/entity/player/Player.java
@@ -78,3 +103,55 @@ index 9f792a7cf9da888e502b79d6b1d1075e9f084f43..e3de8bba5d37c2dc8c91d09e2225463f
  
      // CraftBukkit start
      public boolean fauxSleeping;
+diff --git a/net/minecraft/world/item/FireworkRocketItem.java b/net/minecraft/world/item/FireworkRocketItem.java
+index 18d63d2da49451a2d5e1da7bf0c00e05e2f192bc..29e34e861457eebf6c9f7d074206e88c52ea2bf3 100644
+--- a/net/minecraft/world/item/FireworkRocketItem.java
++++ b/net/minecraft/world/item/FireworkRocketItem.java
+@@ -58,20 +58,38 @@ public class FireworkRocketItem extends Item implements ProjectileItem {
+             ItemStack itemInHand = player.getItemInHand(hand);
+             if (level instanceof ServerLevel serverLevel) {
+                 // Paper start - PlayerElytraBoostEvent
+-                final Projectile.Delayed<FireworkRocketEntity> delayed = Projectile.spawnProjectileDelayed(new FireworkRocketEntity(level, itemInHand, player), serverLevel, itemInHand, f -> f.spawningEntity = player.getUUID()); // Paper - firework api - assign spawning entity uuid
+-                com.destroystokyo.paper.event.player.PlayerElytraBoostEvent event = new com.destroystokyo.paper.event.player.PlayerElytraBoostEvent((org.bukkit.entity.Player) player.getBukkitEntity(), org.bukkit.craftbukkit.inventory.CraftItemStack.asCraftMirror(itemInHand), (org.bukkit.entity.Firework) firework.getBukkitEntity(), org.bukkit.craftbukkit.CraftEquipmentSlot.getHand(hand));
+-                if (event.callEvent() && delayed.attemptSpawn()) {
+-                    player.awardStat(Stats.ITEM_USED.get(this)); // Moved up from below
+-                    if (event.shouldConsume() && !player.hasInfiniteMaterials()) {
+-                        itemInHand.shrink(1); // Moved up from below
++                // Leaves start - Elytra aeronautics
++                if (player instanceof net.minecraft.server.level.ServerPlayer sp && sp.elytraAeronauticsNoChunk) {
++                    final FireworkRocketEntity firework = new FireworkRocketEntity(level, itemInHand, player);
++                    firework.spawningEntity = player.getUUID();
++                    com.destroystokyo.paper.event.player.PlayerElytraBoostEvent event = new com.destroystokyo.paper.event.player.PlayerElytraBoostEvent((org.bukkit.entity.Player) player.getBukkitEntity(), org.bukkit.craftbukkit.inventory.CraftItemStack.asCraftMirror(itemInHand), (org.bukkit.entity.Firework) delayed.projectile().getBukkitEntity(), org.bukkit.craftbukkit.CraftEquipmentSlot.getHand(hand));
++                    if (event.callEvent() && org.leavesmc.leaves.util.ElytraAeronauticsHelper.proxySpawnAndTick(firework)) {
++                        player.awardStat(Stats.ITEM_USED.get(this)); // Moved up from below
++                        if (event.shouldConsume() && !player.hasInfiniteMaterials()) {
++                            itemInHand.shrink(1); // Moved up from below
++                        } else {
++                            player.containerMenu.sendAllDataToRemote();
++                        }
+                     } else {
+                         player.containerMenu.sendAllDataToRemote();
+                     }
+                 } else {
+-                    player.containerMenu.sendAllDataToRemote();
++                    final Projectile.Delayed<FireworkRocketEntity> delayed = Projectile.spawnProjectileDelayed(new FireworkRocketEntity(level, itemInHand, player), serverLevel, itemInHand, f -> f.spawningEntity = player.getUUID()); // Paper - firework api - assign spawning entity uuid
++                    com.destroystokyo.paper.event.player.PlayerElytraBoostEvent event = new com.destroystokyo.paper.event.player.PlayerElytraBoostEvent((org.bukkit.entity.Player) player.getBukkitEntity(), org.bukkit.craftbukkit.inventory.CraftItemStack.asCraftMirror(itemInHand), (org.bukkit.entity.Firework) delayed.projectile().getBukkitEntity(), org.bukkit.craftbukkit.CraftEquipmentSlot.getHand(hand));
++                    if (event.callEvent() && delayed.attemptSpawn()) {
++                        player.awardStat(Stats.ITEM_USED.get(this)); // Moved up from below
++                        if (event.shouldConsume() && !player.hasInfiniteMaterials()) {
++                            itemInHand.shrink(1); // Moved up from below
++                        } else {
++                            player.containerMenu.sendAllDataToRemote();
++                        }
++                    } else {
++                        player.containerMenu.sendAllDataToRemote();
++                    }
++                    // Moved up consume and changed consume to shrink
++                    // Paper end - PlayerElytraBoostEvent
+                 }
+-                // Moved up consume and changed consume to shrink
+-                // Paper end - PlayerElytraBoostEvent
++                // Leaves end - Elytra aeronautics
+             }
+ 
+             return InteractionResult.SUCCESS;

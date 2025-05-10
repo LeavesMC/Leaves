@@ -28,6 +28,7 @@ import org.leavesmc.leaves.protocol.CarpetServerProtocol.CarpetRules;
 import org.leavesmc.leaves.protocol.bladeren.BladerenProtocol.LeavesFeature;
 import org.leavesmc.leaves.protocol.bladeren.BladerenProtocol.LeavesFeatureSet;
 import org.leavesmc.leaves.region.RegionFileFormat;
+import org.leavesmc.leaves.util.ElytraAeronauticsHelper;
 import org.leavesmc.leaves.util.ForcePeacefulModeSwitchType;
 import org.leavesmc.leaves.util.MathUtils;
 
@@ -308,8 +309,15 @@ public final class LeavesConfig {
 
         @GlobalConfigCategory("elytra-aeronautics")
         public static class ElytraAeronauticsConfig {
-            @GlobalConfig("no-chunk-load")
+            @GlobalConfig(value = "no-chunk-load", validator = ElytraNoChunkLoadValidator.class)
             public boolean noChunk = false;
+
+            public static class ElytraNoChunkLoadValidator extends BooleanConfigValidator {
+                @Override
+                public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
+                    ElytraAeronauticsHelper.setActive(value);
+                }
+            }
 
             @GlobalConfig(value = "no-chunk-height")
             public double noChunkHeight = 500.0D;
@@ -1070,20 +1078,8 @@ public final class LeavesConfig {
         @GlobalConfig("vanilla-creative-pickup-behavior")
         public boolean vanillaCreativePickupBehavior = false;
 
-        @GlobalConfig(value = "collision-behavior-status", validator = CollisionBehaviorValidator.class)
+        @GlobalConfig(value = "collision-behavior")
         public CollisionBehavior collisionBehavior = CollisionBehavior.BLOCK_SHAPE_VANILLA;
-
-        private static class CollisionBehaviorValidator extends StringConfigValidator {
-            @Override
-            public void verify(String old, String value) throws IllegalArgumentException {
-                LeavesConfig.fix.collisionBehavior = switch (value.toLowerCase()) {
-                    case "vanilla" -> CollisionBehavior.VANILLA;
-                    case "paper" -> CollisionBehavior.PAPER;
-                    case "block-shape-vanilla" -> CollisionBehavior.BLOCK_SHAPE_VANILLA;
-                    default -> throw new IllegalArgumentException("Behavior can only be \"paper\", \"vanilla\", or \"block-shape-vanilla\"");
-                };
-            }
-        }
 
         public enum CollisionBehavior {
             VANILLA, BLOCK_SHAPE_VANILLA, PAPER

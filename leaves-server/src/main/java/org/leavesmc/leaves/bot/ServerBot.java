@@ -11,17 +11,24 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ClientboundChangeDifficultyPacket;
+import net.minecraft.network.protocol.game.ClientboundPlayerAbilitiesPacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerInfoRemovePacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket;
+import net.minecraft.network.protocol.game.ClientboundRespawnPacket;
 import net.minecraft.network.protocol.game.ClientboundRotateHeadPacket;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ChunkMap;
 import net.minecraft.server.level.ClientInformation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerPlayerConnection;
+import net.minecraft.server.players.PlayerList;
 import net.minecraft.stats.ServerStatsCounter;
 import net.minecraft.util.Mth;
+import net.minecraft.util.profiling.Profiler;
+import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.SimpleMenuProvider;
@@ -36,9 +43,11 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.ChestMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameRules;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.gameevent.GameEvent;
 import net.minecraft.world.level.portal.TeleportTransition;
+import net.minecraft.world.level.storage.LevelData;
 import net.minecraft.world.phys.EntityHitResult;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -214,26 +223,60 @@ public class ServerBot extends ServerPlayer {
     }
 
     @Override
-    public @Nullable ServerBot teleport(@NotNull TeleportTransition teleportTarget) {
+    public @Nullable ServerBot teleport(@NotNull TeleportTransition teleportTransition) {
         if (this.isSleeping() || this.isRemoved()) {
             return null;
         }
-        if (teleportTarget.newLevel().dimension() != this.serverLevel().dimension()) {
-            return null;
-        } else {
-            if (!teleportTarget.asPassenger()) {
-                this.stopRiding();
-            }
+        if (!teleportTransition.asPassenger()) {
+            this.removeVehicle();
+        }
 
-            this.connection.internalTeleport(PositionMoveRotation.of(teleportTarget), teleportTarget.relatives());
+        ServerLevel level = teleportTransition.newLevel();
+        ServerLevel serverLevel = this.serverLevel();
+
+        if (level != null && level.dimension() == serverLevel.dimension()) {
+            this.connection.internalTeleport(PositionMoveRotation.of(teleportTransition), teleportTransition.relatives());
             this.connection.resetPosition();
-            teleportTarget.postTeleportTransition().onTransition(this);
+            teleportTransition.postTeleportTransition().onTransition(this);
             return this;
         }
-    }
 
-    @Override
-    public void handlePortal() {
+        ResourceKey<net.minecraft.world.level.dimension.LevelStem> resourceKey = serverLevel.getTypeKey();
+        if (level != null && resourceKey == net.minecraft.world.level.dimension.LevelStem.OVERWORLD && level.getTypeKey() == net.minecraft.world.level.dimension.LevelStem.NETHER) { // CraftBukkit - empty to fall through to null to event
+            this.enteredNetherPosition = this.position();
+        }
+        this.isChangingDimension = true;
+        serverLevel.removePlayerImmediately(this, Entity.RemovalReason.CHANGED_DIMENSION);
+        this.unsetRemoved();
+        this.setServerLevel(level);
+        this.connection.internalTeleport(PositionMoveRotation.of(teleportTransition), teleportTransition.relatives()); // CraftBukkit - use internal teleport without event
+        this.connection.resetPosition();
+        level.addDuringTeleport(this);
+        this.triggerDimensionChangeTriggers(serverLevel);
+        this.stopUsingItem();
+        teleportTransition.postTeleportTransition().onTransition(this);
+        this.isChangingDimension = false;
+        this.lastSentExp = -1;
+        this.lastSentHealth = -1.0F;
+        this.lastSentFood = -1;
+
+        if (org.leavesmc.leaves.LeavesConfig.modify.netherPortalFix) {
+            final ResourceKey<Level> fromDim = serverLevel.dimension();
+            final ResourceKey<Level> toDim = level().dimension();
+            final ResourceKey<Level> OVERWORLD = Level.OVERWORLD;
+            final ResourceKey<Level> THE_NETHER = Level.NETHER;
+            if (!((fromDim != OVERWORLD || toDim != THE_NETHER) && (fromDim != THE_NETHER || toDim != OVERWORLD))) {
+                BlockPos fromPortal = org.leavesmc.leaves.util.ReturnPortalManager.findPortalAt(this, fromDim, lastPos);
+                BlockPos toPos = this.blockPosition();
+                if (fromPortal != null) {
+                    org.leavesmc.leaves.util.ReturnPortalManager.storeReturnPortal(this, toDim, toPos, fromPortal);
+                }
+            }
+        }
+        if (this.isBlocking()) {
+            this.stopUsingItem();
+        }
+        return this;
     }
 
     @Override

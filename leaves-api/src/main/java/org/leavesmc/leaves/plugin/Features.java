@@ -1,3 +1,4 @@
+// This file is licensed under the MIT license.
 package org.leavesmc.leaves.plugin;
 
 public class Features {

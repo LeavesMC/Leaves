@@ -24,6 +24,9 @@ subprojects {
         maven("https://repo.leavesmc.org/releases") {
             content { onlyForConfigurations("leavesclip") }
         }
+        maven("https://repo.leavesmc.org/snapshots") {
+            content { onlyForConfigurations("leavesclip") }
+        }
     }
 
     tasks.withType<AbstractArchiveTask>().configureEach {

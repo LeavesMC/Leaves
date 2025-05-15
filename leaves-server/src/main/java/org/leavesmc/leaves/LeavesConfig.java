@@ -294,6 +294,9 @@ public final class LeavesConfig {
                 @GlobalConfig("give-bad-omen-when-kill-patrol-leader")
                 public boolean giveBadOmenWhenKillPatrolLeader = false;
 
+                @GlobalConfig("use-old-find-spawn-position")
+                public boolean useOldFindSpawnPosition = false;
+
                 @GlobalConfig("skip-height-check")
                 public boolean skipHeightCheck = false;
             }

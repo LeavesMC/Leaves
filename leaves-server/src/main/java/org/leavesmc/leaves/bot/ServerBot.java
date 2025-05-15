@@ -11,11 +11,8 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.protocol.game.ClientboundChangeDifficultyPacket;
-import net.minecraft.network.protocol.game.ClientboundPlayerAbilitiesPacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerInfoRemovePacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket;
-import net.minecraft.network.protocol.game.ClientboundRespawnPacket;
 import net.minecraft.network.protocol.game.ClientboundRotateHeadPacket;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
@@ -24,18 +21,14 @@ import net.minecraft.server.level.ClientInformation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerPlayerConnection;
-import net.minecraft.server.players.PlayerList;
 import net.minecraft.stats.ServerStatsCounter;
 import net.minecraft.util.Mth;
-import net.minecraft.util.profiling.Profiler;
-import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.PositionMoveRotation;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -47,7 +40,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.gameevent.GameEvent;
 import net.minecraft.world.level.portal.TeleportTransition;
-import net.minecraft.world.level.storage.LevelData;
 import net.minecraft.world.phys.EntityHitResult;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -140,7 +132,7 @@ public class ServerBot extends ServerPlayer {
         // copy ServerPlayer end
 
         if (this.getConfigValue(Configs.SPAWN_PHANTOM)) {
-            notSleepTicks++;
+            this.notSleepTicks++;
         }
 
         if (LeavesConfig.modify.fakeplayer.regenAmount > 0.0 && server.getTickCount() % 20 == 0) {
@@ -222,6 +214,12 @@ public class ServerBot extends ServerPlayer {
         this.updatePlayerPose();
     }
 
+    public void networkTick() {
+        if (this.getConfigValue(Configs.TICK_TYPE) == TickType.NETWORK) {
+            this.doTick();
+        }
+    }
+
     @Override
     public @Nullable ServerBot teleport(@NotNull TeleportTransition teleportTransition) {
         if (this.isSleeping() || this.isRemoved()) {
@@ -231,51 +229,40 @@ public class ServerBot extends ServerPlayer {
             this.removeVehicle();
         }
 
-        ServerLevel level = teleportTransition.newLevel();
-        ServerLevel serverLevel = this.serverLevel();
+        ServerLevel fromLevel = this.serverLevel();
+        ServerLevel toLevel = teleportTransition.newLevel();
 
-        if (level != null && level.dimension() == serverLevel.dimension()) {
-            this.connection.internalTeleport(PositionMoveRotation.of(teleportTransition), teleportTransition.relatives());
-            this.connection.resetPosition();
+        if (toLevel.dimension() == fromLevel.dimension()) {
+            this.teleportSetPosition(PositionMoveRotation.of(teleportTransition), teleportTransition.relatives());
             teleportTransition.postTeleportTransition().onTransition(this);
             return this;
-        }
+        } else {
+            this.isChangingDimension = true;
+            fromLevel.removePlayerImmediately(this, Entity.RemovalReason.CHANGED_DIMENSION);
+            this.unsetRemoved();
+            this.setServerLevel(toLevel);
+            this.teleportSetPosition(PositionMoveRotation.of(teleportTransition), teleportTransition.relatives());
+            toLevel.addDuringTeleport(this);
+            this.stopUsingItem();
+            teleportTransition.postTeleportTransition().onTransition(this);
+            this.isChangingDimension = false;
 
-        ResourceKey<net.minecraft.world.level.dimension.LevelStem> resourceKey = serverLevel.getTypeKey();
-        if (level != null && resourceKey == net.minecraft.world.level.dimension.LevelStem.OVERWORLD && level.getTypeKey() == net.minecraft.world.level.dimension.LevelStem.NETHER) { // CraftBukkit - empty to fall through to null to event
-            this.enteredNetherPosition = this.position();
-        }
-        this.isChangingDimension = true;
-        serverLevel.removePlayerImmediately(this, Entity.RemovalReason.CHANGED_DIMENSION);
-        this.unsetRemoved();
-        this.setServerLevel(level);
-        this.connection.internalTeleport(PositionMoveRotation.of(teleportTransition), teleportTransition.relatives()); // CraftBukkit - use internal teleport without event
-        this.connection.resetPosition();
-        level.addDuringTeleport(this);
-        this.triggerDimensionChangeTriggers(serverLevel);
-        this.stopUsingItem();
-        teleportTransition.postTeleportTransition().onTransition(this);
-        this.isChangingDimension = false;
-        this.lastSentExp = -1;
-        this.lastSentHealth = -1.0F;
-        this.lastSentFood = -1;
-
-        if (org.leavesmc.leaves.LeavesConfig.modify.netherPortalFix) {
-            final ResourceKey<Level> fromDim = serverLevel.dimension();
-            final ResourceKey<Level> toDim = level().dimension();
-            final ResourceKey<Level> OVERWORLD = Level.OVERWORLD;
-            final ResourceKey<Level> THE_NETHER = Level.NETHER;
-            if (!((fromDim != OVERWORLD || toDim != THE_NETHER) && (fromDim != THE_NETHER || toDim != OVERWORLD))) {
-                BlockPos fromPortal = org.leavesmc.leaves.util.ReturnPortalManager.findPortalAt(this, fromDim, lastPos);
-                BlockPos toPos = this.blockPosition();
-                if (fromPortal != null) {
-                    org.leavesmc.leaves.util.ReturnPortalManager.storeReturnPortal(this, toDim, toPos, fromPortal);
+            if (org.leavesmc.leaves.LeavesConfig.modify.netherPortalFix) {
+                final ResourceKey<Level> fromDim = fromLevel.dimension();
+                final ResourceKey<Level> toDim = level().dimension();
+                if (!((fromDim != Level.OVERWORLD || toDim != Level.NETHER) && (fromDim != Level.NETHER || toDim != Level.OVERWORLD))) {
+                    BlockPos fromPortal = org.leavesmc.leaves.util.ReturnPortalManager.findPortalAt(this, fromDim, lastPos);
+                    BlockPos toPos = this.blockPosition();
+                    if (fromPortal != null) {
+                        org.leavesmc.leaves.util.ReturnPortalManager.storeReturnPortal(this, toDim, toPos, fromPortal);
+                    }
                 }
             }
+            if (this.isBlocking()) {
+                this.stopUsingItem();
+            }
         }
-        if (this.isBlocking()) {
-            this.stopUsingItem();
-        }
+
         return this;
     }
 
@@ -316,7 +303,7 @@ public class ServerBot extends ServerPlayer {
     public void checkFallDamage(double y, boolean onGround, @NotNull BlockState state, @NotNull BlockPos pos) {
         ServerLevel serverLevel = this.serverLevel();
         if (!this.isInWater() && y < 0.0) {
-            this.fallDistance -= (float)y;
+            this.fallDistance -= (float) y;
         }
         if (onGround && this.fallDistance > 0.0F) {
             this.onChangedBlock(serverLevel, pos);

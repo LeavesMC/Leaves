@@ -49,7 +49,8 @@ public class ShootAction extends AbstractTimerAction<ShootAction> {
 
     @Override
     public void loadCommand(@Nullable ServerPlayer player, @NotNull CommandArgumentResult result) {
-        this.setInitialTickDelay(result.readInt(0)).setInitialTickInterval(result.readInt(20)).setInitialNumber(result.readInt(-1)).setDrawingTick(result.readInt(20));
+        super.loadCommand(player, result);
+        this.setDrawingTick(result.readInt(20));
     }
 
     @Override

@@ -252,7 +252,7 @@ public class BotList {
     }
 
     public void networkTick() {
-        this.bots.stream().filter(bot -> bot.getConfigValue(Configs.TICK_TYPE) == ServerBot.TickType.NETWORK).forEach(ServerBot::doTick); // TODO perf?
+        this.bots.forEach(ServerBot::networkTick);
     }
 
     @Nullable

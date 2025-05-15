@@ -1082,6 +1082,9 @@ public final class LeavesConfig {
             VANILLA, BLOCK_SHAPE_VANILLA, PAPER
         }
 
+        @GlobalConfig("vanilla-portal-handle")
+        public boolean vanillaPortalHandle = false;
+
         @RemovedConfig(name = "spigot-EndPlatform-destroy", category = "fix")
         private final boolean spigotEndPlatformDestroy = false;
     }

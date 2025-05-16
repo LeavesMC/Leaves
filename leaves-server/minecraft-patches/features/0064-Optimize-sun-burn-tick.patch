@@ -6,7 +6,7 @@ Subject: [PATCH] Optimize sun burn tick
 This patch is Powered by Gale(https://github.com/GaleMC/Gale)
 
 diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
-index 962eff9d67fc31e444dbe54c95cb6e8274f6713b..b14422132c67bfd42d55defa2136268291487b70 100644
+index 5333c4bdf25fe05d63fc1caf0f45538f8ae9fcc6..dbd541361b518ccd6323996847f0ae1447d23362 100644
 --- a/net/minecraft/world/entity/Entity.java
 +++ b/net/minecraft/world/entity/Entity.java
 @@ -2034,9 +2034,20 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
@@ -42,10 +42,10 @@ index 962eff9d67fc31e444dbe54c95cb6e8274f6713b..b14422132c67bfd42d55defa21362682
      public void absSnapTo(double x, double y, double z) {
          double d = Mth.clamp(x, -3.0E7, 3.0E7);
 diff --git a/net/minecraft/world/entity/Mob.java b/net/minecraft/world/entity/Mob.java
-index c83ad2553145b66aad000be3b82fec57f56359ce..f76d44ebfc5f697a99a49313d3db179dc16c05b7 100644
+index c83ad2553145b66aad000be3b82fec57f56359ce..88f97833d1eb410e57b362b51fc9097e77e1a3d1 100644
 --- a/net/minecraft/world/entity/Mob.java
 +++ b/net/minecraft/world/entity/Mob.java
-@@ -1507,20 +1507,43 @@ public abstract class Mob extends LivingEntity implements EquipmentUser, Leashab
+@@ -1507,17 +1507,40 @@ public abstract class Mob extends LivingEntity implements EquipmentUser, Leashab
      protected void playAttackSound() {
      }
  
@@ -75,25 +75,22 @@ index c83ad2553145b66aad000be3b82fec57f56359ce..f76d44ebfc5f697a99a49313d3db179d
 +                    && this.level().canSeeSky(blockPos)) {
 +                    return true;
 +                }
++            } else {
++                int positionHashCode = this.position().hashCode();
++                if (this.cached_eye_blockpos == null || this.cached_position_hashcode != positionHashCode) {
++                    this.cached_eye_blockpos = BlockPos.containing(this.getX(), this.getEyeY(), this.getZ());
++                    this.cached_position_hashcode = positionHashCode;
++                }
++
++                float f = this.getLightLevelDependentMagicValue(cached_eye_blockpos); // Pass BlockPos to getBrightness
++
++                // Check brightness first
++                if (f <= 0.5F) return false;
++                if (this.random.nextFloat() * 30.0F >= (f - 0.4F) * 2.0F) return false;
++                boolean flag = this.isInWaterOrRain() || this.isInPowderSnow || this.wasInPowderSnow;
++                return !flag && this.level().canSeeSky(this.cached_eye_blockpos);
              }
-+        } else {
-+            int positionHashCode = this.position().hashCode();
-+            if (this.cached_eye_blockpos == null || this.cached_position_hashcode != positionHashCode) {
-+                this.cached_eye_blockpos = BlockPos.containing(this.getX(), this.getEyeY(), this.getZ());
-+                this.cached_position_hashcode = positionHashCode;
-+            }
-+
-+            float f = this.getLightLevelDependentMagicValue(cached_eye_blockpos); // Pass BlockPos to getBrightness
-+
-+            // Check brightness first
-+            if (f <= 0.5F) return false;
-+            if (this.random.nextFloat() * 30.0F >= (f - 0.4F) * 2.0F) return false;
-+            boolean flag = this.isInWaterOrRain() || this.isInPowderSnow || this.wasInPowderSnow;
-+            return !flag && this.level().canSeeSky(this.cached_eye_blockpos);
++            // Leaves end - optimize sun burn tick
          }
  
          return false;
-+        // Leaves end - optimize sun burn tick
-     }
- 
-     @Override

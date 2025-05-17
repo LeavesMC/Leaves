@@ -9,21 +9,20 @@ import org.leavesmc.leaves.entity.Bot;
 
 import java.util.UUID;
 
-public class BotActionStopEvent extends BotActionEvent  implements Cancellable{
+public class BotActionStopEvent extends BotActionEvent implements Cancellable {
     private static final HandlerList handlers = new HandlerList();
-    private boolean cancel = false;
     private final CommandSender sender;
-
-    public enum Reason {
-        DONE, COMMAND, PLUGIN, INTERNAL
-    }
-
     private final Reason reason;
+    private boolean cancel = false;
 
     public BotActionStopEvent(@NotNull Bot who, String actionName, UUID actionUUID, Reason stopReason, CommandSender sender) {
         super(who, actionName, actionUUID);
         this.reason = stopReason;
         this.sender = sender;
+    }
+
+    public static HandlerList getHandlerList() {
+        return handlers;
     }
 
     public Reason getReason() {
@@ -32,10 +31,6 @@ public class BotActionStopEvent extends BotActionEvent  implements Cancellable{
 
     @Override
     public @NotNull HandlerList getHandlers() {
-        return handlers;
-    }
-
-    public static HandlerList getHandlerList() {
         return handlers;
     }
 
@@ -52,5 +47,9 @@ public class BotActionStopEvent extends BotActionEvent  implements Cancellable{
     @Nullable
     public CommandSender getSender() {
         return sender;
+    }
+
+    public enum Reason {
+        DONE, COMMAND, PLUGIN, INTERNAL
     }
 }

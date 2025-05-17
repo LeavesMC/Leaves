@@ -43,18 +43,18 @@ public class LMSPasterProtocol {
         CompoundTag nbt = payload.getNbt();
         switch (id) {
             case LMSPasterProtocol.C2S.HI -> {
-                String clientModVersion = nbt.getString("mod_version");
+                String clientModVersion = nbt.getString("mod_version").orElseThrow();
                 LeavesLogger.LOGGER.info(String.format("Player %s connected with %s @ %s", playerName, LMSPasterProtocol.MOD_ID, clientModVersion));
                 ProtocolUtils.sendPayloadPacket(player, LMSPasterProtocol.S2C.build(LMSPasterProtocol.S2C.HI, nbt2 -> nbt2.putString("mod_version", LMSPasterProtocol.MOD_VERSION)));
                 ProtocolUtils.sendPayloadPacket(player, LMSPasterProtocol.S2C.build(LMSPasterProtocol.S2C.ACCEPT_PACKETS, nbt2 -> nbt2.putIntArray("ids", C2S.ALL_PACKET_IDS)));
             }
             case LMSPasterProtocol.C2S.CHAT -> {
-                String message = nbt.getString("chat");
+                String message = nbt.getString("chat").orElseThrow();
                 triggerCommand(player, playerName, message);
             }
             case LMSPasterProtocol.C2S.VERY_LONG_CHAT_START -> VERY_LONG_CHATS.put(player.connection, new StringBuilder());
             case LMSPasterProtocol.C2S.VERY_LONG_CHAT_CONTENT -> {
-                String segment = nbt.getString("segment");
+                String segment = nbt.getString("segment").orElseThrow();
                 getVeryLongChatBuilder(player).ifPresent(builder -> builder.append(segment));
             }
             case LMSPasterProtocol.C2S.VERY_LONG_CHAT_END -> {

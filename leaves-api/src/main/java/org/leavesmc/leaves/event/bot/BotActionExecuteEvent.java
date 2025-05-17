@@ -10,16 +10,14 @@ import java.util.UUID;
 public class BotActionExecuteEvent extends BotActionEvent implements Cancellable {
 
     private static final HandlerList handlers = new HandlerList();
-
-    public enum Result {
-        PASS, SOFT_CANCEL, HARD_CANCEL;
-
-    }
-
     private Result result = Result.PASS;
 
     public BotActionExecuteEvent(@NotNull Bot who, String actionName, UUID actionUUID) {
         super(who, actionName, actionUUID);
+    }
+
+    public static HandlerList getHandlerList() {
+        return handlers;
     }
 
     @Override
@@ -45,8 +43,9 @@ public class BotActionExecuteEvent extends BotActionEvent implements Cancellable
         return handlers;
     }
 
-    public static HandlerList getHandlerList() {
-        return handlers;
+    public enum Result {
+        PASS, SOFT_CANCEL, HARD_CANCEL
+
     }
 }
 

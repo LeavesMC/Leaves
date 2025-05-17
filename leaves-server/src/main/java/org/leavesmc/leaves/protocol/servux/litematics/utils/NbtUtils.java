@@ -7,8 +7,8 @@ import net.minecraft.nbt.DoubleTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.world.phys.Vec3;
-
-import javax.annotation.Nullable;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 public class NbtUtils {
 
@@ -20,11 +20,8 @@ public class NbtUtils {
 
     @Nullable
     public static BlockPos readBlockPos(@Nullable CompoundTag tag) {
-        if (tag != null &&
-            tag.contains("x", Tag.TAG_INT) &&
-            tag.contains("y", Tag.TAG_INT) &&
-            tag.contains("z", Tag.TAG_INT)) {
-            return new BlockPos(tag.getInt("x"), tag.getInt("y"), tag.getInt("z"));
+        if (tag != null && tag.contains("x") && tag.contains("y") && tag.contains("z")) {
+            return new BlockPos(tag.getIntOr("x", 0), tag.getIntOr("y", 0), tag.getIntOr("z", 0));
         }
 
         return null;
@@ -41,38 +38,39 @@ public class NbtUtils {
 
     @Nullable
     public static Vec3 readVec3(@Nullable CompoundTag tag) {
-        if (tag != null &&
-            tag.contains("dx", Tag.TAG_DOUBLE) &&
-            tag.contains("dy", Tag.TAG_DOUBLE) &&
-            tag.contains("dz", Tag.TAG_DOUBLE)) {
-            return new Vec3(tag.getDouble("dx"), tag.getDouble("dy"), tag.getDouble("dz"));
+        if (tag != null && tag.contains("dx") && tag.contains("dy") && tag.contains("dz")) {
+            return new Vec3(tag.getDoubleOr("dx", 0.0), tag.getDoubleOr("dy", 0.0), tag.getDoubleOr("dz", 0.0));
         }
-
         return null;
     }
 
     @Nullable
     public static Vec3 readEntityPositionFromTag(@Nullable CompoundTag tag) {
-        if (tag != null && tag.contains("Pos", Tag.TAG_LIST)) {
-            ListTag tagList = tag.getList("Pos", Tag.TAG_DOUBLE);
+        if (tag != null && tag.contains("Pos")) {
+            ListTag tagList = tag.getListOrEmpty("Pos");
 
-            if (tagList.getElementType() == Tag.TAG_DOUBLE && tagList.size() == 3) {
-                return new Vec3(tagList.getDouble(0), tagList.getDouble(1), tagList.getDouble(2));
+            if (tagList.getId() == Tag.TAG_DOUBLE && tagList.size() == 3) {
+                return new Vec3(tagList.getDoubleOr(0, 0.0), tagList.getDoubleOr(1, 0.0), tagList.getDoubleOr(2, 0.0));
             }
         }
-
         return null;
     }
 
     @Nullable
     public static Vec3i readVec3iFromTag(@Nullable CompoundTag tag) {
-        if (tag != null &&
-            tag.contains("x", Tag.TAG_INT) &&
-            tag.contains("y", Tag.TAG_INT) &&
-            tag.contains("z", Tag.TAG_INT)) {
-            return new Vec3i(tag.getInt("x"), tag.getInt("y"), tag.getInt("z"));
+        if (tag != null && tag.contains("x") && tag.contains("y") && tag.contains("z")) {
+            return new Vec3i(tag.getIntOr("x", 0), tag.getIntOr("y", 0), tag.getIntOr("z", 0));
         }
+        return null;
+    }
 
+    public static BlockPos readBlockPosFromArrayTag(@NotNull CompoundTag tag, String tagName) {
+        if (tag.contains(tagName)) {
+            int[] pos = tag.getIntArray(tagName).orElse(new int[0]);
+            if (pos.length == 3) {
+                return new BlockPos(pos[0], pos[1], pos[2]);
+            }
+        }
         return null;
     }
 }

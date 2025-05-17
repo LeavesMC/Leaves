@@ -21,10 +21,6 @@ import java.util.UUID;
 
 public class CommonUtil {
 
-    public static @NotNull ResourceLocation getId(Block block) {
-        return BuiltInRegistries.BLOCK.getKey(block);
-    }
-
     public static Entity wrapPartEntityParent(Entity target) {
         if (target instanceof EnderDragonPart part) {
             return part.parentMob;

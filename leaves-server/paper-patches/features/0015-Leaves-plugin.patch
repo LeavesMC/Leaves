@@ -1,0 +1,262 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MC_XiaoHei <xiaohei.xor7@outlook.com>
+Date: Mon, 22 Jul 2024 09:05:56 +0000
+Subject: [PATCH] Leaves plugin
+
+This patch is licensed under the MIT license.
+
+diff --git a/src/main/java/io/papermc/paper/command/PaperPluginsCommand.java b/src/main/java/io/papermc/paper/command/PaperPluginsCommand.java
+index 41c95f00b4b2bea6d31f85e268c33d7f6184823e..a9154645554379d80b43171562f6f64a01ed3792 100644
+--- a/src/main/java/io/papermc/paper/command/PaperPluginsCommand.java
++++ b/src/main/java/io/papermc/paper/command/PaperPluginsCommand.java
+@@ -172,28 +172,41 @@ public class PaperPluginsCommand extends BukkitCommand {
+ 
+         final TreeMap<String, PluginProvider<JavaPlugin>> paperPlugins = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+         final TreeMap<String, PluginProvider<JavaPlugin>> spigotPlugins = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
++        // Leaves start - leaves plugin
++        final TreeMap<String, PluginProvider<JavaPlugin>> leavesPlugins = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+ 
+         for (final PluginProvider<JavaPlugin> provider : LaunchEntryPointHandler.INSTANCE.get(Entrypoint.PLUGIN).getRegisteredProviders()) {
+             final PluginMeta configuration = provider.getMeta();
+ 
+             if (provider instanceof SpigotPluginProvider) {
+                 spigotPlugins.put(configuration.getDisplayName(), provider);
++            } else if (provider instanceof PaperPluginParent.LeavesServerPluginProvider) {
++                leavesPlugins.put(configuration.getDisplayName(), provider);
+             } else if (provider instanceof PaperPluginParent.PaperServerPluginProvider) {
+                 paperPlugins.put(configuration.getDisplayName(), provider);
+             }
+         }
+ 
++        final int sizeLeavesPlugins = leavesPlugins.size();
+         final int sizePaperPlugins = paperPlugins.size();
+         final int sizeSpigotPlugins = spigotPlugins.size();
+-        final int sizePlugins = sizePaperPlugins + sizeSpigotPlugins;
+-        final boolean hasAllPluginTypes = (sizePaperPlugins > 0 && sizeSpigotPlugins > 0);
++        final int sizePlugins = sizePaperPlugins + sizeSpigotPlugins + sizeLeavesPlugins;
++        final boolean showSize = (sizePaperPlugins > 0 && sizeSpigotPlugins > 0) || (sizePaperPlugins > 0 && sizeLeavesPlugins > 0) || (sizeSpigotPlugins > 0 && sizeLeavesPlugins > 0);
+ 
+         final Component infoMessage = Component.text().append(INFO_ICON_SERVER_PLUGIN).append(Component.text("Server Plugins (%s):".formatted(sizePlugins), NamedTextColor.WHITE)).build();
+ 
+         sender.sendMessage(infoMessage);
+ 
++        if (!leavesPlugins.isEmpty()) {
++            sender.sendMessage(header("Leaves Plugins", 0x37D1AB, sizeLeavesPlugins, showSize));
++        }
++
++        for (final Component component : formatProviders(leavesPlugins)) {
++            sender.sendMessage(component);
++        }
++
+         if (!paperPlugins.isEmpty()) {
+-            sender.sendMessage(header("Paper Plugins", 0x0288D1, sizePaperPlugins, hasAllPluginTypes));
++            sender.sendMessage(header("Paper Plugins", 0x0288D1, sizePaperPlugins, showSize));
+         }
+ 
+         for (final Component component : formatProviders(paperPlugins)) {
+@@ -201,8 +214,9 @@ public class PaperPluginsCommand extends BukkitCommand {
+         }
+ 
+         if (!spigotPlugins.isEmpty()) {
+-            sender.sendMessage(header("Bukkit Plugins", 0xED8106, sizeSpigotPlugins, hasAllPluginTypes));
++            sender.sendMessage(header("Bukkit Plugins", 0xED8106, sizeSpigotPlugins, showSize));
+         }
++        // Leaves end - leaves plugin
+ 
+         for (final Component component : formatProviders(spigotPlugins)) {
+             sender.sendMessage(component);
+diff --git a/src/main/java/io/papermc/paper/plugin/PluginInitializerManager.java b/src/main/java/io/papermc/paper/plugin/PluginInitializerManager.java
+index 70413fddd23ca1165cb5090cce4fddcb1bbca93f..2cdf32d5f08b575cf0fe755634242ddb05b59774 100644
+--- a/src/main/java/io/papermc/paper/plugin/PluginInitializerManager.java
++++ b/src/main/java/io/papermc/paper/plugin/PluginInitializerManager.java
+@@ -117,19 +117,30 @@ public class PluginInitializerManager {
+         java.util.List<Path> files = ((java.util.List<File>) optionSet.valuesOf("add-plugin")).stream().map(File::toPath).toList();
+         io.papermc.paper.plugin.util.EntrypointUtil.registerProvidersFromSource(io.papermc.paper.plugin.provider.source.PluginFlagProviderSource.INSTANCE, files);
+ 
++        // Leaves start - leaves plugin
++        final Set<String> leavesPluginNames = new TreeSet<>();
+         final Set<String> paperPluginNames = new TreeSet<>();
+         final Set<String> legacyPluginNames = new TreeSet<>();
+         LaunchEntryPointHandler.INSTANCE.getStorage().forEach((entrypoint, providerStorage) -> {
+             providerStorage.getRegisteredProviders().forEach(provider -> {
+                 if (provider instanceof final SpigotPluginProvider legacy) {
+                     legacyPluginNames.add(String.format("%s (%s)", legacy.getMeta().getName(), legacy.getMeta().getVersion()));
++                } else if (provider instanceof final PaperPluginParent.LeavesServerPluginProvider leaves) {
++                    leavesPluginNames.add(String.format("%s (%s)", provider.getMeta().getName(), provider.getMeta().getVersion()));
+                 } else if (provider instanceof final PaperPluginParent.PaperServerPluginProvider paper) {
+                     paperPluginNames.add(String.format("%s (%s)", provider.getMeta().getName(), provider.getMeta().getVersion()));
+                 }
+             });
+         });
+-        final int total = paperPluginNames.size() + legacyPluginNames.size();
++        final int total = leavesPluginNames.size() + paperPluginNames.size() + legacyPluginNames.size();
+         LOGGER.info("Initialized {} plugin{}", total, total == 1 ? "" : "s");
++        if (!leavesPluginNames.isEmpty()) {
++            if (LOGGER.isDebugEnabled()) {
++                LOGGER.info("Leaves plugins ({}):\n - {}", leavesPluginNames.size(), String.join("\n - ", leavesPluginNames));
++            } else {
++                LOGGER.info("Leaves plugins ({}):\n - {}", leavesPluginNames.size(), String.join(", ", leavesPluginNames));
++            }
++        } // Leaves end - leaves plugin
+         if (!paperPluginNames.isEmpty()) {
+             if (LOGGER.isDebugEnabled()) {
+                 LOGGER.info("Paper plugins ({}):\n - {}", paperPluginNames.size(), String.join("\n - ", paperPluginNames));
+diff --git a/src/main/java/io/papermc/paper/plugin/provider/configuration/LegacyPaperMeta.java b/src/main/java/io/papermc/paper/plugin/provider/configuration/LegacyPaperMeta.java
+index 8cd649c977172f6b757d68565fcbb9eb8ae100a3..c18a94af99c827d73c31279e324e15ec8217a31d 100644
+--- a/src/main/java/io/papermc/paper/plugin/provider/configuration/LegacyPaperMeta.java
++++ b/src/main/java/io/papermc/paper/plugin/provider/configuration/LegacyPaperMeta.java
+@@ -18,7 +18,7 @@ import java.util.List;
+ import java.util.Map;
+ import java.util.Set;
+ 
+-class LegacyPaperMeta {
++public class LegacyPaperMeta {
+ 
+ 
+     private static final TypeToken<Map<PluginDependencyLifeCycle, Map<String, DependencyConfiguration>>> TYPE_TOKEN = new TypeToken<>() {
+@@ -28,6 +28,12 @@ class LegacyPaperMeta {
+         ConfigurationTransformation.chain(notVersioned()).apply(node);
+     }
+ 
++    // Leaves start - leaves plugin
++    public static void migrate(org.spongepowered.configurate.ConfigurationNode node) throws ConfigurateException {
++        ConfigurationTransformation.chain(notVersioned()).apply(node);
++    }
++    // Leaves end - leaves plugin
++
+     private static ConfigurationTransformation notVersioned() {
+         return ConfigurationTransformation.builder()
+             .addAction(NodePath.path(), (path, value) -> {
+diff --git a/src/main/java/io/papermc/paper/plugin/provider/configuration/PaperPluginMeta.java b/src/main/java/io/papermc/paper/plugin/provider/configuration/PaperPluginMeta.java
+index d3b3a8baca013909fa9c6204d964d7d7efeb2719..753fdb9782ee6b4cb8e232ebfdd52dea5d9e2a66 100644
+--- a/src/main/java/io/papermc/paper/plugin/provider/configuration/PaperPluginMeta.java
++++ b/src/main/java/io/papermc/paper/plugin/provider/configuration/PaperPluginMeta.java
+@@ -55,7 +55,7 @@ public class PaperPluginMeta implements PluginMeta {
+     @Required
+     private String version;
+     private String description;
+-    private List<String> authors = List.of();
++    protected List<String> authors = List.of(); // Leaves - leaves plugin
+     private List<String> contributors = List.of();
+     private String website;
+     private String prefix;
+diff --git a/src/main/java/io/papermc/paper/plugin/provider/type/PluginFileType.java b/src/main/java/io/papermc/paper/plugin/provider/type/PluginFileType.java
+index 8d0da6e46d4eb5eb05c3144510c4ef083559d0ec..331a4e98699f65adfad275bde923c0f57ef4dd18 100644
+--- a/src/main/java/io/papermc/paper/plugin/provider/type/PluginFileType.java
++++ b/src/main/java/io/papermc/paper/plugin/provider/type/PluginFileType.java
+@@ -23,6 +23,7 @@ import java.util.jar.JarFile;
+ public abstract class PluginFileType<T, C extends PluginMeta> {
+ 
+     public static final String PAPER_PLUGIN_YML = "paper-plugin.yml";
++    public static final String LEAVES_PLUGIN_JSON = "leaves-plugin.json"; // Leaves - leaves plugin
+     private static final List<String> CONFIG_TYPES = new ArrayList<>();
+     
+     public static final PluginFileType<PaperPluginParent, PaperPluginMeta> PAPER = new PluginFileType<>(PAPER_PLUGIN_YML, PaperPluginParent.FACTORY) {
+@@ -43,8 +44,21 @@ public abstract class PluginFileType<T, C extends PluginMeta> {
+             entrypointHandler.register(Entrypoint.PLUGIN, provider);
+         }
+     };
++    // Leaves start - leaves plugin
++    public static final PluginFileType<PaperPluginParent, org.leavesmc.leaves.plugin.provider.configuration.LeavesPluginMeta> LEAVES = new PluginFileType<>(LEAVES_PLUGIN_JSON, PaperPluginParent.LEAVES_FACTORY) {
++        @Override
++        protected void register(EntrypointHandler entrypointHandler, PaperPluginParent parent) {
++            PaperPluginParent.LeavesBootstrapProvider bootstrapPluginProvider = null;
++            if (parent.shouldCreateBootstrap()) {
++                bootstrapPluginProvider = parent.createLeavesBootstrapProvider();
++                entrypointHandler.register(Entrypoint.BOOTSTRAPPER, bootstrapPluginProvider);
++            }
++            entrypointHandler.register(Entrypoint.PLUGIN, parent.createLeavesPluginProvider(bootstrapPluginProvider));
++        }
++    };
+ 
+-    private static final List<PluginFileType<?, ?>> VALUES = List.of(PAPER, SPIGOT);
++    private static final List<PluginFileType<?, ?>> VALUES = List.of(LEAVES, PAPER, SPIGOT);
++    // Leaves end - leaves plugin
+ 
+     private final String config;
+     private final PluginTypeFactory<T, C> factory;
+diff --git a/src/main/java/io/papermc/paper/plugin/provider/type/paper/PaperPluginParent.java b/src/main/java/io/papermc/paper/plugin/provider/type/paper/PaperPluginParent.java
+index 55a6898e95704cddafda1ca5dc0951c7102fe10b..283f046c6f34c83f01e1ca1d80cbd7cc35a2b7d2 100644
+--- a/src/main/java/io/papermc/paper/plugin/provider/type/paper/PaperPluginParent.java
++++ b/src/main/java/io/papermc/paper/plugin/provider/type/paper/PaperPluginParent.java
+@@ -27,6 +27,7 @@ import java.util.jar.JarFile;
+ public class PaperPluginParent {
+ 
+     public static final PluginTypeFactory<PaperPluginParent, PaperPluginMeta> FACTORY = new PaperPluginProviderFactory();
++    public static final PluginTypeFactory<PaperPluginParent, org.leavesmc.leaves.plugin.provider.configuration.LeavesPluginMeta> LEAVES_FACTORY = new org.leavesmc.leaves.plugin.provider.LeavesPluginProviderFactory(); // Leaves - leaves plugin
+     private final Path path;
+     private final JarFile jarFile;
+     private final PaperPluginMeta description;
+@@ -51,6 +52,32 @@ public class PaperPluginParent {
+         return new PaperBootstrapProvider();
+     }
+ 
++    // Leaves start - leaves plugin
++    public LeavesBootstrapProvider createLeavesBootstrapProvider() {
++        return new io.papermc.paper.plugin.provider.type.paper.PaperPluginParent.LeavesBootstrapProvider();
++    }
++    public LeavesServerPluginProvider createLeavesPluginProvider(LeavesBootstrapProvider provider) {
++        return new LeavesServerPluginProvider(provider);
++    }
++
++    public class  LeavesBootstrapProvider extends PaperBootstrapProvider {
++        @Override
++        public org.leavesmc.leaves.plugin.provider.configuration.LeavesPluginMeta getMeta() {
++            return (org.leavesmc.leaves.plugin.provider.configuration.LeavesPluginMeta) super.getMeta();
++        }
++    }
++
++    public class LeavesServerPluginProvider extends PaperServerPluginProvider {
++        LeavesServerPluginProvider(PaperPluginParent.LeavesBootstrapProvider bootstrapProvider) {
++            super(bootstrapProvider);
++        }
++        @Override
++        public org.leavesmc.leaves.plugin.provider.configuration.LeavesPluginMeta getMeta() {
++            return (org.leavesmc.leaves.plugin.provider.configuration.LeavesPluginMeta) super.getMeta();
++        }
++    }
++    // Leaves end - leaves plugin
++
+     public PaperServerPluginProvider createPluginProvider(PaperBootstrapProvider provider) {
+         return new PaperServerPluginProvider(provider);
+     }
+diff --git a/src/main/java/io/papermc/paper/plugin/storage/SimpleProviderStorage.java b/src/main/java/io/papermc/paper/plugin/storage/SimpleProviderStorage.java
+index 26422904751647a061397ce978bba752149003cd..884ed63dab16acca83fe8f421762f2561400b1fb 100644
+--- a/src/main/java/io/papermc/paper/plugin/storage/SimpleProviderStorage.java
++++ b/src/main/java/io/papermc/paper/plugin/storage/SimpleProviderStorage.java
+@@ -26,6 +26,16 @@ public abstract class SimpleProviderStorage<T> implements ProviderStorage<T> {
+ 
+     @Override
+     public void register(PluginProvider<T> provider) {
++        // Leaves start - leaves plugin
++        if (provider instanceof final io.papermc.paper.plugin.provider.type.paper.PaperPluginParent.LeavesServerPluginProvider leaves) {
++            org.leavesmc.leaves.plugin.provider.configuration.LeavesPluginMeta meta = leaves.getMeta();
++            java.util.List<String> unavailableFeatures = meta.getFeatures().getRequired().stream().filter(feature -> !org.leavesmc.leaves.plugin.ServerFeatureManager.INSTANCE.isFeatureAvailable(feature)).toList();
++            if (!unavailableFeatures.isEmpty()) {
++                LOGGER.warn("The plugin {} ({}) requires some unavailable feature(s) {}. The plugin has been skipped.", meta.getName(), meta.getVersion(), unavailableFeatures);
++                return;
++            }
++        }
++        // Leaves end - leaves plugin
+         this.providers.add(provider);
+     }
+ 
+diff --git a/src/main/java/io/papermc/paper/pluginremap/PluginRemapper.java b/src/main/java/io/papermc/paper/pluginremap/PluginRemapper.java
+index 28857d0c9b53f2068d51b8f09ef40df7a2b97502..3160d5269c40031ad4f9e1444cdf662b7258da30 100644
+--- a/src/main/java/io/papermc/paper/pluginremap/PluginRemapper.java
++++ b/src/main/java/io/papermc/paper/pluginremap/PluginRemapper.java
+@@ -333,7 +333,13 @@ public final class PluginRemapper {
+                     }
+                     index.skip(inputFile);
+                     return CompletableFuture.completedFuture(inputFile);
+-                }
++                } else if (ns == null && Files.exists(fs.getPath(PluginFileType.LEAVES_PLUGIN_JSON))) { // Leaves start - leaves plugin
++                    if (DEBUG_LOGGING) {
++                        LOGGER.info("Plugin '{}' is a Leaves plugin with no namespace specified.", inputFile);
++                    }
++                    index.skip(inputFile);
++                    return CompletableFuture.completedFuture(inputFile);
++                } // Leaves end - leaves plugin
+             }
+         } catch (final IOException ex) {
+             return CompletableFuture.failedFuture(new RuntimeException("Failed to open plugin jar " + inputFile, ex));

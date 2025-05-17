@@ -15,26 +15,22 @@ import org.leavesmc.leaves.entity.Bot;
 public class BotRemoveEvent extends BotEvent implements Cancellable {
 
     private static final HandlerList handlers = new HandlerList();
-
-    public enum RemoveReason {
-        COMMAND,
-        PLUGIN,
-        DEATH,
-        INTERNAL
-    }
-
     private final RemoveReason reason;
     private final CommandSender remover;
     private Component removeMessage;
     private boolean save;
     private boolean cancel = false;
-
     public BotRemoveEvent(@NotNull final Bot who, @NotNull RemoveReason reason, @Nullable CommandSender remover, @Nullable Component removeMessage, boolean save) {
         super(who);
         this.reason = reason;
         this.remover = remover;
         this.removeMessage = removeMessage;
         this.save = save;
+    }
+
+    @NotNull
+    public static HandlerList getHandlerList() {
+        return handlers;
     }
 
     /**
@@ -99,8 +95,10 @@ public class BotRemoveEvent extends BotEvent implements Cancellable {
         return handlers;
     }
 
-    @NotNull
-    public static HandlerList getHandlerList() {
-        return handlers;
+    public enum RemoveReason {
+        COMMAND,
+        PLUGIN,
+        DEATH,
+        INTERNAL
     }
 }

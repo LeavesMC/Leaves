@@ -29,9 +29,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.Set;
 
+@SuppressWarnings("rawtypes")
 public class TicketHelper {
 
-    private static final Set<TicketType<?>> NEED_SAVED = Set.of(TicketType.PLAYER, TicketType.PORTAL, RegionizedPlayerChunkLoader.PLAYER_TICKET);
+    private static final Set<TicketType> NEED_SAVED = Set.of(TicketType.PORTAL, RegionizedPlayerChunkLoader.PLAYER_TICKET);
 
     public static void tryToLoadTickets() {
         if (!LeavesConfig.modify.fastResume) {
@@ -98,10 +99,10 @@ public class TicketHelper {
             JsonArray levelArray = new JsonArray();
             DistanceManager chunkDistanceManager = level.getChunkSource().chunkMap.distanceManager;
 
-            for (Long2ObjectMap.Entry<SortedArraySet<Ticket<?>>> chunkTickets : chunkDistanceManager.moonrise$getChunkHolderManager().getTicketsCopy().long2ObjectEntrySet()) {
+            for (Long2ObjectMap.Entry<SortedArraySet<Ticket>> chunkTickets : chunkDistanceManager.moonrise$getChunkHolderManager().getTicketsCopy().long2ObjectEntrySet()) {
                 long chunkKey = chunkTickets.getLongKey();
                 JsonArray ticketArray = new JsonArray();
-                SortedArraySet<Ticket<?>> tickets = chunkTickets.getValue();
+                SortedArraySet<Ticket> tickets = chunkTickets.getValue();
 
                 for (Ticket<?> ticket : tickets) {
                     if (!NEED_SAVED.contains(ticket.getType())) {
@@ -132,24 +133,20 @@ public class TicketHelper {
         json.addProperty("type", ticket.getType().toString());
         json.addProperty("ticketLevel", ticket.getTicketLevel());
         json.addProperty("removeDelay", ticket.moonrise$getRemoveDelay());
-        if (ticket.key instanceof BlockPos pos) {
-            json.addProperty("key", pos.asLong());
-        } else if (ticket.key instanceof ChunkPos pos) {
-            json.addProperty("key", pos.toLong());
-        } else if (ticket.key instanceof Long l) {
-            json.addProperty("key", l);
+        switch (ticket.getIdentifier()) {
+            case BlockPos pos -> json.addProperty("key", pos.asLong());
+            case ChunkPos pos -> json.addProperty("key", pos.toLong());
+            case Long l -> json.addProperty("key", l);
+            default -> {
+            }
         }
         return json;
     }
 
     private static <T> Ticket<T> tickFormJson(JsonObject json) {
-        TicketType<?> ticketType = null;
+        TicketType ticketType = null;
         Object key = null;
         switch (json.get("type").getAsString()) {
-            case "player" -> {
-                ticketType = TicketType.PLAYER;
-                key = new ChunkPos(json.get("key").getAsLong());
-            }
             case "portal" -> {
                 ticketType = TicketType.PORTAL;
                 key = BlockPos.of(json.get("key").getAsLong());
@@ -166,8 +163,7 @@ public class TicketHelper {
 
         int ticketLevel = json.get("ticketLevel").getAsInt();
         long removeDelay = json.get("removeDelay").getAsLong();
-        @SuppressWarnings("unchecked")
-        Ticket<T> ticket = new Ticket<>((TicketType<T>) ticketType, ticketLevel, (T) key);
+        Ticket<T> ticket = new Ticket<>(ticketType, ticketLevel, key);
         ticket.moonrise$setRemoveDelay(removeDelay);
 
         return ticket;

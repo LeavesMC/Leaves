@@ -8,20 +8,19 @@ import java.io.File;
 
 public interface Photographer extends Player {
 
-    @NotNull
-    public String getId();
+    @NotNull String getId();
 
-    public void setRecordFile(@NotNull File file);
+    void setRecordFile(@NotNull File file);
 
-    public void stopRecording();
+    void stopRecording();
 
-    public void stopRecording(boolean async);
+    void stopRecording(boolean async);
 
-    public void stopRecording(boolean async, boolean save);
+    void stopRecording(boolean async, boolean save);
 
-    public void pauseRecording();
+    void pauseRecording();
 
-    public void resumeRecording();
+    void resumeRecording();
 
-    public void setFollowPlayer(@Nullable Player player);
+    void setFollowPlayer(@Nullable Player player);
 }

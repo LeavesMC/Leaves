@@ -87,7 +87,7 @@ public class BBORProtocol {
         }
     }
 
-    @ProtocolHandler.PayloadReceiver(payload = EmptyPayload.class, payloadId = "subscribe")
+    @ProtocolHandler.PayloadReceiver(payload = EmptyPayload.class, key = "subscribe")
     public static void onPlayerSubscribed(@NotNull ServerPlayer player, EmptyPayload payload) {
         if (LeavesConfig.protocol.bborProtocol) {
             players.put(player.getId(), player);

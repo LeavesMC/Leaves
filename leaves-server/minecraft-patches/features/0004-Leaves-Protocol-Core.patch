@@ -5,17 +5,16 @@ Subject: [PATCH] Leaves Protocol Core
 
 
 diff --git a/net/minecraft/network/protocol/common/custom/CustomPacketPayload.java b/net/minecraft/network/protocol/common/custom/CustomPacketPayload.java
-index fb263fa1f30a7dfcb7ec2656abfb38e5fe88eac9..7e19dfe90a63ff26f03b95891dacb7360bba5a3c 100644
+index fb263fa1f30a7dfcb7ec2656abfb38e5fe88eac9..d7d13b4048f1d21491c2b5269433855558276272 100644
 --- a/net/minecraft/network/protocol/common/custom/CustomPacketPayload.java
 +++ b/net/minecraft/network/protocol/common/custom/CustomPacketPayload.java
-@@ -40,13 +40,23 @@ public interface CustomPacketPayload {
+@@ -40,13 +40,22 @@ public interface CustomPacketPayload {
  
              @Override
              public void encode(B buffer, CustomPacketPayload value) {
 +                // Leaves start - protocol core
 +                if (value instanceof org.leavesmc.leaves.protocol.core.LeavesCustomPayload<?> payload) {
-+                    buffer.writeResourceLocation(payload.id());
-+                    payload.write(buffer);
++                    org.leavesmc.leaves.protocol.core.LeavesProtocolManager.encode(buffer, payload);
 +                    return;
 +                }
 +                // Leaves end - protocol core
@@ -34,23 +33,28 @@ index fb263fa1f30a7dfcb7ec2656abfb38e5fe88eac9..7e19dfe90a63ff26f03b95891dacb736
          };
      }
 diff --git a/net/minecraft/server/MinecraftServer.java b/net/minecraft/server/MinecraftServer.java
-index 4e5b27f2d00a6be6da6db461471395a515dc9b38..5b72b9104ca26f9e0d43045b5cd9101af4399f64 100644
+index 4e5b27f2d00a6be6da6db461471395a515dc9b38..12cc30fe127fabbb6ed7c6f677242033359e6e85 100644
 --- a/net/minecraft/server/MinecraftServer.java
 +++ b/net/minecraft/server/MinecraftServer.java
-@@ -1742,6 +1742,8 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+@@ -1742,6 +1742,13 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
  
          profilerFiller.popPush("server gui refresh");
  
++<<<<<<< Updated upstream
 +        org.leavesmc.leaves.protocol.core.LeavesProtocolManager.handleTick(); // Leaves - protocol
++=======
++        org.leavesmc.leaves.protocol.core.LeavesProtocolManager.handleTick(tickCount); // Leaves - protocol
++        org.leavesmc.leaves.util.BreakBedrockList.endTick(); // Leaves - break bedrock list
++>>>>>>> Stashed changes
 +
          for (int i = 0; i < this.tickables.size(); i++) {
              this.tickables.get(i).run();
          }
 diff --git a/net/minecraft/server/network/ServerCommonPacketListenerImpl.java b/net/minecraft/server/network/ServerCommonPacketListenerImpl.java
-index d385cb836b7713f2dbd0b8693777c8e5ea0a74e4..150905d75f46fa9d9c7fbb7a7647fba9816416da 100644
+index 186393485396cfe9b1baef29586198356e2d2600..93cb28552f25c89ef3a5e705c66708b67c95c0af 100644
 --- a/net/minecraft/server/network/ServerCommonPacketListenerImpl.java
 +++ b/net/minecraft/server/network/ServerCommonPacketListenerImpl.java
-@@ -136,6 +136,12 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
+@@ -136,6 +136,15 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
  
      @Override
      public void handleCustomPayload(ServerboundCustomPayloadPacket packet) {
@@ -58,12 +62,15 @@ index d385cb836b7713f2dbd0b8693777c8e5ea0a74e4..150905d75f46fa9d9c7fbb7a7647fba9
 +        if (packet.payload() instanceof org.leavesmc.leaves.protocol.core.LeavesCustomPayload<?> leavesPayload) {
 +            org.leavesmc.leaves.protocol.core.LeavesProtocolManager.handlePayload(player, leavesPayload);
 +        }
++        if (packet.payload() instanceof net.minecraft.network.protocol.common.custom.DiscardedPayload(net.minecraft.resources.ResourceLocation id, byte[] data)) {
++            org.leavesmc.leaves.protocol.core.LeavesProtocolManager.handleBytebuf(player, id, io.netty.buffer.Unpooled.wrappedBuffer(data));
++        }
 +        // Leaves end - protocol
 +
          // Paper start
          if (packet.payload() instanceof net.minecraft.network.protocol.common.custom.BrandPayload(String brand)) {
              this.player.clientBrandName = brand;
-@@ -189,6 +195,7 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
+@@ -189,6 +198,7 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
          final String channel = new String(data, from, length, java.nio.charset.StandardCharsets.US_ASCII);
          if (register) {
              this.getCraftPlayer().addChannel(channel);
@@ -72,7 +79,7 @@ index d385cb836b7713f2dbd0b8693777c8e5ea0a74e4..150905d75f46fa9d9c7fbb7a7647fba9
              this.getCraftPlayer().removeChannel(channel);
          }
 diff --git a/net/minecraft/server/players/PlayerList.java b/net/minecraft/server/players/PlayerList.java
-index 6e22aedd36add8e39a82248193f324b36dfa27b5..3b1cf63aff568c261479f6ff16ddc22e80f97e8f 100644
+index 9ca3c55a3b5b1a532b86b08eb92460df4cb54f2a..5dea870f75b23bf3300f19945ca7f348001e5ad4 100644
 --- a/net/minecraft/server/players/PlayerList.java
 +++ b/net/minecraft/server/players/PlayerList.java
 @@ -334,6 +334,8 @@ public abstract class PlayerList {

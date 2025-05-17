@@ -200,7 +200,7 @@ public class REIServerProtocol {
         }
     }
 
-    @ProtocolHandler.PayloadReceiver(payload = BufCustomPacketPayload.class, payloadId = "delete_item")
+    @ProtocolHandler.PayloadReceiver(payload = BufCustomPacketPayload.class, key = "delete_item")
     public static void handleDeleteItem(ServerPlayer player, BufCustomPacketPayload payload) {
         if (!LeavesConfig.protocol.reiServerProtocol || !hasCheatPermission(player)) {
             return;
@@ -217,7 +217,7 @@ public class REIServerProtocol {
         });
     }
 
-    @ProtocolHandler.PayloadReceiver(payload = BufCustomPacketPayload.class, payloadId = "create_item")
+    @ProtocolHandler.PayloadReceiver(payload = BufCustomPacketPayload.class, key = "create_item")
     public static void handleCreateItem(ServerPlayer player, BufCustomPacketPayload payload) {
         if (!LeavesConfig.protocol.reiServerProtocol || !hasCheatPermission(player)) {
             return;
@@ -244,7 +244,7 @@ public class REIServerProtocol {
         inboundTransform(player, payload.id(), c2sBuf, consumer);
     }
 
-    @ProtocolHandler.PayloadReceiver(payload = BufCustomPacketPayload.class, payloadId = "create_item_grab")
+    @ProtocolHandler.PayloadReceiver(payload = BufCustomPacketPayload.class, key = "create_item_grab")
     public static void handleCreateItemGrab(ServerPlayer player, BufCustomPacketPayload payload) {
         if (!LeavesConfig.protocol.reiServerProtocol || !hasCheatPermission(player)) {
             return;
@@ -277,7 +277,7 @@ public class REIServerProtocol {
         inboundTransform(player, payload.id(), c2sBuf, consumer);
     }
 
-    @ProtocolHandler.PayloadReceiver(payload = BufCustomPacketPayload.class, payloadId = "create_item_hotbar")
+    @ProtocolHandler.PayloadReceiver(payload = BufCustomPacketPayload.class, key = "create_item_hotbar")
     public static void handleCreateItemHotbar(ServerPlayer player, BufCustomPacketPayload payload) {
         if (!LeavesConfig.protocol.reiServerProtocol || !hasCheatPermission(player)) {
             return;

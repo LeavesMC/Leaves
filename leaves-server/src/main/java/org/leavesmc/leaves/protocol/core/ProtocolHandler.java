@@ -7,6 +7,12 @@ import java.lang.annotation.Target;
 
 public class ProtocolHandler {
 
+    @Target(ElementType.FIELD)
+    @Retention(RetentionPolicy.RUNTIME)
+    public @interface Codec {
+        String key() default "";
+    }
+
     @Target(ElementType.METHOD)
     @Retention(RetentionPolicy.RUNTIME)
     public @interface Init {
@@ -17,9 +23,16 @@ public class ProtocolHandler {
     public @interface PayloadReceiver {
         Class<? extends LeavesCustomPayload<?>> payload();
 
-        String[] payloadId() default "";
+        String key() default "";
 
-        boolean ignoreId() default false;
+        boolean sendFabricRegister() default true;
+    }
+
+    @Target(ElementType.METHOD)
+    @Retention(RetentionPolicy.RUNTIME)
+    public @interface BytebufReceiver {
+
+        String key() default "";
 
         boolean sendFabricRegister() default true;
     }
@@ -27,7 +40,7 @@ public class ProtocolHandler {
     @Target(ElementType.METHOD)
     @Retention(RetentionPolicy.RUNTIME)
     public @interface Ticker {
-        int delay() default 0;
+        int interval() default 1;
     }
 
     @Target(ElementType.METHOD)
@@ -48,7 +61,7 @@ public class ProtocolHandler {
     @Target(ElementType.METHOD)
     @Retention(RetentionPolicy.RUNTIME)
     public @interface MinecraftRegister {
-        String[] channelId() default "";
+        String key() default "";
 
         boolean ignoreId() default false;
     }

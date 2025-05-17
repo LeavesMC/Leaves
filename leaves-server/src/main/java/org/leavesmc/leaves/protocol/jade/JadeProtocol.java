@@ -165,7 +165,7 @@ public class JadeProtocol {
         rebuildShearableBlocks();
     }
 
-    @ProtocolHandler.PayloadReceiver(payload = ClientHandshakePayload.class, payloadId = "client_handshake")
+    @ProtocolHandler.PayloadReceiver(payload = ClientHandshakePayload.class, key = "client_handshake")
     public static void clientHandshake(ServerPlayer player, ClientHandshakePayload payload) {
         if (!LeavesConfig.protocol.jadeProtocol) {
             return;
@@ -184,7 +184,7 @@ public class JadeProtocol {
         enabledPlayers.remove(player);
     }
 
-    @ProtocolHandler.PayloadReceiver(payload = RequestEntityPayload.class, payloadId = "request_entity")
+    @ProtocolHandler.PayloadReceiver(payload = RequestEntityPayload.class, key = "request_entity")
     public static void requestEntityData(ServerPlayer player, RequestEntityPayload payload) {
         if (!LeavesConfig.protocol.jadeProtocol) {
             return;
@@ -224,7 +224,7 @@ public class JadeProtocol {
         });
     }
 
-    @ProtocolHandler.PayloadReceiver(payload = RequestBlockPayload.class, payloadId = "request_block")
+    @ProtocolHandler.PayloadReceiver(payload = RequestBlockPayload.class, key = "request_block")
     public static void requestBlockData(ServerPlayer player, RequestBlockPayload payload) {
         if (!LeavesConfig.protocol.jadeProtocol) {
             return;

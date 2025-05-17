@@ -41,7 +41,7 @@ public class ServuxEntityDataProtocol {
         sendMetadata(player);
     }
 
-    @ProtocolHandler.PayloadReceiver(payload = EntityDataPayload.class, payloadId = "entity_data")
+    @ProtocolHandler.PayloadReceiver(payload = EntityDataPayload.class, key = "entity_data")
     public static void onPacketReceive(ServerPlayer player, EntityDataPayload payload) {
         if (!LeavesConfig.protocol.servux.entityProtocol) {
             return;

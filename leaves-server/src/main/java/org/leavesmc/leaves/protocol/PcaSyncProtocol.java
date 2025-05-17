@@ -67,7 +67,7 @@ public class PcaSyncProtocol {
         }
     }
 
-    @ProtocolHandler.PayloadReceiver(payload = EmptyPayload.class, payloadId = "cancel_sync_block_entity")
+    @ProtocolHandler.PayloadReceiver(payload = EmptyPayload.class, key = "cancel_sync_block_entity")
     private static void cancelSyncBlockEntityHandler(ServerPlayer player, EmptyPayload payload) {
         if (!LeavesConfig.protocol.pca.enable) {
             return;
@@ -75,7 +75,7 @@ public class PcaSyncProtocol {
         PcaSyncProtocol.clearPlayerWatchBlock(player);
     }
 
-    @ProtocolHandler.PayloadReceiver(payload = EmptyPayload.class, payloadId = "cancel_sync_entity")
+    @ProtocolHandler.PayloadReceiver(payload = EmptyPayload.class, key = "cancel_sync_entity")
     private static void cancelSyncEntityHandler(ServerPlayer player, EmptyPayload payload) {
         if (!LeavesConfig.protocol.pca.enable) {
             return;
@@ -83,7 +83,7 @@ public class PcaSyncProtocol {
         PcaSyncProtocol.clearPlayerWatchEntity(player);
     }
 
-    @ProtocolHandler.PayloadReceiver(payload = SyncBlockEntityPayload.class, payloadId = "sync_block_entity")
+    @ProtocolHandler.PayloadReceiver(payload = SyncBlockEntityPayload.class, key = "sync_block_entity")
     private static void syncBlockEntityHandler(ServerPlayer player, SyncBlockEntityPayload payload) {
         if (!LeavesConfig.protocol.pca.enable) {
             return;
@@ -127,7 +127,7 @@ public class PcaSyncProtocol {
         });
     }
 
-    @ProtocolHandler.PayloadReceiver(payload = SyncEntityPayload.class, payloadId = "sync_entity")
+    @ProtocolHandler.PayloadReceiver(payload = SyncEntityPayload.class, key = "sync_entity")
     private static void syncEntityHandler(ServerPlayer player, SyncEntityPayload payload) {
         if (!LeavesConfig.protocol.pca.enable) {
             return;

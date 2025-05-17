@@ -8,6 +8,7 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -39,7 +40,7 @@ public class ServuxHudDataProtocol {
 
     public static boolean refreshSpawnMetadata = false;
 
-    @ProtocolHandler.PayloadReceiver(payload = HudDataPayload.class, payloadId = "hud_metadata")
+    @ProtocolHandler.PayloadReceiver(payload = HudDataPayload.class, key = "hud_metadata")
     public static void onPacketReceive(ServerPlayer player, HudDataPayload payload) {
         if (!LeavesConfig.protocol.servux.hudMetadataProtocol) {
             return;
@@ -224,7 +225,6 @@ public class ServuxHudDataProtocol {
             this(type, new CompoundTag(), buffer);
         }
 
-        @New
         @NotNull
         public static HudDataPayload decode(ResourceLocation location, @NotNull FriendlyByteBuf buf) {
             HudDataPayloadType type = HudDataPayloadType.fromId(buf.readVarInt());

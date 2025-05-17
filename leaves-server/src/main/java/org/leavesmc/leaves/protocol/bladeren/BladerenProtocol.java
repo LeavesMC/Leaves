@@ -33,7 +33,7 @@ public class BladerenProtocol {
         return ResourceLocation.tryBuild(PROTOCOL_ID, path);
     }
 
-    @ProtocolHandler.PayloadReceiver(payload = BladerenHelloPayload.class, payloadId = "hello")
+    @ProtocolHandler.PayloadReceiver(payload = BladerenHelloPayload.class, key = "hello")
     private static void handleHello(@NotNull ServerPlayer player, @NotNull BladerenHelloPayload payload) {
         if (LeavesConfig.protocol.bladeren.enable) {
             String clientVersion = payload.version;
@@ -52,7 +52,7 @@ public class BladerenProtocol {
         }
     }
 
-    @ProtocolHandler.PayloadReceiver(payload = BladerenFeatureModifyPayload.class, payloadId = "feature_modify")
+    @ProtocolHandler.PayloadReceiver(payload = BladerenFeatureModifyPayload.class, key = "feature_modify")
     private static void handleModify(@NotNull ServerPlayer player, @NotNull BladerenFeatureModifyPayload payload) {
         if (LeavesConfig.protocol.bladeren.enable) {
             String name = payload.name;

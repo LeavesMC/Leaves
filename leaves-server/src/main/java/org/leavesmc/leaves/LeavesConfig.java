@@ -304,8 +304,21 @@ public final class LeavesConfig {
             @GlobalConfig("allow-anvil-destroy-item-entities")
             public boolean allowAnvilDestroyItemEntities = false;
 
-            @GlobalConfig("string-tripwire-hook-duplicate")
-            public boolean stringTripwireHookDuplicate = false;
+            public TripwireConfig tripwire =  new TripwireConfig();
+
+            @GlobalConfigCategory("tripwire-and-hook-behavior")
+            public static class TripwireConfig {
+                @RemovedConfig(name = "string-tripwire-hook-duplicate", category = {"modify", "minecraft-old"}, transform = true)
+                @GlobalConfig("string-tripwire-hook-duplicate")
+                public boolean stringTripwireHookDuplicate = false;
+
+                @GlobalConfig("tripwire-behavior")
+                public TripwireBehaviorType preventTripwireDuplicateInEndPlatformMode = TripwireBehaviorType.VANILLA_21;
+
+                public enum TripwireBehaviorType {
+                    VANILLA_20, VANILLA_21, MIXED
+                }
+            }
         }
 
         public ElytraAeronauticsConfig elytraAeronautics = new ElytraAeronauticsConfig();

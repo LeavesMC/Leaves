@@ -48,5 +48,10 @@ public class ProtocolUtils {
                 throw new UnsupportedOperationException();
             }
         );
+
+        @Override
+        public ResourceLocation id() {
+            return id;
+        }
     }
 }

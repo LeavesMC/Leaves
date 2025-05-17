@@ -353,13 +353,20 @@ public class LeavesProtocolManager {
 
     public record FabricRegisterPayload(Set<String> channels) implements LeavesCustomPayload<FabricRegisterPayload> {
 
-        @ProtocolHandler.Codec(key = "minecraft:register")
+        public static final ResourceLocation ID = ResourceLocation.tryParse("minecraft:register");
+
+        @ProtocolHandler.Codec
         public static StreamCodec<FriendlyByteBuf, FabricRegisterPayload> CODEC = StreamCodec.of(
             FabricRegisterPayload::write,
             v -> {
                 throw new UnsupportedOperationException();
             }
         );
+
+        @Override
+        public ResourceLocation id() {
+            return ID;
+        }
 
         public static void write(FriendlyByteBuf buf, FabricRegisterPayload payload) {
             boolean first = true;

@@ -27,7 +27,7 @@ public class ChatImageProtocol {
         return ResourceLocation.tryBuild(PROTOCOL_ID, path);
     }
 
-    @ProtocolHandler.PayloadReceiver(payload = FileChannelPayload.class, payloadId = "get_file_channel")
+    @ProtocolHandler.PayloadReceiver(payload = FileChannelPayload.class, key = "get_file_channel")
     public static void serverFileChannelReceived(ServerPlayer player, FileChannelPayload payload) {
         if (!LeavesConfig.protocol.chatImageProtocol) {
             return;
@@ -52,7 +52,7 @@ public class ChatImageProtocol {
         }
     }
 
-    @ProtocolHandler.PayloadReceiver(payload = FileInfoChannelPayload.class, payloadId = "file_info")
+    @ProtocolHandler.PayloadReceiver(payload = FileInfoChannelPayload.class, key = "file_info")
     public static void serverGetFileChannelReceived(ServerPlayer player, FileInfoChannelPayload packet) {
         if (!LeavesConfig.protocol.chatImageProtocol) {
             return;

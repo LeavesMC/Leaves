@@ -51,7 +51,7 @@ public class ServuxStructuresProtocol {
     private static final Map<Integer, ServerPlayer> players = new ConcurrentHashMap<>();
     private static final Map<UUID, Map<ChunkPos, Timeout>> timeouts = new HashMap<>();
 
-    @ProtocolHandler.PayloadReceiver(payload = StructuresPayload.class, payloadId = "structures")
+    @ProtocolHandler.PayloadReceiver(payload = StructuresPayload.class, key = "structures")
     public static void onPacketReceive(ServerPlayer player, StructuresPayload payload) {
         if (!LeavesConfig.protocol.servux.structureProtocol) {
             return;

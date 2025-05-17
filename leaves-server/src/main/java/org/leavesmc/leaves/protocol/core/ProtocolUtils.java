@@ -4,6 +4,7 @@ import io.netty.buffer.ByteBuf;
 import io.papermc.paper.ServerBuildInfo;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
@@ -28,18 +29,7 @@ public class ProtocolUtils {
 
     @SuppressWarnings("all")
     public static void sendPayloadPacket(@NotNull ServerPlayer player, ResourceLocation id, Consumer<FriendlyByteBuf> consumer) {
-        player.connection.send(new ClientboundCustomPayloadPacket(new LeavesCustomPayload() {
-            @Override
-            public void write(@NotNull FriendlyByteBuf buf) {
-                consumer.accept(buf);
-            }
-
-            @Override
-            @NotNull
-            public ResourceLocation id() {
-                return id;
-            }
-        }));
+        player.connection.send(new ClientboundCustomPayloadPacket(new DirectPayload(id, consumer)));
     }
 
     public static void sendPayloadPacket(ServerPlayer player, CustomPacketPayload payload) {
@@ -48,5 +38,15 @@ public class ProtocolUtils {
 
     public static RegistryFriendlyByteBuf decorate(ByteBuf buf) {
         return bufDecorator.apply(buf);
+    }
+
+    private record DirectPayload(ResourceLocation id, Consumer<FriendlyByteBuf> consumer) implements LeavesCustomPayload<DirectPayload> {
+        @ProtocolHandler.Codec
+        public static StreamCodec<FriendlyByteBuf, DirectPayload> CODEC = StreamCodec.of(
+            (buffer, value) -> value.consumer().accept(buffer),
+            buffer -> {
+                throw new UnsupportedOperationException();
+            }
+        );
     }
 }

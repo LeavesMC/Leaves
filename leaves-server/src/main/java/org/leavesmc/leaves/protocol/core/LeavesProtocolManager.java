@@ -1,20 +1,19 @@
 package org.leavesmc.leaves.protocol.core;
 
 import com.google.common.collect.ImmutableSet;
+import io.netty.buffer.ByteBuf;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
-import org.apache.commons.lang.ArrayUtils;
 import org.bukkit.event.player.PlayerKickEvent;
-import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesLogger;
 
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
-import java.lang.reflect.Executable;
-import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.net.JarURLConnection;
@@ -38,136 +37,141 @@ import java.util.jar.JarFile;
 // TODO refactor
 public class LeavesProtocolManager {
 
-    private static final Class<?>[] PAYLOAD_PARAMETER_TYPES = {ResourceLocation.class, FriendlyByteBuf.class};
-
     private static final LeavesLogger LOGGER = LeavesLogger.LOGGER;
 
-    private static final Map<LeavesProtocol, Map<ProtocolHandler.PayloadReceiver, Executable>> KNOWN_TYPES = new HashMap<>();
-    private static final Map<LeavesProtocol, Map<ProtocolHandler.PayloadReceiver, Method>> KNOW_RECEIVERS = new HashMap<>();
-    private static Set<ResourceLocation> ALL_KNOWN_ID = new HashSet<>();
+    private static final Map<String, InvokerHolder<ProtocolHandler.PayloadReceiver>> PAYLOAD_RECEIVERS = new HashMap<>();
+    private static final Map<String, InvokerHolder<ProtocolHandler.BytebufReceiver>> BYTEBUF_RECEIVERS = new HashMap<>();
+    private static final Map<String, InvokerHolder<ProtocolHandler.MinecraftRegister>> KEYED_MINECRAFT_REGISTER = new HashMap<>();
 
-    private static final List<Method> TICKERS = new ArrayList<>();
-    private static final List<Method> PLAYER_JOIN = new ArrayList<>();
-    private static final List<Method> PLAYER_LEAVE = new ArrayList<>();
-    private static final List<Method> RELOAD_SERVER = new ArrayList<>();
-    private static final Map<LeavesProtocol, Map<ProtocolHandler.MinecraftRegister, Method>> MINECRAFT_REGISTER = new HashMap<>();
+    private static final List<InvokerHolder<ProtocolHandler.Ticker>> TICKERS = new ArrayList<>();
+    private static final List<InvokerHolder<ProtocolHandler.PlayerJoin>> PLAYER_JOIN = new ArrayList<>();
+    private static final List<InvokerHolder<ProtocolHandler.PlayerLeave>> PLAYER_LEAVE = new ArrayList<>();
+    private static final List<InvokerHolder<ProtocolHandler.ReloadServer>> RELOAD_SERVER = new ArrayList<>();
+    private static final List<InvokerHolder<ProtocolHandler.MinecraftRegister>> WILD_MINECRAFT_REGISTER = new ArrayList<>();
 
+    private static Set<String> ALL_KNOWN_ID = new HashSet<>();
+
+    private static final Map<ResourceLocation, StreamCodec<FriendlyByteBuf, LeavesCustomPayload<?>>> DECODERS = new HashMap<>();
+    private static final Map<Class<?>, StreamCodec<FriendlyByteBuf, LeavesCustomPayload<?>>> ENCODERS = new HashMap<>();
+
+    @SuppressWarnings("unchecked")
     public static void init() {
         for (Class<?> clazz : getClasses("org.leavesmc.leaves.protocol")) {
-            final LeavesProtocol protocol = clazz.getAnnotation(LeavesProtocol.class);
-            if (protocol != null) {
-                Set<Method> methods;
-                try {
-                    Method[] publicMethods = clazz.getMethods();
-                    Method[] privateMethods = clazz.getDeclaredMethods();
-                    methods = new HashSet<>(publicMethods.length + privateMethods.length, 1.0f);
-                    Collections.addAll(methods, publicMethods);
-                    Collections.addAll(methods, privateMethods);
-                } catch (NoClassDefFoundError error) {
-                    LOGGER.severe("Failed to load class " + clazz.getName() + " due to missing dependencies, " + error.getCause() + ": " + error.getMessage());
-                    return;
-                }
-
-                Map<ProtocolHandler.PayloadReceiver, Executable> map = KNOWN_TYPES.getOrDefault(protocol, new HashMap<>());
-                for (final Method method : methods) {
-                    if (method.isBridge() || method.isSynthetic() || !Modifier.isStatic(method.getModifiers())) {
+            if (clazz.isAssignableFrom(LeavesCustomPayload.class)) {
+                ResourceLocation location;
+                StreamCodec<FriendlyByteBuf, LeavesCustomPayload<?>> streamCodec;
+                for (Field field : clazz.getDeclaredFields()) {
+                    field.setAccessible(true);
+                    if (!Modifier.isStatic(field.getModifiers())) {
                         continue;
                     }
-
-                    method.setAccessible(true);
-
-                    final ProtocolHandler.Init init = method.getAnnotation(ProtocolHandler.Init.class);
-                    if (init != null) {
-                        try {
-                            method.invoke(null);
-                        } catch (InvocationTargetException | IllegalAccessException exception) {
-                            LOGGER.severe("Failed to invoke init method " + method.getName() + " in " + clazz.getName() + ", " + exception.getCause() + ": " + exception.getMessage());
-                        }
-                        continue;
-                    }
-
-                    final ProtocolHandler.PayloadReceiver receiver = method.getAnnotation(ProtocolHandler.PayloadReceiver.class);
-                    if (receiver != null) {
-                        try {
-                            boolean found = false;
-                            for (Method payloadMethod : receiver.payload().getDeclaredMethods()) {
-                                if (payloadMethod.isAnnotationPresent(LeavesCustomPayload.New.class)) {
-                                    if (Arrays.equals(payloadMethod.getParameterTypes(), PAYLOAD_PARAMETER_TYPES) && payloadMethod.getReturnType() == receiver.payload() && Modifier.isStatic(payloadMethod.getModifiers())) {
-                                        payloadMethod.setAccessible(true);
-                                        map.put(receiver, payloadMethod);
-                                        found = true;
-                                        break;
-                                    }
-                                }
+                    try {
+                        final ProtocolHandler.Codec codec = field.getAnnotation(ProtocolHandler.Codec.class);
+                        if (codec != null && field.getType() == StreamCodec.class) {
+                            location = ResourceLocation.tryParse(codec.key());
+                            streamCodec = (StreamCodec<FriendlyByteBuf, LeavesCustomPayload<?>>) field.get(null);
+                            if (location != null) {
+                                DECODERS.put(location, streamCodec);
                             }
-
-                            if (!found) {
-                                Constructor<? extends LeavesCustomPayload<?>> constructor = receiver.payload().getConstructor(PAYLOAD_PARAMETER_TYPES);
-                                if (constructor.isAnnotationPresent(LeavesCustomPayload.New.class)) {
-                                    constructor.setAccessible(true);
-                                    map.put(receiver, constructor);
-                                } else {
-                                    throw new NoSuchMethodException();
-                                }
-                            }
-                        } catch (NoSuchMethodException exception) {
-                            LOGGER.severe("Failed to find constructor for " + receiver.payload().getName() + ", " + exception.getCause() + ": " + exception.getMessage());
-                            continue;
+                            ENCODERS.put(clazz, streamCodec);
                         }
-
-                        if (!KNOW_RECEIVERS.containsKey(protocol)) {
-                            KNOW_RECEIVERS.put(protocol, new HashMap<>());
-                        }
-
-                        KNOW_RECEIVERS.get(protocol).put(receiver, method);
-                        continue;
-                    }
-
-                    final ProtocolHandler.Ticker ticker = method.getAnnotation(ProtocolHandler.Ticker.class);
-                    if (ticker != null) {
-                        TICKERS.add(method);
-                        continue;
-                    }
-
-                    final ProtocolHandler.PlayerJoin playerJoin = method.getAnnotation(ProtocolHandler.PlayerJoin.class);
-                    if (playerJoin != null) {
-                        PLAYER_JOIN.add(method);
-                        continue;
-                    }
-
-                    final ProtocolHandler.PlayerLeave playerLeave = method.getAnnotation(ProtocolHandler.PlayerLeave.class);
-                    if (playerLeave != null) {
-                        PLAYER_LEAVE.add(method);
-                        continue;
-                    }
-
-                    final ProtocolHandler.ReloadServer reloadServer = method.getAnnotation(ProtocolHandler.ReloadServer.class);
-                    if (reloadServer != null) {
-                        RELOAD_SERVER.add(method);
-                        continue;
-                    }
-
-                    final ProtocolHandler.MinecraftRegister minecraftRegister = method.getAnnotation(ProtocolHandler.MinecraftRegister.class);
-                    if (minecraftRegister != null) {
-                        if (!MINECRAFT_REGISTER.containsKey(protocol)) {
-                            MINECRAFT_REGISTER.put(protocol, new HashMap<>());
-                        }
-
-                        MINECRAFT_REGISTER.get(protocol).put(minecraftRegister, method);
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
                     }
                 }
-                KNOWN_TYPES.put(protocol, map);
+                continue;
             }
-        }
 
-        for (LeavesProtocol protocol : KNOWN_TYPES.keySet()) {
-            Map<ProtocolHandler.PayloadReceiver, Executable> map = KNOWN_TYPES.get(protocol);
-            for (ProtocolHandler.PayloadReceiver receiver : map.keySet()) {
-                if (receiver.sendFabricRegister() && !receiver.ignoreId()) {
-                    for (String payloadId : receiver.payloadId()) {
-                        for (String namespace : protocol.namespace()) {
-                            ALL_KNOWN_ID.add(ResourceLocation.tryBuild(namespace, payloadId));
-                        }
+            final LeavesProtocol.Register register = clazz.getAnnotation(LeavesProtocol.Register.class);
+            if (register == null) {
+                continue;
+            }
+            LeavesProtocol protocol;
+            Set<Method> methods;
+            try {
+                Constructor<?> constructor = clazz.getDeclaredConstructors()[0];
+                constructor.setAccessible(true);
+                protocol = (LeavesProtocol) constructor.newInstance();
+                Method[] publicMethods = clazz.getMethods();
+                Method[] privateMethods = clazz.getDeclaredMethods();
+                methods = new HashSet<>(publicMethods.length + privateMethods.length, 1.0f);
+                Collections.addAll(methods, publicMethods);
+                Collections.addAll(methods, privateMethods);
+            } catch (Throwable throwable) {
+                LOGGER.severe("Failed to load class " + clazz.getName() + ". " + throwable);
+                return;
+            }
+
+            for (final Method method : methods) {
+                if (method.isBridge() || method.isSynthetic()) {
+                    continue;
+                }
+
+                method.setAccessible(true);
+
+                final ProtocolHandler.Init init = method.getAnnotation(ProtocolHandler.Init.class);
+                if (init != null) {
+                    InvokerHolder<ProtocolHandler.Init> holder = new InvokerHolder<>(protocol, method, init);
+                    try {
+                        holder.invokeEmpty();
+                    } catch (RuntimeException exception) {
+                        LOGGER.severe("Failed to invoke init method " + method.getName() + " in " + clazz.getName() + ", " + exception.getCause() + ": " + exception.getMessage());
+                    }
+                    continue;
+                }
+
+                final ProtocolHandler.PayloadReceiver receiver = method.getAnnotation(ProtocolHandler.PayloadReceiver.class);
+                if (receiver != null) {
+                    String key = register.namespace() + ":" + receiver.key();
+                    InvokerHolder<ProtocolHandler.PayloadReceiver> payloadReceiver = new InvokerHolder<>(protocol, method, receiver);
+                    PAYLOAD_RECEIVERS.put(key, payloadReceiver);
+                    ALL_KNOWN_ID.add(key);
+                    continue;
+                }
+
+                final ProtocolHandler.BytebufReceiver receiver1 = method.getAnnotation(ProtocolHandler.BytebufReceiver.class);
+                if (receiver1 != null) {
+                    String key = register.namespace() + ":" + receiver1.key();
+                    InvokerHolder<ProtocolHandler.BytebufReceiver> bytebufReceiver = new InvokerHolder<>(protocol, method, receiver1);
+                    BYTEBUF_RECEIVERS.put(key, bytebufReceiver);
+                    ALL_KNOWN_ID.add(key);
+                    continue;
+                }
+
+
+                final ProtocolHandler.Ticker ticker = method.getAnnotation(ProtocolHandler.Ticker.class);
+                if (ticker != null) {
+                    TICKERS.add(new InvokerHolder<>(protocol, method, ticker));
+                    continue;
+                }
+
+                final ProtocolHandler.PlayerJoin playerJoin = method.getAnnotation(ProtocolHandler.PlayerJoin.class);
+                if (playerJoin != null) {
+                    PLAYER_JOIN.add(new InvokerHolder<>(protocol, method, playerJoin));
+                    continue;
+                }
+
+                final ProtocolHandler.PlayerLeave playerLeave = method.getAnnotation(ProtocolHandler.PlayerLeave.class);
+                if (playerLeave != null) {
+                    PLAYER_LEAVE.add(new InvokerHolder<>(protocol, method, playerLeave));
+                    continue;
+                }
+
+                final ProtocolHandler.ReloadServer reloadServer = method.getAnnotation(ProtocolHandler.ReloadServer.class);
+                if (reloadServer != null) {
+                    RELOAD_SERVER.add(new InvokerHolder<>(protocol, method, reloadServer));
+                    continue;
+                }
+
+                final ProtocolHandler.MinecraftRegister minecraftRegister = method.getAnnotation(ProtocolHandler.MinecraftRegister.class);
+                if (minecraftRegister != null) {
+                    InvokerHolder<ProtocolHandler.MinecraftRegister> invokerHolder = new InvokerHolder<>(protocol, method, minecraftRegister);
+                    if (!minecraftRegister.ignoreId()) {
+                        String key = register.namespace() + ":" + minecraftRegister.key();
+                        KEYED_MINECRAFT_REGISTER.put(key, invokerHolder);
+                        ALL_KNOWN_ID.add(key);
+                    } else {
+                        WILD_MINECRAFT_REGISTER.add(invokerHolder);
                     }
                 }
             }
@@ -176,29 +180,20 @@ public class LeavesProtocolManager {
     }
 
     public static LeavesCustomPayload<?> decode(ResourceLocation id, FriendlyByteBuf buf) {
-        for (LeavesProtocol protocol : KNOWN_TYPES.keySet()) {
-            if (!ArrayUtils.contains(protocol.namespace(), id.getNamespace())) {
-                continue;
-            }
-
-            Map<ProtocolHandler.PayloadReceiver, Executable> map = KNOWN_TYPES.get(protocol);
-            for (ProtocolHandler.PayloadReceiver receiver : map.keySet()) {
-                if (receiver.ignoreId() || ArrayUtils.contains(receiver.payloadId(), id.getPath())) {
-                    try {
-                        if (map.get(receiver) instanceof Constructor<?> constructor) {
-                            return (LeavesCustomPayload<?>) constructor.newInstance(id, buf);
-                        } else if (map.get(receiver) instanceof Method method) {
-                            return (LeavesCustomPayload<?>) method.invoke(null, id, buf);
-                        }
-                    } catch (InvocationTargetException | InstantiationException | IllegalAccessException exception) {
-                        LOGGER.warning("Failed to create payload for " + id + " in " + ArrayUtils.toString(protocol.namespace()) + ", " + exception.getCause() + ": " + exception.getMessage());
-                        buf.readBytes(buf.readableBytes());
-                        return new ErrorPayload(id, protocol.namespace(), receiver.payloadId());
-                    }
-                }
-            }
+        var codec = DECODERS.get(id);
+        if (codec == null) {
+            return null;
         }
-        return null;
+        return codec.decode(buf);
+    }
+
+    public static void encode(FriendlyByteBuf buf, LeavesCustomPayload<?> payload) {
+        buf.writeResourceLocation(payload.id());
+        var codec = ENCODERS.get(payload.getClass());
+        if (codec == null) {
+            return;
+        }
+        ENCODERS.get(payload.getClass()).encode(buf, payload);
     }
 
     public static void handlePayload(ServerPlayer player, LeavesCustomPayload<?> payload) {
@@ -206,94 +201,56 @@ public class LeavesProtocolManager {
             player.connection.disconnect(Component.literal("Payload " + Arrays.toString(errorPayload.packetID) + " from " + Arrays.toString(errorPayload.protocolID) + " error"), PlayerKickEvent.Cause.INVALID_PAYLOAD);
             return;
         }
-
-        for (LeavesProtocol protocol : KNOW_RECEIVERS.keySet()) {
-            if (!ArrayUtils.contains(protocol.namespace(), payload.type().id().getNamespace())) {
-                continue;
-            }
-
-            Map<ProtocolHandler.PayloadReceiver, Method> map = KNOW_RECEIVERS.get(protocol);
-            for (ProtocolHandler.PayloadReceiver receiver : map.keySet()) {
-                if (payload.getClass() == receiver.payload()) {
-                    if (receiver.ignoreId() || ArrayUtils.contains(receiver.payloadId(), payload.type().id().getPath())) {
-                        try {
-                            map.get(receiver).invoke(null, player, payload);
-                        } catch (InvocationTargetException | IllegalAccessException exception) {
-                            LOGGER.warning("Failed to handle payload " + payload.type().id() + " in " + ArrayUtils.toString(protocol.namespace()) + ", " + exception.getCause() + ": " + exception.getMessage());
-                        }
-                    }
-                }
-            }
+        String key = payload.id().toString();
+        InvokerHolder<ProtocolHandler.PayloadReceiver> holder;
+        if ((holder = PAYLOAD_RECEIVERS.get(key)) != null) {
+            holder.invokePayload(player, payload);
         }
     }
 
-    public static void handleTick() {
-        if (!TICKERS.isEmpty()) {
-            try {
-                for (Method method : TICKERS) {
-                    method.invoke(null);
-                }
-            } catch (InvocationTargetException | IllegalAccessException exception) {
-                LOGGER.warning("Failed to tick, " + exception.getCause() + ": " + exception.getMessage());
+    public static void handleBytebuf(ServerPlayer player, ResourceLocation location, ByteBuf buf) {
+        String key = location.toString();
+        InvokerHolder<ProtocolHandler.BytebufReceiver> holder;
+        if ((holder = BYTEBUF_RECEIVERS.get(key)) != null) {
+            holder.invokeBuf(player, buf);
+        }
+    }
+
+    public static void handleTick(long tickCount) {
+        for (var ticker : TICKERS) {
+            if (tickCount % ticker.handler().interval() == 0) {
+                ticker.invokeEmpty();
             }
         }
     }
 
     public static void handlePlayerJoin(ServerPlayer player) {
-        if (!PLAYER_JOIN.isEmpty()) {
-            try {
-                for (Method method : PLAYER_JOIN) {
-                    method.invoke(null, player);
-                }
-            } catch (InvocationTargetException | IllegalAccessException exception) {
-                LOGGER.warning("Failed to handle player join, " + exception.getCause() + ": " + exception.getMessage());
-            }
+        for (var join : PLAYER_JOIN) {
+            join.invokePlayer(player);
         }
-
         ProtocolUtils.sendPayloadPacket(player, new FabricRegisterPayload(ALL_KNOWN_ID));
     }
 
     public static void handlePlayerLeave(ServerPlayer player) {
-        if (!PLAYER_LEAVE.isEmpty()) {
-            try {
-                for (Method method : PLAYER_LEAVE) {
-                    method.invoke(null, player);
-                }
-            } catch (InvocationTargetException | IllegalAccessException exception) {
-                LOGGER.warning("Failed to handle player leave, " + exception.getCause() + ": " + exception.getMessage());
-            }
+        for (var leave : PLAYER_LEAVE) {
+            leave.invokePlayer(player);
         }
     }
 
     public static void handleServerReload() {
-        if (!RELOAD_SERVER.isEmpty()) {
-            try {
-                for (Method method : RELOAD_SERVER) {
-                    method.invoke(null);
-                }
-            } catch (InvocationTargetException | IllegalAccessException exception) {
-                LOGGER.warning("Failed to handle server reload, " + exception.getCause() + ": " + exception.getMessage());
-            }
+        for (var reload : RELOAD_SERVER) {
+            reload.invokeEmpty();
         }
     }
 
     public static void handleMinecraftRegister(String channelId, ServerPlayer player) {
-        for (LeavesProtocol protocol : MINECRAFT_REGISTER.keySet()) {
-            String[] channel = channelId.split(":");
-            if (!ArrayUtils.contains(protocol.namespace(), channel[0])) {
-                continue;
-            }
-
-            Map<ProtocolHandler.MinecraftRegister, Method> map = MINECRAFT_REGISTER.get(protocol);
-            for (ProtocolHandler.MinecraftRegister register : map.keySet()) {
-                if (register.ignoreId() || ArrayUtils.contains(register.channelId(), channel[1])) {
-                    try {
-                        map.get(register).invoke(null, player, channel[1]);
-                    } catch (InvocationTargetException | IllegalAccessException exception) {
-                        LOGGER.warning("Failed to handle minecraft register, " + exception.getCause() + ": " + exception.getMessage());
-                    }
-                }
-            }
+        InvokerHolder<ProtocolHandler.MinecraftRegister> keyedHolder = KEYED_MINECRAFT_REGISTER.get(channelId);
+        String key = channelId.split(":")[1];
+        if (keyedHolder != null) {
+            keyedHolder.invokeString(player, key);
+        }
+        for (var wildHolder : WILD_MINECRAFT_REGISTER) {
+            wildHolder.invokeString(player, key);
         }
     }
 
@@ -373,61 +330,49 @@ public class LeavesProtocolManager {
     }
 
     public record ErrorPayload(ResourceLocation id, String[] protocolID, String[] packetID) implements LeavesCustomPayload<ErrorPayload> {
-        @Override
-        public void write(@NotNull FriendlyByteBuf buf) {
-        }
+
     }
 
     public record EmptyPayload(ResourceLocation id) implements LeavesCustomPayload<EmptyPayload> {
-        @New
-        public EmptyPayload(ResourceLocation location, FriendlyByteBuf buf) {
-            this(location);
-        }
+
+        @ProtocolHandler.Codec
+        public static StreamCodec<FriendlyByteBuf, EmptyPayload> CODEC = StreamCodec.of(
+            (buffer, value) -> {
+            },
+            buffer -> {
+                throw new UnsupportedOperationException();
+            }
+        );
 
         @Override
-        public void write(@NotNull FriendlyByteBuf buf) {
+        public ResourceLocation id() {
+            return id;
         }
     }
 
-    public record LeavesPayload(FriendlyByteBuf data, ResourceLocation id) implements LeavesCustomPayload<LeavesPayload> {
-        @New
-        public LeavesPayload(ResourceLocation location, FriendlyByteBuf buf) {
-            this(new FriendlyByteBuf(buf.readBytes(buf.readableBytes())), location);
-        }
 
-        @Override
-        public void write(FriendlyByteBuf buf) {
-            buf.writeBytes(data);
-        }
-    }
+    public record FabricRegisterPayload(Set<String> channels) implements LeavesCustomPayload<FabricRegisterPayload> {
 
-    public record FabricRegisterPayload(Set<ResourceLocation> channels) implements LeavesCustomPayload<FabricRegisterPayload> {
+        @ProtocolHandler.Codec(key = "minecraft:register")
+        public static StreamCodec<FriendlyByteBuf, FabricRegisterPayload> CODEC = StreamCodec.of(
+            FabricRegisterPayload::write,
+            v -> {
+                throw new UnsupportedOperationException();
+            }
+        );
 
-        public static final ResourceLocation CHANNEL = ResourceLocation.withDefaultNamespace("register");
-
-        @New
-        public FabricRegisterPayload(ResourceLocation location, FriendlyByteBuf buf) {
-            this(buf.readCollection(HashSet::new, FriendlyByteBuf::readResourceLocation));
-        }
-
-        @Override
-        public void write(FriendlyByteBuf buf) {
+        public static void write(FriendlyByteBuf buf, FabricRegisterPayload payload) {
             boolean first = true;
 
             ResourceLocation channel;
-            for (Iterator<ResourceLocation> var3 = this.channels.iterator(); var3.hasNext(); buf.writeBytes(channel.toString().getBytes(StandardCharsets.US_ASCII))) {
-                channel = var3.next();
+            for (Iterator<String> var3 = payload.channels.iterator(); var3.hasNext(); buf.writeBytes(channel.toString().getBytes(StandardCharsets.US_ASCII))) {
+                channel = ResourceLocation.parse(var3.next());
                 if (first) {
                     first = false;
                 } else {
                     buf.writeByte(0);
                 }
             }
-        }
-
-        @Override
-        public ResourceLocation id() {
-            return CHANNEL;
         }
     }
 }

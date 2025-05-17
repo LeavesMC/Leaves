@@ -94,7 +94,7 @@ public class CommunicationManager {
         playerMap.remove(oldPlayer);
     }
 
-    @ProtocolHandler.PayloadReceiver(payload = SyncmaticaPayload.class, payloadId = "main")
+    @ProtocolHandler.PayloadReceiver(payload = SyncmaticaPayload.class, key = "main")
     public static void onPacketGet(ServerPlayer player, SyncmaticaPayload payload) {
         if (!LeavesConfig.protocol.syncmatica.enable) {
             return;

@@ -32,7 +32,7 @@ public class LMSPasterProtocol {
 
     private static final Map<ServerGamePacketListenerImpl, StringBuilder> VERY_LONG_CHATS = new WeakHashMap<>();
 
-    @ProtocolHandler.PayloadReceiver(payload = LmsPasterPayload.class, payloadId = "network_v2")
+    @ProtocolHandler.PayloadReceiver(payload = LmsPasterPayload.class, key = "network_v2")
     public static void handlePackets(ServerPlayer player, LmsPasterPayload payload) {
         if (!LeavesConfig.protocol.lmsPasterProtocol) {
             return;

@@ -83,7 +83,7 @@ public class ServuxLitematicsProtocol {
         encodeServerData(player, payload);
     }
 
-    @ProtocolHandler.PayloadReceiver(payload = ServuxLitematicaPayload.class, payloadId = "litematics")
+    @ProtocolHandler.PayloadReceiver(payload = ServuxLitematicaPayload.class, key = "litematics")
     public static void onPacketReceive(ServerPlayer player, ServuxLitematicaPayload payload) {
         if (!isEnabled() || !hasPermission(player)) {
             return;

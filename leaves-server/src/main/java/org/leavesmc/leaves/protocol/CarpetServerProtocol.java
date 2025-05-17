@@ -42,7 +42,7 @@ public class CarpetServerProtocol {
         }
     }
 
-    @ProtocolHandler.PayloadReceiver(payload = CarpetPayload.class, payloadId = "hello")
+    @ProtocolHandler.PayloadReceiver(payload = CarpetPayload.class, key = "hello")
     private static void handleHello(@NotNull ServerPlayer player, @NotNull CarpetServerProtocol.CarpetPayload payload) {
         if (LeavesConfig.protocol.leavesCarpetSupport) {
             if (payload.nbt.contains(HELLO)) {

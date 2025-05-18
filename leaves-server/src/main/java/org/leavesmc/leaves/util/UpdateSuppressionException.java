@@ -3,12 +3,12 @@ package org.leavesmc.leaves.util;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Block;
 
-public class UpdateSuppressionError extends Error {
+public class UpdateSuppressionException extends RuntimeException {
 
     private final BlockPos pos;
     private final Block source;
 
-    public UpdateSuppressionError(BlockPos pos, Block source) {
+    public UpdateSuppressionException(BlockPos pos, Block source) {
         super("Update suppression");
         this.pos = pos;
         this.source = source;

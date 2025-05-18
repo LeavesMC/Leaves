@@ -44,6 +44,7 @@ public class LeavesProtocolManager {
     private static final Map<Class<?>, InvokerHolder<ProtocolHandler.PayloadReceiver>> PAYLOAD_RECEIVERS = new HashMap<>();
     private static final Map<Class<?>, ResourceLocation> IDS = new HashMap<>();
     private static final Map<Class<?>, StreamCodec<FriendlyByteBuf, LeavesCustomPayload<?>>> CODECS = new HashMap<>();
+    private static final Map<ResourceLocation, StreamCodec<FriendlyByteBuf, LeavesCustomPayload<?>>> ID2CODEC = new HashMap<>();
 
     private static final Map<String, InvokerHolder<ProtocolHandler.BytebufReceiver>> STRICT_BYTEBUF_RECEIVERS = new HashMap<>();
     private static final Map<String, InvokerHolder<ProtocolHandler.BytebufReceiver>> NAMESPACED_BYTEBUF_RECEIVERS = new HashMap<>();
@@ -147,9 +148,9 @@ public class LeavesProtocolManager {
                         }
                     } else {
                         if (bytebufReceiver.fullName()) {
-                            NAMESPACED_BYTEBUF_RECEIVERS.put(key, holder);
+                            STRICT_BYTEBUF_RECEIVERS.put(key, holder);
                         } else {
-                            NAMESPACED_BYTEBUF_RECEIVERS.put(register.namespace() + key, holder);
+                            STRICT_BYTEBUF_RECEIVERS.put(register.namespace() + key, holder);
                         }
                         ALL_KNOWN_ID.add(key);
                     }
@@ -217,10 +218,18 @@ public class LeavesProtocolManager {
             }
         }
         ALL_KNOWN_ID = ImmutableSet.copyOf(ALL_KNOWN_ID);
+        for (var idInfo : IDS.entrySet()) {
+            var codec = CODECS.get(idInfo.getKey());
+            if (codec == null) {
+
+                throw new IllegalArgumentException("Payload " + idInfo.getKey() + " is not configured correctly");
+            }
+            ID2CODEC.put(idInfo.getValue(), codec);
+        }
     }
 
-    public static LeavesCustomPayload<?> decode(LeavesCustomPayload<?> payload, FriendlyByteBuf buf) {
-        var codec = CODECS.get(payload.getClass());
+    public static LeavesCustomPayload<?> decode(ResourceLocation location, FriendlyByteBuf buf) {
+        var codec = ID2CODEC.get(location);
         if (codec == null) {
             return null;
         }
@@ -229,20 +238,15 @@ public class LeavesProtocolManager {
 
     public static void encode(FriendlyByteBuf buf, LeavesCustomPayload<?> payload) {
         var location = IDS.get(payload.getClass());
-        if (location != null) {
-            buf.writeResourceLocation(location);
-        }
         var codec = CODECS.get(payload.getClass());
-        if (codec != null) {
-            codec.encode(buf, payload);
+        if (location == null || codec == null) {
+            throw new IllegalArgumentException("Payload " + payload.getClass() + " is not configured correctly");
         }
+        buf.writeResourceLocation(location);
+        codec.encode(buf, payload);
     }
 
     public static void handlePayload(ServerPlayer player, LeavesCustomPayload<?> payload) {
-        if (payload instanceof ErrorPayload errorPayload) {
-            player.connection.disconnect(Component.literal("Payload " + Arrays.toString(errorPayload.packetID) + " from " + Arrays.toString(errorPayload.protocolID) + " error"), PlayerKickEvent.Cause.INVALID_PAYLOAD);
-            return;
-        }
         InvokerHolder<ProtocolHandler.PayloadReceiver> holder;
         if ((holder = PAYLOAD_RECEIVERS.get(payload.getClass())) != null) {
             holder.invokePayload(player, payload);
@@ -385,10 +389,6 @@ public class LeavesProtocolManager {
                 }
             }
         }
-    }
-
-    public record ErrorPayload(ResourceLocation id, String[] protocolID, String[] packetID) implements LeavesCustomPayload<ErrorPayload> {
-
     }
 
     public record FabricRegisterPayload(Set<String> channels) implements LeavesCustomPayload<FabricRegisterPayload> {

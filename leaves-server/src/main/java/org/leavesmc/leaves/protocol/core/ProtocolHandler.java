@@ -26,10 +26,6 @@ public class ProtocolHandler {
     @Retention(RetentionPolicy.RUNTIME)
     public @interface PayloadReceiver {
         Class<? extends LeavesCustomPayload<?>> payload();
-
-        boolean fullName() default false;
-
-        boolean sendFabricRegister() default true;
     }
 
     @Target(ElementType.METHOD)
@@ -39,8 +35,6 @@ public class ProtocolHandler {
         String key() default "";
 
         boolean fullName() default false;
-
-        boolean sendFabricRegister() default true;
     }
 
     @Target(ElementType.METHOD)

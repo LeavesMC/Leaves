@@ -9,7 +9,7 @@ import java.util.Deque;
 
 public interface LeavesProtocol {
 
-    Deque<LeavesProtocol> reloadPending = new ArrayDeque<>(100);
+    Deque<LeavesProtocol> reloadPending = new ArrayDeque<>(256);
 
     default void reload() {
         reloadPending.add(this);

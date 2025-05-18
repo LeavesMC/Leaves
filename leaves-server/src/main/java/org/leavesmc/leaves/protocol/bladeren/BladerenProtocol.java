@@ -33,18 +33,16 @@ public class BladerenProtocol implements LeavesProtocol {
 
     @ProtocolHandler.PayloadReceiver(payload = BladerenHelloPayload.class)
     private static void handleHello(@NotNull ServerPlayer player, @NotNull BladerenHelloPayload payload) {
-        if (LeavesConfig.protocol.bladeren.enable) {
-            String clientVersion = payload.version;
-            CompoundTag tag = payload.nbt;
+        String clientVersion = payload.version;
+        CompoundTag tag = payload.nbt;
 
-            LeavesLogger.LOGGER.info("Player " + player.getScoreboardName() + " joined with bladeren " + clientVersion);
+        LeavesLogger.LOGGER.info("Player " + player.getScoreboardName() + " joined with bladeren " + clientVersion);
 
-            if (tag != null) {
-                CompoundTag featureNbt = tag.getCompound("Features").orElseThrow();
-                for (String name : featureNbt.keySet()) {
-                    if (registeredFeatures.containsKey(name)) {
-                        registeredFeatures.get(name).accept(player, featureNbt.getCompound(name).orElseThrow());
-                    }
+        if (tag != null) {
+            CompoundTag featureNbt = tag.getCompound("Features").orElseThrow();
+            for (String name : featureNbt.keySet()) {
+                if (registeredFeatures.containsKey(name)) {
+                    registeredFeatures.get(name).accept(player, featureNbt.getCompound(name).orElseThrow());
                 }
             }
         }
@@ -52,23 +50,19 @@ public class BladerenProtocol implements LeavesProtocol {
 
     @ProtocolHandler.PayloadReceiver(payload = BladerenFeatureModifyPayload.class)
     private static void handleModify(@NotNull ServerPlayer player, @NotNull BladerenFeatureModifyPayload payload) {
-        if (LeavesConfig.protocol.bladeren.enable) {
-            String name = payload.name;
-            CompoundTag tag = payload.nbt;
+        String name = payload.name;
+        CompoundTag tag = payload.nbt;
 
-            if (registeredFeatures.containsKey(name)) {
-                registeredFeatures.get(name).accept(player, tag);
-            }
+        if (registeredFeatures.containsKey(name)) {
+            registeredFeatures.get(name).accept(player, tag);
         }
     }
 
     @ProtocolHandler.PlayerJoin
     public static void onPlayerJoin(@NotNull ServerPlayer player) {
-        if (LeavesConfig.protocol.bladeren.enable) {
-            CompoundTag tag = new CompoundTag();
-            LeavesFeatureSet.writeNBT(tag);
-            ProtocolUtils.sendPayloadPacket(player, new BladerenHelloPayload(PROTOCOL_VERSION, tag));
-        }
+        CompoundTag tag = new CompoundTag();
+        LeavesFeatureSet.writeNBT(tag);
+        ProtocolUtils.sendPayloadPacket(player, new BladerenHelloPayload(PROTOCOL_VERSION, tag));
     }
 
     public static void registerFeature(String name, BiConsumer<ServerPlayer, CompoundTag> consumer) {

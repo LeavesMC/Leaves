@@ -40,9 +40,7 @@ public class MsptSyncProtocol implements LeavesProtocol {
 
     @ProtocolHandler.PlayerLeave
     public static void onPlayerLoggedOut(@NotNull ServerPlayer player) {
-        if (LeavesConfig.protocol.bladeren.msptSyncProtocol) {
-            players.remove(player);
-        }
+        players.remove(player);
     }
 
     // TODO: rewrite by accessorName but not constant interval
@@ -68,9 +66,7 @@ public class MsptSyncProtocol implements LeavesProtocol {
     }
 
     public static void onPlayerSubmit(@NotNull ServerPlayer player) {
-        if (LeavesConfig.protocol.bladeren.msptSyncProtocol) {
-            players.add(player);
-        }
+        players.add(player);
     }
 
     @Override

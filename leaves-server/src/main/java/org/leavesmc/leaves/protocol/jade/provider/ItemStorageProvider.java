@@ -36,14 +36,6 @@ public abstract class ItemStorageProvider<T extends Accessor<?>> implements ISer
         return ForEntity.INSTANCE;
     }
 
-    public static class ForBlock extends ItemStorageProvider<BlockAccessor> {
-        private static final ForBlock INSTANCE = new ForBlock();
-    }
-
-    public static class ForEntity extends ItemStorageProvider<EntityAccessor> {
-        private static final ForEntity INSTANCE = new ForEntity();
-    }
-
     public static void putData(CompoundTag tag, @NotNull Accessor<?> accessor) {
         Object target = accessor.getTarget();
         Player player = accessor.getPlayer();
@@ -83,5 +75,13 @@ public abstract class ItemStorageProvider<T extends Accessor<?>> implements ISer
     @Override
     public int getDefaultPriority() {
         return 1000;
+    }
+
+    public static class ForBlock extends ItemStorageProvider<BlockAccessor> {
+        private static final ForBlock INSTANCE = new ForBlock();
+    }
+
+    public static class ForEntity extends ItemStorageProvider<EntityAccessor> {
+        private static final ForEntity INSTANCE = new ForEntity();
     }
 }

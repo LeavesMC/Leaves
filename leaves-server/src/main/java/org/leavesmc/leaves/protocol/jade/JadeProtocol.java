@@ -89,16 +89,14 @@ import java.util.Set;
 @LeavesProtocol.Register(namespace = "jade")
 public class JadeProtocol implements LeavesProtocol {
 
-    public static PriorityStore<ResourceLocation, IJadeProvider> priorities;
-    private static List<Block> shearableBlocks = null;
-
     public static final String PROTOCOL_ID = "jade";
     public static final String PROTOCOL_VERSION = "7";
-
     public static final HierarchyLookup<IServerDataProvider<EntityAccessor>> entityDataProviders = new HierarchyLookup<>(Entity.class);
     public static final PairHierarchyLookup<IServerDataProvider<BlockAccessor>> blockDataProviders = new PairHierarchyLookup<>(new HierarchyLookup<>(Block.class), new HierarchyLookup<>(BlockEntity.class));
     public static final WrappedHierarchyLookup<IServerExtensionProvider<ItemStack>> itemStorageProviders = WrappedHierarchyLookup.forAccessor();
     private static final Set<ServerPlayer> enabledPlayers = new HashSet<>();
+    public static PriorityStore<ResourceLocation, IJadeProvider> priorities;
+    private static List<Block> shearableBlocks = null;
 
     @Contract("_ -> new")
     public static ResourceLocation id(String path) {
@@ -167,10 +165,6 @@ public class JadeProtocol implements LeavesProtocol {
 
     @ProtocolHandler.PayloadReceiver(payload = ClientHandshakePayload.class)
     public static void clientHandshake(ServerPlayer player, ClientHandshakePayload payload) {
-        if (!LeavesConfig.protocol.jadeProtocol) {
-            return;
-        }
-
         if (!payload.protocolVersion().equals(PROTOCOL_VERSION)) {
             player.sendSystemMessage(Component.literal("You are using a different version of Jade than the server. Please update Jade or report to the server operator").withColor(0xff0000));
             return;
@@ -186,10 +180,6 @@ public class JadeProtocol implements LeavesProtocol {
 
     @ProtocolHandler.PayloadReceiver(payload = RequestEntityPayload.class)
     public static void requestEntityData(ServerPlayer player, RequestEntityPayload payload) {
-        if (!LeavesConfig.protocol.jadeProtocol) {
-            return;
-        }
-
         MinecraftServer.getServer().execute(() -> {
             EntityAccessor accessor = payload.data().unpack(player);
             if (accessor == null) {
@@ -226,10 +216,6 @@ public class JadeProtocol implements LeavesProtocol {
 
     @ProtocolHandler.PayloadReceiver(payload = RequestBlockPayload.class)
     public static void requestBlockData(ServerPlayer player, RequestBlockPayload payload) {
-        if (!LeavesConfig.protocol.jadeProtocol) {
-            return;
-        }
-
         MinecraftServer server = MinecraftServer.getServer();
         server.execute(() -> {
             BlockAccessor accessor = payload.data().unpack(player);
@@ -276,11 +262,9 @@ public class JadeProtocol implements LeavesProtocol {
 
     @ProtocolHandler.ReloadServer
     public static void onServerReload() {
-        if (LeavesConfig.protocol.jadeProtocol) {
-            rebuildShearableBlocks();
-            for (ServerPlayer player : enabledPlayers) {
-                ProtocolUtils.sendPayloadPacket(player, new ServerHandshakePayload(Collections.emptyMap(), shearableBlocks, blockDataProviders.mappedIds(), entityDataProviders.mappedIds()));
-            }
+        rebuildShearableBlocks();
+        for (ServerPlayer player : enabledPlayers) {
+            ProtocolUtils.sendPayloadPacket(player, new ServerHandshakePayload(Collections.emptyMap(), shearableBlocks, blockDataProviders.mappedIds(), entityDataProviders.mappedIds()));
         }
     }
 

@@ -29,10 +29,6 @@ public class ChatImageProtocol implements LeavesProtocol {
 
     @ProtocolHandler.PayloadReceiver(payload = FileChannelPayload.class)
     public void serverFileChannelReceived(ServerPlayer player, FileChannelPayload payload) {
-        if (!LeavesConfig.protocol.chatImageProtocol) {
-            return;
-        }
-
         MinecraftServer server = MinecraftServer.getServer();
         String res = payload.message();
         ChatImageIndex title = gson.fromJson(res, ChatImageIndex.class);
@@ -54,10 +50,6 @@ public class ChatImageProtocol implements LeavesProtocol {
 
     @ProtocolHandler.PayloadReceiver(payload = FileInfoChannelPayload.class)
     public void serverGetFileChannelReceived(ServerPlayer player, FileInfoChannelPayload packet) {
-        if (!LeavesConfig.protocol.chatImageProtocol) {
-            return;
-        }
-
         String url = packet.message();
         Map<Integer, String> list = SERVER_BLOCK_CACHE.getBlock(url);
         if (list == null) {

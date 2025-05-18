@@ -1,6 +1,7 @@
 package org.leavesmc.leaves.protocol.core;
 
 import io.netty.buffer.ByteBuf;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.lang.reflect.Method;
@@ -41,5 +42,9 @@ public record InvokerHolder<T>(LeavesProtocol owner, Method invoker, T handler) 
 
     public void invokeString(ServerPlayer player, String channelId) {
         invoke0(player, channelId);
+    }
+
+    public void invokeKey(ServerPlayer player, ResourceLocation key) {
+        invoke0(player, key);
     }
 }

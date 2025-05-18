@@ -7,16 +7,6 @@ import java.lang.annotation.Target;
 
 public class ProtocolHandler {
 
-    @Target(ElementType.FIELD)
-    @Retention(RetentionPolicy.RUNTIME)
-    public @interface ID {
-    }
-
-    @Target(ElementType.FIELD)
-    @Retention(RetentionPolicy.RUNTIME)
-    public @interface Codec {
-    }
-
     @Target(ElementType.METHOD)
     @Retention(RetentionPolicy.RUNTIME)
     public @interface Init {
@@ -31,10 +21,9 @@ public class ProtocolHandler {
     @Target(ElementType.METHOD)
     @Retention(RetentionPolicy.RUNTIME)
     public @interface BytebufReceiver {
-
         String key() default "";
 
-        boolean fullName() default false;
+        boolean onlyNamespace() default false;
     }
 
     @Target(ElementType.METHOD)
@@ -42,7 +31,7 @@ public class ProtocolHandler {
     public @interface Ticker {
         int interval() default -1;
 
-        String accessorName() default ""; // org.leavemc.leaves.ClassName:fieldName
+        String configName() default "";
     }
 
     @Target(ElementType.METHOD)
@@ -65,6 +54,6 @@ public class ProtocolHandler {
     public @interface MinecraftRegister {
         String key() default "";
 
-        boolean ignoreId() default false;
+        boolean onlyNamespace() default false;
     }
 }

@@ -1,11 +1,12 @@
 package org.leavesmc.leaves.protocol.core;
 
-import com.google.common.collect.ImmutableSet;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import org.apache.commons.lang3.tuple.Pair;
 import org.leavesmc.leaves.LeavesLogger;
 import org.leavesmc.leaves.config.InternalConfigProvider;
 
@@ -39,49 +40,42 @@ public class LeavesProtocolManager {
 
     private static final Map<LeavesProtocol, List<InvokerHolder<?>>> REGISTERED_PROTOCOLS = new HashMap<>();
 
-    private static final Map<Class<?>, InvokerHolder<ProtocolHandler.PayloadReceiver>> PAYLOAD_RECEIVERS = new HashMap<>();
-    private static final Map<Class<?>, ResourceLocation> IDS = new HashMap<>();
-    private static final Map<Class<?>, StreamCodec<FriendlyByteBuf, LeavesCustomPayload<?>>> CODECS = new HashMap<>();
-    private static final Map<ResourceLocation, StreamCodec<FriendlyByteBuf, LeavesCustomPayload<?>>> ID2CODEC = new HashMap<>();
+    private static final Map<Class<? extends LeavesCustomPayload<?>>, InvokerHolder<ProtocolHandler.PayloadReceiver>> PAYLOAD_RECEIVERS = new HashMap<>();
+    private static final Map<Class<? extends LeavesCustomPayload<?>>, ResourceLocation> IDS = new HashMap<>();
+    private static final Map<Class<? extends LeavesCustomPayload<?>>, StreamCodec<? extends FriendlyByteBuf, LeavesCustomPayload<?>>> CODECS = new HashMap<>();
+    private static final Map<ResourceLocation, Pair<Class<? extends LeavesCustomPayload<?>>, StreamCodec<? extends FriendlyByteBuf, LeavesCustomPayload<?>>>> ID2CODEC = new HashMap<>();
 
     private static final Map<String, InvokerHolder<ProtocolHandler.BytebufReceiver>> STRICT_BYTEBUF_RECEIVERS = new HashMap<>();
     private static final Map<String, InvokerHolder<ProtocolHandler.BytebufReceiver>> NAMESPACED_BYTEBUF_RECEIVERS = new HashMap<>();
     private static final List<InvokerHolder<ProtocolHandler.BytebufReceiver>> GENERIC_BYTEBUF_RECEIVERS = new ArrayList<>();
 
-    private static final Map<String, InvokerHolder<ProtocolHandler.MinecraftRegister>> KEYED_MINECRAFT_REGISTER = new HashMap<>();
+    private static final Map<String, InvokerHolder<ProtocolHandler.MinecraftRegister>> STRICT_MINECRAFT_REGISTER = new HashMap<>();
+    private static final Map<String, InvokerHolder<ProtocolHandler.MinecraftRegister>> NAMESPACED_MINECRAFT_REGISTER = new HashMap<>();
     private static final List<InvokerHolder<ProtocolHandler.MinecraftRegister>> WILD_MINECRAFT_REGISTER = new ArrayList<>();
 
     private static final Map<InvokerHolder<ProtocolHandler.Ticker>, Integer> TICKERS_INTERVAL = new HashMap<>();
-    private static final Map<InvokerHolder<ProtocolHandler.Ticker>, String> TICKERS_ACCESSOR = new HashMap<>();
 
     private static final List<InvokerHolder<ProtocolHandler.PlayerJoin>> PLAYER_JOIN = new ArrayList<>();
     private static final List<InvokerHolder<ProtocolHandler.PlayerLeave>> PLAYER_LEAVE = new ArrayList<>();
     private static final List<InvokerHolder<ProtocolHandler.ReloadServer>> RELOAD_SERVER = new ArrayList<>();
 
-    private static Set<String> ALL_KNOWN_ID = new HashSet<>();
-
     @SuppressWarnings("unchecked")
     public static void init() {
         for (Class<?> clazz : getClasses("org.leavesmc.leaves.protocol")) {
             if (clazz.isAssignableFrom(LeavesCustomPayload.class)) {
-                StreamCodec<FriendlyByteBuf, LeavesCustomPayload<?>> streamCodec;
-                ResourceLocation location;
                 for (Field field : clazz.getDeclaredFields()) {
                     field.setAccessible(true);
                     if (!Modifier.isStatic(field.getModifiers())) {
                         continue;
                     }
                     try {
-                        final ProtocolHandler.ID id = field.getAnnotation(ProtocolHandler.ID.class);
+                        final LeavesCustomPayload.ID id = field.getAnnotation(LeavesCustomPayload.ID.class);
                         if (id != null && field.getType() == ResourceLocation.class) {
-                            location = (ResourceLocation) field.get(null);
-                            IDS.put(clazz, location);
-                            ALL_KNOWN_ID.add(location.toString());
+                            IDS.put((Class<? extends LeavesCustomPayload<?>>) clazz, (ResourceLocation) field.get(null));
                         }
-                        final ProtocolHandler.Codec codec = field.getAnnotation(ProtocolHandler.Codec.class);
+                        final LeavesCustomPayload.Codec codec = field.getAnnotation(LeavesCustomPayload.Codec.class);
                         if (codec != null && field.getType() == StreamCodec.class) {
-                            streamCodec = (StreamCodec<FriendlyByteBuf, LeavesCustomPayload<?>>) field.get(null);
-                            CODECS.put(clazz, streamCodec);
+                            CODECS.put((Class<? extends LeavesCustomPayload<?>>) clazz, (StreamCodec<? extends FriendlyByteBuf, LeavesCustomPayload<?>>) field.get(null));
                         }
                     } catch (Exception e) {
                         throw new RuntimeException(e);
@@ -95,18 +89,16 @@ public class LeavesProtocolManager {
                 continue;
             }
             LeavesProtocol protocol;
-            Method[] methods;
             try {
-                Constructor<?> constructor = clazz.getDeclaredConstructors()[0];
+                Constructor<?> constructor = clazz.getDeclaredConstructor();
                 constructor.setAccessible(true);
                 protocol = (LeavesProtocol) constructor.newInstance();
-                methods = clazz.getDeclaredMethods();
             } catch (Throwable throwable) {
                 LOGGER.severe("Failed to load class " + clazz.getName() + ". " + throwable);
                 return;
             }
 
-            for (final Method method : methods) {
+            for (final Method method : clazz.getDeclaredMethods()) {
                 if (method.isBridge() || method.isSynthetic()) {
                     continue;
                 }
@@ -126,10 +118,9 @@ public class LeavesProtocolManager {
 
                 final ProtocolHandler.PayloadReceiver payloadReceiver = method.getAnnotation(ProtocolHandler.PayloadReceiver.class);
                 if (payloadReceiver != null) {
-                    Class<?> payload = payloadReceiver.payload();
                     InvokerHolder<ProtocolHandler.PayloadReceiver> holder = new InvokerHolder<>(protocol, method, payloadReceiver);
                     REGISTERED_PROTOCOLS.computeIfAbsent(protocol, k -> new ArrayList<>()).add(holder);
-                    PAYLOAD_RECEIVERS.put(payload, holder);
+                    PAYLOAD_RECEIVERS.put(payloadReceiver.payload(), holder);
                     continue;
                 }
 
@@ -138,23 +129,21 @@ public class LeavesProtocolManager {
                     String key = bytebufReceiver.key();
                     InvokerHolder<ProtocolHandler.BytebufReceiver> holder = new InvokerHolder<>(protocol, method, bytebufReceiver);
                     REGISTERED_PROTOCOLS.computeIfAbsent(protocol, k -> new ArrayList<>()).add(holder);
-                    if (key.isEmpty()) {
-                        if (bytebufReceiver.fullName()) {
+                    if (bytebufReceiver.onlyNamespace()) {
+                        NAMESPACED_BYTEBUF_RECEIVERS.put(key.isEmpty() ? register.namespace() : key, holder);
+                    } else {
+                        if (key.isEmpty()) {
                             GENERIC_BYTEBUF_RECEIVERS.add(holder);
                         } else {
-                            NAMESPACED_BYTEBUF_RECEIVERS.put(register.namespace(), holder);
+                            if (key.contains(":")) {
+                                STRICT_BYTEBUF_RECEIVERS.put(key, holder);
+                            } else {
+                                STRICT_BYTEBUF_RECEIVERS.put(register.namespace() + key, holder);
+                            }
                         }
-                    } else {
-                        if (bytebufReceiver.fullName()) {
-                            STRICT_BYTEBUF_RECEIVERS.put(key, holder);
-                        } else {
-                            STRICT_BYTEBUF_RECEIVERS.put(register.namespace() + key, holder);
-                        }
-                        ALL_KNOWN_ID.add(key);
                     }
                     continue;
                 }
-
 
                 final ProtocolHandler.Ticker ticker = method.getAnnotation(ProtocolHandler.Ticker.class);
                 if (ticker != null) {
@@ -163,8 +152,7 @@ public class LeavesProtocolManager {
                         TICKERS_INTERVAL.put(holder, ticker.interval());
                     } else {
                         try {
-                            TICKERS_INTERVAL.put(holder, InternalConfigProvider.INSTANCE.getConfig(ticker.accessorName()).getInt());
-                            TICKERS_ACCESSOR.put(holder, ticker.accessorName());
+                            TICKERS_INTERVAL.put(holder, InternalConfigProvider.INSTANCE.getConfig(ticker.configName()).getInt());
                         } catch (Exception e) {
                             throw new IllegalArgumentException("Invalid ticker: " + ticker);
                         }
@@ -199,38 +187,49 @@ public class LeavesProtocolManager {
 
                 final ProtocolHandler.MinecraftRegister minecraftRegister = method.getAnnotation(ProtocolHandler.MinecraftRegister.class);
                 if (minecraftRegister != null) {
+                    String key = minecraftRegister.key();
                     InvokerHolder<ProtocolHandler.MinecraftRegister> holder = new InvokerHolder<>(protocol, method, minecraftRegister);
-                    if (!minecraftRegister.ignoreId()) {
-                        String key = register.namespace() + ":" + minecraftRegister.key();
-                        KEYED_MINECRAFT_REGISTER.put(key, holder);
-                        ALL_KNOWN_ID.add(key);
+                    if (minecraftRegister.onlyNamespace()) {
+                        NAMESPACED_MINECRAFT_REGISTER.put(key.isEmpty() ? register.namespace() : key, holder);
                     } else {
-                        WILD_MINECRAFT_REGISTER.add(holder);
+                        if (key.isEmpty()) {
+                            WILD_MINECRAFT_REGISTER.add(holder);
+                        } else {
+                            if (key.contains(":")) {
+                                STRICT_MINECRAFT_REGISTER.put(key, holder);
+                            } else {
+                                STRICT_MINECRAFT_REGISTER.put(register.namespace() + key, holder);
+                            }
+                        }
                     }
                     REGISTERED_PROTOCOLS.computeIfAbsent(protocol, k -> new ArrayList<>()).add(holder);
                 }
             }
         }
-        ALL_KNOWN_ID = ImmutableSet.copyOf(ALL_KNOWN_ID);
         for (var idInfo : IDS.entrySet()) {
             var codec = CODECS.get(idInfo.getKey());
             if (codec == null) {
 
                 throw new IllegalArgumentException("Payload " + idInfo.getKey() + " is not configured correctly");
             }
-            ID2CODEC.put(idInfo.getValue(), codec);
+            ID2CODEC.put(idInfo.getValue(), Pair.of(idInfo.getKey(), codec));
         }
     }
 
-    public static LeavesCustomPayload<?> decode(ResourceLocation location, FriendlyByteBuf buf) {
+    public static <T extends FriendlyByteBuf> LeavesCustomPayload<T> decode(ResourceLocation location, T buf) {
         var codec = ID2CODEC.get(location);
         if (codec == null) {
             return null;
         }
-        return codec.decode(buf);
+        if (buf instanceof RegistryFriendlyByteBuf buf1 && codec.getLeft().isAssignableFrom(LeavesCustomPayload.Game.class)) {
+            return codec.getRight().decode(buf1);
+        } else {
+            return codec.getRight().decode(buf);
+        }
+        return null;
     }
 
-    public static void encode(FriendlyByteBuf buf, LeavesCustomPayload<?> payload) {
+    public static <T extends FriendlyByteBuf> void encode(T buf, LeavesCustomPayload<T> payload) {
         var location = IDS.get(payload.getClass());
         var codec = CODECS.get(payload.getClass());
         if (location == null || codec == null) {
@@ -269,7 +268,7 @@ public class LeavesProtocolManager {
                         ProtocolHandler.Ticker ticker = (ProtocolHandler.Ticker) holder.handler();
                         TICKERS_INTERVAL.put(
                             (InvokerHolder<ProtocolHandler.Ticker>) holder,
-                            InternalConfigProvider.INSTANCE.getConfig(ticker.accessorName()).getInt()
+                            InternalConfigProvider.INSTANCE.getConfig(ticker.configName()).getInt()
                         );
                     }
                 }
@@ -288,7 +287,7 @@ public class LeavesProtocolManager {
         for (var join : PLAYER_JOIN) {
             join.invokePlayer(player);
         }
-        ProtocolUtils.sendPayloadPacket(player, new FabricRegisterPayload(ALL_KNOWN_ID));
+        ProtocolUtils.sendPayloadPacket(player, new FabricRegisterPayload(collectKnownId()));
     }
 
     public static void handlePlayerLeave(ServerPlayer player) {
@@ -304,14 +303,37 @@ public class LeavesProtocolManager {
     }
 
     public static void handleMinecraftRegister(String channelId, ServerPlayer player) {
-        InvokerHolder<ProtocolHandler.MinecraftRegister> keyedHolder = KEYED_MINECRAFT_REGISTER.get(channelId);
-        String key = channelId.split(":")[1];
-        if (keyedHolder != null) {
-            keyedHolder.invokeString(player, key);
+        ResourceLocation location = ResourceLocation.tryParse(channelId);
+        if (location == null) {
+            return;
         }
+
         for (var wildHolder : WILD_MINECRAFT_REGISTER) {
-            wildHolder.invokeString(player, key);
+            wildHolder.invokeKey(player, location);
         }
+
+        InvokerHolder<ProtocolHandler.MinecraftRegister> holder;
+        if ((holder = STRICT_MINECRAFT_REGISTER.get(location.toString())) != null) {
+            holder.invokeKey(player, location);
+        }
+        if ((holder = NAMESPACED_MINECRAFT_REGISTER.get(location.getNamespace())) != null) {
+            holder.invokeKey(player, location);
+        }
+    }
+
+    private static Set<String> collectKnownId() {
+        Set<String> set = new HashSet<>();
+        PAYLOAD_RECEIVERS.forEach((clazz, holder) -> {
+            if (holder.owner().isActive()) {
+                set.add(IDS.get(clazz).toString());
+            }
+        });
+        STRICT_BYTEBUF_RECEIVERS.forEach((key, holder) -> {
+            if (holder.owner().isActive()) {
+                set.add(key);
+            }
+        });
+        return set;
     }
 
     public static Set<Class<?>> getClasses(String pack) {
@@ -389,12 +411,12 @@ public class LeavesProtocolManager {
         }
     }
 
-    public record FabricRegisterPayload(Set<String> channels) implements LeavesCustomPayload<FabricRegisterPayload> {
+    public record FabricRegisterPayload(Set<String> channels) implements LeavesCustomPayload.Game {
 
-        @ProtocolHandler.ID
+        @ID
         public static final ResourceLocation ID = ResourceLocation.tryParse("minecraft:register");
 
-        @ProtocolHandler.Codec
+        @Codec
         public static StreamCodec<FriendlyByteBuf, FabricRegisterPayload> CODEC = StreamCodec.of(
             FabricRegisterPayload::write,
             v -> {

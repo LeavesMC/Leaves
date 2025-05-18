@@ -55,7 +55,7 @@ public class AppleSkinProtocol implements LeavesProtocol {
         subscribedChannels.computeIfAbsent(player, k -> new HashSet<>()).add(channel);
     }
 
-    @ProtocolHandler.Ticker(accessorName = "protocol.appleskin.sync-tick-interval")
+    @ProtocolHandler.Ticker(configName = "protocol.appleskin.sync-tick-interval")
     public static void tick() {
         for (Map.Entry<ServerPlayer, Set<String>> entry : subscribedChannels.entrySet()) {
             ServerPlayer player = entry.getKey();

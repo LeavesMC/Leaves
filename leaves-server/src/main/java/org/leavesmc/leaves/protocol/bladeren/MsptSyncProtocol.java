@@ -43,8 +43,8 @@ public class MsptSyncProtocol implements LeavesProtocol {
         players.remove(player);
     }
 
-    // TODO: rewrite by accessorName but not constant interval
-    @ProtocolHandler.Ticker(accessorName = "protocol.bladeren.mspt-sync-tick-interval")
+    // TODO: rewrite by configName but not constant interval
+    @ProtocolHandler.Ticker(configName = "protocol.bladeren.mspt-sync-tick-interval")
     public static void tick() {
         if (players.isEmpty()) {
             return;

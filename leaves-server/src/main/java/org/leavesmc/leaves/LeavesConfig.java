@@ -20,7 +20,7 @@ import org.leavesmc.leaves.config.ConfigValidatorImpl.IntConfigValidator;
 import org.leavesmc.leaves.config.ConfigValidatorImpl.ListConfigValidator;
 import org.leavesmc.leaves.config.ConfigValidatorImpl.StringConfigValidator;
 import org.leavesmc.leaves.config.GlobalConfigManager;
-import org.leavesmc.leaves.config.ReflectionConfigProvider;
+import org.leavesmc.leaves.config.InternalConfigProvider;
 import org.leavesmc.leaves.config.annotations.GlobalConfig;
 import org.leavesmc.leaves.config.annotations.GlobalConfigCategory;
 import org.leavesmc.leaves.config.annotations.RemovedConfig;
@@ -80,7 +80,6 @@ public final class LeavesConfig {
         GlobalConfigManager.init();
 
         registerCommand("leaves", new LeavesCommand("leaves"));
-        ReflectionConfigProvider.INSTANCE.init();
     }
 
     public static void reload() {

@@ -284,6 +284,9 @@ public final class LeavesConfig {
             @GlobalConfig("old-hopper-suck-in-behavior")
             public boolean oldHopperSuckInBehavior = false;
 
+            @GlobalConfig("old-nether-portal-collision") // Removed in 1.21.6
+            public boolean oldNetherPortalCollision = false;
+
             public RaidConfig raid = new RaidConfig();
 
             @GlobalConfigCategory("revert-raid-changes")

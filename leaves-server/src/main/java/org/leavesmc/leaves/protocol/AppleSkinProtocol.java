@@ -78,7 +78,7 @@ public class AppleSkinProtocol {
                             float saturation = data.getSaturationLevel();
                             Float previousSaturation = previousSaturationLevels.get(player);
                             if (previousSaturation == null || saturation != previousSaturation) {
-                                ProtocolUtils.sendPayloadPacket(player, SATURATION_KEY, buf -> buf.writeFloat(saturation));
+                                ProtocolUtils.sendBytebufPacket(player, SATURATION_KEY, buf -> buf.writeFloat(saturation));
                                 previousSaturationLevels.put(player, saturation);
                             }
                         }
@@ -87,7 +87,7 @@ public class AppleSkinProtocol {
                             float exhaustion = data.exhaustionLevel;
                             Float previousExhaustion = previousExhaustionLevels.get(player);
                             if (previousExhaustion == null || Math.abs(exhaustion - previousExhaustion) >= MINIMUM_EXHAUSTION_CHANGE_THRESHOLD) {
-                                ProtocolUtils.sendPayloadPacket(player, EXHAUSTION_KEY, buf -> buf.writeFloat(exhaustion));
+                                ProtocolUtils.sendBytebufPacket(player, EXHAUSTION_KEY, buf -> buf.writeFloat(exhaustion));
                                 previousExhaustionLevels.put(player, exhaustion);
                             }
                         }
@@ -96,7 +96,7 @@ public class AppleSkinProtocol {
                             boolean regeneration = player.serverLevel().getGameRules().getBoolean(GameRules.RULE_NATURAL_REGENERATION);
                             Boolean previousRegeneration = previousNaturalRegeneration.get(player);
                             if (previousRegeneration == null || regeneration != previousRegeneration) {
-                                ProtocolUtils.sendPayloadPacket(player, NATURAL_REGENERATION_KEY, buf -> buf.writeBoolean(regeneration));
+                                ProtocolUtils.sendBytebufPacket(player, NATURAL_REGENERATION_KEY, buf -> buf.writeBoolean(regeneration));
                                 previousNaturalRegeneration.put(player, regeneration);
                             }
                         }

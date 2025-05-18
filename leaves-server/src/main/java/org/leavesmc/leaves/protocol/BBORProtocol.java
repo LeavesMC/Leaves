@@ -70,7 +70,7 @@ public class BBORProtocol {
     public static void onPlayerLoggedIn(@NotNull ServerPlayer player) {
         if (LeavesConfig.protocol.bborProtocol) {
             ServerLevel overworld = MinecraftServer.getServer().overworld();
-            ProtocolUtils.sendPayloadPacket(player, INITIALIZE_CLIENT, buf -> {
+            ProtocolUtils.sendBytebufPacket(player, INITIALIZE_CLIENT, buf -> {
                 buf.writeLong(overworld.getSeed());
                 buf.writeInt(overworld.levelData.getSpawnPos().getX());
                 buf.writeInt(overworld.levelData.getSpawnPos().getZ());
@@ -148,7 +148,7 @@ public class BBORProtocol {
         final Registry<Structure> structureRegistry = player.server.registryAccess().lookupOrThrow(Registries.STRUCTURE);
         final Set<String> structureIds = structureRegistry.entrySet().stream()
             .map(e -> e.getKey().location().toString()).collect(Collectors.toSet());
-        ProtocolUtils.sendPayloadPacket(player, STRUCTURE_LIST_SYNC, buf -> {
+        ProtocolUtils.sendBytebufPacket(player, STRUCTURE_LIST_SYNC, buf -> {
             buf.writeVarInt(structureIds.size());
             structureIds.forEach(buf::writeUtf);
         });
@@ -168,7 +168,7 @@ public class BBORProtocol {
                 }
 
                 Set<BBoundingBox> boundingBoxes = boundingBoxMap.get(key);
-                ProtocolUtils.sendPayloadPacket(player, ADD_BOUNDING_BOX, buf -> {
+                ProtocolUtils.sendBytebufPacket(player, ADD_BOUNDING_BOX, buf -> {
                     buf.writeResourceLocation(entry.getKey());
                     key.serialize(buf);
                     if (boundingBoxes != null && boundingBoxes.size() > 1) {

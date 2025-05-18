@@ -9,8 +9,12 @@ public class ProtocolHandler {
 
     @Target(ElementType.FIELD)
     @Retention(RetentionPolicy.RUNTIME)
+    public @interface ID {
+    }
+
+    @Target(ElementType.FIELD)
+    @Retention(RetentionPolicy.RUNTIME)
     public @interface Codec {
-        String key() default "";
     }
 
     @Target(ElementType.METHOD)
@@ -23,7 +27,7 @@ public class ProtocolHandler {
     public @interface PayloadReceiver {
         Class<? extends LeavesCustomPayload<?>> payload();
 
-        String key() default "";
+        boolean fullName() default false;
 
         boolean sendFabricRegister() default true;
     }
@@ -34,13 +38,17 @@ public class ProtocolHandler {
 
         String key() default "";
 
+        boolean fullName() default false;
+
         boolean sendFabricRegister() default true;
     }
 
     @Target(ElementType.METHOD)
     @Retention(RetentionPolicy.RUNTIME)
     public @interface Ticker {
-        int interval() default 1;
+        int interval() default -1;
+
+        String accessorName() default ""; // org.leavemc.leaves.ClassName:fieldName
     }
 
     @Target(ElementType.METHOD)

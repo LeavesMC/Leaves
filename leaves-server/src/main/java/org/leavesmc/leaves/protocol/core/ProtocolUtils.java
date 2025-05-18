@@ -1,12 +1,13 @@
 package org.leavesmc.leaves.protocol.core;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.papermc.paper.ServerBuildInfo;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.network.protocol.common.custom.DiscardedPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -23,13 +24,15 @@ public class ProtocolUtils {
         return protocol + "-leaves-" + ServerBuildInfo.buildInfo().asString(ServerBuildInfo.StringRepresentation.VERSION_SIMPLE);
     }
 
-    public static void sendEmptyPayloadPacket(ServerPlayer player, ResourceLocation id) {
-        player.connection.send(new ClientboundCustomPayloadPacket(new LeavesProtocolManager.EmptyPayload(id)));
+    public static void sendEmptyBytebufPacket(ServerPlayer player, ResourceLocation id) {
+        player.connection.send(new ClientboundCustomPayloadPacket(new DiscardedPayload(id, new byte[0])));
     }
 
-    @SuppressWarnings("all")
-    public static void sendPayloadPacket(@NotNull ServerPlayer player, ResourceLocation id, Consumer<FriendlyByteBuf> consumer) {
-        player.connection.send(new ClientboundCustomPayloadPacket(new DirectPayload(id, consumer)));
+    public static void sendBytebufPacket(@NotNull ServerPlayer player, ResourceLocation id, Consumer<FriendlyByteBuf> consumer) {
+        FriendlyByteBuf buf = decorate(Unpooled.buffer());
+        buf.writeResourceLocation(id);
+        consumer.accept(buf);
+        player.connection.send(new ClientboundCustomPayloadPacket(new DiscardedPayload(id, buf.array())));
     }
 
     public static void sendPayloadPacket(ServerPlayer player, CustomPacketPayload payload) {
@@ -38,20 +41,5 @@ public class ProtocolUtils {
 
     public static RegistryFriendlyByteBuf decorate(ByteBuf buf) {
         return bufDecorator.apply(buf);
-    }
-
-    private record DirectPayload(ResourceLocation id, Consumer<FriendlyByteBuf> consumer) implements LeavesCustomPayload<DirectPayload> {
-        @ProtocolHandler.Codec
-        public static StreamCodec<FriendlyByteBuf, DirectPayload> CODEC = StreamCodec.of(
-            (buffer, value) -> value.consumer().accept(buffer),
-            buffer -> {
-                throw new UnsupportedOperationException();
-            }
-        );
-
-        @Override
-        public ResourceLocation id() {
-            return id;
-        }
     }
 }

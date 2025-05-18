@@ -29,11 +29,11 @@ public class XaeroMapProtocol {
 
     public static void onSendWorldInfo(@NotNull ServerPlayer player) {
         if (LeavesConfig.protocol.xaeroMapProtocol) {
-            ProtocolUtils.sendPayloadPacket(player, MINIMAP_KEY, buf -> {
+            ProtocolUtils.sendBytebufPacket(player, MINIMAP_KEY, buf -> {
                 buf.writeByte(0);
                 buf.writeInt(LeavesConfig.protocol.xaeroMapServerID);
             });
-            ProtocolUtils.sendPayloadPacket(player, WORLDMAP_KEY, buf -> {
+            ProtocolUtils.sendBytebufPacket(player, WORLDMAP_KEY, buf -> {
                 buf.writeByte(0);
                 buf.writeInt(LeavesConfig.protocol.xaeroMapServerID);
             });

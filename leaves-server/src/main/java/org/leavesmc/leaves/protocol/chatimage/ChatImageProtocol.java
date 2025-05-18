@@ -16,8 +16,8 @@ import java.util.UUID;
 
 import static org.leavesmc.leaves.protocol.chatimage.ServerBlockCache.SERVER_BLOCK_CACHE;
 
-@LeavesProtocol(namespace = "chatimage")
-public class ChatImageProtocol {
+@LeavesProtocol.Register(namespace = "chatimage")
+public class ChatImageProtocol implements LeavesProtocol {
 
     public static final String PROTOCOL_ID = "chatimage";
     public static final Gson gson = new Gson();
@@ -28,7 +28,7 @@ public class ChatImageProtocol {
     }
 
     @ProtocolHandler.PayloadReceiver(payload = FileChannelPayload.class, key = "get_file_channel")
-    public static void serverFileChannelReceived(ServerPlayer player, FileChannelPayload payload) {
+    public void serverFileChannelReceived(ServerPlayer player, FileChannelPayload payload) {
         if (!LeavesConfig.protocol.chatImageProtocol) {
             return;
         }
@@ -53,7 +53,7 @@ public class ChatImageProtocol {
     }
 
     @ProtocolHandler.PayloadReceiver(payload = FileInfoChannelPayload.class, key = "file_info")
-    public static void serverGetFileChannelReceived(ServerPlayer player, FileInfoChannelPayload packet) {
+    public void serverGetFileChannelReceived(ServerPlayer player, FileInfoChannelPayload packet) {
         if (!LeavesConfig.protocol.chatImageProtocol) {
             return;
         }
@@ -68,5 +68,10 @@ public class ChatImageProtocol {
         for (Map.Entry<Integer, String> entry : list.entrySet()) {
             ProtocolUtils.sendPayloadPacket(player, new DownloadFileChannelPayload(entry.getValue()));
         }
+    }
+
+    @Override
+    public boolean isActive() {
+        return LeavesConfig.protocol.;
     }
 }

@@ -60,7 +60,7 @@ public class MsptSyncProtocol {
                 if (msptArr.isPresent()) {
                     double mspt = msptArr.getAsDouble() * 1.0E-6D;
                     double tps = 1000.0D / Math.max(mspt, 50);
-                    players.forEach(player -> ProtocolUtils.sendPayloadPacket(player, MSPT_SYNC, buf -> {
+                    players.forEach(player -> ProtocolUtils.sendBytebufPacket(player, MSPT_SYNC, buf -> {
                         buf.writeDouble(mspt);
                         buf.writeDouble(tps);
                     }));

@@ -7,6 +7,7 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import org.leavesmc.leaves.LeavesLogger;
+import org.leavesmc.leaves.config.InternalConfigProvider;
 
 import java.io.File;
 import java.io.IOException;
@@ -51,7 +52,7 @@ public class LeavesProtocolManager {
     private static final List<InvokerHolder<ProtocolHandler.MinecraftRegister>> WILD_MINECRAFT_REGISTER = new ArrayList<>();
 
     private static final Map<InvokerHolder<ProtocolHandler.Ticker>, Integer> TICKERS_INTERVAL = new HashMap<>();
-    private static final Map<InvokerHolder<ProtocolHandler.Ticker>, Field> TICKERS_ACCESSOR = new HashMap<>();
+    private static final Map<InvokerHolder<ProtocolHandler.Ticker>, String> TICKERS_ACCESSOR = new HashMap<>();
 
     private static final List<InvokerHolder<ProtocolHandler.PlayerJoin>> PLAYER_JOIN = new ArrayList<>();
     private static final List<InvokerHolder<ProtocolHandler.PlayerLeave>> PLAYER_LEAVE = new ArrayList<>();
@@ -162,12 +163,8 @@ public class LeavesProtocolManager {
                         TICKERS_INTERVAL.put(holder, ticker.interval());
                     } else {
                         try {
-                            String[] loc = ticker.accessorName().split(":");
-                            Class<?> c = Class.forName(loc[0]);
-                            Field f = c.getDeclaredField(loc[1]);
-                            f.setAccessible(true);
-                            TICKERS_INTERVAL.put(holder, (int) f.get(null));
-                            TICKERS_ACCESSOR.put(holder, f);
+                            TICKERS_INTERVAL.put(holder, InternalConfigProvider.INSTANCE.getConfig(ticker.accessorName()).getInt());
+                            TICKERS_ACCESSOR.put(holder, ticker.accessorName());
                         } catch (Exception e) {
                             throw new IllegalArgumentException("Invalid ticker: " + ticker);
                         }
@@ -269,7 +266,11 @@ public class LeavesProtocolManager {
             for (var protocol : LeavesProtocol.reloadPending) {
                 for (var holder : REGISTERED_PROTOCOLS.get(protocol)) {
                     if (((Annotation) holder.handler()).annotationType() == ProtocolHandler.Ticker.class) {
-                        TICKERS_INTERVAL.put((InvokerHolder<ProtocolHandler.Ticker>) holder, (int) TICKERS_ACCESSOR.get(holder).get(null));
+                        ProtocolHandler.Ticker ticker = (ProtocolHandler.Ticker) holder.handler();
+                        TICKERS_INTERVAL.put(
+                            (InvokerHolder<ProtocolHandler.Ticker>) holder,
+                            InternalConfigProvider.INSTANCE.getConfig(ticker.accessorName()).getInt()
+                        );
                     }
                 }
             }

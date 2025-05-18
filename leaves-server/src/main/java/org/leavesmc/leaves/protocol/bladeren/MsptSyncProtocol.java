@@ -44,16 +44,12 @@ public class MsptSyncProtocol implements LeavesProtocol {
     }
 
     // TODO: rewrite by accessorName but not constant interval
-    @ProtocolHandler.Ticker(interval = 1)
+    @ProtocolHandler.Ticker(accessorName = "protocol.bladeren.mspt-sync-tick-interval")
     public static void tick() {
         if (players.isEmpty()) {
             return;
         }
-
         MinecraftServer server = MinecraftServer.getServer();
-        if (server.getTickCount() % LeavesConfig.protocol.bladeren.msptSyncTickInterval != 0) {
-            return;
-        }
         OptionalDouble msptArr = Arrays.stream(server.getTickTimesNanos()).average();
         if (msptArr.isPresent()) {
             double mspt = msptArr.getAsDouble() * 1.0E-6D;

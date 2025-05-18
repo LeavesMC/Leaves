@@ -27,10 +27,8 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
-import static org.leavesmc.leaves.protocol.core.LeavesProtocolManager.EmptyPayload;
-
-@LeavesProtocol(namespace = "bbor")
-public class BBORProtocol {
+@LeavesProtocol.Register(namespace = "bbor")
+public class BBORProtocol implements LeavesProtocol {
 
     public static final String PROTOCOL_ID = "bbor";
 
@@ -43,17 +41,17 @@ public class BBORProtocol {
     private static final Map<Integer, Set<BBoundingBox>> playerBoundingBoxesCache = new HashMap<>();
     private static final Map<ResourceLocation, Map<BBoundingBox, Set<BBoundingBox>>> dimensionCache = new ConcurrentHashMap<>();
 
+    private static boolean initialized = false;
+
     @Contract("_ -> new")
     public static ResourceLocation id(String path) {
         return ResourceLocation.tryBuild(PROTOCOL_ID, path);
     }
 
-    @ProtocolHandler.Ticker
+    @ProtocolHandler.Ticker(interval = 1)
     public static void tick() {
-        if (LeavesConfig.protocol.bborProtocol) {
-            for (var playerEntry : players.entrySet()) {
-                sendBoundingToPlayer(playerEntry.getKey(), playerEntry.getValue());
-            }
+        for (var playerEntry : players.entrySet()) {
+            sendBoundingToPlayer(playerEntry.getKey(), playerEntry.getValue());
         }
     }
 
@@ -68,50 +66,40 @@ public class BBORProtocol {
 
     @ProtocolHandler.PlayerJoin
     public static void onPlayerLoggedIn(@NotNull ServerPlayer player) {
-        if (LeavesConfig.protocol.bborProtocol) {
-            ServerLevel overworld = MinecraftServer.getServer().overworld();
-            ProtocolUtils.sendBytebufPacket(player, INITIALIZE_CLIENT, buf -> {
-                buf.writeLong(overworld.getSeed());
-                buf.writeInt(overworld.levelData.getSpawnPos().getX());
-                buf.writeInt(overworld.levelData.getSpawnPos().getZ());
-            });
-            sendStructureList(player);
-        }
+        ServerLevel overworld = MinecraftServer.getServer().overworld();
+        ProtocolUtils.sendBytebufPacket(player, INITIALIZE_CLIENT, buf -> {
+            buf.writeLong(overworld.getSeed());
+            buf.writeInt(overworld.levelData.getSpawnPos().getX());
+            buf.writeInt(overworld.levelData.getSpawnPos().getZ());
+        });
+        sendStructureList(player);
     }
 
     @ProtocolHandler.PlayerLeave
     public static void onPlayerLoggedOut(@NotNull ServerPlayer player) {
-        if (LeavesConfig.protocol.bborProtocol) {
-            players.remove(player.getId());
-            playerBoundingBoxesCache.remove(player.getId());
-        }
+        players.remove(player.getId());
+        playerBoundingBoxesCache.remove(player.getId());
     }
 
-    @ProtocolHandler.PayloadReceiver(payload = EmptyPayload.class, key = "subscribe")
-    public static void onPlayerSubscribed(@NotNull ServerPlayer player, EmptyPayload payload) {
-        if (LeavesConfig.protocol.bborProtocol) {
-            players.put(player.getId(), player);
-            sendBoundingToPlayer(player.getId(), player);
-        }
+    @ProtocolHandler.BytebufReceiver(key = "subscribe")
+    public static void onPlayerSubscribed(@NotNull ServerPlayer player, FriendlyByteBuf buf) {
+        players.put(player.getId(), player);
+        sendBoundingToPlayer(player.getId(), player);
     }
 
     public static void onDataPackReload() {
-        if (LeavesConfig.protocol.bborProtocol) {
-            players.values().forEach(BBORProtocol::sendStructureList);
-        }
+        players.values().forEach(BBORProtocol::sendStructureList);
     }
 
     public static void onChunkLoaded(@NotNull LevelChunk chunk) {
-        if (LeavesConfig.protocol.bborProtocol) {
-            Map<String, StructureStart> structures = new HashMap<>();
-            final Registry<Structure> structureFeatureRegistry = chunk.getLevel().registryAccess().lookupOrThrow(Registries.STRUCTURE);
-            for (var es : chunk.getAllStarts().entrySet()) {
-                final var optional = structureFeatureRegistry.getResourceKey(es.getKey());
-                optional.ifPresent(key -> structures.put(key.location().toString(), es.getValue()));
-            }
-            if (!structures.isEmpty()) {
-                onStructuresLoaded(chunk.getLevel().dimension().location(), structures);
-            }
+        Map<String, StructureStart> structures = new HashMap<>();
+        final Registry<Structure> structureFeatureRegistry = chunk.getLevel().registryAccess().lookupOrThrow(Registries.STRUCTURE);
+        for (var es : chunk.getAllStarts().entrySet()) {
+            final var optional = structureFeatureRegistry.getResourceKey(es.getKey());
+            optional.ifPresent(key -> structures.put(key.location().toString(), es.getValue()));
+        }
+        if (!structures.isEmpty()) {
+            onStructuresLoaded(chunk.getLevel().dimension().location(), structures);
         }
     }
 
@@ -186,6 +174,7 @@ public class BBORProtocol {
         for (ServerPlayer player : MinecraftServer.getServer().getPlayerList().getPlayers()) {
             onPlayerLoggedIn(player);
         }
+        initialized = true;
     }
 
     public static void loggedOutAllPlayer() {
@@ -199,6 +188,16 @@ public class BBORProtocol {
 
     private static Map<BBoundingBox, Set<BBoundingBox>> getOrCreateCache(ResourceLocation dimensionId) {
         return dimensionCache.computeIfAbsent(dimensionId, dt -> new ConcurrentHashMap<>());
+    }
+
+    @Override
+    public boolean isActive() {
+        boolean active = LeavesConfig.protocol.bborProtocol;
+        if (!active && initialized) {
+            initialized = false;
+            loggedOutAllPlayer();
+        }
+        return active;
     }
 
     private record BBoundingBox(String type, BlockPos min, BlockPos max) {

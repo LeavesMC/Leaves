@@ -17,8 +17,8 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-@LeavesProtocol(namespace = "appleskin")
-public class AppleSkinProtocol {
+@LeavesProtocol.Register(namespace = "appleskin")
+public class AppleSkinProtocol implements LeavesProtocol {
 
     public static final String PROTOCOL_ID = "appleskin";
 
@@ -41,64 +41,52 @@ public class AppleSkinProtocol {
 
     @ProtocolHandler.PlayerJoin
     public static void onPlayerLoggedIn(@NotNull ServerPlayer player) {
-        if (LeavesConfig.protocol.appleskin.enable) {
-            resetPlayerData(player);
-        }
+        resetPlayerData(player);
     }
 
     @ProtocolHandler.PlayerLeave
     public static void onPlayerLoggedOut(@NotNull ServerPlayer player) {
-        if (LeavesConfig.protocol.appleskin.enable) {
-            subscribedChannels.remove(player);
-            resetPlayerData(player);
-        }
+        subscribedChannels.remove(player);
+        resetPlayerData(player);
     }
 
     @ProtocolHandler.MinecraftRegister(ignoreId = true)
     public static void onPlayerSubscribed(@NotNull ServerPlayer player, String channel) {
-        if (LeavesConfig.protocol.appleskin.enable) {
-            subscribedChannels.computeIfAbsent(player, k -> new HashSet<>()).add(channel);
-        }
+        subscribedChannels.computeIfAbsent(player, k -> new HashSet<>()).add(channel);
     }
 
-    @ProtocolHandler.Ticker
+    @ProtocolHandler.Ticker(accessorName = "protocol.appleskin.sync-tick-interval")
     public static void tick() {
-        if (LeavesConfig.protocol.appleskin.enable) {
-            if (MinecraftServer.getServer().getTickCount() % LeavesConfig.protocol.appleskin.syncTickInterval != 0) {
-                return;
-            }
+        for (Map.Entry<ServerPlayer, Set<String>> entry : subscribedChannels.entrySet()) {
+            ServerPlayer player = entry.getKey();
+            FoodData data = player.getFoodData();
 
-            for (Map.Entry<ServerPlayer, Set<String>> entry : subscribedChannels.entrySet()) {
-                ServerPlayer player = entry.getKey();
-                FoodData data = player.getFoodData();
-
-                for (String channel : entry.getValue()) {
-                    switch (channel) {
-                        case "saturation" -> {
-                            float saturation = data.getSaturationLevel();
-                            Float previousSaturation = previousSaturationLevels.get(player);
-                            if (previousSaturation == null || saturation != previousSaturation) {
-                                ProtocolUtils.sendBytebufPacket(player, SATURATION_KEY, buf -> buf.writeFloat(saturation));
-                                previousSaturationLevels.put(player, saturation);
-                            }
+            for (String channel : entry.getValue()) {
+                switch (channel) {
+                    case "saturation" -> {
+                        float saturation = data.getSaturationLevel();
+                        Float previousSaturation = previousSaturationLevels.get(player);
+                        if (previousSaturation == null || saturation != previousSaturation) {
+                            ProtocolUtils.sendBytebufPacket(player, SATURATION_KEY, buf -> buf.writeFloat(saturation));
+                            previousSaturationLevels.put(player, saturation);
                         }
+                    }
 
-                        case "exhaustion" -> {
-                            float exhaustion = data.exhaustionLevel;
-                            Float previousExhaustion = previousExhaustionLevels.get(player);
-                            if (previousExhaustion == null || Math.abs(exhaustion - previousExhaustion) >= MINIMUM_EXHAUSTION_CHANGE_THRESHOLD) {
-                                ProtocolUtils.sendBytebufPacket(player, EXHAUSTION_KEY, buf -> buf.writeFloat(exhaustion));
-                                previousExhaustionLevels.put(player, exhaustion);
-                            }
+                    case "exhaustion" -> {
+                        float exhaustion = data.exhaustionLevel;
+                        Float previousExhaustion = previousExhaustionLevels.get(player);
+                        if (previousExhaustion == null || Math.abs(exhaustion - previousExhaustion) >= MINIMUM_EXHAUSTION_CHANGE_THRESHOLD) {
+                            ProtocolUtils.sendBytebufPacket(player, EXHAUSTION_KEY, buf -> buf.writeFloat(exhaustion));
+                            previousExhaustionLevels.put(player, exhaustion);
                         }
+                    }
 
-                        case "natural_regeneration" -> {
-                            boolean regeneration = player.serverLevel().getGameRules().getBoolean(GameRules.RULE_NATURAL_REGENERATION);
-                            Boolean previousRegeneration = previousNaturalRegeneration.get(player);
-                            if (previousRegeneration == null || regeneration != previousRegeneration) {
-                                ProtocolUtils.sendBytebufPacket(player, NATURAL_REGENERATION_KEY, buf -> buf.writeBoolean(regeneration));
-                                previousNaturalRegeneration.put(player, regeneration);
-                            }
+                    case "natural_regeneration" -> {
+                        boolean regeneration = player.serverLevel().getGameRules().getBoolean(GameRules.RULE_NATURAL_REGENERATION);
+                        Boolean previousRegeneration = previousNaturalRegeneration.get(player);
+                        if (previousRegeneration == null || regeneration != previousRegeneration) {
+                            ProtocolUtils.sendBytebufPacket(player, NATURAL_REGENERATION_KEY, buf -> buf.writeBoolean(regeneration));
+                            previousNaturalRegeneration.put(player, regeneration);
                         }
                     }
                 }
@@ -108,9 +96,7 @@ public class AppleSkinProtocol {
 
     @ProtocolHandler.ReloadServer
     public static void onServerReload() {
-        if (!LeavesConfig.protocol.appleskin.enable) {
-            disableAllPlayer();
-        }
+        disableAllPlayer();
     }
 
     public static void disableAllPlayer() {
@@ -123,5 +109,10 @@ public class AppleSkinProtocol {
         previousExhaustionLevels.remove(player);
         previousSaturationLevels.remove(player);
         previousNaturalRegeneration.remove(player);
+    }
+
+    @Override
+    public boolean isActive() {
+        return LeavesConfig.protocol.appleskin.enable;
     }
 }

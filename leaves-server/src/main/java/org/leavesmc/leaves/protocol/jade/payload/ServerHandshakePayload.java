@@ -11,6 +11,7 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.Block;
 import org.leavesmc.leaves.protocol.core.LeavesCustomPayload;
+import org.leavesmc.leaves.protocol.core.ProtocolHandler;
 import org.leavesmc.leaves.protocol.core.ProtocolUtils;
 import org.leavesmc.leaves.protocol.jade.JadeProtocol;
 
@@ -21,7 +22,10 @@ import static org.leavesmc.leaves.protocol.jade.util.JadeCodec.PRIMITIVE_STREAM_
 
 public record ServerHandshakePayload(Map<ResourceLocation, Object> serverConfig, List<Block> shearableBlocks, List<ResourceLocation> blockProviderIds, List<ResourceLocation> entityProviderIds) implements LeavesCustomPayload<ServerHandshakePayload> {
 
+    @ProtocolHandler.ID
     private static final ResourceLocation PACKET_SERVER_HANDSHAKE = JadeProtocol.id("server_handshake");
+
+    @ProtocolHandler.Codec
     private static final StreamCodec<RegistryFriendlyByteBuf, ServerHandshakePayload> CODEC = StreamCodec.composite(
         ByteBufCodecs.map(Maps::newHashMapWithExpectedSize, ResourceLocation.STREAM_CODEC, PRIMITIVE_STREAM_CODEC),
         ServerHandshakePayload::serverConfig,
@@ -32,20 +36,4 @@ public record ServerHandshakePayload(Map<ResourceLocation, Object> serverConfig,
         ByteBufCodecs.<ByteBuf, ResourceLocation>list().apply(ResourceLocation.STREAM_CODEC),
         ServerHandshakePayload::entityProviderIds,
         ServerHandshakePayload::new);
-
-    @Override
-    public void write(FriendlyByteBuf buf) {
-        CODEC.encode(ProtocolUtils.decorate(buf), this);
-    }
-
-    @Override
-    public ResourceLocation id() {
-        return PACKET_SERVER_HANDSHAKE;
-    }
-
-    @New
-    public static ServerHandshakePayload create(ResourceLocation location, FriendlyByteBuf buf) {
-        return CODEC.decode(ProtocolUtils.decorate(buf));
-    }
 }
-

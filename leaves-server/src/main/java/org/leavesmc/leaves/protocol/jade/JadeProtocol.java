@@ -86,8 +86,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-@LeavesProtocol(namespace = "jade")
-public class JadeProtocol {
+@LeavesProtocol.Register(namespace = "jade")
+public class JadeProtocol implements LeavesProtocol {
 
     public static PriorityStore<ResourceLocation, IJadeProvider> priorities;
     private static List<Block> shearableBlocks = null;
@@ -165,7 +165,7 @@ public class JadeProtocol {
         rebuildShearableBlocks();
     }
 
-    @ProtocolHandler.PayloadReceiver(payload = ClientHandshakePayload.class, key = "client_handshake")
+    @ProtocolHandler.PayloadReceiver(payload = ClientHandshakePayload.class)
     public static void clientHandshake(ServerPlayer player, ClientHandshakePayload payload) {
         if (!LeavesConfig.protocol.jadeProtocol) {
             return;
@@ -184,7 +184,7 @@ public class JadeProtocol {
         enabledPlayers.remove(player);
     }
 
-    @ProtocolHandler.PayloadReceiver(payload = RequestEntityPayload.class, key = "request_entity")
+    @ProtocolHandler.PayloadReceiver(payload = RequestEntityPayload.class)
     public static void requestEntityData(ServerPlayer player, RequestEntityPayload payload) {
         if (!LeavesConfig.protocol.jadeProtocol) {
             return;
@@ -224,7 +224,7 @@ public class JadeProtocol {
         });
     }
 
-    @ProtocolHandler.PayloadReceiver(payload = RequestBlockPayload.class, key = "request_block")
+    @ProtocolHandler.PayloadReceiver(payload = RequestBlockPayload.class)
     public static void requestBlockData(ServerPlayer player, RequestBlockPayload payload) {
         if (!LeavesConfig.protocol.jadeProtocol) {
             return;
@@ -294,5 +294,10 @@ public class JadeProtocol {
             shearableBlocks = List.of();
             LeavesLogger.LOGGER.severe("Failed to collect shearable blocks");
         }
+    }
+
+    @Override
+    public boolean isActive() {
+        return LeavesConfig.protocol.jadeProtocol;
     }
 }

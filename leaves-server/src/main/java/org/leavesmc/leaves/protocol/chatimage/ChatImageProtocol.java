@@ -27,7 +27,7 @@ public class ChatImageProtocol implements LeavesProtocol {
         return ResourceLocation.tryBuild(PROTOCOL_ID, path);
     }
 
-    @ProtocolHandler.PayloadReceiver(payload = FileChannelPayload.class, key = "get_file_channel")
+    @ProtocolHandler.PayloadReceiver(payload = FileChannelPayload.class)
     public void serverFileChannelReceived(ServerPlayer player, FileChannelPayload payload) {
         if (!LeavesConfig.protocol.chatImageProtocol) {
             return;
@@ -52,7 +52,7 @@ public class ChatImageProtocol implements LeavesProtocol {
         }
     }
 
-    @ProtocolHandler.PayloadReceiver(payload = FileInfoChannelPayload.class, key = "file_info")
+    @ProtocolHandler.PayloadReceiver(payload = FileInfoChannelPayload.class)
     public void serverGetFileChannelReceived(ServerPlayer player, FileInfoChannelPayload packet) {
         if (!LeavesConfig.protocol.chatImageProtocol) {
             return;
@@ -72,6 +72,10 @@ public class ChatImageProtocol implements LeavesProtocol {
 
     @Override
     public boolean isActive() {
-        return LeavesConfig.protocol.;
+        return LeavesConfig.protocol.chatImageProtocol;
+    }
+
+    public record ChatImageIndex(int index, int total, String url, String bytes) {
+
     }
 }

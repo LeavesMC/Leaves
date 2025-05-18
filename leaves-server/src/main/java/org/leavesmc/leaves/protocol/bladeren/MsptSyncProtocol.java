@@ -15,13 +15,11 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.OptionalDouble;
 
-@LeavesProtocol(namespace = "bladeren")
-public class MsptSyncProtocol {
+@LeavesProtocol.Register(namespace = "bladeren")
+public class MsptSyncProtocol implements LeavesProtocol {
 
     public static final String PROTOCOL_ID = "bladeren";
-
     private static final ResourceLocation MSPT_SYNC = id("mspt_sync");
-
     private static final List<ServerPlayer> players = new ArrayList<>();
 
     @Contract("_ -> new")
@@ -47,25 +45,25 @@ public class MsptSyncProtocol {
         }
     }
 
-    @ProtocolHandler.Ticker
+    // TODO: rewrite by accessorName but not constant interval
+    @ProtocolHandler.Ticker(interval = 1)
     public static void tick() {
-        if (LeavesConfig.protocol.bladeren.msptSyncProtocol) {
-            if (players.isEmpty()) {
-                return;
-            }
+        if (players.isEmpty()) {
+            return;
+        }
 
-            MinecraftServer server = MinecraftServer.getServer();
-            if (server.getTickCount() % LeavesConfig.protocol.bladeren.msptSyncTickInterval == 0) {
-                OptionalDouble msptArr = Arrays.stream(server.getTickTimesNanos()).average();
-                if (msptArr.isPresent()) {
-                    double mspt = msptArr.getAsDouble() * 1.0E-6D;
-                    double tps = 1000.0D / Math.max(mspt, 50);
-                    players.forEach(player -> ProtocolUtils.sendBytebufPacket(player, MSPT_SYNC, buf -> {
-                        buf.writeDouble(mspt);
-                        buf.writeDouble(tps);
-                    }));
-                }
-            }
+        MinecraftServer server = MinecraftServer.getServer();
+        if (server.getTickCount() % LeavesConfig.protocol.bladeren.msptSyncTickInterval != 0) {
+            return;
+        }
+        OptionalDouble msptArr = Arrays.stream(server.getTickTimesNanos()).average();
+        if (msptArr.isPresent()) {
+            double mspt = msptArr.getAsDouble() * 1.0E-6D;
+            double tps = 1000.0D / Math.max(mspt, 50);
+            players.forEach(player -> ProtocolUtils.sendBytebufPacket(player, MSPT_SYNC, buf -> {
+                buf.writeDouble(mspt);
+                buf.writeDouble(tps);
+            }));
         }
     }
 
@@ -73,5 +71,10 @@ public class MsptSyncProtocol {
         if (LeavesConfig.protocol.bladeren.msptSyncProtocol) {
             players.add(player);
         }
+    }
+
+    @Override
+    public boolean isActive() {
+        return LeavesConfig.protocol.bladeren.msptSyncProtocol;
     }
 }

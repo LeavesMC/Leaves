@@ -287,6 +287,9 @@ public final class LeavesConfig {
             @GlobalConfig("old-hopper-suck-in-behavior")
             public boolean oldHopperSuckInBehavior = false;
 
+            @GlobalConfig("old-nether-portal-collision") // Should remove in 1.21.6
+            public boolean oldNetherPortalCollision = false;
+
             public RaidConfig raid = new RaidConfig();
 
             @GlobalConfigCategory("revert-raid-changes")
@@ -303,6 +306,9 @@ public final class LeavesConfig {
                 @GlobalConfig("skip-height-check")
                 public boolean skipHeightCheck = false;
             }
+
+            @GlobalConfig("old-zombie-reinforcement")
+            public boolean oldZombieReinforcement = false;
 
             @GlobalConfig("allow-anvil-destroy-item-entities")
             public boolean allowAnvilDestroyItemEntities = false;

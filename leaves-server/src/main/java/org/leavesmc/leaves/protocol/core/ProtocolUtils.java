@@ -18,7 +18,7 @@ import java.util.function.Function;
 
 public class ProtocolUtils {
 
-    private static final Function<ByteBuf, RegistryFriendlyByteBuf> bufDecorator = RegistryFriendlyByteBuf.decorator(MinecraftServer.getServer().registryAccess());
+    private static final Function<ByteBuf, RegistryFriendlyByteBuf> bufDecorator = buf -> buf instanceof RegistryFriendlyByteBuf registryFriendlyByteBuf ? registryFriendlyByteBuf : new RegistryFriendlyByteBuf(buf, MinecraftServer.getServer().registryAccess());
 
     public static String buildProtocolVersion(String protocol) {
         return protocol + "-leaves-" + ServerBuildInfo.buildInfo().asString(ServerBuildInfo.StringRepresentation.VERSION_SIMPLE);

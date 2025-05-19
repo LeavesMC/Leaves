@@ -6,7 +6,6 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
-import org.apache.commons.lang3.tuple.Pair;
 import org.leavesmc.leaves.LeavesLogger;
 import org.leavesmc.leaves.config.InternalConfigProvider;
 
@@ -38,12 +37,13 @@ public class LeavesProtocolManager {
 
     private static final LeavesLogger LOGGER = LeavesLogger.LOGGER;
 
+    private static final Map<Class<?>, LeavesProtocol> PROTOCOLS = new HashMap<>();
     private static final Map<LeavesProtocol, List<InvokerHolder<?>>> REGISTERED_PROTOCOLS = new HashMap<>();
 
-    private static final Map<Class<? extends LeavesCustomPayload<?>>, InvokerHolder<ProtocolHandler.PayloadReceiver>> PAYLOAD_RECEIVERS = new HashMap<>();
-    private static final Map<Class<? extends LeavesCustomPayload<?>>, ResourceLocation> IDS = new HashMap<>();
-    private static final Map<Class<? extends LeavesCustomPayload<?>>, StreamCodec<? extends FriendlyByteBuf, LeavesCustomPayload<?>>> CODECS = new HashMap<>();
-    private static final Map<ResourceLocation, Pair<Class<? extends LeavesCustomPayload<?>>, StreamCodec<? extends FriendlyByteBuf, LeavesCustomPayload<?>>>> ID2CODEC = new HashMap<>();
+    private static final Map<Class<? extends LeavesCustomPayload>, InvokerHolder<ProtocolHandler.PayloadReceiver>> PAYLOAD_RECEIVERS = new HashMap<>();
+    private static final Map<Class<? extends LeavesCustomPayload>, ResourceLocation> IDS = new HashMap<>();
+    private static final Map<Class<? extends LeavesCustomPayload>, StreamCodec<? super RegistryFriendlyByteBuf, LeavesCustomPayload>> CODECS = new HashMap<>();
+    private static final Map<ResourceLocation, StreamCodec<? super RegistryFriendlyByteBuf, LeavesCustomPayload>> ID2CODEC = new HashMap<>();
 
     private static final Map<String, InvokerHolder<ProtocolHandler.BytebufReceiver>> STRICT_BYTEBUF_RECEIVERS = new HashMap<>();
     private static final Map<String, InvokerHolder<ProtocolHandler.BytebufReceiver>> NAMESPACED_BYTEBUF_RECEIVERS = new HashMap<>();
@@ -71,11 +71,11 @@ public class LeavesProtocolManager {
                     try {
                         final LeavesCustomPayload.ID id = field.getAnnotation(LeavesCustomPayload.ID.class);
                         if (id != null && field.getType() == ResourceLocation.class) {
-                            IDS.put((Class<? extends LeavesCustomPayload<?>>) clazz, (ResourceLocation) field.get(null));
+                            IDS.put((Class<? extends LeavesCustomPayload>) clazz, (ResourceLocation) field.get(null));
                         }
                         final LeavesCustomPayload.Codec codec = field.getAnnotation(LeavesCustomPayload.Codec.class);
                         if (codec != null && field.getType() == StreamCodec.class) {
-                            CODECS.put((Class<? extends LeavesCustomPayload<?>>) clazz, (StreamCodec<? extends FriendlyByteBuf, LeavesCustomPayload<?>>) field.get(null));
+                            CODECS.put((Class<? extends LeavesCustomPayload>) clazz, (StreamCodec<? super RegistryFriendlyByteBuf, LeavesCustomPayload>) field.get(null));
                         }
                     } catch (Exception e) {
                         throw new RuntimeException(e);
@@ -97,6 +97,7 @@ public class LeavesProtocolManager {
                 LOGGER.severe("Failed to load class " + clazz.getName() + ". " + throwable);
                 return;
             }
+            PROTOCOLS.put(clazz, protocol);
 
             for (final Method method : clazz.getDeclaredMethods()) {
                 if (method.isBridge() || method.isSynthetic()) {
@@ -212,34 +213,29 @@ public class LeavesProtocolManager {
 
                 throw new IllegalArgumentException("Payload " + idInfo.getKey() + " is not configured correctly");
             }
-            ID2CODEC.put(idInfo.getValue(), Pair.of(idInfo.getKey(), codec));
+            ID2CODEC.put(idInfo.getValue(), codec);
         }
     }
 
-    public static <T extends FriendlyByteBuf> LeavesCustomPayload<T> decode(ResourceLocation location, T buf) {
+    public static LeavesCustomPayload decode(ResourceLocation location, FriendlyByteBuf buf) {
         var codec = ID2CODEC.get(location);
         if (codec == null) {
             return null;
         }
-        if (buf instanceof RegistryFriendlyByteBuf buf1 && codec.getLeft().isAssignableFrom(LeavesCustomPayload.Game.class)) {
-            return codec.getRight().decode(buf1);
-        } else {
-            return codec.getRight().decode(buf);
-        }
-        return null;
+        return codec.decode(ProtocolUtils.decorate(buf));
     }
 
-    public static <T extends FriendlyByteBuf> void encode(T buf, LeavesCustomPayload<T> payload) {
+    public static void encode(FriendlyByteBuf buf, LeavesCustomPayload payload) {
         var location = IDS.get(payload.getClass());
         var codec = CODECS.get(payload.getClass());
         if (location == null || codec == null) {
             throw new IllegalArgumentException("Payload " + payload.getClass() + " is not configured correctly");
         }
         buf.writeResourceLocation(location);
-        codec.encode(buf, payload);
+        codec.encode(ProtocolUtils.decorate(buf), payload);
     }
 
-    public static void handlePayload(ServerPlayer player, LeavesCustomPayload<?> payload) {
+    public static void handlePayload(ServerPlayer player, LeavesCustomPayload payload) {
         InvokerHolder<ProtocolHandler.PayloadReceiver> holder;
         if ((holder = PAYLOAD_RECEIVERS.get(payload.getClass())) != null) {
             holder.invokePayload(player, payload);
@@ -336,6 +332,10 @@ public class LeavesProtocolManager {
         return set;
     }
 
+    public static LeavesProtocol fromClass(Class<?> protocolClass) {
+        return PROTOCOLS.get(protocolClass);
+    }
+
     public static Set<Class<?>> getClasses(String pack) {
         Set<Class<?>> classes = new LinkedHashSet<>();
         String packageDirName = pack.replace('.', '/');
@@ -411,7 +411,7 @@ public class LeavesProtocolManager {
         }
     }
 
-    public record FabricRegisterPayload(Set<String> channels) implements LeavesCustomPayload.Game {
+    public record FabricRegisterPayload(Set<String> channels) implements LeavesCustomPayload {
 
         @ID
         public static final ResourceLocation ID = ResourceLocation.tryParse("minecraft:register");

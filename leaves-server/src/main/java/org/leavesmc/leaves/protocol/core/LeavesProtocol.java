@@ -11,6 +11,10 @@ public interface LeavesProtocol {
 
     Deque<LeavesProtocol> reloadPending = new ArrayDeque<>(256);
 
+    static void reload(Class<?> protocolClass) {
+        reloadPending.add(LeavesProtocolManager.fromClass(protocolClass));
+    }
+
     default void reload() {
         reloadPending.add(this);
     }

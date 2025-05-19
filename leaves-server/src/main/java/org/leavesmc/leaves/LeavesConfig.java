@@ -322,7 +322,7 @@ public final class LeavesConfig {
                 public boolean stringTripwireHookDuplicate = false;
 
                 @GlobalConfig("tripwire-behavior")
-                public TripwireBehaviorType preventTripwireDuplicateInEndPlatformMode = TripwireBehaviorType.VANILLA_21;
+                public TripwireBehaviorType behaviorMode = TripwireBehaviorType.VANILLA_21;
 
                 public enum TripwireBehaviorType {
                     VANILLA_20, VANILLA_21, MIXED

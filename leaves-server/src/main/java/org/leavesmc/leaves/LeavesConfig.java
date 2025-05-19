@@ -304,7 +304,7 @@ public final class LeavesConfig {
                 public boolean skipHeightCheck = false;
             }
 
-            @GlobalConfig("old-zombie_reinforcement")
+            @GlobalConfig("old-zombie-reinforcement")
             public boolean oldZombieReinforcement = false;
 
             @GlobalConfig("allow-anvil-destroy-item-entities")

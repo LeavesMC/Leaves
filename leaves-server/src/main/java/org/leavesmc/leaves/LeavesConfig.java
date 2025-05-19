@@ -278,8 +278,8 @@ public final class LeavesConfig {
             @GlobalConfig("disable-LivingEntity-ai-step-alive-check")
             public boolean disableLivingEntityAiStepAliveCheck = false;
 
-            @GlobalConfig("use-spawn-invulnerable-time")
-            public boolean useSpawnInvulnerableTime = false;
+            @GlobalConfig("spawn-invulnerable-time")
+            public boolean spawnInvulnerableTime = false;
 
             @GlobalConfig("fix-fortress-mob-spawn")
             public boolean fixFortressMobSpawn = false;

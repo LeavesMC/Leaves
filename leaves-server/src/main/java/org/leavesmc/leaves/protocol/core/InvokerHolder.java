@@ -36,7 +36,7 @@ public record InvokerHolder<T>(LeavesProtocol owner, Method invoker, T handler) 
         invoke0(player, ProtocolUtils.decorate(buf));
     }
 
-    public void invokePayload(ServerPlayer player, LeavesCustomPayload<?> payload) {
+    public void invokePayload(ServerPlayer player, LeavesCustomPayload payload) {
         invoke0(player, payload);
     }
 

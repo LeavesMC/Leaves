@@ -44,7 +44,7 @@ public class MsptSyncProtocol implements LeavesProtocol {
     }
 
     // TODO: rewrite by configName but not constant interval
-    @ProtocolHandler.Ticker(configName = "protocol.bladeren.mspt-sync-tick-interval")
+    @ProtocolHandler.Ticker
     public static void tick() {
         if (players.isEmpty()) {
             return;
@@ -59,6 +59,11 @@ public class MsptSyncProtocol implements LeavesProtocol {
                 buf.writeDouble(tps);
             }));
         }
+    }
+
+    @Override
+    public int tickerInterval(String tickerID) {
+        return LeavesConfig.protocol.bladeren.msptSyncTickInterval;
     }
 
     public static void onPlayerSubmit(@NotNull ServerPlayer player) {

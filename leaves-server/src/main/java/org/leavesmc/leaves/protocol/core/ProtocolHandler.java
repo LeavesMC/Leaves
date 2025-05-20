@@ -15,7 +15,7 @@ public class ProtocolHandler {
     @Target(ElementType.METHOD)
     @Retention(RetentionPolicy.RUNTIME)
     public @interface PayloadReceiver {
-        Class<? extends LeavesCustomPayload<?>> payload();
+        Class<? extends LeavesCustomPayload> payload();
     }
 
     @Target(ElementType.METHOD)
@@ -29,9 +29,7 @@ public class ProtocolHandler {
     @Target(ElementType.METHOD)
     @Retention(RetentionPolicy.RUNTIME)
     public @interface Ticker {
-        int interval() default -1;
-
-        String configName() default "";
+        String tickerId() default "";
     }
 
     @Target(ElementType.METHOD)

@@ -105,12 +105,12 @@ public class BladerenProtocol implements LeavesProtocol {
         }
     }
 
-    public record BladerenFeatureModifyPayload(String name, CompoundTag nbt) implements LeavesCustomPayload<BladerenFeatureModifyPayload> {
+    public record BladerenFeatureModifyPayload(String name, CompoundTag nbt) implements LeavesCustomPayload {
 
-        @ProtocolHandler.ID
+        @ID
         private static final ResourceLocation FEATURE_MODIFY_ID = id("feature_modify");
 
-        @ProtocolHandler.Codec
+        @Codec
         private static final StreamCodec<FriendlyByteBuf, BladerenFeatureModifyPayload> CODEC = StreamCodec.of(
             (buf, payload) -> {
                 buf.writeUtf(payload.name());
@@ -120,12 +120,12 @@ public class BladerenProtocol implements LeavesProtocol {
         );
     }
 
-    public record BladerenHelloPayload(String version, CompoundTag nbt) implements LeavesCustomPayload<BladerenHelloPayload> {
+    public record BladerenHelloPayload(String version, CompoundTag nbt) implements LeavesCustomPayload {
 
-        @ProtocolHandler.ID
+        @ID
         private static final ResourceLocation HELLO_ID = id("hello");
 
-        @ProtocolHandler.Codec
+        @Codec
         private static final StreamCodec<FriendlyByteBuf, BladerenHelloPayload> CODEC = StreamCodec.of(
             (buf, payload) -> {
                 buf.writeUtf(payload.version());

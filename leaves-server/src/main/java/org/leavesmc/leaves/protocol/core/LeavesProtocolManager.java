@@ -7,11 +7,9 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import org.leavesmc.leaves.LeavesLogger;
-import org.leavesmc.leaves.config.InternalConfigProvider;
 
 import java.io.File;
 import java.io.IOException;
-import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -38,7 +36,6 @@ public class LeavesProtocolManager {
     private static final LeavesLogger LOGGER = LeavesLogger.LOGGER;
 
     private static final Map<Class<?>, LeavesProtocol> PROTOCOLS = new HashMap<>();
-    private static final Map<LeavesProtocol, List<InvokerHolder<?>>> REGISTERED_PROTOCOLS = new HashMap<>();
 
     private static final Map<Class<? extends LeavesCustomPayload>, InvokerHolder<ProtocolHandler.PayloadReceiver>> PAYLOAD_RECEIVERS = new HashMap<>();
     private static final Map<Class<? extends LeavesCustomPayload>, ResourceLocation> IDS = new HashMap<>();
@@ -53,7 +50,7 @@ public class LeavesProtocolManager {
     private static final Map<String, InvokerHolder<ProtocolHandler.MinecraftRegister>> NAMESPACED_MINECRAFT_REGISTER = new HashMap<>();
     private static final List<InvokerHolder<ProtocolHandler.MinecraftRegister>> WILD_MINECRAFT_REGISTER = new ArrayList<>();
 
-    private static final Map<InvokerHolder<ProtocolHandler.Ticker>, Integer> TICKERS_INTERVAL = new HashMap<>();
+    private static final List<InvokerHolder<ProtocolHandler.Ticker>> TICKERS = new ArrayList<>();
 
     private static final List<InvokerHolder<ProtocolHandler.PlayerJoin>> PLAYER_JOIN = new ArrayList<>();
     private static final List<InvokerHolder<ProtocolHandler.PlayerLeave>> PLAYER_LEAVE = new ArrayList<>();
@@ -108,7 +105,6 @@ public class LeavesProtocolManager {
                 final ProtocolHandler.Init init = method.getAnnotation(ProtocolHandler.Init.class);
                 if (init != null) {
                     InvokerHolder<ProtocolHandler.Init> holder = new InvokerHolder<>(protocol, method, init);
-                    REGISTERED_PROTOCOLS.computeIfAbsent(protocol, k -> new ArrayList<>()).add(holder);
                     try {
                         holder.invokeEmpty();
                     } catch (RuntimeException exception) {
@@ -120,7 +116,6 @@ public class LeavesProtocolManager {
                 final ProtocolHandler.PayloadReceiver payloadReceiver = method.getAnnotation(ProtocolHandler.PayloadReceiver.class);
                 if (payloadReceiver != null) {
                     InvokerHolder<ProtocolHandler.PayloadReceiver> holder = new InvokerHolder<>(protocol, method, payloadReceiver);
-                    REGISTERED_PROTOCOLS.computeIfAbsent(protocol, k -> new ArrayList<>()).add(holder);
                     PAYLOAD_RECEIVERS.put(payloadReceiver.payload(), holder);
                     continue;
                 }
@@ -129,7 +124,6 @@ public class LeavesProtocolManager {
                 if (bytebufReceiver != null) {
                     String key = bytebufReceiver.key();
                     InvokerHolder<ProtocolHandler.BytebufReceiver> holder = new InvokerHolder<>(protocol, method, bytebufReceiver);
-                    REGISTERED_PROTOCOLS.computeIfAbsent(protocol, k -> new ArrayList<>()).add(holder);
                     if (bytebufReceiver.onlyNamespace()) {
                         NAMESPACED_BYTEBUF_RECEIVERS.put(key.isEmpty() ? register.namespace() : key, holder);
                     } else {
@@ -149,16 +143,7 @@ public class LeavesProtocolManager {
                 final ProtocolHandler.Ticker ticker = method.getAnnotation(ProtocolHandler.Ticker.class);
                 if (ticker != null) {
                     var holder = new InvokerHolder<>(protocol, method, ticker);
-                    if (ticker.interval() != -1) {
-                        TICKERS_INTERVAL.put(holder, ticker.interval());
-                    } else {
-                        try {
-                            TICKERS_INTERVAL.put(holder, InternalConfigProvider.INSTANCE.getConfig(ticker.configName()).getInt());
-                        } catch (Exception e) {
-                            throw new IllegalArgumentException("Invalid ticker: " + ticker);
-                        }
-                    }
-                    REGISTERED_PROTOCOLS.computeIfAbsent(protocol, k -> new ArrayList<>()).add(holder);
+                    TICKERS.add(holder);
                     continue;
                 }
 
@@ -166,7 +151,6 @@ public class LeavesProtocolManager {
                 if (playerJoin != null) {
                     var holder = new InvokerHolder<>(protocol, method, playerJoin);
                     PLAYER_JOIN.add(holder);
-                    REGISTERED_PROTOCOLS.computeIfAbsent(protocol, k -> new ArrayList<>()).add(holder);
                     continue;
                 }
 
@@ -174,7 +158,6 @@ public class LeavesProtocolManager {
                 if (playerLeave != null) {
                     var holder = new InvokerHolder<>(protocol, method, playerLeave);
                     PLAYER_LEAVE.add(holder);
-                    REGISTERED_PROTOCOLS.computeIfAbsent(protocol, k -> new ArrayList<>()).add(holder);
                     continue;
                 }
 
@@ -182,7 +165,6 @@ public class LeavesProtocolManager {
                 if (reloadServer != null) {
                     var holder = new InvokerHolder<>(protocol, method, reloadServer);
                     RELOAD_SERVER.add(holder);
-                    REGISTERED_PROTOCOLS.computeIfAbsent(protocol, k -> new ArrayList<>()).add(holder);
                     continue;
                 }
 
@@ -203,7 +185,6 @@ public class LeavesProtocolManager {
                             }
                         }
                     }
-                    REGISTERED_PROTOCOLS.computeIfAbsent(protocol, k -> new ArrayList<>()).add(holder);
                 }
             }
         }
@@ -255,26 +236,10 @@ public class LeavesProtocolManager {
         }
     }
 
-    @SuppressWarnings("unchecked")
     public static void handleTick(long tickCount) {
-        try {
-            for (var protocol : LeavesProtocol.reloadPending) {
-                for (var holder : REGISTERED_PROTOCOLS.get(protocol)) {
-                    if (((Annotation) holder.handler()).annotationType() == ProtocolHandler.Ticker.class) {
-                        ProtocolHandler.Ticker ticker = (ProtocolHandler.Ticker) holder.handler();
-                        TICKERS_INTERVAL.put(
-                            (InvokerHolder<ProtocolHandler.Ticker>) holder,
-                            InternalConfigProvider.INSTANCE.getConfig(ticker.configName()).getInt()
-                        );
-                    }
-                }
-            }
-        } catch (Exception e) {
-            throw new IllegalStateException("Failed to handle Ticker event", e);
-        }
-        for (var tickerInfo : TICKERS_INTERVAL.entrySet()) {
-            if (tickCount % tickerInfo.getValue() == 0) {
-                tickerInfo.getKey().invokeEmpty();
+        for (var tickerInfo : TICKERS) {
+            if (tickCount % tickerInfo.owner().tickerInterval(tickerInfo.handler().tickerId()) == 0) {
+                tickerInfo.invokeEmpty();
             }
         }
     }
@@ -330,10 +295,6 @@ public class LeavesProtocolManager {
             }
         });
         return set;
-    }
-
-    public static LeavesProtocol fromClass(Class<?> protocolClass) {
-        return PROTOCOLS.get(protocolClass);
     }
 
     public static Set<Class<?>> getClasses(String pack) {

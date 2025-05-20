@@ -7,12 +7,12 @@ import net.minecraft.resources.ResourceLocation;
 import org.leavesmc.leaves.protocol.core.LeavesCustomPayload;
 import org.leavesmc.leaves.protocol.core.ProtocolHandler;
 
-public record FileChannelPayload(String message) implements LeavesCustomPayload<FileChannelPayload> {
+public record FileChannelPayload(String message) implements LeavesCustomPayload {
 
-    @ProtocolHandler.ID
+    @ID
     private static final ResourceLocation ID = ChatImageProtocol.id("get_file_channel");
 
-    @ProtocolHandler.Codec
+    @Codec
     private static final StreamCodec<RegistryFriendlyByteBuf, FileChannelPayload> CODEC =
         StreamCodec.composite(ByteBufCodecs.STRING_UTF8, FileChannelPayload::message, FileChannelPayload::new);
 }

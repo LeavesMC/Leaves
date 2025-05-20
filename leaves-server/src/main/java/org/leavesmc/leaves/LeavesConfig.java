@@ -217,6 +217,9 @@ public final class LeavesConfig {
                 @GlobalConfig("cce-update-suppression")
                 public boolean cceUpdateSuppression = false;
 
+                @GlobalConfig("sound-update-suppression")
+                public boolean soundUpdateSuppression = false;
+
                 @RemovedConfig(name = "redstone-wire-dont-connect-if-on-trapdoor", category = "modify", transform = true)
                 @RemovedConfig(name = "redstone-wire-dont-connect-if-on-trapdoor", category = {"modify", "minecraft-old"}, transform = true)
                 @GlobalConfig("redstone-wire-dont-connect-if-on-trapdoor")

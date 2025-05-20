@@ -25,18 +25,18 @@ public class ProtocolUtils {
     }
 
     public static void sendEmptyBytebufPacket(ServerPlayer player, ResourceLocation id) {
-        player.connection.send(new ClientboundCustomPayloadPacket(new DiscardedPayload(id, new byte[0])));
+        player.internalConnection.send(new ClientboundCustomPayloadPacket(new DiscardedPayload(id, new byte[0])));
     }
 
     public static void sendBytebufPacket(@NotNull ServerPlayer player, ResourceLocation id, Consumer<FriendlyByteBuf> consumer) {
         FriendlyByteBuf buf = decorate(Unpooled.buffer());
         buf.writeResourceLocation(id);
         consumer.accept(buf);
-        player.connection.send(new ClientboundCustomPayloadPacket(new DiscardedPayload(id, buf.array())));
+        player.internalConnection.send(new ClientboundCustomPayloadPacket(new DiscardedPayload(id, buf.array())));
     }
 
     public static void sendPayloadPacket(ServerPlayer player, CustomPacketPayload payload) {
-        player.connection.send(new ClientboundCustomPayloadPacket(payload));
+        player.internalConnection.send(new ClientboundCustomPayloadPacket(payload));
     }
 
     public static RegistryFriendlyByteBuf decorate(ByteBuf buf) {

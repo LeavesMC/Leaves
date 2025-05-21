@@ -3,7 +3,6 @@ package org.leavesmc.leaves.protocol.core;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.papermc.paper.ServerBuildInfo;
-import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -28,9 +27,8 @@ public class ProtocolUtils {
         player.internalConnection.send(new ClientboundCustomPayloadPacket(new DiscardedPayload(id, new byte[0])));
     }
 
-    public static void sendBytebufPacket(@NotNull ServerPlayer player, ResourceLocation id, Consumer<FriendlyByteBuf> consumer) {
-        FriendlyByteBuf buf = decorate(Unpooled.buffer());
-        buf.writeResourceLocation(id);
+    public static void sendBytebufPacket(@NotNull ServerPlayer player, ResourceLocation id, Consumer<? super RegistryFriendlyByteBuf> consumer) {
+        RegistryFriendlyByteBuf buf = decorate(Unpooled.buffer());
         consumer.accept(buf);
         player.internalConnection.send(new ClientboundCustomPayloadPacket(new DiscardedPayload(id, buf.array())));
     }

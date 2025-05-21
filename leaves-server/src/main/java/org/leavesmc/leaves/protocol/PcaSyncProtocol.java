@@ -176,13 +176,13 @@ public class PcaSyncProtocol implements LeavesProtocol {
     }
 
     public static void enablePcaSyncProtocol(@NotNull ServerPlayer player) {
-        ProtocolUtils.sendEmptyBytebufPacket(player, ENABLE_PCA_SYNC_PROTOCOL);
+        ProtocolUtils.sendEmptyPacket(player, ENABLE_PCA_SYNC_PROTOCOL);
         lock.lock();
         lock.unlock();
     }
 
     public static void disablePcaSyncProtocol(@NotNull ServerPlayer player) {
-        ProtocolUtils.sendEmptyBytebufPacket(player, DISABLE_PCA_SYNC_PROTOCOL);
+        ProtocolUtils.sendEmptyPacket(player, DISABLE_PCA_SYNC_PROTOCOL);
     }
 
     public static void updateEntity(@NotNull ServerPlayer player, @NotNull Entity entity) {

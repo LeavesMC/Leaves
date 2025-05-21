@@ -30,7 +30,6 @@ import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
-// TODO refactor
 public class LeavesProtocolManager {
 
     private static final LeavesLogger LOGGER = LeavesLogger.LOGGER;
@@ -379,24 +378,21 @@ public class LeavesProtocolManager {
 
         @Codec
         public static StreamCodec<FriendlyByteBuf, FabricRegisterPayload> CODEC = StreamCodec.of(
-            FabricRegisterPayload::write,
-            v -> {
+            (buf, payload) -> {
+                boolean first = true;
+                ResourceLocation channel;
+                for (Iterator<String> var3 = payload.channels.iterator(); var3.hasNext(); buf.writeBytes(channel.toString().getBytes(StandardCharsets.US_ASCII))) {
+                    channel = ResourceLocation.parse(var3.next());
+                    if (first) {
+                        first = false;
+                    } else {
+                        buf.writeByte(0);
+                    }
+                }
+            },
+            buf -> {
                 throw new UnsupportedOperationException();
             }
         );
-
-        public static void write(FriendlyByteBuf buf, FabricRegisterPayload payload) {
-            boolean first = true;
-
-            ResourceLocation channel;
-            for (Iterator<String> var3 = payload.channels.iterator(); var3.hasNext(); buf.writeBytes(channel.toString().getBytes(StandardCharsets.US_ASCII))) {
-                channel = ResourceLocation.parse(var3.next());
-                if (first) {
-                    first = false;
-                } else {
-                    buf.writeByte(0);
-                }
-            }
-        }
     }
 }

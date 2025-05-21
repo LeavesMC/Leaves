@@ -18,13 +18,13 @@ import java.util.function.Function;
 
 public class ProtocolUtils {
 
-    private static final Function<ByteBuf, RegistryFriendlyByteBuf> bufDecorator = buf -> buf instanceof RegistryFriendlyByteBuf registryFriendlyByteBuf ? registryFriendlyByteBuf : new RegistryFriendlyByteBuf(buf, MinecraftServer.getServer().registryAccess());
+    private static final Function<ByteBuf, RegistryFriendlyByteBuf> bufDecorator = buf -> buf instanceof RegistryFriendlyByteBuf registry ? registry : new RegistryFriendlyByteBuf(buf, MinecraftServer.getServer().registryAccess());
 
     public static String buildProtocolVersion(String protocol) {
         return protocol + "-leaves-" + ServerBuildInfo.buildInfo().asString(ServerBuildInfo.StringRepresentation.VERSION_SIMPLE);
     }
 
-    public static void sendEmptyBytebufPacket(ServerPlayer player, ResourceLocation id) {
+    public static void sendEmptyPacket(ServerPlayer player, ResourceLocation id) {
         player.internalConnection.send(new ClientboundCustomPayloadPacket(new DiscardedPayload(id, new byte[0])));
     }
 

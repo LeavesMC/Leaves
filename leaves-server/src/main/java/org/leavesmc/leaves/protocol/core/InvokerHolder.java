@@ -40,10 +40,6 @@ public record InvokerHolder<T>(LeavesProtocol owner, Method invoker, T handler) 
         invoke0(player, payload);
     }
 
-    public void invokeString(ServerPlayer player, String channelId) {
-        invoke0(player, channelId);
-    }
-
     public void invokeKey(ServerPlayer player, ResourceLocation key) {
         invoke0(player, key);
     }

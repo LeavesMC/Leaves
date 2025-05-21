@@ -9,8 +9,8 @@ import java.lang.reflect.Modifier;
 
 public record InvokerHolder<T>(LeavesProtocol owner, Method invoker, T handler) {
 
-    private void invoke0(Object... args) {
-        if (!owner.isActive()) {
+    private void invoke0(boolean force, Object... args) {
+        if (!force && !owner.isActive()) {
             return;
         }
         try {
@@ -25,22 +25,26 @@ public record InvokerHolder<T>(LeavesProtocol owner, Method invoker, T handler) 
     }
 
     public void invokeEmpty() {
-        invoke0();
+        invoke0(false);
+    }
+
+    public void invokeInit() {
+        invoke0(true);
     }
 
     public void invokePlayer(ServerPlayer player) {
-        invoke0(player);
+        invoke0(false, player);
     }
 
     public void invokeBuf(ServerPlayer player, ByteBuf buf) {
-        invoke0(player, ProtocolUtils.decorate(buf));
+        invoke0(false, player, ProtocolUtils.decorate(buf));
     }
 
     public void invokePayload(ServerPlayer player, LeavesCustomPayload payload) {
-        invoke0(player, payload);
+        invoke0(false, player, payload);
     }
 
     public void invokeKey(ServerPlayer player, ResourceLocation key) {
-        invoke0(player, key);
+        invoke0(false, player, key.toString());
     }
 }

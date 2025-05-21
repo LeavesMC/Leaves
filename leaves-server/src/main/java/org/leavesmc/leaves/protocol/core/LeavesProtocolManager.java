@@ -58,7 +58,7 @@ public class LeavesProtocolManager {
     @SuppressWarnings("unchecked")
     public static void init() {
         for (Class<?> clazz : getClasses("org.leavesmc.leaves.protocol")) {
-            if (clazz.isAssignableFrom(LeavesCustomPayload.class)) {
+            if (LeavesCustomPayload.class.isAssignableFrom(clazz) && !clazz.equals(LeavesCustomPayload.class)) {
                 for (Field field : clazz.getDeclaredFields()) {
                     field.setAccessible(true);
                     if (!Modifier.isStatic(field.getModifiers())) {
@@ -66,11 +66,11 @@ public class LeavesProtocolManager {
                     }
                     try {
                         final LeavesCustomPayload.ID id = field.getAnnotation(LeavesCustomPayload.ID.class);
-                        if (id != null && field.getType() == ResourceLocation.class) {
+                        if (id != null && field.getType().equals(ResourceLocation.class)) {
                             IDS.put((Class<? extends LeavesCustomPayload>) clazz, (ResourceLocation) field.get(null));
                         }
                         final LeavesCustomPayload.Codec codec = field.getAnnotation(LeavesCustomPayload.Codec.class);
-                        if (codec != null && field.getType() == StreamCodec.class) {
+                        if (codec != null && field.getType().equals(StreamCodec.class)) {
                             CODECS.put((Class<? extends LeavesCustomPayload>) clazz, (StreamCodec<? super RegistryFriendlyByteBuf, LeavesCustomPayload>) field.get(null));
                         }
                     } catch (Exception e) {
@@ -105,7 +105,7 @@ public class LeavesProtocolManager {
                 if (init != null) {
                     InvokerHolder<ProtocolHandler.Init> holder = new InvokerHolder<>(protocol, method, init);
                     try {
-                        holder.invokeEmpty();
+                        holder.invokeInit();
                     } catch (RuntimeException exception) {
                         LOGGER.severe("Failed to invoke init method " + method.getName() + " in " + clazz.getName() + ", " + exception.getCause() + ": " + exception.getMessage());
                     }
@@ -190,7 +190,6 @@ public class LeavesProtocolManager {
         for (var idInfo : IDS.entrySet()) {
             var codec = CODECS.get(idInfo.getKey());
             if (codec == null) {
-
                 throw new IllegalArgumentException("Payload " + idInfo.getKey() + " is not configured correctly");
             }
             ID2CODEC.put(idInfo.getValue(), codec);
@@ -209,7 +208,7 @@ public class LeavesProtocolManager {
         var location = IDS.get(payload.getClass());
         var codec = CODECS.get(payload.getClass());
         if (location == null || codec == null) {
-            throw new IllegalArgumentException("Payload " + payload.getClass() + " is not configured correctly");
+            throw new IllegalArgumentException("Payload " + payload.getClass() + " is not configured correctly " + location + " " + codec);
         }
         buf.writeResourceLocation(location);
         codec.encode(ProtocolUtils.decorate(buf), payload);
@@ -247,7 +246,7 @@ public class LeavesProtocolManager {
         for (var join : PLAYER_JOIN) {
             join.invokePlayer(player);
         }
-        ProtocolUtils.sendPayloadPacket(player, new FabricRegisterPayload(collectKnownId()));
+        sendKnownId(player);
     }
 
     public static void handlePlayerLeave(ServerPlayer player) {
@@ -281,7 +280,7 @@ public class LeavesProtocolManager {
         }
     }
 
-    private static Set<String> collectKnownId() {
+    private static void sendKnownId(ServerPlayer player) {
         Set<String> set = new HashSet<>();
         PAYLOAD_RECEIVERS.forEach((clazz, holder) -> {
             if (holder.owner().isActive()) {
@@ -293,7 +292,18 @@ public class LeavesProtocolManager {
                 set.add(key);
             }
         });
-        return set;
+        ProtocolUtils.sendBytebufPacket(player, ResourceLocation.fromNamespaceAndPath("minecraft", "register"), buf -> {
+            boolean first = true;
+            ResourceLocation channel;
+            for (Iterator<String> var3 = set.iterator(); var3.hasNext(); buf.writeBytes(channel.toString().getBytes(StandardCharsets.US_ASCII))) {
+                channel = ResourceLocation.parse(var3.next());
+                if (first) {
+                    first = false;
+                } else {
+                    buf.writeByte(0);
+                }
+            }
+        });
     }
 
     public static Set<Class<?>> getClasses(String pack) {
@@ -369,30 +379,5 @@ public class LeavesProtocolManager {
                 }
             }
         }
-    }
-
-    public record FabricRegisterPayload(Set<String> channels) implements LeavesCustomPayload {
-
-        @ID
-        public static final ResourceLocation ID = ResourceLocation.tryParse("minecraft:register");
-
-        @Codec
-        public static StreamCodec<FriendlyByteBuf, FabricRegisterPayload> CODEC = StreamCodec.of(
-            (buf, payload) -> {
-                boolean first = true;
-                ResourceLocation channel;
-                for (Iterator<String> var3 = payload.channels.iterator(); var3.hasNext(); buf.writeBytes(channel.toString().getBytes(StandardCharsets.US_ASCII))) {
-                    channel = ResourceLocation.parse(var3.next());
-                    if (first) {
-                        first = false;
-                    } else {
-                        buf.writeByte(0);
-                    }
-                }
-            },
-            buf -> {
-                throw new UnsupportedOperationException();
-            }
-        );
     }
 }

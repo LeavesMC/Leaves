@@ -20,7 +20,7 @@ index 4535858701b2bb232b9d2feb2af6551526232ddc..2a51acd97afc525170e8001b76f57ad1
                          if (var4 instanceof ReportedException reportedException && reportedException.getCause() instanceof OutOfMemoryError) {
                              throw makeReportedException(var4, packet, processor);
 diff --git a/net/minecraft/server/MinecraftServer.java b/net/minecraft/server/MinecraftServer.java
-index b40e6b156614e9248b9423d0fbf208c2dc139489..ca4fdcabbe6c0c57bfa13ef6d83bcd560baae8fc 100644
+index 50f73905e6785d87a0faf886802d956a1c7b9751..5652336b01fc7a1a0eb8a86b2a1d921872d60c2a 100644
 --- a/net/minecraft/server/MinecraftServer.java
 +++ b/net/minecraft/server/MinecraftServer.java
 @@ -1725,6 +1725,10 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
@@ -34,34 +34,6 @@ index b40e6b156614e9248b9423d0fbf208c2dc139489..ca4fdcabbe6c0c57bfa13ef6d83bcd56
              } catch (Throwable var7) {
                  CrashReport crashReport = CrashReport.forThrowable(var7, "Exception ticking world");
                  serverLevel.fillReportDetails(crashReport);
-@@ -1748,6 +1752,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
-         profilerFiller.popPush("server gui refresh");
- 
-         org.leavesmc.leaves.protocol.core.LeavesProtocolManager.handleTick(tickCount); // Leaves - protocol
-+        org.leavesmc.leaves.util.BreakBedrockList.endTick(); // Leaves - break bedrock list
- 
-         for (int i = 0; i < this.tickables.size(); i++) {
-             this.tickables.get(i).run();
-diff --git a/net/minecraft/server/ServerScoreboard.java b/net/minecraft/server/ServerScoreboard.java
-index 9e22e93b1fab6822e0e9c1122024a88942c8679e..75fe9d99d22b1e89ad8011632d636772e118b0a8 100644
---- a/net/minecraft/server/ServerScoreboard.java
-+++ b/net/minecraft/server/ServerScoreboard.java
-@@ -154,6 +154,7 @@ public class ServerScoreboard extends Scoreboard {
-     @Override
-     public void onObjectiveAdded(Objective objective) {
-         super.onObjectiveAdded(objective);
-+        org.leavesmc.leaves.util.BreakBedrockList.onScoreboardAdd(objective); // Leaves - break bedrock list
-         this.setDirty();
-     }
- 
-@@ -170,6 +171,7 @@ public class ServerScoreboard extends Scoreboard {
-     @Override
-     public void onObjectiveRemoved(Objective objective) {
-         super.onObjectiveRemoved(objective);
-+        org.leavesmc.leaves.util.BreakBedrockList.onScoreboardRemove(objective); // Leaves - break bedrock list
-         if (this.trackedObjectives.contains(objective)) {
-             this.stopTrackingObjective(objective);
-         }
 diff --git a/net/minecraft/world/level/block/ShulkerBoxBlock.java b/net/minecraft/world/level/block/ShulkerBoxBlock.java
 index 49bac7af90b0a7c490141be6357563447783c6ca..fef902077b69830b570d1adf86603f45b4f6a839 100644
 --- a/net/minecraft/world/level/block/ShulkerBoxBlock.java
@@ -85,49 +57,44 @@ index 49bac7af90b0a7c490141be6357563447783c6ca..fef902077b69830b570d1adf86603f45
      }
  
      public static Block getBlockByColor(@Nullable DyeColor color) {
-diff --git a/net/minecraft/world/level/block/piston/PistonBaseBlock.java b/net/minecraft/world/level/block/piston/PistonBaseBlock.java
-index 10484ee85482e86be5e0a09d8202df600a32092e..16aa9f5996dc6eda95541fddb01e00e41305357a 100644
---- a/net/minecraft/world/level/block/piston/PistonBaseBlock.java
-+++ b/net/minecraft/world/level/block/piston/PistonBaseBlock.java
-@@ -74,6 +74,11 @@ public class PistonBaseBlock extends DirectionalBlock {
+diff --git a/net/minecraft/world/level/block/entity/LecternBlockEntity.java b/net/minecraft/world/level/block/entity/LecternBlockEntity.java
+index 99e50ddbb2c8c40b93b4c0fc7c44f987ed6be1c2..e2f7436cec37208d6ce8c5b95700ca12393fefec 100644
+--- a/net/minecraft/world/level/block/entity/LecternBlockEntity.java
++++ b/net/minecraft/world/level/block/entity/LecternBlockEntity.java
+@@ -308,15 +308,25 @@ public class LecternBlockEntity extends BlockEntity implements Clearable, MenuPr
+ 
      @Override
-     public void setPlacedBy(Level level, BlockPos pos, BlockState state, LivingEntity placer, ItemStack stack) {
-         if (!level.isClientSide) {
-+            // Leaves start - break bedrock list
-+            if (placer instanceof net.minecraft.world.entity.player.Player player) {
-+                org.leavesmc.leaves.util.BreakBedrockList.onPlayerPlacePiston(level, player, pos);
+     public void preRemoveSideEffects(BlockPos pos, BlockState state) {
+-        if (state.getValue(LecternBlock.HAS_BOOK) && this.level != null) {
+-            Direction direction = state.getValue(LecternBlock.FACING);
+-            ItemStack itemStack = this.getBook().copy();
+-            float f = 0.25F * direction.getStepX();
+-            float f1 = 0.25F * direction.getStepZ();
+-            ItemEntity itemEntity = new ItemEntity(this.level, pos.getX() + 0.5 + f, pos.getY() + 1, pos.getZ() + 0.5 + f1, itemStack);
+-            itemEntity.setDefaultPickUpDelay();
+-            this.level.addFreshEntity(itemEntity);
++        // Leaves start - fix push cce crash
++        try {
++            if (state.getValue(LecternBlock.HAS_BOOK) && this.level != null) {
++                Direction direction = state.getValue(LecternBlock.FACING);
++                ItemStack itemStack = this.getBook().copy();
++                float f = 0.25F * direction.getStepX();
++                float f1 = 0.25F * direction.getStepZ();
++                ItemEntity itemEntity = new ItemEntity(this.level, pos.getX() + 0.5 + f, pos.getY() + 1, pos.getZ() + 0.5 + f1, itemStack);
++                itemEntity.setDefaultPickUpDelay();
++                this.level.addFreshEntity(itemEntity);
 +            }
-+            // Leaves end - break bedrock list
-             this.checkIfExtend(level, pos, state);
++        } catch (IllegalArgumentException ex) {
++            if (org.leavesmc.leaves.LeavesConfig.modify.updateSuppressionCrashFix) {
++                throw new org.leavesmc.leaves.util.UpdateSuppressionException(pos, this.getBlockState().getBlock());
++            } else {
++                throw ex;
++            }
          }
++        // Leaves end - fix push cce crash
      }
-@@ -229,7 +234,13 @@ public class PistonBaseBlock extends DirectionalBlock {
-                             }
-                         }
-                         // Paper end - Fix sticky pistons and BlockPistonRetractEvent
--                        level.removeBlock(pos.relative(direction), false);
-+                        // Leaves start - break bedrock list
-+                        BlockPos pos1 = pos.relative(direction);
-+                        if (level.getBlockState(pos1).getBlock() == Blocks.BEDROCK) {
-+                            org.leavesmc.leaves.util.BreakBedrockList.onPistonBreakBedrock(level, pos1);
-+                        }
-+                        level.removeBlock(pos1, false);
-+                        // Leaves end - break bedrock list
-                     } else {
-                         this.moveBlocks(level, pos, direction, false);
-                     }
-@@ -238,6 +249,11 @@ public class PistonBaseBlock extends DirectionalBlock {
-                 // Paper start - Protect Bedrock and End Portal/Frames from being destroyed; fix headless pistons breaking blocks
-                 BlockPos headPos = pos.relative(direction);
-                 if (io.papermc.paper.configuration.GlobalConfiguration.get().unsupportedSettings.allowPermanentBlockBreakExploits || level.getBlockState(headPos) == Blocks.PISTON_HEAD.defaultBlockState().setValue(FACING, direction)) { // double check to make sure we're not a headless piston
-+                    // Leaves start - break bedrock list
-+                    if (level.getBlockState(headPos).getBlock() == Blocks.BEDROCK) {
-+                        org.leavesmc.leaves.util.BreakBedrockList.onPistonBreakBedrock(level, headPos);
-+                    }
-+                    // Leaves end - break bedrock list
-                     level.removeBlock(headPos, false);
-                 } else {
-                     ((ServerLevel) level).getChunkSource().blockChanged(headPos); // ... fix client desync
+ 
+     @Override
 diff --git a/net/minecraft/world/level/redstone/NeighborUpdater.java b/net/minecraft/world/level/redstone/NeighborUpdater.java
 index 332b33a004ab11150cca0cc2cefc26d0286648f5..263bf2b795057c2d5218bf9cfb684e526601aa77 100644
 --- a/net/minecraft/world/level/redstone/NeighborUpdater.java

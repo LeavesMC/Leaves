@@ -6,13 +6,11 @@ import io.netty.buffer.Unpooled;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.ByIdMap;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesLogger;
 import org.leavesmc.leaves.protocol.core.LeavesCustomPayload;
-import org.leavesmc.leaves.protocol.rei.REIServerProtocol;
 import org.leavesmc.leaves.protocol.rei.display.Display;
 
 import java.util.ArrayList;

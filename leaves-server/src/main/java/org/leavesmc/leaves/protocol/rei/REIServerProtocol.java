@@ -112,7 +112,7 @@ public class REIServerProtocol implements LeavesProtocol {
 
     @ProtocolHandler.PlayerLeave
     public static void onPlayerLoggedOut(@NotNull ServerPlayer player) {
-            enabledPlayers.remove(player);
+        enabledPlayers.remove(player);
 
     }
 

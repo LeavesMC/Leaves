@@ -94,11 +94,6 @@ public class AppleSkinProtocol implements LeavesProtocol {
         }
     }
 
-    @Override
-    public int tickerInterval(String tickerID) {
-        return LeavesConfig.protocol.appleskin.syncTickInterval;
-    }
-
     @ProtocolHandler.ReloadServer
     public static void onServerReload() {
         disableAllPlayer();
@@ -114,6 +109,11 @@ public class AppleSkinProtocol implements LeavesProtocol {
         previousExhaustionLevels.remove(player);
         previousSaturationLevels.remove(player);
         previousNaturalRegeneration.remove(player);
+    }
+
+    @Override
+    public int tickerInterval(String tickerID) {
+        return LeavesConfig.protocol.appleskin.syncTickInterval;
     }
 
     @Override

@@ -7,6 +7,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -39,10 +40,9 @@ import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 
-@LeavesProtocol(namespace = "servux")
-public class ServuxLitematicsProtocol {
+@LeavesProtocol.Register(namespace = "servux")
+public class ServuxLitematicsProtocol implements LeavesProtocol {
 
-    public static final ResourceLocation CHANNEL = ServuxProtocol.id("litematics");
     public static final int PROTOCOL_VERSION = 1;
 
     private static final CompoundTag metadata = new CompoundTag();
@@ -51,7 +51,7 @@ public class ServuxLitematicsProtocol {
     @ProtocolHandler.Init
     public static void init() {
         metadata.putString("name", "litematic_data");
-        metadata.putString("id", CHANNEL.toString());
+        metadata.putString("id", ServuxLitematicaPayload.CHANNEL.toString());
         metadata.putInt("version", PROTOCOL_VERSION);
         metadata.putString("servux", ServuxProtocol.SERVUX_STRING);
     }
@@ -59,10 +59,6 @@ public class ServuxLitematicsProtocol {
     public static boolean hasPermission(ServerPlayer player) {
         CraftPlayer bukkitEntity = player.getBukkitEntity();
         return bukkitEntity.hasPermission("leaves.protocol.litematics");
-    }
-
-    public static boolean isEnabled() {
-        return LeavesConfig.protocol.servux.litematicsProtocol;
     }
 
     public static void encodeServerData(ServerPlayer player, @NotNull ServuxLitematicaPayload packet) {
@@ -83,9 +79,9 @@ public class ServuxLitematicsProtocol {
         encodeServerData(player, payload);
     }
 
-    @ProtocolHandler.PayloadReceiver(payload = ServuxLitematicaPayload.class, key = "litematics")
+    @ProtocolHandler.PayloadReceiver(payload = ServuxLitematicaPayload.class)
     public static void onPacketReceive(ServerPlayer player, ServuxLitematicaPayload payload) {
-        if (!isEnabled() || !hasPermission(player)) {
+        if (!hasPermission(player)) {
             return;
         }
 
@@ -205,6 +201,11 @@ public class ServuxLitematicsProtocol {
         }
     }
 
+    @Override
+    public boolean isActive() {
+        return LeavesConfig.protocol.servux.litematicsProtocol;
+    }
+
     public enum ServuxLitematicaPayloadType {
         PACKET_S2C_METADATA(1),
         PACKET_C2S_METADATA_REQUEST(2),
@@ -220,10 +221,6 @@ public class ServuxLitematicsProtocol {
         PACKET_C2S_NBT_RESPONSE_START(12),
         PACKET_C2S_NBT_RESPONSE_DATA(13);
 
-        private static final class Helper {
-            static Map<Integer, ServuxLitematicaPayloadType> ID_TO_TYPE = new HashMap<>();
-        }
-
         public final int type;
 
         ServuxLitematicaPayloadType(int type) {
@@ -234,10 +231,82 @@ public class ServuxLitematicsProtocol {
         public static ServuxLitematicaPayloadType fromId(int id) {
             return ServuxLitematicaPayloadType.Helper.ID_TO_TYPE.get(id);
         }
+
+        private static final class Helper {
+            static Map<Integer, ServuxLitematicaPayloadType> ID_TO_TYPE = new HashMap<>();
+        }
     }
 
-    public static class ServuxLitematicaPayload implements LeavesCustomPayload<ServuxLitematicaPayload> {
+    public static class ServuxLitematicaPayload implements LeavesCustomPayload {
 
+        @ID
+        public static final ResourceLocation CHANNEL = ServuxProtocol.id("litematics");
+
+        @Codec
+        public static final StreamCodec<FriendlyByteBuf, ServuxLitematicaPayload> CODEC = StreamCodec.of(
+            (buf, payload) -> {
+                buf.writeVarInt(payload.packetType.type);
+                switch (payload.packetType) {
+                    case PACKET_C2S_BLOCK_ENTITY_REQUEST -> {
+                        buf.writeVarInt(payload.transactionId);
+                        buf.writeBlockPos(payload.pos);
+                    }
+                    case PACKET_C2S_ENTITY_REQUEST -> {
+                        buf.writeVarInt(payload.transactionId);
+                        buf.writeVarInt(payload.entityId);
+                    }
+                    case PACKET_S2C_BLOCK_NBT_RESPONSE_SIMPLE -> {
+                        buf.writeBlockPos(payload.pos);
+                        buf.writeNbt(payload.nbt);
+                    }
+                    case PACKET_S2C_ENTITY_NBT_RESPONSE_SIMPLE -> {
+                        buf.writeVarInt(payload.entityId);
+                        buf.writeNbt(payload.nbt);
+                    }
+                    case PACKET_C2S_BULK_ENTITY_NBT_REQUEST -> {
+                        buf.writeChunkPos(payload.chunkPos);
+                        buf.writeNbt(payload.nbt);
+                    }
+                    case PACKET_S2C_NBT_RESPONSE_DATA, PACKET_C2S_NBT_RESPONSE_DATA -> buf.writeBytes(payload.buffer.readBytes(payload.buffer.readableBytes()));
+                    case PACKET_C2S_METADATA_REQUEST, PACKET_S2C_METADATA -> buf.writeNbt(payload.nbt);
+                    default -> ServuxProtocol.LOGGER.error("ServuxLitematicaPacket#toPacket: Unknown packet type!");
+                }
+            },
+            buf -> {
+                ServuxLitematicaPayloadType type = ServuxLitematicaPayloadType.fromId(buf.readVarInt());
+                if (type == null) {
+                    throw new IllegalStateException("invalid packet type received");
+                }
+                ServuxLitematicaPayload payload = new ServuxLitematicaPayload(type);
+                switch (type) {
+                    case PACKET_C2S_BLOCK_ENTITY_REQUEST -> {
+                        buf.readVarInt();
+                        payload.pos = buf.readBlockPos().immutable();
+                    }
+                    case PACKET_C2S_ENTITY_REQUEST -> {
+                        buf.readVarInt();
+                        payload.entityId = buf.readVarInt();
+                    }
+                    case PACKET_S2C_BLOCK_NBT_RESPONSE_SIMPLE -> {
+                        payload.pos = buf.readBlockPos().immutable();
+                        payload.nbt = buf.readNbt();
+                    }
+                    case PACKET_S2C_ENTITY_NBT_RESPONSE_SIMPLE -> {
+                        payload.entityId = buf.readVarInt();
+                        payload.nbt = buf.readNbt();
+                    }
+                    case PACKET_C2S_BULK_ENTITY_NBT_REQUEST -> {
+                        payload.chunkPos = buf.readChunkPos();
+                        payload.nbt = buf.readNbt();
+                    }
+                    case PACKET_C2S_NBT_RESPONSE_DATA, PACKET_S2C_NBT_RESPONSE_DATA -> payload.buffer = new FriendlyByteBuf(buf.readBytes(buf.readableBytes()));
+                    case PACKET_C2S_METADATA_REQUEST, PACKET_S2C_METADATA -> payload.nbt = buf.readNbt();
+                }
+                return payload;
+            }
+        );
+
+        public static final int PROTOCOL_VERSION = 1;
         private final ServuxLitematicaPayloadType packetType;
         private final int transactionId;
         private int entityId;
@@ -245,7 +314,6 @@ public class ServuxLitematicsProtocol {
         private CompoundTag nbt;
         private ChunkPos chunkPos;
         private FriendlyByteBuf buffer;
-        public static final int PROTOCOL_VERSION = 1;
 
         private ServuxLitematicaPayload(ServuxLitematicaPayloadType type) {
             this.packetType = type;
@@ -294,91 +362,6 @@ public class ServuxLitematicsProtocol {
 
         public boolean isEmpty() {
             return !this.hasBuffer() && !this.hasNbt();
-        }
-
-        @New
-        public static ServuxLitematicaPayload decode(ResourceLocation location, FriendlyByteBuf input) {
-            ServuxLitematicaPayloadType type = ServuxLitematicaPayloadType.fromId(input.readVarInt());
-            if (type == null) {
-                throw new IllegalStateException("invalid packet type received");
-            }
-
-            ServuxLitematicaPayload payload = new ServuxLitematicaPayload(type);
-            switch (type) {
-                case PACKET_C2S_BLOCK_ENTITY_REQUEST -> {
-                    input.readVarInt();
-                    payload.pos = input.readBlockPos().immutable();
-                }
-
-                case PACKET_C2S_ENTITY_REQUEST -> {
-                    input.readVarInt();
-                    payload.entityId = input.readVarInt();
-                }
-
-                case PACKET_S2C_BLOCK_NBT_RESPONSE_SIMPLE -> {
-                    payload.pos = input.readBlockPos().immutable();
-                    payload.nbt = input.readNbt();
-                }
-
-                case PACKET_S2C_ENTITY_NBT_RESPONSE_SIMPLE -> {
-                    payload.entityId = input.readVarInt();
-                    payload.nbt = input.readNbt();
-                }
-
-                case PACKET_C2S_BULK_ENTITY_NBT_REQUEST -> {
-                    payload.chunkPos = input.readChunkPos();
-                    payload.nbt = input.readNbt();
-                }
-
-                case PACKET_C2S_NBT_RESPONSE_DATA, PACKET_S2C_NBT_RESPONSE_DATA -> payload.buffer = new FriendlyByteBuf(input.readBytes(input.readableBytes()));
-
-                case PACKET_C2S_METADATA_REQUEST, PACKET_S2C_METADATA -> payload.nbt = input.readNbt();
-            }
-
-            return payload;
-        }
-
-        @Override
-        public void write(FriendlyByteBuf output) {
-            output.writeVarInt(this.packetType.type);
-
-            switch (this.packetType) {
-                case PACKET_C2S_BLOCK_ENTITY_REQUEST -> {
-                    output.writeVarInt(this.transactionId);
-                    output.writeBlockPos(this.pos);
-                }
-
-                case PACKET_C2S_ENTITY_REQUEST -> {
-                    output.writeVarInt(this.transactionId);
-                    output.writeVarInt(this.entityId);
-                }
-
-                case PACKET_S2C_BLOCK_NBT_RESPONSE_SIMPLE -> {
-                    output.writeBlockPos(this.pos);
-                    output.writeNbt(this.nbt);
-                }
-
-                case PACKET_S2C_ENTITY_NBT_RESPONSE_SIMPLE -> {
-                    output.writeVarInt(this.entityId);
-                    output.writeNbt(this.nbt);
-                }
-
-                case PACKET_C2S_BULK_ENTITY_NBT_REQUEST -> {
-                    output.writeChunkPos(this.chunkPos);
-                    output.writeNbt(this.nbt);
-                }
-
-                case PACKET_S2C_NBT_RESPONSE_DATA, PACKET_C2S_NBT_RESPONSE_DATA -> output.writeBytes(this.buffer.readBytes(this.buffer.readableBytes()));
-
-                case PACKET_C2S_METADATA_REQUEST, PACKET_S2C_METADATA -> output.writeNbt(this.nbt);
-
-                default -> ServuxProtocol.LOGGER.error("ServuxLitematicaPacket#toPacket: Unknown packet type!");
-            }
-        }
-
-        @Override
-        public ResourceLocation id() {
-            return CHANNEL;
         }
     }
 }

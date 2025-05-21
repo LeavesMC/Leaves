@@ -9,6 +9,7 @@ public record BufCustomPacketPayload(
     Type<BufCustomPacketPayload> type,
     byte[] payload
 ) implements LeavesCustomPayload<BufCustomPacketPayload> {
+
     @New
     public static BufCustomPacketPayload create(ResourceLocation location, @NotNull FriendlyByteBuf buf) {
         return new BufCustomPacketPayload(new Type<>(location), buf.readByteArray());

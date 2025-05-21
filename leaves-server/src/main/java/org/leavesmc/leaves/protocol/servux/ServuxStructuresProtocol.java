@@ -7,6 +7,7 @@ import it.unimi.dsi.fastutil.longs.LongSet;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -36,22 +37,17 @@ import java.util.concurrent.ConcurrentHashMap;
 
 // Powered by Servux(https://github.com/sakura-ryoko/servux)
 
-@LeavesProtocol(namespace = "servux")
-public class ServuxStructuresProtocol {
+@LeavesProtocol.Register(namespace = "servux")
+public class ServuxStructuresProtocol implements LeavesProtocol {
 
     public static final int PROTOCOL_VERSION = 2;
-
     private static final int updateInterval = 40;
     private static final int timeout = 30 * 20;
-
-    private static int retainDistance;
-
-    public static final ResourceLocation CHANNEL = ServuxProtocol.id("structures");
-
     private static final Map<Integer, ServerPlayer> players = new ConcurrentHashMap<>();
     private static final Map<UUID, Map<ChunkPos, Timeout>> timeouts = new HashMap<>();
+    private static int retainDistance;
 
-    @ProtocolHandler.PayloadReceiver(payload = StructuresPayload.class, key = "structures")
+    @ProtocolHandler.PayloadReceiver(payload = StructuresPayload.class)
     public static void onPacketReceive(ServerPlayer player, StructuresPayload payload) {
         if (!LeavesConfig.protocol.servux.structureProtocol) {
             return;
@@ -139,7 +135,7 @@ public class ServuxStructuresProtocol {
         MinecraftServer server = MinecraftServer.getServer();
         CompoundTag tag = new CompoundTag();
         tag.putString("name", "structure_bounding_boxes");
-        tag.putString("id", CHANNEL.toString());
+        tag.putString("id", StructuresPayload.CHANNEL.toString());
         tag.putInt("version", PROTOCOL_VERSION);
         tag.putString("servux", ServuxProtocol.SERVUX_STRING);
         tag.putInt("timeout", timeout);
@@ -313,6 +309,29 @@ public class ServuxStructuresProtocol {
         }
     }
 
+    public static void sendPacket(ServerPlayer player, StructuresPayload payload) {
+        if (!LeavesConfig.protocol.servux.structureProtocol) {
+            return;
+        }
+
+        if (payload.packetType() == StructuresPayloadType.PACKET_S2C_STRUCTURE_DATA_START) {
+            FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
+            buffer.writeNbt(payload.nbt());
+            PacketSplitter.send(ServuxStructuresProtocol::sendWithSplitter, buffer, player);
+        } else {
+            ProtocolUtils.sendPayloadPacket(player, payload);
+        }
+    }
+
+    private static void sendWithSplitter(ServerPlayer player, FriendlyByteBuf buf) {
+        sendPacket(player, new StructuresPayload(StructuresPayloadType.PACKET_S2C_STRUCTURE_DATA, buf));
+    }
+
+    @Override
+    public boolean isActive() {
+        return LeavesConfig.protocol.servux.structureProtocol;
+    }
+
     public enum StructuresPayloadType {
         PACKET_S2C_METADATA(1),
         PACKET_S2C_STRUCTURE_DATA(2),
@@ -321,10 +340,6 @@ public class ServuxStructuresProtocol {
         PACKET_S2C_STRUCTURE_DATA_START(5),
         PACKET_S2C_SPAWN_METADATA(10),
         PACKET_C2S_REQUEST_SPAWN_METADATA(11);
-
-        private static final class Helper {
-            static Map<Integer, StructuresPayloadType> ID_TO_TYPE = new HashMap<>();
-        }
 
         public final int type;
 
@@ -336,9 +351,39 @@ public class ServuxStructuresProtocol {
         public static StructuresPayloadType fromId(int id) {
             return Helper.ID_TO_TYPE.get(id);
         }
+
+        private static final class Helper {
+            static Map<Integer, StructuresPayloadType> ID_TO_TYPE = new HashMap<>();
+        }
     }
 
-    public record StructuresPayload(StructuresPayloadType packetType, CompoundTag nbt, FriendlyByteBuf buffer) implements LeavesCustomPayload<StructuresPayload> {
+    public record StructuresPayload(StructuresPayloadType packetType, CompoundTag nbt, FriendlyByteBuf buffer) implements LeavesCustomPayload {
+
+        @ID
+        public static final ResourceLocation CHANNEL = ServuxProtocol.id("structures");
+
+        @Codec
+        public static final StreamCodec<FriendlyByteBuf, StructuresPayload> CODEC = StreamCodec.of(
+            (buf, payload) -> {
+                buf.writeVarInt(payload.packetType().type);
+                if (payload.packetType().equals(StructuresPayloadType.PACKET_S2C_STRUCTURE_DATA)) {
+                    buf.writeBytes(payload.buffer().readBytes(payload.buffer().readableBytes()));
+                } else {
+                    buf.writeNbt(payload.nbt());
+                }
+            },
+            buf -> {
+                int i = buf.readVarInt();
+                StructuresPayloadType type = StructuresPayloadType.fromId(i);
+                if (type == null) {
+                    throw new IllegalStateException("invalid packet type received");
+                } else if (type.equals(StructuresPayloadType.PACKET_S2C_STRUCTURE_DATA)) {
+                    return new StructuresPayload(type, new FriendlyByteBuf(buf.readBytes(buf.readableBytes())));
+                } else {
+                    return new StructuresPayload(type, buf.readNbt());
+                }
+            }
+        );
 
         public StructuresPayload(StructuresPayloadType packetType, CompoundTag nbt) {
             this(packetType, nbt, null);
@@ -346,35 +391,6 @@ public class ServuxStructuresProtocol {
 
         public StructuresPayload(StructuresPayloadType packetType, FriendlyByteBuf buffer) {
             this(packetType, new CompoundTag(), buffer);
-        }
-
-        @New
-        private static StructuresPayload decode(ResourceLocation id, FriendlyByteBuf buf) {
-            int i = buf.readVarInt();
-            StructuresPayloadType type = StructuresPayloadType.fromId(i);
-
-            if (type == null) {
-                throw new IllegalStateException("invalid packet type received");
-            } else if (type.equals(StructuresPayloadType.PACKET_S2C_STRUCTURE_DATA)) {
-                return new StructuresPayload(type, new FriendlyByteBuf(buf.readBytes(buf.readableBytes())));
-            } else {
-                return new StructuresPayload(type, buf.readNbt());
-            }
-        }
-
-        @Override
-        public void write(FriendlyByteBuf buf) {
-            buf.writeVarInt(this.packetType.type);
-            if (this.packetType.equals(StructuresPayloadType.PACKET_S2C_STRUCTURE_DATA)) {
-                buf.writeBytes(this.buffer.readBytes(this.buffer.readableBytes()));
-            } else {
-                buf.writeNbt(this.nbt);
-            }
-        }
-
-        @Override
-        public ResourceLocation id() {
-            return CHANNEL;
         }
     }
 
@@ -392,23 +408,5 @@ public class ServuxStructuresProtocol {
         public void setLastSync(int tickCounter) {
             this.lastSync = tickCounter;
         }
-    }
-
-    public static void sendPacket(ServerPlayer player, StructuresPayload payload) {
-        if (!LeavesConfig.protocol.servux.structureProtocol) {
-            return;
-        }
-
-        if (payload.packetType() == StructuresPayloadType.PACKET_S2C_STRUCTURE_DATA_START) {
-            FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
-            buffer.writeNbt(payload.nbt());
-            PacketSplitter.send(ServuxStructuresProtocol::sendWithSplitter, buffer, player);
-        } else {
-            ProtocolUtils.sendPayloadPacket(player, payload);
-        }
-    }
-
-    private static void sendWithSplitter(ServerPlayer player, FriendlyByteBuf buf) {
-        sendPacket(player, new StructuresPayload(StructuresPayloadType.PACKET_S2C_STRUCTURE_DATA, buf));
     }
 }

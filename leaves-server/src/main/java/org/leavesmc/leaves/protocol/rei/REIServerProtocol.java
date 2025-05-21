@@ -79,14 +79,14 @@ public class REIServerProtocol {
         return builder.build();
     });
     private static final Set<ServerPlayer> enabledPlayers = new HashSet<>();
-    private static int minecraftRecipeVer = 0;
-    private static int nextReiRecipeVer = -1;
-    private static ImmutableList<CustomPacketPayload> cachedPayloads;
     private static final Executor executor = new ThreadPoolExecutor(
         1, 1, 0L, TimeUnit.MILLISECONDS,
         new ArrayBlockingQueue<>(1),
         new ThreadPoolExecutor.DiscardOldestPolicy()
     );
+    private static int minecraftRecipeVer = 0;
+    private static int nextReiRecipeVer = -1;
+    private static ImmutableList<CustomPacketPayload> cachedPayloads;
 
     public static void onRecipeReload() {
         minecraftRecipeVer = MinecraftServer.getServer().getTickCount();

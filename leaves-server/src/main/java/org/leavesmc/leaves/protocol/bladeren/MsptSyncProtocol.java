@@ -61,13 +61,13 @@ public class MsptSyncProtocol implements LeavesProtocol {
         }
     }
 
+    public static void onPlayerSubmit(@NotNull ServerPlayer player) {
+        players.add(player);
+    }
+
     @Override
     public int tickerInterval(String tickerID) {
         return LeavesConfig.protocol.bladeren.msptSyncTickInterval;
-    }
-
-    public static void onPlayerSubmit(@NotNull ServerPlayer player) {
-        players.add(player);
     }
 
     @Override

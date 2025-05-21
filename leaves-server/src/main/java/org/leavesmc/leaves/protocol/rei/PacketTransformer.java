@@ -25,18 +25,6 @@ public class PacketTransformer {
 
     private final Map<UUID, PartData> cache = Collections.synchronizedMap(new HashMap<>());
 
-    private static class PartData {
-        private final ResourceLocation id;
-        private final int partsNum;
-        private final List<RegistryFriendlyByteBuf> parts;
-
-        public PartData(ResourceLocation id, int partsNum) {
-            this.id = id;
-            this.partsNum = partsNum;
-            this.parts = new ArrayList<>();
-        }
-    }
-
     public void inbound(ResourceLocation id, RegistryFriendlyByteBuf buf, ServerPlayer player, BiConsumer<ResourceLocation, RegistryFriendlyByteBuf> consumer) {
         UUID key = player.getUUID();
         PartData data;
@@ -133,6 +121,18 @@ public class PacketTransformer {
                 consumer.accept(id, packetBuffer);
             }
             buf.release();
+        }
+    }
+
+    private static class PartData {
+        private final ResourceLocation id;
+        private final int partsNum;
+        private final List<RegistryFriendlyByteBuf> parts;
+
+        public PartData(ResourceLocation id, int partsNum) {
+            this.id = id;
+            this.partsNum = partsNum;
+            this.parts = new ArrayList<>();
         }
     }
 }

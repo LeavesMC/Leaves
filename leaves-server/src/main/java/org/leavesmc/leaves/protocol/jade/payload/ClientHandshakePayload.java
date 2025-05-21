@@ -5,7 +5,6 @@ import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
 import org.leavesmc.leaves.protocol.core.LeavesCustomPayload;
-import org.leavesmc.leaves.protocol.core.ProtocolHandler;
 import org.leavesmc.leaves.protocol.jade.JadeProtocol;
 
 public record ClientHandshakePayload(String protocolVersion) implements LeavesCustomPayload {

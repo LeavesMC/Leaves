@@ -17,9 +17,11 @@ public class ViewGroup<T> {
     public String id;
     @Nullable
     protected CompoundTag extraData;
+
     public ViewGroup(List<T> views) {
         this(views, Optional.empty(), Optional.empty());
     }
+
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     public ViewGroup(List<T> views, Optional<String> id, Optional<CompoundTag> extraData) {
         this.views = views;

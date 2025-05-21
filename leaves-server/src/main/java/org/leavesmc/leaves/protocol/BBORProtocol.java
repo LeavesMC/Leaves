@@ -202,6 +202,15 @@ public class BBORProtocol implements LeavesProtocol {
 
     private record BBoundingBox(String type, BlockPos min, BlockPos max) {
 
+        private static int combineHashCodes(int @NotNull ... hashCodes) {
+            final int prime = 31;
+            int result = 0;
+            for (int hashCode : hashCodes) {
+                result = prime * result + hashCode;
+            }
+            return result;
+        }
+
         public void serialize(@NotNull FriendlyByteBuf buf) {
             buf.writeChar('S');
             buf.writeInt(type.hashCode());
@@ -212,15 +221,6 @@ public class BBORProtocol implements LeavesProtocol {
         @Override
         public int hashCode() {
             return combineHashCodes(min.hashCode(), max.hashCode());
-        }
-
-        private static int combineHashCodes(int @NotNull ... hashCodes) {
-            final int prime = 31;
-            int result = 0;
-            for (int hashCode : hashCodes) {
-                result = prime * result + hashCode;
-            }
-            return result;
         }
     }
 }

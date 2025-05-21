@@ -8,6 +8,7 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -28,10 +29,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@LeavesProtocol(namespace = "servux")
-public class ServuxHudDataProtocol {
+@LeavesProtocol.Register(namespace = "servux")
+public class ServuxHudDataProtocol implements LeavesProtocol {
 
-    public static final ResourceLocation CHANNEL = ServuxProtocol.id("hud_metadata");
     public static final int PROTOCOL_VERSION = 1;
 
     private static final List<ServerPlayer> players = new ArrayList<>();
@@ -39,19 +39,15 @@ public class ServuxHudDataProtocol {
 
     public static boolean refreshSpawnMetadata = false;
 
-    @ProtocolHandler.PayloadReceiver(payload = HudDataPayload.class, key = "hud_metadata")
+    @ProtocolHandler.PayloadReceiver(payload = HudDataPayload.class)
     public static void onPacketReceive(ServerPlayer player, HudDataPayload payload) {
-        if (!LeavesConfig.protocol.servux.hudMetadataProtocol) {
-            return;
-        }
-
         switch (payload.packetType) {
             case PACKET_C2S_METADATA_REQUEST -> {
                 players.add(player);
 
                 CompoundTag metadata = new CompoundTag();
                 metadata.putString("name", "hud_metadata");
-                metadata.putString("id", CHANNEL.toString());
+                metadata.putString("id", HudDataPayload.CHANNEL.toString());
                 metadata.putInt("version", PROTOCOL_VERSION);
                 metadata.putString("servux", ServuxProtocol.SERVUX_STRING);
                 putWorldData(metadata);
@@ -64,32 +60,9 @@ public class ServuxHudDataProtocol {
         }
     }
 
-    @ProtocolHandler.Ticker
-    public void onTick() {
-        if (!LeavesConfig.protocol.servux.hudMetadataProtocol) {
-            return;
-        }
-
-        MinecraftServer server = MinecraftServer.getServer();
-        int tickCounter = server.getTickCount();
-        if ((tickCounter % updateInterval) == 0) {
-            for (ServerPlayer player : players) {
-                if (refreshSpawnMetadata) {
-                    refreshSpawnMetadata(player);
-                }
-                refreshWeatherData(player);
-            }
-            refreshSpawnMetadata = false;
-        }
-    }
-
     public static void refreshSpawnMetadata(ServerPlayer player) {
-        if (!LeavesConfig.protocol.servux.hudMetadataProtocol) {
-            return;
-        }
-
         CompoundTag metadata = new CompoundTag();
-        metadata.putString("id", CHANNEL.toString());
+        metadata.putString("id", HudDataPayload.CHANNEL.toString());
         metadata.putString("servux", ServuxProtocol.SERVUX_STRING);
         putWorldData(metadata);
 
@@ -97,10 +70,6 @@ public class ServuxHudDataProtocol {
     }
 
     public static void refreshRecipeManager(ServerPlayer player) {
-        if (!LeavesConfig.protocol.servux.hudMetadataProtocol) {
-            return;
-        }
-
         Collection<RecipeHolder<?>> recipes = player.server.getRecipeManager().getRecipes();
         CompoundTag nbt = new CompoundTag();
         ListTag list = new ListTag();
@@ -122,17 +91,13 @@ public class ServuxHudDataProtocol {
     }
 
     public static void refreshWeatherData(ServerPlayer player) {
-        if (!LeavesConfig.protocol.servux.hudMetadataProtocol) {
-            return;
-        }
-
         ServerLevel level = MinecraftServer.getServer().overworld();
         if (level.getGameRules().getBoolean(GameRules.RULE_WEATHER_CYCLE)) {
             return;
         }
 
         CompoundTag nbt = new CompoundTag();
-        nbt.putString("id", CHANNEL.toString());
+        nbt.putString("id", HudDataPayload.CHANNEL.toString());
         nbt.putString("servux", ServuxProtocol.SERVUX_STRING);
 
         if (level.serverLevelData.isRaining() && level.serverLevelData.getRainTime() > -1) {
@@ -170,10 +135,6 @@ public class ServuxHudDataProtocol {
     }
 
     public static void sendPacket(ServerPlayer player, HudDataPayload payload) {
-        if (!LeavesConfig.protocol.servux.hudMetadataProtocol) {
-            return;
-        }
-
         if (payload.packetType == HudDataPayloadType.PACKET_S2C_NBT_RESPONSE_START) {
             FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
             buffer.writeNbt(payload.nbt);
@@ -187,6 +148,27 @@ public class ServuxHudDataProtocol {
         sendPacket(player, new HudDataPayload(HudDataPayloadType.PACKET_S2C_NBT_RESPONSE_DATA, buf));
     }
 
+    @ProtocolHandler.Ticker
+    public void onTick() {
+        for (ServerPlayer player : players) {
+            if (refreshSpawnMetadata) {
+                refreshSpawnMetadata(player);
+            }
+            refreshWeatherData(player);
+        }
+        refreshSpawnMetadata = false;
+    }
+
+    @Override
+    public boolean isActive() {
+        return LeavesConfig.protocol.servux.hudMetadataProtocol;
+    }
+
+    @Override
+    public int tickerInterval(String tickerID) {
+        return updateInterval;
+    }
+
     public enum HudDataPayloadType {
         PACKET_S2C_METADATA(1),
         PACKET_C2S_METADATA_REQUEST(2),
@@ -198,10 +180,6 @@ public class ServuxHudDataProtocol {
         PACKET_S2C_NBT_RESPONSE_START(10),
         PACKET_S2C_NBT_RESPONSE_DATA(11);
 
-        private static final class Helper {
-            static Map<Integer, HudDataPayloadType> ID_TO_TYPE = new HashMap<>();
-        }
-
         public final int type;
 
         HudDataPayloadType(int type) {
@@ -212,9 +190,44 @@ public class ServuxHudDataProtocol {
         public static HudDataPayloadType fromId(int id) {
             return HudDataPayloadType.Helper.ID_TO_TYPE.get(id);
         }
+
+        private static final class Helper {
+            static Map<Integer, HudDataPayloadType> ID_TO_TYPE = new HashMap<>();
+        }
     }
 
-    public record HudDataPayload(HudDataPayloadType packetType, CompoundTag nbt, FriendlyByteBuf buffer) implements LeavesCustomPayload<HudDataPayload> {
+    public record HudDataPayload(HudDataPayloadType packetType, CompoundTag nbt, FriendlyByteBuf buffer) implements LeavesCustomPayload {
+
+        @ID
+        public static final ResourceLocation CHANNEL = ServuxProtocol.id("hud_metadata");
+
+        @Codec
+        public static final StreamCodec<FriendlyByteBuf, HudDataPayload> CODEC = StreamCodec.of(
+            (buf, payload) -> {
+                buf.writeVarInt(payload.packetType().type);
+                switch (payload.packetType()) {
+                    case PACKET_S2C_NBT_RESPONSE_DATA -> buf.writeBytes(payload.buffer().copy());
+                    case PACKET_C2S_METADATA_REQUEST, PACKET_S2C_METADATA, PACKET_C2S_SPAWN_DATA_REQUEST,
+                         PACKET_S2C_SPAWN_DATA, PACKET_S2C_WEATHER_TICK, PACKET_C2S_RECIPE_MANAGER_REQUEST -> buf.writeNbt(payload.nbt());
+                }
+            },
+            buf -> {
+                HudDataPayloadType type = HudDataPayloadType.fromId(buf.readVarInt());
+                if (type == null) {
+                    throw new IllegalStateException("invalid packet type received");
+                }
+                switch (type) {
+                    case PACKET_S2C_NBT_RESPONSE_DATA -> {
+                        return new HudDataPayload(type, new FriendlyByteBuf(buf.readBytes(buf.readableBytes())));
+                    }
+                    case PACKET_C2S_METADATA_REQUEST, PACKET_S2C_METADATA, PACKET_C2S_SPAWN_DATA_REQUEST, PACKET_S2C_SPAWN_DATA, PACKET_S2C_WEATHER_TICK,
+                         PACKET_C2S_RECIPE_MANAGER_REQUEST -> {
+                        return new HudDataPayload(type, buf.readNbt());
+                    }
+                }
+                throw new IllegalStateException("invalid packet type received");
+            }
+        );
 
         public HudDataPayload(HudDataPayloadType type, CompoundTag nbt) {
             this(type, nbt, null);
@@ -224,41 +237,5 @@ public class ServuxHudDataProtocol {
             this(type, new CompoundTag(), buffer);
         }
 
-        @NotNull
-        public static HudDataPayload decode(ResourceLocation location, @NotNull FriendlyByteBuf buf) {
-            HudDataPayloadType type = HudDataPayloadType.fromId(buf.readVarInt());
-            if (type == null) {
-                throw new IllegalStateException("invalid packet type received");
-            }
-
-            switch (type) {
-                case PACKET_S2C_NBT_RESPONSE_DATA -> {
-                    return new HudDataPayload(type, new FriendlyByteBuf(buf.readBytes(buf.readableBytes())));
-                }
-
-                case PACKET_C2S_METADATA_REQUEST, PACKET_S2C_METADATA, PACKET_C2S_SPAWN_DATA_REQUEST, PACKET_S2C_SPAWN_DATA, PACKET_S2C_WEATHER_TICK,
-                     PACKET_C2S_RECIPE_MANAGER_REQUEST -> {
-                    return new HudDataPayload(type, buf.readNbt());
-                }
-            }
-
-            throw new IllegalStateException("invalid packet type received");
-        }
-
-        @Override
-        public void write(@NotNull FriendlyByteBuf buf) {
-            buf.writeVarInt(this.packetType.type);
-
-            switch (this.packetType) {
-                case PACKET_S2C_NBT_RESPONSE_DATA -> buf.writeBytes(this.buffer.copy());
-                case PACKET_C2S_METADATA_REQUEST, PACKET_S2C_METADATA, PACKET_C2S_SPAWN_DATA_REQUEST,
-                     PACKET_S2C_SPAWN_DATA, PACKET_S2C_WEATHER_TICK, PACKET_C2S_RECIPE_MANAGER_REQUEST -> buf.writeNbt(this.nbt);
-            }
-        }
-
-        @Override
-        public ResourceLocation id() {
-            return CHANNEL;
-        }
     }
 }

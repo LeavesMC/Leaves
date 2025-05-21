@@ -7,7 +7,6 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.protocol.core.LeavesCustomPayload;
-import org.leavesmc.leaves.protocol.core.ProtocolHandler;
 import org.leavesmc.leaves.protocol.jade.JadeProtocol;
 import org.leavesmc.leaves.protocol.jade.accessor.BlockAccessor;
 import org.leavesmc.leaves.protocol.jade.accessor.BlockAccessorImpl;

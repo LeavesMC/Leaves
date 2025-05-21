@@ -8,12 +8,12 @@ import org.leavesmc.leaves.protocol.core.LeavesCustomPayload;
 import org.leavesmc.leaves.protocol.core.ProtocolHandler;
 import org.leavesmc.leaves.protocol.jade.JadeProtocol;
 
-public record ReceiveDataPayload(CompoundTag tag) implements LeavesCustomPayload<ReceiveDataPayload> {
+public record ReceiveDataPayload(CompoundTag tag) implements LeavesCustomPayload {
 
-    @ProtocolHandler.ID
+    @ID
     private static final ResourceLocation PACKET_RECEIVE_DATA = JadeProtocol.id("receive_data");
 
-    @ProtocolHandler.Codec
+    @Codec
     private static final StreamCodec<FriendlyByteBuf, ReceiveDataPayload> CODEC = StreamCodec.of(
         (buf, payload) -> buf.writeNbt(payload.tag()),
         buf -> new ReceiveDataPayload(buf.readNbt())

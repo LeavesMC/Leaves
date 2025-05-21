@@ -115,11 +115,11 @@ public class LMSPasterProtocol implements LeavesProtocol {
         }
     }
 
-    public record LmsPasterPayload(int id, CompoundTag nbt) implements LeavesCustomPayload<LmsPasterPayload> {
-        @ProtocolHandler.ID
+    public record LmsPasterPayload(int id, CompoundTag nbt) implements LeavesCustomPayload {
+        @ID
         private static final ResourceLocation PACKET_ID = ResourceLocation.fromNamespaceAndPath(MOD_ID, "network_v2");
 
-        @ProtocolHandler.Codec
+        @Codec
         private static final StreamCodec<FriendlyByteBuf, LmsPasterPayload> CODEC = StreamCodec.of(
             (buf, payload) -> buf.writeVarInt(payload.id()).writeNbt(payload.nbt()),
             buf -> new LmsPasterPayload(buf.readVarInt(), buf.readNbt())

@@ -50,12 +50,12 @@ public class AppleSkinProtocol implements LeavesProtocol {
         resetPlayerData(player);
     }
 
-    @ProtocolHandler.MinecraftRegister(ignoreId = true)
+    @ProtocolHandler.MinecraftRegister(onlyNamespace = true)
     public static void onPlayerSubscribed(@NotNull ServerPlayer player, String channel) {
         subscribedChannels.computeIfAbsent(player, k -> new HashSet<>()).add(channel);
     }
 
-    @ProtocolHandler.Ticker(configName = "protocol.appleskin.sync-tick-interval")
+    @ProtocolHandler.Ticker
     public static void tick() {
         for (Map.Entry<ServerPlayer, Set<String>> entry : subscribedChannels.entrySet()) {
             ServerPlayer player = entry.getKey();
@@ -92,6 +92,11 @@ public class AppleSkinProtocol implements LeavesProtocol {
                 }
             }
         }
+    }
+
+    @Override
+    public int tickerInterval(String tickerID) {
+        return LeavesConfig.protocol.appleskin.syncTickInterval;
     }
 
     @ProtocolHandler.ReloadServer

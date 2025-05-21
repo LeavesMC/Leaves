@@ -104,11 +104,11 @@ public class CarpetServerProtocol implements LeavesProtocol {
         }
     }
 
-    public record CarpetPayload(CompoundTag nbt) implements LeavesCustomPayload<CarpetPayload> {
-        @ProtocolHandler.ID
+    public record CarpetPayload(CompoundTag nbt) implements LeavesCustomPayload {
+        @ID
         private static final ResourceLocation HELLO_ID = CarpetServerProtocol.id("hello");
 
-        @ProtocolHandler.Codec
+        @Codec
         private static final StreamCodec<FriendlyByteBuf, CarpetPayload> CODEC = StreamCodec.of(
             (buf, payload) -> buf.writeNbt(payload.nbt()),
             buf -> new CarpetPayload(buf.readNbt())

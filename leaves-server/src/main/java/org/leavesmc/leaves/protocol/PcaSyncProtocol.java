@@ -337,46 +337,46 @@ public class PcaSyncProtocol implements LeavesProtocol {
         return LeavesConfig.protocol.pca.enable;
     }
 
-    public record UpdateEntityPayload(ResourceLocation dimension, int entityId, CompoundTag tag) implements LeavesCustomPayload<UpdateEntityPayload> {
+    public record UpdateEntityPayload(ResourceLocation dimension, int entityId, CompoundTag tag) implements LeavesCustomPayload {
 
-        @ProtocolHandler.ID
+        @ID
         public static final ResourceLocation UPDATE_ENTITY = PcaSyncProtocol.id("update_entity");
 
-        @ProtocolHandler.Codec
+        @Codec
         public static final StreamCodec<FriendlyByteBuf, UpdateEntityPayload> CODEC = StreamCodec.of(
             (buf, payload) -> buf.writeResourceLocation(payload.dimension()).writeInt(payload.entityId()).writeNbt(payload.tag()),
             buf -> new UpdateEntityPayload(buf.readResourceLocation(), buf.readInt(), buf.readNbt())
         );
     }
 
-    public record UpdateBlockEntityPayload(ResourceLocation dimension, BlockPos blockPos, CompoundTag tag) implements LeavesCustomPayload<UpdateBlockEntityPayload> {
+    public record UpdateBlockEntityPayload(ResourceLocation dimension, BlockPos blockPos, CompoundTag tag) implements LeavesCustomPayload {
 
-        @ProtocolHandler.ID
+        @ID
         private static final ResourceLocation UPDATE_BLOCK_ENTITY = PcaSyncProtocol.id("update_block_entity");
 
-        @ProtocolHandler.Codec
+        @Codec
         private static final StreamCodec<FriendlyByteBuf, UpdateBlockEntityPayload> CODEC = StreamCodec.of(
             (buf, payload) -> buf.writeResourceLocation(payload.dimension()).writeBlockPos(payload.blockPos()).writeNbt(payload.tag()),
             buf -> new UpdateBlockEntityPayload(buf.readResourceLocation(), buf.readBlockPos(), buf.readNbt())
         );
     }
 
-    public record SyncBlockEntityPayload(BlockPos pos) implements LeavesCustomPayload<SyncBlockEntityPayload> {
-        @ProtocolHandler.ID
+    public record SyncBlockEntityPayload(BlockPos pos) implements LeavesCustomPayload {
+        @ID
         public static final ResourceLocation SYNC_BLOCK_ENTITY = PcaSyncProtocol.id("sync_block_entity");
 
-        @ProtocolHandler.Codec
+        @Codec
         private static final StreamCodec<FriendlyByteBuf, SyncBlockEntityPayload> CODEC = StreamCodec.of(
             (buf, payload) -> buf.writeBlockPos(payload.pos()),
             buf -> new SyncBlockEntityPayload(buf.readBlockPos())
         );
     }
 
-    public record SyncEntityPayload(int entityId) implements LeavesCustomPayload<SyncEntityPayload> {
-        @ProtocolHandler.ID
+    public record SyncEntityPayload(int entityId) implements LeavesCustomPayload {
+        @ID
         public static final ResourceLocation SYNC_ENTITY = PcaSyncProtocol.id("sync_entity");
 
-        @ProtocolHandler.Codec
+        @Codec
         private static final StreamCodec<FriendlyByteBuf, SyncEntityPayload> CODEC = StreamCodec.of(
             (buf, payload) -> buf.writeInt(payload.entityId()),
             buf -> new SyncEntityPayload(buf.readInt())

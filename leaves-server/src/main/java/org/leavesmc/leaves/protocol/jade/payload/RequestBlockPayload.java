@@ -18,12 +18,12 @@ import java.util.Objects;
 
 import static org.leavesmc.leaves.protocol.jade.JadeProtocol.blockDataProviders;
 
-public record RequestBlockPayload(BlockAccessorImpl.SyncData data, List<@Nullable IServerDataProvider<BlockAccessor>> dataProviders) implements LeavesCustomPayload<RequestBlockPayload> {
+public record RequestBlockPayload(BlockAccessorImpl.SyncData data, List<@Nullable IServerDataProvider<BlockAccessor>> dataProviders) implements LeavesCustomPayload {
 
-    @ProtocolHandler.ID
+    @ID
     private static final ResourceLocation PACKET_REQUEST_BLOCK = JadeProtocol.id("request_block");
 
-    @ProtocolHandler.Codec
+    @Codec
     private static final StreamCodec<RegistryFriendlyByteBuf, RequestBlockPayload> CODEC = StreamCodec.composite(
         BlockAccessorImpl.SyncData.STREAM_CODEC,
         RequestBlockPayload::data,

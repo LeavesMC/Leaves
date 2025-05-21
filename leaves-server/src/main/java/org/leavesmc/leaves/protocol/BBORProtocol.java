@@ -48,7 +48,7 @@ public class BBORProtocol implements LeavesProtocol {
         return ResourceLocation.tryBuild(PROTOCOL_ID, path);
     }
 
-    @ProtocolHandler.Ticker(interval = 1)
+    @ProtocolHandler.Ticker
     public static void tick() {
         for (var playerEntry : players.entrySet()) {
             sendBoundingToPlayer(playerEntry.getKey(), playerEntry.getValue());

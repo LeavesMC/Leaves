@@ -222,8 +222,9 @@ public final class LeavesConfig {
 
                 @RemovedConfig(name = "redstone-wire-dont-connect-if-on-trapdoor", category = "modify", transform = true)
                 @RemovedConfig(name = "redstone-wire-dont-connect-if-on-trapdoor", category = {"modify", "minecraft-old"}, transform = true)
-                @GlobalConfig("redstone-wire-dont-connect-if-on-trapdoor")
-                public boolean redstoneDontCantOnTrapDoor = false;
+                @RemovedConfig(name = "redstone-wire-dont-connect-if-on-trapdoor", category = {"modify", "minecraft-old", "block-updater"}, transform = true)
+                @GlobalConfig("redstone-ignore-upwards-update")
+                public boolean redstoneIgnoreUpwardsUpdate = false;
 
                 @RemovedConfig(name = "old-block-entity-behaviour", category = {"modify", "minecraft-old"}, transform = true)
                 @RemovedConfig(name = "old-block-entity-behaviour", category = {"modify", "minecraft-old", "block-updater"}, transform = true)

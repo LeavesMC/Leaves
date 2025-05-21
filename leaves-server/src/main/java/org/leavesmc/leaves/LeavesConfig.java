@@ -226,8 +226,9 @@ public final class LeavesConfig {
                 public boolean redstoneDontCantOnTrapDoor = false;
 
                 @RemovedConfig(name = "old-block-entity-behaviour", category = {"modify", "minecraft-old"}, transform = true)
-                @GlobalConfig("old-block-entity-behaviour")
-                public boolean oldBlockEntityBehaviour = false;
+                @RemovedConfig(name = "old-block-entity-behaviour", category = {"modify", "minecraft-old", "block-updater"}, transform = true)
+                @GlobalConfig("old-block-remove-behaviour")
+                public boolean oldBlockRemoveBehaviour = false;
             }
 
             @RemovedConfig(name = "shears-in-dispenser-can-zero-amount", category = {}, transform = true)

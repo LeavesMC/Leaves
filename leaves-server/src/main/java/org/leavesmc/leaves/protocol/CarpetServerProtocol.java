@@ -24,7 +24,6 @@ public class CarpetServerProtocol implements LeavesProtocol {
     public static final String PROTOCOL_ID = "carpet";
     public static final String VERSION = ProtocolUtils.buildProtocolVersion(PROTOCOL_ID);
 
-
     private static final String HI = "69";
     private static final String HELLO = "420";
 

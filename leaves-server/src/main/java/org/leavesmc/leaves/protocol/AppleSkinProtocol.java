@@ -51,8 +51,8 @@ public class AppleSkinProtocol implements LeavesProtocol {
     }
 
     @ProtocolHandler.MinecraftRegister(onlyNamespace = true)
-    public static void onPlayerSubscribed(@NotNull ServerPlayer player, String channel) {
-        subscribedChannels.computeIfAbsent(player, k -> new HashSet<>()).add(channel);
+    public static void onPlayerSubscribed(@NotNull ServerPlayer player, ResourceLocation id) {
+        subscribedChannels.computeIfAbsent(player, k -> new HashSet<>()).add(id.getPath());
     }
 
     @ProtocolHandler.Ticker

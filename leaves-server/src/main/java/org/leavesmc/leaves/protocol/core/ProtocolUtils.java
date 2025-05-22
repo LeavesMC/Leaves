@@ -1,6 +1,7 @@
 package org.leavesmc.leaves.protocol.core;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import io.papermc.paper.ServerBuildInfo;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -30,7 +31,7 @@ public class ProtocolUtils {
     public static void sendBytebufPacket(@NotNull ServerPlayer player, ResourceLocation id, Consumer<? super RegistryFriendlyByteBuf> consumer) {
         RegistryFriendlyByteBuf buf = decorate(Unpooled.buffer());
         consumer.accept(buf);
-        player.internalConnection.send(new ClientboundCustomPayloadPacket(new DiscardedPayload(id, buf.array())));
+        player.internalConnection.send(new ClientboundCustomPayloadPacket(new DiscardedPayload(id, ByteBufUtil.getBytes(buf))));
     }
 
     public static void sendPayloadPacket(ServerPlayer player, CustomPacketPayload payload) {

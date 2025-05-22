@@ -9,7 +9,7 @@ import java.lang.reflect.Method;
 
 public class PayloadReceiverInvokerHolder extends AbstractInvokerHolder<ProtocolHandler.PayloadReceiver> {
     public PayloadReceiverInvokerHolder(LeavesProtocol owner, Method invoker, ProtocolHandler.PayloadReceiver handler) {
-        super(owner, invoker, handler, null, ServerPlayer.class, LeavesCustomPayload.class);
+        super(owner, invoker, handler, null, ServerPlayer.class, handler.payload());
     }
 
     public void invoke(ServerPlayer player, LeavesCustomPayload payload) {

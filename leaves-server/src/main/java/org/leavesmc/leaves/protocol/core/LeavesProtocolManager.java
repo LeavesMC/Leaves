@@ -225,8 +225,7 @@ public class LeavesProtocolManager {
         if ((holder = STRICT_BYTEBUF_RECEIVERS.get(location.toString())) != null) {
             return holder.invoke(player, buf1);
         }
-        String namespace = location.getNamespace();
-        if ((holder = NAMESPACED_BYTEBUF_RECEIVERS.get(namespace)) != null) {
+        if ((holder = NAMESPACED_BYTEBUF_RECEIVERS.get(location.getNamespace())) != null) {
             if (holder.invoke(player, buf1)) {
                 return true;
             }
@@ -298,16 +297,12 @@ public class LeavesProtocolManager {
             }
         });
         ProtocolUtils.sendBytebufPacket(player, ResourceLocation.fromNamespaceAndPath("minecraft", "register"), buf -> {
-            boolean first = true;
             ResourceLocation channel;
             for (Iterator<String> var3 = set.iterator(); var3.hasNext(); buf.writeBytes(channel.toString().getBytes(StandardCharsets.US_ASCII))) {
                 channel = ResourceLocation.parse(var3.next());
-                if (first) {
-                    first = false;
-                } else {
-                    buf.writeByte(0);
-                }
+                buf.writeByte(0);
             }
+            buf.writerIndex(buf.writerIndex() - 1);
         });
     }
 

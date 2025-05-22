@@ -218,14 +218,19 @@ public final class LeavesConfig {
                 @GlobalConfig("cce-update-suppression")
                 public boolean cceUpdateSuppression = false;
 
+                @GlobalConfig("sound-update-suppression")
+                public boolean soundUpdateSuppression = false;
+
                 @RemovedConfig(name = "redstone-wire-dont-connect-if-on-trapdoor", category = "modify", transform = true)
                 @RemovedConfig(name = "redstone-wire-dont-connect-if-on-trapdoor", category = {"modify", "minecraft-old"}, transform = true)
-                @GlobalConfig("redstone-wire-dont-connect-if-on-trapdoor")
-                public boolean redstoneDontCantOnTrapDoor = false;
+                @RemovedConfig(name = "redstone-wire-dont-connect-if-on-trapdoor", category = {"modify", "minecraft-old", "block-updater"}, transform = true)
+                @GlobalConfig("redstone-ignore-upwards-update")
+                public boolean redstoneIgnoreUpwardsUpdate = false;
 
                 @RemovedConfig(name = "old-block-entity-behaviour", category = {"modify", "minecraft-old"}, transform = true)
-                @GlobalConfig("old-block-entity-behaviour")
-                public boolean oldBlockEntityBehaviour = false;
+                @RemovedConfig(name = "old-block-entity-behaviour", category = {"modify", "minecraft-old", "block-updater"}, transform = true)
+                @GlobalConfig("old-block-remove-behaviour")
+                public boolean oldBlockRemoveBehaviour = false;
             }
 
             @RemovedConfig(name = "shears-in-dispenser-can-zero-amount", category = {}, transform = true)
@@ -279,11 +284,17 @@ public final class LeavesConfig {
             @GlobalConfig("disable-LivingEntity-ai-step-alive-check")
             public boolean disableLivingEntityAiStepAliveCheck = false;
 
+            @GlobalConfig("spawn-invulnerable-time")
+            public boolean spawnInvulnerableTime = false;
+
             @GlobalConfig("fix-fortress-mob-spawn")
             public boolean fixFortressMobSpawn = false;
 
             @GlobalConfig("old-hopper-suck-in-behavior")
             public boolean oldHopperSuckInBehavior = false;
+
+            @GlobalConfig("old-nether-portal-collision") // Should remove in 1.21.6
+            public boolean oldNetherPortalCollision = false;
 
             public RaidConfig raid = new RaidConfig();
 
@@ -302,11 +313,27 @@ public final class LeavesConfig {
                 public boolean skipHeightCheck = false;
             }
 
+            @GlobalConfig("old-zombie-reinforcement")
+            public boolean oldZombieReinforcement = false;
+
             @GlobalConfig("allow-anvil-destroy-item-entities")
             public boolean allowAnvilDestroyItemEntities = false;
 
-            @GlobalConfig("string-tripwire-hook-duplicate")
-            public boolean stringTripwireHookDuplicate = false;
+            public TripwireConfig tripwire =  new TripwireConfig();
+
+            @GlobalConfigCategory("tripwire-and-hook-behavior")
+            public static class TripwireConfig {
+                @RemovedConfig(name = "string-tripwire-hook-duplicate", category = {"modify", "minecraft-old"}, transform = true)
+                @GlobalConfig("string-tripwire-hook-duplicate")
+                public boolean stringTripwireHookDuplicate = false;
+
+                @GlobalConfig("tripwire-behavior")
+                public TripwireBehavior tripwireBehavior = TripwireBehavior.VANILLA_21;
+
+                public enum TripwireBehavior {
+                    VANILLA_20, VANILLA_21, MIXED
+                }
+            }
         }
 
         public ElytraAeronauticsConfig elytraAeronautics = new ElytraAeronauticsConfig();

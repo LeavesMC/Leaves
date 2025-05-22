@@ -57,44 +57,39 @@ index 49bac7af90b0a7c490141be6357563447783c6ca..fef902077b69830b570d1adf86603f45
      }
  
      public static Block getBlockByColor(@Nullable DyeColor color) {
-diff --git a/net/minecraft/world/level/block/entity/LecternBlockEntity.java b/net/minecraft/world/level/block/entity/LecternBlockEntity.java
-index 99e50ddbb2c8c40b93b4c0fc7c44f987ed6be1c2..e2f7436cec37208d6ce8c5b95700ca12393fefec 100644
---- a/net/minecraft/world/level/block/entity/LecternBlockEntity.java
-+++ b/net/minecraft/world/level/block/entity/LecternBlockEntity.java
-@@ -308,15 +308,25 @@ public class LecternBlockEntity extends BlockEntity implements Clearable, MenuPr
- 
-     @Override
-     public void preRemoveSideEffects(BlockPos pos, BlockState state) {
--        if (state.getValue(LecternBlock.HAS_BOOK) && this.level != null) {
--            Direction direction = state.getValue(LecternBlock.FACING);
--            ItemStack itemStack = this.getBook().copy();
--            float f = 0.25F * direction.getStepX();
--            float f1 = 0.25F * direction.getStepZ();
--            ItemEntity itemEntity = new ItemEntity(this.level, pos.getX() + 0.5 + f, pos.getY() + 1, pos.getZ() + 0.5 + f1, itemStack);
--            itemEntity.setDefaultPickUpDelay();
--            this.level.addFreshEntity(itemEntity);
-+        // Leaves start - fix push cce crash
-+        try {
-+            if (state.getValue(LecternBlock.HAS_BOOK) && this.level != null) {
-+                Direction direction = state.getValue(LecternBlock.FACING);
-+                ItemStack itemStack = this.getBook().copy();
-+                float f = 0.25F * direction.getStepX();
-+                float f1 = 0.25F * direction.getStepZ();
-+                ItemEntity itemEntity = new ItemEntity(this.level, pos.getX() + 0.5 + f, pos.getY() + 1, pos.getZ() + 0.5 + f1, itemStack);
-+                itemEntity.setDefaultPickUpDelay();
-+                this.level.addFreshEntity(itemEntity);
-+            }
-+        } catch (IllegalArgumentException ex) {
-+            if (org.leavesmc.leaves.LeavesConfig.modify.updateSuppressionCrashFix) {
-+                throw new org.leavesmc.leaves.util.UpdateSuppressionException(pos, this.getBlockState().getBlock());
-+            } else {
-+                throw ex;
-+            }
+diff --git a/net/minecraft/world/level/block/state/StateHolder.java b/net/minecraft/world/level/block/state/StateHolder.java
+index 9b9842462b210b0407279ee8a8e9ccecf3ead005..ce809dc4997aa1b9c8802208679462c8f9763a19 100644
+--- a/net/minecraft/world/level/block/state/StateHolder.java
++++ b/net/minecraft/world/level/block/state/StateHolder.java
+@@ -104,6 +104,7 @@ public abstract class StateHolder<O, S> implements ca.spottedleaf.moonrise.patch
+         if (ret != null) {
+             return ret;
          }
-+        // Leaves end - fix push cce crash
++        if (org.leavesmc.leaves.LeavesConfig.modify.updateSuppressionCrashFix) throw new org.leavesmc.leaves.util.UpdateSuppressionException(null, null); // Leaves - fix update suppression crash
+         throw new IllegalArgumentException("Cannot get property " + property + " as it does not exist in " + this.owner);
+         // Paper end - optimise blockstate property access
      }
- 
-     @Override
+diff --git a/net/minecraft/world/level/chunk/LevelChunk.java b/net/minecraft/world/level/chunk/LevelChunk.java
+index bf731da711ce629c0f9250a7bd4025d363623773..845319dd3e355f739cce70b7df3172dd146601b1 100644
+--- a/net/minecraft/world/level/chunk/LevelChunk.java
++++ b/net/minecraft/world/level/chunk/LevelChunk.java
+@@ -371,7 +371,7 @@ public class LevelChunk extends ChunkAccess implements ca.spottedleaf.moonrise.p
+             if (blockState == state) {
+                 return null;
+             } else {
+-                Block block = state.getBlock();
++                Block block = state.getBlock(); try { // Leaves start - fix update suppression crash
+                 this.heightmaps.get(Heightmap.Types.MOTION_BLOCKING).update(i, y, i2, state);
+                 this.heightmaps.get(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES).update(i, y, i2, state);
+                 this.heightmaps.get(Heightmap.Types.OCEAN_FLOOR).update(i, y, i2, state);
+@@ -443,6 +443,7 @@ public class LevelChunk extends ChunkAccess implements ca.spottedleaf.moonrise.p
+                     this.markUnsaved();
+                     return blockState;
+                 }
++                } catch (org.leavesmc.leaves.util.UpdateSuppressionException e) {throw new org.leavesmc.leaves.util.UpdateSuppressionException(pos, block);} // Leaves end - fix update suppression crash
+             }
+         }
+     }
 diff --git a/net/minecraft/world/level/redstone/NeighborUpdater.java b/net/minecraft/world/level/redstone/NeighborUpdater.java
 index 332b33a004ab11150cca0cc2cefc26d0286648f5..263bf2b795057c2d5218bf9cfb684e526601aa77 100644
 --- a/net/minecraft/world/level/redstone/NeighborUpdater.java

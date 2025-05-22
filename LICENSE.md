@@ -16,4 +16,5 @@ should submit a pull request to this project to add their name.
 
 ```text
 LittleChest <hiya@littlew.top>
+Helvetica Volubi <suisuroru@blue-millennium.fun>
 ```

@@ -295,6 +295,9 @@ public final class LeavesConfig {
             @GlobalConfig("old-nether-portal-collision") // Should remove in 1.21.6
             public boolean oldNetherPortalCollision = false;
 
+            @GlobalConfig("old-zombie-piglin-drop")
+            public boolean oldZombiePiglinDrop = false;
+
             public RaidConfig raid = new RaidConfig();
 
             @GlobalConfigCategory("revert-raid-changes")

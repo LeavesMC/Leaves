@@ -82,9 +82,10 @@ public class BBORProtocol implements LeavesProtocol {
     }
 
     @ProtocolHandler.BytebufReceiver(key = "subscribe")
-    public static void onPlayerSubscribed(@NotNull ServerPlayer player, FriendlyByteBuf buf) {
+    public static boolean onPlayerSubscribed(@NotNull ServerPlayer player, FriendlyByteBuf buf) {
         players.put(player.getId(), player);
         sendBoundingToPlayer(player.getId(), player);
+        return true;
     }
 
     public static void onDataPackReload() {

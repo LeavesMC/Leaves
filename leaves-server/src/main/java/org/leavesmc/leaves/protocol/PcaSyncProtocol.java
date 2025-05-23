@@ -67,13 +67,15 @@ public class PcaSyncProtocol implements LeavesProtocol {
     }
 
     @ProtocolHandler.BytebufReceiver(key = "cancel_sync_block_entity")
-    private static void cancelSyncBlockEntityHandler(ServerPlayer player, FriendlyByteBuf buf) {
+    private static boolean cancelSyncBlockEntityHandler(ServerPlayer player, FriendlyByteBuf buf) {
         PcaSyncProtocol.clearPlayerWatchBlock(player);
+        return true;
     }
 
     @ProtocolHandler.BytebufReceiver(key = "cancel_sync_entity")
-    private static void cancelSyncEntityHandler(ServerPlayer player, FriendlyByteBuf buf) {
+    private static boolean cancelSyncEntityHandler(ServerPlayer player, FriendlyByteBuf buf) {
         PcaSyncProtocol.clearPlayerWatchEntity(player);
+        return true;
     }
 
     @ProtocolHandler.PayloadReceiver(payload = SyncBlockEntityPayload.class)

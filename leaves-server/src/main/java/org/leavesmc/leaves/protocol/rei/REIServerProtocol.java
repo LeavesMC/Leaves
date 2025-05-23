@@ -196,9 +196,9 @@ public class REIServerProtocol implements LeavesProtocol {
     }
 
     @ProtocolHandler.BytebufReceiver(key = "delete_item")
-    public static void handleDeleteItem(ServerPlayer player, FriendlyByteBuf buf) {
+    public static boolean handleDeleteItem(ServerPlayer player, FriendlyByteBuf buf) {
         if (!hasCheatPermission(player)) {
-            return;
+            return true;
         }
         RegistryFriendlyByteBuf c2sBuf = ProtocolUtils.decorate(Unpooled.buffer());
         c2sBuf.writeBytes(buf);
@@ -210,12 +210,13 @@ public class REIServerProtocol implements LeavesProtocol {
                 menu.broadcastChanges();
             }
         });
+        return true;
     }
 
     @ProtocolHandler.BytebufReceiver(key = "create_item")
-    public static void handleCreateItem(ServerPlayer player, FriendlyByteBuf buf) {
+    public static boolean handleCreateItem(ServerPlayer player, FriendlyByteBuf buf) {
         if (!hasCheatPermission(player)) {
-            return;
+            return true;
         }
         RegistryFriendlyByteBuf c2sBuf = ProtocolUtils.decorate(Unpooled.buffer());
         c2sBuf.writeBytes(buf);
@@ -237,12 +238,13 @@ public class REIServerProtocol implements LeavesProtocol {
             }
         };
         inboundTransform(player, CREATE_ITEMS_PACKET, c2sBuf, consumer);
+        return true;
     }
 
     @ProtocolHandler.BytebufReceiver(key = "create_item_grab")
-    public static void handleCreateItemGrab(ServerPlayer player, FriendlyByteBuf buf) {
+    public static boolean handleCreateItemGrab(ServerPlayer player, FriendlyByteBuf buf) {
         if (!hasCheatPermission(player)) {
-            return;
+            return true;
         }
         RegistryFriendlyByteBuf c2sBuf = ProtocolUtils.decorate(Unpooled.buffer());
         c2sBuf.writeBytes(buf);
@@ -270,12 +272,13 @@ public class REIServerProtocol implements LeavesProtocol {
             */
         };
         inboundTransform(player, CREATE_ITEMS_GRAB_PACKET, c2sBuf, consumer);
+        return true;
     }
 
     @ProtocolHandler.BytebufReceiver(key = "create_item_hotbar")
-    public static void handleCreateItemHotbar(ServerPlayer player, FriendlyByteBuf buf) {
+    public static boolean handleCreateItemHotbar(ServerPlayer player, FriendlyByteBuf buf) {
         if (!hasCheatPermission(player)) {
-            return;
+            return true;
         }
         RegistryFriendlyByteBuf c2sBuf = ProtocolUtils.decorate(Unpooled.buffer());
         c2sBuf.writeBytes(buf);
@@ -301,6 +304,7 @@ public class REIServerProtocol implements LeavesProtocol {
             }
         };
         inboundTransform(player, CREATE_ITEMS_HOTBAR_PACKET, c2sBuf, consumer);
+        return true;
     }
 
     private static void inboundTransform(ServerPlayer player,

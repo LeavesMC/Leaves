@@ -180,8 +180,9 @@ public class REIServerProtocol implements LeavesProtocol {
     }
 
     @ProtocolHandler.MinecraftRegister(onlyNamespace = true)
-    public static void onPlayerSubscribed(@NotNull ServerPlayer player, String channel) {
+    public static void onPlayerSubscribed(@NotNull ServerPlayer player, ResourceLocation location) {
         enabledPlayers.add(player);
+        String channel = location.getPath();
         if (channel.equals("sync_displays")) {
             if (cachedPayloads != null) {
                 cachedPayloads.forEach(payload -> ProtocolUtils.sendPayloadPacket(player, payload));

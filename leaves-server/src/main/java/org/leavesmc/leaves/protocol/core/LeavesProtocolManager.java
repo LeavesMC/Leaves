@@ -302,7 +302,7 @@ public class LeavesProtocolManager {
                 channel = ResourceLocation.parse(var3.next());
                 buf.writeByte(0);
             }
-            buf.writerIndex(buf.writerIndex() - 1);
+            buf.writerIndex(Math.max(buf.writerIndex() - 1, 0));
         });
     }
 

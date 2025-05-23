@@ -1,5 +1,6 @@
 package org.leavesmc.leaves.bytebuf.packet;
 
+@Deprecated
 public enum PacketType {
     // ClientboundBundle,
     // ClientboundBundleDelimiter,

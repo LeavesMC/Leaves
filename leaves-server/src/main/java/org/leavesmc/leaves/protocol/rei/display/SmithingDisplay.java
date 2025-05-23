@@ -2,11 +2,13 @@ package org.leavesmc.leaves.protocol.rei.display;
 
 import com.mojang.serialization.Codec;
 import io.netty.buffer.ByteBuf;
+import net.minecraft.core.Holder;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.ByIdMap;
+import net.minecraft.world.item.equipment.trim.TrimPattern;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.protocol.rei.ingredient.EntryIngredient;
 
@@ -68,5 +70,43 @@ public class SmithingDisplay extends Display {
         public static final Codec<SmithingRecipeType> CODEC = Codec.STRING.xmap(SmithingRecipeType::valueOf, SmithingRecipeType::name);
         public static final IntFunction<SmithingRecipeType> BY_ID = ByIdMap.continuous(Enum::ordinal, values(), ByIdMap.OutOfBoundsStrategy.ZERO);
         public static final StreamCodec<ByteBuf, SmithingRecipeType> STREAM_CODEC = ByteBufCodecs.idMapper(BY_ID, Enum::ordinal);
+    }
+
+    public static class Trimming extends SmithingDisplay {
+        private final Holder<TrimPattern> pattern;
+
+        public static final StreamCodec<RegistryFriendlyByteBuf, SmithingDisplay.Trimming> CODEC = StreamCodec.composite(
+            EntryIngredient.CODEC.apply(ByteBufCodecs.list()),
+            SmithingDisplay.Trimming::getInputEntries,
+            EntryIngredient.CODEC.apply(ByteBufCodecs.list()),
+            SmithingDisplay.Trimming::getOutputEntries,
+            ByteBufCodecs.optional(SmithingRecipeType.STREAM_CODEC),
+            SmithingDisplay.Trimming::getOptionalType,
+            ByteBufCodecs.optional(ResourceLocation.STREAM_CODEC),
+            SmithingDisplay.Trimming::getOptionalLocation,
+            TrimPattern.STREAM_CODEC,
+            SmithingDisplay.Trimming::pattern,
+            SmithingDisplay.Trimming::of
+        );
+
+        public Trimming(
+            @NotNull List<EntryIngredient> inputs,
+            @NotNull List<EntryIngredient> outputs,
+            @NotNull SmithingRecipeType type,
+            @NotNull ResourceLocation location,
+            @NotNull Holder<TrimPattern> pattern
+        ) {
+            super(inputs, outputs, type, location);
+            this.pattern = pattern;
+        }
+
+        @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+        public static Trimming of(List<EntryIngredient> inputs, List<EntryIngredient> outputs, Optional<SmithingRecipeType> type, Optional<ResourceLocation> location, Holder<TrimPattern> pattern) {
+            throw new UnsupportedOperationException();
+        }
+
+        public Holder<TrimPattern> pattern() {
+            return pattern;
+        }
     }
 }

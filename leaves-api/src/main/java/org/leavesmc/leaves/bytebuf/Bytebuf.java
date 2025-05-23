@@ -4,8 +4,8 @@ import com.google.gson.JsonElement;
 import org.bukkit.Bukkit;
 import org.bukkit.inventory.ItemStack;
 
-import java.util.UUID;
 import java.util.List;
+import java.util.UUID;
 
 public interface Bytebuf {
 
@@ -102,6 +102,8 @@ public interface Bytebuf {
     List<ItemStack> readItemStackList();
 
     Bytebuf copy();
+
+    void retain();
 
     boolean release();
 }

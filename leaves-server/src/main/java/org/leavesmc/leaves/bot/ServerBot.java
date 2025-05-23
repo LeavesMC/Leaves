@@ -14,6 +14,7 @@ import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientboundPlayerInfoRemovePacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket;
 import net.minecraft.network.protocol.game.ClientboundRotateHeadPacket;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ChunkMap;
 import net.minecraft.server.level.ClientInformation;
@@ -35,6 +36,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.ChestMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameRules;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.gameevent.GameEvent;
 import net.minecraft.world.level.portal.TeleportTransition;
@@ -130,7 +132,7 @@ public class ServerBot extends ServerPlayer {
         // copy ServerPlayer end
 
         if (this.getConfigValue(Configs.SPAWN_PHANTOM)) {
-            notSleepTicks++;
+            this.notSleepTicks++;
         }
 
         if (LeavesConfig.modify.fakeplayer.regenAmount > 0.0 && server.getTickCount() % 20 == 0) {
@@ -155,7 +157,7 @@ public class ServerBot extends ServerPlayer {
 
     @Override
     public void doTick() {
-        this.absMoveTo(this.getX(), this.getY(), this.getZ(), this.getYRot(), this.getXRot());
+        this.absSnapTo(this.getX(), this.getY(), this.getZ(), this.getYRot(), this.getXRot());
 
         if (this.isPassenger()) {
             this.setOnGround(false);
@@ -172,7 +174,7 @@ public class ServerBot extends ServerPlayer {
                 this.notSleepTicks = 0;
             }
 
-            if (!this.level().isClientSide && this.level().isDay()) {
+            if (!this.level().isClientSide && this.level().isBrightOutside()) {
                 this.stopSleepInBed(false, true);
             }
         } else if (this.sleepCounter > 0) {
@@ -212,27 +214,56 @@ public class ServerBot extends ServerPlayer {
         this.updatePlayerPose();
     }
 
-    @Override
-    public @Nullable ServerBot teleport(@NotNull TeleportTransition teleportTarget) {
-        if (this.isSleeping() || this.isRemoved()) {
-            return null;
-        }
-        if (teleportTarget.newLevel().dimension() != this.serverLevel().dimension()) {
-            return null;
-        } else {
-            if (!teleportTarget.asPassenger()) {
-                this.stopRiding();
-            }
-
-            this.connection.internalTeleport(PositionMoveRotation.of(teleportTarget), teleportTarget.relatives());
-            this.connection.resetPosition();
-            teleportTarget.postTeleportTransition().onTransition(this);
-            return this;
+    public void networkTick() {
+        if (this.getConfigValue(Configs.TICK_TYPE) == TickType.NETWORK) {
+            this.doTick();
         }
     }
 
     @Override
-    public void handlePortal() {
+    public @Nullable ServerBot teleport(@NotNull TeleportTransition teleportTransition) {
+        if (this.isSleeping() || this.isRemoved()) {
+            return null;
+        }
+        if (!teleportTransition.asPassenger()) {
+            this.removeVehicle();
+        }
+
+        ServerLevel fromLevel = this.serverLevel();
+        ServerLevel toLevel = teleportTransition.newLevel();
+
+        if (toLevel.dimension() == fromLevel.dimension()) {
+            this.teleportSetPosition(PositionMoveRotation.of(teleportTransition), teleportTransition.relatives());
+            teleportTransition.postTeleportTransition().onTransition(this);
+            return this;
+        } else {
+            this.isChangingDimension = true;
+            fromLevel.removePlayerImmediately(this, Entity.RemovalReason.CHANGED_DIMENSION);
+            this.unsetRemoved();
+            this.setServerLevel(toLevel);
+            this.teleportSetPosition(PositionMoveRotation.of(teleportTransition), teleportTransition.relatives());
+            toLevel.addDuringTeleport(this);
+            this.stopUsingItem();
+            teleportTransition.postTeleportTransition().onTransition(this);
+            this.isChangingDimension = false;
+
+            if (org.leavesmc.leaves.LeavesConfig.modify.netherPortalFix) {
+                final ResourceKey<Level> fromDim = fromLevel.dimension();
+                final ResourceKey<Level> toDim = level().dimension();
+                if (!((fromDim != Level.OVERWORLD || toDim != Level.NETHER) && (fromDim != Level.NETHER || toDim != Level.OVERWORLD))) {
+                    BlockPos fromPortal = org.leavesmc.leaves.util.ReturnPortalManager.findPortalAt(this, fromDim, lastPos);
+                    BlockPos toPos = this.blockPosition();
+                    if (fromPortal != null) {
+                        org.leavesmc.leaves.util.ReturnPortalManager.storeReturnPortal(this, toDim, toPos, fromPortal);
+                    }
+                }
+            }
+            if (this.isBlocking()) {
+                this.stopUsingItem();
+            }
+        }
+
+        return this;
     }
 
     @Override
@@ -245,12 +276,12 @@ public class ServerBot extends ServerPlayer {
         ItemStack item = this.getItemInHand(hand);
 
         if (!item.isEmpty()) {
-            BotUtil.replenishment(item, getInventory().items);
+            BotUtil.replenishment(item, getInventory().getNonEquipmentItems());
             if (BotUtil.isDamage(item, 10)) {
                 BotUtil.replaceTool(hand == InteractionHand.MAIN_HAND ? EquipmentSlot.MAINHAND : EquipmentSlot.OFFHAND, this);
             }
         }
-        this.detectEquipmentUpdatesPublic();
+        this.detectEquipmentUpdates();
     }
 
     @Override
@@ -271,6 +302,9 @@ public class ServerBot extends ServerPlayer {
     @Override
     public void checkFallDamage(double y, boolean onGround, @NotNull BlockState state, @NotNull BlockPos pos) {
         ServerLevel serverLevel = this.serverLevel();
+        if (!this.isInWater() && y < 0.0) {
+            this.fallDistance -= (float) y;
+        }
         if (onGround && this.fallDistance > 0.0F) {
             this.onChangedBlock(serverLevel, pos);
             double attributeValue = this.getAttributeValue(Attributes.SAFE_FALL_DISTANCE);
@@ -354,21 +388,21 @@ public class ServerBot extends ServerPlayer {
     @Override
     public void readAdditionalSaveData(@NotNull CompoundTag nbt) {
         super.readAdditionalSaveData(nbt);
-        this.setShiftKeyDown(nbt.getBoolean("isShiftKeyDown"));
+        this.setShiftKeyDown(nbt.getBoolean("isShiftKeyDown").orElse(false));
 
-        CompoundTag createNbt = nbt.getCompound("createStatus");
-        BotCreateState.Builder createBuilder = BotCreateState.builder(createNbt.getString("realName"), null).name(createNbt.getString("name"));
+        CompoundTag createNbt = nbt.getCompound("createStatus").orElseThrow();
+        BotCreateState.Builder createBuilder = BotCreateState.builder(createNbt.getString("realName").orElseThrow(), null).name(createNbt.getString("name").orElseThrow());
 
         String[] skin = null;
         if (createNbt.contains("skin")) {
-            ListTag skinTag = createNbt.getList("skin", 8);
+            ListTag skinTag = createNbt.getList("skin").orElseThrow();
             skin = new String[skinTag.size()];
             for (int i = 0; i < skinTag.size(); i++) {
-                skin[i] = skinTag.getString(i);
+                skin[i] = skinTag.getString(i).orElseThrow();
             }
         }
 
-        createBuilder.skinName(createNbt.getString("skinName")).skin(skin);
+        createBuilder.skinName(createNbt.getString("skinName").orElseThrow()).skin(skin);
         createBuilder.createReason(BotCreateEvent.CreateReason.INTERNAL).creator(null);
 
         this.createState = createBuilder.build();
@@ -376,10 +410,10 @@ public class ServerBot extends ServerPlayer {
 
 
         if (nbt.contains("actions")) {
-            ListTag actionNbt = nbt.getList("actions", 10);
+            ListTag actionNbt = nbt.getList("actions").orElseThrow();
             for (int i = 0; i < actionNbt.size(); i++) {
-                CompoundTag actionTag = actionNbt.getCompound(i);
-                AbstractBotAction<?> action = Actions.getForName(actionTag.getString("actionName"));
+                CompoundTag actionTag = actionNbt.getCompound(i).orElseThrow();
+                AbstractBotAction<?> action = Actions.getForName(actionTag.getString("actionName").orElseThrow());
                 if (action != null) {
                     AbstractBotAction<?> newAction = action.create();
                     newAction.load(actionTag);
@@ -389,15 +423,20 @@ public class ServerBot extends ServerPlayer {
         }
 
         if (nbt.contains("configs")) {
-            ListTag configNbt = nbt.getList("configs", 10);
+            ListTag configNbt = nbt.getList("configs").orElseThrow();
             for (int i = 0; i < configNbt.size(); i++) {
-                CompoundTag configTag = configNbt.getCompound(i);
-                Configs<?> configKey = Configs.getConfig(configTag.getString("configName"));
+                CompoundTag configTag = configNbt.getCompound(i).orElseThrow();
+                Configs<?> configKey = Configs.getConfig(configTag.getString("configName").orElseThrow());
                 if (configKey != null) {
                     this.configs.get(configKey).load(configTag);
                 }
             }
         }
+    }
+
+    @Override
+    public boolean isClientAuthoritative() {
+        return false;
     }
 
     public void sendPlayerInfo(ServerPlayer player) {
@@ -512,7 +551,7 @@ public class ServerBot extends ServerPlayer {
 
     public void dropAll() {
         this.getInventory().dropAll();
-        this.detectEquipmentUpdatesPublic();
+        this.detectEquipmentUpdates();
     }
 
     private void runAction() {

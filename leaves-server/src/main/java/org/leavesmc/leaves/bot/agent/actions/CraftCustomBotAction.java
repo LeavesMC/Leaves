@@ -15,7 +15,7 @@ public class CraftCustomBotAction extends AbstractBotAction<CraftCustomBotAction
     private final CustomBotAction realAction;
 
     public CraftCustomBotAction(String name, @NotNull CustomBotAction realAction) {
-        super(name, CommandArgument.of().setAllTabComplete(realAction.getTabComplete()), null);
+        super(name, CommandArgument.EMPTY, null);
         this.realAction = realAction;
     }
 
@@ -33,13 +33,18 @@ public class CraftCustomBotAction extends AbstractBotAction<CraftCustomBotAction
     }
 
     @Override
-    public int getNumber() {
-        return realAction.getNumber();
+    public int getInitialNumber() {
+        return realAction.getInitialNumber();
     }
 
     @Override
-    public int getTickDelay() {
-        return realAction.getTickDelay();
+    public int getInitialTickDelay() {
+        return realAction.getInitialTickDelay();
+    }
+
+    @Override
+    public int getInitialTickInterval() {
+        return realAction.getInitialTickInterval();
     }
 
     @Override

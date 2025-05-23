@@ -31,6 +31,7 @@ public class Actions {
         register(new UseItemOnOffhandAction());
         register(new UseItemToOffhandAction());
         register(new RotationAction());
+        register(new ShootAction());
     }
 
     public static boolean register(@NotNull AbstractBotAction<?> action) {

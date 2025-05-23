@@ -16,7 +16,7 @@ public class SpawnPhantomConfig extends AbstractBotConfig<Boolean> {
     private boolean value;
 
     public SpawnPhantomConfig() {
-        super(NAME, CommandArgument.of(CommandArgumentType.BOOLEAN).setTabComplete(0, List.of("true", "false")));
+        super(NAME, CommandArgument.of(CommandArgumentType.BOOLEAN).setSuggestion(0, List.of("true", "false")));
         this.value = LeavesConfig.modify.fakeplayer.canSpawnPhantom;
     }
 
@@ -47,6 +47,6 @@ public class SpawnPhantomConfig extends AbstractBotConfig<Boolean> {
 
     @Override
     public void load(@NotNull CompoundTag nbt) {
-        this.setValue(nbt.getBoolean(NAME));
+        this.setValue(nbt.getBoolean(NAME).orElseThrow());
     }
 }

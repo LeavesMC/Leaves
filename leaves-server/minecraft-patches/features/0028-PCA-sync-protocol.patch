@@ -1,0 +1,291 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Mon, 3 Feb 2025 13:17:03 +0800
+Subject: [PATCH] PCA sync protocol
+
+This patch is Powered by plusls-carpet-addition(https://github.com/plusls/plusls-carpet-addition)
+
+diff --git a/net/minecraft/world/entity/animal/horse/AbstractHorse.java b/net/minecraft/world/entity/animal/horse/AbstractHorse.java
+index 7c473eea481f5e055cc70512027726f41f0c6f67..3165d1eaa46f2adceba28d4aef95fda3f05ee5e3 100644
+--- a/net/minecraft/world/entity/animal/horse/AbstractHorse.java
++++ b/net/minecraft/world/entity/animal/horse/AbstractHorse.java
+@@ -303,6 +303,13 @@ public abstract class AbstractHorse extends Animal implements HasCustomInventory
+     public void createInventory() {
+         SimpleContainer simpleContainer = this.inventory;
+         this.inventory = new SimpleContainer(this.getInventorySize(), (org.bukkit.entity.AbstractHorse) this.getBukkitEntity()); // CraftBukkit
++        // Leaves start - pca
++        this.inventory.addListener(inv -> {
++            if (org.leavesmc.leaves.LeavesConfig.protocol.pca.enable) {
++                org.leavesmc.leaves.protocol.PcaSyncProtocol.syncEntityToClient(this);
++            }
++        });
++        // Leaves end - pca
+         if (simpleContainer != null) {
+             int min = Math.min(simpleContainer.getContainerSize(), this.inventory.getContainerSize());
+ 
+diff --git a/net/minecraft/world/entity/npc/AbstractVillager.java b/net/minecraft/world/entity/npc/AbstractVillager.java
+index 1d3381f1481bb2b192bb78462c85c2a185d94ad5..a375fad192cc09ba83775d5e37c1bb351730e6c4 100644
+--- a/net/minecraft/world/entity/npc/AbstractVillager.java
++++ b/net/minecraft/world/entity/npc/AbstractVillager.java
+@@ -48,6 +48,15 @@ public abstract class AbstractVillager extends AgeableMob implements InventoryCa
+         super(entityType, level);
+         this.setPathfindingMalus(PathType.DANGER_FIRE, 16.0F);
+         this.setPathfindingMalus(PathType.DAMAGE_FIRE, -1.0F);
++        // Leaves start - pca
++        if (!this.level().isClientSide()) {
++            this.inventory.addListener(inventory -> {
++                if (org.leavesmc.leaves.LeavesConfig.protocol.pca.enable) {
++                    org.leavesmc.leaves.protocol.PcaSyncProtocol.syncEntityToClient(this);
++                }
++            });
++        }
++        // Leaves end - pca
+     }
+ 
+     @Override
+diff --git a/net/minecraft/world/entity/vehicle/AbstractMinecartContainer.java b/net/minecraft/world/entity/vehicle/AbstractMinecartContainer.java
+index a7e2f23ed3279801504f99fc3c5f972e8c1b984f..4509b1a68273effa30d1befafc9104220d02fe8b 100644
+--- a/net/minecraft/world/entity/vehicle/AbstractMinecartContainer.java
++++ b/net/minecraft/world/entity/vehicle/AbstractMinecartContainer.java
+@@ -64,6 +64,11 @@ public abstract class AbstractMinecartContainer extends AbstractMinecart impleme
+ 
+     @Override
+     public void setChanged() {
++        // Leaves start - pca
++        if (org.leavesmc.leaves.LeavesConfig.protocol.pca.enable) {
++            org.leavesmc.leaves.protocol.PcaSyncProtocol.syncEntityToClient(this);
++        }
++        // Leaves end - pca
+     }
+ 
+     @Override
+diff --git a/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java b/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java
+index c5b3b5e5f621f8db152aa190374ae0fe567d6828..7729c33cad94cf2b4162324be75713650fc9d378 100644
+--- a/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java
++++ b/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java
+@@ -429,6 +429,16 @@ public abstract class AbstractFurnaceBlockEntity extends BaseContainerBlockEntit
+         }
+     }
+ 
++    // Leaves start - pca
++    @Override
++    public void setChanged() {
++        super.setChanged();
++        if (org.leavesmc.leaves.LeavesConfig.protocol.pca.enable) {
++            org.leavesmc.leaves.protocol.PcaSyncProtocol.syncBlockEntityToClient(this);
++        }
++    }
++    // Leaves end - pca
++
+     @Override
+     public void setRecipeUsed(@Nullable RecipeHolder<?> recipe) {
+         if (recipe != null) {
+diff --git a/net/minecraft/world/level/block/entity/BarrelBlockEntity.java b/net/minecraft/world/level/block/entity/BarrelBlockEntity.java
+index 027502d0af5512c31878978c4d05c52fa3029cca..b3da250aa326d05a4e95c7b749c8ae8975dfd804 100644
+--- a/net/minecraft/world/level/block/entity/BarrelBlockEntity.java
++++ b/net/minecraft/world/level/block/entity/BarrelBlockEntity.java
+@@ -121,6 +121,16 @@ public class BarrelBlockEntity extends RandomizableContainerBlockEntity {
+         this.items = items;
+     }
+ 
++    // Leaves start - pca
++    @Override
++    public void setChanged() {
++        super.setChanged();
++        if (org.leavesmc.leaves.LeavesConfig.protocol.pca.enable) {
++            org.leavesmc.leaves.protocol.PcaSyncProtocol.syncBlockEntityToClient(this);
++        }
++    }
++    // Leaves end - pca
++
+     @Override
+     protected Component getDefaultName() {
+         return Component.translatable("container.barrel");
+diff --git a/net/minecraft/world/level/block/entity/BeehiveBlockEntity.java b/net/minecraft/world/level/block/entity/BeehiveBlockEntity.java
+index 331eb5416307378162e39e20192ba06a047b70ea..69419e74c308e46509cc40fde9ed05583964a1ca 100644
+--- a/net/minecraft/world/level/block/entity/BeehiveBlockEntity.java
++++ b/net/minecraft/world/level/block/entity/BeehiveBlockEntity.java
+@@ -144,6 +144,11 @@ public class BeehiveBlockEntity extends BlockEntity {
+             super.setChanged();
+         }
+ 
++        // Leaves start - pca
++        if (org.leavesmc.leaves.LeavesConfig.protocol.pca.enable) {
++            org.leavesmc.leaves.protocol.PcaSyncProtocol.syncBlockEntityToClient(this);
++        }
++        // Leaves end - pca
+         return list;
+     }
+ 
+@@ -201,6 +206,11 @@ public class BeehiveBlockEntity extends BlockEntity {
+                 this.level.gameEvent(GameEvent.BLOCK_CHANGE, blockPos, GameEvent.Context.of(bee, this.getBlockState()));
+             }
+ 
++            // Leaves start - pca
++            if (org.leavesmc.leaves.LeavesConfig.protocol.pca.enable) {
++                org.leavesmc.leaves.protocol.PcaSyncProtocol.syncBlockEntityToClient(this);
++            }
++            // Leaves end - pca
+             bee.discard(org.bukkit.event.entity.EntityRemoveEvent.Cause.ENTER_BLOCK); // CraftBukkit - add Bukkit remove cause
+             super.setChanged();
+         }
+@@ -322,6 +332,11 @@ public class BeehiveBlockEntity extends BlockEntity {
+                 if (releaseOccupant(level, pos, state, beeData.toOccupant(), null, beeReleaseStatus, savedFlowerPos)) {
+                     flag = true;
+                     iterator.remove();
++                    // Leaves start - pca
++                    if (org.leavesmc.leaves.LeavesConfig.protocol.pca.enable) {
++                        org.leavesmc.leaves.protocol.PcaSyncProtocol.syncBlockEntityToClient(java.util.Objects.requireNonNull(level.getBlockEntity(pos)));
++                    }
++                    // Leaves end - pca
+                 }
+                 // Paper start - Fix bees aging inside; use exitTickCounter to keep actual bee life
+                 else if (level.paperConfig().entities.behavior.cooldownFailedBeehiveReleases) {
+@@ -355,6 +370,11 @@ public class BeehiveBlockEntity extends BlockEntity {
+         tag.read("bees", BeehiveBlockEntity.Occupant.LIST_CODEC).orElse(List.of()).forEach(this::storeBee);
+         this.savedFlowerPos = tag.read("flower_pos", BlockPos.CODEC).orElse(null);
+         this.maxBees = tag.getIntOr("Bukkit.MaxEntities", MAX_OCCUPANTS); // Paper - persist max bukkit occupants
++        // Leaves start - pca
++        if (org.leavesmc.leaves.LeavesConfig.protocol.pca.enable) {
++            org.leavesmc.leaves.protocol.PcaSyncProtocol.syncBlockEntityToClient(this);
++        }
++        // Leaves end - pca
+     }
+ 
+     @Override
+diff --git a/net/minecraft/world/level/block/entity/BrewingStandBlockEntity.java b/net/minecraft/world/level/block/entity/BrewingStandBlockEntity.java
+index 2e369167d4d1664df1f0b375597bb12b728c5c62..e13a2845efc88bd68ee96cbc1b58bf4f7fb77845 100644
+--- a/net/minecraft/world/level/block/entity/BrewingStandBlockEntity.java
++++ b/net/minecraft/world/level/block/entity/BrewingStandBlockEntity.java
+@@ -331,4 +331,14 @@ public class BrewingStandBlockEntity extends BaseContainerBlockEntity implements
+     protected AbstractContainerMenu createMenu(int id, Inventory player) {
+         return new BrewingStandMenu(id, player, this, this.dataAccess);
+     }
++
++    // Leaves start - pca
++    @Override
++    public void setChanged() {
++        super.setChanged();
++        if (org.leavesmc.leaves.LeavesConfig.protocol.pca.enable) {
++            org.leavesmc.leaves.protocol.PcaSyncProtocol.syncBlockEntityToClient(this);
++        }
++    }
++    // Leaves end - pca
+ }
+diff --git a/net/minecraft/world/level/block/entity/ChestBlockEntity.java b/net/minecraft/world/level/block/entity/ChestBlockEntity.java
+index a7a095cc0ffdf7b0daf7b4d19c3e78bc4399fa7c..faac046a95a7db5f5fd456bd8f768b0aaab1db5e 100644
+--- a/net/minecraft/world/level/block/entity/ChestBlockEntity.java
++++ b/net/minecraft/world/level/block/entity/ChestBlockEntity.java
+@@ -202,6 +202,16 @@ public class ChestBlockEntity extends RandomizableContainerBlockEntity implement
+         otherChest.setItems(items);
+     }
+ 
++    // Leaves start - pca
++    @Override
++    public void setChanged() {
++        super.setChanged();
++        if (org.leavesmc.leaves.LeavesConfig.protocol.pca.enable) {
++            org.leavesmc.leaves.protocol.PcaSyncProtocol.syncBlockEntityToClient(this);
++        }
++    }
++    // Leaves end - pca
++
+     @Override
+     protected AbstractContainerMenu createMenu(int id, Inventory player) {
+         return ChestMenu.threeRows(id, player, this);
+diff --git a/net/minecraft/world/level/block/entity/ComparatorBlockEntity.java b/net/minecraft/world/level/block/entity/ComparatorBlockEntity.java
+index d0119f3df52fe26c85d8b67ee59e24adf7b427ac..18ff2cd322168f57f3a1b3b4c0e9a02560cb9965 100644
+--- a/net/minecraft/world/level/block/entity/ComparatorBlockEntity.java
++++ b/net/minecraft/world/level/block/entity/ComparatorBlockEntity.java
+@@ -25,6 +25,16 @@ public class ComparatorBlockEntity extends BlockEntity {
+         this.output = tag.getIntOr("OutputSignal", 0);
+     }
+ 
++    // Leaves start - pca
++    @Override
++    public void setChanged() {
++        super.setChanged();
++        if (org.leavesmc.leaves.LeavesConfig.protocol.pca.enable) {
++            org.leavesmc.leaves.protocol.PcaSyncProtocol.syncBlockEntityToClient(this);
++        }
++    }
++    // Leaves end - pca
++
+     public int getOutputSignal() {
+         return this.output;
+     }
+diff --git a/net/minecraft/world/level/block/entity/DispenserBlockEntity.java b/net/minecraft/world/level/block/entity/DispenserBlockEntity.java
+index 3fb7a7b9f182062ebed778e7bb9ba239ae9f179c..a8256fd0d14655fe480b6e04ce32814e54f9d9c6 100644
+--- a/net/minecraft/world/level/block/entity/DispenserBlockEntity.java
++++ b/net/minecraft/world/level/block/entity/DispenserBlockEntity.java
+@@ -104,6 +104,16 @@ public class DispenserBlockEntity extends RandomizableContainerBlockEntity {
+         return stack;
+     }
+ 
++    // Leaves start - pca
++    @Override
++    public void setChanged() {
++        super.setChanged();
++        if (org.leavesmc.leaves.LeavesConfig.protocol.pca.enable) {
++            org.leavesmc.leaves.protocol.PcaSyncProtocol.syncBlockEntityToClient(this);
++        }
++    }
++    // Leaves end - pca
++
+     @Override
+     protected Component getDefaultName() {
+         return Component.translatable("container.dispenser");
+diff --git a/net/minecraft/world/level/block/entity/HopperBlockEntity.java b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
+index 15d4f60942c0cc612c1468b4c0fda886867a67cb..212a1a1410550a2456a88a948f377048447a1fc8 100644
+--- a/net/minecraft/world/level/block/entity/HopperBlockEntity.java
++++ b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
+@@ -122,6 +122,16 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+         this.facing = blockState.getValue(HopperBlock.FACING);
+     }
+ 
++    // Leaves start - pca
++    @Override
++    public void setChanged() {
++        super.setChanged();
++        if (org.leavesmc.leaves.LeavesConfig.protocol.pca.enable) {
++            org.leavesmc.leaves.protocol.PcaSyncProtocol.syncBlockEntityToClient(this);
++        }
++    }
++    // Leaves end - pca
++
+     @Override
+     protected Component getDefaultName() {
+         return Component.translatable("container.hopper");
+@@ -198,6 +208,11 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+                 if (flag) {
+                     blockEntity.setCooldown(level.spigotConfig.hopperTransfer); // Spigot
+                     setChanged(level, pos, state);
++                    // Leaves start - pca
++                    if (org.leavesmc.leaves.LeavesConfig.protocol.pca.enable) {
++                        org.leavesmc.leaves.protocol.PcaSyncProtocol.syncBlockEntityToClient(blockEntity);
++                    }
++                    // Leaves end - pca
+                     return true;
+                 }
+             }
+diff --git a/net/minecraft/world/level/block/entity/ShulkerBoxBlockEntity.java b/net/minecraft/world/level/block/entity/ShulkerBoxBlockEntity.java
+index 87ebdb6deb66662a38b3eec0dae27eaf859ecabb..5e58113b3401268e0432235dc10b2734dbbd8b71 100644
+--- a/net/minecraft/world/level/block/entity/ShulkerBoxBlockEntity.java
++++ b/net/minecraft/world/level/block/entity/ShulkerBoxBlockEntity.java
+@@ -267,6 +267,16 @@ public class ShulkerBoxBlockEntity extends RandomizableContainerBlockEntity impl
+         this.itemStacks = items;
+     }
+ 
++    // Leaves start - pca
++    @Override
++    public void setChanged() {
++        super.setChanged();
++        if (org.leavesmc.leaves.LeavesConfig.protocol.pca.enable) {
++            org.leavesmc.leaves.protocol.PcaSyncProtocol.syncBlockEntityToClient(this);
++        }
++    }
++    // Leaves end - pca
++
+     @Override
+     public int[] getSlotsForFace(Direction side) {
+         return SLOTS;

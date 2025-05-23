@@ -17,6 +17,11 @@ public class BotSpawnLocationEvent extends BotEvent {
     }
 
     @NotNull
+    public static HandlerList getHandlerList() {
+        return handlers;
+    }
+
+    @NotNull
     public Location getSpawnLocation() {
         return spawnLocation;
     }
@@ -28,11 +33,6 @@ public class BotSpawnLocationEvent extends BotEvent {
     @NotNull
     @Override
     public HandlerList getHandlers() {
-        return handlers;
-    }
-
-    @NotNull
-    public static HandlerList getHandlerList() {
         return handlers;
     }
 }

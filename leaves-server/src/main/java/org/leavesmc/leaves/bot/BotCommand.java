@@ -43,17 +43,6 @@ import static net.kyori.adventure.text.Component.text;
 
 public class BotCommand extends Command implements LeavesSuggestionCommand {
 
-    public BotCommand(String name) {
-        super(name);
-        this.description = "FakePlayer Command";
-        this.usageMessage = "/bot [" + String.join(" | ", usableSubcommands()) + "]";
-        this.setPermission("bukkit.command.bot");
-        final PluginManager pluginManager = Bukkit.getServer().getPluginManager();
-        if (pluginManager.getPermission("bukkit.command.bot") == null) {
-            pluginManager.addPermission(new Permission("bukkit.command.bot", PermissionDefault.OP));
-        }
-    }
-
     // subcommand label -> subcommand
     private static final Map<String, LeavesSubcommand> SUBCOMMANDS = Util.make(() -> {
         final Map<Set<String>, LeavesSubcommand> commands = new HashMap<>();
@@ -69,6 +58,29 @@ public class BotCommand extends Command implements LeavesSuggestionCommand {
             .flatMap(entry -> entry.getKey().stream().map(s -> Map.entry(s, entry.getValue())))
             .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     });
+
+    public BotCommand(String name) {
+        super(name);
+        this.description = "FakePlayer Command";
+        this.usageMessage = "/bot [" + String.join(" | ", usableSubcommands()) + "]";
+        this.setPermission("bukkit.command.bot");
+        final PluginManager pluginManager = Bukkit.getServer().getPluginManager();
+        if (pluginManager.getPermission("bukkit.command.bot") == null) {
+            pluginManager.addPermission(new Permission("bukkit.command.bot", PermissionDefault.OP));
+        }
+    }
+
+    @Nullable
+    private static Pair<String, LeavesSubcommand> resolveCommand(String label) {
+        label = label.toLowerCase(Locale.ENGLISH);
+        LeavesSubcommand subCommand = SUBCOMMANDS.get(label);
+
+        if (subCommand != null) {
+            return Pair.of(label, subCommand);
+        }
+
+        return null;
+    }
 
     @NotNull
     @Override
@@ -114,18 +126,6 @@ public class BotCommand extends Command implements LeavesSuggestionCommand {
 
         final String[] choppedArgs = Arrays.copyOfRange(args, 1, args.length);
         return subCommand.second().execute(sender, subCommand.first(), choppedArgs);
-    }
-
-    @Nullable
-    private static Pair<String, LeavesSubcommand> resolveCommand(String label) {
-        label = label.toLowerCase(Locale.ENGLISH);
-        LeavesSubcommand subCommand = SUBCOMMANDS.get(label);
-
-        if (subCommand != null) {
-            return Pair.of(label, subCommand);
-        }
-
-        return null;
     }
 
     public Collection<String> usableSubcommands() {

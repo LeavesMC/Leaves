@@ -11,11 +11,11 @@ import org.leavesmc.leaves.command.CommandArgumentResult;
 
 public class RotateAction extends AbstractBotAction<RotateAction> {
 
+    private ServerPlayer player;
+
     public RotateAction() {
         super("rotate", CommandArgument.EMPTY, RotateAction::new);
     }
-
-    private ServerPlayer player;
 
     @Override
     public void loadCommand(@Nullable ServerPlayer player, @NotNull CommandArgumentResult result) {

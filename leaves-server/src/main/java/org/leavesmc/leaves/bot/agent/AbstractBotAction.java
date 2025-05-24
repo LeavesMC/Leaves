@@ -140,14 +140,14 @@ public abstract class AbstractBotAction<E extends AbstractBotAction<E>> {
         return uuid;
     }
 
+    public int getInitialTickDelay() {
+        return this.initialTickDelay;
+    }
+
     @SuppressWarnings("unchecked")
     public E setInitialTickDelay(int initialTickDelay) {
         this.initialTickDelay = initialTickDelay;
         return (E) this;
-    }
-
-    public int getInitialTickDelay() {
-        return this.initialTickDelay;
     }
 
     public int getInitialTickInterval() {

@@ -74,15 +74,12 @@ public class ServerBot extends ServerPlayer {
 
     private final List<AbstractBotAction<?>> actions;
     private final Map<Configs<?>, AbstractBotConfig<?>> configs;
-
-    public boolean resume = false;
-    public BotCreateState createState;
-    public UUID createPlayer;
-
     private final int tracingRange;
     private final BotStatsCounter stats;
     private final BotInventoryContainer container;
-
+    public boolean resume = false;
+    public BotCreateState createState;
+    public UUID createPlayer;
     public int notSleepTicks;
 
     public int removeTaskId = -1;
@@ -101,7 +98,7 @@ public class ServerBot extends ServerPlayer {
         this.configs = configBuilder.build();
 
         this.stats = new BotStatsCounter(server);
-        this.container = new BotInventoryContainer(this);
+        this.container = new BotInventoryContainer(this, this.equipment);
         this.tracingRange = world.spigotConfig.playerTrackingRange * world.spigotConfig.playerTrackingRange;
 
         this.notSleepTicks = 0;

@@ -22,6 +22,15 @@ import static net.kyori.adventure.text.Component.text;
 
 public class BotListCommand implements LeavesSubcommand {
 
+    @NotNull
+    private static String formatPlayerNameList(@NotNull List<String> list) {
+        if (list.isEmpty()) {
+            return "";
+        }
+        String string = list.toString();
+        return string.substring(1, string.length() - 1);
+    }
+
     @Override
     public boolean execute(CommandSender sender, String subCommand, String[] args) {
         BotList botList = BotList.INSTANCE;
@@ -70,14 +79,5 @@ public class BotListCommand implements LeavesSubcommand {
         }
 
         return list;
-    }
-
-    @NotNull
-    private static String formatPlayerNameList(@NotNull List<String> list) {
-        if (list.isEmpty()) {
-            return "";
-        }
-        String string = list.toString();
-        return string.substring(1, string.length() - 1);
     }
 }

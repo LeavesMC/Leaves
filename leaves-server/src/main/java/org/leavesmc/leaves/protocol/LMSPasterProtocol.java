@@ -3,6 +3,7 @@ package org.leavesmc.leaves.protocol;
 import com.google.common.collect.Sets;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
@@ -120,9 +121,12 @@ public class LMSPasterProtocol implements LeavesProtocol {
         private static final ResourceLocation PACKET_ID = ResourceLocation.fromNamespaceAndPath(MOD_ID, "network_v2");
 
         @Codec
-        private static final StreamCodec<FriendlyByteBuf, LmsPasterPayload> CODEC = StreamCodec.of(
-            (buf, payload) -> buf.writeVarInt(payload.id()).writeNbt(payload.nbt()),
-            buf -> new LmsPasterPayload(buf.readVarInt(), buf.readNbt())
+        private static final StreamCodec<FriendlyByteBuf, LmsPasterPayload> CODEC = StreamCodec.composite(
+            ByteBufCodecs.VAR_INT,
+            LmsPasterPayload::id,
+            ByteBufCodecs.COMPOUND_TAG,
+            LmsPasterPayload::nbt,
+            LmsPasterPayload::new
         );
     }
 }

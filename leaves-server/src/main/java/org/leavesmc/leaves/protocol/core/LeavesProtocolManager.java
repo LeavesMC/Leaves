@@ -58,6 +58,7 @@ public class LeavesProtocolManager {
     private static final List<PlayerInvokerHolder<ProtocolHandler.PlayerJoin>> PLAYER_JOIN = new ArrayList<>();
     private static final List<PlayerInvokerHolder<ProtocolHandler.PlayerLeave>> PLAYER_LEAVE = new ArrayList<>();
     private static final List<EmptyInvokerHolder<ProtocolHandler.ReloadServer>> RELOAD_SERVER = new ArrayList<>();
+    private static final List<EmptyInvokerHolder<ProtocolHandler.ReloadDataPack>> RELOAD_DATAPACK = new ArrayList<>();
 
     @SuppressWarnings("unchecked")
     public static void init() {
@@ -165,6 +166,12 @@ public class LeavesProtocolManager {
                     continue;
                 }
 
+                final ProtocolHandler.ReloadDataPack reloadDataPack = method.getAnnotation(ProtocolHandler.ReloadDataPack.class);
+                if (reloadDataPack != null) {
+                    RELOAD_DATAPACK.add(new EmptyInvokerHolder<>(protocol, method, reloadDataPack));
+                    continue;
+                }
+
                 final ProtocolHandler.MinecraftRegister minecraftRegister = method.getAnnotation(ProtocolHandler.MinecraftRegister.class);
                 if (minecraftRegister != null) {
                     String key = minecraftRegister.key();
@@ -223,7 +230,8 @@ public class LeavesProtocolManager {
         RegistryFriendlyByteBuf buf1 = ProtocolUtils.decorate(buf);
         BytebufReceiverInvokerHolder holder;
         if ((holder = STRICT_BYTEBUF_RECEIVERS.get(location.toString())) != null) {
-            return holder.invoke(player, buf1);
+            holder.invoke(player, buf1);
+            return true;
         }
         if ((holder = NAMESPACED_BYTEBUF_RECEIVERS.get(location.getNamespace())) != null) {
             if (holder.invoke(player, buf1)) {
@@ -261,6 +269,12 @@ public class LeavesProtocolManager {
 
     public static void handleServerReload() {
         for (var reload : RELOAD_SERVER) {
+            reload.invoke();
+        }
+    }
+
+    public static void handleDataPackReload() {
+        for (var reload : RELOAD_DATAPACK) {
             reload.invoke();
         }
     }

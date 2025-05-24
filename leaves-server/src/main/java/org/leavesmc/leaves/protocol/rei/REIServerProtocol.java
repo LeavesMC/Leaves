@@ -89,6 +89,7 @@ public class REIServerProtocol implements LeavesProtocol {
     private static int nextReiRecipeVer = -1;
     private static ImmutableList<CustomPacketPayload> cachedPayloads;
 
+    @ProtocolHandler.ReloadDataPack
     public static void onRecipeReload() {
         minecraftRecipeVer = MinecraftServer.getServer().getTickCount();
     }
@@ -189,37 +190,32 @@ public class REIServerProtocol implements LeavesProtocol {
             }
         } else if (channel.equals("ci_msg")) {
             // cheat rei-client into using "delete_item" packet
-            if (player.getServer().getProfilePermissions(player.getGameProfile()) < 1) {
+            if (MinecraftServer.getServer().getProfilePermissions(player.getGameProfile()) < 1) {
                 player.getBukkitEntity().sendOpLevel((byte) 1);
             }
         }
     }
 
     @ProtocolHandler.BytebufReceiver(key = "delete_item")
-    public static boolean handleDeleteItem(ServerPlayer player, FriendlyByteBuf buf) {
+    public static void handleDeleteItem(ServerPlayer player, RegistryFriendlyByteBuf buf) {
         if (!hasCheatPermission(player)) {
-            return true;
+            return;
         }
-        RegistryFriendlyByteBuf c2sBuf = ProtocolUtils.decorate(Unpooled.buffer());
-        c2sBuf.writeBytes(buf);
 
-        inboundTransform(player, DELETE_ITEMS_PACKET, c2sBuf, (id, wholeBuf) -> {
+        inboundTransform(player, DELETE_ITEMS_PACKET, buf, (id, wholeBuf) -> {
             AbstractContainerMenu menu = player.containerMenu;
             if (!menu.getCarried().isEmpty()) {
                 menu.setCarried(ItemStack.EMPTY);
                 menu.broadcastChanges();
             }
         });
-        return true;
     }
 
     @ProtocolHandler.BytebufReceiver(key = "create_item")
-    public static boolean handleCreateItem(ServerPlayer player, FriendlyByteBuf buf) {
+    public static void handleCreateItem(ServerPlayer player, RegistryFriendlyByteBuf buf) {
         if (!hasCheatPermission(player)) {
-            return true;
+            return;
         }
-        RegistryFriendlyByteBuf c2sBuf = ProtocolUtils.decorate(Unpooled.buffer());
-        c2sBuf.writeBytes(buf);
         BiConsumer<ResourceLocation, RegistryFriendlyByteBuf> consumer = (ignored, c2sWholeBuf) -> {
             FriendlyByteBuf tmpBuf = new FriendlyByteBuf(Unpooled.buffer()).writeBytes(c2sWholeBuf.readByteArray());
             ItemStack itemStack = tmpBuf.readJsonWithCodec(ItemStack.OPTIONAL_CODEC);
@@ -237,18 +233,14 @@ public class REIServerProtocol implements LeavesProtocol {
                 player.displayClientMessage(Component.translatable("text.rei.failed_cheat_items"), false);
             }
         };
-        inboundTransform(player, CREATE_ITEMS_PACKET, c2sBuf, consumer);
-        return true;
+        inboundTransform(player, CREATE_ITEMS_PACKET, buf, consumer);
     }
 
     @ProtocolHandler.BytebufReceiver(key = "create_item_grab")
-    public static boolean handleCreateItemGrab(ServerPlayer player, FriendlyByteBuf buf) {
+    public static void handleCreateItemGrab(ServerPlayer player, RegistryFriendlyByteBuf buf) {
         if (!hasCheatPermission(player)) {
-            return true;
+            return;
         }
-        RegistryFriendlyByteBuf c2sBuf = ProtocolUtils.decorate(Unpooled.buffer());
-        c2sBuf.writeBytes(buf);
-
         BiConsumer<ResourceLocation, RegistryFriendlyByteBuf> consumer = (ignored, c2sWholeBuf) -> {
             FriendlyByteBuf tmpBuf = new FriendlyByteBuf(Unpooled.buffer()).writeBytes(c2sWholeBuf.readByteArray());
             ItemStack itemStack = tmpBuf.readJsonWithCodec(ItemStack.OPTIONAL_CODEC);
@@ -271,17 +263,14 @@ public class REIServerProtocol implements LeavesProtocol {
             });
             */
         };
-        inboundTransform(player, CREATE_ITEMS_GRAB_PACKET, c2sBuf, consumer);
-        return true;
+        inboundTransform(player, CREATE_ITEMS_GRAB_PACKET, buf, consumer);
     }
 
     @ProtocolHandler.BytebufReceiver(key = "create_item_hotbar")
-    public static boolean handleCreateItemHotbar(ServerPlayer player, FriendlyByteBuf buf) {
+    public static void handleCreateItemHotbar(ServerPlayer player, RegistryFriendlyByteBuf buf) {
         if (!hasCheatPermission(player)) {
-            return true;
+            return;
         }
-        RegistryFriendlyByteBuf c2sBuf = ProtocolUtils.decorate(Unpooled.buffer());
-        c2sBuf.writeBytes(buf);
         BiConsumer<ResourceLocation, RegistryFriendlyByteBuf> consumer = (ignored, c2sWholeBuf) -> {
             FriendlyByteBuf tmpBuf = new FriendlyByteBuf(Unpooled.buffer()).writeBytes(c2sWholeBuf.readByteArray());
             ItemStack stack = tmpBuf.readJsonWithCodec(ItemStack.OPTIONAL_CODEC);
@@ -303,14 +292,10 @@ public class REIServerProtocol implements LeavesProtocol {
                 player.displayClientMessage(Component.translatable("text.rei.failed_cheat_items"), false);
             }
         };
-        inboundTransform(player, CREATE_ITEMS_HOTBAR_PACKET, c2sBuf, consumer);
-        return true;
+        inboundTransform(player, CREATE_ITEMS_HOTBAR_PACKET, buf, consumer);
     }
 
-    private static void inboundTransform(ServerPlayer player,
-                                         ResourceLocation id,
-                                         RegistryFriendlyByteBuf buf,
-                                         BiConsumer<ResourceLocation, RegistryFriendlyByteBuf> consumer) {
+    private static void inboundTransform(ServerPlayer player, ResourceLocation id, RegistryFriendlyByteBuf buf, BiConsumer<ResourceLocation, RegistryFriendlyByteBuf> consumer) {
         PacketTransformer transformer = TRANSFORMERS.get(id);
         if (transformer != null) {
             transformer.inbound(id, buf, player, consumer);
@@ -319,8 +304,7 @@ public class REIServerProtocol implements LeavesProtocol {
         }
     }
 
-    private static void outboundTransform(RegistryFriendlyByteBuf buf,
-                                          BiConsumer<ResourceLocation, RegistryFriendlyByteBuf> consumer) {
+    private static void outboundTransform(RegistryFriendlyByteBuf buf, BiConsumer<ResourceLocation, RegistryFriendlyByteBuf> consumer) {
         PacketTransformer transformer = TRANSFORMERS.get(SYNC_DISPLAYS_PACKET);
         if (transformer != null) {
             transformer.outbound(SYNC_DISPLAYS_PACKET, buf, consumer);

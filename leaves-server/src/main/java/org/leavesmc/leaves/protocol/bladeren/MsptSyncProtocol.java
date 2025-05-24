@@ -30,7 +30,7 @@ public class MsptSyncProtocol implements LeavesProtocol {
     @ProtocolHandler.Init
     public static void init() {
         BladerenProtocol.registerFeature("mspt_sync", (player, compoundTag) -> {
-            if (compoundTag.getString("Value").equals("true")) {
+            if (compoundTag.getStringOr("Value", "").equals("true")) {
                 onPlayerSubmit(player);
             } else {
                 onPlayerLoggedOut(player);
@@ -43,7 +43,6 @@ public class MsptSyncProtocol implements LeavesProtocol {
         players.remove(player);
     }
 
-    // TODO: rewrite by configName but not constant interval
     @ProtocolHandler.Ticker
     public static void tick() {
         if (players.isEmpty()) {

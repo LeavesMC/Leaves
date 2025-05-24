@@ -54,4 +54,9 @@ public class ProtocolHandler {
 
         boolean onlyNamespace() default false;
     }
+
+    @Target(ElementType.METHOD)
+    @Retention(RetentionPolicy.RUNTIME)
+    public @interface ReloadDataPack {
+    }
 }

@@ -2,6 +2,7 @@ package org.leavesmc.leaves.protocol;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -108,9 +109,8 @@ public class CarpetServerProtocol implements LeavesProtocol {
         private static final ResourceLocation HELLO_ID = CarpetServerProtocol.id("hello");
 
         @Codec
-        private static final StreamCodec<FriendlyByteBuf, CarpetPayload> CODEC = StreamCodec.of(
-            (buf, payload) -> buf.writeNbt(payload.nbt()),
-            buf -> new CarpetPayload(buf.readNbt())
+        private static final StreamCodec<FriendlyByteBuf, CarpetPayload> CODEC = StreamCodec.composite(
+            ByteBufCodecs.COMPOUND_TAG, CarpetPayload::nbt, CarpetPayload::new
         );
     }
 }

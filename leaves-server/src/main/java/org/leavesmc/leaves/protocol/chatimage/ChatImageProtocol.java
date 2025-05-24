@@ -68,6 +68,5 @@ public class ChatImageProtocol implements LeavesProtocol {
     }
 
     public record ChatImageIndex(int index, int total, String url, String bytes) {
-
     }
 }

@@ -14,7 +14,6 @@ public record ClientHandshakePayload(String protocolVersion) implements LeavesCu
 
     @Codec
     private static final StreamCodec<RegistryFriendlyByteBuf, ClientHandshakePayload> CODEC = StreamCodec.composite(
-        ByteBufCodecs.STRING_UTF8,
-        ClientHandshakePayload::protocolVersion,
-        ClientHandshakePayload::new);
+        ByteBufCodecs.STRING_UTF8, ClientHandshakePayload::protocolVersion, ClientHandshakePayload::new
+    );
 }

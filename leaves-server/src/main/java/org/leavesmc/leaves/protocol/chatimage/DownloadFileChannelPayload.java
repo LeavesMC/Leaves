@@ -12,6 +12,7 @@ public record DownloadFileChannelPayload(String message) implements LeavesCustom
     private static final ResourceLocation ID = ChatImageProtocol.id("download_file_channel");
 
     @Codec
-    private static final StreamCodec<RegistryFriendlyByteBuf, DownloadFileChannelPayload> CODEC =
-        StreamCodec.composite(ByteBufCodecs.STRING_UTF8, DownloadFileChannelPayload::message, DownloadFileChannelPayload::new);
+    private static final StreamCodec<RegistryFriendlyByteBuf, DownloadFileChannelPayload> CODEC = StreamCodec.composite(
+        ByteBufCodecs.STRING_UTF8, DownloadFileChannelPayload::message, DownloadFileChannelPayload::new
+    );
 }

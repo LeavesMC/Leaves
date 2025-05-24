@@ -3,6 +3,7 @@ package org.leavesmc.leaves.protocol;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
@@ -67,15 +68,13 @@ public class PcaSyncProtocol implements LeavesProtocol {
     }
 
     @ProtocolHandler.BytebufReceiver(key = "cancel_sync_block_entity")
-    private static boolean cancelSyncBlockEntityHandler(ServerPlayer player, FriendlyByteBuf buf) {
+    private static void cancelSyncBlockEntityHandler(ServerPlayer player, FriendlyByteBuf buf) {
         PcaSyncProtocol.clearPlayerWatchBlock(player);
-        return true;
     }
 
     @ProtocolHandler.BytebufReceiver(key = "cancel_sync_entity")
-    private static boolean cancelSyncEntityHandler(ServerPlayer player, FriendlyByteBuf buf) {
+    private static void cancelSyncEntityHandler(ServerPlayer player, FriendlyByteBuf buf) {
         PcaSyncProtocol.clearPlayerWatchEntity(player);
-        return true;
     }
 
     @ProtocolHandler.PayloadReceiver(payload = SyncBlockEntityPayload.class)
@@ -345,9 +344,14 @@ public class PcaSyncProtocol implements LeavesProtocol {
         public static final ResourceLocation UPDATE_ENTITY = PcaSyncProtocol.id("update_entity");
 
         @Codec
-        public static final StreamCodec<FriendlyByteBuf, UpdateEntityPayload> CODEC = StreamCodec.of(
-            (buf, payload) -> buf.writeResourceLocation(payload.dimension()).writeInt(payload.entityId()).writeNbt(payload.tag()),
-            buf -> new UpdateEntityPayload(buf.readResourceLocation(), buf.readInt(), buf.readNbt())
+        public static final StreamCodec<FriendlyByteBuf, UpdateEntityPayload> CODEC = StreamCodec.composite(
+            ResourceLocation.STREAM_CODEC,
+            UpdateEntityPayload::dimension,
+            ByteBufCodecs.INT,
+            UpdateEntityPayload::entityId,
+            ByteBufCodecs.COMPOUND_TAG,
+            UpdateEntityPayload::tag,
+            UpdateEntityPayload::new
         );
     }
 
@@ -357,9 +361,14 @@ public class PcaSyncProtocol implements LeavesProtocol {
         private static final ResourceLocation UPDATE_BLOCK_ENTITY = PcaSyncProtocol.id("update_block_entity");
 
         @Codec
-        private static final StreamCodec<FriendlyByteBuf, UpdateBlockEntityPayload> CODEC = StreamCodec.of(
-            (buf, payload) -> buf.writeResourceLocation(payload.dimension()).writeBlockPos(payload.blockPos()).writeNbt(payload.tag()),
-            buf -> new UpdateBlockEntityPayload(buf.readResourceLocation(), buf.readBlockPos(), buf.readNbt())
+        private static final StreamCodec<FriendlyByteBuf, UpdateBlockEntityPayload> CODEC = StreamCodec.composite(
+            ResourceLocation.STREAM_CODEC,
+            UpdateBlockEntityPayload::dimension,
+            BlockPos.STREAM_CODEC,
+            UpdateBlockEntityPayload::blockPos,
+            ByteBufCodecs.COMPOUND_TAG,
+            UpdateBlockEntityPayload::tag,
+            UpdateBlockEntityPayload::new
         );
     }
 
@@ -368,9 +377,8 @@ public class PcaSyncProtocol implements LeavesProtocol {
         public static final ResourceLocation SYNC_BLOCK_ENTITY = PcaSyncProtocol.id("sync_block_entity");
 
         @Codec
-        private static final StreamCodec<FriendlyByteBuf, SyncBlockEntityPayload> CODEC = StreamCodec.of(
-            (buf, payload) -> buf.writeBlockPos(payload.pos()),
-            buf -> new SyncBlockEntityPayload(buf.readBlockPos())
+        private static final StreamCodec<FriendlyByteBuf, SyncBlockEntityPayload> CODEC = StreamCodec.composite(
+            BlockPos.STREAM_CODEC, SyncBlockEntityPayload::pos, SyncBlockEntityPayload::new
         );
     }
 
@@ -379,9 +387,8 @@ public class PcaSyncProtocol implements LeavesProtocol {
         public static final ResourceLocation SYNC_ENTITY = PcaSyncProtocol.id("sync_entity");
 
         @Codec
-        private static final StreamCodec<FriendlyByteBuf, SyncEntityPayload> CODEC = StreamCodec.of(
-            (buf, payload) -> buf.writeInt(payload.entityId()),
-            buf -> new SyncEntityPayload(buf.readInt())
+        private static final StreamCodec<FriendlyByteBuf, SyncEntityPayload> CODEC = StreamCodec.composite(
+            ByteBufCodecs.INT, SyncEntityPayload::entityId, SyncEntityPayload::new
         );
     }
 }

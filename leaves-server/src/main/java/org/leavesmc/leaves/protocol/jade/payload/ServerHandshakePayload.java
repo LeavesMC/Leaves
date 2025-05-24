@@ -32,5 +32,6 @@ public record ServerHandshakePayload(Map<ResourceLocation, Object> serverConfig,
         ServerHandshakePayload::blockProviderIds,
         ByteBufCodecs.<ByteBuf, ResourceLocation>list().apply(ResourceLocation.STREAM_CODEC),
         ServerHandshakePayload::entityProviderIds,
-        ServerHandshakePayload::new);
+        ServerHandshakePayload::new
+    );
 }

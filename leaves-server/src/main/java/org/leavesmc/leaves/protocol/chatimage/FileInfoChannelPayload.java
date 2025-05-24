@@ -12,6 +12,7 @@ public record FileInfoChannelPayload(String message) implements LeavesCustomPayl
     private static final ResourceLocation ID = ChatImageProtocol.id("file_info");
 
     @Codec
-    private static final StreamCodec<RegistryFriendlyByteBuf, FileInfoChannelPayload> CODEC =
-        StreamCodec.composite(ByteBufCodecs.STRING_UTF8, FileInfoChannelPayload::message, FileInfoChannelPayload::new);
+    private static final StreamCodec<RegistryFriendlyByteBuf, FileInfoChannelPayload> CODEC = StreamCodec.composite(
+        ByteBufCodecs.STRING_UTF8, FileInfoChannelPayload::message, FileInfoChannelPayload::new
+    );
 }

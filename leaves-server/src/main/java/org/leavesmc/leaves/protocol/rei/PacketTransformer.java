@@ -1,8 +1,11 @@
 package org.leavesmc.leaves.protocol.rei;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.protocol.common.custom.DiscardedPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import org.leavesmc.leaves.LeavesLogger;
@@ -122,6 +125,12 @@ public class PacketTransformer {
             }
             buf.release();
         }
+    }
+
+    public static DiscardedPayload wrapRei(ResourceLocation location, FriendlyByteBuf buf) {
+        FriendlyByteBuf newBuf = new FriendlyByteBuf(Unpooled.buffer());
+        newBuf.writeByteArray(ByteBufUtil.getBytes(buf));
+        return new DiscardedPayload(location, ByteBufUtil.getBytes(newBuf));
     }
 
     private static class PartData {

@@ -2,7 +2,6 @@ package org.leavesmc.leaves.protocol.rei;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import net.minecraft.ChatFormatting;
 import net.minecraft.Util;
@@ -45,7 +44,6 @@ import org.leavesmc.leaves.protocol.rei.display.ShapelessDisplay;
 import org.leavesmc.leaves.protocol.rei.display.SmeltingDisplay;
 import org.leavesmc.leaves.protocol.rei.display.SmokingDisplay;
 import org.leavesmc.leaves.protocol.rei.display.StoneCuttingDisplay;
-import org.leavesmc.leaves.protocol.rei.payload.BufCustomPacketPayload;
 import org.leavesmc.leaves.protocol.rei.payload.DisplaySyncPayload;
 
 import java.util.HashSet;
@@ -165,7 +163,7 @@ public class REIServerProtocol implements LeavesProtocol {
         DisplaySyncPayload.STREAM_CODEC.encode(s2cBuf, displaySyncPayload);
         ImmutableList.Builder<CustomPacketPayload> listBuilder = ImmutableList.builder();
         outboundTransform(s2cBuf, (id, splitBuf) ->
-            listBuilder.add(new BufCustomPacketPayload(new CustomPacketPayload.Type<>(id), ByteBufUtil.getBytes(splitBuf)))
+            listBuilder.add(PacketTransformer.wrapRei(id, splitBuf))
         );
 
         cachedPayloads = listBuilder.build();

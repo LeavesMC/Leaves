@@ -20,13 +20,13 @@ public record BotCreateState(String realName, String name, String skinName, Stri
 
     private static final MinecraftServer server = MinecraftServer.getServer();
 
-    public ServerBot createNow() {
-        return server.getBotList().createNewBot(this);
-    }
-
     @NotNull
     public static Builder builder(@NotNull String realName, @Nullable Location location) {
         return new Builder(realName, location);
+    }
+
+    public ServerBot createNow() {
+        return server.getBotList().createNewBot(this);
     }
 
     public static class Builder implements BotCreator {

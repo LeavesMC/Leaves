@@ -18,6 +18,7 @@ import java.util.List;
 public class LookAction extends AbstractBotAction<LookAction> {
 
     private static final DecimalFormat DF = new DecimalFormat("0.0");
+    private Vector pos;
 
     public LookAction() {
         super("look", CommandArgument.of(CommandArgumentType.DOUBLE, CommandArgumentType.DOUBLE, CommandArgumentType.DOUBLE), LookAction::new);
@@ -25,8 +26,6 @@ public class LookAction extends AbstractBotAction<LookAction> {
         this.setSuggestion(1, (sender, arg) -> sender instanceof ServerPlayer player ? Pair.of(List.of(DF.format(player.getY())), "<Y>") : Pair.of(List.of("0"), "<Y>"));
         this.setSuggestion(2, (sender, arg) -> sender instanceof ServerPlayer player ? Pair.of(List.of(DF.format(player.getZ())), "<Z>") : Pair.of(List.of("0"), "<Z>"));
     }
-
-    private Vector pos;
 
     @Override
     public void loadCommand(@Nullable ServerPlayer player, @NotNull CommandArgumentResult result) throws IllegalArgumentException {

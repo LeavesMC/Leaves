@@ -23,7 +23,6 @@ import org.bukkit.craftbukkit.CraftWorld;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.LeavesConfig;
-import org.leavesmc.leaves.bot.agent.Configs;
 import org.leavesmc.leaves.event.bot.BotCreateEvent;
 import org.leavesmc.leaves.event.bot.BotJoinEvent;
 import org.leavesmc.leaves.event.bot.BotLoadEvent;
@@ -40,13 +39,10 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 public class BotList {
 
-    public static BotList INSTANCE;
-
     private static final Logger LOGGER = LogUtils.getLogger();
-
-    private final MinecraftServer server;
-
+    public static BotList INSTANCE;
     public final List<ServerBot> bots = new CopyOnWriteArrayList<>();
+    private final MinecraftServer server;
     private final BotDataStorage dataStorage;
 
     private final Map<UUID, ServerBot> botsByUUID = Maps.newHashMap();

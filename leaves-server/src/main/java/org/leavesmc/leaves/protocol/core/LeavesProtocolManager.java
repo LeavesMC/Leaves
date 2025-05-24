@@ -135,7 +135,7 @@ public class LeavesProtocolManager {
                             if (key.contains(":")) {
                                 STRICT_BYTEBUF_RECEIVERS.put(key, holder);
                             } else {
-                                STRICT_BYTEBUF_RECEIVERS.put(register.namespace() + key, holder);
+                                STRICT_BYTEBUF_RECEIVERS.put(register.namespace() + ":" + key, holder);
                             }
                         }
                     }
@@ -185,7 +185,7 @@ public class LeavesProtocolManager {
                             if (key.contains(":")) {
                                 STRICT_MINECRAFT_REGISTER.put(key, holder);
                             } else {
-                                STRICT_MINECRAFT_REGISTER.put(register.namespace() + key, holder);
+                                STRICT_MINECRAFT_REGISTER.put(register.namespace() + ":" + key, holder);
                             }
                         }
                     }
@@ -255,10 +255,10 @@ public class LeavesProtocolManager {
     }
 
     public static void handlePlayerJoin(ServerPlayer player) {
+        sendKnownId(player);
         for (var join : PLAYER_JOIN) {
             join.invoke(player);
         }
-        sendKnownId(player);
     }
 
     public static void handlePlayerLeave(ServerPlayer player) {

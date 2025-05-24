@@ -27,17 +27,20 @@ public abstract class AbstractInvokerHolder<T> {
 
     protected void validateMethodSignature() {
         if (returnType != null && !returnType.isAssignableFrom(invoker.getReturnType())) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("Return type mismatch in " + owner.getClass().getName() + "#" + invoker.getName() +
+                ": expected " + returnType.getName() + " but found " + invoker.getReturnType().getName());
         }
 
         Class<?>[] methodParamTypes = invoker.getParameterTypes();
         if (methodParamTypes.length != parameterTypes.length) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("Parameter count mismatch in " + owner.getClass().getName() + "#" + invoker.getName() +
+                ": expected " + parameterTypes.length + " but found " + methodParamTypes.length);
         }
 
         for (int i = 0; i < parameterTypes.length; i++) {
-            if (!methodParamTypes[i].isAssignableFrom(parameterTypes[i])) {
-                throw new IllegalArgumentException();
+            if (!parameterTypes[i].isAssignableFrom(methodParamTypes[i])) {
+                throw new IllegalArgumentException("Parameter type mismatch in " + owner.getClass().getName() + "#" + invoker.getName() +
+                    " at index " + i + ": expected " + parameterTypes[i].getName() + " but found " + methodParamTypes[i].getName());
             }
         }
     }

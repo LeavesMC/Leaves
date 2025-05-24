@@ -41,21 +41,6 @@ public record LitematicaSchematic(Map<String, SubRegion> subRegions, SchematicMe
     public static final int SCHEMATIC_VERSION = 7;
 
     @NotNull
-    @Unmodifiable
-    public Map<String, BlockPos> getAreaSizes() {
-        ImmutableMap.Builder<String, BlockPos> builder = ImmutableMap.builderWithExpectedSize(subRegions.size());
-        for (Map.Entry<String, SubRegion> entry : subRegions.entrySet()) {
-            builder.put(entry.getKey(), entry.getValue().size());
-        }
-        return builder.build();
-    }
-
-    @NotNull
-    public SubRegion getSubRegion(String name) {
-        return Objects.requireNonNull(subRegions.get(name));
-    }
-
-    @NotNull
     @Contract("_ -> new")
     public static LitematicaSchematic readFromNBT(@NotNull CompoundTag nbt) {
         if (nbt.contains("Version")) {
@@ -85,6 +70,21 @@ public record LitematicaSchematic(Map<String, SubRegion> subRegions, SchematicMe
             subRegions.put(regionName, SubRegion.readFromNBT(tag.getCompoundOrEmpty(regionName), version, minecraftDataVersion));
         }
         return subRegions;
+    }
+
+    @NotNull
+    @Unmodifiable
+    public Map<String, BlockPos> getAreaSizes() {
+        ImmutableMap.Builder<String, BlockPos> builder = ImmutableMap.builderWithExpectedSize(subRegions.size());
+        for (Map.Entry<String, SubRegion> entry : subRegions.entrySet()) {
+            builder.put(entry.getKey(), entry.getValue().size());
+        }
+        return builder.build();
+    }
+
+    @NotNull
+    public SubRegion getSubRegion(String name) {
+        return Objects.requireNonNull(subRegions.get(name));
     }
 
     public record SubRegion(

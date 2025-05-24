@@ -6,11 +6,10 @@ import io.netty.buffer.Unpooled;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.util.ByIdMap;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesLogger;
-import org.leavesmc.leaves.protocol.rei.REIServerProtocol;
+import org.leavesmc.leaves.protocol.core.LeavesCustomPayload;
 import org.leavesmc.leaves.protocol.rei.display.Display;
 
 import java.util.ArrayList;
@@ -19,12 +18,13 @@ import java.util.Objects;
 import java.util.function.IntFunction;
 import java.util.function.UnaryOperator;
 
+// This payload will never send to client, we use PacketTransformer to send split payload
 public record DisplaySyncPayload(
     SyncType syncType,
     Collection<Display> displays,
     long version
-) implements CustomPacketPayload {
-    public static final CustomPacketPayload.Type<DisplaySyncPayload> TYPE = new CustomPacketPayload.Type<>(REIServerProtocol.SYNC_DISPLAYS_PACKET);
+) implements LeavesCustomPayload {
+
     public static final StreamCodec<? super RegistryFriendlyByteBuf, DisplaySyncPayload> STREAM_CODEC = StreamCodec.composite(
         SyncType.STREAM_CODEC,
         DisplaySyncPayload::syncType,
@@ -62,11 +62,6 @@ public record DisplaySyncPayload(
         DisplaySyncPayload::new
     );
 
-    @Override
-    @NotNull
-    public Type<? extends CustomPacketPayload> type() {
-        return TYPE;
-    }
 
     public enum SyncType {
         APPEND,

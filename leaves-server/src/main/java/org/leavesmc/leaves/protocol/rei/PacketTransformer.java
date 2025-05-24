@@ -1,8 +1,11 @@
 package org.leavesmc.leaves.protocol.rei;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.protocol.common.custom.DiscardedPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import org.leavesmc.leaves.LeavesLogger;
@@ -24,18 +27,6 @@ public class PacketTransformer {
     private static final byte ONLY = 0x3;
 
     private final Map<UUID, PartData> cache = Collections.synchronizedMap(new HashMap<>());
-
-    private static class PartData {
-        private final ResourceLocation id;
-        private final int partsNum;
-        private final List<RegistryFriendlyByteBuf> parts;
-
-        public PartData(ResourceLocation id, int partsNum) {
-            this.id = id;
-            this.partsNum = partsNum;
-            this.parts = new ArrayList<>();
-        }
-    }
 
     public void inbound(ResourceLocation id, RegistryFriendlyByteBuf buf, ServerPlayer player, BiConsumer<ResourceLocation, RegistryFriendlyByteBuf> consumer) {
         UUID key = player.getUUID();
@@ -133,6 +124,24 @@ public class PacketTransformer {
                 consumer.accept(id, packetBuffer);
             }
             buf.release();
+        }
+    }
+
+    public static DiscardedPayload wrapRei(ResourceLocation location, FriendlyByteBuf buf) {
+        FriendlyByteBuf newBuf = new FriendlyByteBuf(Unpooled.buffer());
+        newBuf.writeByteArray(ByteBufUtil.getBytes(buf));
+        return new DiscardedPayload(location, ByteBufUtil.getBytes(newBuf));
+    }
+
+    private static class PartData {
+        private final ResourceLocation id;
+        private final int partsNum;
+        private final List<RegistryFriendlyByteBuf> parts;
+
+        public PartData(ResourceLocation id, int partsNum) {
+            this.id = id;
+            this.partsNum = partsNum;
+            this.parts = new ArrayList<>();
         }
     }
 }

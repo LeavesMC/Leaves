@@ -15,13 +15,11 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.OptionalDouble;
 
-@LeavesProtocol(namespace = "bladeren")
-public class MsptSyncProtocol {
+@LeavesProtocol.Register(namespace = "bladeren")
+public class MsptSyncProtocol implements LeavesProtocol {
 
     public static final String PROTOCOL_ID = "bladeren";
-
     private static final ResourceLocation MSPT_SYNC = id("mspt_sync");
-
     private static final List<ServerPlayer> players = new ArrayList<>();
 
     @Contract("_ -> new")
@@ -32,7 +30,7 @@ public class MsptSyncProtocol {
     @ProtocolHandler.Init
     public static void init() {
         BladerenProtocol.registerFeature("mspt_sync", (player, compoundTag) -> {
-            if (compoundTag.getString("Value").equals("true")) {
+            if (compoundTag.getStringOr("Value", "").equals("true")) {
                 onPlayerSubmit(player);
             } else {
                 onPlayerLoggedOut(player);
@@ -42,36 +40,37 @@ public class MsptSyncProtocol {
 
     @ProtocolHandler.PlayerLeave
     public static void onPlayerLoggedOut(@NotNull ServerPlayer player) {
-        if (LeavesConfig.protocol.bladeren.msptSyncProtocol) {
-            players.remove(player);
-        }
+        players.remove(player);
     }
 
     @ProtocolHandler.Ticker
     public static void tick() {
-        if (LeavesConfig.protocol.bladeren.msptSyncProtocol) {
-            if (players.isEmpty()) {
-                return;
-            }
-
-            MinecraftServer server = MinecraftServer.getServer();
-            if (server.getTickCount() % LeavesConfig.protocol.bladeren.msptSyncTickInterval == 0) {
-                OptionalDouble msptArr = Arrays.stream(server.getTickTimesNanos()).average();
-                if (msptArr.isPresent()) {
-                    double mspt = msptArr.getAsDouble() * 1.0E-6D;
-                    double tps = 1000.0D / Math.max(mspt, 50);
-                    players.forEach(player -> ProtocolUtils.sendPayloadPacket(player, MSPT_SYNC, buf -> {
-                        buf.writeDouble(mspt);
-                        buf.writeDouble(tps);
-                    }));
-                }
-            }
+        if (players.isEmpty()) {
+            return;
+        }
+        MinecraftServer server = MinecraftServer.getServer();
+        OptionalDouble msptArr = Arrays.stream(server.getTickTimesNanos()).average();
+        if (msptArr.isPresent()) {
+            double mspt = msptArr.getAsDouble() * 1.0E-6D;
+            double tps = 1000.0D / Math.max(mspt, 50);
+            players.forEach(player -> ProtocolUtils.sendBytebufPacket(player, MSPT_SYNC, buf -> {
+                buf.writeDouble(mspt);
+                buf.writeDouble(tps);
+            }));
         }
     }
 
     public static void onPlayerSubmit(@NotNull ServerPlayer player) {
-        if (LeavesConfig.protocol.bladeren.msptSyncProtocol) {
-            players.add(player);
-        }
+        players.add(player);
+    }
+
+    @Override
+    public int tickerInterval(String tickerID) {
+        return LeavesConfig.protocol.bladeren.msptSyncTickInterval;
+    }
+
+    @Override
+    public boolean isActive() {
+        return LeavesConfig.protocol.bladeren.msptSyncProtocol;
     }
 }

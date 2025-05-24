@@ -21,16 +21,6 @@ public enum AnimalOwnerProvider implements StreamServerDataProvider<EntityAccess
 
     private static final ResourceLocation MC_ANIMAL_OWNER = JadeProtocol.mc_id("animal_owner");
 
-    @Override
-    public String streamData(@NotNull EntityAccessor accessor) {
-        return CommonUtil.getLastKnownUsername(getOwnerUUID(accessor.getEntity()));
-    }
-
-    @Override
-    public @NotNull StreamCodec<RegistryFriendlyByteBuf, String> streamCodec() {
-        return ByteBufCodecs.STRING_UTF8.cast();
-    }
-
     public static UUID getOwnerUUID(Entity entity) {
         if (entity instanceof OwnableEntity ownableEntity) {
             EntityReference<LivingEntity> reference = ownableEntity.getOwnerReference();
@@ -39,6 +29,16 @@ public enum AnimalOwnerProvider implements StreamServerDataProvider<EntityAccess
             }
         }
         return null;
+    }
+
+    @Override
+    public String streamData(@NotNull EntityAccessor accessor) {
+        return CommonUtil.getLastKnownUsername(getOwnerUUID(accessor.getEntity()));
+    }
+
+    @Override
+    public @NotNull StreamCodec<RegistryFriendlyByteBuf, String> streamCodec() {
+        return ByteBufCodecs.STRING_UTF8.cast();
     }
 
     @Override

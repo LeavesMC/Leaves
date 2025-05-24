@@ -10,7 +10,6 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.network.protocol.common.custom.DiscardedPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -46,6 +45,7 @@ import org.leavesmc.leaves.protocol.rei.display.ShapelessDisplay;
 import org.leavesmc.leaves.protocol.rei.display.SmeltingDisplay;
 import org.leavesmc.leaves.protocol.rei.display.SmokingDisplay;
 import org.leavesmc.leaves.protocol.rei.display.StoneCuttingDisplay;
+import org.leavesmc.leaves.protocol.rei.payload.BufCustomPacketPayload;
 import org.leavesmc.leaves.protocol.rei.payload.DisplaySyncPayload;
 
 import java.util.HashSet;
@@ -57,8 +57,6 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 
-import static org.leavesmc.leaves.protocol.rei.payload.DisplaySyncPayload.SYNC_DISPLAYS_PACKET;
-
 @LeavesProtocol.Register(namespace = REIServerProtocol.PROTOCOL_ID)
 public class REIServerProtocol implements LeavesProtocol {
 
@@ -69,6 +67,7 @@ public class REIServerProtocol implements LeavesProtocol {
     public static final ResourceLocation CREATE_ITEMS_GRAB_PACKET = ResourceLocation.fromNamespaceAndPath("roughlyenoughitems", "create_item_grab");
     public static final ResourceLocation CREATE_ITEMS_HOTBAR_PACKET = ResourceLocation.fromNamespaceAndPath("roughlyenoughitems", "create_item_hotbar");
     public static final ResourceLocation CREATE_ITEMS_MESSAGE_PACKET = ResourceLocation.fromNamespaceAndPath("roughlyenoughitems", "ci_msg");
+    public static final ResourceLocation SYNC_DISPLAYS_PACKET = ResourceLocation.fromNamespaceAndPath("roughlyenoughitems", "sync_displays");
 
     public static final Map<ResourceLocation, PacketTransformer> TRANSFORMERS = Util.make(() -> {
         ImmutableMap.Builder<ResourceLocation, PacketTransformer> builder = ImmutableMap.builder();
@@ -114,7 +113,6 @@ public class REIServerProtocol implements LeavesProtocol {
     @ProtocolHandler.PlayerLeave
     public static void onPlayerLoggedOut(@NotNull ServerPlayer player) {
         enabledPlayers.remove(player);
-
     }
 
     @ProtocolHandler.Ticker
@@ -167,7 +165,7 @@ public class REIServerProtocol implements LeavesProtocol {
         DisplaySyncPayload.STREAM_CODEC.encode(s2cBuf, displaySyncPayload);
         ImmutableList.Builder<CustomPacketPayload> listBuilder = ImmutableList.builder();
         outboundTransform(s2cBuf, (id, splitBuf) ->
-            listBuilder.add(new DiscardedPayload(id, ByteBufUtil.getBytes(splitBuf)))
+            listBuilder.add(new BufCustomPacketPayload(new CustomPacketPayload.Type<>(id), ByteBufUtil.getBytes(splitBuf)))
         );
 
         cachedPayloads = listBuilder.build();

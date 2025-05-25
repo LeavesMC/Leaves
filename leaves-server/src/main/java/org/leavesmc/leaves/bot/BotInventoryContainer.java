@@ -16,12 +16,12 @@ import javax.annotation.Nonnull;
 
 public class BotInventoryContainer extends Inventory {
 
-    private final ServerBot player;
+    private final Inventory original;
     private final ItemStack button;
 
-    public BotInventoryContainer(ServerBot player, EntityEquipment equipment) {
-        super(player, equipment);
-        this.player = player;
+    public BotInventoryContainer(Inventory original) {
+        super(original.player, original.equipment);
+        this.original = original;
         button = createButton();
     }
 
@@ -41,7 +41,7 @@ public class BotInventoryContainer extends Inventory {
             // buttons are the same
             return button;
         }
-        return super.getItem(realSlot);
+        return original.getItem(realSlot);
     }
 
     public int convertSlot(int slot) {
@@ -60,7 +60,7 @@ public class BotInventoryContainer extends Inventory {
                  27, 28, 29, 30, 31, 32, 33, 34, 35,
                  36, 37, 38, 39, 40, 41, 42, 43, 44 -> slot - 9;
 
-            // Hotbar
+            // Hotbar, 45 -> Mainhand (6), don't set here
             case 45, 46, 47, 48, 49, 50, 51, 52, 53 -> slot - 45;
 
             // Buttons
@@ -81,7 +81,7 @@ public class BotInventoryContainer extends Inventory {
             // Don't remove buttons
             return ItemStack.EMPTY;
         }
-        ItemStack removed = super.removeItem(realSlot, amount);
+        ItemStack removed = original.removeItem(realSlot, amount);
         player.detectEquipmentUpdates();
         return removed;
     }
@@ -99,7 +99,7 @@ public class BotInventoryContainer extends Inventory {
             // Don't remove buttons
             return ItemStack.EMPTY;
         }
-        return super.removeItemNoUpdate(realSlot);
+        return original.removeItemNoUpdate(realSlot);
     }
 
     @Override
@@ -113,7 +113,7 @@ public class BotInventoryContainer extends Inventory {
             // Don't modify buttons
             return;
         }
-        super.setItem(realSlot, stack);
+        original.setItem(realSlot, stack);
         player.detectEquipmentUpdates();
     }
 

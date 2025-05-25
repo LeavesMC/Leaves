@@ -291,6 +291,11 @@ public class REIServerProtocol implements LeavesProtocol {
         inboundTransform(player, CREATE_ITEMS_HOTBAR_PACKET, buf, consumer);
     }
 
+    @ProtocolHandler.BytebufReceiver(key = "move_items_new")
+    public static void handleMoveItem(ServerPlayer player, RegistryFriendlyByteBuf buf) {
+        // TODO handle to disable REI client warning
+    }
+
     private static void inboundTransform(ServerPlayer player, ResourceLocation id, RegistryFriendlyByteBuf buf, BiConsumer<ResourceLocation, RegistryFriendlyByteBuf> consumer) {
         PacketTransformer transformer = TRANSFORMERS.get(id);
         if (transformer != null) {

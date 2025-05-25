@@ -4,11 +4,7 @@ import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.bot.agent.configs.AlwaysSendDataConfig;
-import org.leavesmc.leaves.bot.agent.configs.SimulationDistanceConfig;
-import org.leavesmc.leaves.bot.agent.configs.SkipSleepConfig;
-import org.leavesmc.leaves.bot.agent.configs.SpawnPhantomConfig;
-import org.leavesmc.leaves.bot.agent.configs.TickTypeConfig;
+import org.leavesmc.leaves.bot.agent.configs.*;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -34,6 +30,14 @@ public class Configs<E> {
         this.configCreator = configCreator;
     }
 
+    public Class<? extends AbstractBotConfig<E>> getConfigClass() {
+        return configClass;
+    }
+
+    public AbstractBotConfig<E> createConfig(ServerBot bot) {
+        return configCreator.get().setBot(bot);
+    }
+
     @Nullable
     public static Configs<?> getConfig(String name) {
         return configs.get(name);
@@ -56,13 +60,5 @@ public class Configs<E> {
         Configs<E> config = new Configs<>(configClass, configCreator);
         configs.put(config.createConfig(null).getName(), config);
         return config;
-    }
-
-    public Class<? extends AbstractBotConfig<E>> getConfigClass() {
-        return configClass;
-    }
-
-    public AbstractBotConfig<E> createConfig(ServerBot bot) {
-        return configCreator.get().setBot(bot);
     }
 }

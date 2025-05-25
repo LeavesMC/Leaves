@@ -17,13 +17,15 @@ import java.util.List;
 public class RotationAction extends AbstractBotAction<RotationAction> {
 
     private static final DecimalFormat DF = new DecimalFormat("0.00");
-    private float yaw;
-    private float pitch;
+
     public RotationAction() {
         super("rotation", CommandArgument.of(CommandArgumentType.FLOAT, CommandArgumentType.FLOAT), RotationAction::new);
         this.setSuggestion(0, (sender, arg) -> sender instanceof ServerPlayer player ? Pair.of(List.of(DF.format(player.getYRot())), "[yaw]") : Pair.of(List.of("0"), "<yaw>"));
         this.setSuggestion(0, (sender, arg) -> sender instanceof ServerPlayer player ? Pair.of(List.of(DF.format(player.getXRot())), "[pitch]") : Pair.of(List.of("0"), "<pitch>"));
     }
+
+    private float yaw;
+    private float pitch;
 
     @Override
     public void loadCommand(@Nullable ServerPlayer player, @NotNull CommandArgumentResult result) {

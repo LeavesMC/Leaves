@@ -10,12 +10,13 @@ import org.leavesmc.leaves.bot.ServerBot;
 
 public class BreakBlockAction extends AbstractTimerAction<BreakBlockAction> {
 
-    private BlockPos lastPos = null;
-    private int destroyProgressTime = 0;
-    private int lastSentState = -1;
     public BreakBlockAction() {
         super("break", BreakBlockAction::new);
     }
+
+    private BlockPos lastPos = null;
+    private int destroyProgressTime = 0;
+    private int lastSentState = -1;
 
     @Override
     public boolean doTick(@NotNull ServerBot bot) {

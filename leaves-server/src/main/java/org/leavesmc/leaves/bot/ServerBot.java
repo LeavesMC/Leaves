@@ -74,12 +74,15 @@ public class ServerBot extends ServerPlayer {
 
     private final List<AbstractBotAction<?>> actions;
     private final Map<Configs<?>, AbstractBotConfig<?>> configs;
-    private final int tracingRange;
-    private final BotStatsCounter stats;
-    private final BotInventoryContainer container;
+
     public boolean resume = false;
     public BotCreateState createState;
     public UUID createPlayer;
+
+    private final int tracingRange;
+    private final BotStatsCounter stats;
+    private final BotInventoryContainer container;
+
     public int notSleepTicks;
 
     public int removeTaskId = -1;

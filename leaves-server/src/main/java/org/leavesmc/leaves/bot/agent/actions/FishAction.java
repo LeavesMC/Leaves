@@ -10,12 +10,14 @@ import org.leavesmc.leaves.bot.ServerBot;
 
 public class FishAction extends AbstractTimerAction<FishAction> {
 
-    private static final int CATCH_ENTITY_DELAY = 20;
-    private int initialFishInterval = 0;
-    private int tickToNextFish = 0;
     public FishAction() {
         super("fish", FishAction::new);
     }
+
+    private static final int CATCH_ENTITY_DELAY = 20;
+
+    private int initialFishInterval = 0;
+    private int tickToNextFish = 0;
 
     @Override
     public FishAction setInitialTickInterval(int initialTickInterval) {

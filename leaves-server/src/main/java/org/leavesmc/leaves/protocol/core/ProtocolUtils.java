@@ -25,7 +25,7 @@ public class ProtocolUtils {
     }
 
     public static void sendEmptyPacket(ServerPlayer player, ResourceLocation id) {
-        player.internalConnection.send(new ClientboundCustomPayloadPacket(new DiscardedPayload(id, new byte[0])));
+        player.internalConnection.send(new ClientboundCustomPayloadPacket(new DiscardedPayload(id, null)));
     }
 
     public static void sendBytebufPacket(@NotNull ServerPlayer player, ResourceLocation id, Consumer<? super RegistryFriendlyByteBuf> consumer) {

@@ -18,7 +18,7 @@ import java.util.Objects;
 import java.util.function.IntFunction;
 import java.util.function.UnaryOperator;
 
-// This payload will never send to client, we use PacketTransformer to send split payload
+// This payload will never be sent to the client. We use PacketTransformer to send split payload.
 public record DisplaySyncPayload(
     SyncType syncType,
     Collection<Display> displays,

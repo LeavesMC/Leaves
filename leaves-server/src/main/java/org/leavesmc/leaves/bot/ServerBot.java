@@ -101,7 +101,7 @@ public class ServerBot extends ServerPlayer {
         this.configs = configBuilder.build();
 
         this.stats = new BotStatsCounter(server);
-        this.container = new BotInventoryContainer(this);
+        this.container = new BotInventoryContainer(this.getInventory());
         this.tracingRange = world.spigotConfig.playerTrackingRange * world.spigotConfig.playerTrackingRange;
 
         this.notSleepTicks = 0;
@@ -551,6 +551,7 @@ public class ServerBot extends ServerPlayer {
 
     public void dropAll() {
         this.getInventory().dropAll();
+        this.equipment.dropAll(this);
         this.detectEquipmentUpdates();
     }
 

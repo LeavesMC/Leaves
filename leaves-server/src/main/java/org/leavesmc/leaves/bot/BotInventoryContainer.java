@@ -4,8 +4,6 @@ import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.EntityEquipment;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -16,13 +14,26 @@ import javax.annotation.Nonnull;
 
 public class BotInventoryContainer extends Inventory {
 
+    private static final ItemStack button;
+
+    static {
+        CompoundTag customData = new CompoundTag();
+        customData.putBoolean("Leaves.Gui.Placeholder", true);
+
+        DataComponentPatch patch = DataComponentPatch.builder()
+            .set(DataComponents.CUSTOM_NAME, Component.empty())
+            .set(DataComponents.CUSTOM_DATA, CustomData.of(customData))
+            .build();
+
+        button = new ItemStack(Items.STRUCTURE_VOID);
+        button.applyComponents(patch);
+    }
+
     private final Inventory original;
-    private final ItemStack button;
 
     public BotInventoryContainer(Inventory original) {
         super(original.player, original.equipment);
         this.original = original;
-        button = createButton();
     }
 
     @Override
@@ -34,9 +45,6 @@ public class BotInventoryContainer extends Inventory {
     @Nonnull
     public ItemStack getItem(int slot) {
         int realSlot = convertSlot(slot);
-        if (realSlot == -1) {
-            return player.getItemInHand(InteractionHand.MAIN_HAND);
-        }
         if (realSlot == -999) {
             // buttons are the same
             return button;
@@ -46,8 +54,8 @@ public class BotInventoryContainer extends Inventory {
 
     public int convertSlot(int slot) {
         return switch (slot) {
-            // Mainhand does not store in the inventory, but we want it
-            case 6 -> -1;
+            // Mainhand is always store at slot 0
+            case 6 -> 0;
 
             // Offhand
             case 7 -> 40;
@@ -60,7 +68,7 @@ public class BotInventoryContainer extends Inventory {
                  27, 28, 29, 30, 31, 32, 33, 34, 35,
                  36, 37, 38, 39, 40, 41, 42, 43, 44 -> slot - 9;
 
-            // Hotbar, 45 -> Mainhand (6), don't set here
+            // Hotbar, 45 -> Mainhand (0)
             case 45, 46, 47, 48, 49, 50, 51, 52, 53 -> slot - 45;
 
             // Buttons
@@ -72,11 +80,6 @@ public class BotInventoryContainer extends Inventory {
     @Nonnull
     public ItemStack removeItem(int slot, int amount) {
         int realSlot = convertSlot(slot);
-        if (realSlot == -1) {
-            ItemStack item = player.getItemInHand(InteractionHand.MAIN_HAND);
-            player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
-            return item;
-        }
         if (realSlot == -999) {
             // Don't remove buttons
             return ItemStack.EMPTY;
@@ -90,11 +93,6 @@ public class BotInventoryContainer extends Inventory {
     @Nonnull
     public ItemStack removeItemNoUpdate(int slot) {
         int realSlot = convertSlot(slot);
-        if (realSlot == -1) {
-            ItemStack item = player.getItemInHand(InteractionHand.MAIN_HAND);
-            player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
-            return item;
-        }
         if (realSlot == -999) {
             // Don't remove buttons
             return ItemStack.EMPTY;
@@ -105,10 +103,6 @@ public class BotInventoryContainer extends Inventory {
     @Override
     public void setItem(int slot, @Nonnull ItemStack stack) {
         int realSlot = convertSlot(slot);
-        if (realSlot == -1) {
-            player.setItemInHand(InteractionHand.MAIN_HAND, stack);
-            return;
-        }
         if (realSlot == -999) {
             // Don't modify buttons
             return;
@@ -127,19 +121,5 @@ public class BotInventoryContainer extends Inventory {
             return false;
         }
         return !(player.distanceToSqr(this.player) > 64.0);
-    }
-
-    private ItemStack createButton() {
-        CompoundTag customData = new CompoundTag();
-        customData.putBoolean("Leaves.Gui.Placeholder", true);
-
-        DataComponentPatch patch = DataComponentPatch.builder()
-            .set(DataComponents.CUSTOM_NAME, Component.empty())
-            .set(DataComponents.CUSTOM_DATA, CustomData.of(customData))
-            .build();
-
-        ItemStack button = new ItemStack(Items.STRUCTURE_VOID);
-        button.applyComponents(patch);
-        return button;
     }
 }

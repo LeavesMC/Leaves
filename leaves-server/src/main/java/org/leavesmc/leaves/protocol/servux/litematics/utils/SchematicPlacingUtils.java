@@ -5,6 +5,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.Vec3i;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.Display;
@@ -209,8 +210,7 @@ public class SchematicPlacingUtils {
                         NbtUtils.writeBlockPosToTag(pos, teNBT);
 
                         try {
-                            te.loadWithComponents(teNBT, world.registryAccess().freeze());
-
+                            te.loadWithComponents(teNBT, MinecraftServer.getServer().registryAccess());
                         } catch (Exception e) {
                             ServuxProtocol.LOGGER.warn("Failed to load BlockEntity data for {} @ {}", state, pos);
                         }

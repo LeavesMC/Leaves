@@ -28,6 +28,12 @@ public class PacketTransformer {
 
     private final Map<UUID, PartData> cache = Collections.synchronizedMap(new HashMap<>());
 
+    public static DiscardedPayload wrapRei(ResourceLocation location, FriendlyByteBuf buf) {
+        FriendlyByteBuf newBuf = new FriendlyByteBuf(Unpooled.buffer());
+        newBuf.writeByteArray(ByteBufUtil.getBytes(buf));
+        return new DiscardedPayload(location, ByteBufUtil.getBytes(newBuf));
+    }
+
     public void inbound(ResourceLocation id, RegistryFriendlyByteBuf buf, ServerPlayer player, BiConsumer<ResourceLocation, RegistryFriendlyByteBuf> consumer) {
         UUID key = player.getUUID();
         PartData data;
@@ -125,12 +131,6 @@ public class PacketTransformer {
             }
             buf.release();
         }
-    }
-
-    public static DiscardedPayload wrapRei(ResourceLocation location, FriendlyByteBuf buf) {
-        FriendlyByteBuf newBuf = new FriendlyByteBuf(Unpooled.buffer());
-        newBuf.writeByteArray(ByteBufUtil.getBytes(buf));
-        return new DiscardedPayload(location, ByteBufUtil.getBytes(newBuf));
     }
 
     private static class PartData {

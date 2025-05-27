@@ -33,7 +33,7 @@ public class ServuxEntityDataProtocol implements LeavesProtocol {
     private static final Map<UUID, Long> readingSessionKeys = new HashMap<>();
 
     @ProtocolHandler.PlayerJoin
-    public static void onPlayerLoggedIn(ServerPlayer player) {
+    public static void onPlayerJoin(ServerPlayer player) {
         sendMetadata(player);
     }
 

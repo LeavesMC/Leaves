@@ -126,7 +126,7 @@ public record LitematicaSchematic(Map<String, SubRegion> subRegions, SchematicMe
             }
 
             LitematicaBlockStateContainer blockContainers = null;
-            Tag blockState = regionTag.get("BlockStatePalette");
+            Tag blockState = regionTag.get("BlockStates");
             if (blockState != null && blockState.getId() == Tag.TAG_LONG_ARRAY) {
                 ListTag palette = regionTag.getListOrEmpty("BlockStatePalette");
                 long[] blockStateArr = ((LongArrayTag) blockState).getAsLongArray();

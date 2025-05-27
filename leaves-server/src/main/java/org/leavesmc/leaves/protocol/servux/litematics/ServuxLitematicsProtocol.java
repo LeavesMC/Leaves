@@ -13,13 +13,13 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesConfig;
@@ -57,8 +57,13 @@ public class ServuxLitematicsProtocol implements LeavesProtocol {
     }
 
     public static boolean hasPermission(ServerPlayer player) {
-        CraftPlayer bukkitEntity = player.getBukkitEntity();
-        return bukkitEntity.hasPermission("leaves.protocol.litematics");
+        return player.getBukkitEntity().hasPermission("leaves.protocol.litematics");
+    }
+
+    public static void sendMetaData(ServerPlayer player) {
+        ServuxLitematicaPayload send = new ServuxLitematicaPayload(ServuxLitematicaPayloadType.PACKET_S2C_METADATA);
+        send.nbt.merge(metadata);
+        encodeServerData(player, send);
     }
 
     public static void encodeServerData(ServerPlayer player, @NotNull ServuxLitematicaPayload packet) {
@@ -79,6 +84,11 @@ public class ServuxLitematicsProtocol implements LeavesProtocol {
         encodeServerData(player, payload);
     }
 
+    @ProtocolHandler.PlayerJoin
+    public static void onPlayerJoin(ServerPlayer player) {
+        sendMetaData(player);
+    }
+
     @ProtocolHandler.PayloadReceiver(payload = ServuxLitematicaPayload.class)
     public static void onPacketReceive(ServerPlayer player, ServuxLitematicaPayload payload) {
         if (!hasPermission(player)) {
@@ -86,11 +96,12 @@ public class ServuxLitematicsProtocol implements LeavesProtocol {
         }
 
         switch (payload.packetType) {
-            case PACKET_C2S_METADATA_REQUEST -> {
-                ServuxLitematicaPayload send = new ServuxLitematicaPayload(ServuxLitematicaPayloadType.PACKET_S2C_METADATA);
-                send.nbt.merge(metadata);
-                encodeServerData(player, send);
-            }
+            case PACKET_C2S_METADATA_REQUEST -> sendMetaData(player);
+
+            case PACKET_C2S_BLOCK_ENTITY_REQUEST -> onBlockEntityRequest(player, payload.getPos());
+
+            case PACKET_C2S_ENTITY_REQUEST -> onEntityRequest(player, payload.getEntityId());
+
 
             case PACKET_C2S_BULK_ENTITY_NBT_REQUEST -> onBulkEntityRequest(player, payload.getChunkPos(), payload.getCompound());
 
@@ -113,6 +124,41 @@ public class ServuxLitematicsProtocol implements LeavesProtocol {
                 }
                 handleClientPasteRequest(player, compoundTag);
             }
+        }
+    }
+
+    public static void onBlockEntityRequest(ServerPlayer player, BlockPos pos) {
+        if (!hasPermission(player)) {
+            return;
+        }
+        BlockEntity be = player.serverLevel().getBlockEntity(pos);
+        CompoundTag tag = be != null ? be.saveWithFullMetadata(MinecraftServer.getServer().registryAccess()) : new CompoundTag();
+        ServuxLitematicaPayload payload = new ServuxLitematicaPayload(ServuxLitematicaPayloadType.PACKET_S2C_BLOCK_NBT_RESPONSE_SIMPLE);
+        payload.pos = pos;
+        payload.nbt = tag;
+        encodeServerData(player, payload);
+    }
+
+    public static void onEntityRequest(ServerPlayer player, int entityId) {
+        if (!hasPermission(player)) {
+            return;
+        }
+        Entity entity = player.serverLevel().getEntity(entityId);
+        if (entity == null) {
+            return;
+        }
+        CompoundTag tag = new CompoundTag();
+        ServuxLitematicaPayload payload = new ServuxLitematicaPayload(ServuxLitematicaPayloadType.PACKET_S2C_ENTITY_NBT_RESPONSE_SIMPLE);
+        payload.entityId = entityId;
+        if (entity instanceof net.minecraft.world.entity.player.Player) {
+            ResourceLocation loc = EntityType.getKey(entity.getType());
+            tag = entity.saveWithoutId(tag);
+            tag.putString("id", loc.toString());
+            payload.nbt = tag;
+            encodeServerData(player, payload);
+        } else if (entity.saveAsPassenger(tag)) {
+            payload.nbt = tag;
+            encodeServerData(player, payload);
         }
     }
 
@@ -178,23 +224,31 @@ public class ServuxLitematicsProtocol implements LeavesProtocol {
     }
 
     public static void handleClientPasteRequest(ServerPlayer player, @NotNull CompoundTag tags) {
+        if (!hasPermission(player)) {
+            player.getBukkitEntity().sendActionBar(Component.text("Insufficient Permissions for the Litematic paste operation", NamedTextColor.RED));
+            return;
+        }
+        if (!player.isCreative()) {
+            player.getBukkitEntity().sendActionBar(Component.text("Creative Mode is required for the Litematic paste operation", NamedTextColor.RED));
+            return;
+        }
+
         if (tags.getStringOr("Task", "").equals("LitematicaPaste")) {
             ServuxProtocol.LOGGER.debug("litematic_data: Servux Paste request from player {}", player.getName().getString());
             ServerLevel serverLevel = player.serverLevel();
             long timeStart = System.currentTimeMillis();
             SchematicPlacement placement = SchematicPlacement.createFromNbt(tags);
             ReplaceBehavior replaceMode = ReplaceBehavior.fromStringStatic(tags.getStringOr("ReplaceMode", ReplaceBehavior.NONE.name()));
-            MinecraftServer server = MinecraftServer.getServer();
-            server.scheduleOnMain(() -> {
+            MinecraftServer.getServer().scheduleOnMain(() -> {
                 placement.pasteTo(serverLevel, replaceMode);
                 long timeElapsed = System.currentTimeMillis() - timeStart;
                 player.getBukkitEntity().sendActionBar(
                     Component.text("Pasted ")
-                        .append(Component.text(placement.getName()).color(NamedTextColor.AQUA))
+                        .append(Component.text(placement.getName(), NamedTextColor.AQUA))
                         .append(Component.text(" to world "))
-                        .append(Component.text(serverLevel.serverLevelData.getLevelName()).color(NamedTextColor.LIGHT_PURPLE))
+                        .append(Component.text(serverLevel.serverLevelData.getLevelName(), NamedTextColor.LIGHT_PURPLE))
                         .append(Component.text(" in "))
-                        .append(Component.text(timeElapsed).color(NamedTextColor.GREEN))
+                        .append(Component.text(timeElapsed, NamedTextColor.GREEN))
                         .append(Component.text("ms"))
                 );
             });

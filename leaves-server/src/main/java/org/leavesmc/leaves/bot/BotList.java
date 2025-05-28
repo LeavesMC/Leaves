@@ -181,10 +181,6 @@ public class BotList {
             bot.removeTaskId = -1;
         }
 
-        if (this.server.isSameThread()) {
-            bot.doTick();
-        }
-
         if (event.shouldSave()) {
             playerIO.save(bot);
         } else {
@@ -224,6 +220,8 @@ public class BotList {
                 player.connection.send(new ClientboundRemoveEntitiesPacket(bot.getId()));
             }
         }
+
+        bot.discard();
 
         net.kyori.adventure.text.Component removeMessage = event.removeMessage();
         if (removeMessage != null && !removeMessage.equals(net.kyori.adventure.text.Component.empty())) {

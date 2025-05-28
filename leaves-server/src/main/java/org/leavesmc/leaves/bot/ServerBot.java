@@ -27,6 +27,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.damagesource.DamageSources;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.PositionMoveRotation;
@@ -157,6 +158,11 @@ public class ServerBot extends ServerPlayer {
 
     @Override
     public void doTick() {
+        if (this.isDeadOrDying() || this.isRemoved()) {
+            die(this.damageSources().generic());
+            return;
+        }
+
         this.absSnapTo(this.getX(), this.getY(), this.getZ(), this.getYRot(), this.getXRot());
 
         if (this.isPassenger()) {

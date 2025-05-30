@@ -175,7 +175,7 @@ public abstract class Display {
                 EntryIngredient.ofIngredient(recipeHolder.value().baseIngredient()),
                 recipeHolder.value().additionIngredient().map(EntryIngredient::ofIngredient).orElse(EntryIngredient.empty())
             ),
-            List.of(EntryIngredient.of(recipeHolder.value().getResult())),
+            List.of(ofSlotDisplay(recipeHolder.value().getResult())),
             SmithingDisplay.SmithingRecipeType.TRANSFORM,
             recipeHolder.id().location()
         );

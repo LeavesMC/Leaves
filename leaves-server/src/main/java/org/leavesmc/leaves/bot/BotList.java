@@ -184,7 +184,7 @@ public class BotList {
         if (event.shouldSave()) {
             playerIO.save(bot);
         } else {
-            bot.dropAll();
+            bot.dropAll(true);
         }
 
         if (bot.isPassenger() && event.shouldSave()) {

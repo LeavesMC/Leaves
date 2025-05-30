@@ -11,7 +11,7 @@ public class DropAction extends AbstractTimerAction<DropAction> {
 
     @Override
     public boolean doTick(@NotNull ServerBot bot) {
-        bot.dropAll();
+        bot.dropAll(false);
         return true;
     }
 }

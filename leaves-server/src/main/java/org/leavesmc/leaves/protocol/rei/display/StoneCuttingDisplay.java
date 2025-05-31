@@ -43,6 +43,11 @@ public class StoneCuttingDisplay extends Display {
         );
     }
 
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    private static StoneCuttingDisplay of(@NotNull List<EntryIngredient> inputs, @NotNull List<EntryIngredient> outputs, @NotNull Optional<ResourceLocation> id) {
+        throw new UnsupportedOperationException();
+    }
+
     @Override
     public ResourceLocation getSerializerId() {
         return SERIALIZER_ID;
@@ -51,10 +56,5 @@ public class StoneCuttingDisplay extends Display {
     @Override
     public StreamCodec<RegistryFriendlyByteBuf, StoneCuttingDisplay> streamCodec() {
         return CODEC;
-    }
-
-    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    private static StoneCuttingDisplay of(@NotNull List<EntryIngredient> inputs, @NotNull List<EntryIngredient> outputs, @NotNull Optional<ResourceLocation> id) {
-        throw new UnsupportedOperationException();
     }
 }

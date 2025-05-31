@@ -14,12 +14,12 @@ public class ShearsToolHandler {
 
     private final List<ItemStack> tools;
 
-    public static ShearsToolHandler getInstance() {
-        return INSTANCE;
-    }
-
     public ShearsToolHandler() {
         this.tools = List.of(Items.SHEARS.getDefaultInstance());
+    }
+
+    public static ShearsToolHandler getInstance() {
+        return INSTANCE;
     }
 
     public ItemStack test(BlockState state) {

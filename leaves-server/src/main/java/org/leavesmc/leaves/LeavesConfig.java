@@ -20,6 +20,7 @@ import org.leavesmc.leaves.config.ConfigValidatorImpl.IntConfigValidator;
 import org.leavesmc.leaves.config.ConfigValidatorImpl.ListConfigValidator;
 import org.leavesmc.leaves.config.ConfigValidatorImpl.StringConfigValidator;
 import org.leavesmc.leaves.config.GlobalConfigManager;
+import org.leavesmc.leaves.config.InternalConfigProvider;
 import org.leavesmc.leaves.config.annotations.GlobalConfig;
 import org.leavesmc.leaves.config.annotations.GlobalConfigCategory;
 import org.leavesmc.leaves.config.annotations.RemovedConfig;

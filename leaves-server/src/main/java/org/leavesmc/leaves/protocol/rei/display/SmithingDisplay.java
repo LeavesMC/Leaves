@@ -33,20 +33,6 @@ public class SmithingDisplay extends Display {
 
     private final SmithingRecipeType type;
 
-    public Optional<SmithingRecipeType> getOptionalType() {
-        return Optional.of(type);
-    }
-
-    @Override
-    public ResourceLocation getSerializerId() {
-        return SERIALIZER_ID;
-    }
-
-    @Override
-    public StreamCodec<RegistryFriendlyByteBuf, ? extends Display> streamCodec() {
-        return CODEC;
-    }
-
     public SmithingDisplay(
         @NotNull List<EntryIngredient> inputs,
         @NotNull List<EntryIngredient> outputs,
@@ -62,6 +48,20 @@ public class SmithingDisplay extends Display {
         throw new UnsupportedOperationException();
     }
 
+    public Optional<SmithingRecipeType> getOptionalType() {
+        return Optional.of(type);
+    }
+
+    @Override
+    public ResourceLocation getSerializerId() {
+        return SERIALIZER_ID;
+    }
+
+    @Override
+    public StreamCodec<RegistryFriendlyByteBuf, ? extends Display> streamCodec() {
+        return CODEC;
+    }
+
     public enum SmithingRecipeType {
         TRIM,
         TRANSFORM,
@@ -73,9 +73,7 @@ public class SmithingDisplay extends Display {
     }
 
     public static class Trimming extends SmithingDisplay {
-        private final Holder<TrimPattern> pattern;
-
-        public static final StreamCodec<RegistryFriendlyByteBuf, SmithingDisplay.Trimming> CODEC = StreamCodec.composite(
+        private static final StreamCodec<RegistryFriendlyByteBuf, SmithingDisplay.Trimming> CODEC = StreamCodec.composite(
             EntryIngredient.CODEC.apply(ByteBufCodecs.list()),
             SmithingDisplay.Trimming::getInputEntries,
             EntryIngredient.CODEC.apply(ByteBufCodecs.list()),
@@ -88,6 +86,10 @@ public class SmithingDisplay extends Display {
             SmithingDisplay.Trimming::pattern,
             SmithingDisplay.Trimming::of
         );
+
+        private static final ResourceLocation SERIALIZER_ID = ResourceLocation.tryBuild("minecraft", "default/smithing/trimming");
+
+        private final Holder<TrimPattern> pattern;
 
         public Trimming(
             @NotNull List<EntryIngredient> inputs,
@@ -103,6 +105,16 @@ public class SmithingDisplay extends Display {
         @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
         public static Trimming of(List<EntryIngredient> inputs, List<EntryIngredient> outputs, Optional<SmithingRecipeType> type, Optional<ResourceLocation> location, Holder<TrimPattern> pattern) {
             throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public ResourceLocation getSerializerId() {
+            return SERIALIZER_ID;
+        }
+
+        @Override
+        public StreamCodec<RegistryFriendlyByteBuf, ? extends Display> streamCodec() {
+            return CODEC;
         }
 
         public Holder<TrimPattern> pattern() {

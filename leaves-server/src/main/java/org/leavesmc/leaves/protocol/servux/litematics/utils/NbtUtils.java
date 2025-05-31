@@ -5,7 +5,6 @@ import net.minecraft.core.Vec3i;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.DoubleTag;
 import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -46,14 +45,14 @@ public class NbtUtils {
 
     @Nullable
     public static Vec3 readEntityPositionFromTag(@Nullable CompoundTag tag) {
-        if (tag != null && tag.contains("Pos")) {
-            ListTag tagList = tag.getListOrEmpty("Pos");
-
-            if (tagList.getId() == Tag.TAG_DOUBLE && tagList.size() == 3) {
-                return new Vec3(tagList.getDoubleOr(0, 0.0), tagList.getDoubleOr(1, 0.0), tagList.getDoubleOr(2, 0.0));
-            }
+        if (tag == null || !tag.contains("Pos")) {
+            return null;
         }
-        return null;
+        ListTag tagList = tag.getListOrEmpty("Pos");
+        if (tagList.size() != 3) {
+            return null;
+        }
+        return new Vec3(tagList.getDoubleOr(0, 0.0), tagList.getDoubleOr(1, 0.0), tagList.getDoubleOr(2, 0.0));
     }
 
     @Nullable

@@ -16,9 +16,6 @@ import java.util.List;
 import java.util.Optional;
 
 public abstract class CookingDisplay extends Display {
-    protected float xp;
-    protected double cookTime;
-
     private static final StreamCodec<RegistryFriendlyByteBuf, CookingDisplay> CODEC = StreamCodec.composite(
         EntryIngredient.CODEC.apply(ByteBufCodecs.list()),
         CookingDisplay::getInputEntries,
@@ -32,6 +29,8 @@ public abstract class CookingDisplay extends Display {
         CookingDisplay::getCookTime,
         CookingDisplay::of
     );
+    protected float xp;
+    protected double cookTime;
 
     private CookingDisplay(@NotNull List<EntryIngredient> inputs, @NotNull List<EntryIngredient> outputs, @NotNull ResourceLocation id, float xp, double cookTime) {
         super(inputs, outputs, id);
@@ -49,6 +48,11 @@ public abstract class CookingDisplay extends Display {
         );
     }
 
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    private static CookingDisplay of(@NotNull List<EntryIngredient> inputs, @NotNull List<EntryIngredient> outputs, @NotNull Optional<ResourceLocation> id, float xp, double cookTime) {
+        throw new UnsupportedOperationException();
+    }
+
     public float getXp() {
         return xp;
     }
@@ -59,10 +63,5 @@ public abstract class CookingDisplay extends Display {
 
     public StreamCodec<RegistryFriendlyByteBuf, CookingDisplay> streamCodec() {
         return CODEC;
-    }
-
-    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    private static CookingDisplay of(@NotNull List<EntryIngredient> inputs, @NotNull List<EntryIngredient> outputs, @NotNull Optional<ResourceLocation> id, float xp, double cookTime) {
-        throw new UnsupportedOperationException();
     }
 }

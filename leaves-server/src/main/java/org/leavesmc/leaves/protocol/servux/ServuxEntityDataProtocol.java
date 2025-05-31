@@ -5,6 +5,7 @@ import net.minecraft.Util;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -24,29 +25,20 @@ import java.util.UUID;
 
 // Powered by Servux(https://github.com/sakura-ryoko/servux)
 
-@LeavesProtocol(namespace = "servux")
-public class ServuxEntityDataProtocol {
+@LeavesProtocol.Register(namespace = "servux")
+public class ServuxEntityDataProtocol implements LeavesProtocol {
 
-    public static final ResourceLocation CHANNEL = ServuxProtocol.id("entity_data");
     public static final int PROTOCOL_VERSION = 1;
 
     private static final Map<UUID, Long> readingSessionKeys = new HashMap<>();
 
     @ProtocolHandler.PlayerJoin
-    public static void onPlayerLoggedIn(ServerPlayer player) {
-        if (!LeavesConfig.protocol.servux.entityProtocol) {
-            return;
-        }
-
+    public static void onPlayerJoin(ServerPlayer player) {
         sendMetadata(player);
     }
 
-    @ProtocolHandler.PayloadReceiver(payload = EntityDataPayload.class, payloadId = "entity_data")
+    @ProtocolHandler.PayloadReceiver(payload = EntityDataPayload.class)
     public static void onPacketReceive(ServerPlayer player, EntityDataPayload payload) {
-        if (!LeavesConfig.protocol.servux.entityProtocol) {
-            return;
-        }
-
         switch (payload.packetType) {
             case PACKET_C2S_METADATA_REQUEST -> sendMetadata(player);
             case PACKET_C2S_BLOCK_ENTITY_REQUEST -> onBlockEntityRequest(player, payload.pos);
@@ -75,7 +67,7 @@ public class ServuxEntityDataProtocol {
     public static void sendMetadata(ServerPlayer player) {
         CompoundTag metadata = new CompoundTag();
         metadata.putString("name", "entity_data");
-        metadata.putString("id", CHANNEL.toString());
+        metadata.putString("id", EntityDataPayload.CHANNEL.toString());
         metadata.putInt("version", PROTOCOL_VERSION);
         metadata.putString("servux", ServuxProtocol.SERVUX_STRING);
 
@@ -109,10 +101,6 @@ public class ServuxEntityDataProtocol {
     }
 
     public static void sendPacket(ServerPlayer player, EntityDataPayload payload) {
-        if (!LeavesConfig.protocol.servux.entityProtocol) {
-            return;
-        }
-
         if (payload.packetType == EntityDataPayloadType.PACKET_S2C_NBT_RESPONSE_START) {
             FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
             buffer.writeNbt(payload.nbt);
@@ -129,6 +117,11 @@ public class ServuxEntityDataProtocol {
         sendPacket(player, payload);
     }
 
+    @Override
+    public boolean isActive() {
+        return LeavesConfig.protocol.servux.entityProtocol;
+    }
+
     public enum EntityDataPayloadType {
         PACKET_S2C_METADATA(1),
         PACKET_C2S_METADATA_REQUEST(2),
@@ -143,10 +136,6 @@ public class ServuxEntityDataProtocol {
         PACKET_C2S_NBT_RESPONSE_START(12),
         PACKET_C2S_NBT_RESPONSE_DATA(13);
 
-        private static final class Helper {
-            static Map<Integer, EntityDataPayloadType> ID_TO_TYPE = new HashMap<>();
-        }
-
         public final int type;
 
         EntityDataPayloadType(int type) {
@@ -157,9 +146,85 @@ public class ServuxEntityDataProtocol {
         public static EntityDataPayloadType fromId(int id) {
             return EntityDataPayloadType.Helper.ID_TO_TYPE.get(id);
         }
+
+        private static final class Helper {
+            static Map<Integer, EntityDataPayloadType> ID_TO_TYPE = new HashMap<>();
+        }
     }
 
-    public static class EntityDataPayload implements LeavesCustomPayload<EntityDataPayload> {
+    public static class EntityDataPayload implements LeavesCustomPayload {
+
+        @ID
+        public static final ResourceLocation CHANNEL = ServuxProtocol.id("entity_data");
+
+        @Codec
+        public static final StreamCodec<FriendlyByteBuf, EntityDataPayload> CODEC = StreamCodec.of(
+            (buf, payload) -> {
+                buf.writeVarInt(payload.packetType.type);
+                switch (payload.packetType) {
+                    case PACKET_C2S_BLOCK_ENTITY_REQUEST -> {
+                        buf.writeVarInt(payload.transactionId);
+                        buf.writeBlockPos(payload.pos);
+                    }
+                    case PACKET_C2S_ENTITY_REQUEST -> {
+                        buf.writeVarInt(payload.transactionId);
+                        buf.writeVarInt(payload.entityId);
+                    }
+                    case PACKET_S2C_BLOCK_NBT_RESPONSE_SIMPLE -> {
+                        buf.writeBlockPos(payload.pos);
+                        buf.writeNbt(payload.nbt);
+                    }
+                    case PACKET_S2C_ENTITY_NBT_RESPONSE_SIMPLE -> {
+                        buf.writeVarInt(payload.entityId);
+                        buf.writeNbt(payload.nbt);
+                    }
+                    case PACKET_S2C_NBT_RESPONSE_DATA, PACKET_C2S_NBT_RESPONSE_DATA -> buf.writeBytes(payload.buffer.readBytes(payload.buffer.readableBytes()));
+                    case PACKET_C2S_METADATA_REQUEST, PACKET_S2C_METADATA -> buf.writeNbt(payload.nbt);
+                }
+            },
+            buf -> {
+                EntityDataPayloadType type = EntityDataPayloadType.fromId(buf.readVarInt());
+                if (type == null) {
+                    throw new IllegalStateException("invalid packet type received");
+                }
+                EntityDataPayload payload = new EntityDataPayload(type);
+                switch (type) {
+                    case PACKET_C2S_BLOCK_ENTITY_REQUEST -> {
+                        buf.readVarInt();
+                        payload.pos = buf.readBlockPos().immutable();
+                    }
+                    case PACKET_C2S_ENTITY_REQUEST -> {
+                        buf.readVarInt();
+                        payload.entityId = buf.readVarInt();
+                    }
+                    case PACKET_S2C_BLOCK_NBT_RESPONSE_SIMPLE -> {
+                        payload.pos = buf.readBlockPos().immutable();
+                        CompoundTag nbt = buf.readNbt();
+                        if (nbt != null) {
+                            payload.nbt.merge(nbt);
+                        }
+                    }
+                    case PACKET_S2C_ENTITY_NBT_RESPONSE_SIMPLE -> {
+                        payload.entityId = buf.readVarInt();
+                        CompoundTag nbt = buf.readNbt();
+                        if (nbt != null) {
+                            payload.nbt.merge(nbt);
+                        }
+                    }
+                    case PACKET_S2C_NBT_RESPONSE_DATA, PACKET_C2S_NBT_RESPONSE_DATA -> {
+                        payload.buffer = new FriendlyByteBuf(buf.readBytes(buf.readableBytes()));
+                        payload.nbt = new CompoundTag();
+                    }
+                    case PACKET_C2S_METADATA_REQUEST, PACKET_S2C_METADATA -> {
+                        CompoundTag nbt = buf.readNbt();
+                        if (nbt != null) {
+                            payload.nbt.merge(nbt);
+                        }
+                    }
+                }
+                return payload;
+            }
+        );
 
         private final EntityDataPayloadType packetType;
         private final int transactionId;
@@ -182,97 +247,6 @@ public class ServuxEntityDataProtocol {
                 this.buffer.clear();
                 this.buffer = new FriendlyByteBuf(Unpooled.buffer());
             }
-        }
-
-        @New
-        public static EntityDataPayload decode(ResourceLocation location, FriendlyByteBuf buffer) {
-            EntityDataPayloadType type = EntityDataPayloadType.fromId(buffer.readVarInt());
-            if (type == null) {
-                throw new IllegalStateException("invalid packet type received");
-            }
-
-            EntityDataPayload payload = new EntityDataPayload(type);
-            switch (type) {
-                case PACKET_C2S_BLOCK_ENTITY_REQUEST -> {
-                    buffer.readVarInt();
-                    payload.pos = buffer.readBlockPos().immutable();
-                }
-
-                case PACKET_C2S_ENTITY_REQUEST -> {
-                    buffer.readVarInt();
-                    payload.entityId = buffer.readVarInt();
-                }
-
-                case PACKET_S2C_BLOCK_NBT_RESPONSE_SIMPLE -> {
-                    payload.pos = buffer.readBlockPos().immutable();
-                    CompoundTag nbt = buffer.readNbt();
-                    if (nbt != null) {
-                        payload.nbt.merge(nbt);
-                    }
-                }
-
-                case PACKET_S2C_ENTITY_NBT_RESPONSE_SIMPLE -> {
-                    payload.entityId = buffer.readVarInt();
-                    CompoundTag nbt = buffer.readNbt();
-                    if (nbt != null) {
-                        payload.nbt.merge(nbt);
-                    }
-                }
-
-                case PACKET_S2C_NBT_RESPONSE_DATA, PACKET_C2S_NBT_RESPONSE_DATA -> {
-                    payload.buffer = new FriendlyByteBuf(buffer.readBytes(buffer.readableBytes()));
-                    payload.nbt = new CompoundTag();
-                }
-
-                case PACKET_C2S_METADATA_REQUEST, PACKET_S2C_METADATA -> {
-                    CompoundTag nbt = buffer.readNbt();
-                    if (nbt != null) {
-                        payload.nbt.merge(nbt);
-                    }
-                }
-            }
-
-            return payload;
-        }
-
-        @Override
-        public void write(FriendlyByteBuf buf) {
-            buf.writeVarInt(this.packetType.type);
-
-            switch (this.packetType) {
-                case PACKET_C2S_BLOCK_ENTITY_REQUEST -> {
-                    buf.writeVarInt(this.transactionId);
-                    buf.writeBlockPos(this.pos);
-                }
-
-                case PACKET_C2S_ENTITY_REQUEST -> {
-                    buf.writeVarInt(this.transactionId);
-                    buf.writeVarInt(this.entityId);
-                }
-
-                case PACKET_S2C_BLOCK_NBT_RESPONSE_SIMPLE -> {
-                    buf.writeBlockPos(this.pos);
-                    buf.writeNbt(this.nbt);
-                }
-
-                case PACKET_S2C_ENTITY_NBT_RESPONSE_SIMPLE -> {
-                    buf.writeVarInt(this.entityId);
-                    buf.writeNbt(this.nbt);
-                }
-
-                case PACKET_S2C_NBT_RESPONSE_DATA, PACKET_C2S_NBT_RESPONSE_DATA -> {
-                    buf.writeBytes(this.buffer.readBytes(this.buffer.readableBytes()));
-                }
-
-                case PACKET_C2S_METADATA_REQUEST, PACKET_S2C_METADATA -> {
-                    buf.writeNbt(this.nbt);
-                }
-            }
-        }
-
-        @Override
-        public ResourceLocation id() {
-            return CHANNEL;
         }
     }
 }

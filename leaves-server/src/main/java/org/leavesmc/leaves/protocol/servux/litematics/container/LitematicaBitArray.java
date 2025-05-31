@@ -37,6 +37,22 @@ public class LitematicaBitArray {
         this.longArray = Objects.requireNonNullElseGet(longArrayIn, () -> new long[(int) (roundUp(arraySizeIn * bitsPerEntryIn, 64L) / 64L)]);
     }
 
+    public static long roundUp(long value, long interval) {
+        if (interval == 0L) {
+            return 0L;
+        } else if (value == 0L) {
+            return interval;
+        } else {
+            if (value < 0L) {
+                interval *= -1L;
+            }
+
+            long remainder = value % interval;
+
+            return remainder == 0L ? value : value + interval - remainder;
+        }
+    }
+
     public void setAt(long index, int value) {
         long startOffset = index * (long) this.bitsPerEntry;
         int startArrIndex = (int) (startOffset >> 6); // startOffset / 64
@@ -67,21 +83,5 @@ public class LitematicaBitArray {
 
     public long size() {
         return this.arraySize;
-    }
-
-    public static long roundUp(long value, long interval) {
-        if (interval == 0L) {
-            return 0L;
-        } else if (value == 0L) {
-            return interval;
-        } else {
-            if (value < 0L) {
-                interval *= -1L;
-            }
-
-            long remainder = value % interval;
-
-            return remainder == 0L ? value : value + interval - remainder;
-        }
     }
 }

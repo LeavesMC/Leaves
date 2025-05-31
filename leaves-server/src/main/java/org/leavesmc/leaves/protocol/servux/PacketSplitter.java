@@ -67,6 +67,10 @@ public class PacketSplitter {
         return READING_SESSIONS.computeIfAbsent(key, ReadingSession::new).receive(buf, maxLength);
     }
 
+    public interface IPacketSplitterHandler {
+        void encode(ServerPlayer player, FriendlyByteBuf buf);
+    }
+
     /**
      * I had to fix the `Pair.of` key mappings, because they were removed from MC;
      * So I made it into a pre-shared random session 'key' between client and server.
@@ -109,9 +113,5 @@ public class PacketSplitter {
 
             return null;
         }
-    }
-
-    public interface IPacketSplitterHandler {
-        void encode(ServerPlayer player, FriendlyByteBuf buf);
     }
 }

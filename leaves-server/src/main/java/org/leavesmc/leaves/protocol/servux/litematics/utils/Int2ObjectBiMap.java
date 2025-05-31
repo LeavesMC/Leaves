@@ -36,6 +36,14 @@ public class Int2ObjectBiMap<K> implements Iterable<K> {
         return new Int2ObjectBiMap<>((int) ((float) expectedSize / 0.8F));
     }
 
+    private static int idealHash(int value) {
+        value ^= value >>> 16;
+        value *= -2048144789;
+        value ^= value >>> 13;
+        value *= -1028477387;
+        return value ^ value >>> 16;
+    }
+
     public int getRawId(@Nullable K value) {
         return this.getIdFromIndex(this.findIndex(value, this.getIdealIndex(value)));
     }
@@ -109,14 +117,6 @@ public class Int2ObjectBiMap<K> implements Iterable<K> {
         if (id == this.nextId) {
             this.nextId++;
         }
-    }
-
-    private static int idealHash(int value) {
-        value ^= value >>> 16;
-        value *= -2048144789;
-        value ^= value >>> 13;
-        value *= -1028477387;
-        return value ^ value >>> 16;
     }
 
     private int getIdealIndex(@Nullable K value) {

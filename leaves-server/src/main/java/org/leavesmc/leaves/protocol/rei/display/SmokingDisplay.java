@@ -5,11 +5,11 @@ import net.minecraft.world.item.crafting.AbstractCookingRecipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
 
 public class SmokingDisplay extends CookingDisplay {
+    private static final ResourceLocation SERIALIZER_ID = ResourceLocation.tryBuild("minecraft", "default/smoking");
+
     public SmokingDisplay(RecipeHolder<? extends AbstractCookingRecipe> recipe) {
         super(recipe);
     }
-
-    private static final ResourceLocation SERIALIZER_ID = ResourceLocation.tryBuild("minecraft", "default/smoking");
 
     @Override
     public ResourceLocation getSerializerId() {

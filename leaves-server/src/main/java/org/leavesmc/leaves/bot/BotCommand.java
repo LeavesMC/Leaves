@@ -23,7 +23,6 @@ import org.leavesmc.leaves.bot.subcommands.BotListCommand;
 import org.leavesmc.leaves.bot.subcommands.BotLoadCommand;
 import org.leavesmc.leaves.bot.subcommands.BotRemoveCommand;
 import org.leavesmc.leaves.bot.subcommands.BotSaveCommand;
-import org.leavesmc.leaves.bot.subcommands.BotTeleportCommand;
 import org.leavesmc.leaves.command.LeavesCommandUtil;
 import org.leavesmc.leaves.command.LeavesSubcommand;
 import org.leavesmc.leaves.command.LeavesSuggestionCommand;
@@ -65,7 +64,6 @@ public class BotCommand extends Command implements LeavesSuggestionCommand {
         commands.put(Set.of("save"), new BotSaveCommand());
         commands.put(Set.of("load"), new BotLoadCommand());
         commands.put(Set.of("list"), new BotListCommand());
-        commands.put(Set.of("teleport", "tp"), new BotTeleportCommand());
 
         return commands.entrySet().stream()
             .flatMap(entry -> entry.getKey().stream().map(s -> Map.entry(s, entry.getValue())))

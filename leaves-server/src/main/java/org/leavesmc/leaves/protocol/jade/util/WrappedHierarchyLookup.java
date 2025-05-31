@@ -1,6 +1,8 @@
 package org.leavesmc.leaves.protocol.jade.util;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.Block;
 import org.apache.commons.lang3.tuple.Pair;
@@ -13,6 +15,7 @@ import org.leavesmc.leaves.protocol.jade.provider.IJadeProvider;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -38,15 +41,15 @@ public class WrappedHierarchyLookup<T extends IJadeProvider> extends HierarchyLo
     }
 
     public List<T> wrappedGet(Accessor<?> accessor) {
-        List<T> list = Lists.newArrayList();
+        Set<T> set = Sets.newLinkedHashSet();
         for (var override : overrides) {
             Object o = override.getRight().apply(accessor);
             if (o != null) {
-                list.addAll(override.getLeft().get(o));
+                set.addAll(override.getLeft().get(o));
             }
         }
-        list.addAll(get(accessor.getTarget()));
-        return list;
+        set.addAll(get(accessor.getTarget()));
+        return ImmutableList.sortedCopyOf(COMPARATOR, set);
     }
 
     @Override

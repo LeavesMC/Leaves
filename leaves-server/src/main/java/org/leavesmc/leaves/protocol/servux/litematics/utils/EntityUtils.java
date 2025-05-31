@@ -46,11 +46,11 @@ public class EntityUtils {
         if (entity == null) {
             return null;
         }
-        if (nbt.contains("Passengers", Tag.TAG_LIST)) {
-            ListTag tagList = nbt.getList("Passengers", Tag.TAG_LIST);
+        if (nbt.contains("Passengers")) {
+            ListTag tagList = nbt.getListOrEmpty("Passengers");
 
             for (int i = 0; i < tagList.size(); ++i) {
-                Entity passenger = createEntityAndPassengersFromNBT(tagList.getCompound(i), world);
+                Entity passenger = createEntityAndPassengersFromNBT(tagList.getCompoundOrEmpty(i), world);
 
                 if (passenger != null) {
                     passenger.startRiding(entity, true);
@@ -65,7 +65,7 @@ public class EntityUtils {
         ImmutableList<Entity> passengers = entity.passengers;
         if (world.addFreshEntity(entity) && !passengers.isEmpty()) {
             for (Entity passenger : passengers) {
-                passenger.absMoveTo(
+                passenger.snapTo(
                     entity.getX(),
                     entity.getY() + entity.getPassengerRidingPosition(passenger).y(),
                     entity.getZ(),

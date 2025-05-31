@@ -21,6 +21,11 @@ public class PlayerOperationLimitEvent extends PlayerEvent {
         this.operation = operation;
     }
 
+    @NotNull
+    public static HandlerList getHandlerList() {
+        return handlers;
+    }
+
     /**
      * Gets the operated block
      *
@@ -42,11 +47,6 @@ public class PlayerOperationLimitEvent extends PlayerEvent {
     @NotNull
     @Override
     public HandlerList getHandlers() {
-        return handlers;
-    }
-
-    @NotNull
-    public static HandlerList getHandlerList() {
         return handlers;
     }
 

@@ -18,6 +18,7 @@ import net.minecraft.world.entity.animal.Chicken;
 import net.minecraft.world.entity.animal.allay.Allay;
 import net.minecraft.world.entity.animal.armadillo.Armadillo;
 import net.minecraft.world.entity.animal.frog.Tadpole;
+import net.minecraft.world.entity.animal.sniffer.Sniffer;
 import net.minecraft.world.entity.monster.ZombieVillager;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -55,6 +56,7 @@ import org.leavesmc.leaves.protocol.jade.provider.IServerExtensionProvider;
 import org.leavesmc.leaves.protocol.jade.provider.ItemStorageExtensionProvider;
 import org.leavesmc.leaves.protocol.jade.provider.ItemStorageProvider;
 import org.leavesmc.leaves.protocol.jade.provider.block.BeehiveProvider;
+import org.leavesmc.leaves.protocol.jade.provider.block.BlockNameProvider;
 import org.leavesmc.leaves.protocol.jade.provider.block.BrewingStandProvider;
 import org.leavesmc.leaves.protocol.jade.provider.block.CampfireProvider;
 import org.leavesmc.leaves.protocol.jade.provider.block.ChiseledBookshelfProvider;
@@ -64,7 +66,6 @@ import org.leavesmc.leaves.protocol.jade.provider.block.HopperLockProvider;
 import org.leavesmc.leaves.protocol.jade.provider.block.JukeboxProvider;
 import org.leavesmc.leaves.protocol.jade.provider.block.LecternProvider;
 import org.leavesmc.leaves.protocol.jade.provider.block.MobSpawnerCooldownProvider;
-import org.leavesmc.leaves.protocol.jade.provider.block.ObjectNameProvider;
 import org.leavesmc.leaves.protocol.jade.provider.block.RedstoneProvider;
 import org.leavesmc.leaves.protocol.jade.provider.entity.AnimalOwnerProvider;
 import org.leavesmc.leaves.protocol.jade.provider.entity.MobBreedingProvider;
@@ -78,6 +79,7 @@ import org.leavesmc.leaves.protocol.jade.util.LootTableMineableCollector;
 import org.leavesmc.leaves.protocol.jade.util.PairHierarchyLookup;
 import org.leavesmc.leaves.protocol.jade.util.PriorityStore;
 import org.leavesmc.leaves.protocol.jade.util.WrappedHierarchyLookup;
+import org.leavesmc.leaves.protocol.servux.litematics.utils.NbtUtils;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -113,7 +115,7 @@ public class JadeProtocol {
         priorities = new PriorityStore<>(IJadeProvider::getDefaultPriority, IJadeProvider::getUid);
 
         // core plugin
-        blockDataProviders.register(BlockEntity.class, ObjectNameProvider.ForBlock.INSTANCE);
+        blockDataProviders.register(BlockEntity.class, BlockNameProvider.INSTANCE);
 
         // universal plugin
         entityDataProviders.register(Entity.class, ItemStorageProvider.getEntity());
@@ -133,6 +135,7 @@ public class JadeProtocol {
 
         entityDataProviders.register(Chicken.class, NextEntityDropProvider.INSTANCE);
         entityDataProviders.register(Armadillo.class, NextEntityDropProvider.INSTANCE);
+        entityDataProviders.register(Sniffer.class, NextEntityDropProvider.INSTANCE);
 
         entityDataProviders.register(ZombieVillager.class, ZombieVillagerProvider.INSTANCE);
 
@@ -150,9 +153,10 @@ public class JadeProtocol {
         blockDataProviders.register(ChiseledBookShelfBlockEntity.class, ChiseledBookshelfProvider.INSTANCE);
         blockDataProviders.register(TrialSpawnerBlockEntity.class, MobSpawnerCooldownProvider.INSTANCE);
 
+        itemStorageProviders.register(CampfireBlock.class, CampfireProvider.INSTANCE);
+
         blockDataProviders.idMapped();
         entityDataProviders.idMapped();
-        itemStorageProviders.register(CampfireBlock.class, CampfireProvider.INSTANCE);
 
         blockDataProviders.loadComplete(priorities);
         entityDataProviders.loadComplete(priorities);
@@ -263,9 +267,7 @@ public class JadeProtocol {
                     LeavesLogger.LOGGER.warning("Error while saving data for block " + accessor.getBlockState());
                 }
             }
-            tag.putInt("x", pos.getX());
-            tag.putInt("y", pos.getY());
-            tag.putInt("z", pos.getZ());
+            NbtUtils.writeBlockPosToTag(pos, tag);
             tag.putString("BlockId", BuiltInRegistries.BLOCK.getKey(block).toString());
 
             ProtocolUtils.sendPayloadPacket(player, new ReceiveDataPayload(tag));

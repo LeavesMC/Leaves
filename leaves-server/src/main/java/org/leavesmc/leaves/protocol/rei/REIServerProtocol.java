@@ -16,7 +16,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.SmithingTemplateItem;
 import net.minecraft.world.item.crafting.FireworkRocketRecipe;
 import net.minecraft.world.item.crafting.MapCloningRecipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
@@ -24,6 +23,7 @@ import net.minecraft.world.item.crafting.RecipeMap;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.item.crafting.ShapedRecipe;
 import net.minecraft.world.item.crafting.ShapelessRecipe;
+import net.minecraft.world.item.crafting.SmithingTransformRecipe;
 import net.minecraft.world.item.crafting.SmithingTrimRecipe;
 import net.minecraft.world.item.crafting.TippedArrowRecipe;
 import net.minecraft.world.item.crafting.TransmuteRecipe;
@@ -153,7 +153,7 @@ public class REIServerProtocol {
         recipeMap.byType(RecipeType.SMITHING).forEach(holder -> {
             switch (holder.value()) {
                 case SmithingTrimRecipe ignored -> builder.addAll(Display.ofSmithingTrimRecipe((RecipeHolder) holder));
-                case SmithingTemplateItem ignored -> builder.add(Display.ofTransforming((RecipeHolder) holder));
+                case SmithingTransformRecipe ignored -> builder.add(Display.ofTransforming((RecipeHolder) holder));
                 default -> {
                 }
             }
@@ -290,7 +290,7 @@ public class REIServerProtocol {
             int hotbarSlotId = tmpBuf.readVarInt();
             if (hotbarSlotId >= 0 && hotbarSlotId < 9) {
                 AbstractContainerMenu menu = player.containerMenu;
-                player.getInventory().items.set(hotbarSlotId, stack.copy());
+                player.getInventory().getNonEquipmentItems().set(hotbarSlotId, stack.copy());
                 menu.broadcastChanges();
                 RegistryFriendlyByteBuf s2cWholeBuf = ProtocolUtils.decorate(Unpooled.buffer());
                 s2cWholeBuf.writeJsonWithCodec(ItemStack.OPTIONAL_CODEC, stack.copy());

@@ -14,27 +14,23 @@ import org.jetbrains.annotations.Nullable;
 public class BotCreateEvent extends Event implements Cancellable {
 
     private static final HandlerList handlers = new HandlerList();
-
-    public enum CreateReason {
-        COMMAND,
-        PLUGIN,
-        INTERNAL,
-        UNKNOWN,
-    }
-
     private final String bot;
     private final String skin;
     private final CreateReason reason;
     private final CommandSender creator;
     private Location createLocation;
     private boolean cancel = false;
-
     public BotCreateEvent(@NotNull final String who, @NotNull final String skin, @NotNull final Location createLocation, @NotNull CreateReason reason, @Nullable CommandSender creator) {
         this.bot = who;
         this.skin = skin;
         this.createLocation = createLocation;
         this.reason = reason;
         this.creator = creator;
+    }
+
+    @NotNull
+    public static HandlerList getHandlerList() {
+        return handlers;
     }
 
     /**
@@ -112,8 +108,10 @@ public class BotCreateEvent extends Event implements Cancellable {
         return handlers;
     }
 
-    @NotNull
-    public static HandlerList getHandlerList() {
-        return handlers;
+    public enum CreateReason {
+        COMMAND,
+        PLUGIN,
+        INTERNAL,
+        UNKNOWN,
     }
 }

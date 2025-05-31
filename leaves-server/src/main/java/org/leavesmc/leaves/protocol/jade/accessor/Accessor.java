@@ -9,7 +9,6 @@ import net.minecraft.world.phys.HitResult;
 import org.jetbrains.annotations.Nullable;
 
 public interface Accessor<T extends HitResult> {
-
     Level getLevel();
 
     Player getPlayer();
@@ -18,15 +17,6 @@ public interface Accessor<T extends HitResult> {
 
     T getHitResult();
 
-    /**
-     * @return {@code true} if the dedicated server has Jade installed.
-     */
-    boolean isServerConnected();
-
-    boolean showDetails();
-
     @Nullable
     Object getTarget();
-
-    float tickRate();
 }

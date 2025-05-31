@@ -50,7 +50,7 @@ public class BotLoadCommand implements LeavesSubcommand {
         BotList botList = BotList.INSTANCE;
 
         if (args.length <= 1) {
-            list.addAll(botList.getSavedBotList().getAllKeys());
+            list.addAll(botList.getSavedBotList().keySet());
         }
 
         return list;

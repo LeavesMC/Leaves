@@ -12,14 +12,18 @@ public class BotConfigModifyEvent extends BotEvent implements Cancellable {
 
     private final String configName;
     private final String[] configValue;
-    private boolean cancel;
     private final CommandSender sender;
+    private boolean cancel;
 
     public BotConfigModifyEvent(@NotNull Bot who, String configName, String[] configValue, CommandSender sender) {
         super(who);
         this.configName = configName;
         this.configValue = configValue;
         this.sender = sender;
+    }
+
+    public static HandlerList getHandlerList() {
+        return handlers;
     }
 
     @NotNull
@@ -44,10 +48,6 @@ public class BotConfigModifyEvent extends BotEvent implements Cancellable {
 
     @Override
     public @NotNull HandlerList getHandlers() {
-        return handlers;
-    }
-
-    public static HandlerList getHandlerList() {
         return handlers;
     }
 }

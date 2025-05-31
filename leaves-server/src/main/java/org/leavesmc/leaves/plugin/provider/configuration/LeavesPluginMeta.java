@@ -1,3 +1,4 @@
+// This file is licensed under the MIT license.
 package org.leavesmc.leaves.plugin.provider.configuration;
 
 import com.google.common.collect.ImmutableList;
@@ -11,9 +12,9 @@ import io.papermc.paper.plugin.provider.configuration.serializer.PermissionConfi
 import io.papermc.paper.plugin.provider.configuration.serializer.constraints.PluginConfigConstraints;
 import io.papermc.paper.plugin.provider.configuration.type.PermissionConfiguration;
 import org.bukkit.craftbukkit.util.ApiVersion;
-import org.spongepowered.configurate.CommentedConfigurationNode;
 import org.spongepowered.configurate.ConfigurateException;
-import org.spongepowered.configurate.hocon.HoconConfigurationLoader;
+import org.spongepowered.configurate.ConfigurationNode;
+import org.spongepowered.configurate.gson.GsonConfigurationLoader;
 import org.spongepowered.configurate.objectmapping.ConfigSerializable;
 import org.spongepowered.configurate.objectmapping.ObjectMapper;
 import org.spongepowered.configurate.serialize.ScalarSerializer;
@@ -21,19 +22,17 @@ import org.spongepowered.configurate.serialize.SerializationException;
 
 import java.io.BufferedReader;
 import java.lang.reflect.Type;
-import java.util.List;
 import java.util.function.Predicate;
 
+@SuppressWarnings("FieldMayBeFinal")
 @ConfigSerializable
 public class LeavesPluginMeta extends PaperPluginMeta {
-    private List<String> mixins;
-    static final ApiVersion MINIMUM = ApiVersion.getOrCreateVersion("1.21");
+    private FeaturesConfiguration features = new FeaturesConfiguration();
+    private MixinConfiguration mixin = new MixinConfiguration();
+    static final ApiVersion MINIMUM = ApiVersion.getOrCreateVersion("1.21.4");
 
     public static LeavesPluginMeta create(BufferedReader reader) throws ConfigurateException {
-        HoconConfigurationLoader loader = HoconConfigurationLoader.builder()
-            .prettyPrinting(true)
-            .emitComments(true)
-            .emitJsonCompatible(true)
+        GsonConfigurationLoader loader = GsonConfigurationLoader.builder()
             .source(() -> reader)
             .defaultOptions((options) ->
                 options.serializers((serializers) ->
@@ -70,21 +69,30 @@ public class LeavesPluginMeta extends PaperPluginMeta {
                 )
             )
             .build();
-        CommentedConfigurationNode node = loader.load();
+        ConfigurationNode node = loader.load();
         LegacyPaperMeta.migrate(node);
         LeavesPluginMeta pluginConfiguration = node.require(LeavesPluginMeta.class);
 
-        if (!node.node("author").virtual()) {
-            pluginConfiguration.authors = ImmutableList.<String>builder()
+        var authorNode = node.node("author");
+        if (!authorNode.virtual()) {
+            String author = authorNode.getString();
+            var authorsBuilder = ImmutableList.<String>builder();
+            if (author != null) {
+                authorsBuilder.add(author);
+            }
+            pluginConfiguration.authors = authorsBuilder
                 .addAll(pluginConfiguration.authors)
-                .add(node.node("author").getString())
                 .build();
         }
 
         return pluginConfiguration;
     }
 
-    public List<String> getMixins() {
-        return mixins;
+    public FeaturesConfiguration getFeatures() {
+        return features;
+    }
+
+    public MixinConfiguration getMixin() {
+        return mixin;
     }
 }

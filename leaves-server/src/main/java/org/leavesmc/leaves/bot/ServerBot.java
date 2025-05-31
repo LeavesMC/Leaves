@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableMap;
 import com.mojang.authlib.GameProfile;
 import io.papermc.paper.adventure.PaperAdventure;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.NonNullList;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
@@ -30,6 +31,7 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageSources;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.PositionMoveRotation;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -555,9 +557,22 @@ public class ServerBot extends ServerPlayer {
         return null;
     }
 
-    public void dropAll() {
-        this.getInventory().dropAll();
-        this.equipment.dropAll(this);
+    public void dropAll(boolean death) {
+        NonNullList<ItemStack> items = this.getInventory().getNonEquipmentItems();
+        for (int i = 0; i < items.size(); i++) {
+            ItemStack itemStack = items.get(i);
+            if (!itemStack.isEmpty()) {
+                this.drop(itemStack, death, false);
+                items.set(i, ItemStack.EMPTY);
+            }
+        }
+        for (EquipmentSlot slot : EquipmentSlot.values()) {
+            ItemStack itemStack;
+            if (!(itemStack = this.equipment.get(slot)).isEmpty()) {
+                this.drop(itemStack, death, false);
+                this.equipment.set(slot, ItemStack.EMPTY);
+            }
+        }
         this.detectEquipmentUpdates();
     }
 

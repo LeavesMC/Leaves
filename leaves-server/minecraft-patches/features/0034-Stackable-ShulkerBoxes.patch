@@ -25,41 +25,7 @@ index 643797124fe5a4489d0b7419b7e600c04f283ef2..51971a4ef18ab048dc576c26652982d5
      }
  
      public String serialize(HolderLookup.Provider levelRegistry) {
-diff --git a/net/minecraft/network/protocol/game/ClientboundContainerSetContentPacket.java b/net/minecraft/network/protocol/game/ClientboundContainerSetContentPacket.java
-index f550a87a93b51704b48e9ea25f669bcd930e26e4..988e3bdb8cdb61f4a9d63a3de28dba997c1ee439 100644
---- a/net/minecraft/network/protocol/game/ClientboundContainerSetContentPacket.java
-+++ b/net/minecraft/network/protocol/game/ClientboundContainerSetContentPacket.java
-@@ -19,9 +19,16 @@ public record ClientboundContainerSetContentPacket(int containerId, int stateId,
-         ClientboundContainerSetContentPacket::items,
-         ItemStack.OPTIONAL_STREAM_CODEC,
-         ClientboundContainerSetContentPacket::carriedItem,
--        ClientboundContainerSetContentPacket::new
-+        ClientboundContainerSetContentPacket::create // Leaves - stackable shulker boxes
-     );
- 
-+    // Leaves start - stackable shulker boxes
-+    private static ClientboundContainerSetContentPacket create(int containerId, int stateId, List<ItemStack> items, ItemStack carriedItem) {
-+        items.forEach(org.leavesmc.leaves.util.ShulkerBoxUtils::correctItemStackMaxStackSize);
-+        return new ClientboundContainerSetContentPacket(containerId, stateId, items, carriedItem);
-+    }
-+    // Leaves end - stackable shulker boxes
-+
-     // Paper start - Handle large packets disconnecting client
-     @Override
-     public boolean hasLargePacketFallback() {
-diff --git a/net/minecraft/network/protocol/game/ClientboundContainerSetSlotPacket.java b/net/minecraft/network/protocol/game/ClientboundContainerSetSlotPacket.java
-index c1130f596cf3443eeb62eb1b12587172fe0859ee..ad51ad9f104f8f7238298b025e2d7485aa88a253 100644
---- a/net/minecraft/network/protocol/game/ClientboundContainerSetSlotPacket.java
-+++ b/net/minecraft/network/protocol/game/ClientboundContainerSetSlotPacket.java
-@@ -19,7 +19,7 @@ public class ClientboundContainerSetSlotPacket implements Packet<ClientGamePacke
-         this.containerId = containerId;
-         this.stateId = stateId;
-         this.slot = slot;
--        this.itemStack = itemStack.copy();
-+        this.itemStack = org.leavesmc.leaves.util.ShulkerBoxUtils.correctItemStackMaxStackSize(itemStack.copy()); // Leaves - stackable shulker boxes
-     }
- 
-     private ClientboundContainerSetSlotPacket(RegistryFriendlyByteBuf buffer) {
+
 diff --git a/net/minecraft/server/commands/GiveCommand.java b/net/minecraft/server/commands/GiveCommand.java
 index b81f98738ef166336e4cc3092b6ba63f385b68e3..e800abc1149db77bc9b7ee1aabd17526ebda377c 100644
 --- a/net/minecraft/server/commands/GiveCommand.java
@@ -403,7 +369,7 @@ index 5ceb8964476b40db4511bec91ff13c4f522a1357..371bad86218971d6e031c6d74307b2ab
  
      @Nullable
 diff --git a/net/minecraft/world/item/ItemStack.java b/net/minecraft/world/item/ItemStack.java
-index 24ecca78dc1140b6fc47d59f2acefca6bc2b0220..5671b5a727c13b4034ee71ab20dc1c8d1ad5e991 100644
+index 24ecca78dc1140b6fc47d59f2acefca6bc2b0220..649d17dcd7856e3b1344192d8ea4b2e9f73fc03b 100644
 --- a/net/minecraft/world/item/ItemStack.java
 +++ b/net/minecraft/world/item/ItemStack.java
 @@ -165,7 +165,7 @@ public final class ItemStack implements DataComponentHolder {
@@ -415,14 +381,24 @@ index 24ecca78dc1140b6fc47d59f2acefca6bc2b0220..5671b5a727c13b4034ee71ab20dc1c8d
      @Nullable
      private Entity entityRepresentation;
  
-@@ -201,13 +201,15 @@ public final class ItemStack implements DataComponentHolder {
+@@ -192,7 +192,8 @@ public final class ItemStack implements DataComponentHolder {
+                 } else {
+                     Holder<Item> holder = Item.STREAM_CODEC.decode(buffer);
+                     DataComponentPatch dataComponentPatch = codec.decode(buffer);
+-                    return new ItemStack(holder, varInt, dataComponentPatch);
++                    ItemStack itemStack = new ItemStack(holder, varInt, dataComponentPatch);
++                    return org.leavesmc.leaves.util.ShulkerBoxUtils.decodeMaxStackSize(itemStack);
+                 }
+             }
+ 
+@@ -201,13 +202,15 @@ public final class ItemStack implements DataComponentHolder {
                  if (value.isEmpty() || value.getItem() == null) { // CraftBukkit - NPE fix itemstack.getItem()
                      buffer.writeVarInt(0);
                  } else {
 -                    buffer.writeVarInt(io.papermc.paper.util.sanitizer.ItemComponentSanitizer.sanitizeCount(io.papermc.paper.util.sanitizer.ItemObfuscationSession.currentSession(), value, value.getCount())); // Paper - potentially sanitize count
 -                    Item.STREAM_CODEC.encode(buffer, value.getItemHolder());
 +                    // Leaves start - stackable shulker boxes
-+                    final ItemStack itemStack = org.leavesmc.leaves.util.ShulkerBoxUtils.correctItemStackMaxStackSize(value.copy());
++                    final ItemStack itemStack = org.leavesmc.leaves.util.ShulkerBoxUtils.encodeMaxStackSize(value.copy());
 +                    buffer.writeVarInt(io.papermc.paper.util.sanitizer.ItemComponentSanitizer.sanitizeCount(io.papermc.paper.util.sanitizer.ItemObfuscationSession.currentSession(), itemStack, itemStack.getCount())); // Paper - potentially sanitize count
 +                    Item.STREAM_CODEC.encode(buffer, itemStack.getItemHolder());
                      // Paper start - adventure; conditionally render translatable components
@@ -435,7 +411,7 @@ index 24ecca78dc1140b6fc47d59f2acefca6bc2b0220..5671b5a727c13b4034ee71ab20dc1c8d
                      } finally {
                          net.minecraft.network.chat.ComponentSerialization.DONT_RENDER_TRANSLATABLES.set(prev);
                      }
-@@ -302,7 +304,7 @@ public final class ItemStack implements DataComponentHolder {
+@@ -302,7 +305,7 @@ public final class ItemStack implements DataComponentHolder {
  
              for (ItemStack itemStack : itemContainerContents.nonEmptyItems()) {
                  int count = itemStack.getCount();

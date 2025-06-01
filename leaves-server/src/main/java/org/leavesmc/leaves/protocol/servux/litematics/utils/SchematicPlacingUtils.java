@@ -347,9 +347,7 @@ public class SchematicPlacingUtils {
                     NbtUtils.writeEntityPositionToTag(p, tag);
                 }
 
-                tag.putInt("TileX", (int) p.x);
-                tag.putInt("TileY", (int) p.y);
-                tag.putInt("TileZ", (int) p.z);
+                tag.store("block_pos", BlockPos.CODEC, new BlockPos((int) p.x, (int) p.y, (int) p.z));
             }
 
             ListTag rotation = tag.getListOrEmpty("Rotation");

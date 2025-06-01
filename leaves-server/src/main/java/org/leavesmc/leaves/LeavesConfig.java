@@ -6,6 +6,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
 import org.bukkit.command.Command;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.permissions.Permission;
@@ -621,9 +622,9 @@ public final class LeavesConfig {
         public boolean disableVaultBlacklist = false;
 
         @GlobalConfig(value = "exp-orb-absorb-mode", validator = ExpOrbModeValiadtor.class)
-        public ExpOrbAbsorbMode expOrbAbsorbMode;
+        public ExpOrbAbsorbMode expOrbAbsorbMode = ExpOrbAbsorbMode.VANILLA;
 
-        public Predicate<ServerPlayer> fastAbsorbPredicate;
+        public Predicate<ServerPlayer> fastAbsorbPredicate = player -> false;
 
         public enum ExpOrbAbsorbMode {
             VANILLA, FAST, FAST_CREATIVE
@@ -635,7 +636,7 @@ public final class LeavesConfig {
                  fastAbsorbPredicate = switch (value) {
                      case FAST -> player -> true;
                      case VANILLA -> player -> false;
-                     case FAST_CREATIVE -> player -> player.hasInfiniteMaterials();
+                     case FAST_CREATIVE -> Player::hasInfiniteMaterials;
                 };
             }
         }

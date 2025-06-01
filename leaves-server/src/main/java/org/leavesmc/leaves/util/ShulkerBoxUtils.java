@@ -28,7 +28,7 @@ public class ShulkerBoxUtils {
 
     public static int getItemStackMaxCountReal(ItemStack stack) {
         CompoundTag nbt = Optional.ofNullable(stack.get(DataComponents.CUSTOM_DATA)).orElse(CustomData.EMPTY).copyTag();
-        return nbt.getInt("leaves_real_max_stack_size").orElse(stack.getMaxStackSize());
+        return nbt.getInt("Leaves.RealStackSize").orElse(stack.getMaxStackSize());
     }
 
     public static ItemStack encodeMaxStackSize(ItemStack itemStack) {
@@ -37,7 +37,7 @@ public class ShulkerBoxUtils {
         if (itemStack.getMaxStackSize() != modifiedMaxStackSize) {
             itemStack.set(DataComponents.MAX_STACK_SIZE, modifiedMaxStackSize);
             CompoundTag nbt = itemStack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
-            nbt.putInt("leaves_real_max_stack_size", realMaxStackSize);
+            nbt.putInt("Leaves.RealStackSize", realMaxStackSize);
             itemStack.set(DataComponents.CUSTOM_DATA, CustomData.of(nbt));
         }
         return itemStack;
@@ -48,7 +48,7 @@ public class ShulkerBoxUtils {
         if (itemStack.getMaxStackSize() != realMaxStackSize) {
             itemStack.set(DataComponents.MAX_STACK_SIZE, realMaxStackSize);
             CompoundTag nbt = itemStack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
-            nbt.remove("leaves_real_max_stack_size");
+            nbt.remove("Leaves.RealStackSize");
             if (nbt.isEmpty()) {
                 itemStack.remove(DataComponents.CUSTOM_DATA);
             } else {

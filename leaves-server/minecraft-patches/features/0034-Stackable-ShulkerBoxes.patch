@@ -25,7 +25,6 @@ index 643797124fe5a4489d0b7419b7e600c04f283ef2..51971a4ef18ab048dc576c26652982d5
      }
  
      public String serialize(HolderLookup.Provider levelRegistry) {
-
 diff --git a/net/minecraft/server/commands/GiveCommand.java b/net/minecraft/server/commands/GiveCommand.java
 index b81f98738ef166336e4cc3092b6ba63f385b68e3..e800abc1149db77bc9b7ee1aabd17526ebda377c 100644
 --- a/net/minecraft/server/commands/GiveCommand.java
@@ -40,7 +39,7 @@ index b81f98738ef166336e4cc3092b6ba63f385b68e3..e800abc1149db77bc9b7ee1aabd17526
          if (count > i) {
              source.sendFailure(Component.translatable("commands.give.failed.toomanyitems", i, itemStack.getDisplayName()));
 diff --git a/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index 064a9b6cf6792192fc1fa80095a48c2025cebf2a..72e1265509a00376515e963499099c0765104ea2 100644
+index 064a9b6cf6792192fc1fa80095a48c2025cebf2a..64e35d11a901ea77a1a22386fbbf4ff450ece1a8 100644
 --- a/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 @@ -2974,7 +2974,7 @@ public class ServerGamePacketListenerImpl
@@ -65,7 +64,7 @@ index 064a9b6cf6792192fc1fa80095a48c2025cebf2a..72e1265509a00376515e963499099c07
                          this.player.containerMenu.broadcastFullState();
                      } else {
                          this.player.containerMenu.broadcastChanges();
-+                        this.player.containerMenu.broadcastCarriedItem(); // Leaves - stackable shulker boxes - force send carried item
++                        if (org.leavesmc.leaves.LeavesConfig.modify.shulkerBoxStackSize > 1) this.player.containerMenu.broadcastCarriedItem(); // Leaves - stackable shulker boxes - force send carried item
                      }
                      if (io.papermc.paper.configuration.GlobalConfiguration.get().unsupportedSettings.updateEquipmentOnPlayerActions) this.player.detectEquipmentUpdates(); // Paper - Force update attributes.
                  }
@@ -78,6 +77,14 @@ index 064a9b6cf6792192fc1fa80095a48c2025cebf2a..72e1265509a00376515e963499099c07
              if (flag || (flag1 && !ItemStack.matches(this.player.inventoryMenu.getSlot(packet.slotNum()).getItem(), packet.itemStack()))) { // Insist on valid slot
                  // CraftBukkit start - Call click event
                  org.bukkit.inventory.InventoryView inventory = this.player.inventoryMenu.getBukkitView();
+@@ -3423,6 +3424,7 @@ public class ServerGamePacketListenerImpl
+                 this.player.inventoryMenu.getSlot(packet.slotNum()).setByPlayer(itemStack);
+                 this.player.inventoryMenu.setRemoteSlot(packet.slotNum(), itemStack);
+                 this.player.inventoryMenu.broadcastChanges();
++                if (org.leavesmc.leaves.LeavesConfig.modify.shulkerBoxStackSize > 1) this.player.containerMenu.sendSingleSlot(packet.slotNum(), itemStack); // Leaves - stackable shulker boxes - force send carried item
+                 if (io.papermc.paper.configuration.GlobalConfiguration.get().unsupportedSettings.updateEquipmentOnPlayerActions) this.player.detectEquipmentUpdates(); // Paper - Force update attributes.
+             } else if (flag && flag2) {
+                 if (this.dropSpamThrottler.isUnderThreshold()) {
 diff --git a/net/minecraft/world/Container.java b/net/minecraft/world/Container.java
 index b382665cc125b8b5c0938e5e55984e4bf91d37ff..f575b464a8ce430646cb872ae6206a9a0677736b 100644
 --- a/net/minecraft/world/Container.java
@@ -257,10 +264,24 @@ index feebd1610ebd3c26a337259c14f5c774dc72b937..7df6ff842e41763aec2d88d1f8a5f750
  
      default SlotAccess getChestVehicleSlot(final int index) {
 diff --git a/net/minecraft/world/inventory/AbstractContainerMenu.java b/net/minecraft/world/inventory/AbstractContainerMenu.java
-index 2a4763c951ddc78c9d8a39e661e59bbffc5cf109..c6cdf1ffcf80de4872d59e1b628547f0d93e905e 100644
+index 2a4763c951ddc78c9d8a39e661e59bbffc5cf109..260ed8a599c4fc9ba0efe08a05448b02bcbb755c 100644
 --- a/net/minecraft/world/inventory/AbstractContainerMenu.java
 +++ b/net/minecraft/world/inventory/AbstractContainerMenu.java
-@@ -428,7 +428,7 @@ public abstract class AbstractContainerMenu {
+@@ -271,6 +271,13 @@ public abstract class AbstractContainerMenu {
+         this.sendAllDataToRemote();
+     }
+ 
++    // Leaves start - stackable shulker boxes
++    public void sendSingleSlot(int slotIndex, ItemStack item) {
++        if (this.synchronizer != null) {
++            this.synchronizer.sendSlotChange(this, slotIndex, item);
++        }
++    }
++
+     private void updateDataSlotListeners(int slotIndex, int value) {
+         for (ContainerListener containerListener : this.containerListeners) {
+             containerListener.dataChanged(this, slotIndex, value);
+@@ -428,7 +435,7 @@ public abstract class AbstractContainerMenu {
                              && (this.quickcraftType == 2 || carried1.getCount() >= this.quickcraftSlots.size())
                              && this.canDragTo(slot1)) {
                              int i2 = slot1.hasItem() ? slot1.getItem().getCount() : 0;
@@ -269,7 +290,7 @@ index 2a4763c951ddc78c9d8a39e661e59bbffc5cf109..c6cdf1ffcf80de4872d59e1b628547f0
                              int min1 = Math.min(getQuickCraftPlaceCount(this.quickcraftSlots, this.quickcraftType, itemStack) + i2, min);
                              count -= min1 - i2;
                              // slot1.setByPlayer(itemStack.copyWithCount(min1));
-@@ -542,7 +542,7 @@ public abstract class AbstractContainerMenu {
+@@ -542,7 +549,7 @@ public abstract class AbstractContainerMenu {
                                  slot.setByPlayer(carried2);
                              }
                          } else if (ItemStack.isSameItemSameComponents(carried, carried2)) {
@@ -278,7 +299,7 @@ index 2a4763c951ddc78c9d8a39e661e59bbffc5cf109..c6cdf1ffcf80de4872d59e1b628547f0
                              optional1.ifPresent(itemStack2 -> {
                                  carried2.grow(itemStack2.getCount());
                                  slot.onTake(player, itemStack2);
-@@ -604,7 +604,7 @@ public abstract class AbstractContainerMenu {
+@@ -604,7 +611,7 @@ public abstract class AbstractContainerMenu {
              Slot slot2 = this.slots.get(slotId);
              if (slot2.hasItem()) {
                  ItemStack itemStack = slot2.getItem();
@@ -287,7 +308,7 @@ index 2a4763c951ddc78c9d8a39e661e59bbffc5cf109..c6cdf1ffcf80de4872d59e1b628547f0
              }
          } else if (clickType == ClickType.THROW && this.getCarried().isEmpty() && slotId >= 0) {
              Slot slot2 = this.slots.get(slotId);
-@@ -635,15 +635,15 @@ public abstract class AbstractContainerMenu {
+@@ -635,15 +642,15 @@ public abstract class AbstractContainerMenu {
                  int maxStackSize = button == 0 ? 1 : -1;
  
                  for (int i3 = 0; i3 < 2; i3++) {
@@ -306,7 +327,7 @@ index 2a4763c951ddc78c9d8a39e661e59bbffc5cf109..c6cdf1ffcf80de4872d59e1b628547f0
                                  itemStack.grow(itemStack1.getCount());
                              }
                          }
-@@ -761,7 +761,7 @@ public abstract class AbstractContainerMenu {
+@@ -761,7 +768,7 @@ public abstract class AbstractContainerMenu {
              i = endIndex - 1;
          }
  
@@ -315,7 +336,7 @@ index 2a4763c951ddc78c9d8a39e661e59bbffc5cf109..c6cdf1ffcf80de4872d59e1b628547f0
              while (!stack.isEmpty() && (reverseDirection ? i >= startIndex : i < endIndex)) {
                  Slot slot = this.slots.get(i);
                  ItemStack item = slot.getItem();
-@@ -862,7 +862,7 @@ public abstract class AbstractContainerMenu {
+@@ -862,7 +869,7 @@ public abstract class AbstractContainerMenu {
      public static boolean canItemQuickReplace(@Nullable Slot slot, ItemStack stack, boolean stackSizeMatters) {
          boolean flag = slot == null || !slot.hasItem();
          return !flag && ItemStack.isSameItemSameComponents(stack, slot.getItem())
@@ -324,7 +345,7 @@ index 2a4763c951ddc78c9d8a39e661e59bbffc5cf109..c6cdf1ffcf80de4872d59e1b628547f0
              : flag;
      }
  
-@@ -870,7 +870,7 @@ public abstract class AbstractContainerMenu {
+@@ -870,7 +877,7 @@ public abstract class AbstractContainerMenu {
          return switch (type) {
              case 0 -> Mth.floor((float)stack.getCount() / slots.size());
              case 1 -> 1;
@@ -333,7 +354,7 @@ index 2a4763c951ddc78c9d8a39e661e59bbffc5cf109..c6cdf1ffcf80de4872d59e1b628547f0
              default -> stack.getCount();
          };
      }
-@@ -892,7 +892,7 @@ public abstract class AbstractContainerMenu {
+@@ -892,7 +899,7 @@ public abstract class AbstractContainerMenu {
              for (int i = 0; i < container.getContainerSize(); i++) {
                  ItemStack item = container.getItem(i);
                  if (!item.isEmpty()) {

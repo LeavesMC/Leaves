@@ -4,6 +4,7 @@ import com.destroystokyo.paper.util.SneakyThrow;
 import io.papermc.paper.configuration.GlobalConfiguration;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import org.bukkit.command.Command;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -40,6 +41,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Random;
 import java.util.Set;
+import java.util.function.Predicate;
 
 public final class LeavesConfig {
 
@@ -617,6 +619,26 @@ public final class LeavesConfig {
 
         @GlobalConfig("disable-vault-blacklist")
         public boolean disableVaultBlacklist = false;
+
+        @GlobalConfig(value = "exp-orb-absorb-mode", validator = ExpOrbModeValiadtor.class)
+        public ExpOrbAbsorbMode expOrbAbsorbMode;
+
+        public Predicate<ServerPlayer> fastAbsorbPredicate;
+
+        public enum ExpOrbAbsorbMode {
+            VANILLA, FAST, FAST_CREATIVE
+        }
+
+        private  class ExpOrbModeValiadtor extends EnumConfigValidator<ExpOrbAbsorbMode> {
+            @Override
+            public void verify(ExpOrbAbsorbMode old, ExpOrbAbsorbMode value) throws IllegalArgumentException {
+                 fastAbsorbPredicate = switch (value) {
+                     case FAST -> player -> true;
+                     case VANILLA -> player -> false;
+                     case FAST_CREATIVE -> player -> player.hasInfiniteMaterials();
+                };
+            }
+        }
 
         @RemovedConfig(name = "tick-command", category = "modify")
         @RemovedConfig(name = "player-can-edit-sign", category = "modify")

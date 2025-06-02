@@ -140,12 +140,12 @@ public class PcaSyncProtocol implements LeavesProtocol {
                             }
                         }
                         case OPS -> {
-                            if (!(entity instanceof ServerBot) && server.getPlayerList().isOp(player.gameProfile)) {
+                            if (!(entity instanceof ServerBot) && !server.getPlayerList().isOp(player.gameProfile)) {
                                 return;
                             }
                         }
                         case OPS_AND_SELF -> {
-                            if (!(entity instanceof ServerBot) && server.getPlayerList().isOp(player.gameProfile) && entity != player) {
+                            if (!(entity instanceof ServerBot) && !server.getPlayerList().isOp(player.gameProfile) && entity != player) {
                                 return;
                             }
                         }

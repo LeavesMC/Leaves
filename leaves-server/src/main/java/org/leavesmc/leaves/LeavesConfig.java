@@ -244,7 +244,7 @@ public final class LeavesConfig {
             public boolean armorStandCantKillByMobProjectile = false;
 
             @GlobalConfig(value = "villager-infinite-discounts", validator = VillagerInfiniteDiscountsValidator.class)
-            public boolean villagerInfiniteDiscounts = false;
+            private boolean villagerInfiniteDiscounts = false;
 
             private static class VillagerInfiniteDiscountsValidator extends BooleanConfigValidator {
                 @Override
@@ -288,9 +288,6 @@ public final class LeavesConfig {
 
             @GlobalConfig("spawn-invulnerable-time")
             public boolean spawnInvulnerableTime = false;
-
-            @GlobalConfig("fix-fortress-mob-spawn")
-            public boolean fixFortressMobSpawn = false;
 
             @GlobalConfig("old-hopper-suck-in-behavior")
             public boolean oldHopperSuckInBehavior = false;
@@ -492,9 +489,6 @@ public final class LeavesConfig {
         @GlobalConfig("shave-snow-layers")
         public boolean shaveSnowLayers = true;
 
-        @GlobalConfig("ignore-lc")
-        public boolean ignoreLC = false;
-
         @GlobalConfig("disable-packet-limit")
         public boolean disablePacketLimit = false;
 
@@ -621,8 +615,8 @@ public final class LeavesConfig {
         @GlobalConfig("disable-vault-blacklist")
         public boolean disableVaultBlacklist = false;
 
-        @GlobalConfig(value = "exp-orb-absorb-mode", validator = ExpOrbModeValiadtor.class)
-        public ExpOrbAbsorbMode expOrbAbsorbMode = ExpOrbAbsorbMode.VANILLA;
+        @GlobalConfig(value = "exp-orb-absorb-mode", validator = ExpOrbModeValidator.class)
+        private ExpOrbAbsorbMode expOrbAbsorbMode = ExpOrbAbsorbMode.VANILLA;
 
         public Predicate<ServerPlayer> fastAbsorbPredicate = player -> false;
 
@@ -630,10 +624,10 @@ public final class LeavesConfig {
             VANILLA, FAST, FAST_CREATIVE
         }
 
-        private class ExpOrbModeValiadtor extends EnumConfigValidator<ExpOrbAbsorbMode> {
+        private static class ExpOrbModeValidator extends EnumConfigValidator<ExpOrbAbsorbMode> {
             @Override
             public void verify(ExpOrbAbsorbMode old, ExpOrbAbsorbMode value) throws IllegalArgumentException {
-                fastAbsorbPredicate = switch (value) {
+                LeavesConfig.modify.fastAbsorbPredicate = switch (value) {
                     case FAST -> player -> true;
                     case VANILLA -> player -> false;
                     case FAST_CREATIVE -> Player::hasInfiniteMaterials;
@@ -645,7 +639,9 @@ public final class LeavesConfig {
         @RemovedConfig(name = "player-can-edit-sign", category = "modify")
         @RemovedConfig(name = "mending-compatibility-infinity", category = {"modify", "minecraft-old"})
         @RemovedConfig(name = "protection-stacking", category = {"modify", "minecraft-old"})
-        @RemovedConfig(name = "disable-moved-wrongly-threshold", category = {"modify"})
+        @RemovedConfig(name = "disable-moved-wrongly-threshold", category = "modify")
+        @RemovedConfig(name = "ignore-lc", category = "modify")
+        @RemovedConfig(name = "fix-fortress-mob-spawn", category = {"modify", "minecraft-old"})
         private final boolean removed = false;
     }
 
@@ -1008,7 +1004,7 @@ public final class LeavesConfig {
             public boolean loginProtect = false;
 
             @GlobalConfig(value = "urls", lock = true, validator = ExtraYggdrasilUrlsValidator.class)
-            public List<String> serviceList = List.of("https://url.with.authlib-injector-yggdrasil");
+            private List<String> serviceList = List.of("https://url.with.authlib-injector-yggdrasil");
 
             public static class ExtraYggdrasilUrlsValidator extends ListConfigValidator.STRING {
                 @Override
@@ -1083,9 +1079,6 @@ public final class LeavesConfig {
             @GlobalConfig(value = "version", lock = true)
             public org.leavesmc.leaves.region.linear.LinearVersion version = org.leavesmc.leaves.region.linear.LinearVersion.V2;
 
-            @GlobalConfig(value = "auto-convert-anvil-to-linear", lock = true)
-            public boolean autoConvertAnvilToLinear = false;
-
             @GlobalConfig(value = "flush-max-threads", lock = true)
             public int flushThreads = 6;
 
@@ -1117,7 +1110,8 @@ public final class LeavesConfig {
 
             @RemovedConfig(name = "flush-frequency", category = {"region", "linear"})
             @RemovedConfig(name = "crash-on-broken-symlink", category = {"region", "linear"})
-            private final boolean linearCrashOnBrokenSymlink = true;
+            @RemovedConfig(name = "auto-convert-anvil-to-linear", category = {"region", "linear"})
+            private final boolean removed = true;
         }
     }
 

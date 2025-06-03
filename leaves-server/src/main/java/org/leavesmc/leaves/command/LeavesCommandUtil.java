@@ -122,6 +122,7 @@ public class LeavesCommandUtil {
     }
 
     // Copy from org/bukkit/command/defaults/HelpCommand.java
+
     /**
      * Computes the Dameraur-Levenshtein Distance between two strings. Adapted
      * from the algorithm at <a href="http://en.wikipedia.org/wiki/Damerau%E2%80%93Levenshtein_distance">Wikipedia: Damerau–Levenshtein distance</a>

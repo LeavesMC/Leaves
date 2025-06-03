@@ -14,7 +14,12 @@ import org.bukkit.permissions.PermissionDefault;
 import org.bukkit.plugin.PluginManager;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.leavesmc.leaves.command.subcommands.*;
+import org.leavesmc.leaves.command.subcommands.ConfigCommand;
+import org.leavesmc.leaves.command.subcommands.CounterCommand;
+import org.leavesmc.leaves.command.subcommands.PeacefulModeSwitchCommand;
+import org.leavesmc.leaves.command.subcommands.ReloadCommand;
+import org.leavesmc.leaves.command.subcommands.ReportCommand;
+import org.leavesmc.leaves.command.subcommands.UpdateCommand;
 
 import java.util.ArrayList;
 import java.util.Arrays;

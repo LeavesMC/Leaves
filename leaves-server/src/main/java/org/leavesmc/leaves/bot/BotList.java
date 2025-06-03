@@ -23,7 +23,6 @@ import org.bukkit.craftbukkit.CraftWorld;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.LeavesConfig;
-import org.leavesmc.leaves.bot.agent.Configs;
 import org.leavesmc.leaves.event.bot.BotCreateEvent;
 import org.leavesmc.leaves.event.bot.BotJoinEvent;
 import org.leavesmc.leaves.event.bot.BotLoadEvent;

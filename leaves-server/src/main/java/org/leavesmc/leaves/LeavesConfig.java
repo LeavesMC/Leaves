@@ -22,7 +22,6 @@ import org.leavesmc.leaves.config.ConfigValidatorImpl.IntConfigValidator;
 import org.leavesmc.leaves.config.ConfigValidatorImpl.ListConfigValidator;
 import org.leavesmc.leaves.config.ConfigValidatorImpl.StringConfigValidator;
 import org.leavesmc.leaves.config.GlobalConfigManager;
-import org.leavesmc.leaves.config.InternalConfigProvider;
 import org.leavesmc.leaves.config.annotations.GlobalConfig;
 import org.leavesmc.leaves.config.annotations.GlobalConfigCategory;
 import org.leavesmc.leaves.config.annotations.RemovedConfig;
@@ -325,7 +324,7 @@ public final class LeavesConfig {
             @GlobalConfig("allow-anvil-destroy-item-entities")
             public boolean allowAnvilDestroyItemEntities = false;
 
-            public TripwireConfig tripwire =  new TripwireConfig();
+            public TripwireConfig tripwire = new TripwireConfig();
 
             @GlobalConfigCategory("tripwire-and-hook-behavior")
             public static class TripwireConfig {
@@ -631,13 +630,13 @@ public final class LeavesConfig {
             VANILLA, FAST, FAST_CREATIVE
         }
 
-        private  class ExpOrbModeValiadtor extends EnumConfigValidator<ExpOrbAbsorbMode> {
+        private class ExpOrbModeValiadtor extends EnumConfigValidator<ExpOrbAbsorbMode> {
             @Override
             public void verify(ExpOrbAbsorbMode old, ExpOrbAbsorbMode value) throws IllegalArgumentException {
-                 fastAbsorbPredicate = switch (value) {
-                     case FAST -> player -> true;
-                     case VANILLA -> player -> false;
-                     case FAST_CREATIVE -> Player::hasInfiniteMaterials;
+                fastAbsorbPredicate = switch (value) {
+                    case FAST -> player -> true;
+                    case VANILLA -> player -> false;
+                    case FAST_CREATIVE -> Player::hasInfiniteMaterials;
                 };
             }
         }

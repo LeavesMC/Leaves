@@ -15,19 +15,21 @@ public class ProtocolHandler {
     @Target(ElementType.METHOD)
     @Retention(RetentionPolicy.RUNTIME)
     public @interface PayloadReceiver {
-        Class<? extends LeavesCustomPayload<?>> payload();
+        Class<? extends LeavesCustomPayload> payload();
+    }
 
-        String[] payloadId() default "";
+    @Target(ElementType.METHOD)
+    @Retention(RetentionPolicy.RUNTIME)
+    public @interface BytebufReceiver {
+        String key() default "";
 
-        boolean ignoreId() default false;
-
-        boolean sendFabricRegister() default true;
+        boolean onlyNamespace() default false;
     }
 
     @Target(ElementType.METHOD)
     @Retention(RetentionPolicy.RUNTIME)
     public @interface Ticker {
-        int delay() default 0;
+        String tickerId() default "";
     }
 
     @Target(ElementType.METHOD)
@@ -48,8 +50,13 @@ public class ProtocolHandler {
     @Target(ElementType.METHOD)
     @Retention(RetentionPolicy.RUNTIME)
     public @interface MinecraftRegister {
-        String[] channelId() default "";
+        String key() default "";
 
-        boolean ignoreId() default false;
+        boolean onlyNamespace() default false;
+    }
+
+    @Target(ElementType.METHOD)
+    @Retention(RetentionPolicy.RUNTIME)
+    public @interface ReloadDataPack {
     }
 }

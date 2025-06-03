@@ -5,6 +5,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.Vec3i;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.Display;
@@ -196,10 +197,10 @@ public class SchematicPlacingUtils {
                             ((Container) te).clearContent();
                         }
 
-                        world.setBlock(pos, barrier, 4 | 16 | (notifyNeighbors ? 0 : 1024));
+                        world.setBlock(pos, barrier, 2 | 16 | (notifyNeighbors ? 0 : 512));
                     }
 
-                    if (world.setBlock(pos, state, 2 | 16 | (notifyNeighbors ? 0 : 1024)) && teNBT != null) {
+                    if (world.setBlock(pos, state, 2 | 16 | (notifyNeighbors ? 0 : 512)) && teNBT != null) {
                         te = world.getBlockEntity(pos);
 
                         if (te == null) {
@@ -209,8 +210,7 @@ public class SchematicPlacingUtils {
                         NbtUtils.writeBlockPosToTag(pos, teNBT);
 
                         try {
-                            te.loadWithComponents(teNBT, world.registryAccess().freeze());
-
+                            te.loadWithComponents(teNBT, MinecraftServer.getServer().registryAccess());
                         } catch (Exception e) {
                             ServuxProtocol.LOGGER.warn("Failed to load BlockEntity data for {} @ {}", state, pos);
                         }
@@ -347,9 +347,7 @@ public class SchematicPlacingUtils {
                     NbtUtils.writeEntityPositionToTag(p, tag);
                 }
 
-                tag.putInt("TileX", (int) p.x);
-                tag.putInt("TileY", (int) p.y);
-                tag.putInt("TileZ", (int) p.z);
+                tag.store("block_pos", BlockPos.CODEC, new BlockPos((int) p.x, (int) p.y, (int) p.z));
             }
 
             ListTag rotation = tag.getListOrEmpty("Rotation");

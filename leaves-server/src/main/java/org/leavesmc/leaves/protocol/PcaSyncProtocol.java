@@ -3,6 +3,8 @@ package org.leavesmc.leaves.protocol;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -34,10 +36,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
 
-import static org.leavesmc.leaves.protocol.core.LeavesProtocolManager.EmptyPayload;
-
-@LeavesProtocol(namespace = "pca")
-public class PcaSyncProtocol {
+@LeavesProtocol.Register(namespace = "pca")
+public class PcaSyncProtocol implements LeavesProtocol {
 
     public static final String PROTOCOL_ID = "pca";
 
@@ -67,28 +67,18 @@ public class PcaSyncProtocol {
         }
     }
 
-    @ProtocolHandler.PayloadReceiver(payload = EmptyPayload.class, payloadId = "cancel_sync_block_entity")
-    private static void cancelSyncBlockEntityHandler(ServerPlayer player, EmptyPayload payload) {
-        if (!LeavesConfig.protocol.pca.enable) {
-            return;
-        }
+    @ProtocolHandler.BytebufReceiver(key = "cancel_sync_block_entity")
+    private static void cancelSyncBlockEntityHandler(ServerPlayer player, FriendlyByteBuf buf) {
         PcaSyncProtocol.clearPlayerWatchBlock(player);
     }
 
-    @ProtocolHandler.PayloadReceiver(payload = EmptyPayload.class, payloadId = "cancel_sync_entity")
-    private static void cancelSyncEntityHandler(ServerPlayer player, EmptyPayload payload) {
-        if (!LeavesConfig.protocol.pca.enable) {
-            return;
-        }
+    @ProtocolHandler.BytebufReceiver(key = "cancel_sync_entity")
+    private static void cancelSyncEntityHandler(ServerPlayer player, FriendlyByteBuf buf) {
         PcaSyncProtocol.clearPlayerWatchEntity(player);
     }
 
-    @ProtocolHandler.PayloadReceiver(payload = SyncBlockEntityPayload.class, payloadId = "sync_block_entity")
+    @ProtocolHandler.PayloadReceiver(payload = SyncBlockEntityPayload.class)
     private static void syncBlockEntityHandler(ServerPlayer player, SyncBlockEntityPayload payload) {
-        if (!LeavesConfig.protocol.pca.enable) {
-            return;
-        }
-
         MinecraftServer server = MinecraftServer.getServer();
         BlockPos pos = payload.pos;
         ServerLevel world = player.serverLevel();
@@ -127,12 +117,8 @@ public class PcaSyncProtocol {
         });
     }
 
-    @ProtocolHandler.PayloadReceiver(payload = SyncEntityPayload.class, payloadId = "sync_entity")
+    @ProtocolHandler.PayloadReceiver(payload = SyncEntityPayload.class)
     private static void syncEntityHandler(ServerPlayer player, SyncEntityPayload payload) {
-        if (!LeavesConfig.protocol.pca.enable) {
-            return;
-        }
-
         MinecraftServer server = MinecraftServer.getServer();
         int entityId = payload.entityId;
         ServerLevel world = player.serverLevel();
@@ -154,12 +140,12 @@ public class PcaSyncProtocol {
                             }
                         }
                         case OPS -> {
-                            if (!(entity instanceof ServerBot) && server.getPlayerList().isOp(player.gameProfile)) {
+                            if (!(entity instanceof ServerBot) && !server.getPlayerList().isOp(player.gameProfile)) {
                                 return;
                             }
                         }
                         case OPS_AND_SELF -> {
-                            if (!(entity instanceof ServerBot) && server.getPlayerList().isOp(player.gameProfile) && entity != player) {
+                            if (!(entity instanceof ServerBot) && !server.getPlayerList().isOp(player.gameProfile) && entity != player) {
                                 return;
                             }
                         }
@@ -191,13 +177,13 @@ public class PcaSyncProtocol {
     }
 
     public static void enablePcaSyncProtocol(@NotNull ServerPlayer player) {
-        ProtocolUtils.sendEmptyPayloadPacket(player, ENABLE_PCA_SYNC_PROTOCOL);
+        ProtocolUtils.sendEmptyPacket(player, ENABLE_PCA_SYNC_PROTOCOL);
         lock.lock();
         lock.unlock();
     }
 
     public static void disablePcaSyncProtocol(@NotNull ServerPlayer player) {
-        ProtocolUtils.sendEmptyPayloadPacket(player, DISABLE_PCA_SYNC_PROTOCOL);
+        ProtocolUtils.sendEmptyPacket(player, DISABLE_PCA_SYNC_PROTOCOL);
     }
 
     public static void updateEntity(@NotNull ServerPlayer player, @NotNull Entity entity) {
@@ -347,87 +333,62 @@ public class PcaSyncProtocol {
         PcaSyncProtocol.clearPlayerWatchEntity(player);
     }
 
-    public record UpdateEntityPayload(ResourceLocation dimension, int entityId, CompoundTag tag) implements LeavesCustomPayload<UpdateEntityPayload> {
+    @Override
+    public boolean isActive() {
+        return LeavesConfig.protocol.pca.enable;
+    }
 
+    public record UpdateEntityPayload(ResourceLocation dimension, int entityId, CompoundTag tag) implements LeavesCustomPayload {
+
+        @ID
         public static final ResourceLocation UPDATE_ENTITY = PcaSyncProtocol.id("update_entity");
 
-        @New
-        public UpdateEntityPayload(ResourceLocation location, FriendlyByteBuf byteBuf) {
-            this(byteBuf.readResourceLocation(), byteBuf.readInt(), byteBuf.readNbt());
-        }
-
-        @Override
-        public void write(@NotNull FriendlyByteBuf buf) {
-            buf.writeResourceLocation(this.dimension);
-            buf.writeInt(this.entityId);
-            buf.writeNbt(this.tag);
-        }
-
-        @Override
-        public ResourceLocation id() {
-            return UPDATE_ENTITY;
-        }
+        @Codec
+        public static final StreamCodec<FriendlyByteBuf, UpdateEntityPayload> CODEC = StreamCodec.composite(
+            ResourceLocation.STREAM_CODEC,
+            UpdateEntityPayload::dimension,
+            ByteBufCodecs.INT,
+            UpdateEntityPayload::entityId,
+            ByteBufCodecs.COMPOUND_TAG,
+            UpdateEntityPayload::tag,
+            UpdateEntityPayload::new
+        );
     }
 
-    public record UpdateBlockEntityPayload(ResourceLocation dimension, BlockPos blockPos, CompoundTag tag) implements LeavesCustomPayload<UpdateBlockEntityPayload> {
+    public record UpdateBlockEntityPayload(ResourceLocation dimension, BlockPos blockPos, CompoundTag tag) implements LeavesCustomPayload {
 
+        @ID
         private static final ResourceLocation UPDATE_BLOCK_ENTITY = PcaSyncProtocol.id("update_block_entity");
 
-        @New
-        public UpdateBlockEntityPayload(ResourceLocation location, @NotNull FriendlyByteBuf byteBuf) {
-            this(byteBuf.readResourceLocation(), byteBuf.readBlockPos(), byteBuf.readNbt());
-        }
-
-        @Override
-        public void write(@NotNull FriendlyByteBuf buf) {
-            buf.writeResourceLocation(this.dimension);
-            buf.writeBlockPos(this.blockPos);
-            buf.writeNbt(this.tag);
-        }
-
-        @Override
-        public ResourceLocation id() {
-            return UPDATE_BLOCK_ENTITY;
-        }
+        @Codec
+        private static final StreamCodec<FriendlyByteBuf, UpdateBlockEntityPayload> CODEC = StreamCodec.composite(
+            ResourceLocation.STREAM_CODEC,
+            UpdateBlockEntityPayload::dimension,
+            BlockPos.STREAM_CODEC,
+            UpdateBlockEntityPayload::blockPos,
+            ByteBufCodecs.COMPOUND_TAG,
+            UpdateBlockEntityPayload::tag,
+            UpdateBlockEntityPayload::new
+        );
     }
 
-    public record SyncBlockEntityPayload(BlockPos pos) implements LeavesCustomPayload<SyncBlockEntityPayload> {
-
+    public record SyncBlockEntityPayload(BlockPos pos) implements LeavesCustomPayload {
+        @ID
         public static final ResourceLocation SYNC_BLOCK_ENTITY = PcaSyncProtocol.id("sync_block_entity");
 
-        @New
-        public SyncBlockEntityPayload(ResourceLocation id, @NotNull FriendlyByteBuf buf) {
-            this(buf.readBlockPos());
-        }
-
-        @Override
-        public void write(@NotNull FriendlyByteBuf buf) {
-            buf.writeBlockPos(pos);
-        }
-
-        @Override
-        public @NotNull ResourceLocation id() {
-            return SYNC_BLOCK_ENTITY;
-        }
+        @Codec
+        private static final StreamCodec<FriendlyByteBuf, SyncBlockEntityPayload> CODEC = StreamCodec.composite(
+            BlockPos.STREAM_CODEC, SyncBlockEntityPayload::pos, SyncBlockEntityPayload::new
+        );
     }
 
-    public record SyncEntityPayload(int entityId) implements LeavesCustomPayload<SyncEntityPayload> {
-
+    public record SyncEntityPayload(int entityId) implements LeavesCustomPayload {
+        @ID
         public static final ResourceLocation SYNC_ENTITY = PcaSyncProtocol.id("sync_entity");
 
-        @New
-        public SyncEntityPayload(ResourceLocation id, @NotNull FriendlyByteBuf buf) {
-            this(buf.readInt());
-        }
-
-        @Override
-        public void write(@NotNull FriendlyByteBuf buf) {
-            buf.writeInt(entityId);
-        }
-
-        @Override
-        public @NotNull ResourceLocation id() {
-            return SYNC_ENTITY;
-        }
+        @Codec
+        private static final StreamCodec<FriendlyByteBuf, SyncEntityPayload> CODEC = StreamCodec.composite(
+            ByteBufCodecs.INT, SyncEntityPayload::entityId, SyncEntityPayload::new
+        );
     }
 }

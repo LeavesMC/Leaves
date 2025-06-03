@@ -19,6 +19,7 @@ import java.util.stream.Stream;
 
 public class EntryIngredient {
     private static final StreamCodec<RegistryFriendlyByteBuf, Holder<Item>> ITEM_STREAM_CODEC = ByteBufCodecs.holderRegistry(Registries.ITEM);
+    private static final ResourceLocation ITEM_ID = ResourceLocation.withDefaultNamespace("item");
     public static final StreamCodec<RegistryFriendlyByteBuf, EntryIngredient> CODEC = new StreamCodec<>() {
         @NotNull
         @Override
@@ -41,36 +42,16 @@ public class EntryIngredient {
             });
         }
     };
-
-    private static final ResourceLocation ITEM_ID = ResourceLocation.withDefaultNamespace("item");
-
+    private static final EntryIngredient EMPTY = new EntryIngredient(new ItemStack[0]);
     @NotNull
     private final ItemStack[] array;
-
-    private static final EntryIngredient EMPTY = new EntryIngredient(new ItemStack[0]);
 
     private EntryIngredient(@NotNull ItemStack[] array) {
         this.array = Objects.requireNonNull(array);
     }
 
-    public Stream<ItemStack> stream() {
-        return Arrays.stream(array);
-    }
-
     public static EntryIngredient empty() {
         return EMPTY;
-    }
-
-    public boolean isEmpty() {
-        return array.length == 0;
-    }
-
-    public ItemStack get(int index) {
-        return array[index].copy();
-    }
-
-    public int size() {
-        return array.length;
     }
 
     public static EntryIngredient ofItemHolder(@NotNull Holder<? extends ItemLike> item) {
@@ -89,13 +70,30 @@ public class EntryIngredient {
         return new EntryIngredient(Arrays.copyOf(itemStacks, itemStacks.length));
     }
 
+    @SuppressWarnings("deprecation")
     public static EntryIngredient ofIngredient(Ingredient ingredient) {
         if (ingredient.isEmpty()) {
             return EntryIngredient.empty();
         }
         ItemStack[] itemStacks = ingredient.items()
-            .map(itemHolder -> new ItemStack(itemHolder, 1))
+            .map(itemHolder -> itemHolder.value().getDefaultInstance())
             .toArray(ItemStack[]::new);
         return EntryIngredient.of(itemStacks);
+    }
+
+    public Stream<ItemStack> stream() {
+        return Arrays.stream(array);
+    }
+
+    public boolean isEmpty() {
+        return array.length == 0;
+    }
+
+    public ItemStack get(int index) {
+        return array[index].copy();
+    }
+
+    public int size() {
+        return array.length;
     }
 }

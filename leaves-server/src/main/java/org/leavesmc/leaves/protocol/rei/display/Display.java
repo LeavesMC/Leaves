@@ -70,22 +70,6 @@ public abstract class Display {
         this.id = id;
     }
 
-    public List<EntryIngredient> getInputEntries() {
-        return inputs;
-    }
-
-    public List<EntryIngredient> getOutputEntries() {
-        return outputs;
-    }
-
-    public ResourceLocation getDisplayLocation() {
-        return id;
-    }
-
-    public Optional<ResourceLocation> getOptionalLocation() {
-        return Optional.ofNullable(id);
-    }
-
     @SuppressWarnings("unchecked")
     public static StreamCodec<RegistryFriendlyByteBuf, Display> dispatchCodec() {
         return new StreamCodec<>() {
@@ -102,10 +86,6 @@ public abstract class Display {
             }
         };
     }
-
-    public abstract ResourceLocation getSerializerId();
-
-    public abstract StreamCodec<RegistryFriendlyByteBuf, ? extends Display> streamCodec();
 
     public static Collection<Display> ofTransmuteRecipe(@NotNull RecipeHolder<TransmuteRecipe> recipeHolder) {
         TransmuteRecipe recipe = recipeHolder.value();
@@ -195,7 +175,7 @@ public abstract class Display {
                 EntryIngredient.ofIngredient(recipeHolder.value().baseIngredient()),
                 recipeHolder.value().additionIngredient().map(EntryIngredient::ofIngredient).orElse(EntryIngredient.empty())
             ),
-            List.of(EntryIngredient.of(recipeHolder.value().getResult())),
+            List.of(ofSlotDisplay(recipeHolder.value().getResult())),
             SmithingDisplay.SmithingRecipeType.TRANSFORM,
             recipeHolder.id().location()
         );
@@ -204,6 +184,7 @@ public abstract class Display {
     /**
      * see me.shedaniel.rei.plugin.common.displays.DefaultSmithingDisplay#fromTrimming
      */
+    @SuppressWarnings("deprecation")
     @NotNull
     public static Collection<Display> ofSmithingTrimRecipe(@NotNull RecipeHolder<SmithingTrimRecipe> recipeHolder) {
         RegistryAccess registryAccess = MinecraftServer.getServer().registryAccess();
@@ -286,4 +267,24 @@ public abstract class Display {
         }
         return EntryIngredient.of(stackList.toArray(new ItemStack[0]));
     }
+
+    public List<EntryIngredient> getInputEntries() {
+        return inputs;
+    }
+
+    public List<EntryIngredient> getOutputEntries() {
+        return outputs;
+    }
+
+    public ResourceLocation getDisplayLocation() {
+        return id;
+    }
+
+    public Optional<ResourceLocation> getOptionalLocation() {
+        return Optional.ofNullable(id);
+    }
+
+    public abstract ResourceLocation getSerializerId();
+
+    public abstract StreamCodec<RegistryFriendlyByteBuf, ? extends Display> streamCodec();
 }

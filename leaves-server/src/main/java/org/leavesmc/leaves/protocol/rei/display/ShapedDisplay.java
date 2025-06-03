@@ -20,10 +20,6 @@ import java.util.Optional;
  * see me.shedaniel.rei.plugin.common.displays.crafting.DefaultShapedDisplay#DefaultShapedDisplay(RecipeHolder)
  */
 public class ShapedDisplay extends CraftingDisplay {
-    private final int width;
-
-    private final int height;
-
     private static final StreamCodec<RegistryFriendlyByteBuf, CraftingDisplay> CODEC = StreamCodec.composite(
         EntryIngredient.CODEC.apply(ByteBufCodecs.list()),
         CraftingDisplay::getInputEntries,
@@ -37,8 +33,9 @@ public class ShapedDisplay extends CraftingDisplay {
         CraftingDisplay::getHeight,
         ShapedDisplay::of
     );
-
     private static final ResourceLocation SERIALIZER_ID = ResourceLocation.tryBuild("minecraft", "default/crafting/shaped");
+    private final int width;
+    private final int height;
 
     public ShapedDisplay(@NotNull RecipeHolder<ShapedRecipe> recipeHolder) {
         super(
@@ -60,6 +57,23 @@ public class ShapedDisplay extends CraftingDisplay {
         this.height = recipeDisplay.height();
     }
 
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    private static CraftingDisplay of(List<EntryIngredient> inputs, List<EntryIngredient> outputs, Optional<ResourceLocation> location, int width, int height) {
+        throw new UnsupportedOperationException();
+    }
+
+    private static List<EntryIngredient> ofIngredient(ShapedRecipe recipe) {
+        return recipe.getIngredients().stream().map(ingredient -> {
+            if (ingredient.isEmpty()) {
+                return EntryIngredient.empty();
+            }
+            ItemStack[] itemStacks = ingredient.get().items()
+                .map(itemHolder -> new ItemStack(itemHolder, 1))
+                .toArray(ItemStack[]::new);
+            return EntryIngredient.of(itemStacks);
+        }).toList();
+    }
+
     @Override
     public int getWidth() {
         return width;
@@ -77,22 +91,5 @@ public class ShapedDisplay extends CraftingDisplay {
 
     public StreamCodec<RegistryFriendlyByteBuf, CraftingDisplay> streamCodec() {
         return CODEC;
-    }
-
-    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    private static CraftingDisplay of(List<EntryIngredient> inputs, List<EntryIngredient> outputs, Optional<ResourceLocation> location, int width, int height) {
-        throw new UnsupportedOperationException();
-    }
-
-    private static List<EntryIngredient> ofIngredient(ShapedRecipe recipe) {
-        return recipe.getIngredients().stream().map(ingredient -> {
-            if (ingredient.isEmpty()) {
-                return EntryIngredient.empty();
-            }
-            ItemStack[] itemStacks = ingredient.get().items()
-                .map(itemHolder -> new ItemStack(itemHolder, 1))
-                .toArray(ItemStack[]::new);
-            return EntryIngredient.of(itemStacks);
-        }).toList();
     }
 }

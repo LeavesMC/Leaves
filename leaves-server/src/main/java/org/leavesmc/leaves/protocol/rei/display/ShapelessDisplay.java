@@ -51,6 +51,11 @@ public class ShapelessDisplay extends CraftingDisplay {
         );
     }
 
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    private static CraftingDisplay of(List<EntryIngredient> inputs, List<EntryIngredient> outputs, Optional<ResourceLocation> location) {
+        throw new NotImplementedException();
+    }
+
     @Override
     public int getWidth() {
         return getInputEntries().size() > 4 ? 3 : 2;
@@ -68,10 +73,5 @@ public class ShapelessDisplay extends CraftingDisplay {
 
     public StreamCodec<RegistryFriendlyByteBuf, CraftingDisplay> streamCodec() {
         return CODEC;
-    }
-
-    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    private static CraftingDisplay of(List<EntryIngredient> inputs, List<EntryIngredient> outputs, Optional<ResourceLocation> location) {
-        throw new NotImplementedException();
     }
 }

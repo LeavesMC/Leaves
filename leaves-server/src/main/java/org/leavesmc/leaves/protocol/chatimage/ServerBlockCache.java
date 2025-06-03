@@ -19,15 +19,15 @@ public class ServerBlockCache {
     public Cache<String, Map<Integer, String>> blockCache = CacheBuilder.newBuilder().expireAfterAccess(60, TimeUnit.SECONDS).build();
     public Cache<String, Integer> fileCount = CacheBuilder.newBuilder().expireAfterAccess(60, TimeUnit.SECONDS).build();
 
-    public Map<Integer, String> createBlock(ChatImageIndex title, String imgBytes) {
+    public Map<Integer, String> createBlock(ChatImageProtocol.ChatImageIndex title, String imgBytes) {
         try {
-            Map<Integer, String> blocks = this.blockCache.get(title.url, HashMap::new);
-            blocks.put(title.index, imgBytes);
-            this.blockCache.put(title.url, blocks);
-            this.fileCount.put(title.url, title.total);
+            Map<Integer, String> blocks = this.blockCache.get(title.url(), HashMap::new);
+            blocks.put(title.index(), imgBytes);
+            this.blockCache.put(title.url(), blocks);
+            this.fileCount.put(title.url(), title.total());
             return blocks;
         } catch (Exception e) {
-            LeavesLogger.LOGGER.warning("Failed to create block for title " + title.url + ": " + e);
+            LeavesLogger.LOGGER.warning("Failed to create block for title " + title.url() + ": " + e);
             return null;
         }
     }

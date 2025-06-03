@@ -31,19 +31,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-@LeavesProtocol(namespace = "syncmatica")
-public class CommunicationManager {
-
-    private static final Map<UUID, List<ServerPlacement>> downloadingFile = new HashMap<>();
-    private static final Map<ExchangeTarget, ServerPlayer> playerMap = new HashMap<>();
+@LeavesProtocol.Register(namespace = "syncmatica")
+public class CommunicationManager implements LeavesProtocol {
 
     protected static final Collection<ExchangeTarget> broadcastTargets = new ArrayList<>();
-
     protected static final Map<UUID, Boolean> downloadState = new HashMap<>();
     protected static final Map<UUID, Exchange> modifyState = new HashMap<>();
-
     protected static final Rotation[] rotOrdinals = Rotation.values();
     protected static final Mirror[] mirOrdinals = Mirror.values();
+    private static final Map<UUID, List<ServerPlacement>> downloadingFile = new HashMap<>();
+    private static final Map<ExchangeTarget, ServerPlayer> playerMap = new HashMap<>();
 
     public CommunicationManager() {
     }
@@ -52,23 +49,8 @@ public class CommunicationManager {
         return playerMap.get(exchangeTarget).getGameProfile();
     }
 
-    public void sendMessage(final @NotNull ExchangeTarget client, final MessageType type, final String identifier) {
-        if (client.getFeatureSet().hasFeature(Feature.MESSAGE)) {
-            final FriendlyByteBuf newPacketBuf = new FriendlyByteBuf(Unpooled.buffer());
-            newPacketBuf.writeUtf(type.toString());
-            newPacketBuf.writeUtf(identifier);
-            client.sendPacket(PacketType.MESSAGE.identifier, newPacketBuf);
-        } else if (playerMap.containsKey(client)) {
-            final ServerPlayer player = playerMap.get(client);
-            player.sendSystemMessage(Component.literal("Syncmatica " + type.toString() + " " + identifier));
-        }
-    }
-
     @ProtocolHandler.PlayerJoin
     public static void onPlayerJoin(ServerPlayer player) {
-        if (!LeavesConfig.protocol.syncmatica.enable) {
-            return;
-        }
         final ExchangeTarget newPlayer = player.connection.exchangeTarget;
         final VersionHandshakeServer hi = new VersionHandshakeServer(newPlayer);
         playerMap.put(newPlayer, player);
@@ -79,9 +61,6 @@ public class CommunicationManager {
 
     @ProtocolHandler.PlayerLeave
     public static void onPlayerLeave(ServerPlayer player) {
-        if (!LeavesConfig.protocol.syncmatica.enable) {
-            return;
-        }
         final ExchangeTarget oldPlayer = player.connection.exchangeTarget;
         final Collection<Exchange> potentialMessageTarget = oldPlayer.getExchanges();
         if (potentialMessageTarget != null) {
@@ -94,11 +73,8 @@ public class CommunicationManager {
         playerMap.remove(oldPlayer);
     }
 
-    @ProtocolHandler.PayloadReceiver(payload = SyncmaticaPayload.class, payloadId = "main")
+    @ProtocolHandler.PayloadReceiver(payload = SyncmaticaPayload.class)
     public static void onPacketGet(ServerPlayer player, SyncmaticaPayload payload) {
-        if (!LeavesConfig.protocol.syncmatica.enable) {
-            return;
-        }
         onPacket(player.connection.exchangeTarget, payload.packetType(), payload.data());
     }
 
@@ -392,5 +368,22 @@ public class CommunicationManager {
     public static void notifyClose(final @NotNull Exchange e) {
         e.getPartner().getExchanges().remove(e);
         handleExchange(e);
+    }
+
+    public void sendMessage(final @NotNull ExchangeTarget client, final MessageType type, final String identifier) {
+        if (client.getFeatureSet().hasFeature(Feature.MESSAGE)) {
+            final FriendlyByteBuf newPacketBuf = new FriendlyByteBuf(Unpooled.buffer());
+            newPacketBuf.writeUtf(type.toString());
+            newPacketBuf.writeUtf(identifier);
+            client.sendPacket(PacketType.MESSAGE.identifier, newPacketBuf);
+        } else if (playerMap.containsKey(client)) {
+            final ServerPlayer player = playerMap.get(client);
+            player.sendSystemMessage(Component.literal("Syncmatica " + type.toString() + " " + identifier));
+        }
+    }
+
+    @Override
+    public boolean isActive() {
+        return LeavesConfig.protocol.syncmatica.enable;
     }
 }

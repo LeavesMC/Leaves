@@ -2,7 +2,6 @@ package org.leavesmc.leaves.protocol.rei;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import net.minecraft.ChatFormatting;
 import net.minecraft.Util;
@@ -45,7 +44,6 @@ import org.leavesmc.leaves.protocol.rei.display.ShapelessDisplay;
 import org.leavesmc.leaves.protocol.rei.display.SmeltingDisplay;
 import org.leavesmc.leaves.protocol.rei.display.SmokingDisplay;
 import org.leavesmc.leaves.protocol.rei.display.StoneCuttingDisplay;
-import org.leavesmc.leaves.protocol.rei.payload.BufCustomPacketPayload;
 import org.leavesmc.leaves.protocol.rei.payload.DisplaySyncPayload;
 
 import java.util.HashSet;
@@ -57,8 +55,8 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 
-@LeavesProtocol(namespace = REIServerProtocol.PROTOCOL_ID)
-public class REIServerProtocol {
+@LeavesProtocol.Register(namespace = REIServerProtocol.PROTOCOL_ID)
+public class REIServerProtocol implements LeavesProtocol {
 
     public static final String PROTOCOL_ID = "roughlyenoughitems";
     public static final String CHEAT_PERMISSION = "leaves.protocol.rei.cheat";
@@ -79,15 +77,16 @@ public class REIServerProtocol {
         return builder.build();
     });
     private static final Set<ServerPlayer> enabledPlayers = new HashSet<>();
-    private static int minecraftRecipeVer = 0;
-    private static int nextReiRecipeVer = -1;
-    private static ImmutableList<CustomPacketPayload> cachedPayloads;
     private static final Executor executor = new ThreadPoolExecutor(
         1, 1, 0L, TimeUnit.MILLISECONDS,
         new ArrayBlockingQueue<>(1),
         new ThreadPoolExecutor.DiscardOldestPolicy()
     );
+    private static int minecraftRecipeVer = 0;
+    private static int nextReiRecipeVer = -1;
+    private static ImmutableList<CustomPacketPayload> cachedPayloads;
 
+    @ProtocolHandler.ReloadDataPack
     public static void onRecipeReload() {
         minecraftRecipeVer = MinecraftServer.getServer().getTickCount();
     }
@@ -111,17 +110,12 @@ public class REIServerProtocol {
 
     @ProtocolHandler.PlayerLeave
     public static void onPlayerLoggedOut(@NotNull ServerPlayer player) {
-        if (LeavesConfig.protocol.reiServerProtocol) {
-            enabledPlayers.remove(player);
-        }
+        enabledPlayers.remove(player);
     }
 
     @ProtocolHandler.Ticker
     public static void tick() {
-        if (!LeavesConfig.protocol.reiServerProtocol) {
-            return;
-        }
-        if (MinecraftServer.getServer().getTickCount() % 200 == 1 && minecraftRecipeVer != nextReiRecipeVer) {
+        if (minecraftRecipeVer != nextReiRecipeVer) {
             nextReiRecipeVer = minecraftRecipeVer;
             executor.execute(() -> reloadRecipe(nextReiRecipeVer));
         }
@@ -168,8 +162,8 @@ public class REIServerProtocol {
         RegistryFriendlyByteBuf s2cBuf = ProtocolUtils.decorate(Unpooled.buffer());
         DisplaySyncPayload.STREAM_CODEC.encode(s2cBuf, displaySyncPayload);
         ImmutableList.Builder<CustomPacketPayload> listBuilder = ImmutableList.builder();
-        outboundTransform(SYNC_DISPLAYS_PACKET, s2cBuf, (id, splitBuf) ->
-            listBuilder.add(new BufCustomPacketPayload(new CustomPacketPayload.Type<>(id), ByteBufUtil.getBytes(splitBuf)))
+        outboundTransform(s2cBuf, (id, splitBuf) ->
+            listBuilder.add(PacketTransformer.wrapRei(id, splitBuf))
         );
 
         cachedPayloads = listBuilder.build();
@@ -182,33 +176,29 @@ public class REIServerProtocol {
         });
     }
 
-    @ProtocolHandler.MinecraftRegister(ignoreId = true)
-    public static void onPlayerSubscribed(@NotNull ServerPlayer player, String channel) {
-        if (!LeavesConfig.protocol.reiServerProtocol) {
-            return;
-        }
+    @ProtocolHandler.MinecraftRegister(onlyNamespace = true)
+    public static void onPlayerSubscribed(@NotNull ServerPlayer player, ResourceLocation location) {
         enabledPlayers.add(player);
+        String channel = location.getPath();
         if (channel.equals("sync_displays")) {
             if (cachedPayloads != null) {
                 cachedPayloads.forEach(payload -> ProtocolUtils.sendPayloadPacket(player, payload));
             }
         } else if (channel.equals("ci_msg")) {
             // cheat rei-client into using "delete_item" packet
-            if (player.getServer().getProfilePermissions(player.getGameProfile()) < 1) {
+            if (MinecraftServer.getServer().getProfilePermissions(player.getGameProfile()) < 1) {
                 player.getBukkitEntity().sendOpLevel((byte) 1);
             }
         }
     }
 
-    @ProtocolHandler.PayloadReceiver(payload = BufCustomPacketPayload.class, payloadId = "delete_item")
-    public static void handleDeleteItem(ServerPlayer player, BufCustomPacketPayload payload) {
-        if (!LeavesConfig.protocol.reiServerProtocol || !hasCheatPermission(player)) {
+    @ProtocolHandler.BytebufReceiver(key = "delete_item")
+    public static void handleDeleteItem(ServerPlayer player, RegistryFriendlyByteBuf buf) {
+        if (!hasCheatPermission(player)) {
             return;
         }
-        RegistryFriendlyByteBuf c2sBuf = ProtocolUtils.decorate(Unpooled.buffer());
-        c2sBuf.writeBytes(payload.payload());
 
-        inboundTransform(player, payload.id(), c2sBuf, (id, wholeBuf) -> {
+        inboundTransform(player, DELETE_ITEMS_PACKET, buf, (id, wholeBuf) -> {
             AbstractContainerMenu menu = player.containerMenu;
             if (!menu.getCarried().isEmpty()) {
                 menu.setCarried(ItemStack.EMPTY);
@@ -217,13 +207,11 @@ public class REIServerProtocol {
         });
     }
 
-    @ProtocolHandler.PayloadReceiver(payload = BufCustomPacketPayload.class, payloadId = "create_item")
-    public static void handleCreateItem(ServerPlayer player, BufCustomPacketPayload payload) {
-        if (!LeavesConfig.protocol.reiServerProtocol || !hasCheatPermission(player)) {
+    @ProtocolHandler.BytebufReceiver(key = "create_item")
+    public static void handleCreateItem(ServerPlayer player, RegistryFriendlyByteBuf buf) {
+        if (!hasCheatPermission(player)) {
             return;
         }
-        RegistryFriendlyByteBuf c2sBuf = ProtocolUtils.decorate(Unpooled.buffer());
-        c2sBuf.writeBytes(payload.payload());
         BiConsumer<ResourceLocation, RegistryFriendlyByteBuf> consumer = (ignored, c2sWholeBuf) -> {
             FriendlyByteBuf tmpBuf = new FriendlyByteBuf(Unpooled.buffer()).writeBytes(c2sWholeBuf.readByteArray());
             ItemStack itemStack = tmpBuf.readJsonWithCodec(ItemStack.OPTIONAL_CODEC);
@@ -241,17 +229,14 @@ public class REIServerProtocol {
                 player.displayClientMessage(Component.translatable("text.rei.failed_cheat_items"), false);
             }
         };
-        inboundTransform(player, payload.id(), c2sBuf, consumer);
+        inboundTransform(player, CREATE_ITEMS_PACKET, buf, consumer);
     }
 
-    @ProtocolHandler.PayloadReceiver(payload = BufCustomPacketPayload.class, payloadId = "create_item_grab")
-    public static void handleCreateItemGrab(ServerPlayer player, BufCustomPacketPayload payload) {
-        if (!LeavesConfig.protocol.reiServerProtocol || !hasCheatPermission(player)) {
+    @ProtocolHandler.BytebufReceiver(key = "create_item_grab")
+    public static void handleCreateItemGrab(ServerPlayer player, RegistryFriendlyByteBuf buf) {
+        if (!hasCheatPermission(player)) {
             return;
         }
-        RegistryFriendlyByteBuf c2sBuf = ProtocolUtils.decorate(Unpooled.buffer());
-        c2sBuf.writeBytes(payload.payload());
-
         BiConsumer<ResourceLocation, RegistryFriendlyByteBuf> consumer = (ignored, c2sWholeBuf) -> {
             FriendlyByteBuf tmpBuf = new FriendlyByteBuf(Unpooled.buffer()).writeBytes(c2sWholeBuf.readByteArray());
             ItemStack itemStack = tmpBuf.readJsonWithCodec(ItemStack.OPTIONAL_CODEC);
@@ -274,16 +259,14 @@ public class REIServerProtocol {
             });
             */
         };
-        inboundTransform(player, payload.id(), c2sBuf, consumer);
+        inboundTransform(player, CREATE_ITEMS_GRAB_PACKET, buf, consumer);
     }
 
-    @ProtocolHandler.PayloadReceiver(payload = BufCustomPacketPayload.class, payloadId = "create_item_hotbar")
-    public static void handleCreateItemHotbar(ServerPlayer player, BufCustomPacketPayload payload) {
-        if (!LeavesConfig.protocol.reiServerProtocol || !hasCheatPermission(player)) {
+    @ProtocolHandler.BytebufReceiver(key = "create_item_hotbar")
+    public static void handleCreateItemHotbar(ServerPlayer player, RegistryFriendlyByteBuf buf) {
+        if (!hasCheatPermission(player)) {
             return;
         }
-        RegistryFriendlyByteBuf c2sBuf = ProtocolUtils.decorate(Unpooled.buffer());
-        c2sBuf.writeBytes(payload.payload());
         BiConsumer<ResourceLocation, RegistryFriendlyByteBuf> consumer = (ignored, c2sWholeBuf) -> {
             FriendlyByteBuf tmpBuf = new FriendlyByteBuf(Unpooled.buffer()).writeBytes(c2sWholeBuf.readByteArray());
             ItemStack stack = tmpBuf.readJsonWithCodec(ItemStack.OPTIONAL_CODEC);
@@ -305,13 +288,15 @@ public class REIServerProtocol {
                 player.displayClientMessage(Component.translatable("text.rei.failed_cheat_items"), false);
             }
         };
-        inboundTransform(player, payload.id(), c2sBuf, consumer);
+        inboundTransform(player, CREATE_ITEMS_HOTBAR_PACKET, buf, consumer);
     }
 
-    private static void inboundTransform(ServerPlayer player,
-                                         ResourceLocation id,
-                                         RegistryFriendlyByteBuf buf,
-                                         BiConsumer<ResourceLocation, RegistryFriendlyByteBuf> consumer) {
+    @ProtocolHandler.BytebufReceiver(key = "move_items_new")
+    public static void handleMoveItem(ServerPlayer player, RegistryFriendlyByteBuf buf) {
+        // TODO handle to disable REI client warning
+    }
+
+    private static void inboundTransform(ServerPlayer player, ResourceLocation id, RegistryFriendlyByteBuf buf, BiConsumer<ResourceLocation, RegistryFriendlyByteBuf> consumer) {
         PacketTransformer transformer = TRANSFORMERS.get(id);
         if (transformer != null) {
             transformer.inbound(id, buf, player, consumer);
@@ -320,14 +305,12 @@ public class REIServerProtocol {
         }
     }
 
-    private static void outboundTransform(ResourceLocation id,
-                                          RegistryFriendlyByteBuf buf,
-                                          BiConsumer<ResourceLocation, RegistryFriendlyByteBuf> consumer) {
-        PacketTransformer transformer = TRANSFORMERS.get(id);
+    private static void outboundTransform(RegistryFriendlyByteBuf buf, BiConsumer<ResourceLocation, RegistryFriendlyByteBuf> consumer) {
+        PacketTransformer transformer = TRANSFORMERS.get(SYNC_DISPLAYS_PACKET);
         if (transformer != null) {
-            transformer.outbound(id, buf, consumer);
+            transformer.outbound(SYNC_DISPLAYS_PACKET, buf, consumer);
         } else {
-            consumer.accept(id, buf);
+            consumer.accept(SYNC_DISPLAYS_PACKET, buf);
         }
     }
 
@@ -337,5 +320,15 @@ public class REIServerProtocol {
         }
         player.displayClientMessage(Component.translatable("text.rei.no_permission_cheat").withStyle(ChatFormatting.RED), false);
         return false;
+    }
+
+    @Override
+    public boolean isActive() {
+        return LeavesConfig.protocol.reiServerProtocol;
+    }
+
+    @Override
+    public int tickerInterval(String tickerID) {
+        return 200;
     }
 }

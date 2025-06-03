@@ -70,12 +70,13 @@ public class EntryIngredient {
         return new EntryIngredient(Arrays.copyOf(itemStacks, itemStacks.length));
     }
 
+    @SuppressWarnings("deprecation")
     public static EntryIngredient ofIngredient(Ingredient ingredient) {
         if (ingredient.isEmpty()) {
             return EntryIngredient.empty();
         }
         ItemStack[] itemStacks = ingredient.items()
-            .map(itemHolder -> new ItemStack(itemHolder, 1))
+            .map(itemHolder -> itemHolder.value().getDefaultInstance())
             .toArray(ItemStack[]::new);
         return EntryIngredient.of(itemStacks);
     }

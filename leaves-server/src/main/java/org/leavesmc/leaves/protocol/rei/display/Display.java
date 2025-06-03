@@ -184,6 +184,7 @@ public abstract class Display {
     /**
      * see me.shedaniel.rei.plugin.common.displays.DefaultSmithingDisplay#fromTrimming
      */
+    @SuppressWarnings("deprecation")
     @NotNull
     public static Collection<Display> ofSmithingTrimRecipe(@NotNull RecipeHolder<SmithingTrimRecipe> recipeHolder) {
         RegistryAccess registryAccess = MinecraftServer.getServer().registryAccess();

@@ -37,7 +37,7 @@ public class LeavesVersionFetcher extends PaperVersionFetcher {
 
     @NotNull
     @Override
-    public Component getVersionMessage(@NotNull String serverVersion) {
+    public Component getVersionMessage() {
         final Component updateMessage;
         final ServerBuildInfo build = ServerBuildInfo.buildInfo();
         if (build.buildNumber().isEmpty() && build.gitCommit().isEmpty()) {

@@ -13,11 +13,13 @@ public class SimpleBytebufManager implements BytebufManager {
         this.internal = internal;
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public void registerListener(Plugin plugin, PacketListener listener) {
         internal.listenerMap.put(listener, plugin);
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public void unregisterListener(Plugin plugin, PacketListener listener) {
         internal.listenerMap.remove(listener);

@@ -28,6 +28,7 @@ public class ReturnPortalManager {
     private static final String FROM_POS = "FromPos";
     private static final String TO_POS = "ToPos";
 
+    @SuppressWarnings("deprecation")
     public static BlockPos findPortalAt(Player player, ResourceKey<Level> dim, BlockPos pos) {
         MinecraftServer server = player.level().getServer();
         if (server != null) {

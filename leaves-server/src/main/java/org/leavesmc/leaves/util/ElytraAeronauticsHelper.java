@@ -29,47 +29,46 @@ public class ElytraAeronauticsHelper {
 
     public static void setActive(boolean active) {
         isActive = active;
-        if (isActive) {
-            tickTask = Bukkit.getGlobalRegionScheduler().runAtFixedRate(MinecraftInternalPlugin.INSTANCE, task -> {
-                proxyTickingFireworks.removeIf(Entity::isRemoved);
-                for (FireworkRocketEntity firework : proxyTickingFireworks) {
-                    firework.life++;
-                    Vec3 handHoldingItemAngle;
-                    if (firework.attachedToEntity == null || firework.life > firework.lifetime) {
-                        firework.discard();
-                        continue;
-                    }
-                    if (firework.attachedToEntity.isFallFlying()) {
-                        if (firework.attachedToEntity instanceof ServerPlayer player) {
-                            player.connection.send(new ClientboundSetEntityMotionPacket(player));
-                        }
-                        Vec3 lookAngle = firework.attachedToEntity.getLookAngle();
-                        Vec3 deltaMovement = firework.attachedToEntity.getDeltaMovement();
-                        firework.attachedToEntity.setDeltaMovement(deltaMovement.add(
-                            lookAngle.x * 0.1 + (lookAngle.x * 1.5 - deltaMovement.x) * 0.5,
-                            lookAngle.y * 0.1 + (lookAngle.y * 1.5 - deltaMovement.y) * 0.5,
-                            lookAngle.z * 0.1 + (lookAngle.z * 1.5 - deltaMovement.z) * 0.5
-                        ));
-                        firework.attachedToEntity.hurtMarked = true;
-                        handHoldingItemAngle = firework.attachedToEntity.getHandHoldingItemAngle(Items.FIREWORK_ROCKET);
-                    } else {
-                        handHoldingItemAngle = Vec3.ZERO;
-                    }
-
-                    firework.setPos(
-                        firework.attachedToEntity.getX() + handHoldingItemAngle.x,
-                        firework.attachedToEntity.getY() + handHoldingItemAngle.y,
-                        firework.attachedToEntity.getZ() + handHoldingItemAngle.z
-                    );
-                    firework.setDeltaMovement(firework.attachedToEntity.getDeltaMovement());
-                }
-            }, 1, 1);
-        } else {
+        if (!isActive) {
             if (tickTask != null) {
                 tickTask.cancel();
             }
             tickTask = null;
         }
+        tickTask = Bukkit.getGlobalRegionScheduler().runAtFixedRate(MinecraftInternalPlugin.INSTANCE, task -> {
+            proxyTickingFireworks.removeIf(Entity::isRemoved);
+            for (FireworkRocketEntity firework : proxyTickingFireworks) {
+                firework.life++;
+                Vec3 handHoldingItemAngle;
+                if (firework.attachedToEntity == null || firework.life > firework.lifetime) {
+                    firework.discard();
+                    continue;
+                }
+                if (firework.attachedToEntity.isFallFlying()) {
+                    if (firework.attachedToEntity instanceof ServerPlayer player) {
+                        player.connection.send(new ClientboundSetEntityMotionPacket(player));
+                    }
+                    Vec3 lookAngle = firework.attachedToEntity.getLookAngle();
+                    Vec3 deltaMovement = firework.attachedToEntity.getDeltaMovement();
+                    firework.attachedToEntity.setDeltaMovement(deltaMovement.add(
+                        lookAngle.x * 0.1 + (lookAngle.x * 1.5 - deltaMovement.x) * 0.5,
+                        lookAngle.y * 0.1 + (lookAngle.y * 1.5 - deltaMovement.y) * 0.5,
+                        lookAngle.z * 0.1 + (lookAngle.z * 1.5 - deltaMovement.z) * 0.5
+                    ));
+                    firework.attachedToEntity.hurtMarked = true;
+                    handHoldingItemAngle = firework.attachedToEntity.getHandHoldingItemAngle(Items.FIREWORK_ROCKET);
+                } else {
+                    handHoldingItemAngle = Vec3.ZERO;
+                }
+
+                firework.setPos(
+                    firework.attachedToEntity.getX() + handHoldingItemAngle.x,
+                    firework.attachedToEntity.getY() + handHoldingItemAngle.y,
+                    firework.attachedToEntity.getZ() + handHoldingItemAngle.z
+                );
+                firework.setDeltaMovement(firework.attachedToEntity.getDeltaMovement());
+            }
+        }, 1, 1);
     }
 
     public static boolean proxySpawnAndTick(FireworkRocketEntity entity) {

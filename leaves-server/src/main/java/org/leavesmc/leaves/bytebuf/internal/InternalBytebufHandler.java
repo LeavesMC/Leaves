@@ -36,7 +36,7 @@ import java.util.Map;
 
 import static org.leavesmc.leaves.bytebuf.packet.PacketType.*;
 
-@SuppressWarnings("deprecation")
+@SuppressWarnings({"deprecation", "rawtypes", "unchecked"})
 public class InternalBytebufHandler {
 
     private class PacketHandler extends ChannelDuplexHandler {

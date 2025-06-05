@@ -69,15 +69,6 @@ public enum ItemStorageExtensionProvider implements IServerExtensionProvider<Ite
                     return null;
                 }, 0));
             }
-            // This is not a ChestBlockEntity
-            if (container instanceof EnderChestBlockEntity) {
-                return new ItemCollector<>(new ItemIterator.ContainerItemIterator(o -> {
-                    if (o instanceof EnderChestBlockEntity) {
-                        return request.getPlayer().getEnderChestInventory();
-                    }
-                    return null;
-                }, 0));
-            }
             return new ItemCollector<>(new ItemIterator.ContainerItemIterator(0));
         }
 

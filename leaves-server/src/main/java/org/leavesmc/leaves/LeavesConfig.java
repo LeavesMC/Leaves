@@ -342,15 +342,8 @@ public final class LeavesConfig {
 
         @GlobalConfigCategory("elytra-aeronautics")
         public static class ElytraAeronauticsConfig {
-            @GlobalConfig(value = "no-chunk-load", validator = ElytraNoChunkLoadValidator.class)
-            public boolean noChunk = false;
-
-            public static class ElytraNoChunkLoadValidator extends BooleanConfigValidator {
-                @Override
-                public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
-                    ElytraAeronauticsHelper.setActive(value);
-                }
-            }
+            @GlobalConfig("no-chunk-load")
+            public boolean enableNoChunkLoad = false;
 
             @GlobalConfig(value = "no-chunk-height")
             public double noChunkHeight = 500.0D;
@@ -359,13 +352,13 @@ public final class LeavesConfig {
             public double noChunkSpeed = -1.0D;
 
             @GlobalConfig("message")
-            public boolean noChunkMes = true;
+            public boolean doSendMessages = true;
 
             @GlobalConfig(value = "message-start")
-            public String noChunkStartMes = "Flight enter cruise mode";
+            public String startMessage = "Flight enter cruise mode";
 
             @GlobalConfig(value = "message-end")
-            public String noChunkEndMes = "Flight exit cruise mode";
+            public String endMessage = "Flight exit cruise mode";
         }
 
         @RemovedConfig(name = "redstone-shears-wrench", category = {}, transform = true)

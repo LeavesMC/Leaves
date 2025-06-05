@@ -14,6 +14,7 @@ import org.leavesmc.leaves.LeavesConfig;
 
 import java.util.List;
 
+// TODO merge to /leaves blockupdate
 public class NoBlockUpdateCommand extends Command {
 
     private static boolean noBlockUpdate = false;

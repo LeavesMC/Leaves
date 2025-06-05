@@ -11,14 +11,14 @@ import javax.annotation.Nullable;
 public class LitematicaBlockStateContainer {
 
     public static final BlockState AIR_BLOCK_STATE = Blocks.AIR.defaultBlockState();
-    protected LitematicaBitArray storage;
-    protected LitematicaBlockStatePalette palette;
     protected final Vec3i size;
     protected final int sizeX;
     protected final int sizeY;
     protected final int sizeZ;
     protected final int sizeLayer;
     protected final long totalVolume;
+    protected LitematicaBitArray storage;
+    protected LitematicaBlockStatePalette palette;
     protected int bits;
 
     public LitematicaBlockStateContainer(int sizeX, int sizeY, int sizeZ, int bits, @Nullable long[] backingLongArray) {
@@ -30,6 +30,13 @@ public class LitematicaBlockStateContainer {
         this.size = new Vec3i(this.sizeX, this.sizeY, this.sizeZ);
 
         this.setBits(bits, backingLongArray);
+    }
+
+    public static LitematicaBlockStateContainer createFrom(ListTag palette, long[] blockStates, BlockPos size) {
+        int bits = Math.max(2, Integer.SIZE - Integer.numberOfLeadingZeros(palette.size() - 1));
+        LitematicaBlockStateContainer container = new LitematicaBlockStateContainer(size.getX(), size.getY(), size.getZ(), bits, blockStates);
+        container.palette.readFromNBT(palette);
+        return container;
     }
 
     public Vec3i getSize() {
@@ -90,12 +97,5 @@ public class LitematicaBlockStateContainer {
 
     public LitematicaBlockStatePalette getPalette() {
         return this.palette;
-    }
-
-    public static LitematicaBlockStateContainer createFrom(ListTag palette, long[] blockStates, BlockPos size) {
-        int bits = Math.max(2, Integer.SIZE - Integer.numberOfLeadingZeros(palette.size() - 1));
-        LitematicaBlockStateContainer container = new LitematicaBlockStateContainer(size.getX(), size.getY(), size.getZ(), bits, blockStates);
-        container.palette.readFromNBT(palette);
-        return container;
     }
 }

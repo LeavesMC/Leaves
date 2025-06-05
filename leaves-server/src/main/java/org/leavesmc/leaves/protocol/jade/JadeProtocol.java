@@ -18,6 +18,7 @@ import net.minecraft.world.entity.animal.Chicken;
 import net.minecraft.world.entity.animal.allay.Allay;
 import net.minecraft.world.entity.animal.armadillo.Armadillo;
 import net.minecraft.world.entity.animal.frog.Tadpole;
+import net.minecraft.world.entity.animal.sniffer.Sniffer;
 import net.minecraft.world.entity.monster.ZombieVillager;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -55,6 +56,7 @@ import org.leavesmc.leaves.protocol.jade.provider.IServerExtensionProvider;
 import org.leavesmc.leaves.protocol.jade.provider.ItemStorageExtensionProvider;
 import org.leavesmc.leaves.protocol.jade.provider.ItemStorageProvider;
 import org.leavesmc.leaves.protocol.jade.provider.block.BeehiveProvider;
+import org.leavesmc.leaves.protocol.jade.provider.block.BlockNameProvider;
 import org.leavesmc.leaves.protocol.jade.provider.block.BrewingStandProvider;
 import org.leavesmc.leaves.protocol.jade.provider.block.CampfireProvider;
 import org.leavesmc.leaves.protocol.jade.provider.block.ChiseledBookshelfProvider;
@@ -64,7 +66,6 @@ import org.leavesmc.leaves.protocol.jade.provider.block.HopperLockProvider;
 import org.leavesmc.leaves.protocol.jade.provider.block.JukeboxProvider;
 import org.leavesmc.leaves.protocol.jade.provider.block.LecternProvider;
 import org.leavesmc.leaves.protocol.jade.provider.block.MobSpawnerCooldownProvider;
-import org.leavesmc.leaves.protocol.jade.provider.block.ObjectNameProvider;
 import org.leavesmc.leaves.protocol.jade.provider.block.RedstoneProvider;
 import org.leavesmc.leaves.protocol.jade.provider.entity.AnimalOwnerProvider;
 import org.leavesmc.leaves.protocol.jade.provider.entity.MobBreedingProvider;
@@ -78,25 +79,25 @@ import org.leavesmc.leaves.protocol.jade.util.LootTableMineableCollector;
 import org.leavesmc.leaves.protocol.jade.util.PairHierarchyLookup;
 import org.leavesmc.leaves.protocol.jade.util.PriorityStore;
 import org.leavesmc.leaves.protocol.jade.util.WrappedHierarchyLookup;
+import org.leavesmc.leaves.protocol.servux.litematics.utils.NbtUtils;
 
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-@LeavesProtocol(namespace = "jade")
-public class JadeProtocol {
-
-    public static PriorityStore<ResourceLocation, IJadeProvider> priorities;
-    private static List<Block> shearableBlocks = null;
+@LeavesProtocol.Register(namespace = "jade")
+public class JadeProtocol implements LeavesProtocol {
 
     public static final String PROTOCOL_ID = "jade";
     public static final String PROTOCOL_VERSION = "7";
-
     public static final HierarchyLookup<IServerDataProvider<EntityAccessor>> entityDataProviders = new HierarchyLookup<>(Entity.class);
     public static final PairHierarchyLookup<IServerDataProvider<BlockAccessor>> blockDataProviders = new PairHierarchyLookup<>(new HierarchyLookup<>(Block.class), new HierarchyLookup<>(BlockEntity.class));
     public static final WrappedHierarchyLookup<IServerExtensionProvider<ItemStack>> itemStorageProviders = WrappedHierarchyLookup.forAccessor();
     private static final Set<ServerPlayer> enabledPlayers = new HashSet<>();
+
+    public static PriorityStore<ResourceLocation, IJadeProvider> priorities;
+    private static List<Block> shearableBlocks = null;
 
     @Contract("_ -> new")
     public static ResourceLocation id(String path) {
@@ -113,7 +114,7 @@ public class JadeProtocol {
         priorities = new PriorityStore<>(IJadeProvider::getDefaultPriority, IJadeProvider::getUid);
 
         // core plugin
-        blockDataProviders.register(BlockEntity.class, ObjectNameProvider.ForBlock.INSTANCE);
+        blockDataProviders.register(BlockEntity.class, BlockNameProvider.INSTANCE);
 
         // universal plugin
         entityDataProviders.register(Entity.class, ItemStorageProvider.getEntity());
@@ -133,6 +134,7 @@ public class JadeProtocol {
 
         entityDataProviders.register(Chicken.class, NextEntityDropProvider.INSTANCE);
         entityDataProviders.register(Armadillo.class, NextEntityDropProvider.INSTANCE);
+        entityDataProviders.register(Sniffer.class, NextEntityDropProvider.INSTANCE);
 
         entityDataProviders.register(ZombieVillager.class, ZombieVillagerProvider.INSTANCE);
 
@@ -150,9 +152,10 @@ public class JadeProtocol {
         blockDataProviders.register(ChiseledBookShelfBlockEntity.class, ChiseledBookshelfProvider.INSTANCE);
         blockDataProviders.register(TrialSpawnerBlockEntity.class, MobSpawnerCooldownProvider.INSTANCE);
 
+        itemStorageProviders.register(CampfireBlock.class, CampfireProvider.INSTANCE);
+
         blockDataProviders.idMapped();
         entityDataProviders.idMapped();
-        itemStorageProviders.register(CampfireBlock.class, CampfireProvider.INSTANCE);
 
         blockDataProviders.loadComplete(priorities);
         entityDataProviders.loadComplete(priorities);
@@ -161,12 +164,8 @@ public class JadeProtocol {
         rebuildShearableBlocks();
     }
 
-    @ProtocolHandler.PayloadReceiver(payload = ClientHandshakePayload.class, payloadId = "client_handshake")
+    @ProtocolHandler.PayloadReceiver(payload = ClientHandshakePayload.class)
     public static void clientHandshake(ServerPlayer player, ClientHandshakePayload payload) {
-        if (!LeavesConfig.protocol.jadeProtocol) {
-            return;
-        }
-
         if (!payload.protocolVersion().equals(PROTOCOL_VERSION)) {
             player.sendSystemMessage(Component.literal("You are using a different version of Jade than the server. Please update Jade or report to the server operator").withColor(0xff0000));
             return;
@@ -180,12 +179,8 @@ public class JadeProtocol {
         enabledPlayers.remove(player);
     }
 
-    @ProtocolHandler.PayloadReceiver(payload = RequestEntityPayload.class, payloadId = "request_entity")
+    @ProtocolHandler.PayloadReceiver(payload = RequestEntityPayload.class)
     public static void requestEntityData(ServerPlayer player, RequestEntityPayload payload) {
-        if (!LeavesConfig.protocol.jadeProtocol) {
-            return;
-        }
-
         MinecraftServer.getServer().execute(() -> {
             EntityAccessor accessor = payload.data().unpack(player);
             if (accessor == null) {
@@ -220,12 +215,8 @@ public class JadeProtocol {
         });
     }
 
-    @ProtocolHandler.PayloadReceiver(payload = RequestBlockPayload.class, payloadId = "request_block")
+    @ProtocolHandler.PayloadReceiver(payload = RequestBlockPayload.class)
     public static void requestBlockData(ServerPlayer player, RequestBlockPayload payload) {
-        if (!LeavesConfig.protocol.jadeProtocol) {
-            return;
-        }
-
         MinecraftServer server = MinecraftServer.getServer();
         server.execute(() -> {
             BlockAccessor accessor = payload.data().unpack(player);
@@ -263,9 +254,7 @@ public class JadeProtocol {
                     LeavesLogger.LOGGER.warning("Error while saving data for block " + accessor.getBlockState());
                 }
             }
-            tag.putInt("x", pos.getX());
-            tag.putInt("y", pos.getY());
-            tag.putInt("z", pos.getZ());
+            NbtUtils.writeBlockPosToTag(pos, tag);
             tag.putString("BlockId", BuiltInRegistries.BLOCK.getKey(block).toString());
 
             ProtocolUtils.sendPayloadPacket(player, new ReceiveDataPayload(tag));
@@ -274,11 +263,9 @@ public class JadeProtocol {
 
     @ProtocolHandler.ReloadServer
     public static void onServerReload() {
-        if (LeavesConfig.protocol.jadeProtocol) {
-            rebuildShearableBlocks();
-            for (ServerPlayer player : enabledPlayers) {
-                ProtocolUtils.sendPayloadPacket(player, new ServerHandshakePayload(Collections.emptyMap(), shearableBlocks, blockDataProviders.mappedIds(), entityDataProviders.mappedIds()));
-            }
+        rebuildShearableBlocks();
+        for (ServerPlayer player : enabledPlayers) {
+            ProtocolUtils.sendPayloadPacket(player, new ServerHandshakePayload(Collections.emptyMap(), shearableBlocks, blockDataProviders.mappedIds(), entityDataProviders.mappedIds()));
         }
     }
 
@@ -292,5 +279,10 @@ public class JadeProtocol {
             shearableBlocks = List.of();
             LeavesLogger.LOGGER.severe("Failed to collect shearable blocks");
         }
+    }
+
+    @Override
+    public boolean isActive() {
+        return LeavesConfig.protocol.jadeProtocol;
     }
 }

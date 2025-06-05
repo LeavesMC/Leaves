@@ -19,7 +19,7 @@ public class RotateAction extends AbstractBotAction<RotateAction> {
 
     @Override
     public void loadCommand(@Nullable ServerPlayer player, @NotNull CommandArgumentResult result) {
-        this.setPlayer(player).setTickDelay(0).setNumber(1);
+        this.setPlayer(player).setInitialTickDelay(0).setInitialTickInterval(1).setInitialNumber(1);
     }
 
     public RotateAction setPlayer(ServerPlayer player) {

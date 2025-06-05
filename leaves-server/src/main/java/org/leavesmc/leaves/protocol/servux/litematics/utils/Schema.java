@@ -5,6 +5,9 @@ import javax.annotation.Nullable;
 public enum Schema {
     // TODO --> Add Schema Versions to this as versions get released
     // Minecraft Data Versions
+    SCHEMA_FUTURE(9999, "FUTURE"),
+    SCHEMA_1_21_05(4325, "1.21.5"),
+    SCHEMA_25W10A(4319, "25w10a"),
     SCHEMA_25W03A(4304, "25w03a"), // Entity Data Components ( https://www.minecraft.net/en-us/article/minecraft-snapshot-25w03a )
     SCHEMA_25W02A(4298, "25w02a"),
     SCHEMA_1_21_04(4189, "1.21.4"),
@@ -116,14 +119,6 @@ public enum Schema {
         this.str = ver;
     }
 
-    public int getDataVersion() {
-        return this.schemaId;
-    }
-
-    public String getString() {
-        return this.str;
-    }
-
     /**
      * Returns the Schema of the closest dataVersion, or below it.
      *
@@ -138,6 +133,14 @@ public enum Schema {
         }
 
         return null;
+    }
+
+    public int getDataVersion() {
+        return this.schemaId;
+    }
+
+    public String getString() {
+        return this.str;
     }
 
     @Override

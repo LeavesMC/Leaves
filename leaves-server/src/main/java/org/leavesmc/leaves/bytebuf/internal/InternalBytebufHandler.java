@@ -31,10 +31,12 @@ import org.leavesmc.leaves.bytebuf.packet.PacketType;
 
 import java.lang.reflect.Field;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.leavesmc.leaves.bytebuf.packet.PacketType.*;
 
+@SuppressWarnings({"deprecation", "rawtypes", "unchecked"})
 public class InternalBytebufHandler {
 
     private class PacketHandler extends ChannelDuplexHandler {
@@ -87,6 +89,17 @@ public class InternalBytebufHandler {
         }
     }
 
+    private static final List<String> PACKET_PACKAGES = List.of(
+        "net.minecraft.network.protocol.common",
+        "net.minecraft.network.protocol.configuration",
+        "net.minecraft.network.protocol.cookie",
+        "net.minecraft.network.protocol.game",
+        "net.minecraft.network.protocol.handshake",
+        "net.minecraft.network.protocol.login",
+        "net.minecraft.network.protocol.ping",
+        "net.minecraft.network.protocol.status"
+    );
+
     public final Map<PacketListener, Plugin> listenerMap = new HashMap<>();
     private final BytebufManager manager = new SimpleBytebufManager(this);
     private final ImmutableMap<PacketType, StreamCodec> type2CodecMap;
@@ -94,25 +107,17 @@ public class InternalBytebufHandler {
 
     public InternalBytebufHandler() {
         ImmutableMap.Builder<PacketType, StreamCodec> builder = ImmutableMap.builder();
+
         for (PacketType packet : PacketType.values()) {
-            Class<?> packetClass;
-            try {
-                packetClass = Class.forName("net.minecraft.network.protocol.game." + packet.name() + "Packet");
-            } catch (ClassNotFoundException e) {
+            String className = packet.name() + "Packet";
+            for (String basePackage : PACKET_PACKAGES) {
                 try {
-                    packetClass = Class.forName("net.minecraft.network.protocol.common." + packet.name() + "Packet");
-                } catch (ClassNotFoundException e2) {
-                    try {
-                        packetClass = Class.forName("net.minecraft.network.protocol.ping." + packet.name() + "Packet");
-                    } catch (ClassNotFoundException ignored) {
-                        continue;
-                    }
+                    Class<?> packetClass = Class.forName(basePackage + "." + className);
+                    Field field = packetClass.getDeclaredField("STREAM_CODEC");
+                    field.setAccessible(true);
+                    builder.put(packet, (StreamCodec) field.get(null));
+                } catch (Exception ignored) {
                 }
-            }
-            try {
-                Field field = packetClass.getDeclaredField("STREAM_CODEC");
-                builder.put(packet, (StreamCodec<FriendlyByteBuf, net.minecraft.network.protocol.Packet<?>>) field.get(null));
-            } catch (Exception ignored) {
             }
         }
 

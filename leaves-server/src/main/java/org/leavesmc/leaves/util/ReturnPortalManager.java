@@ -1,6 +1,7 @@
 package org.leavesmc.leaves.util;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.UUIDUtil;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -27,6 +28,7 @@ public class ReturnPortalManager {
     private static final String FROM_POS = "FromPos";
     private static final String TO_POS = "ToPos";
 
+    @SuppressWarnings("deprecation")
     public static BlockPos findPortalAt(Player player, ResourceKey<Level> dim, BlockPos pos) {
         MinecraftServer server = player.level().getServer();
         if (server != null) {
@@ -42,7 +44,7 @@ public class ReturnPortalManager {
 
     public static ListTag getPlayerPortalList(Player player) {
         CompoundTag data = player.getLeavesData();
-        ListTag list = data.getList(RETURN_PORTAL_LIST, Tag.TAG_COMPOUND);
+        ListTag list = data.getListOrEmpty(RETURN_PORTAL_LIST);
         data.put(RETURN_PORTAL_LIST, list);
         return list;
     }
@@ -52,12 +54,12 @@ public class ReturnPortalManager {
         ListTag portalList = getPlayerPortalList(player);
         for (Tag entry : portalList) {
             CompoundTag portal = (CompoundTag) entry;
-            ResourceKey<Level> entryFromDim = ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(portal.getString(FROM_DIM)));
+            ResourceKey<Level> entryFromDim = ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(portal.getString(FROM_DIM).orElseThrow()));
             if (entryFromDim == fromDim) {
-                BlockPos portalTrigger = BlockPos.of(portal.getLong(FROM_POS));
+                BlockPos portalTrigger = BlockPos.of(portal.getLong(FROM_POS).orElseThrow());
                 if (portalTrigger.distSqr(fromPos) <= MAX_PORTAL_DISTANCE_SQ) {
-                    final var uid = portal.hasUUID(RETURN_PORTAL_UID) ? portal.getUUID(RETURN_PORTAL_UID) : UUID.randomUUID();
-                    final var pos = BlockPos.of(portal.getLong(TO_POS));
+                    final UUID uid = portal.contains(RETURN_PORTAL_UID) ? portal.read(RETURN_PORTAL_UID, UUIDUtil.CODEC).orElseThrow() : UUID.randomUUID();
+                    final BlockPos pos = BlockPos.of(portal.getLong(TO_POS).orElseThrow());
                     return new ReturnPortal(uid, pos);
                 }
             }
@@ -74,7 +76,7 @@ public class ReturnPortalManager {
         }
 
         CompoundTag portalCompound = new CompoundTag();
-        portalCompound.putUUID(RETURN_PORTAL_UID, UUID.randomUUID());
+        portalCompound.store(RETURN_PORTAL_UID, UUIDUtil.CODEC, UUID.randomUUID());
         portalCompound.putString(FROM_DIM, String.valueOf(fromDim.location()));
         portalCompound.putLong(FROM_POS, fromPos.asLong());
         portalCompound.putLong(TO_POS, toPos.asLong());
@@ -86,7 +88,7 @@ public class ReturnPortalManager {
         ListTag portalList = getPlayerPortalList(player);
         for (int i = 0; i < portalList.size(); i++) {
             CompoundTag entry = (CompoundTag) portalList.get(i);
-            if (entry.hasUUID(RETURN_PORTAL_UID) && entry.getUUID(RETURN_PORTAL_UID).equals(portal.uid)) {
+            if (entry.contains(RETURN_PORTAL_UID) && entry.read(RETURN_PORTAL_UID, UUIDUtil.CODEC).orElseThrow().equals(portal.uid)) {
                 portalList.remove(i);
                 break;
             }

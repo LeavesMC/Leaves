@@ -8,8 +8,8 @@ import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.protocol.core.LeavesProtocol;
 import org.leavesmc.leaves.protocol.core.ProtocolUtils;
 
-@LeavesProtocol(namespace = {"xaerominimap", "xaeroworldmap"})
-public class XaeroMapProtocol {
+@LeavesProtocol.Register(namespace = "xaerominimap_or_xaeroworldmap_i_dont_care")
+public class XaeroMapProtocol implements LeavesProtocol {
 
     public static final String PROTOCOL_ID_MINI = "xaerominimap";
     public static final String PROTOCOL_ID_WORLD = "xaeroworldmap";
@@ -29,14 +29,19 @@ public class XaeroMapProtocol {
 
     public static void onSendWorldInfo(@NotNull ServerPlayer player) {
         if (LeavesConfig.protocol.xaeroMapProtocol) {
-            ProtocolUtils.sendPayloadPacket(player, MINIMAP_KEY, buf -> {
+            ProtocolUtils.sendBytebufPacket(player, MINIMAP_KEY, buf -> {
                 buf.writeByte(0);
                 buf.writeInt(LeavesConfig.protocol.xaeroMapServerID);
             });
-            ProtocolUtils.sendPayloadPacket(player, WORLDMAP_KEY, buf -> {
+            ProtocolUtils.sendBytebufPacket(player, WORLDMAP_KEY, buf -> {
                 buf.writeByte(0);
                 buf.writeInt(LeavesConfig.protocol.xaeroMapServerID);
             });
         }
+    }
+
+    @Override
+    public boolean isActive() {
+        return LeavesConfig.protocol.xaeroMapProtocol;
     }
 }

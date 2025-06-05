@@ -1,12 +1,8 @@
 package org.leavesmc.leaves.protocol.servux.litematics.container;
 
-import net.minecraft.core.Registry;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtUtils;
-import net.minecraft.server.MinecraftServer;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 
 import javax.annotation.Nullable;
@@ -49,28 +45,12 @@ public class LitematicaBlockStatePaletteLinear implements LitematicaBlockStatePa
         return indexKey >= 0 && indexKey < this.currentSize ? this.states[indexKey] : null;
     }
 
-    private void requestNewId(BlockState state) {
+    public void requestNewId(BlockState state) {
         final int size = this.currentSize;
 
         if (size < this.states.length) {
             this.states[size] = state;
             ++this.currentSize;
-        }
-    }
-
-    @Override
-    public void readFromNBT(ListTag tagList) {
-        Registry<Block> lookup = MinecraftServer.getServer().registryAccess().lookupOrThrow(Registries.BLOCK);
-
-        final int size = tagList.size();
-
-        for (int i = 0; i < size; ++i) {
-            CompoundTag tag = tagList.getCompound(i);
-            BlockState state = NbtUtils.readBlockState(lookup, tag);
-
-            if (i > 0 || state != LitematicaBlockStateContainer.AIR_BLOCK_STATE) {
-                this.requestNewId(state);
-            }
         }
     }
 

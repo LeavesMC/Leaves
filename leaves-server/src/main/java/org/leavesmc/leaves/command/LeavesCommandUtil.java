@@ -15,7 +15,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -57,22 +56,15 @@ public class LeavesCommandUtil {
         ArrayList<String> results = Lists.newArrayList();
 
         if (!collection.isEmpty()) {
-            Iterator iterator = Iterables.transform(collection, Functions.toStringFunction()).iterator();
 
-            while (iterator.hasNext()) {
-                String s1 = (String) iterator.next();
-
+            for (String s1 : Iterables.transform(collection, Functions.toStringFunction())) {
                 if (matches(last, s1) && (sender.hasPermission(basePermission + s1) || sender.hasPermission(overridePermission))) {
                     results.add(s1);
                 }
             }
 
             if (results.isEmpty()) {
-                iterator = collection.iterator();
-
-                while (iterator.hasNext()) {
-                    Object object = iterator.next();
-
+                for (Object object : collection) {
                     if (object instanceof ResourceLocation && matches(last, ((ResourceLocation) object).getPath())) {
                         results.add(String.valueOf(object));
                     }
@@ -122,6 +114,7 @@ public class LeavesCommandUtil {
     }
 
     // Copy from org/bukkit/command/defaults/HelpCommand.java
+
     /**
      * Computes the Dameraur-Levenshtein Distance between two strings. Adapted
      * from the algorithm at <a href="http://en.wikipedia.org/wiki/Damerau%E2%80%93Levenshtein_distance">Wikipedia: Damerau–Levenshtein distance</a>

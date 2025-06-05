@@ -2,7 +2,6 @@ package org.leavesmc.leaves.protocol.jade.accessor;
 
 import com.google.common.base.Suppliers;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
@@ -30,7 +29,7 @@ public class BlockAccessorImpl extends AccessorImpl<BlockHitResult> implements B
     private final Supplier<BlockEntity> blockEntity;
 
     private BlockAccessorImpl(Builder builder) {
-        super(builder.level, builder.player, Suppliers.ofInstance(builder.hit), builder.connected, builder.showDetails);
+        super(builder.level, builder.player, Suppliers.ofInstance(builder.hit));
         blockState = builder.blockState;
         blockEntity = builder.blockEntity;
     }
@@ -55,11 +54,6 @@ public class BlockAccessorImpl extends AccessorImpl<BlockHitResult> implements B
         return getHitResult().getBlockPos();
     }
 
-    @Override
-    public Direction getSide() {
-        return getHitResult().getDirection();
-    }
-
     @Nullable
     @Override
     public Object getTarget() {
@@ -67,11 +61,8 @@ public class BlockAccessorImpl extends AccessorImpl<BlockHitResult> implements B
     }
 
     public static class Builder implements BlockAccessor.Builder {
-
         private Level level;
         private Player player;
-        private boolean connected;
-        private boolean showDetails;
         private BlockHitResult hit;
         private BlockState blockState = Blocks.AIR.defaultBlockState();
         private Supplier<BlockEntity> blockEntity;
@@ -85,12 +76,6 @@ public class BlockAccessorImpl extends AccessorImpl<BlockHitResult> implements B
         @Override
         public Builder player(Player player) {
             this.player = player;
-            return this;
-        }
-
-        @Override
-        public Builder showDetails(boolean showDetails) {
-            this.showDetails = showDetails;
             return this;
         }
 
@@ -116,8 +101,6 @@ public class BlockAccessorImpl extends AccessorImpl<BlockHitResult> implements B
         public Builder from(BlockAccessor accessor) {
             level = accessor.getLevel();
             player = accessor.getPlayer();
-            connected = accessor.isServerConnected();
-            showDetails = accessor.showDetails();
             hit = accessor.getHitResult();
             blockEntity = accessor::getBlockEntity;
             blockState = accessor.getBlockState();
@@ -132,15 +115,15 @@ public class BlockAccessorImpl extends AccessorImpl<BlockHitResult> implements B
 
     public record SyncData(boolean showDetails, BlockHitResult hit, BlockState blockState, ItemStack fakeBlock) {
         public static final StreamCodec<RegistryFriendlyByteBuf, SyncData> STREAM_CODEC = StreamCodec.composite(
-                ByteBufCodecs.BOOL,
-                SyncData::showDetails,
-                StreamCodec.of(FriendlyByteBuf::writeBlockHitResult, FriendlyByteBuf::readBlockHitResult),
-                SyncData::hit,
-                ByteBufCodecs.idMapper(Block.BLOCK_STATE_REGISTRY),
-                SyncData::blockState,
-                ItemStack.OPTIONAL_STREAM_CODEC,
-                SyncData::fakeBlock,
-                SyncData::new
+            ByteBufCodecs.BOOL,
+            SyncData::showDetails,
+            StreamCodec.of(FriendlyByteBuf::writeBlockHitResult, FriendlyByteBuf::readBlockHitResult),
+            SyncData::hit,
+            ByteBufCodecs.idMapper(Block.BLOCK_STATE_REGISTRY),
+            SyncData::blockState,
+            ItemStack.OPTIONAL_STREAM_CODEC,
+            SyncData::fakeBlock,
+            SyncData::new
         );
 
         public BlockAccessor unpack(ServerPlayer player) {
@@ -149,13 +132,12 @@ public class BlockAccessorImpl extends AccessorImpl<BlockHitResult> implements B
                 blockEntity = Suppliers.memoize(() -> player.level().getBlockEntity(hit.getBlockPos()));
             }
             return new Builder()
-                    .level(player.level())
-                    .player(player)
-                    .showDetails(showDetails)
-                    .hit(hit)
-                    .blockState(blockState)
-                    .blockEntity(blockEntity)
-                    .build();
+                .level(player.level())
+                .player(player)
+                .hit(hit)
+                .blockState(blockState)
+                .blockEntity(blockEntity)
+                .build();
         }
     }
 }

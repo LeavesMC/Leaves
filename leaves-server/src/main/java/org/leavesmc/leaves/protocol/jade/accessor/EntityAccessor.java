@@ -23,8 +23,6 @@ public interface EntityAccessor extends Accessor<EntityHitResult> {
 
         Builder player(Player player);
 
-        Builder showDetails(boolean showDetails);
-
         default Builder hit(EntityHitResult hit) {
             return hit(() -> hit);
         }

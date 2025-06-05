@@ -235,6 +235,7 @@ public class HopperCounter {
         entry(Items.AMETHYST_SHARD, Blocks.AMETHYST_BLOCK)
     );
 
+    @SuppressWarnings("deprecation")
     @Nullable
     public static TextColor guessColor(@NotNull MinecraftServer server, Item item) {
         RegistryAccess registryAccess = server.registryAccess();

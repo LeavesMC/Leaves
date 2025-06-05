@@ -4,7 +4,9 @@ import com.google.common.base.Charsets;
 import net.minecraft.core.NonNullList;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.ItemStack;
+import org.bukkit.Bukkit;
 import org.jetbrains.annotations.NotNull;
+import org.leavesmc.leaves.LeavesConfig;
 
 import java.util.UUID;
 
@@ -69,5 +71,25 @@ public class BotUtil {
 
     public static UUID getBotUUID(@NotNull String realName) {
         return UUID.nameUUIDFromBytes(("Fakeplayer:" + realName).getBytes(Charsets.UTF_8));
+    }
+
+    public static String getFullName(String inputName) {
+        return LeavesConfig.modify.fakeplayer.prefix + inputName + LeavesConfig.modify.fakeplayer.suffix;
+    }
+
+    public static boolean isCreateLegal(@NotNull String name) {
+        if (!name.matches("^[a-zA-Z0-9_]{4,16}$")) {
+            return false;
+        }
+
+        if (Bukkit.getPlayerExact(name) != null || BotList.INSTANCE.getBotByName(name) != null) {
+            return false;
+        }
+
+        if (LeavesConfig.modify.fakeplayer.unableNames.contains(name)) {
+            return false;
+        }
+
+        return BotList.INSTANCE.bots.size() < LeavesConfig.modify.fakeplayer.limit;
     }
 }

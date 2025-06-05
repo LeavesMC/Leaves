@@ -3,6 +3,8 @@ package org.leavesmc.leaves.protocol;
 import com.google.common.collect.Sets;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -22,39 +24,33 @@ import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.function.Consumer;
 
-@LeavesProtocol(namespace = "litematica-server-paster")
-public class LMSPasterProtocol {
+@LeavesProtocol.Register(namespace = "litematica-server-paster")
+public class LMSPasterProtocol implements LeavesProtocol {
 
     public static final String MOD_ID = "litematica-server-paster";
     public static final String MOD_VERSION = "1.3.5";
 
-    private static final ResourceLocation PACKET_ID = ResourceLocation.fromNamespaceAndPath(MOD_ID, "network_v2");
-
     private static final Map<ServerGamePacketListenerImpl, StringBuilder> VERY_LONG_CHATS = new WeakHashMap<>();
 
-    @ProtocolHandler.PayloadReceiver(payload = LmsPasterPayload.class, payloadId = "network_v2")
+    @ProtocolHandler.PayloadReceiver(payload = LmsPasterPayload.class)
     public static void handlePackets(ServerPlayer player, LmsPasterPayload payload) {
-        if (!LeavesConfig.protocol.lmsPasterProtocol) {
-            return;
-        }
-
         String playerName = player.getName().getString();
-        int id = payload.getPacketId();
-        CompoundTag nbt = payload.getNbt();
+        int id = payload.id();
+        CompoundTag nbt = payload.nbt();
         switch (id) {
             case LMSPasterProtocol.C2S.HI -> {
-                String clientModVersion = nbt.getString("mod_version");
+                String clientModVersion = nbt.getString("mod_version").orElseThrow();
                 LeavesLogger.LOGGER.info(String.format("Player %s connected with %s @ %s", playerName, LMSPasterProtocol.MOD_ID, clientModVersion));
                 ProtocolUtils.sendPayloadPacket(player, LMSPasterProtocol.S2C.build(LMSPasterProtocol.S2C.HI, nbt2 -> nbt2.putString("mod_version", LMSPasterProtocol.MOD_VERSION)));
                 ProtocolUtils.sendPayloadPacket(player, LMSPasterProtocol.S2C.build(LMSPasterProtocol.S2C.ACCEPT_PACKETS, nbt2 -> nbt2.putIntArray("ids", C2S.ALL_PACKET_IDS)));
             }
             case LMSPasterProtocol.C2S.CHAT -> {
-                String message = nbt.getString("chat");
+                String message = nbt.getString("chat").orElseThrow();
                 triggerCommand(player, playerName, message);
             }
             case LMSPasterProtocol.C2S.VERY_LONG_CHAT_START -> VERY_LONG_CHATS.put(player.connection, new StringBuilder());
             case LMSPasterProtocol.C2S.VERY_LONG_CHAT_CONTENT -> {
-                String segment = nbt.getString("segment");
+                String segment = nbt.getString("segment").orElseThrow();
                 getVeryLongChatBuilder(player).ifPresent(builder -> builder.append(segment));
             }
             case LMSPasterProtocol.C2S.VERY_LONG_CHAT_END -> {
@@ -74,6 +70,11 @@ public class LMSPasterProtocol {
         } else {
             player.getBukkitEntity().performCommand(command);
         }
+    }
+
+    @Override
+    public boolean isActive() {
+        return LeavesConfig.protocol.lmsPasterProtocol;
     }
 
     private static class C2S {
@@ -115,36 +116,17 @@ public class LMSPasterProtocol {
         }
     }
 
-    public static class LmsPasterPayload implements LeavesCustomPayload<LmsPasterPayload> {
-        private final int id;
-        private final CompoundTag nbt;
+    public record LmsPasterPayload(int id, CompoundTag nbt) implements LeavesCustomPayload {
+        @ID
+        private static final ResourceLocation PACKET_ID = ResourceLocation.fromNamespaceAndPath(MOD_ID, "network_v2");
 
-        public LmsPasterPayload(int id, CompoundTag nbt) {
-            this.id = id;
-            this.nbt = nbt;
-        }
-
-        @New
-        public LmsPasterPayload(ResourceLocation location, FriendlyByteBuf buf) {
-            this(buf.readVarInt(), buf.readNbt());
-        }
-
-        public void write(FriendlyByteBuf buf) {
-            buf.writeVarInt(this.id);
-            buf.writeNbt(this.nbt);
-        }
-
-        @Override
-        public ResourceLocation id() {
-            return PACKET_ID;
-        }
-
-        public int getPacketId() {
-            return this.id;
-        }
-
-        public CompoundTag getNbt() {
-            return this.nbt;
-        }
+        @Codec
+        private static final StreamCodec<FriendlyByteBuf, LmsPasterPayload> CODEC = StreamCodec.composite(
+            ByteBufCodecs.VAR_INT,
+            LmsPasterPayload::id,
+            ByteBufCodecs.COMPOUND_TAG,
+            LmsPasterPayload::nbt,
+            LmsPasterPayload::new
+        );
     }
 }

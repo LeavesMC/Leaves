@@ -4,7 +4,9 @@ import com.destroystokyo.paper.util.SneakyThrow;
 import io.papermc.paper.configuration.GlobalConfiguration;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
 import org.bukkit.command.Command;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.permissions.Permission;
@@ -28,6 +30,7 @@ import org.leavesmc.leaves.protocol.CarpetServerProtocol.CarpetRules;
 import org.leavesmc.leaves.protocol.bladeren.BladerenProtocol.LeavesFeature;
 import org.leavesmc.leaves.protocol.bladeren.BladerenProtocol.LeavesFeatureSet;
 import org.leavesmc.leaves.region.RegionFileFormat;
+import org.leavesmc.leaves.util.ElytraAeronauticsHelper;
 import org.leavesmc.leaves.util.ForcePeacefulModeSwitchType;
 import org.leavesmc.leaves.util.MathUtils;
 
@@ -39,6 +42,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Random;
 import java.util.Set;
+import java.util.function.Predicate;
 
 public final class LeavesConfig {
 
@@ -216,14 +220,19 @@ public final class LeavesConfig {
                 @GlobalConfig("cce-update-suppression")
                 public boolean cceUpdateSuppression = false;
 
+                @GlobalConfig("sound-update-suppression")
+                public boolean soundUpdateSuppression = false;
+
                 @RemovedConfig(name = "redstone-wire-dont-connect-if-on-trapdoor", category = "modify", transform = true)
                 @RemovedConfig(name = "redstone-wire-dont-connect-if-on-trapdoor", category = {"modify", "minecraft-old"}, transform = true)
-                @GlobalConfig("redstone-wire-dont-connect-if-on-trapdoor")
-                public boolean redstoneDontCantOnTrapDoor = false;
+                @RemovedConfig(name = "redstone-wire-dont-connect-if-on-trapdoor", category = {"modify", "minecraft-old", "block-updater"}, transform = true)
+                @GlobalConfig("redstone-ignore-upwards-update")
+                public boolean redstoneIgnoreUpwardsUpdate = false;
 
                 @RemovedConfig(name = "old-block-entity-behaviour", category = {"modify", "minecraft-old"}, transform = true)
-                @GlobalConfig("old-block-entity-behaviour")
-                public boolean oldBlockEntityBehaviour = false;
+                @RemovedConfig(name = "old-block-entity-behaviour", category = {"modify", "minecraft-old", "block-updater"}, transform = true)
+                @GlobalConfig("old-block-remove-behaviour")
+                public boolean oldBlockRemoveBehaviour = false;
             }
 
             @RemovedConfig(name = "shears-in-dispenser-can-zero-amount", category = {}, transform = true)
@@ -235,7 +244,7 @@ public final class LeavesConfig {
             public boolean armorStandCantKillByMobProjectile = false;
 
             @GlobalConfig(value = "villager-infinite-discounts", validator = VillagerInfiniteDiscountsValidator.class)
-            public boolean villagerInfiniteDiscounts = false;
+            private boolean villagerInfiniteDiscounts = false;
 
             private static class VillagerInfiniteDiscountsValidator extends BooleanConfigValidator {
                 @Override
@@ -277,11 +286,17 @@ public final class LeavesConfig {
             @GlobalConfig("disable-LivingEntity-ai-step-alive-check")
             public boolean disableLivingEntityAiStepAliveCheck = false;
 
-            @GlobalConfig("fix-fortress-mob-spawn")
-            public boolean fixFortressMobSpawn = false;
+            @GlobalConfig("spawn-invulnerable-time")
+            public boolean spawnInvulnerableTime = false;
 
             @GlobalConfig("old-hopper-suck-in-behavior")
             public boolean oldHopperSuckInBehavior = false;
+
+            @GlobalConfig("old-nether-portal-collision") // Should remove in 1.21.6
+            public boolean oldNetherPortalCollision = false;
+
+            @GlobalConfig("old-zombie-piglin-drop")
+            public boolean oldZombiePiglinDrop = false;
 
             public RaidConfig raid = new RaidConfig();
 
@@ -300,11 +315,27 @@ public final class LeavesConfig {
                 public boolean skipHeightCheck = false;
             }
 
+            @GlobalConfig("old-zombie-reinforcement")
+            public boolean oldZombieReinforcement = false;
+
             @GlobalConfig("allow-anvil-destroy-item-entities")
             public boolean allowAnvilDestroyItemEntities = false;
 
-            @GlobalConfig("string-tripwire-hook-duplicate")
-            public boolean stringTripwireHookDuplicate = false;
+            public TripwireConfig tripwire = new TripwireConfig();
+
+            @GlobalConfigCategory("tripwire-and-hook-behavior")
+            public static class TripwireConfig {
+                @RemovedConfig(name = "string-tripwire-hook-duplicate", category = {"modify", "minecraft-old"}, transform = true)
+                @GlobalConfig("string-tripwire-hook-duplicate")
+                public boolean stringTripwireHookDuplicate = false;
+
+                @GlobalConfig("tripwire-behavior")
+                public TripwireBehavior tripwireBehavior = TripwireBehavior.VANILLA_21;
+
+                public enum TripwireBehavior {
+                    VANILLA_20, VANILLA_21, MIXED
+                }
+            }
         }
 
         public ElytraAeronauticsConfig elytraAeronautics = new ElytraAeronauticsConfig();
@@ -312,7 +343,7 @@ public final class LeavesConfig {
         @GlobalConfigCategory("elytra-aeronautics")
         public static class ElytraAeronauticsConfig {
             @GlobalConfig("no-chunk-load")
-            public boolean noChunk = false;
+            public boolean enableNoChunkLoad = false;
 
             @GlobalConfig(value = "no-chunk-height")
             public double noChunkHeight = 500.0D;
@@ -321,13 +352,13 @@ public final class LeavesConfig {
             public double noChunkSpeed = -1.0D;
 
             @GlobalConfig("message")
-            public boolean noChunkMes = true;
+            public boolean doSendMessages = true;
 
             @GlobalConfig(value = "message-start")
-            public String noChunkStartMes = "Flight enter cruise mode";
+            public String startMessage = "Flight enter cruise mode";
 
             @GlobalConfig(value = "message-end")
-            public String noChunkEndMes = "Flight exit cruise mode";
+            public String endMessage = "Flight exit cruise mode";
         }
 
         @RemovedConfig(name = "redstone-shears-wrench", category = {}, transform = true)
@@ -450,9 +481,6 @@ public final class LeavesConfig {
 
         @GlobalConfig("shave-snow-layers")
         public boolean shaveSnowLayers = true;
-
-        @GlobalConfig("ignore-lc")
-        public boolean ignoreLC = false;
 
         @GlobalConfig("disable-packet-limit")
         public boolean disablePacketLimit = false;
@@ -580,11 +608,33 @@ public final class LeavesConfig {
         @GlobalConfig("disable-vault-blacklist")
         public boolean disableVaultBlacklist = false;
 
+        @GlobalConfig(value = "exp-orb-absorb-mode", validator = ExpOrbModeValidator.class)
+        private ExpOrbAbsorbMode expOrbAbsorbMode = ExpOrbAbsorbMode.VANILLA;
+
+        public Predicate<ServerPlayer> fastAbsorbPredicate = player -> false;
+
+        public enum ExpOrbAbsorbMode {
+            VANILLA, FAST, FAST_CREATIVE
+        }
+
+        private static class ExpOrbModeValidator extends EnumConfigValidator<ExpOrbAbsorbMode> {
+            @Override
+            public void verify(ExpOrbAbsorbMode old, ExpOrbAbsorbMode value) throws IllegalArgumentException {
+                LeavesConfig.modify.fastAbsorbPredicate = switch (value) {
+                    case FAST -> player -> true;
+                    case VANILLA -> player -> false;
+                    case FAST_CREATIVE -> Player::hasInfiniteMaterials;
+                };
+            }
+        }
+
         @RemovedConfig(name = "tick-command", category = "modify")
         @RemovedConfig(name = "player-can-edit-sign", category = "modify")
         @RemovedConfig(name = "mending-compatibility-infinity", category = {"modify", "minecraft-old"})
         @RemovedConfig(name = "protection-stacking", category = {"modify", "minecraft-old"})
-        @RemovedConfig(name = "disable-moved-wrongly-threshold", category = {"modify"})
+        @RemovedConfig(name = "disable-moved-wrongly-threshold", category = "modify")
+        @RemovedConfig(name = "ignore-lc", category = "modify")
+        @RemovedConfig(name = "fix-fortress-mob-spawn", category = {"modify", "minecraft-old"})
         private final boolean removed = false;
     }
 
@@ -947,7 +997,7 @@ public final class LeavesConfig {
             public boolean loginProtect = false;
 
             @GlobalConfig(value = "urls", lock = true, validator = ExtraYggdrasilUrlsValidator.class)
-            public List<String> serviceList = List.of("https://url.with.authlib-injector-yggdrasil");
+            private List<String> serviceList = List.of("https://url.with.authlib-injector-yggdrasil");
 
             public static class ExtraYggdrasilUrlsValidator extends ListConfigValidator.STRING {
                 @Override
@@ -1022,9 +1072,6 @@ public final class LeavesConfig {
             @GlobalConfig(value = "version", lock = true)
             public org.leavesmc.leaves.region.linear.LinearVersion version = org.leavesmc.leaves.region.linear.LinearVersion.V2;
 
-            @GlobalConfig(value = "auto-convert-anvil-to-linear", lock = true)
-            public boolean autoConvertAnvilToLinear = false;
-
             @GlobalConfig(value = "flush-max-threads", lock = true)
             public int flushThreads = 6;
 
@@ -1056,7 +1103,8 @@ public final class LeavesConfig {
 
             @RemovedConfig(name = "flush-frequency", category = {"region", "linear"})
             @RemovedConfig(name = "crash-on-broken-symlink", category = {"region", "linear"})
-            private final boolean linearCrashOnBrokenSymlink = true;
+            @RemovedConfig(name = "auto-convert-anvil-to-linear", category = {"region", "linear"})
+            private final boolean removed = true;
         }
     }
 
@@ -1069,6 +1117,16 @@ public final class LeavesConfig {
 
         @GlobalConfig("vanilla-display-name")
         public boolean vanillaDisplayName = false;
+
+        @GlobalConfig(value = "collision-behavior")
+        public CollisionBehavior collisionBehavior = CollisionBehavior.BLOCK_SHAPE_VANILLA;
+
+        public enum CollisionBehavior {
+            VANILLA, BLOCK_SHAPE_VANILLA, PAPER
+        }
+
+        @GlobalConfig("vanilla-portal-handle")
+        public boolean vanillaPortalHandle = false;
 
         @RemovedConfig(name = "spigot-EndPlatform-destroy", category = "fix")
         private final boolean spigotEndPlatformDestroy = false;

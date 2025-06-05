@@ -2,6 +2,8 @@ package org.leavesmc.leaves.protocol;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import org.jetbrains.annotations.Contract;
@@ -17,13 +19,11 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 
-@LeavesProtocol(namespace = "carpet")
-public class CarpetServerProtocol {
+@LeavesProtocol.Register(namespace = "carpet")
+public class CarpetServerProtocol implements LeavesProtocol {
 
     public static final String PROTOCOL_ID = "carpet";
     public static final String VERSION = ProtocolUtils.buildProtocolVersion(PROTOCOL_ID);
-
-    private static final ResourceLocation HELLO_ID = CarpetServerProtocol.id("hello");
 
     private static final String HI = "69";
     private static final String HELLO = "420";
@@ -42,7 +42,7 @@ public class CarpetServerProtocol {
         }
     }
 
-    @ProtocolHandler.PayloadReceiver(payload = CarpetPayload.class, payloadId = "hello")
+    @ProtocolHandler.PayloadReceiver(payload = CarpetPayload.class)
     private static void handleHello(@NotNull ServerPlayer player, @NotNull CarpetServerProtocol.CarpetPayload payload) {
         if (LeavesConfig.protocol.leavesCarpetSupport) {
             if (payload.nbt.contains(HELLO)) {
@@ -52,6 +52,11 @@ public class CarpetServerProtocol {
                 ProtocolUtils.sendPayloadPacket(player, new CarpetPayload(data));
             }
         }
+    }
+
+    @Override
+    public boolean isActive() {
+        return false;
     }
 
     public static class CarpetRules {
@@ -99,22 +104,13 @@ public class CarpetServerProtocol {
         }
     }
 
-    public record CarpetPayload(CompoundTag nbt) implements LeavesCustomPayload<CarpetPayload> {
+    public record CarpetPayload(CompoundTag nbt) implements LeavesCustomPayload {
+        @ID
+        private static final ResourceLocation HELLO_ID = CarpetServerProtocol.id("hello");
 
-        @New
-        public CarpetPayload(ResourceLocation location, FriendlyByteBuf buf) {
-            this(buf.readNbt());
-        }
-
-        @Override
-        public void write(FriendlyByteBuf buf) {
-            buf.writeNbt(nbt);
-        }
-
-        @Override
-        @NotNull
-        public ResourceLocation id() {
-            return HELLO_ID;
-        }
+        @Codec
+        private static final StreamCodec<FriendlyByteBuf, CarpetPayload> CODEC = StreamCodec.composite(
+            ByteBufCodecs.COMPOUND_TAG, CarpetPayload::nbt, CarpetPayload::new
+        );
     }
 }

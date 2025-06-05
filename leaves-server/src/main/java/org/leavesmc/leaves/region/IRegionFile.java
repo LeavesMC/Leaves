@@ -37,4 +37,6 @@ public interface IRegionFile extends ChunkSystemRegionFile, AutoCloseable {
     boolean hasChunk(ChunkPos pos);
 
     boolean recalculateHeader() throws IOException;
+
+    int getRecalculateCount();
 }

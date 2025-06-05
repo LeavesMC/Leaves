@@ -16,8 +16,8 @@ import java.util.UUID;
 
 import static org.leavesmc.leaves.protocol.chatimage.ServerBlockCache.SERVER_BLOCK_CACHE;
 
-@LeavesProtocol(namespace = "chatimage")
-public class ChatImageProtocol {
+@LeavesProtocol.Register(namespace = "chatimage")
+public class ChatImageProtocol implements LeavesProtocol {
 
     public static final String PROTOCOL_ID = "chatimage";
     public static final Gson gson = new Gson();
@@ -27,12 +27,8 @@ public class ChatImageProtocol {
         return ResourceLocation.tryBuild(PROTOCOL_ID, path);
     }
 
-    @ProtocolHandler.PayloadReceiver(payload = FileChannelPayload.class, payloadId = "get_file_channel")
-    public static void serverFileChannelReceived(ServerPlayer player, FileChannelPayload payload) {
-        if (!LeavesConfig.protocol.chatImageProtocol) {
-            return;
-        }
-
+    @ProtocolHandler.PayloadReceiver(payload = FileChannelPayload.class)
+    public void serverFileChannelReceived(ServerPlayer player, FileChannelPayload payload) {
         MinecraftServer server = MinecraftServer.getServer();
         String res = payload.message();
         ChatImageIndex title = gson.fromJson(res, ChatImageIndex.class);
@@ -52,12 +48,8 @@ public class ChatImageProtocol {
         }
     }
 
-    @ProtocolHandler.PayloadReceiver(payload = FileInfoChannelPayload.class, payloadId = "file_info")
-    public static void serverGetFileChannelReceived(ServerPlayer player, FileInfoChannelPayload packet) {
-        if (!LeavesConfig.protocol.chatImageProtocol) {
-            return;
-        }
-
+    @ProtocolHandler.PayloadReceiver(payload = FileInfoChannelPayload.class)
+    public void serverGetFileChannelReceived(ServerPlayer player, FileInfoChannelPayload packet) {
         String url = packet.message();
         Map<Integer, String> list = SERVER_BLOCK_CACHE.getBlock(url);
         if (list == null) {
@@ -68,5 +60,13 @@ public class ChatImageProtocol {
         for (Map.Entry<Integer, String> entry : list.entrySet()) {
             ProtocolUtils.sendPayloadPacket(player, new DownloadFileChannelPayload(entry.getValue()));
         }
+    }
+
+    @Override
+    public boolean isActive() {
+        return LeavesConfig.protocol.chatImageProtocol;
+    }
+
+    public record ChatImageIndex(int index, int total, String url, String bytes) {
     }
 }

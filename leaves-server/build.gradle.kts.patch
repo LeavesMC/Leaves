@@ -1,26 +1,31 @@
 --- a/paper-server/build.gradle.kts
 +++ b/paper-server/build.gradle.kts
-@@ -5,14 +_,15 @@
- plugins {
+@@ -9,25 +_,38 @@
      `java-library`
      `maven-publish`
+     idea
 -    id("io.papermc.paperweight.core")
 +    id("org.leavesmc.leavesweight.core") // Leaves - build change
  }
  
  val paperMavenPublicUrl = "https://repo.papermc.io/repository/maven-public/"
-+val leavesMavenPublicUrl = "https://repo.leavesmc.com/snapshots/"
++val leavesMavenPublicUrl = "https://repo.leavesmc.com/snapshots/" // Leaves - build change
  
  dependencies {
-     mache("io.papermc:mache:1.21.4+build.7")
+     mache("io.papermc:mache:1.21.5+build.2")
 -    paperclip("io.papermc:paperclip:3.0.3")
-+    leavesclip("org.leavesmc:leavesclip:2.0.1") // Leaves - build change
++    leavesclip("org.leavesmc:leavesclip:3.0.0") // Leaves - build change
      testRuntimeOnly("org.junit.platform:junit-platform-launcher")
  }
  
-@@ -21,6 +_,18 @@
-     // macheOldPath = file("F:\\Projects\\PaperTooling\\mache\\versions\\1.21.4\\src\\main\\java")
-     // gitFilePatches = true
+ paperweight {
+-    minecraftVersion = providers.gradleProperty("mcVersion")
++    minecraftVersion = rootProject.providers.gradleProperty("mcVersion") // Leaves - build change
+     gitFilePatches = false
+ 
+     //updatingMinecraft {
+     //    oldPaperCommit = "f4f275519f7c1fbe9db173b7144a4fe81440e365"
+     //}
  
 +    // Leaves start - build change
 +    val leaves = forks.register("leaves") {
@@ -35,17 +40,17 @@
 +    // Leaves end - build change
 +
      spigot {
-         buildDataRef = "3edaf46ec1eed4115ce1b18d2846cded42577e42"
-         packageVersion = "v1_21_R3" // also needs to be updated in MappingEnvironment
-@@ -43,6 +_,7 @@
+         buildDataRef = "702e1a0a5072b2c4082371d5228cb30525687efc"
+         packageVersion = "v1_21_R4" // also needs to be updated in MappingEnvironment
+@@ -50,6 +_,7 @@
      libraryRepositories.addAll(
          "https://repo.maven.apache.org/maven2/",
          paperMavenPublicUrl,
-+        leavesMavenPublicUrl
++        leavesMavenPublicUrl // Leaves - build change
      )
  }
  
-@@ -101,7 +_,21 @@
+@@ -108,7 +_,22 @@
      }
  }
  
@@ -65,10 +70,11 @@
 +    java { srcDir("../paper-server/src/log4jPlugins/java") }
 +}
 +// Leaves end - build change
++
  configurations.named(log4jPlugins.compileClasspathConfigurationName) {
      extendsFrom(configurations.compileClasspath.get())
  }
-@@ -119,7 +_,13 @@
+@@ -130,7 +_,18 @@
  }
  
  dependencies {
@@ -79,12 +85,28 @@
 +    implementation("org.lz4:lz4-java:1.8.0")
 +    implementation("net.openhft:zero-allocation-hashing:0.16")
 +    // Leaves end - linear
-+    implementation("org.spongepowered:configurate-hocon:4.2.0-SNAPSHOT") // Leaves - leaves plugins
++    // Leaves start - leaves plugin
++    implementation("org.spongepowered:configurate-gson:4.2.0-SNAPSHOT") {
++        exclude(group = "com.google.code.gson", module = "gson")
++        exclude(group = "com.google.guava", module = "guava")
++    }
++    // Leaves end - leaves plugin
      implementation("ca.spottedleaf:concurrentutil:0.0.3")
      implementation("org.jline:jline-terminal-ffm:3.27.1") // use ffm on java 22+
      implementation("org.jline:jline-terminal-jni:3.27.1") // fall back to jni on java 21
-@@ -177,6 +_,16 @@
-     implementation("me.lucko:spark-paper:1.10.119-20241121.092015-1")
+@@ -157,9 +_,9 @@
+     implementation("org.ow2.asm:asm-commons:9.8")
+     implementation("org.spongepowered:configurate-yaml:4.2.0-20250225.064233-199")
+     implementation("org.spongepowered:configurate-core:4.2.0-20250225.064233-204") // Pinned dependency of above pinned yaml snapshot.
++    implementation("commons-lang:commons-lang:2.6") // Leaves
+ 
+     // Deps that were previously in the API but have now been moved here for backwards compat, eventually to be removed
+-    runtimeOnly("commons-lang:commons-lang:2.6")
+     runtimeOnly("org.xerial:sqlite-jdbc:3.49.1.0")
+     runtimeOnly("com.mysql:mysql-connector-j:9.2.0")
+     runtimeOnly("com.lmax:disruptor:3.4.4")
+@@ -194,6 +_,16 @@
+     implementation("me.lucko:spark-paper:1.10.133-20250413.112336-1")
  }
  
 +// Leaves start - hide irrelevant compilation warnings
@@ -100,7 +122,7 @@
  tasks.jar {
      manifest {
          val git = Git(rootProject.layout.projectDirectory.path)
-@@ -189,14 +_,14 @@
+@@ -206,14 +_,14 @@
          val gitBranch = git.exec(providers, "rev-parse", "--abbrev-ref", "HEAD").get().trim()
          attributes(
              "Main-Class" to "org.bukkit.craftbukkit.Main",
@@ -120,7 +142,16 @@
              "Build-Number" to (build ?: ""),
              "Build-Time" to buildTime.toString(),
              "Git-Branch" to gitBranch,
-@@ -317,13 +_,23 @@
+@@ -267,7 +_,7 @@
+     jvmArgumentProviders.add(provider)
+ }
+ 
+-val generatedDir: java.nio.file.Path = layout.projectDirectory.dir("src/generated/java").asFile.toPath()
++val generatedDir: java.nio.file.Path = rootProject.layout.projectDirectory.dir("paper-server/src/generated/java").asFile.toPath()
+ idea {
+     module {
+         generatedSourceDirs.add(generatedDir.toFile())
+@@ -360,13 +_,26 @@
      classpath(tasks.createReobfBundlerJar.flatMap { it.outputZip })
      mainClass.set(null as String?)
  }
@@ -134,15 +165,18 @@
 -    classpath(tasks.createReobfPaperclipJar.flatMap { it.outputZip })
 -    mainClass.set(null as String?)
 -}
++
 +// Leaves start - build change
 +tasks.registerRunTask("runLeavesclip") {
 +    description = "Spin up a test server from the Mojang mapped Leavesclip jar"
++    systemProperty("leavesclip.enable.mixin", true)
 +    classpath(tasks.createMojmapLeavesclipJar.flatMap { it.outputZip })
 +    mainClass.set(null as String?)
 +}
 +tasks.registerRunTask("runReobfLeavesclip") {
 +    description = "Spin up a test server from the reobf Leavesclip jar"
-+    classpath(tasks.createReobfLeavesclipJar.flatMap { it.outputZip })
++    systemProperty("leavesclip.enable.mixin", true)
++    classpath(tasks.createMojmapLeavesclipJar.flatMap { it.outputZip })
 +    mainClass.set(null as String?)
 +}
 +// Leaves end - build change

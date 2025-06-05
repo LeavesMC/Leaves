@@ -22,13 +22,13 @@ public class BotDeathEvent extends BotEvent implements Cancellable {
         this.sendDeathMessage = sendDeathMessage;
     }
 
-    @Override
-    public @NotNull HandlerList getHandlers() {
+    @NotNull
+    public static HandlerList getHandlerList() {
         return handlers;
     }
 
-    @NotNull
-    public static HandlerList getHandlerList() {
+    @Override
+    public @NotNull HandlerList getHandlers() {
         return handlers;
     }
 

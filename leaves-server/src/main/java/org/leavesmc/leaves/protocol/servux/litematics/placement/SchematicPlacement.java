@@ -5,7 +5,6 @@ import net.minecraft.core.BlockBox;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtUtils;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Mirror;
@@ -16,6 +15,7 @@ import org.leavesmc.leaves.protocol.servux.ServuxProtocol;
 import org.leavesmc.leaves.protocol.servux.litematics.LitematicaSchematic;
 import org.leavesmc.leaves.protocol.servux.litematics.selection.Box;
 import org.leavesmc.leaves.protocol.servux.litematics.utils.IntBoundingBox;
+import org.leavesmc.leaves.protocol.servux.litematics.utils.NbtUtils;
 import org.leavesmc.leaves.protocol.servux.litematics.utils.PositionUtils;
 import org.leavesmc.leaves.protocol.servux.litematics.utils.ReplaceBehavior;
 import org.leavesmc.leaves.protocol.servux.litematics.utils.SchematicPlacingUtils;
@@ -45,25 +45,63 @@ public class SchematicPlacement {
 
     public static SchematicPlacement createFromNbt(CompoundTag tags) {
         SchematicPlacement placement = new SchematicPlacement(
-            LitematicaSchematic.readFromNBT(tags.getCompound("Schematics")),
-            NbtUtils.readBlockPos(tags, "Origin").orElseThrow(),
-            tags.getString("Name")
+            LitematicaSchematic.readFromNBT(tags.getCompoundOrEmpty("Schematics")),
+            NbtUtils.readBlockPosFromArrayTag(tags, "Origin"),
+            tags.getStringOr("Name", "")
         );
-        placement.mirror = Mirror.values()[tags.getInt("Mirror")];
-        placement.rotation = Rotation.values()[tags.getInt("Rotation")];
-        for (String name : tags.getCompound("SubRegions").getAllKeys()) {
-            CompoundTag compound = tags.getCompound("SubRegions").getCompound(name);
+        placement.mirror = Mirror.values()[tags.getIntOr("Mirror", 0)];
+        placement.rotation = Rotation.values()[tags.getIntOr("Rotation", 0)];
+        for (String name : tags.getCompoundOrEmpty("SubRegions").keySet()) {
+            CompoundTag compound = tags.getCompoundOrEmpty("SubRegions").getCompoundOrEmpty(name);
             var sub = new SubRegionPlacement(
-                compound.getString("Name"),
-                NbtUtils.readBlockPos(compound, "Pos").orElseThrow(),
-                Rotation.values()[compound.getInt("Rotation")],
-                Mirror.values()[compound.getInt("Mirror")],
-                compound.getBoolean("Enabled"),
-                compound.getBoolean("IgnoreEntities")
+                compound.getStringOr("Name", "?"),
+                NbtUtils.readBlockPosFromArrayTag(compound, "Pos"),
+                Rotation.values()[compound.getIntOr("Rotation", 0)],
+                Mirror.values()[compound.getIntOr("Mirror", 0)],
+                compound.getBooleanOr("Enabled", true),
+                compound.getBooleanOr("IgnoreEntities", false)
             );
             placement.relativeSubRegionPlacements.put(name, sub);
         }
         return placement;
+    }
+
+    public static IntBoundingBox getBoundsWithinChunkForBox(Box box, int chunkX, int chunkZ) {
+        final int chunkXMin = chunkX << 4;
+        final int chunkZMin = chunkZ << 4;
+        final int chunkXMax = chunkXMin + 15;
+        final int chunkZMax = chunkZMin + 15;
+        BlockPos boxPos1 = box.pos1();
+        BlockPos boxPos2 = box.pos2();
+        if (boxPos1 == null || boxPos2 == null) {
+            return null;
+        }
+
+        int x1 = boxPos1.getX();
+        int x2 = boxPos2.getX();
+        int y1 = boxPos1.getY();
+        int y2 = boxPos2.getY();
+        int z1 = boxPos1.getZ();
+        int z2 = boxPos2.getZ();
+        final int boxXMin = Math.min(x1, x2);
+        final int boxZMin = Math.min(z1, z2);
+        final int boxXMax = Math.max(x1, x2);
+        final int boxZMax = Math.max(z1, z2);
+
+        boolean notOverlapping = boxXMin > chunkXMax || boxZMin > chunkZMax || boxXMax < chunkXMin || boxZMax < chunkZMin;
+
+        if (!notOverlapping) {
+            final int xMin = Math.max(chunkXMin, boxXMin);
+            final int yMin = Math.min(y1, y2);
+            final int zMin = Math.max(chunkZMin, boxZMin);
+            final int xMax = Math.min(chunkXMax, boxXMax);
+            final int yMax = Math.max(y1, y2);
+            final int zMax = Math.min(chunkZMax, boxZMax);
+
+            return new IntBoundingBox(xMin, yMin, zMin, xMax, yMax, zMax);
+        }
+
+        return null;
     }
 
     public boolean ignoreEntities() {
@@ -127,44 +165,6 @@ public class SchematicPlacement {
         pos2 = PositionUtils.getTransformedBlockPos(pos2, placement.mirror(), placement.rotation()).offset(boxOriginAbsolute);
 
         builder.put(name, new Box(boxOriginAbsolute, pos2, name));
-    }
-
-    public static IntBoundingBox getBoundsWithinChunkForBox(Box box, int chunkX, int chunkZ) {
-        final int chunkXMin = chunkX << 4;
-        final int chunkZMin = chunkZ << 4;
-        final int chunkXMax = chunkXMin + 15;
-        final int chunkZMax = chunkZMin + 15;
-        BlockPos boxPos1 = box.pos1();
-        BlockPos boxPos2 = box.pos2();
-        if (boxPos1 == null || boxPos2 == null) {
-            return null;
-        }
-
-        int x1 = boxPos1.getX();
-        int x2 = boxPos2.getX();
-        int y1 = boxPos1.getY();
-        int y2 = boxPos2.getY();
-        int z1 = boxPos1.getZ();
-        int z2 = boxPos2.getZ();
-        final int boxXMin = Math.min(x1, x2);
-        final int boxZMin = Math.min(z1, z2);
-        final int boxXMax = Math.max(x1, x2);
-        final int boxZMax = Math.max(z1, z2);
-
-        boolean notOverlapping = boxXMin > chunkXMax || boxZMin > chunkZMax || boxXMax < chunkXMin || boxZMax < chunkZMin;
-
-        if (!notOverlapping) {
-            final int xMin = Math.max(chunkXMin, boxXMin);
-            final int yMin = Math.min(y1, y2);
-            final int zMin = Math.max(chunkZMin, boxZMin);
-            final int xMax = Math.min(chunkXMax, boxXMax);
-            final int yMax = Math.max(y1, y2);
-            final int zMax = Math.min(chunkZMax, boxZMax);
-
-            return new IntBoundingBox(xMin, yMin, zMin, xMax, yMax, zMax);
-        }
-
-        return null;
     }
 
     public ImmutableMap<String, Box> getSubRegionBoxFor(String regionName, SubRegionPlacement.RequiredEnabled required) {

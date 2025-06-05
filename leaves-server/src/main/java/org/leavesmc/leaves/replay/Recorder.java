@@ -46,20 +46,18 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 public class Recorder extends Connection {
 
-    private static final LeavesLogger LOGGER = LeavesLogger.LOGGER;
+    public static final Executor saveService = Executors.newVirtualThreadPerTaskExecutor();
+    public static final LeavesLogger LOGGER = LeavesLogger.LOGGER;
 
     private final ReplayFile replayFile;
     private final ServerPhotographer photographer;
     private final RecorderOption recorderOption;
     private final RecordMetaData metaData;
-
-    private final ExecutorService saveService = Executors.newSingleThreadExecutor();
 
     private boolean stopped = false;
     private boolean paused = false;
@@ -209,7 +207,7 @@ public class Recorder extends Connection {
     }
 
     private void saveMetadata() {
-        saveService.submit(() -> {
+        saveService.execute(() -> {
             try {
                 replayFile.saveMetaData(metaData);
             } catch (IOException e) {
@@ -225,14 +223,7 @@ public class Recorder extends Connection {
     private void savePacket(Packet<?> packet, final ConnectionProtocol protocol) {
         try {
             final long timestamp = getCurrentTimeAndUpdate();
-            saveService.submit(() -> {
-                try {
-                    replayFile.savePacket(timestamp, packet, protocol);
-                } catch (Exception e) {
-                    LOGGER.severe("Error saving packet");
-                    e.printStackTrace();
-                }
-            });
+            replayFile.savePacket(timestamp, packet, protocol);
         } catch (Exception e) {
             LOGGER.severe("Error saving packet");
             e.printStackTrace();
@@ -250,13 +241,7 @@ public class Recorder extends Connection {
             metaData.duration = (int) lastPacket;
             return CompletableFuture.runAsync(() -> {
                 saveMetadata();
-                saveService.shutdown();
                 boolean interrupted = false;
-                try {
-                    saveService.awaitTermination(10, TimeUnit.SECONDS);
-                } catch (InterruptedException e) {
-                    interrupted = true;
-                }
                 try {
                     if (save) {
                         replayFile.closeAndSave(dest);

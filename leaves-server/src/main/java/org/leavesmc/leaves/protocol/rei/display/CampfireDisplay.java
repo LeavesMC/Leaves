@@ -5,11 +5,11 @@ import net.minecraft.world.item.crafting.CampfireCookingRecipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
 
 public class CampfireDisplay extends CookingDisplay {
+    private static final ResourceLocation SERIALIZER_ID = ResourceLocation.tryBuild("minecraft", "default/campfire");
+
     public CampfireDisplay(RecipeHolder<CampfireCookingRecipe> recipe) {
         super(recipe);
     }
-
-    private static final ResourceLocation SERIALIZER_ID = ResourceLocation.tryBuild("minecraft", "default/campfire");
 
     @Override
     public ResourceLocation getSerializerId() {

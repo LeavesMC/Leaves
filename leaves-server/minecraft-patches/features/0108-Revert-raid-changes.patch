@@ -21,17 +21,17 @@ index 80f17f33f670018240c854df589cf90cdeab6e70..4c6ce6a4a730033802651b0c0052fc46
              if (raidAt == null || raidAt.getRaidOmenLevel() < raidAt.getMaxRaidOmenLevel()) {
                  serverPlayer.addEffect(new MobEffectInstance(MobEffects.RAID_OMEN, 600, amplifier));
 diff --git a/net/minecraft/world/entity/raid/Raid.java b/net/minecraft/world/entity/raid/Raid.java
-index 41b0db439b425b052bd1469daa6620a435ca852b..4e2b73ad91b4fc12da123b22910a7e3a78b23d1d 100644
+index 62a3a8d46e10e6f02e3f515bbce5d9ba1f6566b8..6a45e00490f0067d25010371f7c5fa40bbe7671c 100644
 --- a/net/minecraft/world/entity/raid/Raid.java
 +++ b/net/minecraft/world/entity/raid/Raid.java
-@@ -318,7 +318,20 @@ public class Raid {
+@@ -333,7 +333,20 @@ public class Raid {
                          }
  
                          if (flag1) {
--                            this.waveSpawnPos = this.getValidSpawnPos();
+-                            this.waveSpawnPos = this.getValidSpawnPos(level);
 +                            // Leaves Start - old FindSpawnPosition
 +                            if (!org.leavesmc.leaves.LeavesConfig.modify.oldMC.raid.useOldFindSpawnPosition) {
-+                                this.waveSpawnPos = this.getValidSpawnPos();
++                                this.waveSpawnPos = this.getValidSpawnPos(level);
 +                            } else {
 +                                int n4 = 0;
 +                                if (this.raidCooldownTicks < 100) {
@@ -40,63 +40,63 @@ index 41b0db439b425b052bd1469daa6620a435ca852b..4e2b73ad91b4fc12da123b22910a7e3a
 +                                if (this.raidCooldownTicks < 40) {
 +                                    n4 = 2;
 +                                }
-+                                this.waveSpawnPos = this.getValidSpawnPos(n4);
++                                this.waveSpawnPos = this.getValidSpawnPos(level, n4);
 +                            }
 +                            // Leaves End - old FindSpawnPosition
                          }
  
                          if (this.raidCooldownTicks == 300 || this.raidCooldownTicks % 20 == 0) {
-@@ -353,7 +366,14 @@ public class Raid {
+@@ -368,7 +381,14 @@ public class Raid {
                  int i = 0;
  
                  while (this.shouldSpawnGroup()) {
--                    BlockPos blockPos = this.waveSpawnPos.orElseGet(() -> this.findRandomSpawnPos(20));
+-                    BlockPos blockPos = this.waveSpawnPos.orElseGet(() -> this.findRandomSpawnPos(level, 20));
 +                    // Leaves Start - old FindSpawnPosition
 +                    BlockPos blockPos;
 +                    if (!org.leavesmc.leaves.LeavesConfig.modify.oldMC.raid.useOldFindSpawnPosition) {
-+                    blockPos = this.waveSpawnPos.orElseGet(() -> this.findRandomSpawnPos(20));
++                        blockPos = this.waveSpawnPos.orElseGet(() -> this.findRandomSpawnPos(level, 20));
 +                    } else {
-+                        blockPos = this.waveSpawnPos.isPresent() ? this.waveSpawnPos.get() : this.findRandomSpawnPos(i, 20);
++                        blockPos = this.waveSpawnPos.isPresent() ? this.waveSpawnPos.get() : this.findRandomSpawnPos(level, i, 20);
 +                    }
 +                    // Leaves End - old FindSpawnPosition
                      if (blockPos != null) {
                          this.started = true;
-                         this.spawnGroup(blockPos);
-@@ -365,7 +385,7 @@ public class Raid {
+                         this.spawnGroup(level, blockPos);
+@@ -380,7 +400,7 @@ public class Raid {
                          i++;
                      }
  
 -                    if (i > 5) {
 +                    if (i > (org.leavesmc.leaves.LeavesConfig.modify.oldMC.raid.useOldFindSpawnPosition ? 3 : 5)) { // Leaves - old FindSpawnPosition
-                         org.bukkit.craftbukkit.event.CraftEventFactory.callRaidStopEvent(this, org.bukkit.event.raid.RaidStopEvent.Reason.UNSPAWNABLE); // CraftBukkit
+                         org.bukkit.craftbukkit.event.CraftEventFactory.callRaidStopEvent(level, this, org.bukkit.event.raid.RaidStopEvent.Reason.UNSPAWNABLE); // CraftBukkit
                          this.stop();
                          break;
-@@ -680,6 +700,35 @@ public class Raid {
+@@ -686,6 +706,36 @@ public class Raid {
          return null;
      }
  
 +    // Leaves Start - old FindSpawnPosition
 +    @Nullable
-+    private BlockPos findRandomSpawnPos(int n, int n2) {
++    private BlockPos findRandomSpawnPos(ServerLevel level, int n, int n2) {
 +        int n3 = 2 - n;
 +        BlockPos.MutableBlockPos mutableBlockPos = new BlockPos.MutableBlockPos();
 +        SpawnPlacementType spawnPlacementType = SpawnPlacements.getPlacementType(EntityType.RAVAGER);
 +        for (int i = 0; i < n2; ++i) {
-+            float f = this.level.random.nextFloat() * ((float)Math.PI * 2);
-+            int n4 = this.center.getX() + Mth.floor(Mth.cos(f) * 32.0f * (float)n3) + this.level.random.nextInt(5);
-+            int n5 = this.center.getZ() + Mth.floor(Mth.sin(f) * 32.0f * (float)n3) + this.level.random.nextInt(5);
-+            int n6 = this.level.getHeight(Heightmap.Types.WORLD_SURFACE, n4, n5);
++            float f = level.random.nextFloat() * ((float)Math.PI * 2);
++            int n4 = this.center.getX() + Mth.floor(Mth.cos(f) * 32.0f * (float)n3) + level.random.nextInt(5);
++            int n5 = this.center.getZ() + Mth.floor(Mth.sin(f) * 32.0f * (float)n3) + level.random.nextInt(5);
++            int n6 = level.getHeight(Heightmap.Types.WORLD_SURFACE, n4, n5);
 +            mutableBlockPos.set(n4, n6, n5);
-+            if (this.level.isVillage(mutableBlockPos) && n < 2) continue;
-+            if (!this.level.hasChunksAt(mutableBlockPos.getX() - 10, mutableBlockPos.getZ() - 10, mutableBlockPos.getX() + 10, mutableBlockPos.getZ() + 10) || !this.level.isPositionEntityTicking(mutableBlockPos) || !spawnPlacementType.isSpawnPositionOk(this.level, mutableBlockPos, EntityType.RAVAGER) && (!this.level.getBlockState((BlockPos)mutableBlockPos.below()).is(Blocks.SNOW) || !this.level.getBlockState(mutableBlockPos).isAir())) continue;
++            if (level.isVillage(mutableBlockPos) && n < 2) continue;
++            if (!level.hasChunksAt(mutableBlockPos.getX() - 10, mutableBlockPos.getZ() - 10, mutableBlockPos.getX() + 10, mutableBlockPos.getZ() + 10) || !level.isPositionEntityTicking(mutableBlockPos) || !spawnPlacementType.isSpawnPositionOk(level, mutableBlockPos, EntityType.RAVAGER) && (!level.getBlockState((BlockPos)mutableBlockPos.below()).is(Blocks.SNOW) || !level.getBlockState(mutableBlockPos).isAir())) continue;
 +            return mutableBlockPos;
 +        }
 +        return null;
 +    }
 +
-+    private Optional<BlockPos> getValidSpawnPos(int n) {
++    private Optional<BlockPos> getValidSpawnPos(ServerLevel level, int n) {
 +        for (int i = 0; i < 3; ++i) {
-+            BlockPos blockPos = this.findRandomSpawnPos(n, 1);
++            BlockPos blockPos = this.findRandomSpawnPos(level, n, 1);
 +            if (blockPos == null) continue;
 +            return Optional.of(blockPos);
 +        }
@@ -104,26 +104,27 @@ index 41b0db439b425b052bd1469daa6620a435ca852b..4e2b73ad91b4fc12da123b22910a7e3a
 +    }
 +    // Leaves End - old FindSpawnPosition
 +
-     private boolean addWaveMob(int wave, Raider raider) {
-         return this.addWaveMob(wave, raider, true);
++
+     private boolean addWaveMob(ServerLevel level, int wave, Raider raider) {
+         return this.addWaveMob(level, wave, raider, true);
      }
 diff --git a/net/minecraft/world/entity/raid/Raider.java b/net/minecraft/world/entity/raid/Raider.java
-index f58a20e7dd6b8dc3fc431d4aba9f91a7c25f2c33..ce692698260d4751b13d5b26f7d9403c72b413c6 100644
+index 39a6a4579931d7edb7ab8c072d62cfc9b02791c8..23c0581ad4e3921f89070609ec7c01d8a5a9b2de 100644
 --- a/net/minecraft/world/entity/raid/Raider.java
 +++ b/net/minecraft/world/entity/raid/Raider.java
-@@ -125,6 +125,43 @@ public abstract class Raider extends PatrollingMonster {
+@@ -127,6 +127,43 @@ public abstract class Raider extends PatrollingMonster {
  
-                 currentRaid.removeFromRaid(this, false);
+                 currentRaid.removeFromRaid(serverLevel, this, false);
              }
 +
 +            // Leaves start - Revert raid changes
-+            if (this.level() instanceof ServerLevel serverLevel) {
++            if (this.level() instanceof ServerLevel) {
 +                if (org.leavesmc.leaves.LeavesConfig.modify.oldMC.raid.giveBadOmenWhenKillPatrolLeader && !this.hasRaid()) {
 +                    ItemStack itemstack = this.getItemBySlot(EquipmentSlot.HEAD);
 +                    net.minecraft.world.entity.player.Player entityhuman = null;
 +                    if (entity instanceof net.minecraft.world.entity.player.Player player) {
 +                        entityhuman = player;
-+                    } else if (entity instanceof net.minecraft.world.entity.animal.Wolf wolf) {
++                    } else if (entity instanceof net.minecraft.world.entity.animal.wolf.Wolf wolf) {
 +                        LivingEntity entityliving = wolf.getOwner();
 +                        if (wolf.isTame() && entityliving instanceof net.minecraft.world.entity.player.Player player) {
 +                            entityhuman = player;

@@ -37,52 +37,6 @@ public enum ItemStorageExtensionProvider implements IServerExtensionProvider<Ite
 
     private static final ResourceLocation UNIVERSAL_ITEM_STORAGE = JadeProtocol.mc_id("item_storage.default");
 
-    @Override
-    public List<ViewGroup<ItemStack>> getGroups(Accessor<?> request) {
-        Object target = request.getTarget();
-
-        switch (target) {
-            case null -> {
-                return createItemCollector(request).update(request);
-            }
-            case RandomizableContainer te when te.getLootTable() != null -> {
-                return List.of();
-            }
-            case ContainerEntity containerEntity when containerEntity.getContainerLootTable() != null -> {
-                return List.of();
-            }
-            default -> {
-            }
-        }
-
-        Player player = request.getPlayer();
-        if (!player.isCreative() && !player.isSpectator() && target instanceof BaseContainerBlockEntity te) {
-            if (te.lockKey != LockCode.NO_LOCK) {
-                return List.of();
-            }
-        }
-
-        if (target instanceof EnderChestBlockEntity) {
-            PlayerEnderChestContainer inventory = player.getEnderChestInventory();
-            return new ItemCollector<>(new ItemIterator.ContainerItemIterator(x -> inventory, 0)).update(request);
-        }
-
-        ItemCollector<?> itemCollector;
-        try {
-            itemCollector = targetCache.get(target, () -> createItemCollector(request));
-        } catch (ExecutionException e) {
-            LeavesLogger.LOGGER.severe("Failed to get item collector for " + target);
-            return null;
-        }
-
-        return itemCollector.update(request);
-    }
-
-    @Override
-    public ResourceLocation getUid() {
-        return UNIVERSAL_ITEM_STORAGE;
-    }
-
     public static ItemCollector<?> createItemCollector(Accessor<?> request) {
         if (request.getTarget() instanceof AbstractHorse) {
             return new ItemCollector<>(new ItemIterator.ContainerItemIterator(o -> {
@@ -132,7 +86,53 @@ public enum ItemStorageExtensionProvider implements IServerExtensionProvider<Ite
     }
 
     @Override
+    public List<ViewGroup<ItemStack>> getGroups(Accessor<?> request) {
+        Object target = request.getTarget();
+
+        switch (target) {
+            case null -> {
+                return createItemCollector(request).update(request);
+            }
+            case RandomizableContainer te when te.getLootTable() != null -> {
+                return List.of();
+            }
+            case ContainerEntity containerEntity when containerEntity.getContainerLootTable() != null -> {
+                return List.of();
+            }
+            default -> {
+            }
+        }
+
+        Player player = request.getPlayer();
+        if (!player.isCreative() && !player.isSpectator() && target instanceof BaseContainerBlockEntity te) {
+            if (te.lockKey != LockCode.NO_LOCK) {
+                return List.of();
+            }
+        }
+
+        if (target instanceof EnderChestBlockEntity) {
+            PlayerEnderChestContainer inventory = player.getEnderChestInventory();
+            return new ItemCollector<>(new ItemIterator.ContainerItemIterator(x -> inventory, 0)).update(request);
+        }
+
+        ItemCollector<?> itemCollector;
+        try {
+            itemCollector = targetCache.get(target, () -> createItemCollector(request));
+        } catch (ExecutionException e) {
+            LeavesLogger.LOGGER.severe("Failed to get item collector for " + target);
+            return null;
+        }
+
+        return itemCollector.update(request);
+    }
+
+    @Override
+    public ResourceLocation getUid() {
+        return UNIVERSAL_ITEM_STORAGE;
+    }
+
+    @Override
     public int getDefaultPriority() {
-        return IServerExtensionProvider.super.getDefaultPriority() + 1000;
+        return 9999;
     }
 }

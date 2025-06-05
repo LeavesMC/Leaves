@@ -1,0 +1,102 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Sun, 27 Mar 2022 12:48:40 +0800
+Subject: [PATCH] Redstone Shears Wrench
+
+
+diff --git a/net/minecraft/world/item/ShearsItem.java b/net/minecraft/world/item/ShearsItem.java
+index 8cf3e51e12f9cf98836657e722edb23943f9e866..813a6d2bfe99ad8ddf81d7dfca51a7544b5fef0d 100644
+--- a/net/minecraft/world/item/ShearsItem.java
++++ b/net/minecraft/world/item/ShearsItem.java
+@@ -24,6 +24,22 @@ import net.minecraft.world.level.block.GrowingPlantHeadBlock;
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.level.gameevent.GameEvent;
+ 
++// Leaves start - shears wrench
++import net.minecraft.Util;
++import net.minecraft.network.chat.Component;
++import net.minecraft.world.level.block.ComparatorBlock;
++import net.minecraft.world.level.block.DispenserBlock;
++import net.minecraft.world.level.block.HopperBlock;
++import net.minecraft.world.level.block.ObserverBlock;
++import net.minecraft.world.level.block.RepeaterBlock;
++import net.minecraft.world.level.block.CrafterBlock;
++import net.minecraft.world.level.block.LeverBlock;
++import net.minecraft.world.level.block.CocoaBlock;
++import net.minecraft.world.level.block.piston.PistonBaseBlock;
++import net.minecraft.world.level.block.state.StateDefinition;
++import net.minecraft.world.level.block.state.properties.Property;
++// Leaves end - shears wrench
++
+ public class ShearsItem extends Item {
+     public ShearsItem(Item.Properties properties) {
+         super(properties);
+@@ -80,7 +96,68 @@ public class ShearsItem extends Item {
+ 
+             return InteractionResult.SUCCESS;
+         } else {
++            // Leaves start - shears wrench
++            Block block = blockState.getBlock();
++            if (org.leavesmc.leaves.LeavesConfig.modify.redstoneShearsWrench && block instanceof ObserverBlock || block instanceof DispenserBlock ||
++                    block instanceof PistonBaseBlock || block instanceof HopperBlock || block instanceof RepeaterBlock || block instanceof ComparatorBlock ||
++                    block instanceof CrafterBlock || block instanceof LeverBlock || block instanceof CocoaBlock) {
++                StateDefinition<Block, BlockState> blockstatelist = block.getStateDefinition();
++                Property<?> iblockstate = block instanceof CrafterBlock ? blockstatelist.getProperty("orientation") : blockstatelist.getProperty("facing");
++                Player player = context.getPlayer();
++
++                if (iblockstate == null || player == null) {
++                    return InteractionResult.FAIL;
++                }
++
++                if (block instanceof PistonBaseBlock) {
++                    if (getNameHelper(blockState, PistonBaseBlock.EXTENDED).equals("true")) {
++                        return InteractionResult.FAIL;
++                    }
++                }
++
++                if (block instanceof RepeaterBlock || block instanceof ComparatorBlock) {
++                    if (getNameHelper(blockState, ComparatorBlock.POWERED).equals("true")) {
++                        return InteractionResult.FAIL;
++                    }
++                    if (block instanceof RepeaterBlock) {
++                        if (getNameHelper(blockState, RepeaterBlock.LOCKED).equals("true")) {
++                            return InteractionResult.FAIL;
++                        }
++                    }
++                }
++
++                if (block instanceof CrafterBlock) {
++                    if (getNameHelper(blockState, CrafterBlock.CRAFTING).equals("true")) {
++                        return InteractionResult.FAIL;
++                    }
++                }
++
++                BlockState iblockdata1 = ShearsItem.cycleState(blockState, iblockstate, player.isSecondaryUseActive());
++                level.setBlock(clickedPos, iblockdata1, 18);
++                ShearsItem.message(player, Component.translatable("item.minecraft.debug_stick.update", iblockstate.getName(), ShearsItem.getNameHelper(iblockdata1, iblockstate)));
++                return InteractionResult.CONSUME;
++            }
++            // Leaves end - shears wrench
++
+             return super.useOn(context);
+         }
+     }
++
++    // Leaves start - shears wrench
++    private static <T extends Comparable<T>> BlockState cycleState(BlockState state, Property<T> property, boolean inverse) {
++        return state.setValue(property, ShearsItem.getRelative(property.getPossibleValues(), state.getValue(property), inverse)); // CraftBukkit - decompile error
++    }
++
++    private static <T> T getRelative(Iterable<T> elements, T current, boolean inverse) {
++        return inverse ? Util.findPreviousInIterable(elements, current) : Util.findNextInIterable(elements, current);
++    }
++
++    private static void message(Player player, Component message) {
++        ((ServerPlayer) player).sendSystemMessage(message, true);
++    }
++
++    private static <T extends Comparable<T>> String getNameHelper(BlockState state, Property<T> property) {
++        return property.getName(state.getValue(property));
++    }
++    // Leaves end - shears wrench
+ }

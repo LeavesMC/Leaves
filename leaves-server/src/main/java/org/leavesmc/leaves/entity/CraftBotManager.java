@@ -26,12 +26,7 @@ public class CraftBotManager implements BotManager {
 
     public CraftBotManager() {
         this.botList = MinecraftServer.getServer().getBotList();
-        this.botViews = Collections.unmodifiableList(Lists.transform(botList.bots, new Function<ServerBot, CraftBot>() {
-            @Override
-            public CraftBot apply(ServerBot bot) {
-                return bot.getBukkitEntity();
-            }
-        }));
+        this.botViews = Collections.unmodifiableList(Lists.transform(botList.bots, bot -> bot.getBukkitEntity()));
     }
 
     @Override

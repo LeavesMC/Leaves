@@ -1,6 +1,10 @@
 package org.leavesmc.leaves.bot.subcommands;
 
+import com.mojang.brigadier.suggestion.Suggestions;
+import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.minecraft.network.chat.Component;
+import org.apache.commons.lang3.tuple.Pair;
 import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
@@ -18,6 +22,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 import static net.kyori.adventure.text.Component.text;
 
@@ -165,15 +170,46 @@ public class BotActionCommand implements LeavesSubcommand {
                         list.add(String.valueOf(i));
                     }
                 } else {
-                    AbstractBotAction<?> action = Actions.getForName(args[1]);
-                    if (action != null) {
-                        list.addAll(action.getArgument().tabComplete(args.length - 3));
-                    }
+                    return Collections.singletonList("<" + args[1] + " not found>");
                 }
             }
         }
 
         return list;
+    }
+
+    @Override
+    public CompletableFuture<Suggestions> tabSuggestion(CommandSender sender, String subCommand, String[] args, Location location, SuggestionsBuilder builder) {
+        if (!LeavesConfig.modify.fakeplayer.canUseAction) {
+            return null;
+        }
+
+        if (args.length >= 3) {
+            if (args[1].equals("stop")) {
+                return null;
+            }
+            AbstractBotAction<?> action = Actions.getForName(args[1]);
+            if (action != null) {
+                Pair<List<String>, String> results = action.getArgument().suggestion(args.length - 3, sender, args[args.length - 1]);
+
+                if (results == null || results.getLeft() == null) {
+                    return builder.buildFuture();
+                }
+
+                builder = builder.createOffset(builder.getInput().lastIndexOf(' ') + 1);
+                for (String s : results.getLeft()) {
+                    if (results.getRight() != null) {
+                        builder.suggest(s, Component.literal(results.getRight()));
+                    } else {
+                        builder.suggest(s);
+                    }
+                }
+
+                return builder.buildFuture();
+            }
+        }
+
+        return null;
     }
 
     @Override

@@ -1,0 +1,112 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Sun, 11 Dec 2022 18:43:35 +0800
+Subject: [PATCH] Player operation limiter
+
+This patch is Powered by plusls-carpet-addition(https://github.com/plusls/plusls-carpet-addition)
+
+diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
+index 01687ea3acf449c49cbc615887a7dbdd3a693613..988992a181e35a3856817419cb4941c73a9c31f2 100644
+--- a/net/minecraft/server/level/ServerPlayer.java
++++ b/net/minecraft/server/level/ServerPlayer.java
+@@ -420,6 +420,10 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+     public @Nullable com.destroystokyo.paper.event.entity.PlayerNaturallySpawnCreaturesEvent playerNaturallySpawnedEvent; // Paper - PlayerNaturallySpawnCreaturesEvent
+     public @Nullable String clientBrandName = null; // Paper - Brand support
+     public @Nullable org.bukkit.event.player.PlayerQuitEvent.QuitReason quitReason = null; // Paper - Add API for quit reason; there are a lot of changes to do if we change all methods leading to the event
++    // Leaves start - player operation limiter
++    private int instaBreakCountPerTick = 0;
++    private int placeBlockCountPerTick = 0;
++    // Leaves end - player operation limiter
+ 
+     // Paper start - rewrite chunk system
+     private ca.spottedleaf.moonrise.patches.chunk_system.player.RegionizedPlayerChunkLoader.PlayerChunkLoaderData chunkLoader;
+@@ -744,6 +748,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+         }
+         // CraftBukkit end
+         this.tickClientLoadTimeout();
++        this.resetOperationCountPerTick(); // Leaves - player operation limiter
+         this.gameMode.tick();
+         this.wardenSpawnTracker.tick();
+         if (this.invulnerableTime > 0) {
+@@ -2933,4 +2938,31 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+         return (org.bukkit.craftbukkit.entity.CraftPlayer) super.getBukkitEntity();
+     }
+     // CraftBukkit end
++
++    // Leaves start - player operation limiter
++    private void resetOperationCountPerTick() {
++        instaBreakCountPerTick = 0;
++        placeBlockCountPerTick = 0;
++    }
++
++    public int getInstaBreakCountPerTick() {
++        return instaBreakCountPerTick;
++    }
++
++    public int getPlaceBlockCountPerTick() {
++        return placeBlockCountPerTick;
++    }
++
++    public void addInstaBreakCountPerTick() {
++        ++instaBreakCountPerTick;
++    }
++
++    public void addPlaceBlockCountPerTick() {
++        ++placeBlockCountPerTick;
++    }
++
++    public boolean allowOperation() {
++        return (instaBreakCountPerTick == 0 || placeBlockCountPerTick == 0) && (instaBreakCountPerTick <= 1 && placeBlockCountPerTick <= 2);
++    }
++    // Leaves end - player operation limiter
+ }
+diff --git a/net/minecraft/server/level/ServerPlayerGameMode.java b/net/minecraft/server/level/ServerPlayerGameMode.java
+index b604cba2490a747661d6819251bc3b9a1d35c7d4..5e54d6de0430cd137fbe13ca8f17dc487ce52ff3 100644
+--- a/net/minecraft/server/level/ServerPlayerGameMode.java
++++ b/net/minecraft/server/level/ServerPlayerGameMode.java
+@@ -300,6 +300,19 @@ public class ServerPlayerGameMode {
+     }
+ 
+     public void destroyAndAck(BlockPos pos, int sequence, String message) {
++        // Leaves start - player operation limiter
++        if (org.leavesmc.leaves.LeavesConfig.modify.playerOperationLimiter) {
++            if (message.equals("insta mine")) {
++                player.addInstaBreakCountPerTick();
++                if (!player.allowOperation()) {
++                    this.level.getCraftServer().getPluginManager().callEvent(new org.leavesmc.leaves.event.player.PlayerOperationLimitEvent(player.getBukkitEntity(), org.leavesmc.leaves.event.player.PlayerOperationLimitEvent.Operation.MINE, org.bukkit.craftbukkit.block.CraftBlock.at(level, pos)));
++                    this.player.connection.send(new ClientboundBlockUpdatePacket(pos, this.level.getBlockState(pos)));
++                    this.debugLogging(pos, false, sequence, message);
++                    return;
++                }
++            }
++        }
++        // Leaves end - player operation limiter
+         if (this.destroyBlock(pos)) {
+             this.debugLogging(pos, true, sequence, message);
+         } else {
+diff --git a/net/minecraft/world/item/BlockItem.java b/net/minecraft/world/item/BlockItem.java
+index 3f58574069f22d83298a77f253255b25724890ad..0c67e5481a43bf7c02bb54a8ea1abca77d53a292 100644
+--- a/net/minecraft/world/item/BlockItem.java
++++ b/net/minecraft/world/item/BlockItem.java
+@@ -65,6 +65,21 @@ public class BlockItem extends Item {
+                 final org.bukkit.block.BlockState oldBukkitState = bukkitState != null ? bukkitState : org.bukkit.craftbukkit.block.CraftBlockStates.getBlockState(blockPlaceContext.getLevel(), blockPlaceContext.getClickedPos()); // Paper - Reset placed block on exception
+                 // CraftBukkit end
+ 
++                // Leaves start - player operation limiter
++                if (org.leavesmc.leaves.LeavesConfig.modify.playerOperationLimiter && !context.getLevel().isClientSide()) {
++                    ServerPlayer player = (ServerPlayer) context.getPlayer();
++                    if (player != null && placementState != null) {
++                        player.addPlaceBlockCountPerTick();
++                        if (!player.allowOperation()) {
++                            if (bukkitState != null) {
++                                context.getLevel().getCraftServer().getPluginManager().callEvent(new org.leavesmc.leaves.event.player.PlayerOperationLimitEvent(player.getBukkitEntity(), org.leavesmc.leaves.event.player.PlayerOperationLimitEvent.Operation.PLACE, bukkitState.getBlock()));
++                            }
++                            return InteractionResult.FAIL;
++                        }
++                    }
++                }
++                // Leaves end - player operation limiter
++
+                 if (placementState == null) {
+                     return InteractionResult.FAIL;
+                 } else if (!this.placeBlock(blockPlaceContext, placementState)) {

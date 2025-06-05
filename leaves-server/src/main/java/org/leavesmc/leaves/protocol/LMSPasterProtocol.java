@@ -7,6 +7,7 @@ import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import org.leavesmc.leaves.LeavesConfig;
@@ -67,9 +68,9 @@ public class LMSPasterProtocol implements LeavesProtocol {
     private static void triggerCommand(ServerPlayer player, String playerName, String command) {
         if (command.isEmpty()) {
             LeavesLogger.LOGGER.warning(String.format("Player %s sent an empty command", playerName));
-        } else {
-            player.getBukkitEntity().performCommand(command);
+            return;
         }
+        MinecraftServer.getServer().execute(() -> player.getBukkitEntity().performCommand(command));
     }
 
     @Override

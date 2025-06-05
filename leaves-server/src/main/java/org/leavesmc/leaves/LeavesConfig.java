@@ -566,9 +566,6 @@ public final class LeavesConfig {
             }
         }
 
-        @GlobalConfig("fast-resume")
-        public boolean fastResume = false;
-
         public ForcePeacefulModeSwitchConfig peacefulModeSwitch = new ForcePeacefulModeSwitchConfig();
 
         @GlobalConfigCategory("force-peaceful-mode-switch")
@@ -635,6 +632,7 @@ public final class LeavesConfig {
         @RemovedConfig(name = "disable-moved-wrongly-threshold", category = "modify")
         @RemovedConfig(name = "ignore-lc", category = "modify")
         @RemovedConfig(name = "fix-fortress-mob-spawn", category = {"modify", "minecraft-old"})
+        @RemovedConfig(name = "fast-resume", category = "modify")
         private final boolean removed = false;
     }
 

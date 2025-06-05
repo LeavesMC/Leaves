@@ -158,8 +158,8 @@ public class ServerBot extends ServerPlayer {
 
     @Override
     public void doTick() {
-        if (this.isDeadOrDying() || this.isRemoved()) {
-            die(this.damageSources().generic());
+        if (!this.isAlive()) {
+            this.die(this.damageSources().generic());
             return;
         }
 

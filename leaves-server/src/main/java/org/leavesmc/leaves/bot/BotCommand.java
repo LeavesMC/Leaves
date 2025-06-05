@@ -41,6 +41,7 @@ import java.util.stream.Collectors;
 
 import static net.kyori.adventure.text.Component.text;
 
+//TODO rewrite
 public class BotCommand extends Command implements LeavesSuggestionCommand {
 
     public BotCommand(String name) {

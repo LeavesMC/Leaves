@@ -18,6 +18,7 @@ import java.util.UUID;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
+//TODO onStop for fully terminate action (use, etc.)
 public abstract class AbstractBotAction<E extends AbstractBotAction<E>> {
 
     private final String name;

@@ -220,8 +220,6 @@ public class BotList {
             }
         }
 
-        bot.discard();
-
         net.kyori.adventure.text.Component removeMessage = event.removeMessage();
         if (removeMessage != null && !removeMessage.equals(net.kyori.adventure.text.Component.empty())) {
             this.server.getPlayerList().broadcastSystemMessage(PaperAdventure.asVanilla(removeMessage), false);

@@ -30,7 +30,6 @@ import org.leavesmc.leaves.protocol.CarpetServerProtocol.CarpetRules;
 import org.leavesmc.leaves.protocol.bladeren.BladerenProtocol.LeavesFeature;
 import org.leavesmc.leaves.protocol.bladeren.BladerenProtocol.LeavesFeatureSet;
 import org.leavesmc.leaves.region.RegionFileFormat;
-import org.leavesmc.leaves.util.ElytraAeronauticsHelper;
 import org.leavesmc.leaves.util.ForcePeacefulModeSwitchType;
 import org.leavesmc.leaves.util.MathUtils;
 
@@ -336,6 +335,18 @@ public final class LeavesConfig {
                     VANILLA_20, VANILLA_21, MIXED
                 }
             }
+
+            @GlobalConfig(value = "void-trade", validator = VoidTradeValidator.class)
+            public boolean voidTrade = false;
+
+            private static class VoidTradeValidator extends BooleanConfigValidator {
+                @Override
+                public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
+                    if (!value && old != null && LeavesConfig.modify.forceVoidTrade) {
+                        throw new IllegalArgumentException("force-void-trade is enable, void-trade always need true");
+                    }
+                }
+            }
         }
 
         public ElytraAeronauticsConfig elytraAeronautics = new ElytraAeronauticsConfig();
@@ -411,8 +422,24 @@ public final class LeavesConfig {
             }
         }
 
-        @GlobalConfig("force-void-trade")
+        @GlobalConfig(value = "force-void-trade", validator = ForceVoidTradeValidator.class)
         public boolean forceVoidTrade = false;
+
+        private static class ForceVoidTradeValidator extends BooleanConfigValidator {
+            @Override
+            public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
+                if (value) {
+                    LeavesConfig.modify.oldMC.voidTrade = true;
+                }
+            }
+
+            @Override
+            public void runAfterLoader(Boolean value, boolean reload) {
+                if (value) {
+                    LeavesConfig.modify.oldMC.voidTrade = true;
+                }
+            }
+        }
 
         @GlobalConfig(value = "mc-technical-survival-mode", validator = McTechnicalModeValidator.class, lock = true)
         public boolean mcTechnicalMode = true;

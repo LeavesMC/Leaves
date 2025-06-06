@@ -7,13 +7,14 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import org.bukkit.Bukkit;
 import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.LeavesLogger;
+import org.leavesmc.leaves.plugin.MinecraftInternalPlugin;
 import org.leavesmc.leaves.protocol.core.LeavesCustomPayload;
 import org.leavesmc.leaves.protocol.core.LeavesProtocol;
 import org.leavesmc.leaves.protocol.core.ProtocolHandler;
@@ -77,7 +78,7 @@ public class ServuxEntityDataProtocol implements LeavesProtocol {
     }
 
     public static void onBlockEntityRequest(ServerPlayer player, BlockPos pos) {
-        MinecraftServer.getServer().execute(() -> {
+        Bukkit.getGlobalRegionScheduler().run(MinecraftInternalPlugin.INSTANCE, (task) -> {
             BlockEntity be = player.serverLevel().getBlockEntity(pos);
             CompoundTag nbt = be != null ? be.saveWithoutMetadata(player.registryAccess()) : new CompoundTag();
 
@@ -89,7 +90,7 @@ public class ServuxEntityDataProtocol implements LeavesProtocol {
     }
 
     public static void onEntityRequest(ServerPlayer player, int entityId) {
-        MinecraftServer.getServer().execute(() -> {
+        Bukkit.getGlobalRegionScheduler().run(MinecraftInternalPlugin.INSTANCE, (task) -> {
             Entity entity = player.serverLevel().getEntity(entityId);
             CompoundTag nbt = entity != null ? entity.saveWithoutId(new CompoundTag()) : new CompoundTag();
 

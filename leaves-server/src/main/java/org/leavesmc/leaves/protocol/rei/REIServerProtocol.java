@@ -33,6 +33,7 @@ import org.bukkit.plugin.PluginManager;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesConfig;
+import org.leavesmc.leaves.plugin.MinecraftInternalPlugin;
 import org.leavesmc.leaves.protocol.core.LeavesProtocol;
 import org.leavesmc.leaves.protocol.core.ProtocolHandler;
 import org.leavesmc.leaves.protocol.core.ProtocolUtils;
@@ -167,7 +168,7 @@ public class REIServerProtocol implements LeavesProtocol {
         );
 
         cachedPayloads = listBuilder.build();
-        MinecraftServer.getServer().execute(() -> {
+        Bukkit.getGlobalRegionScheduler().run(MinecraftInternalPlugin.INSTANCE, (task) -> {
             for (ServerPlayer player : enabledPlayers) {
                 for (CustomPacketPayload payload : cachedPayloads) {
                     ProtocolUtils.sendPayloadPacket(player, payload);

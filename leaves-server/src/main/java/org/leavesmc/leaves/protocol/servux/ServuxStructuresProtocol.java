@@ -47,6 +47,10 @@ public class ServuxStructuresProtocol implements LeavesProtocol {
     private static final Map<UUID, Map<ChunkPos, Timeout>> timeouts = new HashMap<>();
     private static int retainDistance;
 
+    @ProtocolHandler.PlayerJoin
+    public static void onPlayerJoin(ServerPlayer player) {
+    }
+
     @ProtocolHandler.PayloadReceiver(payload = StructuresPayload.class)
     public static void onPacketReceive(ServerPlayer player, StructuresPayload payload) {
         if (!LeavesConfig.protocol.servux.structureProtocol) {

@@ -472,14 +472,20 @@ public final class LeavesConfig {
         @GlobalConfig(value = "bedrock-break-list", lock = true)
         public boolean bedrockBreakList = false;
 
-        @GlobalConfig(value = "disable-distance-check-for-use-item", validator = DisableDistanceCheckForUseItemValidator.class)
-        public boolean disableDistanceCheckForUseItem = false;
+        @GlobalConfig(value = "max-use-item-distance", validator = MaxUseItemDistanceValidator.class)
+        public double MaxUseItemDistanceValidator = 1.0000001;
 
-        private static class DisableDistanceCheckForUseItemValidator extends BooleanConfigValidator {
+        private static class MaxUseItemDistanceValidator extends DoubleConfigValidator {
             @Override
-            public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
-                if (!value && old != null && LeavesConfig.protocol.alternativeBlockPlacement != ProtocolConfig.AlternativePlaceType.NONE) {
-                    throw new IllegalArgumentException("alternative-block-placement is enable, disable-distance-check-for-use-item always need true");
+            public void verify(Double old, Double value) throws IllegalArgumentException {
+                if (value < -1) {
+                    throw new IllegalArgumentException("max-use-item-distance must be >= -1");
+                }
+                //10.0000001 may be enough
+                if (value < 10.0000001 && LeavesConfig.protocol.alternativeBlockPlacement != ProtocolConfig.AlternativePlaceType.NONE) {
+                    throw new IllegalArgumentException(
+                        "alternative-block-placement is enabled, max-use-item-distance must more than 10.0000001 "
+                    );
                 }
             }
         }
@@ -914,15 +920,15 @@ public final class LeavesConfig {
 
             @Override
             public void verify(AlternativePlaceType old, AlternativePlaceType value) throws IllegalArgumentException {
-                if (value != AlternativePlaceType.NONE) {
-                    LeavesConfig.modify.disableDistanceCheckForUseItem = true;
+                if (value != AlternativePlaceType.NONE && LeavesConfig.modify.MaxUseItemDistanceValidator < 10.0000001) {
+                    LeavesConfig.modify.MaxUseItemDistanceValidator = 10.0000001;
                 }
             }
 
             @Override
             public void runAfterLoader(AlternativePlaceType value, boolean reload) {
-                if (value != AlternativePlaceType.NONE) {
-                    LeavesConfig.modify.disableDistanceCheckForUseItem = true;
+                if (value != AlternativePlaceType.NONE && LeavesConfig.modify.MaxUseItemDistanceValidator < 10.0000001) {
+                    LeavesConfig.modify.MaxUseItemDistanceValidator= 10.0000001;
                 }
             }
         }

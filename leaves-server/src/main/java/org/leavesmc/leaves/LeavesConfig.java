@@ -951,6 +951,10 @@ public final class LeavesConfig {
 
         @RemovedConfig(name = "recipe-send-all", category = {"protocol"})
         public boolean recipeSendAll = false;
+
+        @RemovedConfig(name = "lms-paster-protocol", category = {"protocol"})
+        public boolean lmsPasterProtocol = false;
+
     }
 
     public static MiscConfig mics = new MiscConfig();

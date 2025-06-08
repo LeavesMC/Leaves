@@ -49,14 +49,11 @@ public class ServuxStructuresProtocol implements LeavesProtocol {
 
     @ProtocolHandler.PlayerJoin
     public static void onPlayerJoin(ServerPlayer player) {
+        sendMetaData(player);
     }
 
     @ProtocolHandler.PayloadReceiver(payload = StructuresPayload.class)
     public static void onPacketReceive(ServerPlayer player, StructuresPayload payload) {
-        if (!LeavesConfig.protocol.servux.structureProtocol) {
-            return;
-        }
-
         switch (payload.packetType()) {
             case PACKET_C2S_STRUCTURES_REGISTER -> onPlayerSubscribed(player);
             case PACKET_C2S_REQUEST_SPAWN_METADATA -> ServuxHudDataProtocol.refreshSpawnMetadata(player); // move to
@@ -66,37 +63,22 @@ public class ServuxStructuresProtocol implements LeavesProtocol {
 
     @ProtocolHandler.PlayerLeave
     public static void onPlayerLoggedOut(@NotNull ServerPlayer player) {
-        if (!LeavesConfig.protocol.servux.structureProtocol) {
-            return;
-        }
-
         players.remove(player.getId());
     }
 
     @ProtocolHandler.Ticker
     public static void tick() {
-        if (!LeavesConfig.protocol.servux.structureProtocol) {
-            return;
-        }
-
         MinecraftServer server = MinecraftServer.getServer();
         int tickCounter = server.getTickCount();
-        if ((tickCounter % updateInterval) == 0) {
-            retainDistance = server.getPlayerList().getViewDistance() + 2;
-            for (ServerPlayer player : players.values()) {
-                // TODO DimensionChange
-                refreshTrackedChunks(player, tickCounter);
-            }
+        retainDistance = server.getPlayerList().getViewDistance() + 2;
+        for (ServerPlayer player : players.values()) {
+            // TODO DimensionChange
+            refreshTrackedChunks(player, tickCounter);
         }
     }
 
     public static void onStartedWatchingChunk(ServerPlayer player, LevelChunk chunk) {
-        if (!LeavesConfig.protocol.servux.structureProtocol) {
-            return;
-        }
-
         MinecraftServer server = player.getServer();
-
         if (players.containsKey(player.getId()) && server != null) {
             addChunkTimeoutIfHasReferences(player.getUUID(), chunk, server.getTickCount());
         }
@@ -137,6 +119,11 @@ public class ServuxStructuresProtocol implements LeavesProtocol {
         }
 
         MinecraftServer server = MinecraftServer.getServer();
+        sendMetaData(player);
+        initialSyncStructures(player, player.moonrise$getViewDistanceHolder().getViewDistances().sendViewDistance() + 2, server.getTickCount());
+    }
+
+    private static void sendMetaData(ServerPlayer player) {
         CompoundTag tag = new CompoundTag();
         tag.putString("name", "structure_bounding_boxes");
         tag.putString("id", StructuresPayload.CHANNEL.toString());
@@ -145,7 +132,6 @@ public class ServuxStructuresProtocol implements LeavesProtocol {
         tag.putInt("timeout", timeout);
 
         sendPacket(player, new StructuresPayload(StructuresPayloadType.PACKET_S2C_METADATA, tag));
-        initialSyncStructures(player, player.moonrise$getViewDistanceHolder().getViewDistances().sendViewDistance() + 2, server.getTickCount());
     }
 
     public static void initialSyncStructures(ServerPlayer player, int chunkRadius, int tickCounter) {
@@ -314,10 +300,6 @@ public class ServuxStructuresProtocol implements LeavesProtocol {
     }
 
     public static void sendPacket(ServerPlayer player, StructuresPayload payload) {
-        if (!LeavesConfig.protocol.servux.structureProtocol) {
-            return;
-        }
-
         if (payload.packetType() == StructuresPayloadType.PACKET_S2C_STRUCTURE_DATA_START) {
             FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
             buffer.writeNbt(payload.nbt());

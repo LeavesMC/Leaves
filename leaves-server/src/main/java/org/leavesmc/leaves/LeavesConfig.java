@@ -811,9 +811,7 @@ public final class LeavesConfig {
             public static class SyncmaticaValidator extends BooleanConfigValidator {
                 @Override
                 public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
-                    if (value) {
-                        org.leavesmc.leaves.protocol.syncmatica.SyncmaticaProtocol.init();
-                    }
+                    org.leavesmc.leaves.protocol.syncmatica.SyncmaticaProtocol.init(value);
                 }
             }
 

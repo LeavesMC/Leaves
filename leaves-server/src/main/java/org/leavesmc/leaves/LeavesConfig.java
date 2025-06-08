@@ -934,9 +934,6 @@ public final class LeavesConfig {
         @GlobalConfig("leaves-carpet-support")
         public boolean leavesCarpetSupport = false;
 
-        @GlobalConfig("lms-paster-protocol")
-        public boolean lmsPasterProtocol = false;
-
         @GlobalConfig(value = "rei-server-protocol", validator = ReiValidator.class)
         public boolean reiServerProtocol = false;
 

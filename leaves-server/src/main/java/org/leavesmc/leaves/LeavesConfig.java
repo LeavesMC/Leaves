@@ -954,7 +954,6 @@ public final class LeavesConfig {
 
         @RemovedConfig(name = "lms-paster-protocol", category = {"protocol"})
         public boolean lmsPasterProtocol = false;
-
     }
 
     public static MiscConfig mics = new MiscConfig();

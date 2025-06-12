@@ -34,27 +34,29 @@ public class LocalLangUtil {
     final static String VERSION = "1.21.5";
     final static String basePath = "cache/leaves/" + VERSION + "/";
     static String lang = org.leavesmc.leaves.LeavesConfig.mics.serverLang; // find in https://minecraft.wiki/w/Language, format: zh_cn ,en_us etc.
-    static boolean isReloading = false;
 
     public static void init() {
+        init(true);
+    }
+
+    public static void init(boolean init) {
         if (Objects.equals(lang, "en_us")) return;
         CompletableFuture.runAsync(() -> {
             try {
                 String path = basePath + "lang/" + lang + ".json";
-                if (!Files.exists(Path.of(path))) downloadLangAndCheck();
+                if (!Files.exists(Path.of(path))) {
+                    downloadLangAndCheck();
+                }
                 try {
-                    loadLocalLang(path);
-                    isReloading = false;
+                    loadLocalLang(path, init);
                 } catch (JsonParseException e) {
                     cleanCache();
-                    if (!isReloading) {
-                        isReloading = true;
-                        init();
+                    if (init) {
+                        init(false);
                     }
                 }
             } catch (Exception e) {
                 logger.severe(() -> "Async initialization failed: " + e.getMessage());
-                isReloading = false;
             }
         });
     }
@@ -85,7 +87,7 @@ public class LocalLangUtil {
 
             JsonObject assets = JsonParser.parseString(new String(assetData)).getAsJsonObject();
             JsonObject langEntry = assets.getAsJsonObject("objects")
-                    .getAsJsonObject("minecraft/lang/" + lang + ".json");
+                .getAsJsonObject("minecraft/lang/" + lang + ".json");
 
             String hash = langEntry.get("hash").getAsString();
             if (hash == null || hash.length() < 2) {
@@ -100,7 +102,7 @@ public class LocalLangUtil {
 
     private static void downloadLang(String hash) {
         String url = "https://resources.download.minecraft.net/"
-                + hash.substring(0, 2) + "/" + hash;
+            + hash.substring(0, 2) + "/" + hash;
 
         for (int i = 0; i < 3; i++) {
             try {
@@ -119,7 +121,7 @@ public class LocalLangUtil {
         // Phase 1: Fetch version manifest
         for (int i = 0; i < 3; i++) {
             try (InputStreamReader reader = new InputStreamReader(
-                    new ByteArrayInputStream(fetch(versionManifestUrl)))) {
+                new ByteArrayInputStream(fetch(versionManifestUrl)))) {
                 JsonObject manifest = JsonParser.parseReader(reader).getAsJsonObject();
                 for (JsonElement element : manifest.getAsJsonArray("versions")) {
                     JsonObject version = element.getAsJsonObject();
@@ -139,7 +141,7 @@ public class LocalLangUtil {
         // Phase 2: Fetch version metadata
         for (int i = 0; i < 3; i++) {
             try (InputStreamReader reader = new InputStreamReader(
-                    new ByteArrayInputStream(fetchAndSave(targetVersionUrl, basePath + VERSION + ".json")))) {
+                new ByteArrayInputStream(fetchAndSave(targetVersionUrl, basePath + VERSION + ".json")))) {
                 return JsonParser.parseReader(reader).getAsJsonObject();
             } catch (Exception e) {
                 logger.warning("Failed to fetch version metadata: " + e.getMessage());
@@ -177,14 +179,14 @@ public class LocalLangUtil {
         try {
             if (Files.exists(cachePath)) {
                 Files.walk(cachePath)
-                        .sorted(Comparator.reverseOrder())
-                        .forEach(path -> {
-                            try {
-                                Files.deleteIfExists(path);
-                            } catch (IOException e) {
-                                logger.warning("Failed to delete: " + path + " - " + e.getMessage());
-                            }
-                        });
+                    .sorted(Comparator.reverseOrder())
+                    .forEach(path -> {
+                        try {
+                            Files.deleteIfExists(path);
+                        } catch (IOException e) {
+                            logger.warning("Failed to delete: " + path + " - " + e.getMessage());
+                        }
+                    });
                 logger.info("Cache cleaned: " + cachePath);
             } else {
                 logger.info("Cache directory does not exist: " + cachePath);
@@ -200,17 +202,21 @@ public class LocalLangUtil {
         return JsonParser.parseString(new String(data)).getAsJsonObject();
     }
 
-    public static void loadLocalLang(String lang) {
+    public static void loadLocalLang(String lang, boolean init) throws IOException {
         try {
             Language.inject(load(lang));
         } catch (Exception e) {
             logger.warning("Failed to load language file for " + lang + "\n" + e);
             logger.info("Load default en_us instead of local lang " + lang);
-            Language.inject(Language.loadDefault());
+            if (init) {
+                throw e;
+            } else {
+                Language.inject(Language.loadDefault());
+            }
         }
     }
 
-    private static Language load(String lang) {
+    private static Language load(String lang) throws IOException {
         DeprecatedTranslationsInfo deprecatedTranslationsInfo = DeprecatedTranslationsInfo.loadFromDefaultResource();
         Map<String, String> map = new HashMap<>();
         BiConsumer<String, String> biConsumer = map::put;
@@ -237,26 +243,29 @@ public class LocalLangUtil {
             @Override
             public FormattedCharSequence getVisualOrder(FormattedText text) {
                 return sink -> text.visit(
-                                (style, content) -> StringDecomposer.iterateFormatted(content, style, sink) ? Optional.empty() : FormattedText.STOP_ITERATION,
-                                Style.EMPTY
-                        )
-                        .isPresent();
+                        (style, content) -> StringDecomposer.iterateFormatted(content, style, sink) ? Optional.empty() : FormattedText.STOP_ITERATION,
+                        Style.EMPTY
+                    )
+                    .isPresent();
             }
         };
     }
 
-    public static void parseTranslations(BiConsumer<String, String> output, String languagePath) {
+    public static void parseTranslations(BiConsumer<String, String> output, String languagePath) throws IOException {
         try {
             Path filePath = Paths.get(languagePath);
             try (InputStream fileStream = Files.newInputStream(filePath)) {
                 Language.loadFromJson(fileStream, output);
             } catch (java.nio.file.NoSuchFileException fileEx) {
                 logger.warning("Language file not found in both locations: " + languagePath);
+                throw fileEx;
             } catch (Exception fileEx) {
                 logger.warning("Failed to load from filesystem " + filePath + "\n" + fileEx);
+                throw fileEx;
             }
         } catch (Exception ep) {
             logger.warning("Couldn't read strings from " + languagePath + "\n" + ep);
+            throw ep;
         }
     }
 }

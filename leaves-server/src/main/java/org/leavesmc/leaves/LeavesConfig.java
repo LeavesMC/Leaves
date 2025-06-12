@@ -1042,24 +1042,8 @@ public final class LeavesConfig {
         @GlobalConfig("dont-respond-ping-before-start-fully")
         public boolean dontRespondPingBeforeStart = true;
 
-        @GlobalConfig(value = "server-lang", lock = true, validator = ServerLangValidator.class)
+        @GlobalConfig(value = "server-lang", lock = true)
         public String serverLang = "en_us";
-
-        private static class ServerLangValidator extends StringConfigValidator {
-            private static final List<String> supportLang = List.of("en_us", "zh_cn");
-
-            @Override
-            public void verify(String old, String value) throws IllegalArgumentException {
-                if (!supportLang.contains(value)) {
-                    throw new IllegalArgumentException("lang " + value + " not supported");
-                }
-            }
-
-            @Override
-            public List<String> valueSuggest() {
-                return supportLang;
-            }
-        }
 
         @GlobalConfig(value = "server-mod-name")
         public String serverModName = "Leaves";

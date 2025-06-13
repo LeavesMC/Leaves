@@ -77,6 +77,11 @@ public class ServuxStructuresProtocol implements LeavesProtocol {
         }
     }
 
+    @Override
+    public int tickerInterval(String tickerID) {
+        return updateInterval;
+    }
+
     public static void onStartedWatchingChunk(ServerPlayer player, LevelChunk chunk) {
         MinecraftServer server = player.getServer();
         if (players.containsKey(player.getId()) && server != null) {

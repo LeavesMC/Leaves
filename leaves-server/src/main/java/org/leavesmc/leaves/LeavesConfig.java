@@ -811,9 +811,7 @@ public final class LeavesConfig {
             public static class SyncmaticaValidator extends BooleanConfigValidator {
                 @Override
                 public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
-                    if (value) {
-                        org.leavesmc.leaves.protocol.syncmatica.SyncmaticaProtocol.init();
-                    }
+                    org.leavesmc.leaves.protocol.syncmatica.SyncmaticaProtocol.init(value);
                 }
             }
 
@@ -936,9 +934,6 @@ public final class LeavesConfig {
         @GlobalConfig("leaves-carpet-support")
         public boolean leavesCarpetSupport = false;
 
-        @GlobalConfig("lms-paster-protocol")
-        public boolean lmsPasterProtocol = false;
-
         @GlobalConfig(value = "rei-server-protocol", validator = ReiValidator.class)
         public boolean reiServerProtocol = false;
 
@@ -956,6 +951,9 @@ public final class LeavesConfig {
 
         @RemovedConfig(name = "recipe-send-all", category = {"protocol"})
         public boolean recipeSendAll = false;
+
+        @RemovedConfig(name = "lms-paster-protocol", category = {"protocol"})
+        public boolean lmsPasterProtocol = false;
     }
 
     public static MiscConfig mics = new MiscConfig();

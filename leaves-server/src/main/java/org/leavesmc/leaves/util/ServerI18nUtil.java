@@ -22,7 +22,9 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.*;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -38,23 +40,64 @@ public class ServerI18nUtil {
     private static final String manifestUrl = "https://launchermeta.mojang.com/mc/game/version_manifest.json";
     private static final String resourceBaseUrl = "https://resources.download.minecraft.net/";
 
+    // paths
     private static String langPath;
     private static String assetsPath;
     private static String versionPath;
     private static String manifestPath;
     private static String langJsonPath;
 
+    // pre-load flags
+    public static boolean init = false;
+    public static boolean isPreLoad;
+    private static boolean continueLoad;
+
     public static void init() {
         if (Objects.equals(LeavesConfig.mics.serverLang, "en_us")) {
             return;
         }
+        if (isPreLoad) {
+            continueLoad = true;
+            return;
+        }
         langPath = BASE_PATH + "lang/" + LeavesConfig.mics.serverLang + ".json";
-        assetsPath = BASE_PATH + "assets.json";
-        versionPath = BASE_PATH + VERSION + ".json";
-        manifestPath = BASE_PATH + "manifest.json";
         langJsonPath = "minecraft/lang/" + LeavesConfig.mics.serverLang + ".json";
         logger.info("Starting load language: " + LeavesConfig.mics.serverLang);
         CompletableFuture.runAsync(() -> loadI18n(LeavesConfig.mics.serverLang, 2));
+    }
+
+    public static void preInit() {
+        isPreLoad = true;
+        continueLoad = false;
+        assetsPath = BASE_PATH + "assets.json";
+        versionPath = BASE_PATH + VERSION + ".json";
+        manifestPath = BASE_PATH + "manifest.json";
+        CompletableFuture.runAsync(() -> {
+            preLoadI18n(2);
+            isPreLoad = false;
+            if (continueLoad) {
+                loadI18n(LeavesConfig.mics.serverLang, 2);
+            }
+        });
+    }
+
+    private static void preLoadI18n(int retryTime) {
+        try {
+            if (!Files.exists(Path.of(assetsPath))) {
+                downloadAssets(true);
+            }
+        } catch (UnsupportedLanguage e) {
+            logger.warning("Unsupported language: " + LeavesConfig.mics.serverLang);
+            LeavesConfig.mics.serverLang = "en_us"; // fallback to English
+        } catch (Exception e) {
+            logger.warning("Failed to download language list file: " + e);
+            if (retryTime > 0) {
+                cleanCache();
+                preLoadI18n(retryTime - 1);
+            } else {
+                logger.severe("Failed to download language list file for many times, skip pre-load language.");
+            }
+        }
     }
 
     private static void loadI18n(String lang, int retryTime) {
@@ -76,6 +119,29 @@ public class ServerI18nUtil {
         }
     }
 
+    public static boolean getLanguages(List<String> languages) {
+        if (Files.exists(Path.of(assetsPath))) {
+            JsonObject json = loadJson(assetsPath);
+            if (json != null) {
+                JsonObject langEntry = json.getAsJsonObject("objects");
+                for (Map.Entry<String, JsonElement> entry : langEntry.entrySet()) {
+                    String path = entry.getKey();
+                    if (path.startsWith("minecraft/lang/")) {
+                        String lang = path.substring("minecraft/lang/".length());
+                        if (lang.endsWith(".json")) {
+                            lang = lang.substring(0, lang.length() - ".json".length());
+                            languages.add(lang);
+                        }
+                    }
+                }
+                init = true;
+                return true;
+            }
+        }
+        init = true;
+        return false;
+    }
+
     private static void downloadLang(boolean fetchFromAssets) throws Exception {
         JsonObject json;
         if (!Files.exists(Path.of(assetsPath)) || (json = loadJson(assetsPath)) == null) {
@@ -87,6 +153,10 @@ public class ServerI18nUtil {
         }
 
         JsonObject langEntry = json.getAsJsonObject("objects").getAsJsonObject(langJsonPath);
+
+        if (langEntry == null) {
+            throw new UnsupportedLanguage();
+        }
 
         String hash = langEntry.get("hash").getAsString();
         if (hash == null || hash.length() < 2) {
@@ -243,4 +313,6 @@ public class ServerI18nUtil {
             throw e;
         }
     }
+
+    static class UnsupportedLanguage extends Exception {}
 }

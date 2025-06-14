@@ -1042,8 +1042,29 @@ public final class LeavesConfig {
         @GlobalConfig("dont-respond-ping-before-start-fully")
         public boolean dontRespondPingBeforeStart = true;
 
-        @GlobalConfig(value = "server-lang", lock = true)
+        @GlobalConfig(value = "server-lang", lock = true, validator = ServerLangValidator.class)
         public String serverLang = "en_us";
+
+        private static class ServerLangValidator extends StringConfigValidator {
+            private static final List<String> supportLang = new java.util.ArrayList<>(List.of("en_us"));
+
+            @Override
+            public void verify(String old, String value) throws IllegalArgumentException {
+                if (!org.leavesmc.leaves.util.ServerI18nUtil.init) {
+                    if (!org.leavesmc.leaves.util.ServerI18nUtil.getLanguages(supportLang)) {
+                        return;
+                    }
+                }
+                if (!supportLang.contains(value)) {
+                    throw new IllegalArgumentException("lang " + value + " not supported");
+                }
+            }
+
+            @Override
+            public List<String> valueSuggest() {
+                return supportLang;
+            }
+        }
 
         @GlobalConfig(value = "server-mod-name")
         public String serverModName = "Leaves";

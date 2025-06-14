@@ -21,8 +21,11 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.file.*;
-import java.util.ArrayList;
+import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +34,8 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class ServerI18nUtil {
 
@@ -39,17 +44,15 @@ public class ServerI18nUtil {
     private static final String BASE_PATH = "cache/leaves/" + VERSION + "/";
     private static final String manifestUrl = "https://launchermeta.mojang.com/mc/game/version_manifest.json";
     private static final String resourceBaseUrl = "https://resources.download.minecraft.net/";
-
+    // pre-load flags
+    public static boolean init = false;
+    public static boolean isPreLoad;
     // paths
     private static String langPath;
     private static String assetsPath;
     private static String versionPath;
     private static String manifestPath;
     private static String langJsonPath;
-
-    // pre-load flags
-    public static boolean init = false;
-    public static boolean isPreLoad;
     private static boolean continueLoad;
 
     public static void init() {
@@ -119,19 +122,17 @@ public class ServerI18nUtil {
         }
     }
 
-    public static boolean getLanguages(List<String> languages) {
+    public static boolean tryAppendLanguages(List<String> languages) {
         if (Files.exists(Path.of(assetsPath))) {
             JsonObject json = loadJson(assetsPath);
             if (json != null) {
-                JsonObject langEntry = json.getAsJsonObject("objects");
-                for (Map.Entry<String, JsonElement> entry : langEntry.entrySet()) {
-                    String path = entry.getKey();
-                    if (path.startsWith("minecraft/lang/")) {
-                        String lang = path.substring("minecraft/lang/".length());
-                        if (lang.endsWith(".json")) {
-                            lang = lang.substring(0, lang.length() - ".json".length());
-                            languages.add(lang);
-                        }
+                JsonObject AssetEntry = json.getAsJsonObject("objects");
+                Pattern pattern = Pattern.compile("^minecraft/lang/(.+?)\\.json$");
+
+                for (String path : AssetEntry.keySet()) {
+                    Matcher matcher = pattern.matcher(path);
+                    if (matcher.matches()) {
+                        languages.add(matcher.group(1));
                     }
                 }
                 init = true;
@@ -314,5 +315,6 @@ public class ServerI18nUtil {
         }
     }
 
-    static class UnsupportedLanguage extends Exception {}
+    static class UnsupportedLanguage extends Exception {
+    }
 }

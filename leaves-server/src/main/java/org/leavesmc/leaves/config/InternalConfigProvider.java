@@ -9,6 +9,6 @@ public class InternalConfigProvider implements LeavesConfigProvider {
     }
 
     public void setConfig(String configNode, LeavesConfigValue configValue) {
-        GlobalConfigManager.getVerifiedConfig(configNode);
+        GlobalConfigManager.getVerifiedConfig(configNode).set(configValue.toString());
     }
 }

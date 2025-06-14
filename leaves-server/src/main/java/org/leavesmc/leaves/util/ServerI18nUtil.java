@@ -16,8 +16,11 @@ import org.leavesmc.leaves.LeavesConfig;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
+import java.io.UnsupportedEncodingException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.file.*;
 import java.util.HashMap;
 import java.util.Map;
@@ -27,7 +30,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 import java.util.logging.Logger;
 
-public class LocalLangUtil {
+public class ServerI18nUtil {
 
     private static final Logger logger = Logger.getLogger("LangLoader");
     private static final String VERSION = "1.21.5";
@@ -51,10 +54,10 @@ public class LocalLangUtil {
         manifestPath = BASE_PATH + "manifest.json";
         langJsonPath = "minecraft/lang/" + LeavesConfig.mics.serverLang + ".json";
         logger.info("Starting load language: " + LeavesConfig.mics.serverLang);
-        CompletableFuture.runAsync(() -> loadLocalLang(LeavesConfig.mics.serverLang, 2));
+        CompletableFuture.runAsync(() -> loadI18n(LeavesConfig.mics.serverLang, 2));
     }
 
-    private static void loadLocalLang(String lang, int retryTime) {
+    private static void loadI18n(String lang, int retryTime) {
         try {
             if (!Files.exists(Path.of(langPath))) {
                 downloadLang(true);
@@ -65,7 +68,7 @@ public class LocalLangUtil {
             logger.warning("Failed to load language file for " + lang + "\n" + e);
             if (retryTime > 0) {
                 cleanCache();
-                loadLocalLang(lang, retryTime - 1);
+                loadI18n(lang, retryTime - 1);
             } else {
                 logger.severe("Failed to load for many times, use default lang \"en_us\" instead");
                 cleanCache();
@@ -136,24 +139,38 @@ public class LocalLangUtil {
         fetchAndSave(versionUrl, versionPath);
     }
 
-    @SuppressWarnings("deprecation")
-    private static byte[] fetch(String urlString) throws IOException {
-        HttpURLConnection conn = (HttpURLConnection) new URL(urlString).openConnection();
-        conn.setRequestMethod("GET");
-        conn.setConnectTimeout(5000);
-        conn.setReadTimeout(10000);
+    private static String createHttpResponse(String path) throws IOException, InterruptedException {
+        try {
+            HttpResponse<String> response;
+            try (HttpClient httpClient = HttpClient.newHttpClient()) {
 
-        try (InputStream stream = conn.getInputStream()) {
-            if (conn.getResponseCode() != 200) {
-                throw new IOException("HTTP error: " + conn.getResponseCode());
+                HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(path))
+                    .build();
+
+                response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             }
-            return stream.readAllBytes();
-        } finally {
-            conn.disconnect();
+
+            int responseCode = response.statusCode();
+            if (responseCode != 200) {
+                logger.info("Unexpected response code: " + responseCode);
+                logger.info("Response body: " + response.body());
+                throw new UnsupportedEncodingException("Unexpected response code");
+            } else {
+                return response.body();
+            }
+        } catch (Exception e) {
+            logger.warning("Error in getting info: " + e.getMessage());
+            throw e;
         }
     }
 
-    private static void fetchAndSave(String url, String savePath) throws IOException {
+    private static byte[] fetch(String urlString) throws IOException, InterruptedException {
+        String ret = createHttpResponse(urlString);
+        return ret.getBytes();
+    }
+
+    private static void fetchAndSave(String url, String savePath) throws IOException, InterruptedException {
         byte[] data = fetch(url);
         Path outputPath = Path.of(savePath);
         Files.createDirectories(outputPath.getParent());

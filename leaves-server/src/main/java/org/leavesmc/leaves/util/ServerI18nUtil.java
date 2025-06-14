@@ -10,9 +10,9 @@ import net.minecraft.network.chat.FormattedText;
 import net.minecraft.network.chat.Style;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.StringDecomposer;
-import org.apache.commons.io.FileUtils;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesConfig;
+import org.leavesmc.leaves.config.GlobalConfigManager;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -44,44 +44,31 @@ public class ServerI18nUtil {
     private static final String BASE_PATH = "cache/leaves/" + VERSION + "/";
     private static final String manifestUrl = "https://launchermeta.mojang.com/mc/game/version_manifest.json";
     private static final String resourceBaseUrl = "https://resources.download.minecraft.net/";
-    // pre-load flags
-    public static boolean init = false;
-    public static boolean isPreLoad;
+    // pre-load lock
+    private static CompletableFuture<Void> preloadTask;
+    public static volatile boolean finishPreload = false;
     // paths
     private static String langPath;
     private static String assetsPath;
     private static String versionPath;
     private static String manifestPath;
     private static String langJsonPath;
-    private static boolean continueLoad;
 
     public static void init() {
         if (Objects.equals(LeavesConfig.mics.serverLang, "en_us")) {
             return;
         }
-        if (isPreLoad) {
-            continueLoad = true;
-            return;
-        }
         langPath = BASE_PATH + "lang/" + LeavesConfig.mics.serverLang + ".json";
         langJsonPath = "minecraft/lang/" + LeavesConfig.mics.serverLang + ".json";
         logger.info("Starting load language: " + LeavesConfig.mics.serverLang);
-        CompletableFuture.runAsync(() -> loadI18n(LeavesConfig.mics.serverLang, 2));
+        preloadTask.thenAcceptAsync(v -> loadI18n(LeavesConfig.mics.serverLang, 2));
     }
 
     public static void preInit() {
-        isPreLoad = true;
-        continueLoad = false;
         assetsPath = BASE_PATH + "assets.json";
         versionPath = BASE_PATH + VERSION + ".json";
         manifestPath = BASE_PATH + "manifest.json";
-        CompletableFuture.runAsync(() -> {
-            preLoadI18n(2);
-            isPreLoad = false;
-            if (continueLoad) {
-                loadI18n(LeavesConfig.mics.serverLang, 2);
-            }
-        });
+        preloadTask = CompletableFuture.runAsync(() -> preLoadI18n(2));
     }
 
     private static void preLoadI18n(int retryTime) {
@@ -89,13 +76,17 @@ public class ServerI18nUtil {
             if (!Files.exists(Path.of(assetsPath))) {
                 downloadAssets(true);
             }
-        } catch (UnsupportedLanguage e) {
+            finishPreload = true;
+        } catch (UnsupportedLanguageException e) {
             logger.warning("Unsupported language: " + LeavesConfig.mics.serverLang);
-            LeavesConfig.mics.serverLang = "en_us"; // fallback to English
+            // Fallback to English
+            GlobalConfigManager.getVerifiedConfig("misc.server-lang").set("en_us");
         } catch (Exception e) {
+            if (e instanceof MalformedJsonException malformedJson) {
+                malformedJson.clean();
+            }
             logger.warning("Failed to download language list file: " + e);
             if (retryTime > 0) {
-                cleanCache();
                 preLoadI18n(retryTime - 1);
             } else {
                 logger.severe("Failed to download language list file for many times, skip pre-load language.");
@@ -111,36 +102,36 @@ public class ServerI18nUtil {
             Language.inject(createLangInstance());
             logger.info("Successfully loaded language: " + lang);
         } catch (Exception e) {
+            if (e instanceof MalformedJsonException malformedJson) {
+                malformedJson.clean();
+            }
             logger.warning("Failed to load language file for " + lang + "\n" + e);
             if (retryTime > 0) {
-                cleanCache();
                 loadI18n(lang, retryTime - 1);
             } else {
                 logger.severe("Failed to load for many times, use default lang \"en_us\" instead");
-                cleanCache();
             }
         }
     }
 
     public static boolean tryAppendLanguages(List<String> languages) {
-        if (Files.exists(Path.of(assetsPath))) {
-            JsonObject json = loadJson(assetsPath);
-            if (json != null) {
-                JsonObject AssetEntry = json.getAsJsonObject("objects");
-                Pattern pattern = Pattern.compile("^minecraft/lang/(.+?)\\.json$");
+        if (!Files.exists(Path.of(assetsPath))) {
+            return false;
+        }
+        JsonObject json = loadJson(assetsPath);
+        if (json == null) {
+            return false;
+        }
+        JsonObject AssetEntry = json.getAsJsonObject("objects");
+        Pattern pattern = Pattern.compile("^minecraft/lang/(.+?)\\.json$");
 
-                for (String path : AssetEntry.keySet()) {
-                    Matcher matcher = pattern.matcher(path);
-                    if (matcher.matches()) {
-                        languages.add(matcher.group(1));
-                    }
-                }
-                init = true;
-                return true;
+        for (String path : AssetEntry.keySet()) {
+            Matcher matcher = pattern.matcher(path);
+            if (matcher.matches()) {
+                languages.add(matcher.group(1));
             }
         }
-        init = true;
-        return false;
+        return true;
     }
 
     private static void downloadLang(boolean fetchFromAssets) throws Exception {
@@ -156,7 +147,7 @@ public class ServerI18nUtil {
         JsonObject langEntry = json.getAsJsonObject("objects").getAsJsonObject(langJsonPath);
 
         if (langEntry == null) {
-            throw new UnsupportedLanguage();
+            throw new UnsupportedLanguageException();
         }
 
         String hash = langEntry.get("hash").getAsString();
@@ -248,21 +239,13 @@ public class ServerI18nUtil {
         Files.write(outputPath, data, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
     }
 
-    private static void cleanCache() {
-        try {
-            FileUtils.deleteDirectory(Path.of(BASE_PATH).toFile());
-        } catch (IOException e) {
-            logger.severe("Cache cleanup failed: " + e);
-        }
-    }
-
     private static JsonObject loadJson(String path) {
         try {
             byte[] data = Files.readAllBytes(Paths.get(path));
             return JsonParser.parseString(new String(data)).getAsJsonObject();
         } catch (JsonSyntaxException e) {
             logger.warning("Corrupt json file: " + e);
-            throw e;
+            throw new MalformedJsonException(path);
         } catch (Exception e) {
             logger.warning("Failed to load local JSON: " + e);
             return null;
@@ -315,6 +298,22 @@ public class ServerI18nUtil {
         }
     }
 
-    static class UnsupportedLanguage extends Exception {
+    private static class UnsupportedLanguageException extends Exception {
+    }
+
+    private static class MalformedJsonException extends RuntimeException {
+        private final Path path;
+
+        protected MalformedJsonException(String path) {
+            this.path = Path.of(path);
+        }
+
+        public void clean() {
+            try {
+                Files.delete(path);
+            } catch (IOException e) {
+                logger.info("Failed to delete malformed JSON file: " + path);
+            }
+        }
     }
 }

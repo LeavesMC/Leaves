@@ -1050,8 +1050,8 @@ public final class LeavesConfig {
 
             @Override
             public void verify(String old, String value) throws IllegalArgumentException {
-                if (!org.leavesmc.leaves.util.ServerI18nUtil.finishPreload
-                    && !org.leavesmc.leaves.util.ServerI18nUtil.tryAppendLanguages(supportLang)) {
+                if (!org.leavesmc.leaves.util.ServerI18nUtil.finishPreload ||
+                    !org.leavesmc.leaves.util.ServerI18nUtil.tryAppendLanguages(supportLang)) {
                     return;
                 }
                 if (!supportLang.contains(value)) {

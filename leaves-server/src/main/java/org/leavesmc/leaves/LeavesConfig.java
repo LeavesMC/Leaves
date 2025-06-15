@@ -1046,10 +1046,14 @@ public final class LeavesConfig {
         public String serverLang = "en_us";
 
         private static class ServerLangValidator extends StringConfigValidator {
-            private static final List<String> supportLang = List.of("en_us", "zh_cn");
+            private static final List<String> supportLang = new java.util.ArrayList<>(List.of("en_us"));
 
             @Override
             public void verify(String old, String value) throws IllegalArgumentException {
+                if (!org.leavesmc.leaves.util.ServerI18nUtil.finishPreload ||
+                    !org.leavesmc.leaves.util.ServerI18nUtil.tryAppendLanguages(supportLang)) {
+                    return;
+                }
                 if (!supportLang.contains(value)) {
                     throw new IllegalArgumentException("lang " + value + " not supported");
                 }

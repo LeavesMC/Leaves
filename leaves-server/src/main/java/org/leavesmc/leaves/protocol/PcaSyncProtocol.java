@@ -19,12 +19,14 @@ import net.minecraft.world.level.block.state.properties.ChestType;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
+import org.bukkit.Bukkit;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.LeavesLogger;
 import org.leavesmc.leaves.bot.ServerBot;
+import org.leavesmc.leaves.plugin.MinecraftInternalPlugin;
 import org.leavesmc.leaves.protocol.core.LeavesCustomPayload;
 import org.leavesmc.leaves.protocol.core.LeavesProtocol;
 import org.leavesmc.leaves.protocol.core.ProtocolHandler;
@@ -79,11 +81,10 @@ public class PcaSyncProtocol implements LeavesProtocol {
 
     @ProtocolHandler.PayloadReceiver(payload = SyncBlockEntityPayload.class)
     private static void syncBlockEntityHandler(ServerPlayer player, SyncBlockEntityPayload payload) {
-        MinecraftServer server = MinecraftServer.getServer();
         BlockPos pos = payload.pos;
         ServerLevel world = player.serverLevel();
 
-        server.execute(() -> {
+        Bukkit.getGlobalRegionScheduler().run(MinecraftInternalPlugin.INSTANCE, (task) -> {
             BlockState blockState = world.getBlockState(pos);
             clearPlayerWatchData(player);
 
@@ -123,7 +124,7 @@ public class PcaSyncProtocol implements LeavesProtocol {
         int entityId = payload.entityId;
         ServerLevel world = player.serverLevel();
 
-        server.execute(() -> {
+        Bukkit.getGlobalRegionScheduler().run(MinecraftInternalPlugin.INSTANCE, (task) -> {
             Entity entity = world.getEntity(entityId);
 
             if (entity != null) {

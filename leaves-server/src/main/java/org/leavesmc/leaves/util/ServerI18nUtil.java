@@ -220,7 +220,7 @@ public class ServerI18nUtil {
                 return response.body().getBytes();
             }
         } catch (Exception e) {
-            logger.warn("Error in getting info: {}", e.getMessage());
+            logger.warn("Error in getting info!");
             throw e;
         }
     }
@@ -237,10 +237,10 @@ public class ServerI18nUtil {
             byte[] data = Files.readAllBytes(Paths.get(path));
             return JsonParser.parseString(new String(data)).getAsJsonObject();
         } catch (JsonSyntaxException e) {
-            logger.warn("Corrupt json file: ", e);
+            logger.warn("Corrupt json file!");
             throw new MalformedJsonException(e, path);
         } catch (Exception e) {
-            logger.warn("Failed to load local JSON: ", e);
+            logger.warn("Failed to load local JSON!");
             return null;
         }
     }
@@ -303,7 +303,7 @@ public class ServerI18nUtil {
         } catch (JsonSyntaxException e) {
             throw new MalformedJsonException(e, langPath);
         } catch (Exception e) {
-            logger.warn("Failed to load language from filesystem {}", filePath, e);
+            logger.warn("Failed to load language from filesystem {}", filePath);
             throw e;
         }
     }

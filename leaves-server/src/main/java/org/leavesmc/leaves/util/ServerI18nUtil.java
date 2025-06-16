@@ -41,15 +41,16 @@ import java.util.regex.Pattern;
 
 public class ServerI18nUtil {
 
-    private static final Logger logger = LogUtils.getLogger();
+    private static final Logger logger = LogUtils.getClassLogger();
     private static final String VERSION = "1.21.5";
     private static final String BASE_PATH = "cache/leaves/" + VERSION + "/";
     private static final String manifestUrl = "https://launchermeta.mojang.com/mc/game/version_manifest.json";
     private static final String resourceBaseUrl = "https://resources.download.minecraft.net/";
     private static final Pattern langPattern = Pattern.compile("minecraft/lang/(.+?)\\.json");
+    private static final String defaultLeavesLangPath = "/assets/leaves/lang/en_us.json";
     // pre-load
-    private static CompletableFuture<Void> preloadTask;
     public static volatile boolean finishPreload = false;
+    private static CompletableFuture<Void> preloadTask;
     // paths
     private static String langPath;
     private static String assetsPath;
@@ -57,7 +58,6 @@ public class ServerI18nUtil {
     private static String manifestPath;
     private static String langJsonPath;
     private static String leavesLangPath;
-    private static final String defaultLeavesLangPath = "/assets/leaves/lang/en_us.json";
 
     public static void init() {
         if (Objects.equals(LeavesConfig.mics.serverLang, "en_us")) {
@@ -308,7 +308,8 @@ public class ServerI18nUtil {
         } catch (JsonSyntaxException e) {
             throw new MalformedJsonException(e, langPath);
         } catch (Exception e) {
-            logger.warn("Failed to load language from filesystem {}\n{}", filePath, e.getMessage());
+            logger.warn("Failed to load language from filesystem {}", filePath);
+            logger.warn("", e);
             throw e;
         }
     }

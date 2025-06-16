@@ -44,10 +44,10 @@ public class ServerI18nUtil {
     private static final Logger logger = LogUtils.getClassLogger();
     private static final String VERSION = "1.21.5";
     private static final String BASE_PATH = "cache/leaves/" + VERSION + "/";
+    private static final String defaultLeavesLangPath = "/assets/leaves/lang/en_us.json";
     private static final String manifestUrl = "https://launchermeta.mojang.com/mc/game/version_manifest.json";
     private static final String resourceBaseUrl = "https://resources.download.minecraft.net/";
     private static final Pattern langPattern = Pattern.compile("minecraft/lang/(.+?)\\.json");
-    private static final String defaultLeavesLangPath = "/assets/leaves/lang/en_us.json";
     // pre-load
     public static volatile boolean finishPreload = false;
     private static CompletableFuture<Void> preloadTask;

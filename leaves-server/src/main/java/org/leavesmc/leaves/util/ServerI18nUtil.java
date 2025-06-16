@@ -111,7 +111,7 @@ public class ServerI18nUtil {
             if (e instanceof MalformedJsonException malformedJson) {
                 malformedJson.clean();
             }
-            logger.warn("Failed to load language file for {}\n", lang, e);
+            logger.warn("Failed to load language file for {}", lang, e);
             if (retryTime > 0) {
                 loadI18n(lang, retryTime - 1);
             } else {
@@ -200,12 +200,12 @@ public class ServerI18nUtil {
         fetchAndSave(versionUrl, versionPath);
     }
 
-    private static String createHttpResponse(String path) throws IOException, InterruptedException {
+    private static byte[] fetch(String urlString) throws IOException, InterruptedException {
         try {
             HttpResponse<String> response;
             try (HttpClient httpClient = HttpClient.newHttpClient()) {
                 HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(path))
+                    .uri(URI.create(urlString))
                     .timeout(Duration.ofSeconds(10))
                     .build();
                 response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
@@ -217,17 +217,12 @@ public class ServerI18nUtil {
                 logger.info("Response body: {}", response.body());
                 throw new UnsupportedEncodingException("Unexpected response code");
             } else {
-                return response.body();
+                return response.body().getBytes();
             }
         } catch (Exception e) {
             logger.warn("Error in getting info: {}", e.getMessage());
             throw e;
         }
-    }
-
-    private static byte[] fetch(String urlString) throws IOException, InterruptedException {
-        String ret = createHttpResponse(urlString);
-        return ret.getBytes();
     }
 
     private static void fetchAndSave(String url, String savePath) throws IOException, InterruptedException {
@@ -308,8 +303,7 @@ public class ServerI18nUtil {
         } catch (JsonSyntaxException e) {
             throw new MalformedJsonException(e, langPath);
         } catch (Exception e) {
-            logger.warn("Failed to load language from filesystem {}", filePath);
-            logger.warn("", e);
+            logger.warn("Failed to load language from filesystem {}", filePath, e);
             throw e;
         }
     }

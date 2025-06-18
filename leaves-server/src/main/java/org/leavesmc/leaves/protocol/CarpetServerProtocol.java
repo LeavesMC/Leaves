@@ -35,28 +35,24 @@ public class CarpetServerProtocol implements LeavesProtocol {
 
     @ProtocolHandler.PlayerJoin
     public static void onPlayerJoin(ServerPlayer player) {
-        if (LeavesConfig.protocol.leavesCarpetSupport) {
-            CompoundTag data = new CompoundTag();
-            data.putString(HI, VERSION);
-            ProtocolUtils.sendPayloadPacket(player, new CarpetPayload(data));
-        }
+        CompoundTag data = new CompoundTag();
+        data.putString(HI, VERSION);
+        ProtocolUtils.sendPayloadPacket(player, new CarpetPayload(data));
     }
 
     @ProtocolHandler.PayloadReceiver(payload = CarpetPayload.class)
     private static void handleHello(@NotNull ServerPlayer player, @NotNull CarpetServerProtocol.CarpetPayload payload) {
-        if (LeavesConfig.protocol.leavesCarpetSupport) {
-            if (payload.nbt.contains(HELLO)) {
-                LeavesLogger.LOGGER.info("Player " + player.getScoreboardName() + " joined with carpet " + payload.nbt.getString(HELLO));
-                CompoundTag data = new CompoundTag();
-                CarpetRules.write(data);
-                ProtocolUtils.sendPayloadPacket(player, new CarpetPayload(data));
-            }
+        if (payload.nbt.contains(HELLO)) {
+            LeavesLogger.LOGGER.info("Player " + player.getScoreboardName() + " joined with carpet " + payload.nbt.getString(HELLO));
+            CompoundTag data = new CompoundTag();
+            CarpetRules.write(data);
+            ProtocolUtils.sendPayloadPacket(player, new CarpetPayload(data));
         }
     }
 
     @Override
     public boolean isActive() {
-        return false;
+        return LeavesConfig.protocol.leavesCarpetSupport;
     }
 
     public static class CarpetRules {

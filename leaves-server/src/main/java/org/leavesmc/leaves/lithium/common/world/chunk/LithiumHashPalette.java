@@ -8,7 +8,7 @@ import net.minecraft.core.IdMap;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.VarInt;
 import net.minecraft.world.level.chunk.Palette;
-import net.minecraft.world.level.chunk.PaletteResize;
+import net.minecraft.world.level.chunk.Palette.PaletteResize;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Arrays;

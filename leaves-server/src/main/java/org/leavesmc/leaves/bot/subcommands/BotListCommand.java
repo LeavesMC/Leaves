@@ -5,12 +5,13 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.command.CommandSender;
-import org.bukkit.generator.WorldInfo;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.bot.BotList;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.command.LeavesSubcommand;
+import org.leavesmc.leaves.command.LeavesSuggestionBuilder;
 import org.leavesmc.leaves.entity.Bot;
 
 import java.util.ArrayList;
@@ -22,8 +23,17 @@ import static net.kyori.adventure.text.Component.text;
 
 public class BotListCommand implements LeavesSubcommand {
 
+    @NotNull
+    private static String formatPlayerNameList(@NotNull List<String> list) {
+        if (list.isEmpty()) {
+            return "";
+        }
+        String string = list.toString();
+        return string.substring(1, string.length() - 1);
+    }
+
     @Override
-    public boolean execute(CommandSender sender, String subCommand, String[] args) {
+    public void execute(CommandSender sender, String subCommand, String[] args) {
         BotList botList = BotList.INSTANCE;
         if (args.length < 2) {
             Map<World, List<String>> botMap = new HashMap<>();
@@ -45,7 +55,7 @@ public class BotListCommand implements LeavesSubcommand {
 
             if (world == null) {
                 sender.sendMessage(text("Unknown world", NamedTextColor.RED));
-                return false;
+                return;
             }
 
             List<String> snowBotList = new ArrayList<>();
@@ -58,26 +68,10 @@ public class BotListCommand implements LeavesSubcommand {
 
             sender.sendMessage(world.getName() + "(" + botList.bots.size() + "): " + formatPlayerNameList(snowBotList));
         }
-        return true;
     }
 
     @Override
-    public List<String> tabComplete(CommandSender sender, String subCommand, String[] args, Location location) {
-        List<String> list = new ArrayList<>();
-
-        if (args.length <= 1) {
-            list.addAll(Bukkit.getWorlds().stream().map(WorldInfo::getName).toList());
-        }
-
-        return list;
-    }
-
-    @NotNull
-    private static String formatPlayerNameList(@NotNull List<String> list) {
-        if (list.isEmpty()) {
-            return "";
-        }
-        String string = list.toString();
-        return string.substring(1, string.length() - 1);
+    public void suggest(@NotNull CommandSender sender, @NotNull String alias, @NotNull String @NotNull [] args, @Nullable Location location, LeavesSuggestionBuilder builder) throws IllegalArgumentException {
+        Bukkit.getWorlds().forEach(world -> builder.suggest(world.getName()));
     }
 }

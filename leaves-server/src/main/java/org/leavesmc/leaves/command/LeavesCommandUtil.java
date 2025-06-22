@@ -107,14 +107,6 @@ public class LeavesCommandUtil {
         return results;
     }
 
-    private record Candidate(String item, int score) {
-        private static Candidate of(String item, int score) {
-            return new Candidate(item, score);
-        }
-    }
-
-    // Copy from org/bukkit/command/defaults/HelpCommand.java
-
     /**
      * Computes the Dameraur-Levenshtein Distance between two strings. Adapted
      * from the algorithm at <a href="http://en.wikipedia.org/wiki/Damerau%E2%80%93Levenshtein_distance">Wikipedia: Damerau–Levenshtein distance</a>
@@ -177,5 +169,13 @@ public class LeavesCommandUtil {
         }
 
         return H[s1Len + 1][s2Len + 1];
+    }
+
+    // Copy from org/bukkit/command/defaults/HelpCommand.java
+
+    private record Candidate(String item, int score) {
+        private static Candidate of(String item, int score) {
+            return new Candidate(item, score);
+        }
     }
 }

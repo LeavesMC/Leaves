@@ -19,17 +19,19 @@ import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.command.LeavesCommandUtil;
 import org.leavesmc.leaves.command.LeavesSubcommand;
-import org.leavesmc.leaves.plugin.MinecraftInternalPlugin;
+import org.leavesmc.leaves.command.LeavesSuggestionBuilder;
 import org.leavesmc.leaves.plugin.provider.configuration.LeavesPluginMeta;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.TreeMap;
+import java.util.concurrent.CompletableFuture;
 
 import static net.kyori.adventure.text.Component.text;
 import static net.kyori.adventure.text.format.NamedTextColor.AQUA;
@@ -40,48 +42,6 @@ public class ReportCommand implements LeavesSubcommand {
     private static final String BUG_REPORT_URL = "https://github.com/LeavesMC/Leaves/issues/new?template=1-bug-report.yml&leaves-version=${version}&plugin-list=${plugins}%0a%0a${datapacks}";
     private static final String NOT_VANILLA_URL = "https://github.com/LeavesMC/Leaves/issues/new?template=2-not-vanilla.yml&leaves-version=${version}";
     private static final String COMMAND_PERM = "bukkit.command.leaves.report";
-
-    @Override
-    public boolean execute(CommandSender sender, String subCommand, String[] args) {
-        if (args.length < 1) {
-            sender.sendMessage(text("Please select a report template: \"bug-report\" or \"not-vanilla\"", RED));
-            return true;
-        }
-        if (args[0].equals("bug-report")) {
-            Bukkit.getScheduler().runTaskAsynchronously(MinecraftInternalPlugin.INSTANCE, () -> {
-                sendOnSuccess(sender, BUG_REPORT_URL, Component.text("Successfully generated report url for \"bug-report\"", AQUA));
-            });
-            return true;
-        } else if (args[0].equals("not-vanilla")) {
-            Bukkit.getScheduler().runTaskAsynchronously(MinecraftInternalPlugin.INSTANCE, () -> {
-                sendOnSuccess(sender, NOT_VANILLA_URL, Component.text("Successfully generated report url for \"not-vanilla\"", AQUA));
-            });
-            return true;
-        }
-        sender.sendMessage(text("The template" + args[0] + " does not exist! Please select a correct template: \"bug-report\" or \"not-vanilla\"", RED));
-        return true;
-    }
-
-    @Override
-    public List<String> tabComplete(CommandSender sender, String subCommand, String[] args, Location location) {
-        if (args.length <= 1) {
-            return LeavesCommandUtil.getListMatchingLast(sender, args, List.of("bug-report", "not-vanilla"), COMMAND_PERM + ".", COMMAND_PERM);
-        }
-        return Collections.emptyList();
-    }
-
-    private void sendOnSuccess(CommandSender sender, String template, Component component) {
-        String finalUrl = template
-            .replace("${version}", URLEncoder.encode(Bukkit.getVersionMessage(), StandardCharsets.UTF_8))
-            .replace("${plugins}", URLEncoder.encode(generatePluginMessage(), StandardCharsets.UTF_8))
-            .replace("${datapacks}", URLEncoder.encode(generateDataPackMessage(), StandardCharsets.UTF_8));
-        if (sender instanceof ConsoleCommandSender) {
-            sender.sendMessage(component.append(text(", please copy it as you are running this command in console")));
-            sender.sendMessage(text(finalUrl, AQUA).decorate(TextDecoration.UNDERLINED));
-        } else {
-            sender.sendMessage(component.append(text(", click this message to open")).decorate(TextDecoration.UNDERLINED).hoverEvent(Component.text("Click to open the report url", NamedTextColor.WHITE)).clickEvent(ClickEvent.openUrl(finalUrl)));
-        }
-    }
 
     private static String generatePluginMessage() {
         final StringBuilder pluginList = new StringBuilder();
@@ -165,5 +125,41 @@ public class ReportCommand implements LeavesSubcommand {
             }
         }
         return dataPackList.toString();
+    }
+
+    @Override
+    public void execute(CommandSender sender, String subCommand, String[] args) {
+        if (args.length < 1) {
+            sender.sendMessage(text("Please select a report template: \"bug-report\" or \"not-vanilla\"", RED));
+            return;
+        }
+        if (args[0].equals("bug-report")) {
+            CompletableFuture.runAsync(() -> sendOnSuccess(sender, BUG_REPORT_URL, Component.text("Successfully generated report url for \"bug-report\"", AQUA)));
+            return;
+        } else if (args[0].equals("not-vanilla")) {
+            CompletableFuture.runAsync(() -> sendOnSuccess(sender, NOT_VANILLA_URL, Component.text("Successfully generated report url for \"not-vanilla\"", AQUA)));
+            return;
+        }
+        sender.sendMessage(text("The template" + args[0] + " does not exist! Please select a correct template: \"bug-report\" or \"not-vanilla\"", RED));
+    }
+
+    @Override
+    public void suggest(@NotNull CommandSender sender, @NotNull String alias, @NotNull String @NotNull [] args, @Nullable Location location, LeavesSuggestionBuilder builder) throws IllegalArgumentException {
+        if (args.length <= 1) {
+            LeavesCommandUtil.getListMatchingLast(sender, args, List.of("bug-report", "not-vanilla"), COMMAND_PERM + ".", COMMAND_PERM).forEach(builder::suggest);
+        }
+    }
+
+    private void sendOnSuccess(CommandSender sender, String template, Component component) {
+        String finalUrl = template
+            .replace("${version}", URLEncoder.encode(Bukkit.getVersionMessage(), StandardCharsets.UTF_8))
+            .replace("${plugins}", URLEncoder.encode(generatePluginMessage(), StandardCharsets.UTF_8))
+            .replace("${datapacks}", URLEncoder.encode(generateDataPackMessage(), StandardCharsets.UTF_8));
+        if (sender instanceof ConsoleCommandSender) {
+            sender.sendMessage(component.append(text(", please copy it as you are running this command in console")));
+            sender.sendMessage(text(finalUrl, AQUA).decorate(TextDecoration.UNDERLINED));
+        } else {
+            sender.sendMessage(component.append(text(", click this message to open")).decorate(TextDecoration.UNDERLINED).hoverEvent(Component.text("Click to open the report url", NamedTextColor.WHITE)).clickEvent(ClickEvent.openUrl(finalUrl)));
+        }
     }
 }

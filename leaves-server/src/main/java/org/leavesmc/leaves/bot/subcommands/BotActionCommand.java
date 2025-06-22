@@ -1,13 +1,12 @@
 package org.leavesmc.leaves.bot.subcommands;
 
-import com.mojang.brigadier.suggestion.Suggestions;
-import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.minecraft.network.chat.Component;
 import org.apache.commons.lang3.tuple.Pair;
 import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
+import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.bot.BotList;
 import org.leavesmc.leaves.bot.ServerBot;
@@ -15,94 +14,48 @@ import org.leavesmc.leaves.bot.agent.AbstractBotAction;
 import org.leavesmc.leaves.bot.agent.Actions;
 import org.leavesmc.leaves.bot.agent.actions.CraftCustomBotAction;
 import org.leavesmc.leaves.command.LeavesSubcommand;
+import org.leavesmc.leaves.command.LeavesSuggestionBuilder;
 import org.leavesmc.leaves.event.bot.BotActionStopEvent;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static net.kyori.adventure.text.Component.text;
 
 public class BotActionCommand implements LeavesSubcommand {
 
     @Override
-    public boolean execute(CommandSender sender, String subCommand, String[] args) {
-        if (!LeavesConfig.modify.fakeplayer.canUseAction) {
-            return false;
-        }
-
+    public void execute(CommandSender sender, String subCommand, String[] args) {
         if (args.length < 2) {
             sender.sendMessage(text("Use /bot action <name> <action> to make fakeplayer do action", NamedTextColor.RED));
-            return false;
+            return;
         }
 
         ServerBot bot = BotList.INSTANCE.getBotByName(args[0]);
         if (bot == null) {
             sender.sendMessage(text("This fakeplayer is not in server", NamedTextColor.RED));
-            return false;
+            return;
         }
 
-        if (args[1].equals("list")) {
-            sender.sendMessage(bot.getScoreboardName() + "'s action list:");
-            for (int i = 0; i < bot.getBotActions().size(); i++) {
-                sender.sendMessage(i + " " + bot.getBotActions().get(i).getName());
-            }
-            return false;
-        }
-
-        if (args[1].equals("stop")) {
-            if (args.length < 3) {
-                sender.sendMessage(text("Invalid index", NamedTextColor.RED));
-                return false;
-            }
-
-            String index = args[2];
-            if (index.equals("all")) {
-                Set<AbstractBotAction<?>> forRemoval = new HashSet<>();
+        switch (args[1].toLowerCase()) {
+            case "list" -> {
+                sender.sendMessage(bot.getScoreboardName() + "'s action list:");
                 for (int i = 0; i < bot.getBotActions().size(); i++) {
-                    AbstractBotAction<?> action = bot.getBotActions().get(i);
-                    BotActionStopEvent event = new BotActionStopEvent(
-                        bot.getBukkitEntity(), action.getName(), action.getUUID(), BotActionStopEvent.Reason.COMMAND, sender
-                    );
-                    event.callEvent();
-                    if (!event.isCancelled()) {
-                        forRemoval.add(action);
-                    }
-                }
-                bot.getBotActions().removeAll(forRemoval);
-                sender.sendMessage(bot.getScoreboardName() + "'s action list cleared.");
-            } else {
-                try {
-                    int i = Integer.parseInt(index);
-                    if (i < 0 || i >= bot.getBotActions().size()) {
-                        sender.sendMessage(text("Invalid index", NamedTextColor.RED));
-                        return false;
-                    }
-
-                    AbstractBotAction<?> action = bot.getBotActions().get(i);
-                    BotActionStopEvent event = new BotActionStopEvent(
-                        bot.getBukkitEntity(), action.getName(), action.getUUID(), BotActionStopEvent.Reason.COMMAND, sender
-                    );
-                    event.callEvent();
-                    if (!event.isCancelled()) {
-                        bot.getBotActions().remove(i);
-                        sender.sendMessage(bot.getScoreboardName() + "'s " + action.getName() + " stopped.");
-
-                    }
-                } catch (NumberFormatException e) {
-                    sender.sendMessage(text("Invalid index", NamedTextColor.RED));
+                    sender.sendMessage(i + " " + bot.getBotActions().get(i).getName());
                 }
             }
-            return false;
+            case "start" -> executeStart(bot, sender, args);
+            case "stop" -> executeStop(bot, sender, args);
         }
+    }
 
-        AbstractBotAction<?> action = Actions.getForName(args[1]);
+    private void executeStart(ServerBot bot, CommandSender sender, String[] args) {
+        AbstractBotAction<?> action = Actions.getForName(args[2]);
         if (action == null) {
             sender.sendMessage(text("Invalid action", NamedTextColor.RED));
-            return false;
+            return;
         }
 
         CraftPlayer player;
@@ -112,9 +65,9 @@ public class BotActionCommand implements LeavesSubcommand {
             player = bot.getBukkitEntity();
         }
 
-        String[] realArgs = new String[args.length - 2];
+        String[] realArgs = new String[args.length - 3];
         if (realArgs.length != 0) {
-            System.arraycopy(args, 2, realArgs, 0, realArgs.length);
+            System.arraycopy(args, 3, realArgs, 0, realArgs.length);
         }
 
         AbstractBotAction<?> newAction;
@@ -127,76 +80,96 @@ public class BotActionCommand implements LeavesSubcommand {
             }
         } catch (IllegalArgumentException e) {
             sender.sendMessage(text("Action create error, please check your arguments, " + e.getMessage(), NamedTextColor.RED));
-            return false;
+            return;
         }
 
         if (newAction == null) {
-            return false;
+            return;
         }
 
         if (bot.addBotAction(newAction, sender)) {
             sender.sendMessage("Action " + action.getName() + " has been issued to " + bot.getName().getString());
         }
-        return true;
+    }
+
+    private void executeStop(ServerBot bot, CommandSender sender, String[] args) {
+        if (args.length < 3) {
+            sender.sendMessage(text("Invalid index", NamedTextColor.RED));
+            return;
+        }
+
+        String index = args[2];
+        if (index.equals("all")) {
+            Set<AbstractBotAction<?>> forRemoval = new HashSet<>();
+            for (int i = 0; i < bot.getBotActions().size(); i++) {
+                AbstractBotAction<?> action = bot.getBotActions().get(i);
+                BotActionStopEvent event = new BotActionStopEvent(
+                    bot.getBukkitEntity(), action.getName(), action.getUUID(), BotActionStopEvent.Reason.COMMAND, sender
+                );
+                event.callEvent();
+                if (!event.isCancelled()) {
+                    forRemoval.add(action);
+                }
+            }
+            bot.getBotActions().removeAll(forRemoval);
+            sender.sendMessage(bot.getScoreboardName() + "'s action list cleared.");
+            return;
+        }
+        try {
+            int i = Integer.parseInt(index);
+            if (i < 0 || i >= bot.getBotActions().size()) {
+                sender.sendMessage(text("Invalid index", NamedTextColor.RED));
+                return;
+            }
+
+            AbstractBotAction<?> action = bot.getBotActions().get(i);
+            BotActionStopEvent event = new BotActionStopEvent(
+                bot.getBukkitEntity(), action.getName(), action.getUUID(), BotActionStopEvent.Reason.COMMAND, sender
+            );
+            event.callEvent();
+            if (!event.isCancelled()) {
+                bot.getBotActions().remove(i);
+                sender.sendMessage(bot.getScoreboardName() + "'s " + action.getName() + " stopped.");
+
+            }
+        } catch (NumberFormatException e) {
+            sender.sendMessage(text("Invalid index", NamedTextColor.RED));
+        }
     }
 
     @Override
-    public List<String> tabComplete(CommandSender sender, String subCommand, String[] args, Location location) {
-        if (!LeavesConfig.modify.fakeplayer.canUseAction) {
-            return Collections.emptyList();
-        }
-
-        List<String> list = new ArrayList<>();
+    public void suggest(@NotNull CommandSender sender, @NotNull String subCommand, String @NotNull [] args, Location location, @NotNull LeavesSuggestionBuilder builder) {
         BotList botList = BotList.INSTANCE;
+        ServerBot serverBot = null;
 
-        if (args.length <= 1) {
-            list.addAll(botList.bots.stream().map(e -> e.getName().getString()).toList());
-        } else {
-            ServerBot bot = botList.getBotByName(args[0]);
-            if (bot == null) {
-                return Collections.singletonList("<" + args[0] + " not found>");
-            }
+        if (args.length > 1 && (serverBot = botList.getBotByName(args[0])) == null) {
+            builder.suggest("<" + args[0] + " not found>");
+            return;
+        }
 
-            if (args.length == 2) {
-                list.add("list");
-                list.add("stop");
-                list.addAll(Actions.getNames());
-            }
-
-            if (args.length >= 3) {
-                if (args[1].equals("stop")) {
-                    list.add("all");
-                    for (int i = 0; i < bot.getBotActions().size(); i++) {
-                        list.add(String.valueOf(i));
+        switch (args.length) {
+            case 0, 1 -> botList.bots.forEach(bot -> builder.suggest(bot.getName().getString()));
+            case 2 -> builder.suggest("start").suggest("stop").suggest("list");
+            case 3 -> {
+                switch (args[1].toLowerCase()) {
+                    case "start" -> Actions.getNames().forEach(builder::suggest);
+                    case "stop" -> {
+                        builder.suggest("all");
+                        AtomicInteger index = new AtomicInteger(0);
+                        serverBot.getBotActions().forEach(a -> builder.suggest(String.valueOf(index.getAndIncrement())));
                     }
-                } else {
-                    return Collections.singletonList("<" + args[1] + " not found>");
                 }
             }
-        }
-
-        return list;
-    }
-
-    @Override
-    public CompletableFuture<Suggestions> tabSuggestion(CommandSender sender, String subCommand, String[] args, Location location, SuggestionsBuilder builder) {
-        if (!LeavesConfig.modify.fakeplayer.canUseAction) {
-            return null;
-        }
-
-        if (args.length >= 3) {
-            if (args[1].equals("stop")) {
-                return null;
-            }
-            AbstractBotAction<?> action = Actions.getForName(args[1]);
-            if (action != null) {
-                Pair<List<String>, String> results = action.getArgument().suggestion(args.length - 3, sender, args[args.length - 1]);
-
+            case 4, 5, 6, 7 -> {
+                AbstractBotAction<?> action = Actions.getForName(args[2]);
+                if (action == null) {
+                    return;
+                }
+                Pair<List<String>, String> results = action.getArgument().suggestion(args.length - 4, sender, args[args.length - 2]);
                 if (results == null || results.getLeft() == null) {
-                    return builder.buildFuture();
+                    return;
                 }
 
-                builder = builder.createOffset(builder.getInput().lastIndexOf(' ') + 1);
                 for (String s : results.getLeft()) {
                     if (results.getRight() != null) {
                         builder.suggest(s, Component.literal(results.getRight()));
@@ -204,16 +177,12 @@ public class BotActionCommand implements LeavesSubcommand {
                         builder.suggest(s);
                     }
                 }
-
-                return builder.buildFuture();
             }
         }
-
-        return null;
     }
 
     @Override
-    public boolean tabCompletes() {
+    public boolean isEnabled() {
         return LeavesConfig.modify.fakeplayer.canUseAction;
     }
 }

@@ -18,6 +18,7 @@ import org.leavesmc.leaves.command.LeavesSubcommand;
 import org.leavesmc.leaves.command.LeavesSuggestionBuilder;
 import org.leavesmc.leaves.event.bot.BotConfigModifyEvent;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
@@ -47,8 +48,7 @@ public class BotConfigCommand implements LeavesSubcommand {
         if (args.length < 3) {
             config.getMessage().forEach(sender::sendMessage);
         } else {
-            String[] realArgs = new String[args.length - 2];
-            System.arraycopy(args, 2, realArgs, 0, realArgs.length);
+            String[] realArgs = Arrays.copyOfRange(args, 2, args.length);
 
             BotConfigModifyEvent event = new BotConfigModifyEvent(bot.getBukkitEntity(), config.getName(), realArgs, sender);
             Bukkit.getPluginManager().callEvent(event);

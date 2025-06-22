@@ -17,6 +17,7 @@ import org.leavesmc.leaves.command.LeavesSubcommand;
 import org.leavesmc.leaves.command.LeavesSuggestionBuilder;
 import org.leavesmc.leaves.event.bot.BotActionStopEvent;
 
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -65,11 +66,7 @@ public class BotActionCommand implements LeavesSubcommand {
             player = bot.getBukkitEntity();
         }
 
-        String[] realArgs = new String[args.length - 3];
-        if (realArgs.length != 0) {
-            System.arraycopy(args, 3, realArgs, 0, realArgs.length);
-        }
-
+        String[] realArgs = Arrays.copyOfRange(args, 3, args.length);
         AbstractBotAction<?> newAction;
         try {
             if (action instanceof CraftCustomBotAction customBotAction) {

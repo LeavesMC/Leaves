@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
 import com.mojang.logging.LogUtils;
+import net.minecraft.DetectedVersion;
 import net.minecraft.locale.DeprecatedTranslationsInfo;
 import net.minecraft.locale.Language;
 import net.minecraft.network.chat.FormattedText;
@@ -40,9 +41,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class ServerI18nUtil {
-
     private static final Logger logger = LogUtils.getClassLogger();
-    private static final String VERSION = "1.21.5";
+    private static final String VERSION = DetectedVersion.BUILT_IN.getName();
     private static final String BASE_PATH = "cache/leaves/" + VERSION + "/";
     private static final String defaultLeavesLangPath = "/assets/leaves/lang/en_us.json";
     private static final String manifestUrl = "https://launchermeta.mojang.com/mc/game/version_manifest.json";

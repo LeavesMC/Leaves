@@ -522,15 +522,8 @@ public final class LeavesConfig {
             }
         }
 
-        @GlobalConfig(value = "no-block-update-command", validator = NoBlockUpdateValidator.class)
+        @GlobalConfig(value = "no-block-update-command")
         public boolean noBlockUpdateCommand = false;
-
-        private static class NoBlockUpdateValidator extends BooleanConfigValidator {
-            @Override
-            public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
-
-            }
-        }
 
         @GlobalConfig("no-tnt-place-update")
         public boolean noTNTPlaceUpdate = false;

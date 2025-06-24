@@ -152,8 +152,8 @@ public class BotActionCommand implements LeavesSubcommand {
                     case "start" -> Actions.getNames().forEach(builder::suggest);
                     case "stop" -> {
                         builder.suggest("all");
-                        AtomicInteger index = new AtomicInteger(0);
-                        serverBot.getBotActions().forEach(a -> builder.suggest(String.valueOf(index.getAndIncrement())));
+                        int[] index = new int[]{0};
+                        serverBot.getBotActions().forEach(a -> builder.suggest(String.valueOf(index[0]++)));
                     }
                 }
             }

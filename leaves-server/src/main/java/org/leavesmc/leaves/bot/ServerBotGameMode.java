@@ -60,7 +60,7 @@ public class ServerBotGameMode extends ServerPlayerGameMode {
             return false;
         } else {
             this.level.captureDrops = null;
-            BlockState iblockdata1 = block.playerWillDestroy(this.level, pos, iblockdata, this.player);
+            BlockState iblockdata1 = org.leavesmc.leaves.command.subcommands.BlockUpdateCommand.isNoBlockUpdate() ? iblockdata : block.playerWillDestroy(this.level, pos, iblockdata, this.player); // Leaves - no block update
             boolean flag = this.level.removeBlock(pos, false);
 
             if (flag) {

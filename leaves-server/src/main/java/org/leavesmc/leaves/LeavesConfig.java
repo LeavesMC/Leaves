@@ -81,7 +81,7 @@ public final class LeavesConfig {
 
         GlobalConfigManager.init();
 
-        registerCommand("leaves", new LeavesCommand("leaves"));
+        registerCommand("leaves", new LeavesCommand());
     }
 
     public static void reload() {
@@ -138,7 +138,7 @@ public final class LeavesConfig {
                 @Override
                 public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
                     if (value) {
-                        registerCommand("bot", new org.leavesmc.leaves.bot.BotCommand("bot"));
+                        registerCommand("bot", new org.leavesmc.leaves.bot.BotCommand());
                         org.leavesmc.leaves.bot.agent.Actions.registerAll();
                     } else {
                         unregisterCommand("bot");
@@ -523,19 +523,8 @@ public final class LeavesConfig {
             }
         }
 
-        @GlobalConfig(value = "no-block-update-command", validator = NoBlockUpdateValidator.class)
+        @GlobalConfig(value = "no-block-update-command")
         public boolean noBlockUpdateCommand = false;
-
-        private static class NoBlockUpdateValidator extends BooleanConfigValidator {
-            @Override
-            public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
-                if (value) {
-                    registerCommand("blockupdate", new org.leavesmc.leaves.command.NoBlockUpdateCommand("blockupdate"));
-                } else {
-                    unregisterCommand("blockupdate");
-                }
-            }
-        }
 
         @GlobalConfig("no-tnt-place-update")
         public boolean noTNTPlaceUpdate = false;

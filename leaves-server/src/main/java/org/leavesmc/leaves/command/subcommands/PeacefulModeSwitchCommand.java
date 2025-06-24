@@ -12,31 +12,30 @@ import org.bukkit.World;
 import org.bukkit.command.CommandSender;
 import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.entity.Player;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.command.LeavesCommandUtil;
 import org.leavesmc.leaves.command.LeavesSubcommand;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import org.leavesmc.leaves.command.LeavesSuggestionBuilder;
 
 public class PeacefulModeSwitchCommand implements LeavesSubcommand {
 
     @Override
-    public boolean execute(CommandSender sender, String subCommand, String[] args) {
+    public void execute(CommandSender sender, String subCommand, String[] args) {
         World world;
         if (args.length == 0) {
             if (sender instanceof Player player) {
                 world = player.getWorld();
             } else {
                 sender.sendMessage(Component.text("Must specify a world! ex: '/leaves peaceful world'", NamedTextColor.RED));
-                return true;
+                return;
             }
         } else {
             final String input = args[0];
             final World inputWorld = Bukkit.getWorld(input);
             if (inputWorld == null) {
                 sender.sendMessage(Component.text("'" + input + "' is not a valid world!", NamedTextColor.RED));
-                return true;
+                return;
             } else {
                 world = inputWorld;
             }
@@ -69,20 +68,13 @@ public class PeacefulModeSwitchCommand implements LeavesSubcommand {
             Component.text("/", color),
             Component.text(limit, color)
         ));
-
-        return true;
     }
 
     @Override
-    public List<String> tabComplete(final CommandSender sender, final String subCommand, final String[] args, Location location) {
-        return LeavesCommandUtil.getListMatchingLast(sender, args, this.suggestPeacefulModeSwitch(args));
-    }
-
-    private List<String> suggestPeacefulModeSwitch(final String[] args) {
-        if (args.length == 1) {
-            return new ArrayList<>(Bukkit.getWorlds().stream().map(World::getName).toList());
+    public void suggest(@NotNull CommandSender sender, @NotNull String alias, @NotNull String @NotNull [] args, @Nullable Location location, LeavesSuggestionBuilder builder) throws IllegalArgumentException {
+        if (args.length > 1) {
+            return;
         }
-
-        return Collections.emptyList();
+        LeavesCommandUtil.getListMatchingLast(sender, args, Bukkit.getWorlds().stream().map(World::getName).toList()).forEach(builder::suggest);
     }
 }

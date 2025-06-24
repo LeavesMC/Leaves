@@ -9,9 +9,8 @@ import static net.kyori.adventure.text.format.NamedTextColor.GREEN;
 
 public class ReloadCommand implements LeavesSubcommand {
     @Override
-    public boolean execute(CommandSender sender, String subCommand, String[] args) {
+    public void execute(CommandSender sender, String subCommand, String[] args) {
         LeavesConfig.reload();
         sender.sendMessage(text("Leaves config reload complete.", GREEN));
-        return false;
     }
 }

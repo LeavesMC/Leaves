@@ -8,26 +8,25 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.LeavesLogger;
 import org.leavesmc.leaves.bot.BotCreateState;
 import org.leavesmc.leaves.bot.BotList;
 import org.leavesmc.leaves.bot.BotUtil;
 import org.leavesmc.leaves.command.LeavesSubcommand;
+import org.leavesmc.leaves.command.LeavesSuggestionBuilder;
 import org.leavesmc.leaves.event.bot.BotCreateEvent;
-
-import java.util.ArrayList;
-import java.util.List;
 
 import static net.kyori.adventure.text.Component.text;
 
 public class BotCreateCommand implements LeavesSubcommand {
 
     @Override
-    public boolean execute(CommandSender sender, String subCommand, String[] args) {
+    public void execute(CommandSender sender, String subCommand, String[] args) {
         if (args.length < 1) {
             sender.sendMessage(text("Use /bot create <name> [skin_name] to create a fakeplayer", NamedTextColor.RED));
-            return false;
+            return;
         }
 
         String botName = args[0];
@@ -59,26 +58,19 @@ public class BotCreateCommand implements LeavesSubcommand {
 
             builder.spawnWithSkin(null);
         }
-        return true;
     }
 
     @Override
-    public List<String> tabComplete(CommandSender sender, String subCommand, String[] args, Location location) {
-        List<String> list = new ArrayList<>();
+    public void suggest(@NotNull CommandSender sender, @NotNull String alias, @NotNull String @NotNull [] args, @Nullable Location location, LeavesSuggestionBuilder builder) throws IllegalArgumentException {
         if (args.length <= 1) {
-            list.add("<BotName>");
+            builder.suggest("<BotName>");
         }
         if (args.length == 2) {
-            list.add("[SkinName]");
+            builder.suggest("[SkinName]");
         }
-        if (sender instanceof ConsoleCommandSender) {
-            if (args.length == 3) {
-                for (var world : sender.getServer().getWorlds()) {
-                    list.add(world.getName());
-                }
-            }
+        if (sender instanceof ConsoleCommandSender && args.length == 3) {
+            Bukkit.getWorlds().forEach(world -> builder.suggest(world.getName()));
         }
-        return list;
     }
 
     private boolean canCreate(CommandSender sender, @NotNull String name) {

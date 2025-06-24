@@ -1,7 +1,5 @@
 package org.leavesmc.leaves.command.subcommands;
 
-import com.mojang.brigadier.suggestion.Suggestions;
-import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.JoinConfiguration;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -11,20 +9,17 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.command.LeavesCommandUtil;
 import org.leavesmc.leaves.command.LeavesSubcommand;
+import org.leavesmc.leaves.command.LeavesSuggestionBuilder;
 import org.leavesmc.leaves.config.GlobalConfigManager;
 import org.leavesmc.leaves.config.VerifiedConfig;
-
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 public class ConfigCommand implements LeavesSubcommand {
 
     @Override
-    public boolean execute(CommandSender sender, String subCommand, String[] args) {
+    public void execute(CommandSender sender, String subCommand, String[] args) {
         if (args.length < 1) {
             sender.sendMessage(Component.text("Leaves Config", NamedTextColor.GRAY));
-            return true;
+            return;
         }
 
         VerifiedConfig verifiedConfig = GlobalConfigManager.getVerifiedConfig(args[0]);
@@ -34,7 +29,7 @@ public class ConfigCommand implements LeavesSubcommand {
                 Component.text(args[0], NamedTextColor.RED),
                 Component.text(" is Not Found.", NamedTextColor.GRAY)
             ));
-            return true;
+            return;
         }
 
         if (args.length > 1) {
@@ -62,33 +57,24 @@ public class ConfigCommand implements LeavesSubcommand {
                 Component.text(verifiedConfig.getString(), NamedTextColor.AQUA)
             ));
         }
-
-        return true;
     }
 
     @Override
-    public List<String> tabComplete(CommandSender sender, String subCommand, String[] args, Location location) {
+    public void suggest(@NotNull CommandSender sender, @NotNull String subCommand, String @NotNull [] args, @Nullable Location location, @NotNull LeavesSuggestionBuilder builder) {
+        if (args.length <= 1) {
+            String arg = args[0];
+            int dotIndex = arg.lastIndexOf(".");
+            builder.createOffset(builder.getInput().lastIndexOf(' ') + dotIndex + 2);
+            LeavesCommandUtil.getListClosestMatchingLast(sender, arg.substring(dotIndex + 1), GlobalConfigManager.getVerifiedConfigSubPaths(arg), "bukkit.command.leaves.config")
+                .forEach(builder::suggest);
+        }
         if (args.length == 2) {
             VerifiedConfig verifiedConfig = GlobalConfigManager.getVerifiedConfig(args[0]);
             if (verifiedConfig != null) {
-                return LeavesCommandUtil.getListMatchingLast(sender, args, verifiedConfig.validator().valueSuggest());
+                LeavesCommandUtil.getListMatchingLast(sender, args, verifiedConfig.validator().valueSuggest()).forEach(builder::suggest);
             } else {
-                return Collections.singletonList("<ERROR CONFIG>");
+                builder.suggest("<ERROR CONFIG>");
             }
         }
-        return Collections.emptyList();
-    }
-
-    @Override
-    public CompletableFuture<Suggestions> tabSuggestion(CommandSender sender, String subCommand, String @NotNull [] args, @Nullable Location location, @NotNull SuggestionsBuilder builder) {
-        if (args.length == 1) {
-            String arg = args[0];
-            int dotIndex = arg.lastIndexOf(".");
-            builder = builder.createOffset(builder.getInput().lastIndexOf(' ') + dotIndex + 2);
-            LeavesCommandUtil.getListClosestMatchingLast(sender, arg.substring(dotIndex + 1), GlobalConfigManager.getVerifiedConfigSubPaths(arg), "bukkit.command.leaves.config")
-                .forEach(builder::suggest);
-            return builder.buildFuture();
-        }
-        return null;
     }
 }

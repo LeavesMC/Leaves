@@ -9,14 +9,8 @@ import org.leavesmc.leaves.util.LeavesUpdateHelper;
 public class UpdateCommand implements LeavesSubcommand {
 
     @Override
-    public boolean execute(CommandSender sender, String subCommand, String[] args) {
+    public void execute(CommandSender sender, String subCommand, String[] args) {
         sender.sendMessage(Component.text("Trying to update Leaves, see the console for more info.", NamedTextColor.GRAY));
         LeavesUpdateHelper.tryUpdateLeaves();
-        return true;
-    }
-
-    @Override
-    public boolean tabCompletes() {
-        return false;
     }
 }

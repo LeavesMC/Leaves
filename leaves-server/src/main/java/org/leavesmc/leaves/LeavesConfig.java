@@ -583,42 +583,6 @@ public final class LeavesConfig {
             }
         }
 
-        public ForcePeacefulModeSwitchConfig peacefulModeSwitch = new ForcePeacefulModeSwitchConfig();
-
-        @GlobalConfigCategory("force-peaceful-mode-switch")
-        public static class ForcePeacefulModeSwitchConfig {
-            @RemovedConfig(name = "force-peaceful-mode", category = "modify", transform = true)
-            @GlobalConfig(value = "tick", validator = TickValidator.class)
-            public int tick = -1;
-
-            private static class TickValidator extends IntConfigValidator {
-                @Override
-                public void verify(Integer old, Integer value) throws IllegalArgumentException {
-                    for (ServerLevel level : MinecraftServer.getServer().getAllLevels()) {
-                        level.chunkSource.peacefulModeSwitchTick = value;
-                    }
-                }
-            }
-
-            @GlobalConfig(value = "types", validator = TypeValidator.class)
-            public List<ForcePeacefulModeSwitchType> types = List.of(ForcePeacefulModeSwitchType.BLAZE, ForcePeacefulModeSwitchType.WITHER, ForcePeacefulModeSwitchType.SHULKER, ForcePeacefulModeSwitchType.WARDEN);
-            public Set<Class<? extends Entity>> classTypes = new HashSet<>();
-
-            private static class TypeValidator extends ListConfigValidator.ENUM<ForcePeacefulModeSwitchType> {
-                @Override
-                public void verify(List<ForcePeacefulModeSwitchType> old, @NotNull List<ForcePeacefulModeSwitchType> value) throws IllegalArgumentException {
-                    Set<Class<? extends Entity>> classes = new HashSet<>();
-                    for (ForcePeacefulModeSwitchType type : value) {
-                        classes.add(type.getEntityClass());
-                    }
-                    LeavesConfig.modify.peacefulModeSwitch.classTypes = classes;
-                    for (ServerLevel level : MinecraftServer.getServer().getAllLevels()) {
-                        level.chunkSource.peacefulModeSwitchEntityTypes = classes;
-                    }
-                }
-            }
-        }
-
         @GlobalConfig("disable-vault-blacklist")
         public boolean disableVaultBlacklist = false;
 
@@ -642,6 +606,10 @@ public final class LeavesConfig {
             }
         }
 
+        @RemovedConfig(name = "tick", category = {"modify", "force-peaceful-mode-switch"})
+        @RemovedConfig(name = "types", category = {"modify", "force-peaceful-mode-switch"})
+        @RemovedConfig(name = "force-peaceful-mode-switch", category = "modify")
+        @RemovedConfig(name = "force-peaceful-mode", category = "modify")
         @RemovedConfig(name = "tick-command", category = "modify")
         @RemovedConfig(name = "player-can-edit-sign", category = "modify")
         @RemovedConfig(name = "mending-compatibility-infinity", category = {"modify", "minecraft-old"})

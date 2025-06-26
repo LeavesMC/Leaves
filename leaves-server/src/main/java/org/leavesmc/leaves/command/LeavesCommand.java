@@ -4,7 +4,6 @@ import net.minecraft.Util;
 import org.leavesmc.leaves.command.subcommands.BlockUpdateCommand;
 import org.leavesmc.leaves.command.subcommands.ConfigCommand;
 import org.leavesmc.leaves.command.subcommands.CounterCommand;
-import org.leavesmc.leaves.command.subcommands.PeacefulModeSwitchCommand;
 import org.leavesmc.leaves.command.subcommands.ReloadCommand;
 import org.leavesmc.leaves.command.subcommands.ReportCommand;
 import org.leavesmc.leaves.command.subcommands.UpdateCommand;
@@ -23,7 +22,6 @@ public final class LeavesCommand extends LeavesRootCommand {
         final Map<Set<String>, LeavesSubcommand> commands = new HashMap<>();
         commands.put(Set.of("config"), new ConfigCommand());
         commands.put(Set.of("update"), new UpdateCommand());
-        commands.put(Set.of("peaceful"), new PeacefulModeSwitchCommand());
         commands.put(Set.of("counter"), new CounterCommand());
         commands.put(Set.of("reload"), new ReloadCommand());
         commands.put(Set.of("report"), new ReportCommand());

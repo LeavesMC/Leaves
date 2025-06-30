@@ -348,6 +348,9 @@ public final class LeavesConfig {
                     }
                 }
             }
+
+            @GlobalConfig("disable-item-damage-check")
+            public boolean disableItemDamageCheck = false;
         }
 
         public ElytraAeronauticsConfig elytraAeronautics = new ElytraAeronauticsConfig();

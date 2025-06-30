@@ -351,6 +351,9 @@ public final class LeavesConfig {
 
             @GlobalConfig("disable-item-damage-check")
             public boolean disableItemDamageCheck = false;
+
+            @GlobalConfig("old-throwable-projectile-tick-order")
+            public boolean oldThrowableProjectileTickOrder = false;
         }
 
         public ElytraAeronauticsConfig elytraAeronautics = new ElytraAeronauticsConfig();

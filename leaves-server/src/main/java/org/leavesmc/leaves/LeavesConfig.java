@@ -378,8 +378,16 @@ public final class LeavesConfig {
         public boolean redstoneShearsWrench = true;
 
         @RemovedConfig(name = "budding-amethyst-can-push-by-piston", category = {}, transform = true)
-        @GlobalConfig("budding-amethyst-can-push-by-piston")
-        public boolean buddingAmethystCanPushByPiston = false;
+        @RemovedConfig(name = "budding-amethyst-can-push-by-piston", category = "modify", transform = true)
+        @GlobalConfig(value = "movable-budding-amethyst", validator = MovableBuddingAmethystValidator.class)
+        public boolean movableBuddingAmethyst = false;
+
+        private static class MovableBuddingAmethystValidator extends BooleanConfigValidator {
+            @Override
+            public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
+                CarpetRules.register(CarpetRule.of("carpet", "movableAmethyst", value));
+            }
+        }
 
         @RemovedConfig(name = "spectator-dont-get-advancement", category = {}, transform = true)
         @GlobalConfig("spectator-dont-get-advancement")

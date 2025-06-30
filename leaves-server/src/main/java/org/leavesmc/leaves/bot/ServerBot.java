@@ -130,6 +130,7 @@ public class ServerBot extends ServerPlayer {
         if (this.invulnerableTime > 0) {
             this.invulnerableTime--;
         }
+        if (this.spawnInvulnerableTime > 0) --this.spawnInvulnerableTime; // Leaves - spawn invulnerable time
         // copy ServerPlayer end
 
         if (this.getConfigValue(Configs.SPAWN_PHANTOM)) {

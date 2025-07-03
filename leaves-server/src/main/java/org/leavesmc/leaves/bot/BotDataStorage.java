@@ -9,6 +9,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.storage.LevelResource;
 import net.minecraft.world.level.storage.LevelStorageSource;
 import org.jetbrains.annotations.NotNull;
+import org.leavesmc.leaves.util.TagUtil;
 import org.slf4j.Logger;
 
 import java.io.File;
@@ -45,7 +46,7 @@ public class BotDataStorage implements IPlayerDataStorage {
     public void save(Player player) {
         boolean flag = true;
         try {
-            CompoundTag nbt = player.saveWithoutId(new CompoundTag());
+            CompoundTag nbt = TagUtil.saveEntityWithoutId(player);
             File file = new File(this.botDir, player.getStringUUID() + ".dat");
 
             if (file.exists() && file.isFile()) {
@@ -74,8 +75,8 @@ public class BotDataStorage implements IPlayerDataStorage {
 
     @Override
     public Optional<CompoundTag> load(Player player) {
-        return this.load(player.getScoreboardName(), player.getStringUUID()).map((nbt) -> {
-            player.load(nbt);
+        return this.load(player.getScoreboardName(), player.getStringUUID()).map(nbt -> {
+            TagUtil.loadEntity(player, nbt);
             return nbt;
         });
     }

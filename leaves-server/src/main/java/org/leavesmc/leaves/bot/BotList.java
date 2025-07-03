@@ -16,6 +16,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.storage.TagValueInput;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
@@ -28,6 +29,7 @@ import org.leavesmc.leaves.event.bot.BotJoinEvent;
 import org.leavesmc.leaves.event.bot.BotLoadEvent;
 import org.leavesmc.leaves.event.bot.BotRemoveEvent;
 import org.leavesmc.leaves.event.bot.BotSpawnLocationEvent;
+import org.leavesmc.leaves.util.TagFactory;
 import org.slf4j.Logger;
 
 import java.util.List;
@@ -129,7 +131,7 @@ public class BotList {
         location = event.getSpawnLocation();
 
         bot.spawnIn(world);
-        bot.gameMode.setLevel(bot.serverLevel());
+        bot.gameMode.setLevel(bot.level());
 
         bot.setPosRaw(location.getX(), location.getY(), location.getZ());
         bot.setRot(location.getYaw(), location.getPitch());
@@ -143,8 +145,9 @@ public class BotList {
         bot.supressTrackerForLogin = true;
         world.addNewPlayer(bot);
         optional.ifPresent(nbt -> {
-            bot.loadAndSpawnEnderPearls(nbt);
-            bot.loadAndSpawnParentVehicle(nbt);
+            TagValueInput input = TagFactory.input(nbt);
+            bot.loadAndSpawnEnderPearls(input);
+            bot.loadAndSpawnParentVehicle(input);
         });
 
         BotJoinEvent event1 = new BotJoinEvent(bot.getBukkitEntity(), PaperAdventure.asAdventure(Component.translatable("multiplayer.player.joined", bot.getDisplayName())).style(Style.style(NamedTextColor.YELLOW)));
@@ -158,8 +161,8 @@ public class BotList {
         bot.renderAll();
         bot.supressTrackerForLogin = false;
 
-        bot.serverLevel().getChunkSource().chunkMap.addEntity(bot);
-        BotList.LOGGER.info("{}[{}] logged in with entity id {} at ([{}]{}, {}, {})", bot.getName().getString(), "Local", bot.getId(), bot.serverLevel().serverLevelData.getLevelName(), bot.getX(), bot.getY(), bot.getZ());
+        bot.level().getChunkSource().chunkMap.addEntity(bot);
+        BotList.LOGGER.info("{}[{}] logged in with entity id {} at ([{}]{}, {}, {})", bot.getName().getString(), "Local", bot.getId(), bot.level().serverLevelData.getLevelName(), bot.getX(), bot.getY(), bot.getZ());
         return bot;
     }
 
@@ -203,7 +206,7 @@ public class BotList {
         }
 
         bot.unRide();
-        bot.serverLevel().removePlayerImmediately(bot, Entity.RemovalReason.UNLOADED_WITH_PLAYER);
+        bot.level().removePlayerImmediately(bot, Entity.RemovalReason.UNLOADED_WITH_PLAYER);
         this.bots.remove(bot);
         this.botsByName.remove(bot.getScoreboardName().toLowerCase(Locale.ROOT));
 
@@ -214,7 +217,7 @@ public class BotList {
         }
 
         bot.removeTab();
-        for (ServerPlayer player : bot.serverLevel().players()) {
+        for (ServerPlayer player : bot.level().players()) {
             if (!(player instanceof ServerBot)) {
                 player.connection.send(new ClientboundRemoveEntitiesPacket(bot.getId()));
             }

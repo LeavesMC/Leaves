@@ -236,7 +236,7 @@ public class ServerBot extends ServerPlayer {
             this.removeVehicle();
         }
 
-        ServerLevel fromLevel = this.serverLevel();
+        ServerLevel fromLevel = this.level();
         ServerLevel toLevel = teleportTransition.newLevel();
 
         if (toLevel.dimension() == fromLevel.dimension()) {
@@ -308,7 +308,7 @@ public class ServerBot extends ServerPlayer {
 
     @Override
     public void checkFallDamage(double y, boolean onGround, @NotNull BlockState state, @NotNull BlockPos pos) {
-        ServerLevel serverLevel = this.serverLevel();
+        ServerLevel serverLevel = this.level();
         if (!this.isInWater() && y < 0.0) {
             this.fallDistance -= (float) y;
         }
@@ -461,7 +461,7 @@ public class ServerBot extends ServerPlayer {
     }
 
     public void sendFakeData(ServerPlayerConnection playerConnection, boolean login) {
-        ChunkMap.TrackedEntity entityTracker = ((ServerLevel) this.level()).getChunkSource().chunkMap.entityMap.get(this.getId());
+        ChunkMap.TrackedEntity entityTracker = this.level().getChunkSource().chunkMap.entityMap.get(this.getId());
 
         if (entityTracker == null) {
             LeavesLogger.LOGGER.warning("Fakeplayer cant get entity tracker for " + this.getId());
@@ -491,7 +491,7 @@ public class ServerBot extends ServerPlayer {
 
     @Override
     public void die(@NotNull DamageSource damageSource) {
-        boolean flag = this.serverLevel().getGameRules().getBoolean(GameRules.RULE_SHOWDEATHMESSAGES);
+        boolean flag = this.level().getGameRules().getBoolean(GameRules.RULE_SHOWDEATHMESSAGES);
         Component defaultMessage = this.getCombatTracker().getDeathMessage();
 
         BotDeathEvent event = new BotDeathEvent(this.getBukkitEntity(), PaperAdventure.asAdventure(defaultMessage), flag);

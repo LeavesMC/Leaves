@@ -6,10 +6,10 @@ Subject: [PATCH] Replay Mod API
 This patch is Powered by ReplayMod(https://github.com/ReplayMod)
 
 diff --git a/net/minecraft/commands/CommandSourceStack.java b/net/minecraft/commands/CommandSourceStack.java
-index cb63e4c264a31788cd1405428af70f7a018910e9..a1e8f25b70b49590fd42b618fcd467cf306650af 100644
+index 3acfb2a78845dd8081dc3c01d653034232c76e60..efe3f1849e68e5bbe2cdb3793dafc8b58c3d8415 100644
 --- a/net/minecraft/commands/CommandSourceStack.java
 +++ b/net/minecraft/commands/CommandSourceStack.java
-@@ -588,7 +588,7 @@ public class CommandSourceStack implements ExecutionCommandSource<CommandSourceS
+@@ -580,7 +580,7 @@ public class CommandSourceStack implements ExecutionCommandSource<CommandSourceS
  
      @Override
      public Collection<String> getOnlinePlayerNames() {
@@ -81,10 +81,10 @@ index 514f8fbdeb776087608665c35de95294aadf5cf0..2f78ca86f46ea08fdcf4b8047d3d0b04
                              if (players.size() >= resultLimit) {
                                  return players;
 diff --git a/net/minecraft/server/MinecraftServer.java b/net/minecraft/server/MinecraftServer.java
-index ca4fdcabbe6c0c57bfa13ef6d83bcd560baae8fc..2005719308a281128a5edc24a563df929418c6e3 100644
+index f288b85909550e6eec931ee2da9e0d4c7808fdc9..f880cfc9394454bc090f41bc51fbc29b382fab31 100644
 --- a/net/minecraft/server/MinecraftServer.java
 +++ b/net/minecraft/server/MinecraftServer.java
-@@ -1637,7 +1637,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+@@ -1640,7 +1640,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
      }
  
      private ServerStatus.Players buildPlayerStatus() {
@@ -94,10 +94,10 @@ index ca4fdcabbe6c0c57bfa13ef6d83bcd560baae8fc..2005719308a281128a5edc24a563df92
          if (this.hidesOnlinePlayers()) {
              return new ServerStatus.Players(maxPlayers, players.size(), List.of());
 diff --git a/net/minecraft/server/PlayerAdvancements.java b/net/minecraft/server/PlayerAdvancements.java
-index 82fb9c61ce97c2e88a3252068bb28eb40bda0273..23152dcede95e41303a23415b319952338805d1f 100644
+index a14401edec04964e6c596c16ba58643b835ef9c1..924829d46f789752aab52c0a51f4d0925710eadf 100644
 --- a/net/minecraft/server/PlayerAdvancements.java
 +++ b/net/minecraft/server/PlayerAdvancements.java
-@@ -174,7 +174,7 @@ public class PlayerAdvancements {
+@@ -173,7 +173,7 @@ public class PlayerAdvancements {
          }
          // Leaves end - spectator don't get advancement
          // Leaves start - bot can't get advancement
@@ -107,23 +107,23 @@ index 82fb9c61ce97c2e88a3252068bb28eb40bda0273..23152dcede95e41303a23415b3199523
          }
          // Leaves end - bot can't get advancement
 diff --git a/net/minecraft/server/commands/OpCommand.java b/net/minecraft/server/commands/OpCommand.java
-index 814bb2981ab32b216b7953e9b14fe09e96cc7c89..45f884bf598b38ec45baf423b84f52931cb019da 100644
+index f2286b96b8f40b4588f817913c42ae7b4a92340f..dbe6c37642d35ac6ee8b428cf1e45878a5dfa9da 100644
 --- a/net/minecraft/server/commands/OpCommand.java
 +++ b/net/minecraft/server/commands/OpCommand.java
 @@ -25,7 +25,7 @@ public class OpCommand {
-                             (context, builder) -> {
-                                 PlayerList playerList = context.getSource().getServer().getPlayerList();
+                             (commandContext, suggestionsBuilder) -> {
+                                 PlayerList playerList = commandContext.getSource().getServer().getPlayerList();
                                  return SharedSuggestionProvider.suggest(
 -                                    playerList.getPlayers()
 +                                    playerList.realPlayers // Leaves - only real player
                                          .stream()
-                                         .filter(player -> !playerList.isOp(player.getGameProfile()))
-                                         .map(player -> player.getGameProfile().getName()),
+                                         .filter(serverPlayer -> !playerList.isOp(serverPlayer.getGameProfile()))
+                                         .map(serverPlayer -> serverPlayer.getGameProfile().getName()),
 diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
-index 68490d8dc26c2d5f4999361fd7ad72a83581f48f..122e5e46a2c1e4be5c9d04501bfe064f239ec230 100644
+index 4a34e43d5471bb12ef2535a1a9246376310c56f1..d50d0874aa34578af3ff8a6bb7c889ba6ab885d6 100644
 --- a/net/minecraft/server/level/ServerLevel.java
 +++ b/net/minecraft/server/level/ServerLevel.java
-@@ -2645,7 +2645,7 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+@@ -2690,7 +2690,7 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
              if (entity instanceof ServerPlayer serverPlayer) {
                  ServerLevel.this.players.add(serverPlayer);
                  // Leaves start - skip
@@ -132,7 +132,7 @@ index 68490d8dc26c2d5f4999361fd7ad72a83581f48f..122e5e46a2c1e4be5c9d04501bfe064f
                      ServerLevel.this.realPlayers.add(serverPlayer);
                  }
                  // Leaves end - skip
-@@ -2720,7 +2720,7 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+@@ -2773,7 +2773,7 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
              if (entity instanceof ServerPlayer serverPlayer) {
                  ServerLevel.this.players.remove(serverPlayer);
                  // Leaves start - skip
@@ -142,10 +142,10 @@ index 68490d8dc26c2d5f4999361fd7ad72a83581f48f..122e5e46a2c1e4be5c9d04501bfe064f
                  }
                  // Leaves end - skip
 diff --git a/net/minecraft/server/players/PlayerList.java b/net/minecraft/server/players/PlayerList.java
-index 72c2762485da81d3a252290455f57a8cf81dfe66..0dee4945feb6d4cb2f520d346bf8be4fa36fb868 100644
+index e74ca7f4c98590941fe88935d9fea0917c7b5c50..968a6bbff3540d781c0925a0db96c0492283d1f2 100644
 --- a/net/minecraft/server/players/PlayerList.java
 +++ b/net/minecraft/server/players/PlayerList.java
-@@ -131,6 +131,7 @@ public abstract class PlayerList {
+@@ -130,6 +130,7 @@ public abstract class PlayerList {
      private boolean allowCommandsForAllPlayers;
      private static final boolean ALLOW_LOGOUTIVATOR = false;
      private int sendAllPlayerInfoIn;
@@ -153,7 +153,7 @@ index 72c2762485da81d3a252290455f57a8cf81dfe66..0dee4945feb6d4cb2f520d346bf8be4f
  
      // CraftBukkit start
      private org.bukkit.craftbukkit.CraftServer cserver;
-@@ -149,6 +150,119 @@ public abstract class PlayerList {
+@@ -148,6 +149,126 @@ public abstract class PlayerList {
  
      abstract public void loadAndSaveFiles(); // Paper - fix converting txt to json file; moved from DedicatedPlayerList constructor
  
@@ -199,6 +199,7 @@ index 72c2762485da81d3a252290455f57a8cf81dfe66..0dee4945feb6d4cb2f520d346bf8be4f
 +        }
 +
 +        this.players.add(player);
++        this.realPlayers.add(player); // Leaves - replay api
 +        this.playersByName.put(player.getScoreboardName().toLowerCase(java.util.Locale.ROOT), player); // Spigot
 +        this.playersByUUID.put(player.getUUID(), player);
 +
@@ -234,6 +235,12 @@ index 72c2762485da81d3a252290455f57a8cf81dfe66..0dee4945feb6d4cb2f520d346bf8be4f
 +            if (entityplayer1 == player || !bukkitPlayer.canSee(entityplayer1.getBukkitEntity())) {
 +                continue;
 +            }
++
++            // Leaves start - skip photographer
++            if (entityplayer1 instanceof org.leavesmc.leaves.replay.ServerPhotographer) {
++                continue;
++            }
++            // Leaves end - skip photographer
 +
 +            onlinePlayers.add(entityplayer1);
 +        }
@@ -273,27 +280,6 @@ index 72c2762485da81d3a252290455f57a8cf81dfe66..0dee4945feb6d4cb2f520d346bf8be4f
      public void placeNewPlayer(Connection connection, ServerPlayer player, CommonListenerCookie cookie) {
          player.isRealPlayer = true; // Paper
          player.loginTime = System.currentTimeMillis(); // Paper - Replace OfflinePlayer#getLastPlayed
-@@ -309,6 +423,7 @@ public abstract class PlayerList {
- 
-         // player.connection.send(ClientboundPlayerInfoUpdatePacket.createPlayerInitializing(this.players)); // CraftBukkit - replaced with loop below
-         this.players.add(player);
-+        this.realPlayers.add(player); // Leaves - replay api
-         this.playersByName.put(player.getScoreboardName().toLowerCase(java.util.Locale.ROOT), player); // Spigot
-         this.playersByUUID.put(player.getUUID(), player);
-         // this.broadcastAll(ClientboundPlayerInfoUpdatePacket.createPlayerInitializing(List.of(player))); // CraftBukkit - replaced with loop below
-@@ -383,6 +498,12 @@ public abstract class PlayerList {
-                 continue;
-             }
- 
-+            // Leaves start - skip photographer
-+            if (entityplayer1 instanceof org.leavesmc.leaves.replay.ServerPhotographer) {
-+                continue;
-+            }
-+            // Leaves end - skip photographer
-+
-             onlinePlayers.add(entityplayer1); // Paper - Use single player info update packet on join
-         }
-         // Paper start - Use single player info update packet on join
 @@ -517,6 +638,43 @@ public abstract class PlayerList {
          }
      }
@@ -346,12 +332,12 @@ index 72c2762485da81d3a252290455f57a8cf81dfe66..0dee4945feb6d4cb2f520d346bf8be4f
          this.playersByName.remove(player.getScoreboardName().toLowerCase(java.util.Locale.ROOT)); // Spigot
          this.server.getCustomBossEvents().onPlayerDisconnect(player);
          UUID uuid = player.getUUID();
-@@ -683,7 +842,7 @@ public abstract class PlayerList {
-             // return this.players.size() >= this.maxPlayers && !this.canBypassPlayerLimit(gameProfile)
-             //     ? Component.translatable("multiplayer.disconnect.server_full")
-             //     : null;
--            if (this.players.size() >= this.maxPlayers && !this.canBypassPlayerLimit(gameProfile)) {
-+            if (this.realPlayers.size() >= this.maxPlayers && !this.canBypassPlayerLimit(gameProfile)) { // Leaves - only real player
-                 event.disallow(org.bukkit.event.player.PlayerLoginEvent.Result.KICK_FULL, net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection().deserialize(org.spigotmc.SpigotConfig.serverFullMessage)); // Spigot // Paper - Adventure
-             }
-         }
+@@ -1032,7 +1191,7 @@ public abstract class PlayerList {
+ 
+     // Paper start - whitelist verify event / login event
+     public LoginResult canBypassFullServerLogin(final GameProfile profile, final LoginResult currentResult) {
+-        final boolean shouldKick = this.players.size() >= this.maxPlayers && !this.canBypassPlayerLimit(profile);
++        final boolean shouldKick = this.realPlayers.size() >= this.maxPlayers && !this.canBypassPlayerLimit(profile); // Leaves - only real player
+         final io.papermc.paper.event.player.PlayerServerFullCheckEvent fullCheckEvent = new io.papermc.paper.event.player.PlayerServerFullCheckEvent(
+             com.destroystokyo.paper.profile.CraftPlayerProfile.asBukkitMirror(profile),
+             io.papermc.paper.adventure.PaperAdventure.asAdventure(currentResult.message),

@@ -349,6 +349,9 @@ public final class LeavesConfig {
 
             @GlobalConfig("old-throwable-projectile-tick-order")
             public boolean oldThrowableProjectileTickOrder = false;
+
+            @GlobalConfig("keep-leash-connect-when-use-firework")
+            public boolean keepLeashConnectWhenUseFirework = false;
         }
 
         public ElytraAeronauticsConfig elytraAeronautics = new ElytraAeronauticsConfig();

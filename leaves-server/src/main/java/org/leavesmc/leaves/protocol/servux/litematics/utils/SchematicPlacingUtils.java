@@ -30,6 +30,7 @@ import org.leavesmc.leaves.protocol.servux.litematics.LitematicaSchematic;
 import org.leavesmc.leaves.protocol.servux.litematics.container.LitematicaBlockStateContainer;
 import org.leavesmc.leaves.protocol.servux.litematics.placement.SchematicPlacement;
 import org.leavesmc.leaves.protocol.servux.litematics.placement.SubRegionPlacement;
+import org.leavesmc.leaves.util.TagUtil;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -210,7 +211,7 @@ public class SchematicPlacingUtils {
                         NbtUtils.writeBlockPosToTag(pos, teNBT);
 
                         try {
-                            te.loadWithComponents(teNBT, MinecraftServer.getServer().registryAccess());
+                            TagUtil.loadTileWithComponents(te, teNBT);
                         } catch (Exception e) {
                             ServuxProtocol.LOGGER.warn("Failed to load BlockEntity data for {} @ {}", state, pos);
                         }

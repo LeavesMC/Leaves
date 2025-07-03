@@ -41,6 +41,8 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.gameevent.GameEvent;
 import net.minecraft.world.level.portal.TeleportTransition;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.EntityHitResult;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -137,7 +139,7 @@ public class ServerBot extends ServerPlayer {
             this.notSleepTicks++;
         }
 
-        if (LeavesConfig.modify.fakeplayer.regenAmount > 0.0 && server.getTickCount() % 20 == 0) {
+        if (LeavesConfig.modify.fakeplayer.regenAmount > 0.0 && getServer().getTickCount() % 20 == 0) {
             float health = getHealth();
             float maxHealth = getMaxHealth();
             float regenAmount = (float) (LeavesConfig.modify.fakeplayer.regenAmount * 20);
@@ -194,7 +196,7 @@ public class ServerBot extends ServerPlayer {
         this.updateIsUnderwater();
 
         if (this.getConfigValue(Configs.TICK_TYPE) == TickType.NETWORK) {
-            this.server.scheduleOnMain(this::runAction);
+            this.getServer().scheduleOnMain(this::runAction);
         }
 
         this.livingEntityTick();
@@ -296,7 +298,7 @@ public class ServerBot extends ServerPlayer {
         if (LeavesConfig.modify.fakeplayer.canOpenInventory) {
             if (player instanceof ServerPlayer player1 && player.getMainHandItem().isEmpty()) {
                 BotInventoryOpenEvent event = new BotInventoryOpenEvent(this.getBukkitEntity(), player1.getBukkitEntity());
-                this.server.server.getPluginManager().callEvent(event);
+                this.getServer().server.getPluginManager().callEvent(event);
                 if (!event.isCancelled()) {
                     player.openMenu(new SimpleMenuProvider((i, inventory, p) -> ChestMenu.sixRows(i, inventory, this.container), this.getDisplayName()));
                     return InteractionResult.SUCCESS;
@@ -356,7 +358,7 @@ public class ServerBot extends ServerPlayer {
     }
 
     @Override
-    public void addAdditionalSaveData(@NotNull CompoundTag nbt) {
+    public void addAdditionalSaveData(@NotNull ValueOutput nbt) {
         super.addAdditionalSaveData(nbt);
         nbt.putBoolean("isShiftKeyDown", this.isShiftKeyDown());
 
@@ -373,7 +375,7 @@ public class ServerBot extends ServerPlayer {
             createNbt.put("skin", skin);
         }
 
-        nbt.put("createStatus", createNbt);
+        nbt.store("createStatus", CompoundTag.CODEC, createNbt);
 
         if (!this.actions.isEmpty()) {
             ListTag actionNbt = new ListTag();
@@ -393,11 +395,11 @@ public class ServerBot extends ServerPlayer {
     }
 
     @Override
-    public void readAdditionalSaveData(@NotNull CompoundTag nbt) {
+    public void readAdditionalSaveData(@NotNull ValueInput nbt) {
         super.readAdditionalSaveData(nbt);
-        this.setShiftKeyDown(nbt.getBoolean("isShiftKeyDown").orElse(false));
+        this.setShiftKeyDown(nbt.getBooleanOr("isShiftKeyDown", false));
 
-        CompoundTag createNbt = nbt.getCompound("createStatus").orElseThrow();
+        CompoundTag createNbt = nbt.read("createStatus", CompoundTag.CODEC).orElseThrow();
         BotCreateState.Builder createBuilder = BotCreateState.builder(createNbt.getString("realName").orElseThrow(), null).name(createNbt.getString("name").orElseThrow());
 
         String[] skin = null;
@@ -477,7 +479,7 @@ public class ServerBot extends ServerPlayer {
     }
 
     public void renderAll() {
-        this.server.getPlayerList().getPlayers().forEach(
+        this.getServer().getPlayerList().getPlayers().forEach(
             player -> {
                 this.sendPlayerInfo(player);
                 this.sendFakeDataIfNeed(player, false);
@@ -486,7 +488,7 @@ public class ServerBot extends ServerPlayer {
     }
 
     private void sendPacket(Packet<?> packet) {
-        this.server.getPlayerList().getPlayers().forEach(player -> player.connection.send(packet));
+        this.getServer().getPlayerList().getPlayers().forEach(player -> player.connection.send(packet));
     }
 
     @Override
@@ -495,7 +497,7 @@ public class ServerBot extends ServerPlayer {
         Component defaultMessage = this.getCombatTracker().getDeathMessage();
 
         BotDeathEvent event = new BotDeathEvent(this.getBukkitEntity(), PaperAdventure.asAdventure(defaultMessage), flag);
-        this.server.server.getPluginManager().callEvent(event);
+        this.getServer().server.getPluginManager().callEvent(event);
 
         if (event.isCancelled()) {
             if (this.getHealth() <= 0) {
@@ -508,10 +510,10 @@ public class ServerBot extends ServerPlayer {
 
         net.kyori.adventure.text.Component deathMessage = event.deathMessage();
         if (event.isSendDeathMessage() && deathMessage != null && !deathMessage.equals(net.kyori.adventure.text.Component.empty())) {
-            this.server.getPlayerList().broadcastSystemMessage(PaperAdventure.asVanilla(deathMessage), false);
+            this.getServer().getPlayerList().broadcastSystemMessage(PaperAdventure.asVanilla(deathMessage), false);
         }
 
-        this.server.getBotList().removeBot(this, BotRemoveEvent.RemoveReason.DEATH, null, false);
+        this.getServer().getBotList().removeBot(this, BotRemoveEvent.RemoveReason.DEATH, null, false);
     }
 
     public void removeTab() {

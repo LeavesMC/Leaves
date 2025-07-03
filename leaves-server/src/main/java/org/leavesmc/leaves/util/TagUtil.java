@@ -60,4 +60,12 @@ public class TagUtil {
         entity.load(input);
     }
 
+    public static void loadTileWithComponents(BlockEntity entity, CompoundTag tag) {
+        if (entity == null) {
+            return;
+        }
+        TagValueInput input = TagFactory.input(tag);
+        entity.loadWithComponents(input);
+    }
+
 }

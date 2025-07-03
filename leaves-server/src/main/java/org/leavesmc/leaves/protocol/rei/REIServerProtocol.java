@@ -177,7 +177,7 @@ public class REIServerProtocol implements LeavesProtocol {
         });
     }
 
-    @ProtocolHandler.MinecraftRegister(onlyNamespace = true)
+    @ProtocolHandler.MinecraftRegister(onlyNamespace = true, stage = ProtocolHandler.Stage.GAME)
     public static void onPlayerSubscribed(@NotNull ServerPlayer player, ResourceLocation location) {
         enabledPlayers.add(player);
         String channel = location.getPath();

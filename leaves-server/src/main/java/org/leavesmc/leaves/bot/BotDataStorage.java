@@ -5,9 +5,12 @@ import net.minecraft.core.UUIDUtil;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.nbt.NbtIo;
+import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.storage.LevelResource;
 import net.minecraft.world.level.storage.LevelStorageSource;
+import net.minecraft.world.level.storage.TagValueInput;
+import net.minecraft.world.level.storage.ValueInput;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.util.TagUtil;
 import org.slf4j.Logger;
@@ -74,10 +77,11 @@ public class BotDataStorage implements IPlayerDataStorage {
     }
 
     @Override
-    public Optional<CompoundTag> load(Player player) {
+    public Optional<ValueInput> load(Player player, ProblemReporter reporter) {
         return this.load(player.getScoreboardName(), player.getStringUUID()).map(nbt -> {
-            TagUtil.loadEntity(player, nbt);
-            return nbt;
+            ValueInput valueInput = TagValueInput.create(reporter, player.registryAccess(), nbt);
+            player.load(valueInput);
+            return valueInput;
         });
     }
 

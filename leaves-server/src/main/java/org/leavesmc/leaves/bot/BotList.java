@@ -14,9 +14,11 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.storage.TagValueInput;
+import net.minecraft.world.level.storage.ValueInput;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
@@ -96,15 +98,20 @@ public class BotList {
 
         ServerBot bot = new ServerBot(this.server, this.server.getLevel(Level.OVERWORLD), new GameProfile(uuid, realName));
         bot.connection = new ServerBotPacketListenerImpl(this.server, bot);
-        Optional<CompoundTag> optional = playerIO.load(bot);
+        Optional<ValueInput> optional;
+        try (ProblemReporter.ScopedCollector scopedCollector = new ProblemReporter.ScopedCollector(bot.problemPath(), LOGGER)) {
+            optional = playerIO.load(bot, scopedCollector);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
 
         if (optional.isEmpty()) {
             return null;
         }
-        CompoundTag nbt = optional.get();
+        ValueInput nbt = optional.get();
 
         ResourceKey<Level> resourcekey = null;
-        if (nbt.contains("WorldUUIDMost") && nbt.contains("WorldUUIDLeast")) {
+        if (nbt.getLong("WorldUUIDMost").isPresent() && nbt.getLong("WorldUUIDLeast").isPresent()) {
             org.bukkit.World bWorld = Bukkit.getServer().getWorld(new UUID(nbt.getLong("WorldUUIDMost").orElseThrow(), nbt.getLong("WorldUUIDLeast").orElseThrow()));
             if (bWorld != null) {
                 resourcekey = ((CraftWorld) bWorld).getHandle().dimension();
@@ -118,8 +125,8 @@ public class BotList {
         return this.placeNewBot(bot, world, bot.getLocation(), nbt);
     }
 
-    public ServerBot placeNewBot(@NotNull ServerBot bot, ServerLevel world, Location location, @Nullable CompoundTag save) {
-        Optional<CompoundTag> optional = Optional.ofNullable(save);
+    public ServerBot placeNewBot(@NotNull ServerBot bot, ServerLevel world, Location location, ValueInput save) {
+        Optional<ValueInput> optional = Optional.ofNullable(save);
 
         bot.isRealPlayer = true;
         bot.loginTime = System.currentTimeMillis();
@@ -145,9 +152,8 @@ public class BotList {
         bot.supressTrackerForLogin = true;
         world.addNewPlayer(bot);
         optional.ifPresent(nbt -> {
-            TagValueInput input = TagFactory.input(nbt);
-            bot.loadAndSpawnEnderPearls(input);
-            bot.loadAndSpawnParentVehicle(input);
+            bot.loadAndSpawnEnderPearls(nbt);
+            bot.loadAndSpawnParentVehicle(nbt);
         });
 
         BotJoinEvent event1 = new BotJoinEvent(bot.getBukkitEntity(), PaperAdventure.asAdventure(Component.translatable("multiplayer.player.joined", bot.getDisplayName())).style(Style.style(NamedTextColor.YELLOW)));

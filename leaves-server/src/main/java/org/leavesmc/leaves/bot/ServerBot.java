@@ -378,19 +378,17 @@ public class ServerBot extends ServerPlayer {
         nbt.store("createStatus", CompoundTag.CODEC, createNbt);
 
         if (!this.actions.isEmpty()) {
-            ListTag actionNbt = new ListTag();
+            ValueOutput.TypedOutputList<CompoundTag> actionNbt = nbt.list("actions", CompoundTag.CODEC);
             for (AbstractBotAction<?> action : this.actions) {
                 actionNbt.add(action.save(new CompoundTag()));
             }
-            nbt.put("actions", actionNbt);
         }
 
         if (!this.configs.isEmpty()) {
-            ListTag configNbt = new ListTag();
+            ValueOutput.TypedOutputList<CompoundTag> configNbt = nbt.list("configs", CompoundTag.CODEC);
             for (AbstractBotConfig<?> config : this.configs.values()) {
                 configNbt.add(config.save(new CompoundTag()));
             }
-            nbt.put("configs", configNbt);
         }
     }
 
@@ -418,23 +416,21 @@ public class ServerBot extends ServerPlayer {
         this.gameProfile = new BotList.CustomGameProfile(this.getUUID(), this.createState.name(), this.createState.skin());
 
 
-        if (nbt.contains("actions")) {
-            ListTag actionNbt = nbt.getList("actions").orElseThrow();
-            for (int i = 0; i < actionNbt.size(); i++) {
-                CompoundTag actionTag = actionNbt.getCompound(i).orElseThrow();
+        if (nbt.list("actions", CompoundTag.CODEC).isPresent()) {
+            ValueInput.TypedInputList<CompoundTag> actionNbt = nbt.list("actions", CompoundTag.CODEC).orElseThrow();
+            actionNbt.forEach(actionTag -> {
                 AbstractBotAction<?> action = Actions.getForName(actionTag.getString("actionName").orElseThrow());
                 if (action != null) {
                     AbstractBotAction<?> newAction = action.create();
                     newAction.load(actionTag);
                     this.actions.add(newAction);
                 }
-            }
+            });
         }
 
-        if (nbt.contains("configs")) {
-            ListTag configNbt = nbt.getList("configs").orElseThrow();
-            for (int i = 0; i < configNbt.size(); i++) {
-                CompoundTag configTag = configNbt.getCompound(i).orElseThrow();
+        if (nbt.list("configs", CompoundTag.CODEC).isPresent()) {
+            ValueInput.TypedInputList<CompoundTag> configNbt = nbt.list("configs", CompoundTag.CODEC).orElseThrow();
+            for (CompoundTag configTag : configNbt) {
                 Configs<?> configKey = Configs.getConfig(configTag.getString("configName").orElseThrow());
                 if (configKey != null) {
                     this.configs.get(configKey).load(configTag);

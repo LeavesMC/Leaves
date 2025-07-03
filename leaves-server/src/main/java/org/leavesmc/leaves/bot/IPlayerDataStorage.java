@@ -1,6 +1,5 @@
 package org.leavesmc.leaves.bot;
 
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.storage.ValueInput;

@@ -19,6 +19,7 @@ import org.leavesmc.leaves.protocol.core.LeavesCustomPayload;
 import org.leavesmc.leaves.protocol.core.LeavesProtocol;
 import org.leavesmc.leaves.protocol.core.ProtocolHandler;
 import org.leavesmc.leaves.protocol.core.ProtocolUtils;
+import org.leavesmc.leaves.util.TagUtil;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -79,7 +80,7 @@ public class ServuxEntityDataProtocol implements LeavesProtocol {
 
     public static void onBlockEntityRequest(ServerPlayer player, BlockPos pos) {
         Bukkit.getGlobalRegionScheduler().run(MinecraftInternalPlugin.INSTANCE, (task) -> {
-            BlockEntity be = player.serverLevel().getBlockEntity(pos);
+            BlockEntity be = player.level().getBlockEntity(pos);
             CompoundTag nbt = be != null ? be.saveWithoutMetadata(player.registryAccess()) : new CompoundTag();
 
             EntityDataPayload payload = new EntityDataPayload(EntityDataPayloadType.PACKET_S2C_BLOCK_NBT_RESPONSE_SIMPLE);
@@ -91,8 +92,8 @@ public class ServuxEntityDataProtocol implements LeavesProtocol {
 
     public static void onEntityRequest(ServerPlayer player, int entityId) {
         Bukkit.getGlobalRegionScheduler().run(MinecraftInternalPlugin.INSTANCE, (task) -> {
-            Entity entity = player.serverLevel().getEntity(entityId);
-            CompoundTag nbt = entity != null ? entity.saveWithoutId(new CompoundTag()) : new CompoundTag();
+            Entity entity = player.level().getEntity(entityId);
+            CompoundTag nbt = TagUtil.saveEntity(entity);
 
             EntityDataPayload payload = new EntityDataPayload(EntityDataPayloadType.PACKET_S2C_ENTITY_NBT_RESPONSE_SIMPLE);
             payload.entityId = entityId;

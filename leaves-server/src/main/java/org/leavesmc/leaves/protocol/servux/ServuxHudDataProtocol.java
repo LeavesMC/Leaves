@@ -70,7 +70,7 @@ public class ServuxHudDataProtocol implements LeavesProtocol {
     }
 
     public static void refreshRecipeManager(ServerPlayer player) {
-        Collection<RecipeHolder<?>> recipes = player.server.getRecipeManager().getRecipes();
+        Collection<RecipeHolder<?>> recipes = MinecraftServer.getServer().getRecipeManager().getRecipes();
         CompoundTag nbt = new CompoundTag();
         ListTag list = new ListTag();
 

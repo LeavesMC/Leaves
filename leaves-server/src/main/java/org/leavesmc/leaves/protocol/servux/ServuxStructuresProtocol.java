@@ -142,7 +142,7 @@ public class ServuxStructuresProtocol implements LeavesProtocol {
     public static void initialSyncStructures(ServerPlayer player, int chunkRadius, int tickCounter) {
         UUID uuid = player.getUUID();
         ChunkPos center = player.getLastSectionPos().chunk();
-        Map<Structure, LongSet> references = getStructureReferences(player.serverLevel(), center, chunkRadius);
+        Map<Structure, LongSet> references = getStructureReferences(player.level(), center, chunkRadius);
 
         timeouts.remove(uuid);
 
@@ -186,7 +186,7 @@ public class ServuxStructuresProtocol implements LeavesProtocol {
     }
 
     public static void sendStructures(ServerPlayer player, Map<Structure, LongSet> references, int tickCounter) {
-        ServerLevel world = player.serverLevel();
+        ServerLevel world = player.level();
         Map<ChunkPos, StructureStart> starts = getStructureStarts(world, references);
 
         if (!starts.isEmpty()) {
@@ -265,7 +265,7 @@ public class ServuxStructuresProtocol implements LeavesProtocol {
         }
 
         if (!positionsToUpdate.isEmpty()) {
-            ServerLevel world = player.serverLevel();
+            ServerLevel world = player.level();
             ChunkPos center = player.getLastSectionPos().chunk();
             Map<Structure, LongSet> references = new HashMap<>();
 

@@ -32,6 +32,7 @@ import org.leavesmc.leaves.protocol.servux.ServuxProtocol;
 import org.leavesmc.leaves.protocol.servux.litematics.placement.SchematicPlacement;
 import org.leavesmc.leaves.protocol.servux.litematics.utils.NbtUtils;
 import org.leavesmc.leaves.protocol.servux.litematics.utils.ReplaceBehavior;
+import org.leavesmc.leaves.util.TagUtil;
 
 import java.util.HashMap;
 import java.util.List;
@@ -131,7 +132,7 @@ public class ServuxLitematicsProtocol implements LeavesProtocol {
         if (!hasPermission(player)) {
             return;
         }
-        BlockEntity be = player.serverLevel().getBlockEntity(pos);
+        BlockEntity be = player.level().getBlockEntity(pos);
         CompoundTag tag = be != null ? be.saveWithFullMetadata(MinecraftServer.getServer().registryAccess()) : new CompoundTag();
         ServuxLitematicaPayload payload = new ServuxLitematicaPayload(ServuxLitematicaPayloadType.PACKET_S2C_BLOCK_NBT_RESPONSE_SIMPLE);
         payload.pos = pos;
@@ -143,7 +144,7 @@ public class ServuxLitematicsProtocol implements LeavesProtocol {
         if (!hasPermission(player)) {
             return;
         }
-        Entity entity = player.serverLevel().getEntity(entityId);
+        Entity entity = player.level().getEntity(entityId);
         if (entity == null) {
             return;
         }
@@ -152,11 +153,11 @@ public class ServuxLitematicsProtocol implements LeavesProtocol {
         payload.entityId = entityId;
         if (entity instanceof net.minecraft.world.entity.player.Player) {
             ResourceLocation loc = EntityType.getKey(entity.getType());
-            tag = entity.saveWithoutId(tag);
+            tag = TagUtil.saveEntity(entity);
             tag.putString("id", loc.toString());
             payload.nbt = tag;
             encodeServerData(player, payload);
-        } else if (entity.saveAsPassenger(tag)) {
+        } else if (TagUtil.saveEntityAsPassenger(entity, tag)) {
             payload.nbt = tag;
             encodeServerData(player, payload);
         }
@@ -167,7 +168,7 @@ public class ServuxLitematicsProtocol implements LeavesProtocol {
             return;
         }
 
-        ServerLevel world = player.serverLevel();
+        ServerLevel world = player.level();
         ChunkAccess chunk = world.getChunk(chunkPos.x, chunkPos.z, ChunkStatus.FULL, false);
 
         if (chunk == null) {
@@ -194,14 +195,14 @@ public class ServuxLitematicsProtocol implements LeavesProtocol {
                 }
 
                 BlockEntity be = world.getBlockEntity(tePos);
-                CompoundTag beTag = be != null ? be.saveWithId(player.registryAccess()) : new CompoundTag();
+                CompoundTag beTag = TagUtil.saveTileWithId(be);
                 tileList.add(beTag);
             }
 
             for (Entity entity : entities) {
                 CompoundTag entTag = new CompoundTag();
 
-                if (entity.save(entTag)) {
+                if (TagUtil.saveEntity(entity, entTag)) {
                     Vec3 posVec = new Vec3(entity.getX() - pos1.getX(), entity.getY() - pos1.getY(), entity.getZ() - pos1.getZ());
                     NbtUtils.writeEntityPositionToTag(posVec, entTag);
                     entTag.putInt("entityId", entity.getId());
@@ -235,7 +236,7 @@ public class ServuxLitematicsProtocol implements LeavesProtocol {
 
         if (tags.getStringOr("Task", "").equals("LitematicaPaste")) {
             ServuxProtocol.LOGGER.debug("litematic_data: Servux Paste request from player {}", player.getName().getString());
-            ServerLevel serverLevel = player.serverLevel();
+            ServerLevel serverLevel = player.level();
             long timeStart = System.currentTimeMillis();
             SchematicPlacement placement = SchematicPlacement.createFromNbt(tags);
             ReplaceBehavior replaceMode = ReplaceBehavior.fromStringStatic(tags.getStringOr("ReplaceMode", ReplaceBehavior.NONE.name()));

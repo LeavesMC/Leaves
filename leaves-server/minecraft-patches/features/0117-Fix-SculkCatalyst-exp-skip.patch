@@ -5,19 +5,19 @@ Subject: [PATCH] Fix SculkCatalyst exp skip
 
 
 diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
-index 8c7fce6d97a4a526c06bba8bb20d1e64d3d94e92..b2bb4a2c1ba2e924f380f69365ce7384db21eed6 100644
+index 4cded55b91031ae9f801d26dd385d661f719ed5e..e183131afca79d468f83d6230164e2cac304e98b 100644
 --- a/net/minecraft/server/level/ServerPlayer.java
 +++ b/net/minecraft/server/level/ServerPlayer.java
-@@ -1091,7 +1091,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -1103,7 +1103,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
          }
  
          // SPIGOT-5478 must be called manually now
--        if (event.shouldDropExperience()) this.dropExperience(this.serverLevel(), cause.getEntity()); // Paper - tie to event
-+        if (shouldDropExperience(event.shouldDropExperience(), event.forceUseEventDropStatus())) this.dropExperience(this.serverLevel(), cause.getEntity()); // Paper - tie to event // Leaves - exp fix
+-        if (event.shouldDropExperience()) this.dropExperience(this.level(), cause.getEntity()); // Paper - tie to event
++        if (shouldDropExperience(event.shouldDropExperience(), event.forceUseEventDropStatus())) this.dropExperience(this.level(), cause.getEntity()); // Paper - tie to event // Leaves - exp fix
          // we clean the player's inventory after the EntityDeathEvent is called so plugins can get the exact state of the inventory.
          if (!event.getKeepInventory()) {
              // Paper start - PlayerDeathEvent#getItemsToKeep
-@@ -1138,6 +1138,15 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -1150,6 +1150,15 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
          this.setClientLoaded(false);
      }
  
@@ -34,18 +34,18 @@ index 8c7fce6d97a4a526c06bba8bb20d1e64d3d94e92..b2bb4a2c1ba2e924f380f69365ce7384
          AABB aabb = new AABB(this.blockPosition()).inflate(32.0, 10.0, 32.0);
          this.level()
 diff --git a/net/minecraft/world/entity/LivingEntity.java b/net/minecraft/world/entity/LivingEntity.java
-index d2f5118ceeebf95496daabf7597655d6565ad116..8975acf713dd806693e3b3045c98e53321a2e5f4 100644
+index 0fca2df8899d285bd09e5a4ebcc09c05f222f13a..b33c78f836830dd47e275cab9c9f87531152a96b 100644
 --- a/net/minecraft/world/entity/LivingEntity.java
 +++ b/net/minecraft/world/entity/LivingEntity.java
-@@ -264,6 +264,7 @@ public abstract class LivingEntity extends Entity implements Attackable {
-     protected final EntityEquipment equipment;
+@@ -277,6 +277,7 @@ public abstract class LivingEntity extends Entity implements Attackable, Waypoin
+     private Waypoint.Icon locatorBarIcon = new Waypoint.Icon();
      // CraftBukkit start
      public int expToDrop;
 +    public int expToReward; // Leaves - exp fix
      public List<DefaultDrop> drops = new java.util.ArrayList<>(); // Paper - Restore vanilla drops behavior
      public final org.bukkit.craftbukkit.attribute.CraftAttributeMap craftAttributes;
      public boolean collides = true;
-@@ -1829,6 +1830,7 @@ public abstract class LivingEntity extends Entity implements Attackable {
+@@ -1861,6 +1862,7 @@ public abstract class LivingEntity extends Entity implements Attackable, Waypoin
                          entity.killedEntity((ServerLevel) this.level(), this);
                      }
                      this.gameEvent(GameEvent.ENTITY_DIE);
@@ -53,7 +53,7 @@ index d2f5118ceeebf95496daabf7597655d6565ad116..8975acf713dd806693e3b3045c98e533
                  } else {
                      this.dead = false;
                      this.setHealth((float) deathEvent.getReviveHealth());
-@@ -1902,7 +1904,7 @@ public abstract class LivingEntity extends Entity implements Attackable {
+@@ -1934,7 +1936,7 @@ public abstract class LivingEntity extends Entity implements Attackable, Waypoin
          this.drops = new java.util.ArrayList<>();
          // this.dropEquipment(level); // CraftBukkit - moved up
          // CraftBukkit end
@@ -63,7 +63,7 @@ index d2f5118ceeebf95496daabf7597655d6565ad116..8975acf713dd806693e3b3045c98e533
      }
  
 diff --git a/net/minecraft/world/level/block/entity/SculkCatalystBlockEntity.java b/net/minecraft/world/level/block/entity/SculkCatalystBlockEntity.java
-index 2627583ab12d886b1fba0b1d1e599f942926b499..be09fa81ed1e58a271156299dacf49be649eecfc 100644
+index 0a94670dc20bb9c521b0395633eb100393895f6a..a2f73e8210ac554a7529067bbe9f50267f2bf0e2 100644
 --- a/net/minecraft/world/level/block/entity/SculkCatalystBlockEntity.java
 +++ b/net/minecraft/world/level/block/entity/SculkCatalystBlockEntity.java
 @@ -96,8 +96,7 @@ public class SculkCatalystBlockEntity extends BlockEntity implements GameEventLi

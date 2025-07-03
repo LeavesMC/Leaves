@@ -31,7 +31,6 @@ import org.leavesmc.leaves.protocol.core.LeavesCustomPayload;
 import org.leavesmc.leaves.protocol.core.LeavesProtocol;
 import org.leavesmc.leaves.protocol.core.ProtocolHandler;
 import org.leavesmc.leaves.protocol.core.ProtocolUtils;
-import org.leavesmc.leaves.util.TagFactory;
 import org.leavesmc.leaves.util.TagUtil;
 
 import java.util.HashMap;

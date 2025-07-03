@@ -17,7 +17,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.level.storage.ValueInput;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -31,7 +30,6 @@ import org.leavesmc.leaves.event.bot.BotJoinEvent;
 import org.leavesmc.leaves.event.bot.BotLoadEvent;
 import org.leavesmc.leaves.event.bot.BotRemoveEvent;
 import org.leavesmc.leaves.event.bot.BotSpawnLocationEvent;
-import org.leavesmc.leaves.util.TagFactory;
 import org.slf4j.Logger;
 
 import java.util.List;

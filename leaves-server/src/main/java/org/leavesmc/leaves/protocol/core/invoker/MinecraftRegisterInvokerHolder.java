@@ -1,7 +1,6 @@
 package org.leavesmc.leaves.protocol.core.invoker;
 
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerPlayer;
 import org.leavesmc.leaves.protocol.core.IdentifierSelector;
 import org.leavesmc.leaves.protocol.core.LeavesProtocol;
 import org.leavesmc.leaves.protocol.core.ProtocolHandler;

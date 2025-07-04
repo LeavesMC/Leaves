@@ -45,6 +45,10 @@ public class CraftBotAction extends LeavesBotAction {
         if (newAction == null) {
             throw new IllegalArgumentException("Invalid action!"); // TODO look action
         }
+
+        newAction.setOnSuccess(action.getOnSuccess());
+        newAction.setOnFail(action.getOnFail());
+
         return newAction;
     }
 

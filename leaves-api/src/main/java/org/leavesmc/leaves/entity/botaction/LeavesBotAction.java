@@ -1,9 +1,11 @@
 package org.leavesmc.leaves.entity.botaction;
 
 import org.bukkit.entity.Player;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.UUID;
+import java.util.function.Consumer;
 
 @org.jetbrains.annotations.ApiStatus.Experimental
 public class LeavesBotAction {
@@ -13,26 +15,38 @@ public class LeavesBotAction {
     private final int initialTickDelay;
     private final int initialTickInterval;
     private final int initialNumber;
+    private final @Nullable Consumer<LeavesBotAction> onSuccess;
+    private final @Nullable Consumer<LeavesBotAction> onFail;
 
     private Player actionPlayer;
     private int tickToNext;
     private int numberRemaining;
     private boolean cancel;
 
-    public LeavesBotAction(BotActionType type, int initialTickInterval, int initialNumber) {
-        this(type.getName(), UUID.randomUUID(), 0, initialTickInterval, initialNumber);
+    public LeavesBotAction(@NotNull BotActionType type, int initialTickInterval, int initialNumber) {
+        this(type.getName(), UUID.randomUUID(), 0, initialTickInterval, initialNumber, null, null);
     }
 
-    public LeavesBotAction(BotActionType type, int initialTickDelay, int initialTickInterval, int initialNumber) {
-        this(type.getName(), UUID.randomUUID(), initialTickDelay, initialTickInterval, initialNumber);
+    public LeavesBotAction(@NotNull BotActionType type, int initialTickInterval, int initialNumber, @Nullable Consumer<LeavesBotAction> onSuccess, @Nullable Consumer<LeavesBotAction> onFail) {
+        this(type.getName(), UUID.randomUUID(), 0, initialTickInterval, initialNumber, onSuccess, onFail);
     }
 
-    protected LeavesBotAction(String name, UUID actionUUID, int initialTickDelay, int initialTickInterval, int initialNumber) {
+    public LeavesBotAction(@NotNull BotActionType type, int initialTickDelay, int initialTickInterval, int initialNumber) {
+        this(type.getName(), UUID.randomUUID(), initialTickDelay, initialTickInterval, initialNumber, null, null);
+    }
+
+    public LeavesBotAction(@NotNull BotActionType type, int initialTickDelay, int initialTickInterval, int initialNumber, @Nullable Consumer<LeavesBotAction> onSuccess, @Nullable Consumer<LeavesBotAction> onFail) {
+        this(type.getName(), UUID.randomUUID(), initialTickDelay, initialTickInterval, initialNumber, onSuccess, onFail);
+    }
+
+    protected LeavesBotAction(String name, UUID actionUUID, int initialTickDelay, int initialTickInterval, int initialNumber, @Nullable Consumer<LeavesBotAction> onSuccess, @Nullable Consumer<LeavesBotAction> onFail) {
         this.actionName = name;
         this.uuid = actionUUID;
         this.initialTickDelay = initialTickDelay;
         this.initialTickInterval = initialTickInterval;
         this.initialNumber = initialNumber;
+        this.onSuccess = onSuccess;
+        this.onFail = onFail;
     }
 
     public String getActionName() {
@@ -86,5 +100,13 @@ public class LeavesBotAction {
 
     public void setTickToNext(int tickToNext) {
         this.tickToNext = tickToNext;
+    }
+
+    public @Nullable Consumer<LeavesBotAction> getOnSuccess() {
+        return onSuccess;
+    }
+
+    public @Nullable Consumer<LeavesBotAction> getOnFail() {
+        return onFail;
     }
 }

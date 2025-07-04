@@ -8,14 +8,17 @@ import org.bukkit.command.CommandSender;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.bot.ServerBot;
+import org.leavesmc.leaves.bot.agent.actions.CraftBotAction;
 import org.leavesmc.leaves.command.CommandArgument;
 import org.leavesmc.leaves.command.CommandArgumentResult;
+import org.leavesmc.leaves.entity.botaction.LeavesBotAction;
 import org.leavesmc.leaves.event.bot.BotActionExecuteEvent;
 import org.leavesmc.leaves.event.bot.BotActionStopEvent;
 
 import java.util.List;
 import java.util.UUID;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 //TODO onStop for fully terminate action (use, etc.)
@@ -33,6 +36,9 @@ public abstract class AbstractBotAction<E extends AbstractBotAction<E>> {
     private int tickToNext;
     private int numberRemaining;
     private boolean cancel;
+
+    private Consumer<LeavesBotAction> onFail;
+    private Consumer<LeavesBotAction> onSuccess;
 
     public AbstractBotAction(String name, CommandArgument argument, Supplier<E> creator) {
         this.name = name;
@@ -77,6 +83,11 @@ public abstract class AbstractBotAction<E extends AbstractBotAction<E>> {
                     this.numberRemaining--;
                 }
                 this.tickToNext = this.getInitialTickInterval() - 1;
+                if (this.onSuccess != null) {
+                    this.onSuccess.accept(CraftBotAction.asAPICopy(this));
+                }
+            } else if (this.onFail != null) {
+                this.onFail.accept(CraftBotAction.asAPICopy(this));
             }
         } else {
             this.tickToNext--;
@@ -189,6 +200,14 @@ public abstract class AbstractBotAction<E extends AbstractBotAction<E>> {
 
     public CommandArgument getArgument() {
         return this.argument;
+    }
+
+    public void setOnFail(Consumer<LeavesBotAction> onFail) {
+        this.onFail = onFail;
+    }
+
+    public void setOnSuccess(Consumer<LeavesBotAction> onSuccess) {
+        this.onSuccess = onSuccess;
     }
 
     @NotNull

@@ -3,6 +3,7 @@ package org.leavesmc.leaves.bot;
 import com.google.common.collect.ImmutableMap;
 import com.mojang.authlib.GameProfile;
 import io.papermc.paper.adventure.PaperAdventure;
+import io.papermc.paper.event.entity.EntityKnockbackEvent;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.particles.BlockParticleOption;
@@ -273,6 +274,14 @@ public class ServerBot extends ServerPlayer {
         }
 
         return this;
+    }
+
+    @Override
+    public void knockback(double strength, double x, double z, @Nullable Entity attacker, EntityKnockbackEvent.Cause eventCause) {
+        if (!this.hurtMarked) {
+            return;
+        }
+        super.knockback(strength, x, z, attacker, eventCause);
     }
 
     @Override

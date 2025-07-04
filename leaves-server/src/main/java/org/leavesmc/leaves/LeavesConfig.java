@@ -352,6 +352,9 @@ public final class LeavesConfig {
 
             @GlobalConfig("keep-leash-connect-when-use-firework")
             public boolean keepLeashConnectWhenUseFirework = false;
+
+            @GlobalConfig("tnt-wet-explosion-no-item-damage")
+            public boolean tntWetExplosionNoItemDamage = false;
         }
 
         public ElytraAeronauticsConfig elytraAeronautics = new ElytraAeronauticsConfig();

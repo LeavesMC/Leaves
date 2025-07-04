@@ -5,10 +5,10 @@ Subject: [PATCH] Redstone Shears Wrench
 
 
 diff --git a/net/minecraft/world/item/ShearsItem.java b/net/minecraft/world/item/ShearsItem.java
-index 8cf3e51e12f9cf98836657e722edb23943f9e866..fd93daeec48e1c0c1352366b21fbc7e0a7e7f07b 100644
+index 8cf3e51e12f9cf98836657e722edb23943f9e866..4705004e4a7c36836e3a4c82412e54d0015cfef6 100644
 --- a/net/minecraft/world/item/ShearsItem.java
 +++ b/net/minecraft/world/item/ShearsItem.java
-@@ -24,6 +24,26 @@ import net.minecraft.world.level.block.GrowingPlantHeadBlock;
+@@ -24,6 +24,30 @@ import net.minecraft.world.level.block.GrowingPlantHeadBlock;
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.level.gameevent.GameEvent;
  
@@ -26,16 +26,20 @@ index 8cf3e51e12f9cf98836657e722edb23943f9e866..fd93daeec48e1c0c1352366b21fbc7e0
 +import net.minecraft.world.level.block.TrapDoorBlock;
 +import net.minecraft.world.level.block.FenceGateBlock;
 +import net.minecraft.world.level.block.LightningRodBlock;
++import net.minecraft.world.level.block.RailBlock;
++import net.minecraft.world.level.block.BaseRailBlock;
++import net.minecraft.world.level.block.PoweredRailBlock;
 +import net.minecraft.world.level.block.CalibratedSculkSensorBlock;
 +import net.minecraft.world.level.block.piston.PistonBaseBlock;
 +import net.minecraft.world.level.block.state.StateDefinition;
++import net.minecraft.world.level.block.state.properties.RailShape;
 +import net.minecraft.world.level.block.state.properties.Property;
 +// Leaves end - shears wrench
 +
  public class ShearsItem extends Item {
      public ShearsItem(Item.Properties properties) {
          super(properties);
-@@ -80,7 +100,80 @@ public class ShearsItem extends Item {
+@@ -80,7 +104,108 @@ public class ShearsItem extends Item {
  
              return InteractionResult.SUCCESS;
          } else {
@@ -54,14 +58,33 @@ index 8cf3e51e12f9cf98836657e722edb23943f9e866..fd93daeec48e1c0c1352366b21fbc7e0
 +                block instanceof TrapDoorBlock ||
 +                block instanceof FenceGateBlock ||
 +                block instanceof LightningRodBlock ||
-+                block instanceof CalibratedSculkSensorBlock
++                block instanceof CalibratedSculkSensorBlock ||
++                block instanceof BaseRailBlock
 +            ) {
 +                StateDefinition<Block, BlockState> blockstatelist = block.getStateDefinition();
-+                Property<?> iblockstate = block instanceof CrafterBlock ? blockstatelist.getProperty("orientation") : blockstatelist.getProperty("facing");
++                Property<?> iblockstate;
++                if (block instanceof CrafterBlock) iblockstate = blockstatelist.getProperty("orientation");
++                else if (block instanceof BaseRailBlock) iblockstate = blockstatelist.getProperty("shape");
++                else iblockstate = blockstatelist.getProperty("facing");
 +                Player player = context.getPlayer();
 +
 +                if (iblockstate == null || player == null) {
 +                    return InteractionResult.FAIL;
++                }
++
++                if (block instanceof BaseRailBlock) {
++                    if (block instanceof RailBlock) {
++                        if (blockState.getValue(RailBlock.SHAPE).isSlope()) {
++                            return InteractionResult.FAIL;
++                        }
++                    } else {
++                        if (getNameHelper(blockState, PoweredRailBlock.POWERED).equals("true")) {
++                            return InteractionResult.FAIL;
++                        }
++                        if (blockState.getValue(PoweredRailBlock.SHAPE).isSlope()) {
++                            return InteractionResult.FAIL;
++                        }
++                    }
 +                }
 +
 +                if (block instanceof PistonBaseBlock) {
@@ -100,7 +123,16 @@ index 8cf3e51e12f9cf98836657e722edb23943f9e866..fd93daeec48e1c0c1352366b21fbc7e0
 +
 +    // Leaves start - shears wrench
 +    private static <T extends Comparable<T>> BlockState cycleState(BlockState state, Property<T> property, boolean inverse) {
-+        return state.setValue(property, ShearsItem.getRelative(property.getPossibleValues(), state.getValue(property), inverse)); // CraftBukkit - decompile error
++        List<T> possibleValues = property.getPossibleValues();
++        if (possibleValues.getFirst() instanceof RailShape) {
++            boolean isRailBlock = state.getBlock() instanceof RailBlock;
++            possibleValues = possibleValues.stream().filter(possibleValue -> {
++                RailShape shape = (RailShape) possibleValue;
++                if (isRailBlock) return !shape.isSlope();
++                return !shape.isSlope() && shape != RailShape.NORTH_EAST && shape != RailShape.NORTH_WEST && shape != RailShape.SOUTH_EAST && shape != RailShape.SOUTH_WEST;
++            }).toList();
++        }
++        return state.setValue(property, ShearsItem.getRelative(possibleValues, state.getValue(property), inverse)); // CraftBukkit - decompile error
 +    }
 +
 +    private static <T> T getRelative(Iterable<T> elements, T current, boolean inverse) {

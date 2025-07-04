@@ -16,12 +16,16 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.npc.AbstractVillager;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.projectile.ThrownEnderpearl;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.storage.ValueInput;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
 import org.bukkit.craftbukkit.CraftWorld;
+import org.bukkit.event.entity.EntityRemoveEvent;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.LeavesConfig;
@@ -166,6 +170,7 @@ public class BotList {
         bot.supressTrackerForLogin = false;
 
         bot.level().getChunkSource().chunkMap.addEntity(bot);
+        bot.initInventoryMenu();
         BotList.LOGGER.info("{}[{}] logged in with entity id {} at ([{}]{}, {}, {})", bot.getName().getString(), "Local", bot.getId(), bot.level().serverLevelData.getLevelName(), bot.getX(), bot.getY(), bot.getZ());
         return bot;
     }
@@ -179,13 +184,15 @@ public class BotList {
         this.server.server.getPluginManager().callEvent(event);
 
         if (event.isCancelled() && event.getReason() != BotRemoveEvent.RemoveReason.INTERNAL) {
-            return event.isCancelled();
+            return true;
         }
 
         if (bot.removeTaskId != -1) {
             Bukkit.getScheduler().cancelTask(bot.removeTaskId);
             bot.removeTaskId = -1;
         }
+
+        bot.disconnect();
 
         if (event.shouldSave()) {
             playerIO.save(bot);
@@ -198,8 +205,8 @@ public class BotList {
             if (entity.hasExactlyOnePlayerPassenger()) {
                 bot.stopRiding();
                 entity.getPassengersAndSelf().forEach((entity1) -> {
-                    if (entity1 instanceof net.minecraft.world.entity.npc.AbstractVillager villager) {
-                        final net.minecraft.world.entity.player.Player human = villager.getTradingPlayer();
+                    if (!org.leavesmc.leaves.LeavesConfig.modify.oldMC.voidTrade && entity1 instanceof AbstractVillager villager) {
+                        final Player human = villager.getTradingPlayer();
                         if (human != null) {
                             villager.setTradingPlayer(null);
                         }
@@ -210,6 +217,14 @@ public class BotList {
         }
 
         bot.unRide();
+        for (ThrownEnderpearl thrownEnderpearl : bot.getEnderPearls()) {
+            if (!thrownEnderpearl.level().paperConfig().misc.legacyEnderPearlBehavior) {
+                thrownEnderpearl.setRemoved(Entity.RemovalReason.UNLOADED_WITH_PLAYER, EntityRemoveEvent.Cause.PLAYER_QUIT);
+            } else {
+                thrownEnderpearl.setOwner(null);
+            }
+        }
+
         bot.level().removePlayerImmediately(bot, Entity.RemovalReason.UNLOADED_WITH_PLAYER);
         this.bots.remove(bot);
         this.botsByName.remove(bot.getScoreboardName().toLowerCase(Locale.ROOT));
@@ -221,9 +236,10 @@ public class BotList {
         }
 
         bot.removeTab();
+        ClientboundRemoveEntitiesPacket packet = new ClientboundRemoveEntitiesPacket(bot.getId());
         for (ServerPlayer player : bot.level().players()) {
             if (!(player instanceof ServerBot)) {
-                player.connection.send(new ClientboundRemoveEntitiesPacket(bot.getId()));
+                player.connection.send(packet);
             }
         }
 

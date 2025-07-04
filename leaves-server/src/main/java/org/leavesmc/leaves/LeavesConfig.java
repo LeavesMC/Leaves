@@ -355,6 +355,9 @@ public final class LeavesConfig {
 
             @GlobalConfig("tnt-wet-explosion-no-item-damage")
             public boolean tntWetExplosionNoItemDamage = false;
+
+            @GlobalConfig("old-projectile-explosion-behavior")
+            public boolean oldProjectileExplosionBehavior = false;
         }
 
         public ElytraAeronauticsConfig elytraAeronautics = new ElytraAeronauticsConfig();

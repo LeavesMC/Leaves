@@ -61,7 +61,7 @@ public class ServerPhotographer extends ServerPlayer {
 
         photographer.recorder.start();
         MinecraftServer.getServer().getPlayerList().placeNewPhotographer(photographer.recorder, photographer, world);
-        photographer.serverLevel().chunkSource.move(photographer);
+        photographer.level().chunkSource.move(photographer);
         photographer.setInvisible(true);
         photographers.add(photographer);
 
@@ -77,9 +77,9 @@ public class ServerPhotographer extends ServerPlayer {
         super.tick();
         super.doTick();
 
-        if (this.server.getTickCount() % 10 == 0) {
+        if (this.getServer().getTickCount() % 10 == 0) {
             connection.resetPosition();
-            this.serverLevel().chunkSource.move(this);
+            this.level().chunkSource.move(this);
         }
 
         if (this.followPlayer != null) {
@@ -129,7 +129,7 @@ public class ServerPhotographer extends ServerPlayer {
         super.remove(RemovalReason.KILLED);
         photographers.remove(this);
         this.recorder.stop();
-        this.server.getPlayerList().removePhotographer(this);
+        this.getServer().getPlayerList().removePhotographer(this);
 
         LeavesLogger.LOGGER.info("Photographer " + createState.id + " removed");
 

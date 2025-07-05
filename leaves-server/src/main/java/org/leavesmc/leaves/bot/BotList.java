@@ -14,12 +14,18 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.npc.AbstractVillager;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.projectile.ThrownEnderpearl;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.storage.ValueInput;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
 import org.bukkit.craftbukkit.CraftWorld;
+import org.bukkit.event.entity.EntityRemoveEvent;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.LeavesConfig;
@@ -94,15 +100,20 @@ public class BotList {
 
         ServerBot bot = new ServerBot(this.server, this.server.getLevel(Level.OVERWORLD), new GameProfile(uuid, realName));
         bot.connection = new ServerBotPacketListenerImpl(this.server, bot);
-        Optional<CompoundTag> optional = playerIO.load(bot);
+        Optional<ValueInput> optional;
+        try (ProblemReporter.ScopedCollector scopedCollector = new ProblemReporter.ScopedCollector(bot.problemPath(), LOGGER)) {
+            optional = playerIO.load(bot, scopedCollector);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
 
         if (optional.isEmpty()) {
             return null;
         }
-        CompoundTag nbt = optional.get();
+        ValueInput nbt = optional.get();
 
         ResourceKey<Level> resourcekey = null;
-        if (nbt.contains("WorldUUIDMost") && nbt.contains("WorldUUIDLeast")) {
+        if (nbt.getLong("WorldUUIDMost").isPresent() && nbt.getLong("WorldUUIDLeast").isPresent()) {
             org.bukkit.World bWorld = Bukkit.getServer().getWorld(new UUID(nbt.getLong("WorldUUIDMost").orElseThrow(), nbt.getLong("WorldUUIDLeast").orElseThrow()));
             if (bWorld != null) {
                 resourcekey = ((CraftWorld) bWorld).getHandle().dimension();
@@ -116,8 +127,8 @@ public class BotList {
         return this.placeNewBot(bot, world, bot.getLocation(), nbt);
     }
 
-    public ServerBot placeNewBot(@NotNull ServerBot bot, ServerLevel world, Location location, @Nullable CompoundTag save) {
-        Optional<CompoundTag> optional = Optional.ofNullable(save);
+    public ServerBot placeNewBot(@NotNull ServerBot bot, ServerLevel world, Location location, ValueInput save) {
+        Optional<ValueInput> optional = Optional.ofNullable(save);
 
         bot.isRealPlayer = true;
         bot.loginTime = System.currentTimeMillis();
@@ -129,7 +140,7 @@ public class BotList {
         location = event.getSpawnLocation();
 
         bot.spawnIn(world);
-        bot.gameMode.setLevel(bot.serverLevel());
+        bot.gameMode.setLevel(bot.level());
 
         bot.setPosRaw(location.getX(), location.getY(), location.getZ());
         bot.setRot(location.getYaw(), location.getPitch());
@@ -158,8 +169,9 @@ public class BotList {
         bot.renderAll();
         bot.supressTrackerForLogin = false;
 
-        bot.serverLevel().getChunkSource().chunkMap.addEntity(bot);
-        BotList.LOGGER.info("{}[{}] logged in with entity id {} at ([{}]{}, {}, {})", bot.getName().getString(), "Local", bot.getId(), bot.serverLevel().serverLevelData.getLevelName(), bot.getX(), bot.getY(), bot.getZ());
+        bot.level().getChunkSource().chunkMap.addEntity(bot);
+        bot.initInventoryMenu();
+        BotList.LOGGER.info("{}[{}] logged in with entity id {} at ([{}]{}, {}, {})", bot.getName().getString(), "Local", bot.getId(), bot.level().serverLevelData.getLevelName(), bot.getX(), bot.getY(), bot.getZ());
         return bot;
     }
 
@@ -172,13 +184,15 @@ public class BotList {
         this.server.server.getPluginManager().callEvent(event);
 
         if (event.isCancelled() && event.getReason() != BotRemoveEvent.RemoveReason.INTERNAL) {
-            return event.isCancelled();
+            return true;
         }
 
         if (bot.removeTaskId != -1) {
             Bukkit.getScheduler().cancelTask(bot.removeTaskId);
             bot.removeTaskId = -1;
         }
+
+        bot.disconnect();
 
         if (event.shouldSave()) {
             playerIO.save(bot);
@@ -191,8 +205,8 @@ public class BotList {
             if (entity.hasExactlyOnePlayerPassenger()) {
                 bot.stopRiding();
                 entity.getPassengersAndSelf().forEach((entity1) -> {
-                    if (entity1 instanceof net.minecraft.world.entity.npc.AbstractVillager villager) {
-                        final net.minecraft.world.entity.player.Player human = villager.getTradingPlayer();
+                    if (!org.leavesmc.leaves.LeavesConfig.modify.oldMC.voidTrade && entity1 instanceof AbstractVillager villager) {
+                        final Player human = villager.getTradingPlayer();
                         if (human != null) {
                             villager.setTradingPlayer(null);
                         }
@@ -203,7 +217,15 @@ public class BotList {
         }
 
         bot.unRide();
-        bot.serverLevel().removePlayerImmediately(bot, Entity.RemovalReason.UNLOADED_WITH_PLAYER);
+        for (ThrownEnderpearl thrownEnderpearl : bot.getEnderPearls()) {
+            if (!thrownEnderpearl.level().paperConfig().misc.legacyEnderPearlBehavior) {
+                thrownEnderpearl.setRemoved(Entity.RemovalReason.UNLOADED_WITH_PLAYER, EntityRemoveEvent.Cause.PLAYER_QUIT);
+            } else {
+                thrownEnderpearl.setOwner(null);
+            }
+        }
+
+        bot.level().removePlayerImmediately(bot, Entity.RemovalReason.UNLOADED_WITH_PLAYER);
         this.bots.remove(bot);
         this.botsByName.remove(bot.getScoreboardName().toLowerCase(Locale.ROOT));
 
@@ -214,9 +236,10 @@ public class BotList {
         }
 
         bot.removeTab();
-        for (ServerPlayer player : bot.serverLevel().players()) {
+        ClientboundRemoveEntitiesPacket packet = new ClientboundRemoveEntitiesPacket(bot.getId());
+        for (ServerPlayer player : bot.level().players()) {
             if (!(player instanceof ServerBot)) {
-                player.connection.send(new ClientboundRemoveEntitiesPacket(bot.getId()));
+                player.connection.send(packet);
             }
         }
 

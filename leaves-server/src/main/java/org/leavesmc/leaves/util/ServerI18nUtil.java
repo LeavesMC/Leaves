@@ -42,7 +42,7 @@ import java.util.regex.Pattern;
 
 public class ServerI18nUtil {
     private static final Logger logger = LogUtils.getClassLogger();
-    private static final String VERSION = DetectedVersion.BUILT_IN.getName();
+    private static final String VERSION = DetectedVersion.BUILT_IN.name();
     private static final String BASE_PATH = "cache/leaves/" + VERSION + "/";
     private static final String defaultLeavesLangPath = "/assets/leaves/lang/en_us.json";
     private static final String manifestUrl = "https://launchermeta.mojang.com/mc/game/version_manifest.json";

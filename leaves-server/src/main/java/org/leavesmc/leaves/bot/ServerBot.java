@@ -3,6 +3,7 @@ package org.leavesmc.leaves.bot;
 import com.google.common.collect.ImmutableMap;
 import com.mojang.authlib.GameProfile;
 import io.papermc.paper.adventure.PaperAdventure;
+import io.papermc.paper.event.entity.EntityKnockbackEvent;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.particles.BlockParticleOption;
@@ -41,6 +42,8 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.gameevent.GameEvent;
 import net.minecraft.world.level.portal.TeleportTransition;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.EntityHitResult;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -137,7 +140,7 @@ public class ServerBot extends ServerPlayer {
             this.notSleepTicks++;
         }
 
-        if (LeavesConfig.modify.fakeplayer.regenAmount > 0.0 && server.getTickCount() % 20 == 0) {
+        if (LeavesConfig.modify.fakeplayer.regenAmount > 0.0 && getServer().getTickCount() % 20 == 0) {
             float health = getHealth();
             float maxHealth = getMaxHealth();
             float regenAmount = (float) (LeavesConfig.modify.fakeplayer.regenAmount * 20);
@@ -194,7 +197,7 @@ public class ServerBot extends ServerPlayer {
         this.updateIsUnderwater();
 
         if (this.getConfigValue(Configs.TICK_TYPE) == TickType.NETWORK) {
-            this.server.scheduleOnMain(this::runAction);
+            this.getServer().scheduleOnMain(this::runAction);
         }
 
         this.livingEntityTick();
@@ -236,7 +239,7 @@ public class ServerBot extends ServerPlayer {
             this.removeVehicle();
         }
 
-        ServerLevel fromLevel = this.serverLevel();
+        ServerLevel fromLevel = this.level();
         ServerLevel toLevel = teleportTransition.newLevel();
 
         if (toLevel.dimension() == fromLevel.dimension()) {
@@ -274,6 +277,14 @@ public class ServerBot extends ServerPlayer {
     }
 
     @Override
+    public void knockback(double strength, double x, double z, @Nullable Entity attacker, EntityKnockbackEvent.Cause eventCause) {
+        if (!this.hurtMarked) {
+            return;
+        }
+        super.knockback(strength, x, z, attacker, eventCause);
+    }
+
+    @Override
     public void onItemPickup(@NotNull ItemEntity item) {
         super.onItemPickup(item);
         this.updateItemInHand(InteractionHand.MAIN_HAND);
@@ -296,7 +307,7 @@ public class ServerBot extends ServerPlayer {
         if (LeavesConfig.modify.fakeplayer.canOpenInventory) {
             if (player instanceof ServerPlayer player1 && player.getMainHandItem().isEmpty()) {
                 BotInventoryOpenEvent event = new BotInventoryOpenEvent(this.getBukkitEntity(), player1.getBukkitEntity());
-                this.server.server.getPluginManager().callEvent(event);
+                this.getServer().server.getPluginManager().callEvent(event);
                 if (!event.isCancelled()) {
                     player.openMenu(new SimpleMenuProvider((i, inventory, p) -> ChestMenu.sixRows(i, inventory, this.container), this.getDisplayName()));
                     return InteractionResult.SUCCESS;
@@ -308,7 +319,7 @@ public class ServerBot extends ServerPlayer {
 
     @Override
     public void checkFallDamage(double y, boolean onGround, @NotNull BlockState state, @NotNull BlockPos pos) {
-        ServerLevel serverLevel = this.serverLevel();
+        ServerLevel serverLevel = this.level();
         if (!this.isInWater() && y < 0.0) {
             this.fallDistance -= (float) y;
         }
@@ -356,7 +367,7 @@ public class ServerBot extends ServerPlayer {
     }
 
     @Override
-    public void addAdditionalSaveData(@NotNull CompoundTag nbt) {
+    public void addAdditionalSaveData(@NotNull ValueOutput nbt) {
         super.addAdditionalSaveData(nbt);
         nbt.putBoolean("isShiftKeyDown", this.isShiftKeyDown());
 
@@ -373,31 +384,29 @@ public class ServerBot extends ServerPlayer {
             createNbt.put("skin", skin);
         }
 
-        nbt.put("createStatus", createNbt);
+        nbt.store("createStatus", CompoundTag.CODEC, createNbt);
 
         if (!this.actions.isEmpty()) {
-            ListTag actionNbt = new ListTag();
+            ValueOutput.TypedOutputList<CompoundTag> actionNbt = nbt.list("actions", CompoundTag.CODEC);
             for (AbstractBotAction<?> action : this.actions) {
                 actionNbt.add(action.save(new CompoundTag()));
             }
-            nbt.put("actions", actionNbt);
         }
 
         if (!this.configs.isEmpty()) {
-            ListTag configNbt = new ListTag();
+            ValueOutput.TypedOutputList<CompoundTag> configNbt = nbt.list("configs", CompoundTag.CODEC);
             for (AbstractBotConfig<?> config : this.configs.values()) {
                 configNbt.add(config.save(new CompoundTag()));
             }
-            nbt.put("configs", configNbt);
         }
     }
 
     @Override
-    public void readAdditionalSaveData(@NotNull CompoundTag nbt) {
+    public void readAdditionalSaveData(@NotNull ValueInput nbt) {
         super.readAdditionalSaveData(nbt);
-        this.setShiftKeyDown(nbt.getBoolean("isShiftKeyDown").orElse(false));
+        this.setShiftKeyDown(nbt.getBooleanOr("isShiftKeyDown", false));
 
-        CompoundTag createNbt = nbt.getCompound("createStatus").orElseThrow();
+        CompoundTag createNbt = nbt.read("createStatus", CompoundTag.CODEC).orElseThrow();
         BotCreateState.Builder createBuilder = BotCreateState.builder(createNbt.getString("realName").orElseThrow(), null).name(createNbt.getString("name").orElseThrow());
 
         String[] skin = null;
@@ -416,23 +425,21 @@ public class ServerBot extends ServerPlayer {
         this.gameProfile = new BotList.CustomGameProfile(this.getUUID(), this.createState.name(), this.createState.skin());
 
 
-        if (nbt.contains("actions")) {
-            ListTag actionNbt = nbt.getList("actions").orElseThrow();
-            for (int i = 0; i < actionNbt.size(); i++) {
-                CompoundTag actionTag = actionNbt.getCompound(i).orElseThrow();
+        if (nbt.list("actions", CompoundTag.CODEC).isPresent()) {
+            ValueInput.TypedInputList<CompoundTag> actionNbt = nbt.list("actions", CompoundTag.CODEC).orElseThrow();
+            actionNbt.forEach(actionTag -> {
                 AbstractBotAction<?> action = Actions.getForName(actionTag.getString("actionName").orElseThrow());
                 if (action != null) {
                     AbstractBotAction<?> newAction = action.create();
                     newAction.load(actionTag);
                     this.actions.add(newAction);
                 }
-            }
+            });
         }
 
-        if (nbt.contains("configs")) {
-            ListTag configNbt = nbt.getList("configs").orElseThrow();
-            for (int i = 0; i < configNbt.size(); i++) {
-                CompoundTag configTag = configNbt.getCompound(i).orElseThrow();
+        if (nbt.list("configs", CompoundTag.CODEC).isPresent()) {
+            ValueInput.TypedInputList<CompoundTag> configNbt = nbt.list("configs", CompoundTag.CODEC).orElseThrow();
+            for (CompoundTag configTag : configNbt) {
                 Configs<?> configKey = Configs.getConfig(configTag.getString("configName").orElseThrow());
                 if (configKey != null) {
                     this.configs.get(configKey).load(configTag);
@@ -461,7 +468,7 @@ public class ServerBot extends ServerPlayer {
     }
 
     public void sendFakeData(ServerPlayerConnection playerConnection, boolean login) {
-        ChunkMap.TrackedEntity entityTracker = ((ServerLevel) this.level()).getChunkSource().chunkMap.entityMap.get(this.getId());
+        ChunkMap.TrackedEntity entityTracker = this.level().getChunkSource().chunkMap.entityMap.get(this.getId());
 
         if (entityTracker == null) {
             LeavesLogger.LOGGER.warning("Fakeplayer cant get entity tracker for " + this.getId());
@@ -477,7 +484,7 @@ public class ServerBot extends ServerPlayer {
     }
 
     public void renderAll() {
-        this.server.getPlayerList().getPlayers().forEach(
+        this.getServer().getPlayerList().getPlayers().forEach(
             player -> {
                 this.sendPlayerInfo(player);
                 this.sendFakeDataIfNeed(player, false);
@@ -486,16 +493,16 @@ public class ServerBot extends ServerPlayer {
     }
 
     private void sendPacket(Packet<?> packet) {
-        this.server.getPlayerList().getPlayers().forEach(player -> player.connection.send(packet));
+        this.getServer().getPlayerList().getPlayers().forEach(player -> player.connection.send(packet));
     }
 
     @Override
     public void die(@NotNull DamageSource damageSource) {
-        boolean flag = this.serverLevel().getGameRules().getBoolean(GameRules.RULE_SHOWDEATHMESSAGES);
+        boolean flag = this.level().getGameRules().getBoolean(GameRules.RULE_SHOWDEATHMESSAGES);
         Component defaultMessage = this.getCombatTracker().getDeathMessage();
 
         BotDeathEvent event = new BotDeathEvent(this.getBukkitEntity(), PaperAdventure.asAdventure(defaultMessage), flag);
-        this.server.server.getPluginManager().callEvent(event);
+        this.getServer().server.getPluginManager().callEvent(event);
 
         if (event.isCancelled()) {
             if (this.getHealth() <= 0) {
@@ -508,10 +515,10 @@ public class ServerBot extends ServerPlayer {
 
         net.kyori.adventure.text.Component deathMessage = event.deathMessage();
         if (event.isSendDeathMessage() && deathMessage != null && !deathMessage.equals(net.kyori.adventure.text.Component.empty())) {
-            this.server.getPlayerList().broadcastSystemMessage(PaperAdventure.asVanilla(deathMessage), false);
+            this.getServer().getPlayerList().broadcastSystemMessage(PaperAdventure.asVanilla(deathMessage), false);
         }
 
-        this.server.getBotList().removeBot(this, BotRemoveEvent.RemoveReason.DEATH, null, false);
+        this.getServer().getBotList().removeBot(this, BotRemoveEvent.RemoveReason.DEATH, null, false);
     }
 
     public void removeTab() {

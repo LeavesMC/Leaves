@@ -8,6 +8,7 @@ import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.Level;
+import org.leavesmc.leaves.util.TagFactory;
 
 import javax.annotation.Nullable;
 import java.util.Optional;
@@ -18,7 +19,7 @@ public class EntityUtils {
     @Nullable
     private static Entity createEntityFromNBTSingle(CompoundTag nbt, Level world) {
         try {
-            Optional<Entity> optional = EntityType.create(nbt, world, EntitySpawnReason.LOAD);
+            Optional<Entity> optional = EntityType.create(TagFactory.input(nbt), world, EntitySpawnReason.LOAD);
 
             if (optional.isPresent()) {
                 Entity entity = optional.get();

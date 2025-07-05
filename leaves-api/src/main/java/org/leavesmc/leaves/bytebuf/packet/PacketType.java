@@ -140,6 +140,8 @@ public enum PacketType {
     ServerboundMoveVehicle,
     ServerboundPaddleBoat,
     ServerboundPickItem,
+    ServerboundPickItemFromBlock,
+    ServerboundPickItemFromEntity,
     ServerboundPlaceRecipe,
     ServerboundPlayerAbilities,
     ServerboundPlayerAction,
@@ -188,5 +190,7 @@ public enum PacketType {
     ServerboundPong,
     ServerboundResourcePack,
     ServerboundPingRequest,
-    ClientboundPongResponse
+    ClientboundPongResponse,
+    ClientboundShowDialog,
+    ClientboundClearDialog
 }

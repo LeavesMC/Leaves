@@ -1,6 +1,5 @@
 package org.leavesmc.leaves.entity;
 
-import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 import net.minecraft.server.MinecraftServer;
 import org.bukkit.Location;

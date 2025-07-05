@@ -1124,6 +1124,9 @@ public final class LeavesConfig {
         @GlobalConfig("vanilla-portal-handle")
         public boolean vanillaPortalHandle = false;
 
+        @GlobalConfig("vanilla-fluid-pushing")
+        public boolean vanillaFluidPushing = false;
+
         @RemovedConfig(name = "collision-behavior", category = "fix")
         @RemovedConfig(name = "spigot-EndPlatform-destroy", category = "fix")
         private final boolean removed = false;

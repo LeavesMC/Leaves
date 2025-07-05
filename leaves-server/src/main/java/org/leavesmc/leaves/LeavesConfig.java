@@ -429,16 +429,25 @@ public final class LeavesConfig {
             }
         }
 
-        public int shulkerBoxStackSize = 1;
-        @GlobalConfig(value = "stackable-shulker-boxes", validator = StackableShulkerValidator.class)
-        private String stackableShulkerBoxes = "false";
+        public ShulkerBoxConfig shulkerBox = new ShulkerBoxConfig();
 
-        private static class StackableShulkerValidator extends StringConfigValidator {
-            @Override
-            public void verify(String old, String value) throws IllegalArgumentException {
-                String realValue = MathUtils.isNumeric(value) ? value : value.equals("true") ? "2" : "1";
-                LeavesConfig.modify.shulkerBoxStackSize = Integer.parseInt(realValue);
+        @GlobalConfigCategory("shulker")
+        public static class ShulkerBoxConfig {
+            public int shulkerBoxStackSize = 1;
+            @RemovedConfig(name = "stackable-shulker-boxes", category = "modify", transform = true)
+            @GlobalConfig(value = "stackable-shulker-boxes", validator = StackableShulkerValidator.class)
+            private String stackableShulkerBoxes = "false";
+
+            private static class StackableShulkerValidator extends StringConfigValidator {
+                @Override
+                public void verify(String old, String value) throws IllegalArgumentException {
+                    String realValue = MathUtils.isNumeric(value) ? value : value.equals("true") ? "2" : "1";
+                    LeavesConfig.modify.shulkerBox.shulkerBoxStackSize = Integer.parseInt(realValue);
+                }
             }
+
+            @GlobalConfig(value = "allow-stackable-with-item")
+            public boolean allowStackableWithItem = false;
         }
 
         @GlobalConfig(value = "force-void-trade", validator = ForceVoidTradeValidator.class)

@@ -10,18 +10,29 @@ import net.minecraft.world.level.block.ShulkerBoxBlock;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesConfig;
 
+import java.util.Objects;
 import java.util.Optional;
 
 public class ShulkerBoxUtils {
+    public static boolean shulkerBoxCheck(@NotNull ItemStack stack1, @NotNull ItemStack stack2) {
+        if (LeavesConfig.modify.shulkerBox.allowStackableWithItem) {
+            return Objects.equals(stack1.getComponents(), stack2.getComponents());
+        }
+        return shulkerBoxNoItem(stack1, stack2) && Objects.equals(stack1.getComponents(), stack2.getComponents());
+    }
+
+    public static boolean shulkerBoxNoItem(@NotNull ItemStack stack1, @NotNull ItemStack stack2) {
+        return shulkerBoxNoItem(stack1) && shulkerBoxNoItem(stack2);
+    }
 
     public static boolean shulkerBoxNoItem(@NotNull ItemStack stack) {
         return stack.getComponents().getOrDefault(DataComponents.CONTAINER, ItemContainerContents.EMPTY).stream().findAny().isEmpty();
     }
 
     public static int getItemStackMaxCount(ItemStack stack) {
-        if (LeavesConfig.modify.shulkerBoxStackSize > 1 && stack.getItem() instanceof BlockItem bi &&
-            bi.getBlock() instanceof ShulkerBoxBlock && shulkerBoxNoItem(stack)) {
-            return LeavesConfig.modify.shulkerBoxStackSize;
+        if (LeavesConfig.modify.shulkerBox.shulkerBoxStackSize > 1 && stack.getItem() instanceof BlockItem bi &&
+            bi.getBlock() instanceof ShulkerBoxBlock && (LeavesConfig.modify.shulkerBox.allowStackableWithItem || shulkerBoxNoItem(stack))) {
+            return LeavesConfig.modify.shulkerBox.shulkerBoxStackSize;
         }
         return stack.getMaxStackSize();
     }

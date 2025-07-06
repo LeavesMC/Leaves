@@ -16,6 +16,7 @@ public enum BotActionType {
     ROTATION("rotation"),
     SNEAK("sneak"),
     SWIM("swim"),
+    MOVE("move"),
     USE("use"),
     USE_ON("use_on"),
     USE_TO("use_to"),

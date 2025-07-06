@@ -9,6 +9,7 @@ import org.leavesmc.leaves.bot.agent.actions.DropAction;
 import org.leavesmc.leaves.bot.agent.actions.FishAction;
 import org.leavesmc.leaves.bot.agent.actions.JumpAction;
 import org.leavesmc.leaves.bot.agent.actions.LookAction;
+import org.leavesmc.leaves.bot.agent.actions.MoveAction;
 import org.leavesmc.leaves.bot.agent.actions.RotateAction;
 import org.leavesmc.leaves.bot.agent.actions.RotationAction;
 import org.leavesmc.leaves.bot.agent.actions.ShootAction;
@@ -52,6 +53,7 @@ public class Actions {
         register(new SwimAction());
         register(new RotationAction());
         register(new ShootAction());
+        register(new MoveAction());
     }
 
     public static boolean register(@NotNull AbstractBotAction<?> action) {

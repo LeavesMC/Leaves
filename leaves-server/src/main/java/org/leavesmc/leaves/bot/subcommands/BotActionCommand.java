@@ -105,6 +105,7 @@ public class BotActionCommand implements LeavesSubcommand {
                 event.callEvent();
                 if (!event.isCancelled()) {
                     forRemoval.add(action);
+                    action.stop(bot, BotActionStopEvent.Reason.COMMAND);
                 }
             }
             bot.getBotActions().removeAll(forRemoval);
@@ -124,6 +125,7 @@ public class BotActionCommand implements LeavesSubcommand {
             );
             event.callEvent();
             if (!event.isCancelled()) {
+                action.stop(bot, BotActionStopEvent.Reason.COMMAND);
                 bot.getBotActions().remove(i);
                 sender.sendMessage(bot.getScoreboardName() + "'s " + action.getName() + " stopped.");
 

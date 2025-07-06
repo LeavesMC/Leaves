@@ -431,7 +431,7 @@ public final class LeavesConfig {
 
         public ShulkerBoxConfig shulkerBox = new ShulkerBoxConfig();
 
-        @GlobalConfigCategory("shulker")
+        @GlobalConfigCategory("shulker-box")
         public static class ShulkerBoxConfig {
             public int shulkerBoxStackSize = 1;
             @RemovedConfig(name = "stackable-shulker-boxes", category = "modify", transform = true)
@@ -446,8 +446,8 @@ public final class LeavesConfig {
                 }
             }
 
-            @GlobalConfig(value = "allow-stackable-with-item")
-            public boolean allowStackableWithItem = false;
+            @GlobalConfig(value = "same-nbt-stackable")
+            public boolean sameNbtStackable = false;
         }
 
         @GlobalConfig(value = "force-void-trade", validator = ForceVoidTradeValidator.class)

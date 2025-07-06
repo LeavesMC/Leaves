@@ -15,7 +15,7 @@ import java.util.Optional;
 
 public class ShulkerBoxUtils {
     public static boolean shulkerBoxCheck(@NotNull ItemStack stack1, @NotNull ItemStack stack2) {
-        if (LeavesConfig.modify.shulkerBox.allowStackableWithItem) {
+        if (LeavesConfig.modify.shulkerBox.sameNbtStackable) {
             return Objects.equals(stack1.getComponents(), stack2.getComponents());
         }
         return shulkerBoxNoItem(stack1, stack2) && Objects.equals(stack1.getComponents(), stack2.getComponents());
@@ -31,7 +31,7 @@ public class ShulkerBoxUtils {
 
     public static int getItemStackMaxCount(ItemStack stack) {
         if (LeavesConfig.modify.shulkerBox.shulkerBoxStackSize > 1 && stack.getItem() instanceof BlockItem bi &&
-            bi.getBlock() instanceof ShulkerBoxBlock && (LeavesConfig.modify.shulkerBox.allowStackableWithItem || shulkerBoxNoItem(stack))) {
+            bi.getBlock() instanceof ShulkerBoxBlock && (LeavesConfig.modify.shulkerBox.sameNbtStackable || shulkerBoxNoItem(stack))) {
             return LeavesConfig.modify.shulkerBox.shulkerBoxStackSize;
         }
         return stack.getMaxStackSize();

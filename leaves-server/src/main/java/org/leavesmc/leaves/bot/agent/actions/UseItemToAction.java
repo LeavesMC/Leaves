@@ -14,6 +14,10 @@ public class UseItemToAction extends AbstractTimerAction<UseItemToAction> {
     @Override
     public boolean doTick(@NotNull ServerBot bot) {
         Entity entity = bot.getTargetEntity(3, null);
+        return execute(bot, entity);
+    }
+
+    public static boolean execute(ServerBot bot, Entity entity) {
         if (entity != null) {
             boolean flag = bot.interactOn(entity, InteractionHand.MAIN_HAND).consumesAction();
             if (flag) {

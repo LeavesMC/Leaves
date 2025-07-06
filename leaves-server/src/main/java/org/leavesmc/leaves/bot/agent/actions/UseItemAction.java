@@ -12,6 +12,10 @@ public class UseItemAction extends AbstractTimerAction<UseItemAction> {
 
     @Override
     public boolean doTick(@NotNull ServerBot bot) {
+        return execute(bot);
+    }
+
+    public static boolean execute(ServerBot bot) {
         if (bot.isUsingItem()) {
             return false;
         }

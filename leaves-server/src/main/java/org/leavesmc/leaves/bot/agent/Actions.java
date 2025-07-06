@@ -15,6 +15,8 @@ import org.leavesmc.leaves.bot.agent.actions.ShootAction;
 import org.leavesmc.leaves.bot.agent.actions.SneakAction;
 import org.leavesmc.leaves.bot.agent.actions.SwimAction;
 import org.leavesmc.leaves.bot.agent.actions.UseItemAction;
+import org.leavesmc.leaves.bot.agent.actions.UseItemAutoAction;
+import org.leavesmc.leaves.bot.agent.actions.UseItemAutoOffhandAction;
 import org.leavesmc.leaves.bot.agent.actions.UseItemOffHandAction;
 import org.leavesmc.leaves.bot.agent.actions.UseItemOnAction;
 import org.leavesmc.leaves.bot.agent.actions.UseItemOnOffhandAction;
@@ -40,12 +42,14 @@ public class Actions {
         register(new UseItemAction());
         register(new UseItemOnAction());
         register(new UseItemToAction());
-        register(new LookAction());
-        register(new FishAction());
-        register(new SwimAction());
+        register(new UseItemAutoAction());
         register(new UseItemOffHandAction());
         register(new UseItemOnOffhandAction());
         register(new UseItemToOffhandAction());
+        register(new UseItemAutoOffhandAction());
+        register(new LookAction());
+        register(new FishAction());
+        register(new SwimAction());
         register(new RotationAction());
         register(new ShootAction());
     }

@@ -22,6 +22,10 @@ public class UseItemOnAction extends AbstractTimerAction<UseItemOnAction> {
     @Override
     public boolean doTick(@NotNull ServerBot bot) {
         HitResult result = bot.getRayTrace(5, ClipContext.Fluid.NONE);
+        return execute(bot, result);
+    }
+
+    public static boolean execute(ServerBot bot, HitResult result) {
         if (result instanceof BlockHitResult blockHitResult) {
             BlockState state = bot.level().getBlockState(blockHitResult.getBlockPos());
             if (state.isAir()) {

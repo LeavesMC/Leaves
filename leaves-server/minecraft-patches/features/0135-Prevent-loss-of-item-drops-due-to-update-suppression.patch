@@ -6,21 +6,31 @@ Subject: [PATCH] Prevent loss of item drops due to update suppression when
 
 
 diff --git a/net/minecraft/server/level/ServerPlayerGameMode.java b/net/minecraft/server/level/ServerPlayerGameMode.java
-index 48bb795216ca3fb301813080de403a048bbfa98c..e62fca1668d5523453b3cae44dda2a01b33c7813 100644
+index 48bb795216ca3fb301813080de403a048bbfa98c..711ae193ea96fd9c4cbba16a49a450444496abf1 100644
 --- a/net/minecraft/server/level/ServerPlayerGameMode.java
 +++ b/net/minecraft/server/level/ServerPlayerGameMode.java
-@@ -382,7 +382,13 @@ public class ServerPlayerGameMode {
+@@ -382,7 +382,14 @@ public class ServerPlayerGameMode {
                  this.level.captureDrops = new java.util.ArrayList<>();
                  // CraftBukkit end
                  BlockState blockState1 = org.leavesmc.leaves.command.subcommands.BlockUpdateCommand.isNoBlockUpdate() ? blockState : block.playerWillDestroy(this.level, pos, blockState, this.player); // Leaves - no block update
 -                boolean flag = this.level.removeBlock(pos, false);
 +                boolean flag; // Leaves start - Prevent loss of item drops due to update suppression when breaking blocks
++                org.leavesmc.leaves.util.UpdateSuppressionException ex = null;
 +                try {
 +                    flag = this.level.removeBlock(pos, false);
 +                } catch (org.leavesmc.leaves.util.UpdateSuppressionException e) {
-+                    this.level.captureDrops = null;
-+                    throw e;
-+                } // Leaves end - Prevent loss of item drops due to update suppression when breaking blocks
++                    ex = e;
++                    flag = false;
++                }
                  if (flag) {
                      block.destroy(this.level, pos, blockState1);
                  }
+@@ -410,6 +417,8 @@ public class ServerPlayerGameMode {
+                 if (event.isDropItems()) {
+                     org.bukkit.craftbukkit.event.CraftEventFactory.handleBlockDropItemEvent(bblock, state, this.player, itemsToDrop); // Paper - capture all item additions to the world
+                 }
++                if (ex != null) throw ex;
++                // Leaves end - Prevent loss of item drops due to update suppression when breaking blocks
+ 
+                 // Drop event experience
+                 if (flag) {

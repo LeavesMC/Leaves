@@ -358,6 +358,9 @@ public final class LeavesConfig {
 
             @GlobalConfig("old-projectile-explosion-behavior")
             public boolean oldProjectileExplosionBehavior = false;
+
+            @GlobalConfig("ender-dragon-part-can-use-end-portal")
+            public boolean enderDragonPartCanUseEndPortal = false;
         }
 
         public ElytraAeronauticsConfig elytraAeronautics = new ElytraAeronauticsConfig();

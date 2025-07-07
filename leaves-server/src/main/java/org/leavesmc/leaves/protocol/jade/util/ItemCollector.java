@@ -73,7 +73,7 @@ public class ItemCollector<T> {
                 items.addTo(def, stack.getCount());
             }
         });
-        iterator.afterPopulate(count.get());
+        iterator.afterPopulate(container, count.get());
         if (mergedResult != null && !iterator.isFinished()) {
             updateCollectingProgress(mergedResult.getFirst());
             return mergedResult;

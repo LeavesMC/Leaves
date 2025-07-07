@@ -30,7 +30,7 @@ index 8bab2c26e10e8495fd39be470bcb02917fe56f40..c9840dfa4067973aafed7e7c7305182d
      private DisconnectionDetails disconnectionDetails;
      private boolean encrypted;
 diff --git a/net/minecraft/server/MinecraftServer.java b/net/minecraft/server/MinecraftServer.java
-index 95f5d078019ebd4fde9bf65748d866b51cfeabc6..05966b2600bead23ab2ec19c95a3797eda7f3ef8 100644
+index 95f5d078019ebd4fde9bf65748d866b51cfeabc6..feb5fc93498a5ed89e3bcb61cd72ba6e75881358 100644
 --- a/net/minecraft/server/MinecraftServer.java
 +++ b/net/minecraft/server/MinecraftServer.java
 @@ -304,6 +304,8 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
@@ -42,16 +42,7 @@ index 95f5d078019ebd4fde9bf65748d866b51cfeabc6..05966b2600bead23ab2ec19c95a3797e
      public static <S extends MinecraftServer> S spin(Function<Thread, S> threadFunction) {
          ca.spottedleaf.dataconverter.minecraft.datatypes.MCTypeRegistry.init(); // Paper - rewrite data converter system
          AtomicReference<S> atomicReference = new AtomicReference<>();
-@@ -740,6 +742,8 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
-         }
-         // Paper end - Configurable player collision
- 
-+        this.getBotList().loadResume(); // Leaves - load resident bot
-+
-         this.server.enablePlugins(org.bukkit.plugin.PluginLoadOrder.POSTWORLD);
-         this.server.spark.registerCommandBeforePlugins(this.server); // Paper - spark
-         this.server.spark.enableAfterPlugins(this.server); // Paper - spark
-@@ -996,6 +1000,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+@@ -996,6 +998,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
  
          LOGGER.info("Stopping server");
          Commands.COMMAND_SENDING_POOL.shutdownNow(); // Paper - Perf: Async command map building; Shutdown and don't bother finishing
@@ -59,7 +50,7 @@ index 95f5d078019ebd4fde9bf65748d866b51cfeabc6..05966b2600bead23ab2ec19c95a3797e
          // CraftBukkit start
          if (this.server != null) {
              this.server.spark.disable(); // Paper - spark
-@@ -1761,6 +1766,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+@@ -1761,6 +1764,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
  
      public void tickConnection() {
          this.getConnection().tick();
@@ -67,7 +58,7 @@ index 95f5d078019ebd4fde9bf65748d866b51cfeabc6..05966b2600bead23ab2ec19c95a3797e
      }
  
      private void synchronizeTime(ServerLevel level) {
-@@ -2810,6 +2816,16 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+@@ -2810,6 +2814,16 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
          return 0;
      }
  
@@ -101,7 +92,7 @@ index fdeca41d40705f28864ce4443d01cd872c9d51b0..5c0e338dc1b0eb5724d10a73d6fc7975
          AdvancementProgress orStartProgress = this.getOrStartProgress(advancement);
          boolean isDone = orStartProgress.isDone();
 diff --git a/net/minecraft/server/dedicated/DedicatedServer.java b/net/minecraft/server/dedicated/DedicatedServer.java
-index 414a8357a7498c69341fa634ada2e664e18ca03a..d0971352de582c3d3bda544f08578d0c4c3618eb 100644
+index 414a8357a7498c69341fa634ada2e664e18ca03a..f85993fc507d699728e058b12bb49dcb7aaea44b 100644
 --- a/net/minecraft/server/dedicated/DedicatedServer.java
 +++ b/net/minecraft/server/dedicated/DedicatedServer.java
 @@ -162,6 +162,7 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
@@ -112,6 +103,14 @@ index 414a8357a7498c69341fa634ada2e664e18ca03a..d0971352de582c3d3bda544f08578d0c
          this.setPlayerList(new DedicatedPlayerList(this, this.registries(), this.playerDataStorage));
          org.spigotmc.SpigotConfig.init((java.io.File) this.options.valueOf("spigot-settings"));
          org.spigotmc.SpigotConfig.registerCommands();
+@@ -185,6 +186,7 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
+         com.destroystokyo.paper.VersionHistoryManager.INSTANCE.getClass(); // Paper - load version history now
+ 
+         org.leavesmc.leaves.LeavesConfig.init((java.io.File) options.valueOf("leaves-settings")); // Leaves - Server Config
++        this.getBotList().loadBotInfo(); // Leaves - load resident bot info
+ 
+         com.destroystokyo.paper.Metrics.PaperMetrics.startMetrics(); // Paper - start metrics // Leaves - down
+ 
 diff --git a/net/minecraft/server/level/ChunkMap.java b/net/minecraft/server/level/ChunkMap.java
 index eb352aa4296abc3ed4cf31c590bc0be66daf4de3..019886669966c69936ae6591598c97a8afbfd3db 100644
 --- a/net/minecraft/server/level/ChunkMap.java
@@ -213,7 +212,7 @@ index dfa00516e9a6c941087bd7ecfd5aca8a9f7915be..6ce8772bbec5f20b38ba991e8f7b1da4
                  org.bukkit.event.player.PlayerChangedWorldEvent changeEvent = new org.bukkit.event.player.PlayerChangedWorldEvent(this.getBukkitEntity(), serverLevel.getWorld());
                  this.level().getCraftServer().getPluginManager().callEvent(changeEvent);
 diff --git a/net/minecraft/server/players/PlayerList.java b/net/minecraft/server/players/PlayerList.java
-index 91f505c9d84aba773d237664c2aaaf9750cadadf..580ab889bce7d0dff64e5e1ae92a646ac96e3168 100644
+index 184d116320f0cd3e9fba47a86e94e0a8424c913f..baeeb4a0863cb37eee487b0e463fea37eaf2e791 100644
 --- a/net/minecraft/server/players/PlayerList.java
 +++ b/net/minecraft/server/players/PlayerList.java
 @@ -337,6 +337,19 @@ public abstract class PlayerList {
@@ -299,7 +298,7 @@ index 91f505c9d84aba773d237664c2aaaf9750cadadf..580ab889bce7d0dff64e5e1ae92a646a
  
      public boolean canBypassPlayerLimit(GameProfile profile) {
 diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
-index 910bec7cbb2ef140ab16d99f93859326b5475a25..089b50dbae2ae351d81deb041663f8885e3bfae1 100644
+index b257428466f25b90caadc54ce01d948287d46c26..7082b94662c23ccb688a203866df2d2feaf23917 100644
 --- a/net/minecraft/world/entity/Entity.java
 +++ b/net/minecraft/world/entity/Entity.java
 @@ -1487,7 +1487,7 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess

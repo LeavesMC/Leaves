@@ -105,6 +105,18 @@ public class BotDataStorage implements IPlayerDataStorage {
         return Optional.empty();
     }
 
+    public Optional<CompoundTag> read(String uuid) {
+        File file = new File(this.botDir, uuid + ".dat");
+        if (file.exists() && file.isFile()) {
+            try {
+                return Optional.of(NbtIo.readCompressed(file.toPath(), NbtAccounter.unlimitedHeap()));
+            } catch (Exception exception) {
+                BotDataStorage.LOGGER.warn("Failed to read fakeplayer data for {}", uuid);
+            }
+        }
+        return Optional.empty();
+    }
+
     private void saveBotList() {
         try {
             if (this.botListFile.exists() && this.botListFile.isFile()) {

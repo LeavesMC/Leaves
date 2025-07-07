@@ -36,10 +36,12 @@ import org.leavesmc.leaves.event.bot.BotRemoveEvent;
 import org.leavesmc.leaves.event.bot.BotSpawnLocationEvent;
 import org.slf4j.Logger;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -56,6 +58,7 @@ public class BotList {
 
     private final Map<UUID, ServerBot> botsByUUID = Maps.newHashMap();
     private final Map<String, ServerBot> botsByName = Maps.newHashMap();
+    private final Map<String, Set<String>> botsNameByWorldUuid = Maps.newHashMap();
 
     public BotList(MinecraftServer server) {
         this.server = server;
@@ -171,6 +174,9 @@ public class BotList {
 
         bot.level().getChunkSource().chunkMap.addEntity(bot);
         bot.initInventoryMenu();
+        botsNameByWorldUuid
+            .computeIfAbsent(bot.level().uuid.toString(), (k) -> new HashSet<>())
+            .add(bot.getBukkitEntity().getRealName());
         BotList.LOGGER.info("{}[{}] logged in with entity id {} at ([{}]{}, {}, {})", bot.getName().getString(), "Local", bot.getId(), bot.level().serverLevelData.getLevelName(), bot.getX(), bot.getY(), bot.getZ());
         return bot;
     }
@@ -198,6 +204,7 @@ public class BotList {
             playerIO.save(bot);
         } else {
             bot.dropAll(true);
+            botsNameByWorldUuid.get(bot.level().uuid.toString()).remove(bot.getBukkitEntity().getRealName());
         }
 
         if (bot.isPassenger() && event.shouldSave()) {
@@ -250,6 +257,15 @@ public class BotList {
         return true;
     }
 
+    public void removeAllIn(String worldUuid) {
+        for (String realName : this.botsNameByWorldUuid.getOrDefault(worldUuid, new HashSet<>())) {
+            ServerBot bot = this.getBotByName(realName);
+            if (bot != null) {
+                this.removeBot(bot, BotRemoveEvent.RemoveReason.INTERNAL, null, LeavesConfig.modify.fakeplayer.canResident);
+            }
+        }
+    }
+
     public void removeAll() {
         for (ServerBot bot : this.bots) {
             bot.resume = LeavesConfig.modify.fakeplayer.canResident;
@@ -257,16 +273,29 @@ public class BotList {
         }
     }
 
-    public void loadResume() {
-        if (LeavesConfig.modify.fakeplayer.enable && LeavesConfig.modify.fakeplayer.canResident) {
-            CompoundTag savedBotList = this.getSavedBotList().copy();
-            for (String realName : savedBotList.keySet()) {
-                CompoundTag nbt = savedBotList.getCompound(realName).orElseThrow();
-                if (nbt.getBoolean("resume").orElse(false)) {
-                    this.loadNewBot(realName);
-                }
+    public void loadBotInfo() {
+        System.out.println(LeavesConfig.modify.fakeplayer.canResident);
+        if (!LeavesConfig.modify.fakeplayer.enable || !LeavesConfig.modify.fakeplayer.canResident) return;
+        CompoundTag savedBotList = this.getSavedBotList().copy();
+        for (String realName : savedBotList.keySet()) {
+            CompoundTag nbt = savedBotList.getCompound(realName).orElseThrow();
+            if (!nbt.getBoolean("resume").orElse(false)) continue;
+            UUID levelUuid = BotUtil.getBotLevel(realName, this.dataStorage);
+            if (levelUuid == null) {
+                LOGGER.warn("Bot {} has no world UUID, skipping loading.", realName);
+                continue;
             }
+            this.botsNameByWorldUuid
+                .computeIfAbsent(levelUuid.toString(), (k) -> new HashSet<>())
+                .add(realName);
         }
+    }
+
+    public void loadResume(String worldUuid) {
+        if (!LeavesConfig.modify.fakeplayer.enable || !LeavesConfig.modify.fakeplayer.canResident) return;
+        Set<String> bots = this.botsNameByWorldUuid.get(worldUuid);
+        if (bots == null) return;
+        bots.forEach(this::loadNewBot);
     }
 
     public void networkTick() {

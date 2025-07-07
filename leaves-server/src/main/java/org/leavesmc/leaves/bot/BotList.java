@@ -274,7 +274,6 @@ public class BotList {
     }
 
     public void loadBotInfo() {
-        System.out.println(LeavesConfig.modify.fakeplayer.canResident);
         if (!LeavesConfig.modify.fakeplayer.enable || !LeavesConfig.modify.fakeplayer.canResident) return;
         CompoundTag savedBotList = this.getSavedBotList().copy();
         for (String realName : savedBotList.keySet()) {

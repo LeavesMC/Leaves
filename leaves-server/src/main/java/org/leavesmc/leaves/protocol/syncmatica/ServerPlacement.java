@@ -28,10 +28,15 @@ public class ServerPlacement {
 
     public ServerPlacement(final UUID id, final String fileName, final UUID hashValue, final PlayerIdentifier owner) {
         this.id = id;
-        this.fileName = fileName;
+        this.fileName = removeExtension(fileName);
         this.hashValue = hashValue;
         this.owner = owner;
         lastModifiedBy = owner;
+    }
+
+    private static String removeExtension(final String fileName) {
+        final int pos = fileName.lastIndexOf(".");
+        return fileName.substring(0, pos);
     }
 
     @Nullable

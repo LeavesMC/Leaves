@@ -44,7 +44,6 @@ public interface BotManager {
      * @param action action executor
      * @return true if success, or false
      */
-    @org.jetbrains.annotations.ApiStatus.Experimental
     boolean registerCustomBotAction(String name, CustomBotAction action);
 
     /**
@@ -53,7 +52,6 @@ public interface BotManager {
      * @param name action name
      * @return true if success, or false
      */
-    @org.jetbrains.annotations.ApiStatus.Experimental
     boolean unregisterCustomBotAction(String name);
 
     /**

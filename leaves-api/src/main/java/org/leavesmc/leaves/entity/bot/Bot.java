@@ -38,8 +38,7 @@ public interface Bot extends Player {
      *
      * @param action bot action
      */
-    @org.jetbrains.annotations.ApiStatus.Experimental
-    void addAction(@NotNull BotAction action);
+    <T extends BotAction<T>> void addAction(@NotNull T action);
 
     /**
      * Get the copy action in giving index
@@ -47,8 +46,7 @@ public interface Bot extends Player {
      * @param index index of actions
      * @return Action of that index
      */
-    @org.jetbrains.annotations.ApiStatus.Experimental
-    BotAction getAction(int index);
+    BotAction<?> getAction(int index);
 
     /**
      * Get action size

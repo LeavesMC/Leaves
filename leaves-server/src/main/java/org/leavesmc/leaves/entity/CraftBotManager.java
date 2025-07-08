@@ -16,9 +16,11 @@ import org.leavesmc.leaves.entity.bot.BotCreator;
 import org.leavesmc.leaves.entity.bot.BotManager;
 import org.leavesmc.leaves.entity.bot.action.BotAction;
 import org.leavesmc.leaves.entity.bot.action.CustomBotAction;
+import org.leavesmc.leaves.entity.bot.action.CustomStateBotAction;
 import org.leavesmc.leaves.entity.bot.action.CustomTimerBotAction;
 import org.leavesmc.leaves.event.bot.BotCreateEvent;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.UUID;
@@ -30,7 +32,7 @@ public class CraftBotManager implements BotManager {
 
     public CraftBotManager() {
         this.botList = MinecraftServer.getServer().getBotList();
-        this.botViews = Collections.unmodifiableList(Lists.transform(botList.bots, bot -> bot.getBukkitEntity()));
+        this.botViews = Collections.unmodifiableList(Lists.transform(botList.bots, ServerBot::getBukkitEntity));
     }
 
     @Override
@@ -75,8 +77,13 @@ public class CraftBotManager implements BotManager {
     @SuppressWarnings("unchecked")
     @Override
     public <T extends BotAction<T>> T newAction(@NotNull Class<T> type) {
-        if (type.isAssignableFrom(CustomBotAction.class) || type.isAssignableFrom(CustomTimerBotAction.class)) {
-            throw new IllegalArgumentException("Custom bot action should create by yourself.");
+        if (type.isAssignableFrom(CustomBotAction.class)
+            || type.isAssignableFrom(CustomTimerBotAction.class)
+            || type.isAssignableFrom(CustomStateBotAction.class)
+        ) try {
+            return type.getConstructor().newInstance();
+        } catch (InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
+            throw new RuntimeException(e);
         }
         T action = Actions.getForClass(type);
         if (action == null) {

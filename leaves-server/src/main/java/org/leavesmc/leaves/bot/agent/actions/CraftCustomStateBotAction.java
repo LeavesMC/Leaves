@@ -7,6 +7,8 @@ import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.command.CommandArgument;
 import org.leavesmc.leaves.entity.bot.action.CustomStateBotAction;
 
+import java.lang.reflect.InvocationTargetException;
+
 public class CraftCustomStateBotAction extends CraftStateBotAction<CustomStateBotAction> implements CraftCustomAction<CraftCustomStateBotAction> {
 
     private final CustomStateBotAction realAction;
@@ -23,6 +25,16 @@ public class CraftCustomStateBotAction extends CraftStateBotAction<CustomStateBo
             return new CraftCustomStateBotAction(this.getName(), newRealAction);
         }
         return null;
+    }
+
+    @Override
+    public CraftCustomStateBotAction createEmptyCraft() {
+        try {
+            CustomStateBotAction newRealAction = realAction.getClass().getConstructor().newInstance();
+            return new CraftCustomStateBotAction(this.getName(), newRealAction);
+        } catch (InstantiationException | NoSuchMethodException | InvocationTargetException | IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override

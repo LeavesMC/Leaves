@@ -11,11 +11,14 @@ import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.bot.agent.Actions;
 import org.leavesmc.leaves.bot.agent.actions.CraftBotAction;
 import org.leavesmc.leaves.bot.agent.actions.CraftCustomBotAction;
+import org.leavesmc.leaves.bot.agent.actions.CraftCustomStateBotAction;
+import org.leavesmc.leaves.bot.agent.actions.CraftCustomTimerBotAction;
 import org.leavesmc.leaves.entity.bot.Bot;
 import org.leavesmc.leaves.entity.bot.BotCreator;
 import org.leavesmc.leaves.entity.bot.BotManager;
 import org.leavesmc.leaves.entity.bot.action.BotAction;
 import org.leavesmc.leaves.entity.bot.action.CustomBotAction;
+import org.leavesmc.leaves.entity.bot.action.CustomStateBotAction;
 import org.leavesmc.leaves.entity.bot.action.CustomTimerBotAction;
 import org.leavesmc.leaves.event.bot.BotCreateEvent;
 
@@ -30,7 +33,7 @@ public class CraftBotManager implements BotManager {
 
     public CraftBotManager() {
         this.botList = MinecraftServer.getServer().getBotList();
-        this.botViews = Collections.unmodifiableList(Lists.transform(botList.bots, bot -> bot.getBukkitEntity()));
+        this.botViews = Collections.unmodifiableList(Lists.transform(botList.bots, ServerBot::getBukkitEntity));
     }
 
     @Override
@@ -75,14 +78,18 @@ public class CraftBotManager implements BotManager {
     @SuppressWarnings("unchecked")
     @Override
     public <T extends BotAction<T>> T newAction(@NotNull Class<T> type) {
-        if (type.isAssignableFrom(CustomBotAction.class) || type.isAssignableFrom(CustomTimerBotAction.class)) {
-            throw new IllegalArgumentException("Custom bot action should create by yourself.");
-        }
         T action = Actions.getForClass(type);
         if (action == null) {
             throw new IllegalArgumentException("No action registered for type: " + type.getName());
         }
         try {
+            if (type.isAssignableFrom(CustomBotAction.class)) {
+                return (T) ((CraftCustomBotAction) action).createEmptyCraft();
+            } else if (type.isAssignableFrom(CustomTimerBotAction.class)) {
+                return (T) ((CraftCustomTimerBotAction) action).createEmptyCraft();
+            } else if (type.isAssignableFrom(CustomStateBotAction.class)) {
+                return (T) ((CraftCustomStateBotAction) action).createEmptyCraft();
+            }
             return (T) ((CraftBotAction<?>) action).create();
         } catch (Exception e) {
             throw new RuntimeException("Failed to create action of type: " + type.getName(), e);

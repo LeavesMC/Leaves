@@ -21,13 +21,13 @@ public interface CustomBotAction extends BotAction<CustomBotAction> {
     boolean doTick(Bot bot);
 
     /**
-     * Created a new action instance.
+     * Created a new action instance from command.
      *
      * @param player player who create this action
      * @param args   passed action arguments
      * @return a new action instance with given args
      */
-    @Nullable CustomBotAction getNew(@Nullable Player player, String[] args);
+    @Nullable CustomBotAction fromCommand(Player player, String[] args);
 
     /**
      * Requests a list of possible completions for a action argument.

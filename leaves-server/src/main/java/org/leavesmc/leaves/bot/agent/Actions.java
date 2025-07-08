@@ -28,7 +28,6 @@ import org.leavesmc.leaves.entity.bot.action.BotAction;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 public class Actions {
@@ -61,8 +60,7 @@ public class Actions {
     public static boolean register(@NotNull CraftBotAction<?> action) {
         if (!actionsByName.containsKey(action.getName())) {
             actionsByName.put(action.getName(), action);
-            Class<?> interfaceClass = action.getInterfaceClass();
-            actionsByClass.put(Objects.requireNonNullElseGet(interfaceClass, action::getClass), action);
+            actionsByClass.put(action.getInterfaceClass(), action);
             return true;
         }
         return false;
@@ -70,9 +68,7 @@ public class Actions {
 
     public static boolean unregister(@NotNull String name) {
         if (actionsByName.containsKey(name)) {
-            CraftBotAction<?> action = actionsByName.get(name);
-            Class<?> interfaceClass = action.getInterfaceClass();
-            actionsByClass.remove(Objects.requireNonNullElseGet(interfaceClass, action::getClass));
+            actionsByClass.remove(actionsByName.get(name).getInterfaceClass());
             actionsByName.remove(name);
             return true;
         }

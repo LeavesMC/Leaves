@@ -39,15 +39,12 @@ public class CraftBot extends CraftPlayer implements Bot {
     }
 
     @Override
-    public void addAction(@NotNull BotAction<?> action) {
-        if (!(action instanceof CraftBotAction<?> craftBotAction)) {
-            throw new IllegalArgumentException("Action must be an instance of CraftBotAction! Are you forget to use `BotManager#newAction`?");
-        }
-        this.getHandle().addBotAction(craftBotAction, null);
+    public void addAction(@NotNull BotAction action) {
+        this.getHandle().addBotAction((CraftBotAction<?>) action, null);
     }
 
     @Override
-    public BotAction<?> getAction(int index) {
+    public BotAction getAction(int index) {
         return this.getHandle().getBotActions().get(index);
     }
 
@@ -75,7 +72,7 @@ public class CraftBot extends CraftPlayer implements Bot {
     }
 
     @Override
-    public boolean teleport(Location location, PlayerTeleportEvent.@NotNull TeleportCause cause, io.papermc.paper.entity.TeleportFlag @NotNull ... flags) {
+    public boolean teleport(Location location, PlayerTeleportEvent.@NotNull TeleportCause cause, io.papermc.paper.entity.TeleportFlag... flags) {
         Preconditions.checkArgument(location != null, "location cannot be null");
         Preconditions.checkState(location.getWorld().equals(this.getWorld()), "[Leaves] Fakeplayers do not support changing world, Please use leaves fakeplayer-api instead!");
         return super.teleport(location, cause, flags);

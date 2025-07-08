@@ -7,8 +7,6 @@ import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.command.CommandArgument;
 import org.leavesmc.leaves.entity.bot.action.CustomTimerBotAction;
 
-import java.lang.reflect.InvocationTargetException;
-
 public class CraftCustomTimerBotAction extends CraftTimerBotAction<CustomTimerBotAction> implements CraftCustomAction<CraftCustomTimerBotAction> {
 
     private final CustomTimerBotAction realAction;
@@ -30,16 +28,6 @@ public class CraftCustomTimerBotAction extends CraftTimerBotAction<CustomTimerBo
             return new CraftCustomTimerBotAction(this.getName(), newRealAction);
         }
         return null;
-    }
-
-    @Override
-    public CraftCustomTimerBotAction createEmptyCraft() {
-        try {
-            CustomTimerBotAction newRealAction = realAction.getClass().getConstructor().newInstance();
-            return new CraftCustomTimerBotAction(this.getName(), newRealAction);
-        } catch (InstantiationException | NoSuchMethodException | InvocationTargetException | IllegalAccessException e) {
-            throw new RuntimeException(e);
-        }
     }
 
     @Override

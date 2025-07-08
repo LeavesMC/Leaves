@@ -31,7 +31,17 @@ public class ItemOverstackUtils {
     public static int getItemStackMaxCount(ItemStack stack) {
         int size;
         for (ItemUtil util : overstackUtils) {
-            if ((size = util.getMaxStackCount(stack)) != -1) {
+            if ((size = util.getMaxServerStackCount(stack)) != -1) {
+                return size;
+            }
+        }
+        return stack.getMaxStackSize();
+    }
+
+    public static int getNetworkMaxCount(ItemStack stack) {
+        int size;
+        for (ItemUtil util : overstackUtils) {
+            if ((size = util.getMaxClientStackCount(stack)) != -1) {
                 return size;
             }
         }
@@ -58,7 +68,7 @@ public class ItemOverstackUtils {
 
     public static ItemStack encodeMaxStackSize(ItemStack itemStack) {
         int realMaxStackSize = getItemStackMaxCountReal(itemStack);
-        int modifiedMaxStackSize = getItemStackMaxCount(itemStack);
+        int modifiedMaxStackSize = getNetworkMaxCount(itemStack);
         if (itemStack.getMaxStackSize() != modifiedMaxStackSize) {
             itemStack.set(DataComponents.MAX_STACK_SIZE, modifiedMaxStackSize);
             CompoundTag nbt = itemStack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
@@ -94,7 +104,12 @@ public class ItemOverstackUtils {
         boolean tryStackItems(ItemEntity self, ItemEntity other);
 
         // number -> modified count, -1 -> I don't care
-        int getMaxStackCount(ItemStack stack);
+        int getMaxServerStackCount(ItemStack stack);
+
+        // number -> modified count, -1 -> I don't care
+        default int getMaxClientStackCount(ItemStack stack) {
+            return getMaxServerStackCount(stack);
+        }
     }
 
     private static class ShulkerBox implements ItemUtil {
@@ -137,7 +152,7 @@ public class ItemOverstackUtils {
         }
 
         @Override
-        public int getMaxStackCount(ItemStack stack) {
+        public int getMaxServerStackCount(ItemStack stack) {
             if (isEnabled() && stack.getItem() instanceof BlockItem bi &&
                 bi.getBlock() instanceof ShulkerBoxBlock && (LeavesConfig.modify.shulkerBox.sameNbtStackable || shulkerBoxNoItem(stack))) {
                 return LeavesConfig.modify.shulkerBox.shulkerBoxStackSize;
@@ -167,34 +182,16 @@ public class ItemOverstackUtils {
 
         @Override
         public boolean tryStackItems(ItemEntity self, ItemEntity other) {
-            ItemStack selfStack = self.getItem();
-            ItemStack otherStack = other.getItem();
-            if (!isEnabled() ||
-                selfStack.getItem() != otherStack.getItem() ||
-                !(isCursedEnchantedBook(selfStack)) ||
-                selfStack.getCount() >= 2) {
-                return false;
-            }
-
-            int amount = Math.min(otherStack.getCount(), 2 - selfStack.getCount());
-
-            selfStack.grow(amount);
-            self.setItem(selfStack);
-
-            self.pickupDelay = Math.max(other.pickupDelay, self.pickupDelay);
-            self.age = Math.min(other.getAge(), self.age);
-
-            otherStack.shrink(amount);
-            if (otherStack.isEmpty()) {
-                other.discard();
-            } else {
-                other.setItem(otherStack);
-            }
-            return true;
+            return false;
         }
 
         @Override
-        public int getMaxStackCount(ItemStack stack) {
+        public int getMaxServerStackCount(ItemStack stack) {
+            return -1;
+        }
+
+        @Override
+        public int getMaxClientStackCount(ItemStack stack) {
             if (isEnabled() && isCursedEnchantedBook(stack)) {
                 return 2;
             }

@@ -9,9 +9,9 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.bot.BotList;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.bot.agent.AbstractBotAction;
 import org.leavesmc.leaves.bot.agent.actions.CraftBotAction;
-import org.leavesmc.leaves.entity.botaction.LeavesBotAction;
+import org.leavesmc.leaves.entity.bot.Bot;
+import org.leavesmc.leaves.entity.bot.action.BotAction;
 import org.leavesmc.leaves.event.bot.BotActionStopEvent;
 import org.leavesmc.leaves.event.bot.BotRemoveEvent;
 
@@ -39,13 +39,13 @@ public class CraftBot extends CraftPlayer implements Bot {
     }
 
     @Override
-    public void addAction(@NotNull LeavesBotAction action) {
-        this.getHandle().addBotAction(CraftBotAction.asInternalCopy(action), null);
+    public void addAction(@NotNull BotAction action) {
+        this.getHandle().addBotAction((CraftBotAction<?>) action, null);
     }
 
     @Override
-    public LeavesBotAction getAction(int index) {
-        return CraftBotAction.asAPICopy(this.getHandle().getBotActions().get(index));
+    public BotAction getAction(int index) {
+        return this.getHandle().getBotActions().get(index);
     }
 
     @Override
@@ -60,7 +60,7 @@ public class CraftBot extends CraftPlayer implements Bot {
 
     @Override
     public void stopAllActions() {
-        for (AbstractBotAction<?> action : this.getHandle().getBotActions()) {
+        for (CraftBotAction<?> action : this.getHandle().getBotActions()) {
             action.stop(this.getHandle(), BotActionStopEvent.Reason.PLUGIN);
         }
     }

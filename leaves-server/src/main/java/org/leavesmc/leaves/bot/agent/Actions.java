@@ -3,26 +3,27 @@ package org.leavesmc.leaves.bot.agent;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.leavesmc.leaves.bot.agent.actions.AttackAction;
-import org.leavesmc.leaves.bot.agent.actions.BreakBlockAction;
-import org.leavesmc.leaves.bot.agent.actions.DropAction;
-import org.leavesmc.leaves.bot.agent.actions.FishAction;
-import org.leavesmc.leaves.bot.agent.actions.JumpAction;
-import org.leavesmc.leaves.bot.agent.actions.LookAction;
-import org.leavesmc.leaves.bot.agent.actions.MoveAction;
-import org.leavesmc.leaves.bot.agent.actions.RotateAction;
-import org.leavesmc.leaves.bot.agent.actions.RotationAction;
-import org.leavesmc.leaves.bot.agent.actions.ShootAction;
-import org.leavesmc.leaves.bot.agent.actions.SneakAction;
-import org.leavesmc.leaves.bot.agent.actions.SwimAction;
-import org.leavesmc.leaves.bot.agent.actions.UseItemAction;
-import org.leavesmc.leaves.bot.agent.actions.UseItemAutoAction;
-import org.leavesmc.leaves.bot.agent.actions.UseItemAutoOffhandAction;
-import org.leavesmc.leaves.bot.agent.actions.UseItemOffHandAction;
-import org.leavesmc.leaves.bot.agent.actions.UseItemOnAction;
-import org.leavesmc.leaves.bot.agent.actions.UseItemOnOffhandAction;
-import org.leavesmc.leaves.bot.agent.actions.UseItemToAction;
-import org.leavesmc.leaves.bot.agent.actions.UseItemToOffhandAction;
+import org.leavesmc.leaves.bot.agent.actions.CraftAttackAction;
+import org.leavesmc.leaves.bot.agent.actions.CraftBotAction;
+import org.leavesmc.leaves.bot.agent.actions.CraftBreakBlockAction;
+import org.leavesmc.leaves.bot.agent.actions.CraftDropAction;
+import org.leavesmc.leaves.bot.agent.actions.CraftFishAction;
+import org.leavesmc.leaves.bot.agent.actions.CraftJumpAction;
+import org.leavesmc.leaves.bot.agent.actions.CraftLookAction;
+import org.leavesmc.leaves.bot.agent.actions.CraftMoveAction;
+import org.leavesmc.leaves.bot.agent.actions.CraftRotationAction;
+import org.leavesmc.leaves.bot.agent.actions.CraftShootAction;
+import org.leavesmc.leaves.bot.agent.actions.CraftSneakAction;
+import org.leavesmc.leaves.bot.agent.actions.CraftSwimAction;
+import org.leavesmc.leaves.bot.agent.actions.CraftUseItemAction;
+import org.leavesmc.leaves.bot.agent.actions.CraftUseItemAutoAction;
+import org.leavesmc.leaves.bot.agent.actions.CraftUseItemAutoOffhandAction;
+import org.leavesmc.leaves.bot.agent.actions.CraftUseItemOffHandAction;
+import org.leavesmc.leaves.bot.agent.actions.CraftUseItemOnAction;
+import org.leavesmc.leaves.bot.agent.actions.CraftUseItemOnOffhandAction;
+import org.leavesmc.leaves.bot.agent.actions.CraftUseItemToAction;
+import org.leavesmc.leaves.bot.agent.actions.CraftUseItemToOffhandAction;
+import org.leavesmc.leaves.entity.bot.action.BotAction;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -31,42 +32,44 @@ import java.util.Set;
 
 public class Actions {
 
-    private static final Map<String, AbstractBotAction<?>> actions = new HashMap<>();
+    private static final Map<String, CraftBotAction<?>> actionsByName = new HashMap<>();
+    private static final Map<Class<?>, CraftBotAction<?>> actionsByClass = new HashMap<>();
 
     public static void registerAll() {
-        register(new AttackAction());
-        register(new BreakBlockAction());
-        register(new DropAction());
-        register(new JumpAction());
-        register(new RotateAction());
-        register(new SneakAction());
-        register(new UseItemAction());
-        register(new UseItemOnAction());
-        register(new UseItemToAction());
-        register(new UseItemAutoAction());
-        register(new UseItemOffHandAction());
-        register(new UseItemOnOffhandAction());
-        register(new UseItemToOffhandAction());
-        register(new UseItemAutoOffhandAction());
-        register(new LookAction());
-        register(new FishAction());
-        register(new SwimAction());
-        register(new RotationAction());
-        register(new ShootAction());
-        register(new MoveAction());
+        register(new CraftAttackAction());
+        register(new CraftBreakBlockAction());
+        register(new CraftDropAction());
+        register(new CraftJumpAction());
+        register(new CraftSneakAction());
+        register(new CraftUseItemAction());
+        register(new CraftUseItemOnAction());
+        register(new CraftUseItemToAction());
+        register(new CraftUseItemAutoAction());
+        register(new CraftUseItemOffHandAction());
+        register(new CraftUseItemOnOffhandAction());
+        register(new CraftUseItemToOffhandAction());
+        register(new CraftUseItemAutoOffhandAction());
+        register(new CraftLookAction());
+        register(new CraftFishAction());
+        register(new CraftSwimAction());
+        register(new CraftRotationAction());
+        register(new CraftShootAction());
+        register(new CraftMoveAction());
     }
 
-    public static boolean register(@NotNull AbstractBotAction<?> action) {
-        if (!actions.containsKey(action.getName())) {
-            actions.put(action.getName(), action);
+    public static boolean register(@NotNull CraftBotAction<?> action) {
+        if (!actionsByName.containsKey(action.getName())) {
+            actionsByName.put(action.getName(), action);
+            actionsByClass.put(action.getInterfaceClass(), action);
             return true;
         }
         return false;
     }
 
     public static boolean unregister(@NotNull String name) {
-        if (actions.containsKey(name)) {
-            actions.remove(name);
+        if (actionsByName.containsKey(name)) {
+            actionsByClass.remove(actionsByName.get(name).getInterfaceClass());
+            actionsByName.remove(name);
             return true;
         }
         return false;
@@ -74,17 +77,23 @@ public class Actions {
 
     @NotNull
     @Contract(pure = true)
-    public static Collection<AbstractBotAction<?>> getAll() {
-        return actions.values();
+    public static Collection<CraftBotAction<?>> getAll() {
+        return actionsByName.values();
     }
 
     @NotNull
     public static Set<String> getNames() {
-        return actions.keySet();
+        return actionsByName.keySet();
     }
 
     @Nullable
-    public static AbstractBotAction<?> getForName(String name) {
-        return actions.get(name);
+    public static CraftBotAction<?> getForName(String name) {
+        return actionsByName.get(name);
+    }
+
+    @SuppressWarnings("unchecked")
+    @Nullable
+    public static <T extends BotAction<T>> T getForClass(@NotNull Class<T> type) {
+        return (T) actionsByClass.get(type);
     }
 }

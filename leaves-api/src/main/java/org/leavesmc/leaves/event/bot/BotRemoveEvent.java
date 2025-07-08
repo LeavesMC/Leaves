@@ -7,7 +7,7 @@ import org.bukkit.event.Cancellable;
 import org.bukkit.event.HandlerList;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.leavesmc.leaves.entity.Bot;
+import org.leavesmc.leaves.entity.bot.Bot;
 
 /**
  * Call when a fakeplayer removed

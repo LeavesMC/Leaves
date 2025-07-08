@@ -7,9 +7,9 @@ import org.bukkit.command.CommandSender;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.LeavesConfig;
-import org.leavesmc.leaves.entity.Bot;
-import org.leavesmc.leaves.entity.BotCreator;
 import org.leavesmc.leaves.entity.CraftBot;
+import org.leavesmc.leaves.entity.bot.Bot;
+import org.leavesmc.leaves.entity.bot.BotCreator;
 import org.leavesmc.leaves.event.bot.BotCreateEvent;
 import org.leavesmc.leaves.plugin.MinecraftInternalPlugin;
 

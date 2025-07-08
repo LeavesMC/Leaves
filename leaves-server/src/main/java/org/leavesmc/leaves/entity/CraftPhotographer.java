@@ -6,6 +6,7 @@ import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.leavesmc.leaves.entity.photographer.Photographer;
 import org.leavesmc.leaves.replay.ServerPhotographer;
 
 import java.io.File;

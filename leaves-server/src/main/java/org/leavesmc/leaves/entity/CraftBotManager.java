@@ -8,10 +8,15 @@ import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.bot.BotCreateState;
 import org.leavesmc.leaves.bot.BotList;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.bot.agent.AbstractBotAction;
 import org.leavesmc.leaves.bot.agent.Actions;
+import org.leavesmc.leaves.bot.agent.actions.CraftBotAction;
 import org.leavesmc.leaves.bot.agent.actions.CraftCustomBotAction;
-import org.leavesmc.leaves.entity.botaction.CustomBotAction;
+import org.leavesmc.leaves.entity.bot.Bot;
+import org.leavesmc.leaves.entity.bot.BotCreator;
+import org.leavesmc.leaves.entity.bot.BotManager;
+import org.leavesmc.leaves.entity.bot.action.BotAction;
+import org.leavesmc.leaves.entity.bot.action.CustomBotAction;
+import org.leavesmc.leaves.entity.bot.action.CustomTimerBotAction;
 import org.leavesmc.leaves.event.bot.BotCreateEvent;
 
 import java.util.Collection;
@@ -60,11 +65,28 @@ public class CraftBotManager implements BotManager {
 
     @Override
     public boolean unregisterCustomBotAction(String name) {
-        AbstractBotAction<?> action = Actions.getForName(name);
+        CraftBotAction<?> action = Actions.getForName(name);
         if (action instanceof CraftCustomBotAction) {
             return Actions.unregister(name);
         }
         return false;
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public <T extends BotAction<T>> T newAction(@NotNull Class<T> type) {
+        if (type.isAssignableFrom(CustomBotAction.class) || type.isAssignableFrom(CustomTimerBotAction.class)) {
+            throw new IllegalArgumentException("Custom bot action should create by yourself.");
+        }
+        T action = Actions.getForClass(type);
+        if (action == null) {
+            throw new IllegalArgumentException("No action registered for type: " + type.getName());
+        }
+        try {
+            return (T) ((CraftBotAction<?>) action).create();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to create action of type: " + type.getName(), e);
+        }
     }
 
     @Override

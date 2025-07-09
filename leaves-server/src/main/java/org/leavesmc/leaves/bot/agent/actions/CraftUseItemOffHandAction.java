@@ -12,7 +12,7 @@ public class CraftUseItemOffHandAction extends CraftTimerBotAction<UseItemOffHan
     }
 
     @Override
-    public Class<UseItemOffHandAction> getInterfaceClass() {
+    public @NotNull Class<UseItemOffHandAction> getActionRegClass() {
         return UseItemOffHandAction.class;
     }
 

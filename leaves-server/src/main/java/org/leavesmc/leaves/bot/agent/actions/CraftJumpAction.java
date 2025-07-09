@@ -11,7 +11,7 @@ public class CraftJumpAction extends CraftTimerBotAction<JumpAction> implements 
     }
 
     @Override
-    public Class<JumpAction> getInterfaceClass() {
+    public @NotNull Class<JumpAction> getActionRegClass() {
         return JumpAction.class;
     }
 

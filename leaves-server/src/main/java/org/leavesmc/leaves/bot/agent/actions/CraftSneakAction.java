@@ -12,7 +12,7 @@ public class CraftSneakAction extends CraftBotAction<SneakAction> implements Sne
     }
 
     @Override
-    public Class<SneakAction> getInterfaceClass() {
+    public @NotNull Class<SneakAction> getActionRegClass() {
         return SneakAction.class;
     }
 

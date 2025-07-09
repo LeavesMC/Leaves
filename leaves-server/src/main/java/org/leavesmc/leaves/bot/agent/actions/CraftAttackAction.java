@@ -12,7 +12,7 @@ public class CraftAttackAction extends CraftTimerBotAction<AttackAction> impleme
     }
 
     @Override
-    public Class<AttackAction> getInterfaceClass() {
+    public @NotNull Class<AttackAction> getActionRegClass() {
         return AttackAction.class;
     }
 

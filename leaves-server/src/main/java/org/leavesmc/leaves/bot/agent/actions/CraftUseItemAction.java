@@ -12,7 +12,7 @@ public class CraftUseItemAction extends CraftTimerBotAction<UseItemAction> imple
     }
 
     @Override
-    public Class<UseItemAction> getInterfaceClass() {
+    public @NotNull Class<UseItemAction> getActionRegClass() {
         return UseItemAction.class;
     }
 

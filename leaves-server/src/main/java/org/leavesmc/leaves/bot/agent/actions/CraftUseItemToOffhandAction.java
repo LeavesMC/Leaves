@@ -4,7 +4,6 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.entity.bot.action.UseItemOnOffhandAction;
 import org.leavesmc.leaves.entity.bot.action.UseItemToOffhandAction;
 
 public class CraftUseItemToOffhandAction extends CraftTimerBotAction<UseItemToOffhandAction> implements UseItemToOffhandAction {
@@ -14,7 +13,7 @@ public class CraftUseItemToOffhandAction extends CraftTimerBotAction<UseItemToOf
     }
 
     @Override
-    public Class<UseItemToOffhandAction> getInterfaceClass() {
+    public @NotNull Class<UseItemToOffhandAction> getActionRegClass() {
         return UseItemToOffhandAction.class;
     }
 

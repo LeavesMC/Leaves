@@ -16,7 +16,7 @@ public class CraftFishAction extends CraftTimerBotAction<FishAction> implements 
     }
 
     @Override
-    public Class<FishAction> getInterfaceClass() {
+    public @NotNull Class<FishAction> getActionRegClass() {
         return FishAction.class;
     }
 

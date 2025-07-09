@@ -4,7 +4,6 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
 import org.apache.commons.lang3.tuple.Pair;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.command.CommandArgument;
 import org.leavesmc.leaves.command.CommandArgumentResult;
@@ -26,7 +25,7 @@ public class CraftRotationAction extends CraftBotAction<RotationAction> implemen
     }
 
     @Override
-    public Class<RotationAction> getInterfaceClass() {
+    public @NotNull Class<RotationAction> getActionRegClass() {
         return RotationAction.class;
     }
 

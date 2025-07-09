@@ -3,7 +3,6 @@ package org.leavesmc.leaves.bot.agent.actions;
 import net.minecraft.server.level.ServerPlayer;
 import org.apache.commons.lang3.tuple.Pair;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.command.CommandArgument;
 import org.leavesmc.leaves.command.CommandArgumentResult;
@@ -27,7 +26,7 @@ public class CraftMoveAction extends CraftStateBotAction<MoveAction> implements 
     }
 
     @Override
-    public Class<MoveAction> getInterfaceClass() {
+    public @NotNull Class<MoveAction> getActionRegClass() {
         return MoveAction.class;
     }
 

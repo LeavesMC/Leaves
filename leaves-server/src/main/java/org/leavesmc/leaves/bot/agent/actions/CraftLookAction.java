@@ -7,7 +7,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.command.CommandArgument;
 import org.leavesmc.leaves.command.CommandArgumentResult;
@@ -30,7 +29,7 @@ public class CraftLookAction extends CraftBotAction<LookAction> implements LookA
     }
 
     @Override
-    public Class<LookAction> getInterfaceClass() {
+    public @NotNull Class<LookAction> getActionRegClass() {
         return LookAction.class;
     }
 

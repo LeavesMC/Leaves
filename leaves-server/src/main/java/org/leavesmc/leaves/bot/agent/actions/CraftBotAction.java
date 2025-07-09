@@ -6,7 +6,6 @@ import net.minecraft.server.level.ServerPlayer;
 import org.apache.commons.lang3.tuple.Pair;
 import org.bukkit.command.CommandSender;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.command.CommandArgument;
 import org.leavesmc.leaves.command.CommandArgumentResult;
@@ -139,7 +138,7 @@ public abstract class CraftBotAction<E extends BotAction<E>> implements BotActio
 
     public abstract boolean doTick(@NotNull ServerBot bot);
 
-    public abstract Class<E> getInterfaceClass();
+    public abstract @NotNull Class<? extends E> getActionRegClass();
 
     public void onStop(@NotNull ServerBot bot, BotActionStopEvent.Reason reason) {
     }

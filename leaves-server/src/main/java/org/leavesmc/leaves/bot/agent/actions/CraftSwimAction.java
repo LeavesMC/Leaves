@@ -13,7 +13,7 @@ public class CraftSwimAction extends CraftStateBotAction<SwimAction> implements 
     }
 
     @Override
-    public Class<SwimAction> getInterfaceClass() {
+    public @NotNull Class<SwimAction> getActionRegClass() {
         return SwimAction.class;
     }
 

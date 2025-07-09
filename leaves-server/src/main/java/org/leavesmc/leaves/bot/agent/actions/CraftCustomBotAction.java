@@ -31,7 +31,7 @@ public class CraftCustomBotAction extends CraftBotAction<AbstractCustomBotAction
     }
 
     @Override
-    public Class<AbstractCustomBotAction> getInterfaceClass() {
-        return null;
+    public @NotNull Class<? extends AbstractCustomBotAction> getActionRegClass() {
+        return realAction.getClass();
     }
 }

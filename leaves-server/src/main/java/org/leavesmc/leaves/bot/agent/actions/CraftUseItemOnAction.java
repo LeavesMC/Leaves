@@ -21,7 +21,7 @@ public class CraftUseItemOnAction extends CraftTimerBotAction<UseItemOnAction> i
     }
 
     @Override
-    public Class<UseItemOnAction> getInterfaceClass() {
+    public @NotNull Class<UseItemOnAction> getActionRegClass() {
         return UseItemOnAction.class;
     }
 

@@ -60,7 +60,7 @@ public class Actions {
     public static boolean register(@NotNull CraftBotAction<?> action) {
         if (!actionsByName.containsKey(action.getName())) {
             actionsByName.put(action.getName(), action);
-            actionsByClass.put(action.getInterfaceClass(), action);
+            actionsByClass.put(action.getActionRegClass(), action);
             return true;
         }
         return false;
@@ -68,7 +68,7 @@ public class Actions {
 
     public static boolean unregister(@NotNull String name) {
         if (actionsByName.containsKey(name)) {
-            actionsByClass.remove(actionsByName.get(name).getInterfaceClass());
+            actionsByClass.remove(actionsByName.get(name).getActionRegClass());
             actionsByName.remove(name);
             return true;
         }

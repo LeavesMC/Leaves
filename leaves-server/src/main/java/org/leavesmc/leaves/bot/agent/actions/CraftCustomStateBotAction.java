@@ -26,12 +26,12 @@ public class CraftCustomStateBotAction extends CraftStateBotAction<AbstractCusto
     }
 
     @Override
-    public Class<AbstractCustomStateBotAction> getInterfaceClass() {
-        return null;
+    public boolean doTick(@NotNull ServerBot bot) {
+        return realAction.doTick(bot.getBukkitEntity());
     }
 
     @Override
-    public boolean doTick(@NotNull ServerBot bot) {
-        return realAction.doTick(bot.getBukkitEntity());
+    public @NotNull Class<? extends AbstractCustomStateBotAction> getActionRegClass() {
+        return realAction.getClass();
     }
 }

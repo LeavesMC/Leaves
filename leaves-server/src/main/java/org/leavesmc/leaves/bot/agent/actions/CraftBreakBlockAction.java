@@ -16,7 +16,7 @@ public class CraftBreakBlockAction extends CraftTimerBotAction<BreakBlockAction>
     }
 
     @Override
-    public Class<BreakBlockAction> getInterfaceClass() {
+    public @NotNull Class<BreakBlockAction> getActionRegClass() {
         return BreakBlockAction.class;
     }
 

@@ -6,7 +6,6 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.Items;
 import org.apache.commons.lang3.tuple.Pair;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.command.CommandArgument;
 import org.leavesmc.leaves.command.CommandArgumentResult;
@@ -27,7 +26,7 @@ public class CraftShootAction extends CraftTimerBotAction<ShootAction> implement
     }
 
     @Override
-    public Class<ShootAction> getInterfaceClass() {
+    public @NotNull Class<ShootAction> getActionRegClass() {
         return ShootAction.class;
     }
 

@@ -10,14 +10,18 @@ import org.leavesmc.leaves.bot.BotList;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.bot.agent.Actions;
 import org.leavesmc.leaves.bot.agent.actions.CraftBotAction;
+import org.leavesmc.leaves.bot.agent.actions.CraftCustomAction;
 import org.leavesmc.leaves.bot.agent.actions.CraftCustomBotAction;
+import org.leavesmc.leaves.bot.agent.actions.CraftCustomStateBotAction;
+import org.leavesmc.leaves.bot.agent.actions.CraftCustomTimerBotAction;
 import org.leavesmc.leaves.entity.bot.Bot;
 import org.leavesmc.leaves.entity.bot.BotCreator;
 import org.leavesmc.leaves.entity.bot.BotManager;
 import org.leavesmc.leaves.entity.bot.action.BotAction;
+import org.leavesmc.leaves.entity.bot.action.AbstractCustomBotAction;
+import org.leavesmc.leaves.entity.bot.action.AbstractCustomStateBotAction;
+import org.leavesmc.leaves.entity.bot.action.AbstractCustomTimerBotAction;
 import org.leavesmc.leaves.entity.bot.action.CustomBotAction;
-import org.leavesmc.leaves.entity.bot.action.CustomStateBotAction;
-import org.leavesmc.leaves.entity.bot.action.CustomTimerBotAction;
 import org.leavesmc.leaves.event.bot.BotCreateEvent;
 
 import java.lang.reflect.InvocationTargetException;
@@ -61,14 +65,20 @@ public class CraftBotManager implements BotManager {
     }
 
     @Override
-    public boolean registerCustomBotAction(String name, CustomBotAction action) {
-        return Actions.register(new CraftCustomBotAction(name, action));
+    public boolean registerCustomBotAction(CustomBotAction<?> action) {
+        return switch (action) {
+            case AbstractCustomBotAction act -> Actions.register(new CraftCustomBotAction(act.getName(), act));
+            case AbstractCustomStateBotAction act -> Actions.register(new CraftCustomStateBotAction(act.getName(), act));
+            case AbstractCustomTimerBotAction act -> Actions.register(new CraftCustomTimerBotAction(act.getName(), act));
+            case CraftCustomBotAction craftAction -> Actions.register(craftAction);
+            case null, default -> throw new IllegalArgumentException("Unsupported action type: " + action);
+        };
     }
 
     @Override
     public boolean unregisterCustomBotAction(String name) {
         CraftBotAction<?> action = Actions.getForName(name);
-        if (action instanceof CraftCustomBotAction) {
+        if (action instanceof CraftCustomAction) {
             return Actions.unregister(name);
         }
         return false;
@@ -77,10 +87,7 @@ public class CraftBotManager implements BotManager {
     @SuppressWarnings("unchecked")
     @Override
     public <T extends BotAction<T>> T newAction(@NotNull Class<T> type) {
-        if (type.isAssignableFrom(CustomBotAction.class)
-            || type.isAssignableFrom(CustomTimerBotAction.class)
-            || type.isAssignableFrom(CustomStateBotAction.class)
-        ) try {
+        if (type.isAssignableFrom(CustomBotAction.class)) try {
             return type.getConstructor().newInstance();
         } catch (InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
             throw new RuntimeException(e);

@@ -7,10 +7,11 @@ import org.leavesmc.leaves.entity.bot.Bot;
 
 import java.util.List;
 
+
 /**
  * Represents a class which contains methods for a custom bot action
  */
-public interface CustomBotAction extends BotAction<CustomBotAction> {
+public interface CustomBotAction<T> extends BotAction<T> {
 
     /**
      * Executes the action, returning its success.
@@ -27,7 +28,7 @@ public interface CustomBotAction extends BotAction<CustomBotAction> {
      * @param args   passed action arguments
      * @return a new action instance with given args
      */
-    @Nullable CustomBotAction getNew(@Nullable Player player, String[] args);
+    @Nullable T getNew(@Nullable Player player, String[] args);
 
     /**
      * Requests a list of possible completions for a action argument.

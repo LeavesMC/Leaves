@@ -4,45 +4,29 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.command.CommandArgument;
-import org.leavesmc.leaves.entity.bot.action.CustomTimerBotAction;
+import org.leavesmc.leaves.entity.bot.action.AbstractCustomTimerBotAction;
 
-public class CraftCustomTimerBotAction extends CraftTimerBotAction<CustomTimerBotAction> implements CraftCustomAction<CraftCustomTimerBotAction> {
+public class CraftCustomTimerBotAction extends CraftTimerBotAction<AbstractCustomTimerBotAction> implements CraftCustomAction<CraftCustomTimerBotAction> {
 
-    private final CustomTimerBotAction realAction;
+    private final AbstractCustomTimerBotAction realAction;
 
-    public CraftCustomTimerBotAction(String name, @NotNull CustomTimerBotAction realAction) {
-        super(name, CommandArgument.EMPTY, null);
+    public CraftCustomTimerBotAction(String name, @NotNull AbstractCustomTimerBotAction realAction) {
+        super(name, null);
         this.realAction = realAction;
     }
 
     @Override
-    public Class<CustomTimerBotAction> getInterfaceClass() {
+    public Class<AbstractCustomTimerBotAction> getInterfaceClass() {
         return null;
     }
 
     @Override
     public CraftCustomTimerBotAction createCraft(@Nullable Player player, String[] args) {
-        CustomTimerBotAction newRealAction = realAction.getNew(player, args);
+        AbstractCustomTimerBotAction newRealAction = realAction.getNew(player, args);
         if (newRealAction != null) {
             return new CraftCustomTimerBotAction(this.getName(), newRealAction);
         }
         return null;
-    }
-
-    @Override
-    public int getDoNumber() {
-        return realAction.getDoNumber();
-    }
-
-    @Override
-    public int getStartDelayTick() {
-        return realAction.getStartDelayTick();
-    }
-
-    @Override
-    public int getDoIntervalTick() {
-        return realAction.getDoIntervalTick();
     }
 
     @Override

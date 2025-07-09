@@ -16,9 +16,9 @@ import org.leavesmc.leaves.bot.agent.actions.CraftCustomStateBotAction;
 import org.leavesmc.leaves.bot.agent.actions.CraftCustomTimerBotAction;
 import org.leavesmc.leaves.entity.bot.Bot;
 import org.leavesmc.leaves.entity.bot.action.BotAction;
-import org.leavesmc.leaves.entity.bot.action.CustomBotAction;
-import org.leavesmc.leaves.entity.bot.action.CustomStateBotAction;
-import org.leavesmc.leaves.entity.bot.action.CustomTimerBotAction;
+import org.leavesmc.leaves.entity.bot.action.AbstractCustomBotAction;
+import org.leavesmc.leaves.entity.bot.action.AbstractCustomStateBotAction;
+import org.leavesmc.leaves.entity.bot.action.AbstractCustomTimerBotAction;
 import org.leavesmc.leaves.event.bot.BotActionStopEvent;
 import org.leavesmc.leaves.event.bot.BotRemoveEvent;
 
@@ -49,28 +49,48 @@ public class CraftBot extends CraftPlayer implements Bot {
     @SuppressWarnings("unchecked")
     @Override
     public <T extends BotAction<T>> void addAction(@NotNull T action) {
-        CraftBotAction<?> result;
         Supplier<T> getRegAction = () -> (T) Actions.getForClass(action.getClass());
         switch (action) {
-            case CustomBotAction act -> {
+            case AbstractCustomBotAction act -> {
+                CraftBotAction<AbstractCustomBotAction> result;
                 T regAction = getRegAction.get();
                 if (regAction == null) throw new IllegalStateException("Action " + action.getClass().getName() + " is not registered!");
                 result = new CraftCustomBotAction(regAction.getName(), act);
+                result.setCancelled(act.isCancelled());
+                result.setOnFail(act.getOnFail());
+                result.setOnSuccess(act.getOnSuccess());
+                result.setOnStop(act.getOnStop());
+                this.getHandle().addBotAction(result, null);
             }
-            case CustomTimerBotAction act -> {
+            case AbstractCustomTimerBotAction act -> {
+                CraftBotAction<AbstractCustomTimerBotAction> result;
                 T regAction = getRegAction.get();
                 if (regAction == null) throw new IllegalStateException("Action " + action.getClass().getName() + " is not registered!");
                 result = new CraftCustomTimerBotAction(regAction.getName(), act);
+                result.setCancelled(act.isCancelled());
+                result.setOnFail(act.getOnFail());
+                result.setOnSuccess(act.getOnSuccess());
+                result.setOnStop(act.getOnStop());
+                result.setDoNumber0(act.getDoNumber());
+                result.setDoIntervalTick0(act.getDoIntervalTick());
+                result.setStartDelayTick0(act.getStartDelayTick());
+                this.getHandle().addBotAction(result, null);
             }
-            case CustomStateBotAction act -> {
+            case AbstractCustomStateBotAction act -> {
+                CraftBotAction<AbstractCustomStateBotAction> result;
                 T regAction = getRegAction.get();
                 if (regAction == null) throw new IllegalStateException("Action " + action.getClass().getName() + " is not registered!");
                 result = new CraftCustomStateBotAction(regAction.getName(), act);
+                result.setCancelled(act.isCancelled());
+                result.setOnFail(act.getOnFail());
+                result.setOnSuccess(act.getOnSuccess());
+                result.setOnStop(act.getOnStop());
+                this.getHandle().addBotAction(result, null);
             }
-            case CraftBotAction<?> craftBotAction -> result = craftBotAction;
+            case CraftBotAction<?> craftBotAction -> this.getHandle().addBotAction(craftBotAction, null);
             default -> throw new IllegalArgumentException("Action " + action.getClass().getName() + " is not a valid BotAction type!");
         }
-        this.getHandle().addBotAction(result, null);
+
     }
 
     @Override

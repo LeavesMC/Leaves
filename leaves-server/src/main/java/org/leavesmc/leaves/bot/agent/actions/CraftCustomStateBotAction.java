@@ -5,20 +5,20 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.command.CommandArgument;
-import org.leavesmc.leaves.entity.bot.action.CustomStateBotAction;
+import org.leavesmc.leaves.entity.bot.action.AbstractCustomStateBotAction;
 
-public class CraftCustomStateBotAction extends CraftStateBotAction<CustomStateBotAction> implements CraftCustomAction<CraftCustomStateBotAction> {
+public class CraftCustomStateBotAction extends CraftStateBotAction<AbstractCustomStateBotAction> implements CraftCustomAction<CraftCustomStateBotAction> {
 
-    private final CustomStateBotAction realAction;
+    private final AbstractCustomStateBotAction realAction;
 
-    public CraftCustomStateBotAction(String name, @NotNull CustomStateBotAction realAction) {
+    public CraftCustomStateBotAction(String name, @NotNull AbstractCustomStateBotAction realAction) {
         super(name, CommandArgument.EMPTY, null);
         this.realAction = realAction;
     }
 
     @Override
     public CraftCustomStateBotAction createCraft(@Nullable Player player, String[] args) {
-        CustomStateBotAction newRealAction = realAction.getNew(player, args);
+        AbstractCustomStateBotAction newRealAction = realAction.getNew(player, args);
         if (newRealAction != null) {
             return new CraftCustomStateBotAction(this.getName(), newRealAction);
         }
@@ -26,7 +26,7 @@ public class CraftCustomStateBotAction extends CraftStateBotAction<CustomStateBo
     }
 
     @Override
-    public Class<CustomStateBotAction> getInterfaceClass() {
+    public Class<AbstractCustomStateBotAction> getInterfaceClass() {
         return null;
     }
 

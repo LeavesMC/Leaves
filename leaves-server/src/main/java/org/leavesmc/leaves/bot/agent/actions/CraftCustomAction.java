@@ -5,6 +5,4 @@ import org.jetbrains.annotations.Nullable;
 
 public interface CraftCustomAction<E> {
     E createCraft(@Nullable Player player, String[] args);
-
-    Class<?> getRealActionClass();
 }

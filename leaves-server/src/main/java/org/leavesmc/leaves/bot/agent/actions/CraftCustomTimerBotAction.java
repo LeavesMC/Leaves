@@ -16,6 +16,11 @@ public class CraftCustomTimerBotAction extends CraftTimerBotAction<AbstractCusto
     }
 
     @Override
+    public Class<AbstractCustomTimerBotAction> getInterfaceClass() {
+        return null;
+    }
+
+    @Override
     public CraftCustomTimerBotAction createCraft(@Nullable Player player, String[] args) {
         AbstractCustomTimerBotAction newRealAction = realAction.getNew(player, args);
         if (newRealAction != null) {
@@ -27,15 +32,5 @@ public class CraftCustomTimerBotAction extends CraftTimerBotAction<AbstractCusto
     @Override
     public boolean doTick(@NotNull ServerBot bot) {
         return realAction.doTick(bot.getBukkitEntity());
-    }
-
-    @Override
-    public Class<AbstractCustomTimerBotAction> getInterfaceClass() {
-        return null;
-    }
-
-    @Override
-    public Class<?> getRealActionClass() {
-        return realAction.getClass();
     }
 }

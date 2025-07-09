@@ -29,7 +29,6 @@ import org.leavesmc.leaves.entity.bot.action.BotAction;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 public class Actions {
@@ -63,8 +62,10 @@ public class Actions {
         Class<?> actionClass = action.getInterfaceClass();
         if (actionClass == null && action instanceof CraftCustomAction<?> act) {
             actionClass = act.getRealActionClass();
+        } else {
+            throw new IllegalArgumentException("Action " + action.getName() + " does not registered.");
         }
-        return Objects.requireNonNull(actionClass, "Class " + action.getClass() + " is not registered as a BotAction!");
+        return actionClass;
     }
 
     public static boolean register(@NotNull CraftBotAction<?> action) {

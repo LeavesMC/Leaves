@@ -35,7 +35,7 @@ public class CraftCustomTimerBotAction extends CraftTimerBotAction<AbstractCusto
     }
 
     @Override
-    public @NotNull Class<?> getRealActionClass() {
+    public Class<?> getRealActionClass() {
         return realAction.getClass();
     }
 }

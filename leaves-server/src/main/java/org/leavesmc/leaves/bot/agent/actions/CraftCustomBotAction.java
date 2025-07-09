@@ -36,7 +36,7 @@ public class CraftCustomBotAction extends CraftBotAction<AbstractCustomBotAction
     }
 
     @Override
-    public @NotNull Class<?> getRealActionClass() {
+    public Class<?> getRealActionClass() {
         return realAction.getClass();
     }
 }

@@ -34,4 +34,9 @@ public class CraftCustomBotAction extends CraftBotAction<AbstractCustomBotAction
     public Class<AbstractCustomBotAction> getInterfaceClass() {
         return null;
     }
+
+    @Override
+    public Class<?> getRealActionClass() {
+        return realAction.getClass();
+    }
 }

@@ -6,6 +6,7 @@ import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.bot.agent.actions.CraftAttackAction;
 import org.leavesmc.leaves.bot.agent.actions.CraftBotAction;
 import org.leavesmc.leaves.bot.agent.actions.CraftBreakBlockAction;
+import org.leavesmc.leaves.bot.agent.actions.CraftCustomAction;
 import org.leavesmc.leaves.bot.agent.actions.CraftDropAction;
 import org.leavesmc.leaves.bot.agent.actions.CraftFishAction;
 import org.leavesmc.leaves.bot.agent.actions.CraftJumpAction;
@@ -28,6 +29,7 @@ import org.leavesmc.leaves.entity.bot.action.BotAction;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 public class Actions {
@@ -57,10 +59,18 @@ public class Actions {
         register(new CraftMoveAction());
     }
 
+    public static @NotNull Class<?> getActionClass(@NotNull CraftBotAction<?> action) {
+        Class<?> actionClass = action.getInterfaceClass();
+        if (actionClass == null && action instanceof CraftCustomAction<?> act) {
+            actionClass = act.getRealActionClass();
+        }
+        return Objects.requireNonNull(actionClass, "Class " + action.getClass() + " is not registered as a BotAction!");
+    }
+
     public static boolean register(@NotNull CraftBotAction<?> action) {
         if (!actionsByName.containsKey(action.getName())) {
             actionsByName.put(action.getName(), action);
-            actionsByClass.put(action.getInterfaceClass(), action);
+            actionsByClass.put(getActionClass(action), action);
             return true;
         }
         return false;
@@ -68,7 +78,7 @@ public class Actions {
 
     public static boolean unregister(@NotNull String name) {
         if (actionsByName.containsKey(name)) {
-            actionsByClass.remove(actionsByName.get(name).getInterfaceClass());
+            actionsByClass.remove(getActionClass(actionsByName.get(name)));
             actionsByName.remove(name);
             return true;
         }

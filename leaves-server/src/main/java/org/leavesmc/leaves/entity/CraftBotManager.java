@@ -87,7 +87,7 @@ public class CraftBotManager implements BotManager {
     @SuppressWarnings("unchecked")
     @Override
     public <T extends BotAction<T>> T newAction(@NotNull Class<T> type) {
-        if (type.isAssignableFrom(CustomBotAction.class)) try {
+        if (CustomBotAction.class.isAssignableFrom(type)) try {
             return type.getConstructor().newInstance();
         } catch (InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
             throw new RuntimeException(e);

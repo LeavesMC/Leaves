@@ -21,7 +21,7 @@ public class CraftRotationAction extends CraftBotAction<RotationAction> implemen
     public CraftRotationAction() {
         super("rotation", CommandArgument.of(CommandArgumentType.FLOAT, CommandArgumentType.FLOAT), CraftRotationAction::new);
         this.setSuggestion(0, (sender, arg) -> sender instanceof ServerPlayer player ? Pair.of(List.of(DF.format(player.getYRot())), "[yaw]") : Pair.of(List.of("0"), "<yaw>"));
-        this.setSuggestion(0, (sender, arg) -> sender instanceof ServerPlayer player ? Pair.of(List.of(DF.format(player.getXRot())), "[pitch]") : Pair.of(List.of("0"), "<pitch>"));
+        this.setSuggestion(1, (sender, arg) -> sender instanceof ServerPlayer player ? Pair.of(List.of(DF.format(player.getXRot())), "[pitch]") : Pair.of(List.of("0"), "<pitch>"));
     }
 
     @Override

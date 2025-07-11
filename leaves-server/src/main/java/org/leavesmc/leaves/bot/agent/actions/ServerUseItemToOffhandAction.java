@@ -5,16 +5,12 @@ import net.minecraft.world.entity.Entity;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.entity.bot.action.UseItemToOffhandAction;
+import org.leavesmc.leaves.entity.bot.actions.CraftUseItemToOffhandAction;
 
-public class CraftUseItemToOffhandAction extends ServerTimerBotAction<UseItemToOffhandAction> implements UseItemToOffhandAction {
+public class ServerUseItemToOffhandAction extends ServerTimerBotAction<ServerUseItemToOffhandAction> {
 
-    public CraftUseItemToOffhandAction() {
-        super("use_to_offhand", CraftUseItemToOffhandAction::new);
-    }
-
-    @Override
-    public @NotNull Class<UseItemToOffhandAction> getActionRegClass() {
-        return UseItemToOffhandAction.class;
+    public ServerUseItemToOffhandAction() {
+        super("use_to_offhand", ServerUseItemToOffhandAction::new);
     }
 
     @Override
@@ -31,5 +27,15 @@ public class CraftUseItemToOffhandAction extends ServerTimerBotAction<UseItemToO
             bot.updateItemInHand(InteractionHand.OFF_HAND);
         }
         return flag;
+    }
+
+    @Override
+    public @NotNull Class<UseItemToOffhandAction> getActionClass() {
+        return UseItemToOffhandAction.class;
+    }
+
+    @Override
+    public Object asCraft() {
+        return new CraftUseItemToOffhandAction(this);
     }
 }

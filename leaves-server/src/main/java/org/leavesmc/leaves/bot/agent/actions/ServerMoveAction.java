@@ -8,26 +8,23 @@ import org.leavesmc.leaves.command.CommandArgument;
 import org.leavesmc.leaves.command.CommandArgumentResult;
 import org.leavesmc.leaves.command.CommandArgumentType;
 import org.leavesmc.leaves.entity.bot.action.MoveAction;
+import org.leavesmc.leaves.entity.bot.action.MoveAction.MoveDirection;
+import org.leavesmc.leaves.entity.bot.actions.CraftMoveAction;
 import org.leavesmc.leaves.event.bot.BotActionStopEvent;
 
 import java.util.Arrays;
 import java.util.List;
 
-public class CraftMoveAction extends ServerStateBotAction<MoveAction> implements MoveAction {
+public class ServerMoveAction extends ServerStateBotAction<ServerMoveAction> {
     private static final Pair<List<String>, String> suggestions = Pair.of(
         Arrays.stream(MoveDirection.values()).map((it) -> it.name).toList(),
         "<Direction>"
     );
     private MoveDirection direction = MoveDirection.FORWARD;
 
-    public CraftMoveAction() {
-        super("move", CommandArgument.of(CommandArgumentType.ofEnum(MoveDirection.class)), CraftMoveAction::new);
+    public ServerMoveAction() {
+        super("move", CommandArgument.of(CommandArgumentType.ofEnum(MoveDirection.class)), ServerMoveAction::new);
         this.setSuggestion(0, (sender, arg) -> suggestions);
-    }
-
-    @Override
-    public @NotNull Class<MoveAction> getActionRegClass() {
-        return MoveAction.class;
     }
 
     @Override
@@ -57,13 +54,21 @@ public class CraftMoveAction extends ServerStateBotAction<MoveAction> implements
         return true;
     }
 
-    @Override
     public MoveDirection getDirection() {
         return direction;
     }
 
-    @Override
     public void setDirection(MoveDirection direction) {
         this.direction = direction;
+    }
+
+    @Override
+    public @NotNull Class<MoveAction> getActionClass() {
+        return MoveAction.class;
+    }
+
+    @Override
+    public Object asCraft() {
+        return new CraftMoveAction(this);
     }
 }

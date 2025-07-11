@@ -13,8 +13,9 @@ public interface MoveAction extends StateBotAction<MoveAction> {
      * Sets the direction of the move action.
      *
      * @param direction the direction to set
+     * @return this action instance
      */
-    void setDirection(MoveDirection direction);
+    MoveAction setDirection(MoveDirection direction);
 
     enum MoveDirection {
         FORWARD("forward"),

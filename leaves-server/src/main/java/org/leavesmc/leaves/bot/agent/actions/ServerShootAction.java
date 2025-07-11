@@ -11,23 +11,18 @@ import org.leavesmc.leaves.command.CommandArgument;
 import org.leavesmc.leaves.command.CommandArgumentResult;
 import org.leavesmc.leaves.command.CommandArgumentType;
 import org.leavesmc.leaves.entity.bot.action.ShootAction;
+import org.leavesmc.leaves.entity.bot.actions.CraftShootAction;
 
 import java.util.Collections;
 
-public class CraftShootAction extends ServerTimerBotAction<ShootAction> implements ShootAction {
-
+public class ServerShootAction extends ServerTimerBotAction<ServerShootAction> {
     private static final int DEFAULT_DRAWING_TICK = 20;
     private int drawingTick = DEFAULT_DRAWING_TICK;
     private int tickToRelease = -1;
 
-    public CraftShootAction() {
-        super("shoot", CommandArgument.of(CommandArgumentType.INTEGER, CommandArgumentType.INTEGER, CommandArgumentType.INTEGER, CommandArgumentType.INTEGER), CraftShootAction::new);
+    public ServerShootAction() {
+        super("shoot", CommandArgument.of(CommandArgumentType.INTEGER, CommandArgumentType.INTEGER, CommandArgumentType.INTEGER, CommandArgumentType.INTEGER), ServerShootAction::new);
         this.setSuggestion(3, Pair.of(Collections.singletonList("20"), "[DrawingTick]"));
-    }
-
-    @Override
-    public @NotNull Class<ShootAction> getActionRegClass() {
-        return ShootAction.class;
     }
 
     @Override
@@ -79,8 +74,17 @@ public class CraftShootAction extends ServerTimerBotAction<ShootAction> implemen
         return drawingTick;
     }
 
-    public ShootAction setDrawingTick(int drawingTick) {
+    public void setDrawingTick(int drawingTick) {
         this.drawingTick = drawingTick;
-        return this;
+    }
+
+    @Override
+    public @NotNull Class<ShootAction> getActionClass() {
+        return ShootAction.class;
+    }
+
+    @Override
+    public Object asCraft() {
+        return new CraftShootAction(this);
     }
 }

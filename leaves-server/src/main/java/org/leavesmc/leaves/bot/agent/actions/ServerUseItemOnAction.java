@@ -12,17 +12,13 @@ import org.bukkit.Bukkit;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.entity.bot.action.UseItemOnAction;
+import org.leavesmc.leaves.entity.bot.actions.CraftUseItemOnAction;
 import org.leavesmc.leaves.plugin.MinecraftInternalPlugin;
 
-public class CraftUseItemOnAction extends ServerTimerBotAction<UseItemOnAction> implements UseItemOnAction {
+public class ServerUseItemOnAction extends ServerTimerBotAction<ServerUseItemOnAction> {
 
-    public CraftUseItemOnAction() {
-        super("use_on", CraftUseItemOnAction::new);
-    }
-
-    @Override
-    public @NotNull Class<UseItemOnAction> getActionRegClass() {
-        return UseItemOnAction.class;
+    public ServerUseItemOnAction() {
+        super("use_on", ServerUseItemOnAction::new);
     }
 
     @Override
@@ -46,5 +42,15 @@ public class CraftUseItemOnAction extends ServerTimerBotAction<UseItemOnAction> 
             bot.updateItemInHand(InteractionHand.MAIN_HAND);
             return bot.gameMode.useItemOn(bot, bot.level(), bot.getItemInHand(InteractionHand.MAIN_HAND), InteractionHand.MAIN_HAND, blockHitResult).consumesAction();
         }
+    }
+
+    @Override
+    public @NotNull Class<UseItemOnAction> getActionClass() {
+        return UseItemOnAction.class;
+    }
+
+    @Override
+    public Object asCraft() {
+        return new CraftUseItemOnAction(this);
     }
 }

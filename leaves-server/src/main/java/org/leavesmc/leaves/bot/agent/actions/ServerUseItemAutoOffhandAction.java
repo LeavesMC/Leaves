@@ -6,16 +6,12 @@ import net.minecraft.world.phys.BlockHitResult;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.entity.bot.action.UseItemAutoOffhandAction;
+import org.leavesmc.leaves.entity.bot.actions.CraftUseItemAutoOffhandAction;
 
-public class CraftUseItemAutoOffhandAction extends ServerTimerBotAction<UseItemAutoOffhandAction> implements UseItemAutoOffhandAction {
+public class ServerUseItemAutoOffhandAction extends ServerTimerBotAction<ServerUseItemAutoOffhandAction> {
 
-    public CraftUseItemAutoOffhandAction() {
-        super("use_auto_offhand", CraftUseItemAutoOffhandAction::new);
-    }
-
-    @Override
-    public @NotNull Class<UseItemAutoOffhandAction> getActionRegClass() {
-        return UseItemAutoOffhandAction.class;
+    public ServerUseItemAutoOffhandAction() {
+        super("use_auto_offhand", ServerUseItemAutoOffhandAction::new);
     }
 
     @Override
@@ -27,11 +23,21 @@ public class CraftUseItemAutoOffhandAction extends ServerTimerBotAction<UseItemA
         Entity entity = bot.getTargetEntity(3, null);
         BlockHitResult blockHitResult = (BlockHitResult) bot.getRayTrace(5, ClipContext.Fluid.NONE);
         if (entity != null) {
-            return CraftUseItemToOffhandAction.execute(bot, entity);
+            return ServerUseItemToOffhandAction.execute(bot, entity);
         } else if (!bot.level().getBlockState(blockHitResult.getBlockPos()).isAir()) {
-            return CraftUseItemOnOffhandAction.execute(bot, blockHitResult);
+            return ServerUseItemOnOffhandAction.execute(bot, blockHitResult);
         } else {
-            return CraftUseItemOffHandAction.execute(bot);
+            return ServerUseItemOffhandAction.execute(bot);
         }
+    }
+
+    @Override
+    public @NotNull Class<UseItemAutoOffhandAction> getActionClass() {
+        return UseItemAutoOffhandAction.class;
+    }
+
+    @Override
+    public Object asCraft() {
+        return new CraftUseItemAutoOffhandAction(this);
     }
 }

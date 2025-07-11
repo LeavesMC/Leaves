@@ -8,16 +8,12 @@ import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.entity.bot.action.FishAction;
+import org.leavesmc.leaves.entity.bot.actions.CraftFishAction;
 
-public class CraftFishAction extends ServerTimerBotAction<CraftFishAction> implements FishAction {
+public class ServerFishAction extends ServerTimerBotAction<ServerFishAction> {
 
-    public CraftFishAction() {
-        super("fish", CraftFishAction::new);
-    }
-
-    @Override
-    public @NotNull Class<FishAction> getActionRegClass() {
-        return FishAction.class;
+    public ServerFishAction() {
+        super("fish", ServerFishAction::new);
     }
 
     private static final int CATCH_ENTITY_DELAY = 20;
@@ -26,8 +22,8 @@ public class CraftFishAction extends ServerTimerBotAction<CraftFishAction> imple
     private int tickToNextFish = 0;
 
     @Override
-    public void setDoIntervalTick0(int initialTickInterval) {
-        super.setDoIntervalTick0(1);
+    public void setDoIntervalTick(int initialTickInterval) {
+        super.setDoIntervalTick(1);
         this.initialFishInterval = initialTickInterval;
     }
 
@@ -76,5 +72,15 @@ public class CraftFishAction extends ServerTimerBotAction<CraftFishAction> imple
         }
 
         return false;
+    }
+
+    @Override
+    public @NotNull Class<FishAction> getActionClass() {
+        return FishAction.class;
+    }
+
+    @Override
+    public Object asCraft() {
+        return new CraftFishAction(this);
     }
 }

@@ -5,16 +5,12 @@ import net.minecraft.world.entity.Entity;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.entity.bot.action.UseItemToAction;
+import org.leavesmc.leaves.entity.bot.actions.CraftUseItemToAction;
 
-public class CraftUseItemToAction extends ServerTimerBotAction<UseItemToAction> implements UseItemToAction {
+public class ServerUseItemToAction extends ServerTimerBotAction<ServerUseItemToAction> {
 
-    public CraftUseItemToAction() {
-        super("use_to", CraftUseItemToAction::new);
-    }
-
-    @Override
-    public @NotNull Class<UseItemToAction> getActionRegClass() {
-        return UseItemToAction.class;
+    public ServerUseItemToAction() {
+        super("use_to", ServerUseItemToAction::new);
     }
 
     @Override
@@ -31,5 +27,15 @@ public class CraftUseItemToAction extends ServerTimerBotAction<UseItemToAction> 
             bot.updateItemInHand(InteractionHand.MAIN_HAND);
         }
         return flag;
+    }
+
+    @Override
+    public @NotNull Class<UseItemToAction> getActionClass() {
+        return UseItemToAction.class;
+    }
+
+    @Override
+    public Object asCraft() {
+        return new CraftUseItemToAction(this);
     }
 }

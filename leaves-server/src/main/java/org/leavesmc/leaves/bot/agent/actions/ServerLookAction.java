@@ -12,25 +12,20 @@ import org.leavesmc.leaves.command.CommandArgument;
 import org.leavesmc.leaves.command.CommandArgumentResult;
 import org.leavesmc.leaves.command.CommandArgumentType;
 import org.leavesmc.leaves.entity.bot.action.LookAction;
+import org.leavesmc.leaves.entity.bot.actions.CraftLookAction;
 
 import java.text.DecimalFormat;
 import java.util.List;
 
-public class CraftLookAction extends ServerBotAction<LookAction> implements LookAction {
-
+public class ServerLookAction extends ServerBotAction<ServerLookAction> {
     private static final DecimalFormat DF = new DecimalFormat("0.0");
     private static final Vector ZERO_VECTOR = new Vector(0, 0, 0);
 
-    public CraftLookAction() {
-        super("look", CommandArgument.of(CommandArgumentType.STRING, CommandArgumentType.DOUBLE, CommandArgumentType.DOUBLE), CraftLookAction::new);
+    public ServerLookAction() {
+        super("look", CommandArgument.of(CommandArgumentType.STRING, CommandArgumentType.DOUBLE, CommandArgumentType.DOUBLE), ServerLookAction::new);
         this.setSuggestion(0, (sender, arg) -> sender instanceof ServerPlayer player ? Pair.of(List.of(DF.format(player.getX())), "<X>/<Player>") : Pair.of(List.of("0"), "<X>/<Player>"));
         this.setSuggestion(1, (sender, arg) -> sender instanceof ServerPlayer player ? Pair.of(List.of(DF.format(player.getY())), "<Y>") : Pair.of(List.of("0"), "<Y>"));
         this.setSuggestion(2, (sender, arg) -> sender instanceof ServerPlayer player ? Pair.of(List.of(DF.format(player.getZ())), "<Z>") : Pair.of(List.of("0"), "<Z>"));
-    }
-
-    @Override
-    public @NotNull Class<LookAction> getActionRegClass() {
-        return LookAction.class;
     }
 
     private Vector pos = ZERO_VECTOR;
@@ -93,24 +88,18 @@ public class CraftLookAction extends ServerBotAction<LookAction> implements Look
         );
     }
 
-    @Override
-    public LookAction setPos(Vector pos) {
+    public void setPos(Vector pos) {
         this.pos = pos;
-        return this;
     }
 
-    @Override
     public Vector getPos() {
         return this.pos;
     }
 
-    @Override
-    public LookAction setTarget(Player player) {
+    public void setTarget(Player player) {
         this.target = player;
-        return this;
     }
 
-    @Override
     public Player getTarget() {
         return target;
     }
@@ -120,5 +109,15 @@ public class CraftLookAction extends ServerBotAction<LookAction> implements Look
         if (target != null) bot.faceLocation(target.getLocation());
         else bot.look(pos.subtract(bot.getLocation().toVector()), false);
         return true;
+    }
+
+    @Override
+    public @NotNull Class<LookAction> getActionClass() {
+        return LookAction.class;
+    }
+
+    @Override
+    public Object asCraft() {
+        return new CraftLookAction(this);
     }
 }

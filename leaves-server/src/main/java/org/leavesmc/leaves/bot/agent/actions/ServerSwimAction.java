@@ -5,16 +5,12 @@ import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.command.CommandArgument;
 import org.leavesmc.leaves.entity.bot.action.SwimAction;
+import org.leavesmc.leaves.entity.bot.actions.CraftSwimAction;
 
-public class CraftSwimAction extends ServerStateBotAction<SwimAction> implements SwimAction {
+public class ServerSwimAction extends ServerStateBotAction<ServerSwimAction> {
 
-    public CraftSwimAction() {
-        super("swim", CommandArgument.EMPTY, CraftSwimAction::new);
-    }
-
-    @Override
-    public @NotNull Class<SwimAction> getActionRegClass() {
-        return SwimAction.class;
+    public ServerSwimAction() {
+        super("swim", CommandArgument.EMPTY, ServerSwimAction::new);
     }
 
     @Override
@@ -23,5 +19,15 @@ public class CraftSwimAction extends ServerStateBotAction<SwimAction> implements
             bot.addDeltaMovement(new Vec3(0, 0.03, 0));
         }
         return true;
+    }
+
+    @Override
+    public @NotNull Class<SwimAction> getActionClass() {
+        return SwimAction.class;
+    }
+
+    @Override
+    public Object asCraft() {
+        return new CraftSwimAction(this);
     }
 }

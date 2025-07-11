@@ -9,24 +9,20 @@ import org.leavesmc.leaves.command.CommandArgument;
 import org.leavesmc.leaves.command.CommandArgumentResult;
 import org.leavesmc.leaves.command.CommandArgumentType;
 import org.leavesmc.leaves.entity.bot.action.RotationAction;
+import org.leavesmc.leaves.entity.bot.actions.CraftRotationAction;
 
 import java.text.DecimalFormat;
 import java.util.List;
 import java.util.Objects;
 
-public class CraftRotationAction extends ServerBotAction<RotationAction> implements RotationAction {
+public class ServerRotationAction extends ServerBotAction<ServerRotationAction> {
 
     private static final DecimalFormat DF = new DecimalFormat("0.00");
 
-    public CraftRotationAction() {
-        super("rotation", CommandArgument.of(CommandArgumentType.FLOAT, CommandArgumentType.FLOAT), CraftRotationAction::new);
+    public ServerRotationAction() {
+        super("rotation", CommandArgument.of(CommandArgumentType.FLOAT, CommandArgumentType.FLOAT), ServerRotationAction::new);
         this.setSuggestion(0, (sender, arg) -> sender instanceof ServerPlayer player ? Pair.of(List.of(DF.format(player.getYRot())), "[yaw]") : Pair.of(List.of("0"), "<yaw>"));
         this.setSuggestion(1, (sender, arg) -> sender instanceof ServerPlayer player ? Pair.of(List.of(DF.format(player.getXRot())), "[pitch]") : Pair.of(List.of("0"), "<pitch>"));
-    }
-
-    @Override
-    public @NotNull Class<RotationAction> getActionRegClass() {
-        return RotationAction.class;
     }
 
     private float yaw = 0.0f;
@@ -42,24 +38,18 @@ public class CraftRotationAction extends ServerBotAction<RotationAction> impleme
         }
     }
 
-    @Override
-    public RotationAction setYaw(float yaw) {
+    public void setYaw(float yaw) {
         this.yaw = yaw;
-        return this;
     }
 
-    @Override
-    public RotationAction setPitch(float pitch) {
+    public void setPitch(float pitch) {
         this.pitch = pitch;
-        return this;
     }
 
-    @Override
     public float getYaw() {
         return this.yaw;
     }
 
-    @Override
     public float getPitch() {
         return this.pitch;
     }
@@ -76,12 +66,23 @@ public class CraftRotationAction extends ServerBotAction<RotationAction> impleme
     @Override
     public void load(@NotNull CompoundTag nbt) {
         super.load(nbt);
-        this.setYaw(nbt.getFloat("yaw").orElseThrow()).setPitch(nbt.getFloat("pitch").orElseThrow());
+        this.setYaw(nbt.getFloat("yaw").orElseThrow());
+        this.setPitch(nbt.getFloat("pitch").orElseThrow());
     }
 
     @Override
     public boolean doTick(@NotNull ServerBot bot) {
         bot.setRot(yaw, pitch);
         return true;
+    }
+
+    @Override
+    public @NotNull Class<RotationAction> getActionClass() {
+        return RotationAction.class;
+    }
+
+    @Override
+    public Object asCraft() {
+        return new CraftRotationAction(this);
     }
 }

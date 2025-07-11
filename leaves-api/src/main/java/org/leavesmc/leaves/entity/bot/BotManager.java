@@ -4,7 +4,6 @@ import org.bukkit.Location;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.entity.bot.action.BotAction;
-import org.leavesmc.leaves.entity.bot.action.CustomBotAction;
 
 import java.util.Collection;
 import java.util.UUID;
@@ -36,22 +35,6 @@ public interface BotManager {
      * @return a view of fakeplayers.
      */
     Collection<Bot> getBots();
-
-    /**
-     * Register a custom bot action.
-     *
-     * @param action action executor
-     * @return true if success, or false
-     */
-    boolean registerCustomBotAction(CustomBotAction action);
-
-    /**
-     * Unregister a custom bot action.
-     *
-     * @param name action name
-     * @return true if success, or false
-     */
-    boolean unregisterCustomBotAction(String name);
 
     /**
      * Create a bot action by class.

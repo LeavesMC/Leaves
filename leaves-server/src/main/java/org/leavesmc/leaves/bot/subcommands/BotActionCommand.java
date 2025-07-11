@@ -12,17 +12,10 @@ import org.leavesmc.leaves.bot.BotList;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.bot.agent.Actions;
 import org.leavesmc.leaves.bot.agent.actions.ServerBotAction;
-import org.leavesmc.leaves.bot.agent.actions.ServerCustomBotAction;
-import org.leavesmc.leaves.bot.agent.actions.ServerCustomStateBotAction;
-import org.leavesmc.leaves.bot.agent.actions.ServerCustomTimerBotAction;
 import org.leavesmc.leaves.command.LeavesSubcommand;
 import org.leavesmc.leaves.command.LeavesSuggestionBuilder;
-import org.leavesmc.leaves.entity.bot.action.AbstractCustomBotAction;
-import org.leavesmc.leaves.entity.bot.action.AbstractCustomStateBotAction;
-import org.leavesmc.leaves.entity.bot.action.AbstractCustomTimerBotAction;
 import org.leavesmc.leaves.event.bot.BotActionStopEvent;
 
-import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -74,34 +67,11 @@ public class BotActionCommand implements LeavesSubcommand {
         String[] realArgs = Arrays.copyOfRange(args, 3, args.length);
         ServerBotAction<?> newAction;
         try {
-            switch (action) {
-                case ServerCustomBotAction act -> {
-                    AbstractCustomBotAction<?> customAction = (AbstractCustomBotAction<?>) act.getRealAction().getClass().getConstructor().newInstance();
-                    ServerCustomBotAction serverAction = new ServerCustomBotAction(customAction.getName(), customAction);
-                    serverAction.loadRealActionCommand(player, realArgs);
-                    newAction = serverAction;
-                }
-                case ServerCustomTimerBotAction act -> {
-                    AbstractCustomTimerBotAction<?> customAction = (AbstractCustomTimerBotAction<?>) act.getRealAction().getClass().getConstructor().newInstance();
-                    ServerCustomTimerBotAction serverAction = new ServerCustomTimerBotAction(customAction.getName(), customAction);
-                    serverAction.loadRealActionCommand(player, realArgs);
-                    newAction = serverAction;
-                }
-                case ServerCustomStateBotAction act -> {
-                    AbstractCustomStateBotAction<?> customAction = (AbstractCustomStateBotAction<?>) act.getRealAction().getClass().getConstructor().newInstance();
-                    ServerCustomStateBotAction serverAction = new ServerCustomStateBotAction(customAction.getName(), customAction);
-                    serverAction.loadRealActionCommand(player, realArgs);
-                    newAction = serverAction;
-                }
-                default -> newAction = action.create();
-            }
+            newAction = action.create();
             newAction.loadCommand(player.getHandle(), action.getArgument().parse(0, realArgs));
         } catch (IllegalArgumentException e) {
             sender.sendMessage(text("Action create error, please check your arguments, " + e.getMessage(), NamedTextColor.RED));
             return;
-        } catch (InvocationTargetException | InstantiationException | IllegalAccessException | NoSuchMethodException e) {
-            sender.sendMessage(text("Action create error, the action is declared wrongly!"));
-            throw new RuntimeException(e);
         }
 
         if (bot.addBotAction(newAction, sender)) {

@@ -3,62 +3,28 @@ package org.leavesmc.leaves.bot.agent.actions;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
 import org.apache.commons.lang3.tuple.Pair;
-import org.bukkit.Bukkit;
-import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.command.CommandArgument;
 import org.leavesmc.leaves.command.CommandArgumentResult;
 import org.leavesmc.leaves.command.CommandArgumentType;
-import org.leavesmc.leaves.entity.bot.action.LookAction;
 import org.leavesmc.leaves.entity.bot.actions.CraftLookAction;
 
 import java.text.DecimalFormat;
+import java.util.Arrays;
 import java.util.List;
+import java.util.function.Supplier;
 
-public class ServerLookAction extends ServerBotAction<ServerLookAction> {
-    private static final DecimalFormat DF = new DecimalFormat("0.0");
+public abstract class ServerLookAction<T extends ServerLookAction<T>> extends ServerBotAction<T> {
+
     private static final Vector ZERO_VECTOR = new Vector(0, 0, 0);
 
-    public ServerLookAction() {
-        super("look", CommandArgument.of(CommandArgumentType.STRING, CommandArgumentType.DOUBLE, CommandArgumentType.DOUBLE), ServerLookAction::new);
-        this.setSuggestion(0, (sender, arg) -> sender instanceof ServerPlayer player ? Pair.of(List.of(DF.format(player.getX())), "<X>/<Player>") : Pair.of(List.of("0"), "<X>/<Player>"));
-        this.setSuggestion(1, (sender, arg) -> sender instanceof ServerPlayer player ? Pair.of(List.of(DF.format(player.getY())), "<Y>") : Pair.of(List.of("0"), "<Y>"));
-        this.setSuggestion(2, (sender, arg) -> sender instanceof ServerPlayer player ? Pair.of(List.of(DF.format(player.getZ())), "<Z>") : Pair.of(List.of("0"), "<Z>"));
-    }
-
     private Vector pos = ZERO_VECTOR;
-    private Player target = null;
+    private ServerPlayer target = null;
 
-    @Override
-    public void loadCommand(ServerPlayer player, @NotNull CommandArgumentResult result) throws IllegalArgumentException {
-        Object rawFirst = result.readObject();
-        if (rawFirst == null) {
-            this.target = player.getBukkitEntity();
-            return;
-        }
-        Double second = result.read(Double.class);
-        if (second == null) {
-            this.target = Bukkit.getPlayer(rawFirst.toString());
-            if (this.target == null) throw new IllegalArgumentException("Player not found: " + rawFirst);
-            return;
-        }
-        Double third = result.read(Double.class);
-        if (third == null) {
-            throw new IllegalArgumentException("Missing Z coordinate for look action.");
-        }
-        double first;
-        try {
-            first = Double.parseDouble(rawFirst.toString());
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("Invalid number format for X: " + rawFirst, e);
-        }
-        this.pos = new Vector(
-            first,
-            second,
-            third
-        );
+    private ServerLookAction(String name, CommandArgument argument, Supplier<T> creator) {
+        super(name, argument, creator);
     }
 
     @Override
@@ -96,24 +62,61 @@ public class ServerLookAction extends ServerBotAction<ServerLookAction> {
         return this.pos;
     }
 
-    public void setTarget(Player player) {
+    public void setTarget(ServerPlayer player) {
         this.target = player;
     }
 
-    public Player getTarget() {
+    public ServerPlayer getTarget() {
         return target;
     }
 
     @Override
     public boolean doTick(@NotNull ServerBot bot) {
-        if (target != null) bot.faceLocation(target.getLocation());
-        else bot.look(pos.subtract(bot.getLocation().toVector()), false);
+        if (target != null) {
+            bot.faceLocation(target.getBukkitEntity().getLocation());
+        } else {
+            bot.look(pos.subtract(bot.getLocation().toVector()), false);
+        }
         return true;
     }
 
-    @Override
-    public @NotNull Class<LookAction> getActionClass() {
-        return LookAction.class;
+    public static class TO extends ServerLookAction<TO> {
+        public TO() {
+            super("look_to", CommandArgument.of(CommandArgumentType.STRING), TO::new);
+            this.setSuggestion(0, (sender, arg) -> sender instanceof ServerPlayer player ? Pair.of(Arrays.asList(player.getServer().getPlayerNames()), "<Player>") : Pair.of(List.of("0"), "<Player>"));
+        }
+
+        @Override
+        public void loadCommand(ServerPlayer player, @NotNull CommandArgumentResult result) {
+            String name = result.readString(player.getScoreboardName());
+            ServerPlayer player1 = player.getServer().getPlayerList().getPlayerByName(name);
+            if (player1 == null) {
+                throw new IllegalArgumentException("No such player");
+            } else {
+                this.setTarget(player1);
+            }
+        }
+    }
+
+    public static class ON extends ServerLookAction<ON> {
+        private static final DecimalFormat DF = new DecimalFormat("0.0");
+
+        public ON() {
+            super("look_on", CommandArgument.of(CommandArgumentType.DOUBLE, CommandArgumentType.BOOLEAN, CommandArgumentType.BOOLEAN), ON::new);
+            this.setSuggestion(0, (sender, arg) -> sender instanceof ServerPlayer player ? Pair.of(List.of(DF.format(player.getX())), "<X>") : Pair.of(List.of("0"), "<X>"));
+            this.setSuggestion(1, (sender, arg) -> sender instanceof ServerPlayer player ? Pair.of(List.of(DF.format(player.getY())), "<Y>") : Pair.of(List.of("0"), "<Y>"));
+            this.setSuggestion(2, (sender, arg) -> sender instanceof ServerPlayer player ? Pair.of(List.of(DF.format(player.getZ())), "<Z>") : Pair.of(List.of("0"), "<Z>"));
+        }
+
+        @Override
+        public void loadCommand(ServerPlayer player, @NotNull CommandArgumentResult result) {
+            Vector vector = result.readVector();
+            if (vector == null) {
+                throw new IllegalArgumentException("Invalid vector");
+            } else {
+                this.setPos(vector);
+            }
+        }
     }
 
     @Override

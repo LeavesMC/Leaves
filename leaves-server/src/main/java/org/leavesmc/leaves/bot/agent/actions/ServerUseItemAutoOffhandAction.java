@@ -32,11 +32,6 @@ public class ServerUseItemAutoOffhandAction extends ServerTimerBotAction<ServerU
     }
 
     @Override
-    public @NotNull Class<UseItemAutoOffhandAction> getActionClass() {
-        return UseItemAutoOffhandAction.class;
-    }
-
-    @Override
     public Object asCraft() {
         return new CraftUseItemAutoOffhandAction(this);
     }

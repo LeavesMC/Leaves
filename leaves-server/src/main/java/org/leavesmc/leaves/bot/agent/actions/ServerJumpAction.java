@@ -13,14 +13,12 @@ public class ServerJumpAction extends ServerTimerBotAction<ServerJumpAction> {
 
     @Override
     public boolean doTick(@NotNull ServerBot bot) {
-        if (!bot.onGround()) return false;
-        bot.jumpFromGround();
+        if (!bot.onGround()) {
+            return false;
+        } else {
+            bot.jumpFromGround();
+        }
         return true;
-    }
-
-    @Override
-    public @NotNull Class<JumpAction> getActionClass() {
-        return JumpAction.class;
     }
 
     @Override

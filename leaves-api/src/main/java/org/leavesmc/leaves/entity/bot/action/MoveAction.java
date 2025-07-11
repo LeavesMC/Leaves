@@ -1,5 +1,7 @@
 package org.leavesmc.leaves.entity.bot.action;
 
+import org.bukkit.Bukkit;
+
 public interface MoveAction extends StateBotAction<MoveAction> {
 
     /**
@@ -28,5 +30,9 @@ public interface MoveAction extends StateBotAction<MoveAction> {
         MoveDirection(String name) {
             this.name = name;
         }
+    }
+
+    static MoveAction create() {
+        return Bukkit.getBotManager().newAction(MoveAction.class);
     }
 }

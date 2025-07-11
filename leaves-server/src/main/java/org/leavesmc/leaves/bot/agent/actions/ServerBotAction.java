@@ -52,8 +52,6 @@ public abstract class ServerBotAction<E extends ServerBotAction<E>> {
 
     public abstract boolean doTick(@NotNull ServerBot bot);
 
-    public abstract Class<?> getActionClass();
-
     public abstract Object asCraft();
 
     public void init() {
@@ -134,14 +132,12 @@ public abstract class ServerBotAction<E extends ServerBotAction<E>> {
     public void stop(@NotNull ServerBot bot, BotActionStopEvent.Reason reason) {
         new BotActionStopEvent(bot.getBukkitEntity(), this.name, this.uuid, reason, null).callEvent();
         this.setCancelled(true);
-        if (this.onStop != null) this.onStop.accept((E) this);
-        this.onStop(bot, reason);
+        if (this.onStop != null) {
+            this.onStop.accept((E) this);
+        }
     }
 
     public void loadCommand(ServerPlayer player, @NotNull CommandArgumentResult result) {
-    }
-
-    public void onStop(@NotNull ServerBot bot, BotActionStopEvent.Reason reason) {
     }
 
     public void setSuggestion(int n, BiFunction<CommandSender, String, Pair<List<String>, String>> suggestion) {

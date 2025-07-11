@@ -11,7 +11,6 @@ import net.minecraft.world.phys.HitResult;
 import org.bukkit.Bukkit;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.entity.bot.action.UseItemOnOffhandAction;
 import org.leavesmc.leaves.entity.bot.actions.CraftUseItemOnOffhandAction;
 import org.leavesmc.leaves.plugin.MinecraftInternalPlugin;
 
@@ -28,25 +27,29 @@ public class ServerUseItemOnOffhandAction extends ServerTimerBotAction<ServerUse
     }
 
     public static boolean execute(ServerBot bot, HitResult result) {
-        if (!(result instanceof BlockHitResult blockHitResult)) return false;
-        BlockState state = bot.level().getBlockState(blockHitResult.getBlockPos());
-        if (state.isAir()) return false;
-        bot.swing(InteractionHand.OFF_HAND);
-        if (state.getBlock() == Blocks.TRAPPED_CHEST) {
-            BlockEntity entity = bot.level().getBlockEntity(blockHitResult.getBlockPos());
-            if (!(entity instanceof TrappedChestBlockEntity chestBlockEntity)) return false;
-            chestBlockEntity.startOpen(bot);
-            Bukkit.getScheduler().runTaskLater(MinecraftInternalPlugin.INSTANCE, () -> chestBlockEntity.stopOpen(bot), 1);
-            return true;
-        } else {
-            bot.updateItemInHand(InteractionHand.OFF_HAND);
-            return bot.gameMode.useItemOn(bot, bot.level(), bot.getItemInHand(InteractionHand.OFF_HAND), InteractionHand.OFF_HAND, blockHitResult).consumesAction();
+        if (!(result instanceof BlockHitResult blockHitResult)) {
+            return false;
         }
-    }
 
-    @Override
-    public @NotNull Class<UseItemOnOffhandAction> getActionClass() {
-        return UseItemOnOffhandAction.class;
+        BlockState state = bot.level().getBlockState(blockHitResult.getBlockPos());
+        if (state.isAir()) {
+            return false;
+        } else {
+            bot.swing(InteractionHand.OFF_HAND);
+            if (state.getBlock() == Blocks.TRAPPED_CHEST) {
+                BlockEntity entity = bot.level().getBlockEntity(blockHitResult.getBlockPos());
+                if (entity instanceof TrappedChestBlockEntity chestBlockEntity) {
+                    chestBlockEntity.startOpen(bot);
+                    Bukkit.getScheduler().runTaskLater(MinecraftInternalPlugin.INSTANCE, () -> chestBlockEntity.stopOpen(bot), 1);
+                    return true;
+                } else {
+                    return false;
+                }
+            } else {
+                bot.updateItemInHand(InteractionHand.OFF_HAND);
+                return bot.gameMode.useItemOn(bot, bot.level(), bot.getItemInHand(InteractionHand.OFF_HAND), InteractionHand.OFF_HAND, blockHitResult).consumesAction();
+            }
+        }
     }
 
     @Override

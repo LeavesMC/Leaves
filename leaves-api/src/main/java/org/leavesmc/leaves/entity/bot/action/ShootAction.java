@@ -1,5 +1,7 @@
 package org.leavesmc.leaves.entity.bot.action;
 
+import org.bukkit.Bukkit;
+
 public interface ShootAction extends TimerBotAction<ShootAction> {
 
     /**
@@ -15,4 +17,8 @@ public interface ShootAction extends TimerBotAction<ShootAction> {
      * @param drawingTick the drawing tick to set
      */
     ShootAction setDrawingTick(int drawingTick);
+
+    static ShootAction create() {
+        return Bukkit.getBotManager().newAction(ShootAction.class);
+    }
 }

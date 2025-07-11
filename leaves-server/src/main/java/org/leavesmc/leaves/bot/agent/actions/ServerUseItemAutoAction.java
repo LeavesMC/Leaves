@@ -30,11 +30,6 @@ public class ServerUseItemAutoAction extends ServerTimerBotAction<ServerUseItemA
     }
 
     @Override
-    public @NotNull Class<UseItemAutoAction> getActionClass() {
-        return UseItemAutoAction.class;
-    }
-
-    @Override
     public Object asCraft() {
         return new CraftUseItemAutoAction(this);
     }

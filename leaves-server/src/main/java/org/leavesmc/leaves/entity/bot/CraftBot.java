@@ -9,15 +9,9 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.bot.BotList;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.bot.agent.actions.ServerBotAction;
+import org.leavesmc.leaves.bot.agent.actions.*;
+import org.leavesmc.leaves.entity.bot.action.*;
 import org.leavesmc.leaves.entity.bot.actions.CraftBotAction;
-import org.leavesmc.leaves.entity.bot.actions.CraftCustomBotAction;
-import org.leavesmc.leaves.entity.bot.actions.CraftCustomStateBotAction;
-import org.leavesmc.leaves.entity.bot.actions.CraftCustomTimerBotAction;
-import org.leavesmc.leaves.entity.bot.action.BotAction;
-import org.leavesmc.leaves.entity.bot.action.AbstractCustomBotAction;
-import org.leavesmc.leaves.entity.bot.action.AbstractCustomStateBotAction;
-import org.leavesmc.leaves.entity.bot.action.AbstractCustomTimerBotAction;
 import org.leavesmc.leaves.event.bot.BotActionStopEvent;
 import org.leavesmc.leaves.event.bot.BotRemoveEvent;
 
@@ -47,18 +41,6 @@ public class CraftBot extends CraftPlayer implements Bot {
     @Override
     public <T extends BotAction<T>> void addAction(@NotNull T action) {
         switch (action) {
-            case AbstractCustomBotAction<?> act -> {
-                CraftCustomBotAction result = new CraftCustomBotAction(act);
-                this.getHandle().addBotAction(result.getHandle(), null);
-            }
-            case AbstractCustomTimerBotAction<?> act -> {
-                CraftCustomTimerBotAction result = new CraftCustomTimerBotAction(act);
-                this.getHandle().addBotAction(result.getHandle(), null);
-            }
-            case AbstractCustomStateBotAction<?> act -> {
-                CraftCustomStateBotAction result = new CraftCustomStateBotAction(act);
-                this.getHandle().addBotAction(result.getHandle(), null);
-            }
             case CraftBotAction act -> this.getHandle().addBotAction(act.getHandle(), null);
             default -> throw new IllegalArgumentException("Action " + action.getClass().getName() + " is not a valid BotAction type!");
         }

@@ -16,6 +16,7 @@ import org.leavesmc.leaves.entity.bot.actions.CraftShootAction;
 import java.util.Collections;
 
 public class ServerShootAction extends ServerTimerBotAction<ServerShootAction> {
+
     private static final int DEFAULT_DRAWING_TICK = 20;
     private int drawingTick = DEFAULT_DRAWING_TICK;
     private int tickToRelease = -1;
@@ -28,7 +29,7 @@ public class ServerShootAction extends ServerTimerBotAction<ServerShootAction> {
     @Override
     public void init() {
         super.init();
-        tickToRelease = drawingTick;
+        this.tickToRelease = drawingTick;
     }
 
     @Override
@@ -76,11 +77,6 @@ public class ServerShootAction extends ServerTimerBotAction<ServerShootAction> {
 
     public void setDrawingTick(int drawingTick) {
         this.drawingTick = drawingTick;
-    }
-
-    @Override
-    public @NotNull Class<ShootAction> getActionClass() {
-        return ShootAction.class;
     }
 
     @Override

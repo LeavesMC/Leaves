@@ -18,7 +18,9 @@ public class ServerUseItemOffhandAction extends ServerTimerBotAction<ServerUseIt
     }
 
     public static boolean execute(@NotNull ServerBot bot) {
-        if (bot.isUsingItem()) return false;
+        if (bot.isUsingItem()) {
+            return false;
+        }
 
         boolean flag = bot.gameMode.useItem(bot, bot.level(), bot.getItemInHand(InteractionHand.OFF_HAND), InteractionHand.OFF_HAND).consumesAction();
         if (flag) {
@@ -26,11 +28,6 @@ public class ServerUseItemOffhandAction extends ServerTimerBotAction<ServerUseIt
             bot.updateItemInHand(InteractionHand.OFF_HAND);
         }
         return flag;
-    }
-
-    @Override
-    public @NotNull Class<UseItemOffhandAction> getActionClass() {
-        return UseItemOffhandAction.class;
     }
 
     @Override

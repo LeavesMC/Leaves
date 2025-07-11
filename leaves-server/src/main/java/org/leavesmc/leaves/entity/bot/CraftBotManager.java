@@ -10,20 +10,9 @@ import org.leavesmc.leaves.bot.BotList;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.bot.agent.Actions;
 import org.leavesmc.leaves.bot.agent.actions.ServerBotAction;
-import org.leavesmc.leaves.bot.agent.actions.ServerCustomBotAction;
-import org.leavesmc.leaves.bot.agent.actions.ServerCustomStateBotAction;
-import org.leavesmc.leaves.bot.agent.actions.ServerCustomTimerBotAction;
-import org.leavesmc.leaves.entity.bot.actions.CraftCustomBotAction;
-import org.leavesmc.leaves.entity.bot.actions.CraftCustomStateBotAction;
-import org.leavesmc.leaves.entity.bot.actions.CraftCustomTimerBotAction;
 import org.leavesmc.leaves.entity.bot.action.BotAction;
-import org.leavesmc.leaves.entity.bot.action.AbstractCustomBotAction;
-import org.leavesmc.leaves.entity.bot.action.AbstractCustomStateBotAction;
-import org.leavesmc.leaves.entity.bot.action.AbstractCustomTimerBotAction;
-import org.leavesmc.leaves.entity.bot.action.CustomBotAction;
 import org.leavesmc.leaves.event.bot.BotCreateEvent;
 
-import java.lang.reflect.InvocationTargetException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.UUID;
@@ -63,31 +52,9 @@ public class CraftBotManager implements BotManager {
         return botViews;
     }
 
-    @Override
-    public boolean registerCustomBotAction(CustomBotAction action) {
-        return switch (action) {
-            case AbstractCustomBotAction<?> act -> Actions.register(new ServerCustomBotAction(act.getName(), act));
-            case AbstractCustomStateBotAction<?> act -> Actions.register(new ServerCustomStateBotAction(act.getName(), act));
-            case AbstractCustomTimerBotAction<?> act -> Actions.register(new ServerCustomTimerBotAction(act.getName(), act));
-            default -> throw new IllegalArgumentException("Unsupported action type: " + action);
-        };
-    }
-
-    @Override
-    public boolean unregisterCustomBotAction(String name) {
-        ServerBotAction<?> action = Actions.getForName(name);
-        if (!(action instanceof CustomBotAction)) return false;
-        return Actions.unregister(name);
-    }
-
     @SuppressWarnings("unchecked")
     @Override
     public <T extends BotAction<T>> T newAction(@NotNull Class<T> type) {
-        if (CustomBotAction.class.isAssignableFrom(type)) try {
-            return type.getConstructor().newInstance();
-        } catch (InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
-            throw new RuntimeException(e);
-        }
         ServerBotAction<?> action = Actions.getForClass(type);
         if (action == null) throw new IllegalArgumentException("No action registered for type: " + type.getName());
         try {

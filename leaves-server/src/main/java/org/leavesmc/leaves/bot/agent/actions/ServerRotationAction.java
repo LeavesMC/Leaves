@@ -8,7 +8,6 @@ import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.command.CommandArgument;
 import org.leavesmc.leaves.command.CommandArgumentResult;
 import org.leavesmc.leaves.command.CommandArgumentType;
-import org.leavesmc.leaves.entity.bot.action.RotationAction;
 import org.leavesmc.leaves.entity.bot.actions.CraftRotationAction;
 
 import java.text.DecimalFormat;
@@ -74,11 +73,6 @@ public class ServerRotationAction extends ServerBotAction<ServerRotationAction> 
     public boolean doTick(@NotNull ServerBot bot) {
         bot.setRot(yaw, pitch);
         return true;
-    }
-
-    @Override
-    public @NotNull Class<RotationAction> getActionClass() {
-        return RotationAction.class;
     }
 
     @Override

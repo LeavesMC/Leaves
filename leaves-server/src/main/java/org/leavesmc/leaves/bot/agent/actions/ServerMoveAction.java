@@ -7,7 +7,6 @@ import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.command.CommandArgument;
 import org.leavesmc.leaves.command.CommandArgumentResult;
 import org.leavesmc.leaves.command.CommandArgumentType;
-import org.leavesmc.leaves.entity.bot.action.MoveAction;
 import org.leavesmc.leaves.entity.bot.action.MoveAction.MoveDirection;
 import org.leavesmc.leaves.entity.bot.actions.CraftMoveAction;
 import org.leavesmc.leaves.event.bot.BotActionStopEvent;
@@ -29,12 +28,15 @@ public class ServerMoveAction extends ServerStateBotAction<ServerMoveAction> {
 
     @Override
     public void loadCommand(ServerPlayer player, @NotNull CommandArgumentResult result) {
-        direction = result.read(MoveDirection.class);
-        if (direction == null) throw new IllegalArgumentException("Invalid direction");
+        this.direction = result.read(MoveDirection.class);
+        if (direction == null) {
+            throw new IllegalArgumentException("Invalid direction");
+        }
     }
 
     @Override
-    public void onStop(@NotNull ServerBot bot, BotActionStopEvent.Reason reason) {
+    public void stop(@NotNull ServerBot bot, BotActionStopEvent.Reason reason) {
+        super.stop(bot, reason);
         switch (direction) {
             case FORWARD, BACKWARD -> bot.zza = 0.0f;
             case LEFT, RIGHT -> bot.xxa = 0.0f;
@@ -60,11 +62,6 @@ public class ServerMoveAction extends ServerStateBotAction<ServerMoveAction> {
 
     public void setDirection(MoveDirection direction) {
         this.direction = direction;
-    }
-
-    @Override
-    public @NotNull Class<MoveAction> getActionClass() {
-        return MoveAction.class;
     }
 
     @Override

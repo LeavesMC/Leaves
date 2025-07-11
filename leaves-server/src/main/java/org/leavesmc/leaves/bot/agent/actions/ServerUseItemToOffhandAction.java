@@ -4,7 +4,6 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.entity.bot.action.UseItemToOffhandAction;
 import org.leavesmc.leaves.entity.bot.actions.CraftUseItemToOffhandAction;
 
 public class ServerUseItemToOffhandAction extends ServerTimerBotAction<ServerUseItemToOffhandAction> {
@@ -20,18 +19,16 @@ public class ServerUseItemToOffhandAction extends ServerTimerBotAction<ServerUse
     }
 
     public static boolean execute(ServerBot bot, Entity entity) {
-        if (entity == null) return false;
+        if (entity == null) {
+            return false;
+        }
+
         boolean flag = bot.interactOn(entity, InteractionHand.OFF_HAND).consumesAction();
         if (flag) {
             bot.swing(InteractionHand.OFF_HAND);
             bot.updateItemInHand(InteractionHand.OFF_HAND);
         }
         return flag;
-    }
-
-    @Override
-    public @NotNull Class<UseItemToOffhandAction> getActionClass() {
-        return UseItemToOffhandAction.class;
     }
 
     @Override

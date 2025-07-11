@@ -1,4 +1,9 @@
 package org.leavesmc.leaves.entity.bot.action;
 
-public interface BreakBlockAction extends TimerBotAction<BreakBlockAction>{
+import org.bukkit.Bukkit;
+
+public interface BreakBlockAction extends TimerBotAction<BreakBlockAction> {
+    static BreakBlockAction create() {
+        return Bukkit.getBotManager().newAction(BreakBlockAction.class);
+    }
 }

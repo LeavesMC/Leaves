@@ -22,13 +22,9 @@ public class ServerSneakAction extends ServerStateBotAction<ServerSneakAction> {
     }
 
     @Override
-    public void onStop(@NotNull ServerBot bot, BotActionStopEvent.Reason reason) {
+    public void stop(@NotNull ServerBot bot, BotActionStopEvent.Reason reason) {
+        super.stop(bot, reason);
         bot.setShiftKeyDown(false);
-    }
-
-    @Override
-    public @NotNull Class<SneakAction> getActionClass() {
-        return SneakAction.class;
     }
 
     @Override

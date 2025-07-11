@@ -22,11 +22,6 @@ public class ServerSwimAction extends ServerStateBotAction<ServerSwimAction> {
     }
 
     @Override
-    public @NotNull Class<SwimAction> getActionClass() {
-        return SwimAction.class;
-    }
-
-    @Override
     public Object asCraft() {
         return new CraftSwimAction(this);
     }

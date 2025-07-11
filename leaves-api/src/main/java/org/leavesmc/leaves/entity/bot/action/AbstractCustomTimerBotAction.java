@@ -6,15 +6,15 @@ import java.util.function.Consumer;
 public abstract class AbstractCustomTimerBotAction<T extends AbstractCustomTimerBotAction<T>> implements TimerBotAction<T>, CustomBotAction {
     private boolean cancelled = false;
     private int startDelayTick = 0;
-    private int doIntervalTick = 0;
-    private int doNumber = 0;
+    private int doIntervalTick = 20;
+    private int doNumber = -1;
     private Consumer<T> onFail = null;
     private Consumer<T> onSuccess = null;
     private Consumer<T> onStop = null;
 
     @Override
     public final UUID getUUID() {
-        throw  new UnsupportedOperationException("getUUID() is not supported in CustomTimerBotAction");
+        throw new UnsupportedOperationException("getUUID() is not supported in CustomTimerBotAction");
     }
 
     @Override

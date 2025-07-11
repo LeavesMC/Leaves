@@ -3,12 +3,13 @@ package org.leavesmc.leaves.entity.bot.actions;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.bot.agent.actions.ServerAttackAction;
+import org.leavesmc.leaves.bot.agent.actions.ServerBotAction;
 import org.leavesmc.leaves.entity.bot.action.AttackAction;
 
 import java.util.UUID;
 import java.util.function.Consumer;
 
-public class CraftAttackAction implements AttackAction {
+public class CraftAttackAction extends CraftBotAction implements AttackAction {
     private final ServerAttackAction serverAction;
     private Consumer<AttackAction> onFail = null;
     private Consumer<AttackAction> onSuccess = null;
@@ -20,6 +21,11 @@ public class CraftAttackAction implements AttackAction {
 
     public boolean doTick(@NotNull ServerBot bot) {
         return serverAction.doTick(bot);
+    }
+
+    @Override
+    public ServerBotAction<?> getHandle() {
+        return serverAction;
     }
 
     @Override

@@ -2,13 +2,14 @@ package org.leavesmc.leaves.entity.bot.actions;
 
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
+import org.leavesmc.leaves.bot.agent.actions.ServerBotAction;
 import org.leavesmc.leaves.bot.agent.actions.ServerDropAction;
 import org.leavesmc.leaves.entity.bot.action.DropAction;
 
 import java.util.UUID;
 import java.util.function.Consumer;
 
-public class CraftDropAction implements DropAction {
+public class CraftDropAction extends CraftBotAction implements DropAction {
     private final ServerDropAction serverAction;
     private Consumer<DropAction> onFail = null;
     private Consumer<DropAction> onSuccess = null;
@@ -20,6 +21,11 @@ public class CraftDropAction implements DropAction {
 
     public boolean doTick(@NotNull ServerBot bot) {
         return serverAction.doTick(bot);
+    }
+
+    @Override
+    public ServerBotAction<?> getHandle() {
+        return serverAction;
     }
 
     @Override

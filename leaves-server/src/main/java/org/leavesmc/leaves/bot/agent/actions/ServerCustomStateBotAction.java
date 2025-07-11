@@ -5,10 +5,9 @@ import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.command.CommandArgument;
 import org.leavesmc.leaves.entity.bot.action.CustomBotAction;
-import org.leavesmc.leaves.entity.bot.actions.CraftCustomBotAction;
 import org.leavesmc.leaves.entity.bot.actions.CraftCustomStateBotAction;
 
-public class ServerCustomStateBotAction extends ServerBotAction<ServerCustomStateBotAction> {
+public class ServerCustomStateBotAction extends ServerStateBotAction<ServerCustomStateBotAction> {
     private final CustomBotAction realAction;
 
     public ServerCustomStateBotAction(String name, @NotNull CustomBotAction realAction) {

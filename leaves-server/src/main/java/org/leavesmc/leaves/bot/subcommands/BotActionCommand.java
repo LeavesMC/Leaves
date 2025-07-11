@@ -18,6 +18,8 @@ import org.leavesmc.leaves.bot.agent.actions.ServerCustomTimerBotAction;
 import org.leavesmc.leaves.command.LeavesSubcommand;
 import org.leavesmc.leaves.command.LeavesSuggestionBuilder;
 import org.leavesmc.leaves.entity.bot.action.AbstractCustomBotAction;
+import org.leavesmc.leaves.entity.bot.action.AbstractCustomStateBotAction;
+import org.leavesmc.leaves.entity.bot.action.AbstractCustomTimerBotAction;
 import org.leavesmc.leaves.event.bot.BotActionStopEvent;
 
 import java.lang.reflect.InvocationTargetException;
@@ -80,13 +82,13 @@ public class BotActionCommand implements LeavesSubcommand {
                     newAction = serverAction;
                 }
                 case ServerCustomTimerBotAction act -> {
-                    AbstractCustomBotAction<?> customAction = (AbstractCustomBotAction<?>) act.getRealAction().getClass().getConstructor().newInstance();
+                    AbstractCustomTimerBotAction<?> customAction = (AbstractCustomTimerBotAction<?>) act.getRealAction().getClass().getConstructor().newInstance();
                     ServerCustomTimerBotAction serverAction = new ServerCustomTimerBotAction(customAction.getName(), customAction);
                     serverAction.loadRealActionCommand(player, realArgs);
                     newAction = serverAction;
                 }
                 case ServerCustomStateBotAction act -> {
-                    AbstractCustomBotAction<?> customAction = (AbstractCustomBotAction<?>) act.getRealAction().getClass().getConstructor().newInstance();
+                    AbstractCustomStateBotAction<?> customAction = (AbstractCustomStateBotAction<?>) act.getRealAction().getClass().getConstructor().newInstance();
                     ServerCustomStateBotAction serverAction = new ServerCustomStateBotAction(customAction.getName(), customAction);
                     serverAction.loadRealActionCommand(player, realArgs);
                     newAction = serverAction;

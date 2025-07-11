@@ -10,6 +10,7 @@ import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.bot.BotList;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.bot.agent.actions.ServerBotAction;
+import org.leavesmc.leaves.entity.bot.actions.CraftBotAction;
 import org.leavesmc.leaves.entity.bot.actions.CraftCustomBotAction;
 import org.leavesmc.leaves.entity.bot.actions.CraftCustomStateBotAction;
 import org.leavesmc.leaves.entity.bot.actions.CraftCustomTimerBotAction;
@@ -58,7 +59,7 @@ public class CraftBot extends CraftPlayer implements Bot {
                 CraftCustomStateBotAction result = new CraftCustomStateBotAction(act);
                 this.getHandle().addBotAction(result.getHandle(), null);
             }
-            case ServerBotAction<?> craftBotAction -> this.getHandle().addBotAction(craftBotAction, null);
+            case CraftBotAction act -> this.getHandle().addBotAction(act.getHandle(), null);
             default -> throw new IllegalArgumentException("Action " + action.getClass().getName() + " is not a valid BotAction type!");
         }
     }

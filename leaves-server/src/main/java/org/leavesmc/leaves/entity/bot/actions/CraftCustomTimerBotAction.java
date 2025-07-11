@@ -3,10 +3,7 @@ package org.leavesmc.leaves.entity.bot.actions;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.bot.agent.actions.ServerCustomBotAction;
 import org.leavesmc.leaves.bot.agent.actions.ServerCustomTimerBotAction;
-import org.leavesmc.leaves.bot.agent.actions.ServerTimerBotAction;
 import org.leavesmc.leaves.entity.bot.Bot;
 import org.leavesmc.leaves.entity.bot.CraftBot;
 import org.leavesmc.leaves.entity.bot.action.AbstractCustomTimerBotAction;
@@ -14,7 +11,7 @@ import org.leavesmc.leaves.entity.bot.action.CustomBotAction;
 
 import java.util.List;
 
-public class CraftCustomTimerBotAction implements CustomBotAction {
+public class CraftCustomTimerBotAction extends CraftBotAction implements CustomBotAction {
 
     private final ServerCustomTimerBotAction serverAction;
     private final CustomBotAction realAction;

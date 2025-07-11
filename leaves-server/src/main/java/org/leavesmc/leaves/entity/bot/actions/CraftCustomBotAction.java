@@ -11,7 +11,7 @@ import org.leavesmc.leaves.entity.bot.action.CustomBotAction;
 
 import java.util.List;
 
-public class CraftCustomBotAction implements CustomBotAction {
+public class CraftCustomBotAction extends CraftBotAction implements CustomBotAction {
 
     private final ServerCustomBotAction serverAction;
     private final CustomBotAction realAction;

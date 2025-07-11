@@ -2,13 +2,14 @@ package org.leavesmc.leaves.entity.bot.actions;
 
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
+import org.leavesmc.leaves.bot.agent.actions.ServerBotAction;
 import org.leavesmc.leaves.bot.agent.actions.ServerSwimAction;
 import org.leavesmc.leaves.entity.bot.action.SwimAction;
 
 import java.util.UUID;
 import java.util.function.Consumer;
 
-public class CraftSwimAction implements SwimAction {
+public class CraftSwimAction extends CraftBotAction implements SwimAction {
     private final ServerSwimAction serverAction;
     private Consumer<SwimAction> onFail = null;
     private Consumer<SwimAction> onSuccess = null;
@@ -20,6 +21,11 @@ public class CraftSwimAction implements SwimAction {
 
     public boolean doTick(@NotNull ServerBot bot) {
         return serverAction.doTick(bot);
+    }
+
+    @Override
+    public ServerBotAction<?> getHandle() {
+        return serverAction;
     }
 
     @Override

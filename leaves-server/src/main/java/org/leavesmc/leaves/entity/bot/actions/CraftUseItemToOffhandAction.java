@@ -2,13 +2,14 @@ package org.leavesmc.leaves.entity.bot.actions;
 
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
+import org.leavesmc.leaves.bot.agent.actions.ServerBotAction;
 import org.leavesmc.leaves.bot.agent.actions.ServerUseItemToOffhandAction;
 import org.leavesmc.leaves.entity.bot.action.UseItemToOffhandAction;
 
 import java.util.UUID;
 import java.util.function.Consumer;
 
-public class CraftUseItemToOffhandAction implements UseItemToOffhandAction {
+public class CraftUseItemToOffhandAction extends CraftBotAction implements UseItemToOffhandAction {
     private final ServerUseItemToOffhandAction serverAction;
     private Consumer<UseItemToOffhandAction> onFail = null;
     private Consumer<UseItemToOffhandAction> onSuccess = null;
@@ -20,6 +21,11 @@ public class CraftUseItemToOffhandAction implements UseItemToOffhandAction {
 
     public boolean doTick(@NotNull ServerBot bot) {
         return serverAction.doTick(bot);
+    }
+
+    @Override
+    public ServerBotAction<?> getHandle() {
+        return serverAction;
     }
 
     @Override

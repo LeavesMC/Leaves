@@ -2,13 +2,14 @@ package org.leavesmc.leaves.entity.bot.actions;
 
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
+import org.leavesmc.leaves.bot.agent.actions.ServerBotAction;
 import org.leavesmc.leaves.bot.agent.actions.ServerSneakAction;
 import org.leavesmc.leaves.entity.bot.action.SneakAction;
 
 import java.util.UUID;
 import java.util.function.Consumer;
 
-public class CraftSneakAction implements SneakAction {
+public class CraftSneakAction extends CraftBotAction implements SneakAction {
     private final ServerSneakAction serverAction;
     private Consumer<SneakAction> onFail = null;
     private Consumer<SneakAction> onSuccess = null;
@@ -20,6 +21,11 @@ public class CraftSneakAction implements SneakAction {
 
     public boolean doTick(@NotNull ServerBot bot) {
         return serverAction.doTick(bot);
+    }
+
+    @Override
+    public ServerBotAction<?> getHandle() {
+        return serverAction;
     }
 
     @Override

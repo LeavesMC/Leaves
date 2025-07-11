@@ -3,20 +3,15 @@ package org.leavesmc.leaves.entity.bot.actions;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.bot.agent.actions.ServerCustomBotAction;
 import org.leavesmc.leaves.bot.agent.actions.ServerCustomStateBotAction;
-import org.leavesmc.leaves.bot.agent.actions.ServerStateBotAction;
-import org.leavesmc.leaves.command.CommandArgument;
 import org.leavesmc.leaves.entity.bot.Bot;
 import org.leavesmc.leaves.entity.bot.CraftBot;
-import org.leavesmc.leaves.entity.bot.action.AbstractCustomBotAction;
 import org.leavesmc.leaves.entity.bot.action.AbstractCustomStateBotAction;
 import org.leavesmc.leaves.entity.bot.action.CustomBotAction;
 
 import java.util.List;
 
-public class CraftCustomStateBotAction implements CustomBotAction {
+public class CraftCustomStateBotAction extends CraftBotAction implements CustomBotAction {
 
     private final ServerCustomStateBotAction serverAction;
     private final CustomBotAction realAction;

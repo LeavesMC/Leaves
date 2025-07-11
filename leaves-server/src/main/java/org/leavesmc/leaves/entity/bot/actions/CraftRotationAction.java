@@ -2,13 +2,14 @@ package org.leavesmc.leaves.entity.bot.actions;
 
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
+import org.leavesmc.leaves.bot.agent.actions.ServerBotAction;
 import org.leavesmc.leaves.bot.agent.actions.ServerRotationAction;
 import org.leavesmc.leaves.entity.bot.action.RotationAction;
 
 import java.util.UUID;
 import java.util.function.Consumer;
 
-public class CraftRotationAction implements RotationAction {
+public class CraftRotationAction extends CraftBotAction implements RotationAction {
     private final ServerRotationAction serverAction;
     private Consumer<RotationAction> onFail = null;
     private Consumer<RotationAction> onSuccess = null;
@@ -20,6 +21,11 @@ public class CraftRotationAction implements RotationAction {
 
     public boolean doTick(@NotNull ServerBot bot) {
         return serverAction.doTick(bot);
+    }
+
+    @Override
+    public ServerBotAction<?> getHandle() {
+        return serverAction;
     }
 
     @Override

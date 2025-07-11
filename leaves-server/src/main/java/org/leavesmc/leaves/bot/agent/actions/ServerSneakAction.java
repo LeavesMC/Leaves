@@ -5,8 +5,9 @@ import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.command.CommandArgument;
 import org.leavesmc.leaves.entity.bot.action.SneakAction;
 import org.leavesmc.leaves.entity.bot.actions.CraftSneakAction;
+import org.leavesmc.leaves.event.bot.BotActionStopEvent;
 
-public class ServerSneakAction extends ServerBotAction<ServerSneakAction> {
+public class ServerSneakAction extends ServerStateBotAction<ServerSneakAction> {
 
     public ServerSneakAction() {
         super("sneak", CommandArgument.EMPTY, ServerSneakAction::new);
@@ -14,8 +15,15 @@ public class ServerSneakAction extends ServerBotAction<ServerSneakAction> {
 
     @Override
     public boolean doTick(@NotNull ServerBot bot) {
-        bot.setShiftKeyDown(!bot.isShiftKeyDown());
+        if (bot.isShiftKeyDown()) return false;
+
+        bot.setShiftKeyDown(true);
         return true;
+    }
+
+    @Override
+    public void onStop(@NotNull ServerBot bot, BotActionStopEvent.Reason reason) {
+        bot.setShiftKeyDown(false);
     }
 
     @Override

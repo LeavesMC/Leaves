@@ -1,11 +1,9 @@
-package org.leavesmc.leaves.entity;
+package org.leavesmc.leaves.entity.photographer;
 
 import com.google.common.collect.Lists;
 import org.bukkit.Location;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.leavesmc.leaves.entity.photographer.Photographer;
-import org.leavesmc.leaves.entity.photographer.PhotographerManager;
 import org.leavesmc.leaves.replay.BukkitRecorderOption;
 import org.leavesmc.leaves.replay.RecorderOption;
 import org.leavesmc.leaves.replay.ServerPhotographer;

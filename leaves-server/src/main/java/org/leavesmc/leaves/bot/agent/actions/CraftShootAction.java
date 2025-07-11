@@ -14,7 +14,7 @@ import org.leavesmc.leaves.entity.bot.action.ShootAction;
 
 import java.util.Collections;
 
-public class CraftShootAction extends CraftTimerBotAction<ShootAction> implements ShootAction {
+public class CraftShootAction extends ServerTimerBotAction<ShootAction> implements ShootAction {
 
     private static final int DEFAULT_DRAWING_TICK = 20;
     private int drawingTick = DEFAULT_DRAWING_TICK;

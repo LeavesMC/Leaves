@@ -5,7 +5,7 @@ import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.entity.bot.action.UseItemOffHandAction;
 
-public class CraftUseItemOffHandAction extends CraftTimerBotAction<UseItemOffHandAction> implements UseItemOffHandAction {
+public class CraftUseItemOffHandAction extends ServerTimerBotAction<UseItemOffHandAction> implements UseItemOffHandAction {
 
     public CraftUseItemOffHandAction() {
         super("use_offhand", CraftUseItemOffHandAction::new);

@@ -14,7 +14,7 @@ import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.entity.bot.action.UseItemOnAction;
 import org.leavesmc.leaves.plugin.MinecraftInternalPlugin;
 
-public class CraftUseItemOnAction extends CraftTimerBotAction<UseItemOnAction> implements UseItemOnAction {
+public class CraftUseItemOnAction extends ServerTimerBotAction<UseItemOnAction> implements UseItemOnAction {
 
     public CraftUseItemOnAction() {
         super("use_on", CraftUseItemOnAction::new);

@@ -14,7 +14,7 @@ import java.text.DecimalFormat;
 import java.util.List;
 import java.util.Objects;
 
-public class CraftRotationAction extends CraftBotAction<RotationAction> implements RotationAction {
+public class CraftRotationAction extends ServerBotAction<RotationAction> implements RotationAction {
 
     private static final DecimalFormat DF = new DecimalFormat("0.00");
 

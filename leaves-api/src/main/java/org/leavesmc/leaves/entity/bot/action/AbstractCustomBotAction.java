@@ -3,13 +3,15 @@ package org.leavesmc.leaves.entity.bot.action;
 import java.util.UUID;
 import java.util.function.Consumer;
 
-public abstract class AbstractCustomBotAction implements BotAction<AbstractCustomBotAction>, CustomBotAction<AbstractCustomBotAction> {
+public abstract class AbstractCustomBotAction<T extends AbstractCustomBotAction<T>> implements BotAction<T>, CustomBotAction {
     private boolean cancelled = false;
-    private Consumer<AbstractCustomBotAction> onFail = null, onSuccess = null, onStop = null;
+    private Consumer<T> onFail = null;
+    private Consumer<T> onSuccess = null;
+    private Consumer<T> onStop = null;
 
     @Override
     public final UUID getUUID() {
-        throw  new UnsupportedOperationException("getUUID() is not supported in CustomBotAction");
+        throw new UnsupportedOperationException("getUUID() is not supported in CustomBotAction");
     }
 
     @Override
@@ -23,32 +25,32 @@ public abstract class AbstractCustomBotAction implements BotAction<AbstractCusto
     }
 
     @Override
-    public void setOnFail(Consumer<AbstractCustomBotAction> onFail) {
+    public void setOnFail(Consumer<T> onFail) {
         this.onFail = onFail;
     }
 
     @Override
-    public Consumer<AbstractCustomBotAction> getOnFail() {
+    public Consumer<T> getOnFail() {
         return onFail;
     }
 
     @Override
-    public void setOnSuccess(Consumer<AbstractCustomBotAction> onSuccess) {
+    public void setOnSuccess(Consumer<T> onSuccess) {
         this.onSuccess = onSuccess;
     }
 
     @Override
-    public Consumer<AbstractCustomBotAction> getOnSuccess() {
+    public Consumer<T> getOnSuccess() {
         return onSuccess;
     }
 
     @Override
-    public void setOnStop(Consumer<AbstractCustomBotAction> onStop) {
+    public void setOnStop(Consumer<T> onStop) {
         this.onStop = onStop;
     }
 
     @Override
-    public Consumer<AbstractCustomBotAction> getOnStop() {
+    public Consumer<T> getOnStop() {
         return onStop;
     }
 }

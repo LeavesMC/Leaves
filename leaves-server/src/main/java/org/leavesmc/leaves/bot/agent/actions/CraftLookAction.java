@@ -16,7 +16,7 @@ import org.leavesmc.leaves.entity.bot.action.LookAction;
 import java.text.DecimalFormat;
 import java.util.List;
 
-public class CraftLookAction extends CraftBotAction<LookAction> implements LookAction {
+public class CraftLookAction extends ServerBotAction<LookAction> implements LookAction {
 
     private static final DecimalFormat DF = new DecimalFormat("0.0");
     private static final Vector ZERO_VECTOR = new Vector(0, 0, 0);

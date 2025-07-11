@@ -14,7 +14,7 @@ import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.entity.bot.action.UseItemOnOffhandAction;
 import org.leavesmc.leaves.plugin.MinecraftInternalPlugin;
 
-public class CraftUseItemOnOffhandAction extends CraftTimerBotAction<UseItemOnOffhandAction> implements UseItemOnOffhandAction {
+public class CraftUseItemOnOffhandAction extends ServerTimerBotAction<UseItemOnOffhandAction> implements UseItemOnOffhandAction {
 
     public CraftUseItemOnOffhandAction() {
         super("use_on_offhand", CraftUseItemOnOffhandAction::new);

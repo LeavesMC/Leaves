@@ -5,7 +5,7 @@ import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.command.CommandArgument;
 import org.leavesmc.leaves.entity.bot.action.SneakAction;
 
-public class CraftSneakAction extends CraftBotAction<SneakAction> implements SneakAction {
+public class CraftSneakAction extends ServerBotAction<SneakAction> implements SneakAction {
 
     public CraftSneakAction() {
         super("sneak", CommandArgument.EMPTY, CraftSneakAction::new);

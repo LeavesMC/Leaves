@@ -8,16 +8,12 @@ import org.bukkit.craftbukkit.block.CraftBlock;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.entity.bot.action.BreakBlockAction;
+import org.leavesmc.leaves.entity.bot.actions.CraftBreakBlockAction;
 
-public class CraftBreakBlockAction extends CraftTimerBotAction<BreakBlockAction> implements BreakBlockAction {
+public class ServerBreakBlockAction extends ServerTimerBotAction<ServerBreakBlockAction> {
 
-    public CraftBreakBlockAction() {
-        super("break", CraftBreakBlockAction::new);
-    }
-
-    @Override
-    public @NotNull Class<BreakBlockAction> getActionRegClass() {
-        return BreakBlockAction.class;
+    public ServerBreakBlockAction() {
+        super("break", ServerBreakBlockAction::new);
     }
 
     private BlockPos lastPos = null;
@@ -77,5 +73,16 @@ public class CraftBreakBlockAction extends CraftTimerBotAction<BreakBlockAction>
         }
 
         return f;
+    }
+
+
+    @Override
+    public @NotNull Class<BreakBlockAction> getActionClass() {
+        return BreakBlockAction.class;
+    }
+
+    @Override
+    public Object asCraft() {
+        return new CraftBreakBlockAction(this);
     }
 }

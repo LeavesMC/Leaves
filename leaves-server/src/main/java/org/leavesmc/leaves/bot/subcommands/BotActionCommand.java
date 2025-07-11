@@ -11,12 +11,16 @@ import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.bot.BotList;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.bot.agent.Actions;
-import org.leavesmc.leaves.bot.agent.actions.CraftBotAction;
-import org.leavesmc.leaves.bot.agent.actions.CraftCustomAction;
+import org.leavesmc.leaves.bot.agent.actions.ServerBotAction;
+import org.leavesmc.leaves.bot.agent.actions.ServerCustomBotAction;
+import org.leavesmc.leaves.bot.agent.actions.ServerCustomStateBotAction;
+import org.leavesmc.leaves.bot.agent.actions.ServerCustomTimerBotAction;
 import org.leavesmc.leaves.command.LeavesSubcommand;
 import org.leavesmc.leaves.command.LeavesSuggestionBuilder;
+import org.leavesmc.leaves.entity.bot.action.AbstractCustomBotAction;
 import org.leavesmc.leaves.event.bot.BotActionStopEvent;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -52,7 +56,7 @@ public class BotActionCommand implements LeavesSubcommand {
     }
 
     private void executeStart(ServerBot bot, CommandSender sender, String[] args) {
-        CraftBotAction<?> action = Actions.getForName(args[2]);
+        ServerBotAction<?> action = Actions.getForName(args[2]);
         if (action == null) {
             sender.sendMessage(text("Invalid action", NamedTextColor.RED));
             return;
@@ -66,17 +70,36 @@ public class BotActionCommand implements LeavesSubcommand {
         }
 
         String[] realArgs = Arrays.copyOfRange(args, 3, args.length);
-        CraftBotAction<?> newAction;
+        ServerBotAction<?> newAction;
         try {
-            if (action instanceof CraftCustomAction<?> customBotAction) {
-                newAction = (CraftBotAction<?>) customBotAction.createCraft(player, realArgs);
-            } else {
-                newAction = (CraftBotAction<?>) action.create();
+            switch (action) {
+                case ServerCustomBotAction act -> {
+                    AbstractCustomBotAction<?> customAction = (AbstractCustomBotAction<?>) act.getRealAction().getClass().getConstructor().newInstance();
+                    ServerCustomBotAction serverAction = new ServerCustomBotAction(customAction.getName(), customAction);
+                    serverAction.loadRealActionCommand(player, realArgs);
+                    newAction = serverAction;
+                }
+                case ServerCustomTimerBotAction act -> {
+                    AbstractCustomBotAction<?> customAction = (AbstractCustomBotAction<?>) act.getRealAction().getClass().getConstructor().newInstance();
+                    ServerCustomTimerBotAction serverAction = new ServerCustomTimerBotAction(customAction.getName(), customAction);
+                    serverAction.loadRealActionCommand(player, realArgs);
+                    newAction = serverAction;
+                }
+                case ServerCustomStateBotAction act -> {
+                    AbstractCustomBotAction<?> customAction = (AbstractCustomBotAction<?>) act.getRealAction().getClass().getConstructor().newInstance();
+                    ServerCustomStateBotAction serverAction = new ServerCustomStateBotAction(customAction.getName(), customAction);
+                    serverAction.loadRealActionCommand(player, realArgs);
+                    newAction = serverAction;
+                }
+                default -> newAction = action.create();
             }
             newAction.loadCommand(player.getHandle(), action.getArgument().parse(0, realArgs));
         } catch (IllegalArgumentException e) {
             sender.sendMessage(text("Action create error, please check your arguments, " + e.getMessage(), NamedTextColor.RED));
             return;
+        } catch (InvocationTargetException | InstantiationException | IllegalAccessException | NoSuchMethodException e) {
+            sender.sendMessage(text("Action create error, the action is declared wrongly!"));
+            throw new RuntimeException(e);
         }
 
         if (bot.addBotAction(newAction, sender)) {
@@ -92,9 +115,9 @@ public class BotActionCommand implements LeavesSubcommand {
 
         String index = args[2];
         if (index.equals("all")) {
-            Set<CraftBotAction<?>> forRemoval = new HashSet<>();
+            Set<ServerBotAction<?>> forRemoval = new HashSet<>();
             for (int i = 0; i < bot.getBotActions().size(); i++) {
-                CraftBotAction<?> action = bot.getBotActions().get(i);
+                ServerBotAction<?> action = bot.getBotActions().get(i);
                 BotActionStopEvent event = new BotActionStopEvent(
                     bot.getBukkitEntity(), action.getName(), action.getUUID(), BotActionStopEvent.Reason.COMMAND, sender
                 );
@@ -115,7 +138,7 @@ public class BotActionCommand implements LeavesSubcommand {
                 return;
             }
 
-            CraftBotAction<?> action = bot.getBotActions().get(i);
+            ServerBotAction<?> action = bot.getBotActions().get(i);
             BotActionStopEvent event = new BotActionStopEvent(
                 bot.getBukkitEntity(), action.getName(), action.getUUID(), BotActionStopEvent.Reason.COMMAND, sender
             );
@@ -155,7 +178,7 @@ public class BotActionCommand implements LeavesSubcommand {
                 }
             }
             case 4, 5, 6, 7 -> {
-                CraftBotAction<?> action = Actions.getForName(args[2]);
+                ServerBotAction<?> action = Actions.getForName(args[2]);
                 if (action == null) {
                     return;
                 }

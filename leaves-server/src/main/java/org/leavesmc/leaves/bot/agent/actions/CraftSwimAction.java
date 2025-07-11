@@ -6,7 +6,7 @@ import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.command.CommandArgument;
 import org.leavesmc.leaves.entity.bot.action.SwimAction;
 
-public class CraftSwimAction extends CraftStateBotAction<SwimAction> implements SwimAction {
+public class CraftSwimAction extends ServerStateBotAction<SwimAction> implements SwimAction {
 
     public CraftSwimAction() {
         super("swim", CommandArgument.EMPTY, CraftSwimAction::new);

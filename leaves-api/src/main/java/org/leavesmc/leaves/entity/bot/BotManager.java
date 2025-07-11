@@ -43,7 +43,7 @@ public interface BotManager {
      * @param action action executor
      * @return true if success, or false
      */
-    boolean registerCustomBotAction(CustomBotAction<?> action);
+    boolean registerCustomBotAction(CustomBotAction action);
 
     /**
      * Unregister a custom bot action.

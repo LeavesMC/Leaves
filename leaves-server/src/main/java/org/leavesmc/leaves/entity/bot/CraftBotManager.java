@@ -1,4 +1,4 @@
-package org.leavesmc.leaves.entity;
+package org.leavesmc.leaves.entity.bot;
 
 import com.google.common.collect.Lists;
 import net.minecraft.server.MinecraftServer;
@@ -9,14 +9,13 @@ import org.leavesmc.leaves.bot.BotCreateState;
 import org.leavesmc.leaves.bot.BotList;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.bot.agent.Actions;
-import org.leavesmc.leaves.bot.agent.actions.CraftBotAction;
-import org.leavesmc.leaves.bot.agent.actions.CraftCustomAction;
-import org.leavesmc.leaves.bot.agent.actions.CraftCustomBotAction;
-import org.leavesmc.leaves.bot.agent.actions.CraftCustomStateBotAction;
-import org.leavesmc.leaves.bot.agent.actions.CraftCustomTimerBotAction;
-import org.leavesmc.leaves.entity.bot.Bot;
-import org.leavesmc.leaves.entity.bot.BotCreator;
-import org.leavesmc.leaves.entity.bot.BotManager;
+import org.leavesmc.leaves.bot.agent.actions.ServerBotAction;
+import org.leavesmc.leaves.bot.agent.actions.ServerCustomBotAction;
+import org.leavesmc.leaves.bot.agent.actions.ServerCustomStateBotAction;
+import org.leavesmc.leaves.bot.agent.actions.ServerCustomTimerBotAction;
+import org.leavesmc.leaves.entity.bot.actions.CraftCustomBotAction;
+import org.leavesmc.leaves.entity.bot.actions.CraftCustomStateBotAction;
+import org.leavesmc.leaves.entity.bot.actions.CraftCustomTimerBotAction;
 import org.leavesmc.leaves.entity.bot.action.BotAction;
 import org.leavesmc.leaves.entity.bot.action.AbstractCustomBotAction;
 import org.leavesmc.leaves.entity.bot.action.AbstractCustomStateBotAction;
@@ -65,23 +64,20 @@ public class CraftBotManager implements BotManager {
     }
 
     @Override
-    public boolean registerCustomBotAction(CustomBotAction<?> action) {
+    public boolean registerCustomBotAction(CustomBotAction action) {
         return switch (action) {
-            case AbstractCustomBotAction act -> Actions.register(new CraftCustomBotAction(act.getName(), act));
-            case AbstractCustomStateBotAction act -> Actions.register(new CraftCustomStateBotAction(act.getName(), act));
-            case AbstractCustomTimerBotAction act -> Actions.register(new CraftCustomTimerBotAction(act.getName(), act));
-            case CraftCustomBotAction craftAction -> Actions.register(craftAction);
-            case null, default -> throw new IllegalArgumentException("Unsupported action type: " + action);
+            case AbstractCustomBotAction<?> act -> Actions.register(new ServerCustomBotAction(act.getName(), act));
+            case AbstractCustomStateBotAction<?> act -> Actions.register(new ServerCustomStateBotAction(act.getName(), act));
+            case AbstractCustomTimerBotAction<?> act -> Actions.register(new ServerCustomTimerBotAction(act.getName(), act));
+            default -> throw new IllegalArgumentException("Unsupported action type: " + action);
         };
     }
 
     @Override
     public boolean unregisterCustomBotAction(String name) {
-        CraftBotAction<?> action = Actions.getForName(name);
-        if (action instanceof CraftCustomAction) {
-            return Actions.unregister(name);
-        }
-        return false;
+        ServerBotAction<?> action = Actions.getForName(name);
+        if (!(action instanceof CustomBotAction)) return false;
+        return Actions.unregister(name);
     }
 
     @SuppressWarnings("unchecked")
@@ -92,12 +88,10 @@ public class CraftBotManager implements BotManager {
         } catch (InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
             throw new RuntimeException(e);
         }
-        T action = Actions.getForClass(type);
-        if (action == null) {
-            throw new IllegalArgumentException("No action registered for type: " + type.getName());
-        }
+        ServerBotAction<?> action = Actions.getForClass(type);
+        if (action == null) throw new IllegalArgumentException("No action registered for type: " + type.getName());
         try {
-            return (T) ((CraftBotAction<?>) action).create();
+            return (T) action.create().asCraft();
         } catch (Exception e) {
             throw new RuntimeException("Failed to create action of type: " + type.getName(), e);
         }

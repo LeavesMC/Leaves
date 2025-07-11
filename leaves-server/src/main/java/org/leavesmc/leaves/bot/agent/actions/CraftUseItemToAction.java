@@ -6,7 +6,7 @@ import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.entity.bot.action.UseItemToAction;
 
-public class CraftUseItemToAction extends CraftTimerBotAction<UseItemToAction> implements UseItemToAction {
+public class CraftUseItemToAction extends ServerTimerBotAction<UseItemToAction> implements UseItemToAction {
 
     public CraftUseItemToAction() {
         super("use_to", CraftUseItemToAction::new);

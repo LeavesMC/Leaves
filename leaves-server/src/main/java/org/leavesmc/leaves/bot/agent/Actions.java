@@ -3,10 +3,10 @@ package org.leavesmc.leaves.bot.agent;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.leavesmc.leaves.bot.agent.actions.CraftAttackAction;
-import org.leavesmc.leaves.bot.agent.actions.CraftBotAction;
-import org.leavesmc.leaves.bot.agent.actions.CraftBreakBlockAction;
-import org.leavesmc.leaves.bot.agent.actions.CraftDropAction;
+import org.leavesmc.leaves.bot.agent.actions.ServerAttackAction;
+import org.leavesmc.leaves.bot.agent.actions.ServerBotAction;
+import org.leavesmc.leaves.bot.agent.actions.ServerBreakBlockAction;
+import org.leavesmc.leaves.bot.agent.actions.ServerDropAction;
 import org.leavesmc.leaves.bot.agent.actions.CraftFishAction;
 import org.leavesmc.leaves.bot.agent.actions.CraftJumpAction;
 import org.leavesmc.leaves.bot.agent.actions.CraftLookAction;
@@ -23,7 +23,6 @@ import org.leavesmc.leaves.bot.agent.actions.CraftUseItemOnAction;
 import org.leavesmc.leaves.bot.agent.actions.CraftUseItemOnOffhandAction;
 import org.leavesmc.leaves.bot.agent.actions.CraftUseItemToAction;
 import org.leavesmc.leaves.bot.agent.actions.CraftUseItemToOffhandAction;
-import org.leavesmc.leaves.entity.bot.action.BotAction;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -32,13 +31,13 @@ import java.util.Set;
 
 public class Actions {
 
-    private static final Map<String, CraftBotAction<?>> actionsByName = new HashMap<>();
-    private static final Map<Class<?>, CraftBotAction<?>> actionsByClass = new HashMap<>();
+    private static final Map<String, ServerBotAction<?>> actionsByName = new HashMap<>();
+    private static final Map<Class<?>, ServerBotAction<?>> actionsByClass = new HashMap<>();
 
     public static void registerAll() {
-        register(new CraftAttackAction());
-        register(new CraftBreakBlockAction());
-        register(new CraftDropAction());
+        register(new ServerAttackAction());
+        register(new ServerBreakBlockAction());
+        register(new ServerDropAction());
         register(new CraftJumpAction());
         register(new CraftSneakAction());
         register(new CraftUseItemAction());
@@ -57,10 +56,10 @@ public class Actions {
         register(new CraftMoveAction());
     }
 
-    public static boolean register(@NotNull CraftBotAction<?> action) {
+    public static boolean register(@NotNull ServerBotAction<?> action) {
         if (!actionsByName.containsKey(action.getName())) {
             actionsByName.put(action.getName(), action);
-            actionsByClass.put(action.getActionRegClass(), action);
+            actionsByClass.put(action.getActionClass(), action);
             return true;
         }
         return false;
@@ -68,7 +67,7 @@ public class Actions {
 
     public static boolean unregister(@NotNull String name) {
         if (actionsByName.containsKey(name)) {
-            actionsByClass.remove(actionsByName.get(name).getActionRegClass());
+            actionsByClass.remove(actionsByName.get(name).getActionClass());
             actionsByName.remove(name);
             return true;
         }
@@ -77,7 +76,7 @@ public class Actions {
 
     @NotNull
     @Contract(pure = true)
-    public static Collection<CraftBotAction<?>> getAll() {
+    public static Collection<ServerBotAction<?>> getAll() {
         return actionsByName.values();
     }
 
@@ -87,13 +86,12 @@ public class Actions {
     }
 
     @Nullable
-    public static CraftBotAction<?> getForName(String name) {
+    public static ServerBotAction<?> getForName(String name) {
         return actionsByName.get(name);
     }
 
-    @SuppressWarnings("unchecked")
     @Nullable
-    public static <T extends BotAction<T>> T getForClass(@NotNull Class<T> type) {
-        return (T) actionsByClass.get(type);
+    public static ServerBotAction<?> getForClass(@NotNull Class<?> type) {
+        return actionsByClass.get(type);
     }
 }

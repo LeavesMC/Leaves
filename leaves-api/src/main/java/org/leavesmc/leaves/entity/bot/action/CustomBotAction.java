@@ -11,7 +11,7 @@ import java.util.List;
 /**
  * Represents a class which contains methods for a custom bot action
  */
-public interface CustomBotAction<T> extends BotAction<T> {
+public interface CustomBotAction {
 
     /**
      * Executes the action, returning its success.
@@ -22,13 +22,12 @@ public interface CustomBotAction<T> extends BotAction<T> {
     boolean doTick(Bot bot);
 
     /**
-     * Created a new action instance.
+     * Loads the action with given arguments.
      *
      * @param player player who create this action
      * @param args   passed action arguments
-     * @return a new action instance with given args
      */
-    @Nullable T getNew(@Nullable Player player, String[] args);
+    void loadCommand(@Nullable Player player, String[] args);
 
     /**
      * Requests a list of possible completions for a action argument.

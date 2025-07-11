@@ -13,7 +13,7 @@ import org.leavesmc.leaves.event.bot.BotActionStopEvent;
 import java.util.Arrays;
 import java.util.List;
 
-public class CraftMoveAction extends CraftStateBotAction<MoveAction> implements MoveAction {
+public class CraftMoveAction extends ServerStateBotAction<MoveAction> implements MoveAction {
     private static final Pair<List<String>, String> suggestions = Pair.of(
         Arrays.stream(MoveDirection.values()).map((it) -> it.name).toList(),
         "<Direction>"

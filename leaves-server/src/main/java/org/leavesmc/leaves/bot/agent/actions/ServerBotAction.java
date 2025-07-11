@@ -9,7 +9,6 @@ import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.command.CommandArgument;
 import org.leavesmc.leaves.command.CommandArgumentResult;
-import org.leavesmc.leaves.entity.bot.action.BotAction;
 import org.leavesmc.leaves.event.bot.BotActionExecuteEvent;
 import org.leavesmc.leaves.event.bot.BotActionStopEvent;
 
@@ -20,7 +19,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 @SuppressWarnings("unchecked")
-public abstract class CraftBotAction<E extends BotAction<E>> implements BotAction<E> {
+public abstract class ServerBotAction<E extends ServerBotAction<E>> {
 
     private final String name;
     private final CommandArgument argument;
@@ -39,17 +38,23 @@ public abstract class CraftBotAction<E extends BotAction<E>> implements BotActio
     private Consumer<E> onSuccess;
     private Consumer<E> onStop;
 
-    public CraftBotAction(String name, CommandArgument argument, Supplier<E> creator) {
+    public ServerBotAction(String name, CommandArgument argument, Supplier<E> creator) {
         this.name = name;
         this.argument = argument;
         this.uuid = UUID.randomUUID();
         this.creator = creator;
 
         this.cancel = false;
-        this.setStartDelayTick0(0);
-        this.setDoIntervalTick0(1);
-        this.setDoNumber0(1);
+        this.setStartDelayTick(0);
+        this.setDoIntervalTick(1);
+        this.setDoNumber(1);
     }
+
+    public abstract boolean doTick(@NotNull ServerBot bot);
+
+    public abstract Class<?> getActionClass();
+
+    public abstract Object asCraft();
 
     public void init() {
         this.tickToNext = initialTickDelay;
@@ -136,10 +141,6 @@ public abstract class CraftBotAction<E extends BotAction<E>> implements BotActio
     public void loadCommand(ServerPlayer player, @NotNull CommandArgumentResult result) {
     }
 
-    public abstract boolean doTick(@NotNull ServerBot bot);
-
-    public abstract @NotNull Class<? extends E> getActionRegClass();
-
     public void onStop(@NotNull ServerBot bot, BotActionStopEvent.Reason reason) {
     }
 
@@ -164,17 +165,15 @@ public abstract class CraftBotAction<E extends BotAction<E>> implements BotActio
         return this.argument;
     }
 
-    @Override
     public String getName() {
         return this.name;
     }
 
-    @Override
     public UUID getUUID() {
         return uuid;
     }
 
-    public void setStartDelayTick0(int initialTickDelay) {
+    public void setStartDelayTick(int initialTickDelay) {
         this.initialTickDelay = initialTickDelay;
     }
 
@@ -182,7 +181,7 @@ public abstract class CraftBotAction<E extends BotAction<E>> implements BotActio
         return this.initialTickDelay;
     }
 
-    public void setDoIntervalTick0(int initialTickInterval) {
+    public void setDoIntervalTick(int initialTickInterval) {
         this.initialTickInterval = Math.max(1, initialTickInterval);
     }
 
@@ -190,7 +189,7 @@ public abstract class CraftBotAction<E extends BotAction<E>> implements BotActio
         return this.initialTickInterval;
     }
 
-    public void setDoNumber0(int initialNumber) {
+    public void setDoNumber(int initialNumber) {
         this.initialNumber = Math.max(-1, initialNumber);
     }
 
@@ -206,42 +205,34 @@ public abstract class CraftBotAction<E extends BotAction<E>> implements BotActio
         return this.numberRemaining;
     }
 
-    @Override
     public boolean isCancelled() {
         return cancel;
     }
 
-    @Override
     public void setCancelled(boolean cancel) {
         this.cancel = cancel;
     }
 
-    @Override
     public void setOnFail(Consumer<E> onFail) {
         this.onFail = onFail;
     }
 
-    @Override
     public Consumer<E> getOnFail() {
         return onFail;
     }
 
-    @Override
     public void setOnSuccess(Consumer<E> onSuccess) {
         this.onSuccess = onSuccess;
     }
 
-    @Override
     public Consumer<E> getOnSuccess() {
         return onSuccess;
     }
 
-    @Override
     public void setOnStop(Consumer<E> onStop) {
         this.onStop = onStop;
     }
 
-    @Override
     public Consumer<E> getOnStop() {
         return onStop;
     }

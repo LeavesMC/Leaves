@@ -3,10 +3,14 @@ package org.leavesmc.leaves.entity.bot.action;
 import java.util.UUID;
 import java.util.function.Consumer;
 
-public abstract class AbstractCustomTimerBotAction implements TimerBotAction<AbstractCustomTimerBotAction>, CustomBotAction<AbstractCustomTimerBotAction> {
+public abstract class AbstractCustomTimerBotAction<T extends AbstractCustomTimerBotAction<T>> implements TimerBotAction<T>, CustomBotAction {
     private boolean cancelled = false;
-    private int startDelayTick = 0, doIntervalTick = 0, doNumber = 0;
-    private Consumer<AbstractCustomTimerBotAction> onFail = null, onSuccess = null, onStop = null;
+    private int startDelayTick = 0;
+    private int doIntervalTick = 0;
+    private int doNumber = 0;
+    private Consumer<T> onFail = null;
+    private Consumer<T> onSuccess = null;
+    private Consumer<T> onStop = null;
 
     @Override
     public final UUID getUUID() {
@@ -24,32 +28,32 @@ public abstract class AbstractCustomTimerBotAction implements TimerBotAction<Abs
     }
 
     @Override
-    public void setOnFail(Consumer<AbstractCustomTimerBotAction> onFail) {
+    public void setOnFail(Consumer<T> onFail) {
         this.onFail = onFail;
     }
 
     @Override
-    public Consumer<AbstractCustomTimerBotAction> getOnFail() {
+    public Consumer<T> getOnFail() {
         return onFail;
     }
 
     @Override
-    public void setOnSuccess(Consumer<AbstractCustomTimerBotAction> onSuccess) {
+    public void setOnSuccess(Consumer<T> onSuccess) {
         this.onSuccess = onSuccess;
     }
 
     @Override
-    public Consumer<AbstractCustomTimerBotAction> getOnSuccess() {
+    public Consumer<T> getOnSuccess() {
         return onSuccess;
     }
 
     @Override
-    public void setOnStop(Consumer<AbstractCustomTimerBotAction> onStop) {
+    public void setOnStop(Consumer<T> onStop) {
         this.onStop = onStop;
     }
 
     @Override
-    public Consumer<AbstractCustomTimerBotAction> getOnStop() {
+    public Consumer<T> getOnStop() {
         return onStop;
     }
 

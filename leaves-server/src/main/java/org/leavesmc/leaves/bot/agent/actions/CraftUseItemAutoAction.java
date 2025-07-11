@@ -7,7 +7,7 @@ import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.entity.bot.action.UseItemAutoAction;
 
-public class CraftUseItemAutoAction extends CraftTimerBotAction<UseItemAutoAction> implements UseItemAutoAction {
+public class CraftUseItemAutoAction extends ServerTimerBotAction<UseItemAutoAction> implements UseItemAutoAction {
 
     public CraftUseItemAutoAction() {
         super("use_auto", CraftUseItemAutoAction::new);

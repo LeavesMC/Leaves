@@ -9,8 +9,8 @@ import org.leavesmc.leaves.bot.BotCreateState;
 import org.leavesmc.leaves.bot.BotList;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.bot.agent.Actions;
-import org.leavesmc.leaves.bot.agent.actions.ServerBotAction;
-import org.leavesmc.leaves.entity.bot.action.BotAction;
+import org.leavesmc.leaves.bot.agent.actions.*;
+import org.leavesmc.leaves.entity.bot.action.*;
 import org.leavesmc.leaves.event.bot.BotCreateEvent;
 
 import java.util.Collection;
@@ -56,11 +56,14 @@ public class CraftBotManager implements BotManager {
     @Override
     public <T extends BotAction<T>> T newAction(@NotNull Class<T> type) {
         ServerBotAction<?> action = Actions.getForClass(type);
-        if (action == null) throw new IllegalArgumentException("No action registered for type: " + type.getName());
-        try {
-            return (T) action.create().asCraft();
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to create action of type: " + type.getName(), e);
+        if (action == null) {
+            throw new IllegalArgumentException("No action registered for type: " + type.getName());
+        } else {
+            try {
+                return (T) action.create().asCraft();
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to create action of type: " + type.getName(), e);
+            }
         }
     }
 

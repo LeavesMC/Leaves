@@ -16,7 +16,9 @@ public class ServerUseItemAutoAction extends ServerTimerBotAction<ServerUseItemA
 
     @Override
     public boolean doTick(@NotNull ServerBot bot) {
-        if (bot.isUsingItem()) return false;
+        if (bot.isUsingItem()) {
+            return false;
+        }
 
         Entity entity = bot.getTargetEntity(3, null);
         BlockHitResult blockHitResult = (BlockHitResult) bot.getRayTrace(5, ClipContext.Fluid.NONE);

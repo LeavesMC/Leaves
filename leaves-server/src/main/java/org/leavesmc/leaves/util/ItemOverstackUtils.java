@@ -160,14 +160,14 @@ public class ItemOverstackUtils {
             return -1;
         }
 
-        private boolean shulkerBoxCheck(@NotNull ItemStack stack1, @NotNull ItemStack stack2) {
+        public static boolean shulkerBoxCheck(@NotNull ItemStack stack1, @NotNull ItemStack stack2) {
             if (LeavesConfig.modify.shulkerBox.sameNbtStackable) {
                 return Objects.equals(stack1.getComponents(), stack2.getComponents());
             }
             return shulkerBoxNoItem(stack1) && shulkerBoxNoItem(stack2) && Objects.equals(stack1.getComponents(), stack2.getComponents());
         }
 
-        private boolean shulkerBoxNoItem(@NotNull ItemStack stack) {
+        public static boolean shulkerBoxNoItem(@NotNull ItemStack stack) {
             return stack.getComponents().getOrDefault(DataComponents.CONTAINER, ItemContainerContents.EMPTY).stream().findAny().isEmpty();
         }
     }
@@ -198,7 +198,7 @@ public class ItemOverstackUtils {
             return -1;
         }
 
-        private boolean isCursedEnchantedBook(ItemStack stack) {
+        public static boolean isCursedEnchantedBook(ItemStack stack) {
             ItemEnchantments enchantments = stack.getOrDefault(DataComponents.STORED_ENCHANTMENTS, ItemEnchantments.EMPTY);
             if (enchantments.size() != 1) {
                 return false;

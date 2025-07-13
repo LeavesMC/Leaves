@@ -56,7 +56,7 @@ import org.leavesmc.leaves.LeavesLogger;
 import org.leavesmc.leaves.bot.agent.AbstractBotConfig;
 import org.leavesmc.leaves.bot.agent.Actions;
 import org.leavesmc.leaves.bot.agent.Configs;
-import org.leavesmc.leaves.bot.agent.actions.ServerBotAction;
+import org.leavesmc.leaves.bot.agent.actions.*;
 import org.leavesmc.leaves.entity.bot.CraftBot;
 import org.leavesmc.leaves.event.bot.BotActionScheduleEvent;
 import org.leavesmc.leaves.event.bot.BotCreateEvent;
@@ -430,7 +430,7 @@ public class ServerBot extends ServerPlayer {
             actionNbt.forEach(actionTag -> {
                 ServerBotAction<?> action = Actions.getForName(actionTag.getString("actionName").orElseThrow());
                 if (action != null) {
-                    ServerBotAction<?> newAction = (ServerBotAction<?>) action.create();
+                    ServerBotAction<?> newAction = action.create();
                     newAction.load(actionTag);
                     this.actions.add(newAction);
                 }

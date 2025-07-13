@@ -2,9 +2,8 @@ package org.leavesmc.leaves.entity.bot.actions;
 
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.bot.agent.actions.ServerBotAction;
-import org.leavesmc.leaves.bot.agent.actions.ServerUseItemOnOffhandAction;
-import org.leavesmc.leaves.entity.bot.action.UseItemOnOffhandAction;
+import org.leavesmc.leaves.bot.agent.actions.*;
+import org.leavesmc.leaves.entity.bot.action.*;
 
 import java.util.UUID;
 import java.util.function.Consumer;

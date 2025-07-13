@@ -136,8 +136,8 @@ public class ElytraAeronauticsHelper {
                 serverPlayer.sendSystemMessage(Component.literal(LeavesConfig.modify.elytraAeronautics.endMessage), true);
             }
             try {
-                PlatformHooks.get().addPlayerToDistanceMaps((ServerLevel) serverPlayer.level(), serverPlayer);
-                ((ServerLevel) serverPlayer.level()).chunkSource.chunkMap.getDistanceManager().addPlayer(SectionPos.of(serverPlayer), serverPlayer);
+                PlatformHooks.get().addPlayerToDistanceMaps(serverPlayer.level(), serverPlayer);
+                serverPlayer.level().chunkSource.chunkMap.getDistanceManager().addPlayer(SectionPos.of(serverPlayer), serverPlayer);
             } catch (Exception ignored) {
             }
         }

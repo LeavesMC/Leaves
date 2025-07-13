@@ -3,7 +3,6 @@ package org.leavesmc.leaves.bot.agent.actions;
 import net.minecraft.world.entity.Entity;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.entity.bot.action.AttackAction;
 import org.leavesmc.leaves.entity.bot.actions.CraftAttackAction;
 
 public class ServerAttackAction extends ServerTimerBotAction<ServerAttackAction> {

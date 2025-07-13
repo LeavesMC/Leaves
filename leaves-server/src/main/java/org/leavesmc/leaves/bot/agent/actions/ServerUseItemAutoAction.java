@@ -5,7 +5,6 @@ import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.BlockHitResult;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.entity.bot.action.UseItemAutoAction;
 import org.leavesmc.leaves.entity.bot.actions.CraftUseItemAutoAction;
 
 public class ServerUseItemAutoAction extends ServerTimerBotAction<ServerUseItemAutoAction> {
@@ -22,12 +21,23 @@ public class ServerUseItemAutoAction extends ServerTimerBotAction<ServerUseItemA
 
         Entity entity = bot.getTargetEntity(3, null);
         BlockHitResult blockHitResult = (BlockHitResult) bot.getRayTrace(5, ClipContext.Fluid.NONE);
-        if (entity != null) {
-            return ServerUseItemToAction.execute(bot, entity);
-        } else if (!bot.level().getBlockState(blockHitResult.getBlockPos()).isAir()) {
-            return ServerUseItemOnAction.execute(bot, blockHitResult);
+        boolean mainSuccess, useTo = entity != null, useOn = !bot.level().getBlockState(blockHitResult.getBlockPos()).isAir();
+        if (useTo) {
+            mainSuccess = ServerUseItemToAction.execute(bot, entity) | ServerUseItemAction.execute(bot);
+        } else if (useOn) {
+            mainSuccess = ServerUseItemOnAction.execute(bot, blockHitResult) | ServerUseItemAction.execute(bot);
         } else {
-            return ServerUseItemAction.execute(bot);
+            mainSuccess = ServerUseItemAction.execute(bot);
+        }
+        if (mainSuccess) {
+            return true;
+        }
+        if (useTo) {
+            return ServerUseItemToOffhandAction.execute(bot, entity) | ServerUseItemOffhandAction.execute(bot);
+        } else if (useOn) {
+            return ServerUseItemOnOffhandAction.execute(bot, blockHitResult) | ServerUseItemOffhandAction.execute(bot);
+        } else {
+            return ServerUseItemOffhandAction.execute(bot);
         }
     }
 

@@ -20,6 +20,7 @@ public class BotRemoveEvent extends BotEvent implements Cancellable {
     private Component removeMessage;
     private boolean save;
     private boolean cancel = false;
+
     public BotRemoveEvent(@NotNull final Bot who, @NotNull RemoveReason reason, @Nullable CommandSender remover, @Nullable Component removeMessage, boolean save) {
         super(who);
         this.reason = reason;

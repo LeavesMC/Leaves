@@ -239,7 +239,7 @@ public final class LeavesConfig {
             public boolean armorStandCantKillByMobProjectile = false;
 
             @GlobalConfig(value = "villager-infinite-discounts", validator = VillagerInfiniteDiscountsValidator.class)
-            private boolean villagerInfiniteDiscounts = false;
+            private final boolean villagerInfiniteDiscounts = false;
 
             private static class VillagerInfiniteDiscountsValidator extends BooleanConfigValidator {
                 @Override
@@ -439,7 +439,7 @@ public final class LeavesConfig {
             public int shulkerBoxStackSize = 1;
             @RemovedConfig(name = "stackable-shulker-boxes", category = "modify", transform = true)
             @GlobalConfig(value = "stackable-shulker-boxes", validator = StackableShulkerValidator.class)
-            private String stackableShulkerBoxes = "false";
+            private final String stackableShulkerBoxes = "false";
 
             private static class StackableShulkerValidator extends StringConfigValidator {
                 @Override
@@ -617,7 +617,7 @@ public final class LeavesConfig {
         public boolean disableVaultBlacklist = false;
 
         @GlobalConfig(value = "exp-orb-absorb-mode", validator = ExpOrbModeValidator.class)
-        private ExpOrbAbsorbMode expOrbAbsorbMode = ExpOrbAbsorbMode.VANILLA;
+        private final ExpOrbAbsorbMode expOrbAbsorbMode = ExpOrbAbsorbMode.VANILLA;
 
         public Predicate<ServerPlayer> fastAbsorbPredicate = player -> false;
 
@@ -1008,7 +1008,7 @@ public final class LeavesConfig {
             public boolean loginProtect = false;
 
             @GlobalConfig(value = "urls", lock = true, validator = ExtraYggdrasilUrlsValidator.class)
-            private List<String> serviceList = List.of("https://url.with.authlib-injector-yggdrasil");
+            private final List<String> serviceList = List.of("https://url.with.authlib-injector-yggdrasil");
 
             public static class ExtraYggdrasilUrlsValidator extends ListConfigValidator.STRING {
                 @Override

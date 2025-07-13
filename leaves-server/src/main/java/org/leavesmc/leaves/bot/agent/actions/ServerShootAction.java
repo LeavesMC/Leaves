@@ -10,7 +10,6 @@ import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.command.CommandArgument;
 import org.leavesmc.leaves.command.CommandArgumentResult;
 import org.leavesmc.leaves.command.CommandArgumentType;
-import org.leavesmc.leaves.entity.bot.action.ShootAction;
 import org.leavesmc.leaves.entity.bot.actions.CraftShootAction;
 
 import java.util.Collections;

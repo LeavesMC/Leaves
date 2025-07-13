@@ -22,14 +22,13 @@ public class Actions {
         register(new ServerDropAction(), DropAction.class);
         register(new ServerJumpAction(), JumpAction.class);
         register(new ServerSneakAction(), SneakAction.class);
+        register(new ServerUseItemAutoAction(), UseItemAutoAction.class);
         register(new ServerUseItemAction(), UseItemAction.class);
         register(new ServerUseItemOnAction(), UseItemOnAction.class);
         register(new ServerUseItemToAction(), UseItemToAction.class);
-        register(new ServerUseItemAutoAction(), UseItemAutoAction.class);
         register(new ServerUseItemOffhandAction(), UseItemOffhandAction.class);
         register(new ServerUseItemOnOffhandAction(), UseItemOnOffhandAction.class);
         register(new ServerUseItemToOffhandAction(), UseItemToOffhandAction.class);
-        register(new ServerUseItemAutoOffhandAction(), UseItemAutoOffhandAction.class);
         register(new ServerLookAction.TO(), LookAction.class);
         register(new ServerLookAction.ON(), LookAction.class);
         register(new ServerFishAction(), FishAction.class);

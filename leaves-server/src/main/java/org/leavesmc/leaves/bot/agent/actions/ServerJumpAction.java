@@ -2,7 +2,6 @@ package org.leavesmc.leaves.bot.agent.actions;
 
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.entity.bot.action.JumpAction;
 import org.leavesmc.leaves.entity.bot.actions.CraftJumpAction;
 
 public class ServerJumpAction extends ServerTimerBotAction<ServerJumpAction> {

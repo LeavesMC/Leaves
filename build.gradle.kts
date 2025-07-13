@@ -46,6 +46,7 @@ subprojects {
 
     extensions.configure<PublishingExtension> {
         repositories {
+            mavenLocal()
             maven("https://repo.leavesmc.org/snapshots") {
                 name = "leaves"
                 credentials(PasswordCredentials::class) {

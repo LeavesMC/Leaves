@@ -4,11 +4,7 @@ import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.bot.agent.configs.AlwaysSendDataConfig;
-import org.leavesmc.leaves.bot.agent.configs.SimulationDistanceConfig;
-import org.leavesmc.leaves.bot.agent.configs.SkipSleepConfig;
-import org.leavesmc.leaves.bot.agent.configs.SpawnPhantomConfig;
-import org.leavesmc.leaves.bot.agent.configs.TickTypeConfig;
+import org.leavesmc.leaves.bot.agent.configs.*;
 
 import java.util.Collection;
 import java.util.HashMap;

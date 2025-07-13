@@ -14,8 +14,8 @@ import org.bukkit.craftbukkit.CraftWorld;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesLogger;
 import org.leavesmc.leaves.bot.BotStatsCounter;
-import org.leavesmc.leaves.entity.CraftPhotographer;
-import org.leavesmc.leaves.entity.Photographer;
+import org.leavesmc.leaves.entity.photographer.CraftPhotographer;
+import org.leavesmc.leaves.entity.photographer.Photographer;
 
 import java.io.File;
 import java.io.IOException;

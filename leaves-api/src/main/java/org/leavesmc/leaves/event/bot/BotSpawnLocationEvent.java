@@ -3,7 +3,7 @@ package org.leavesmc.leaves.event.bot;
 import org.bukkit.Location;
 import org.bukkit.event.HandlerList;
 import org.jetbrains.annotations.NotNull;
-import org.leavesmc.leaves.entity.Bot;
+import org.leavesmc.leaves.entity.bot.Bot;
 
 public class BotSpawnLocationEvent extends BotEvent {
 

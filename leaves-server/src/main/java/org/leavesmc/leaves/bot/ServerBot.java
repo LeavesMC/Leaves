@@ -53,11 +53,11 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.LeavesLogger;
-import org.leavesmc.leaves.bot.agent.AbstractBotAction;
 import org.leavesmc.leaves.bot.agent.AbstractBotConfig;
 import org.leavesmc.leaves.bot.agent.Actions;
 import org.leavesmc.leaves.bot.agent.Configs;
-import org.leavesmc.leaves.entity.CraftBot;
+import org.leavesmc.leaves.bot.agent.actions.*;
+import org.leavesmc.leaves.entity.bot.CraftBot;
 import org.leavesmc.leaves.event.bot.BotActionScheduleEvent;
 import org.leavesmc.leaves.event.bot.BotCreateEvent;
 import org.leavesmc.leaves.event.bot.BotDeathEvent;
@@ -76,7 +76,7 @@ import java.util.function.Predicate;
 
 public class ServerBot extends ServerPlayer {
 
-    private final List<AbstractBotAction<?>> actions;
+    private final List<ServerBotAction<?>> actions;
     private final Map<Configs<?>, AbstractBotConfig<?>> configs;
 
     public boolean resume = false;
@@ -388,7 +388,7 @@ public class ServerBot extends ServerPlayer {
 
         if (!this.actions.isEmpty()) {
             ValueOutput.TypedOutputList<CompoundTag> actionNbt = nbt.list("actions", CompoundTag.CODEC);
-            for (AbstractBotAction<?> action : this.actions) {
+            for (ServerBotAction<?> action : this.actions) {
                 actionNbt.add(action.save(new CompoundTag()));
             }
         }
@@ -428,9 +428,9 @@ public class ServerBot extends ServerPlayer {
         if (nbt.list("actions", CompoundTag.CODEC).isPresent()) {
             ValueInput.TypedInputList<CompoundTag> actionNbt = nbt.list("actions", CompoundTag.CODEC).orElseThrow();
             actionNbt.forEach(actionTag -> {
-                AbstractBotAction<?> action = Actions.getForName(actionTag.getString("actionName").orElseThrow());
+                ServerBotAction<?> action = Actions.getForName(actionTag.getString("actionName").orElseThrow());
                 if (action != null) {
-                    AbstractBotAction<?> newAction = action.create();
+                    ServerBotAction<?> newAction = action.create();
                     newAction.load(actionTag);
                     this.actions.add(newAction);
                 }
@@ -585,11 +585,11 @@ public class ServerBot extends ServerPlayer {
     private void runAction() {
         if (LeavesConfig.modify.fakeplayer.canUseAction) {
             this.actions.forEach(action -> action.tryTick(this));
-            this.actions.removeIf(AbstractBotAction::isCancelled);
+            this.actions.removeIf(ServerBotAction::isCancelled);
         }
     }
 
-    public boolean addBotAction(AbstractBotAction<?> action, CommandSender sender) {
+    public boolean addBotAction(ServerBotAction<?> action, CommandSender sender) {
         if (!LeavesConfig.modify.fakeplayer.canUseAction) {
             return false;
         }
@@ -603,7 +603,7 @@ public class ServerBot extends ServerPlayer {
         return true;
     }
 
-    public List<AbstractBotAction<?>> getBotActions() {
+    public List<ServerBotAction<?>> getBotActions() {
         return actions;
     }
 

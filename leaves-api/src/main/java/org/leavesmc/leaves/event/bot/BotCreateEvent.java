@@ -20,6 +20,7 @@ public class BotCreateEvent extends Event implements Cancellable {
     private final CommandSender creator;
     private Location createLocation;
     private boolean cancel = false;
+
     public BotCreateEvent(@NotNull final String who, @NotNull final String skin, @NotNull final Location createLocation, @NotNull CreateReason reason, @Nullable CommandSender creator) {
         this.bot = who;
         this.skin = skin;

@@ -3,26 +3,8 @@ package org.leavesmc.leaves.bot.agent;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.leavesmc.leaves.bot.agent.actions.AttackAction;
-import org.leavesmc.leaves.bot.agent.actions.BreakBlockAction;
-import org.leavesmc.leaves.bot.agent.actions.DropAction;
-import org.leavesmc.leaves.bot.agent.actions.FishAction;
-import org.leavesmc.leaves.bot.agent.actions.JumpAction;
-import org.leavesmc.leaves.bot.agent.actions.LookAction;
-import org.leavesmc.leaves.bot.agent.actions.MoveAction;
-import org.leavesmc.leaves.bot.agent.actions.RotateAction;
-import org.leavesmc.leaves.bot.agent.actions.RotationAction;
-import org.leavesmc.leaves.bot.agent.actions.ShootAction;
-import org.leavesmc.leaves.bot.agent.actions.SneakAction;
-import org.leavesmc.leaves.bot.agent.actions.SwimAction;
-import org.leavesmc.leaves.bot.agent.actions.UseItemAction;
-import org.leavesmc.leaves.bot.agent.actions.UseItemAutoAction;
-import org.leavesmc.leaves.bot.agent.actions.UseItemAutoOffhandAction;
-import org.leavesmc.leaves.bot.agent.actions.UseItemOffHandAction;
-import org.leavesmc.leaves.bot.agent.actions.UseItemOnAction;
-import org.leavesmc.leaves.bot.agent.actions.UseItemOnOffhandAction;
-import org.leavesmc.leaves.bot.agent.actions.UseItemToAction;
-import org.leavesmc.leaves.bot.agent.actions.UseItemToOffhandAction;
+import org.leavesmc.leaves.bot.agent.actions.*;
+import org.leavesmc.leaves.entity.bot.action.*;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -31,60 +13,63 @@ import java.util.Set;
 
 public class Actions {
 
-    private static final Map<String, AbstractBotAction<?>> actions = new HashMap<>();
+    private static final Map<String, ServerBotAction<?>> actionsByName = new HashMap<>();
+    private static final Map<Class<?>, ServerBotAction<?>> actionsByClass = new HashMap<>();
 
     public static void registerAll() {
-        register(new AttackAction());
-        register(new BreakBlockAction());
-        register(new DropAction());
-        register(new JumpAction());
-        register(new RotateAction());
-        register(new SneakAction());
-        register(new UseItemAction());
-        register(new UseItemOnAction());
-        register(new UseItemToAction());
-        register(new UseItemAutoAction());
-        register(new UseItemOffHandAction());
-        register(new UseItemOnOffhandAction());
-        register(new UseItemToOffhandAction());
-        register(new UseItemAutoOffhandAction());
-        register(new LookAction());
-        register(new FishAction());
-        register(new SwimAction());
-        register(new RotationAction());
-        register(new ShootAction());
-        register(new MoveAction());
+        register(new ServerAttackAction(), AttackAction.class);
+        register(new ServerBreakBlockAction(), BreakBlockAction.class);
+        register(new ServerDropAction(), DropAction.class);
+        register(new ServerJumpAction(), JumpAction.class);
+        register(new ServerSneakAction(), SneakAction.class);
+        register(new ServerUseItemAutoAction(), UseItemAutoAction.class);
+        register(new ServerUseItemAction(), UseItemAction.class);
+        register(new ServerUseItemOnAction(), UseItemOnAction.class);
+        register(new ServerUseItemToAction(), UseItemToAction.class);
+        register(new ServerUseItemOffhandAction(), UseItemOffhandAction.class);
+        register(new ServerUseItemOnOffhandAction(), UseItemOnOffhandAction.class);
+        register(new ServerUseItemToOffhandAction(), UseItemToOffhandAction.class);
+        register(new ServerLookAction.TO(), LookAction.class);
+        register(new ServerLookAction.ON(), LookAction.class);
+        register(new ServerFishAction(), FishAction.class);
+        register(new ServerSwimAction(), SwimAction.class);
+        register(new ServerRotationAction(), RotationAction.class);
+        register(new ServerShootAction(), ShootAction.class);
+        register(new ServerMoveAction(), MoveAction.class);
     }
 
-    public static boolean register(@NotNull AbstractBotAction<?> action) {
-        if (!actions.containsKey(action.getName())) {
-            actions.put(action.getName(), action);
+    public static boolean register(@NotNull ServerBotAction<?> action, Class<? extends BotAction<?>> type) {
+        if (!actionsByName.containsKey(action.getName())) {
+            actionsByName.put(action.getName(), action);
+            actionsByClass.put(type, action);
             return true;
         }
         return false;
     }
 
     public static boolean unregister(@NotNull String name) {
-        if (actions.containsKey(name)) {
-            actions.remove(name);
-            return true;
-        }
-        return false;
+        // TODO add in custom action api
+        return true;
     }
 
     @NotNull
     @Contract(pure = true)
-    public static Collection<AbstractBotAction<?>> getAll() {
-        return actions.values();
+    public static Collection<ServerBotAction<?>> getAll() {
+        return actionsByName.values();
     }
 
     @NotNull
     public static Set<String> getNames() {
-        return actions.keySet();
+        return actionsByName.keySet();
     }
 
     @Nullable
-    public static AbstractBotAction<?> getForName(String name) {
-        return actions.get(name);
+    public static ServerBotAction<?> getForName(String name) {
+        return actionsByName.get(name);
+    }
+
+    @Nullable
+    public static ServerBotAction<?> getForClass(@NotNull Class<?> type) {
+        return actionsByClass.get(type);
     }
 }

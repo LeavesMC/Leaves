@@ -2,6 +2,9 @@ package org.leavesmc.leaves.entity.bot.action;
 
 import org.bukkit.Bukkit;
 
+/**
+ * Represents an action for a bot to move to a specific direction.
+ */
 public interface MoveAction extends StateBotAction<MoveAction> {
 
     /**
@@ -19,6 +22,9 @@ public interface MoveAction extends StateBotAction<MoveAction> {
      */
     MoveAction setDirection(MoveDirection direction);
 
+    /**
+     * Represents possible movement directions for the bot.
+     */
     enum MoveDirection {
         FORWARD("forward"),
         BACKWARD("backward"),

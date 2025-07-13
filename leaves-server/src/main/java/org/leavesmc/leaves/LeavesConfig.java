@@ -617,7 +617,7 @@ public final class LeavesConfig {
         public boolean disableVaultBlacklist = false;
 
         @GlobalConfig(value = "exp-orb-absorb-mode", validator = ExpOrbModeValidator.class)
-        private final ExpOrbAbsorbMode expOrbAbsorbMode = ExpOrbAbsorbMode.VANILLA;
+        private ExpOrbAbsorbMode expOrbAbsorbMode = ExpOrbAbsorbMode.VANILLA;
 
         public Predicate<ServerPlayer> fastAbsorbPredicate = player -> false;
 
@@ -972,7 +972,7 @@ public final class LeavesConfig {
             public String source = "application";
 
             public static class DownloadSourceValidator extends StringConfigValidator {
-                private static final List<String> suggestSourceList = List.of("application", "cloud");
+                private static List<String> suggestSourceList = List.of("application", "cloud");
 
                 @Override
                 public List<String> valueSuggest() {

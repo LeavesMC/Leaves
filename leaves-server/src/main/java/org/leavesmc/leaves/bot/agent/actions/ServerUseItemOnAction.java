@@ -50,7 +50,7 @@ public class ServerUseItemOnAction extends ServerTimerBotAction<ServerUseItemOnA
         if (tickToRelease >= 0) {
             HitResult hitResult = bot.getRayTrace(5, ClipContext.Fluid.NONE);
             boolean result = execute(bot, hitResult);
-            if (useTick >=0) {
+            if (useTick >= 0) {
                 return false;
             } else {
                 return result;

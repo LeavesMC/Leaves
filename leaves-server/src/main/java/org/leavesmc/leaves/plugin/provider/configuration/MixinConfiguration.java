@@ -15,7 +15,9 @@ public class MixinConfiguration {
 
     @PostProcess
     public void postProcess() {
-        if (mixins.isEmpty()) return;
+        if (mixins.isEmpty()) {
+            return;
+        }
         if (packageName == null) {
             throw new IllegalStateException("Already define mixins: " + mixins + ", but no mixin package-name provided");
         }

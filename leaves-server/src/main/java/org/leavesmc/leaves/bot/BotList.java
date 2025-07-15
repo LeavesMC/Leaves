@@ -274,11 +274,15 @@ public class BotList {
     }
 
     public void loadBotInfo() {
-        if (!LeavesConfig.modify.fakeplayer.enable || !LeavesConfig.modify.fakeplayer.canResident) return;
+        if (!LeavesConfig.modify.fakeplayer.enable || !LeavesConfig.modify.fakeplayer.canResident) {
+            return;
+        }
         CompoundTag savedBotList = this.getSavedBotList().copy();
         for (String realName : savedBotList.keySet()) {
             CompoundTag nbt = savedBotList.getCompound(realName).orElseThrow();
-            if (!nbt.getBoolean("resume").orElse(false)) continue;
+            if (!nbt.getBoolean("resume").orElse(false)) {
+                continue;
+            }
             UUID levelUuid = BotUtil.getBotLevel(realName, this.dataStorage);
             if (levelUuid == null) {
                 LOGGER.warn("Bot {} has no world UUID, skipping loading.", realName);
@@ -291,9 +295,13 @@ public class BotList {
     }
 
     public void loadResume(String worldUuid) {
-        if (!LeavesConfig.modify.fakeplayer.enable || !LeavesConfig.modify.fakeplayer.canResident) return;
+        if (!LeavesConfig.modify.fakeplayer.enable || !LeavesConfig.modify.fakeplayer.canResident) {
+            return;
+        }
         Set<String> bots = this.botsNameByWorldUuid.get(worldUuid);
-        if (bots == null) return;
+        if (bots == null) {
+            return;
+        }
         bots.forEach(this::loadNewBot);
     }
 

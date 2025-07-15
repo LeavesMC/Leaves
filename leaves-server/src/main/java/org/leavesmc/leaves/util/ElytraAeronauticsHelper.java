@@ -90,7 +90,9 @@ public class ElytraAeronauticsHelper {
             MinecraftServer.LOGGER.error("Attempted Double World add on {}", entity, new Throwable());
             return true;
         }
-        if (entity.spawnReason == null) entity.spawnReason = CreatureSpawnEvent.SpawnReason.DEFAULT;
+        if (entity.spawnReason == null) {
+            entity.spawnReason = CreatureSpawnEvent.SpawnReason.DEFAULT;
+        }
         if (entity.isRemoved()) {
             return false;
         }

@@ -169,7 +169,9 @@ public class SchematicPlacement {
 
     public ImmutableMap<String, Box> getSubRegionBoxFor(String regionName, SubRegionPlacement.RequiredEnabled required) {
         SubRegionPlacement placement = this.relativeSubRegionPlacements.get(regionName);
-        if (placement == null) return ImmutableMap.of();
+        if (placement == null) {
+            return ImmutableMap.of();
+        }
         ImmutableMap.Builder<String, Box> builder = ImmutableMap.builder();
         Map<String, BlockPos> areaSizes = this.schematic.getAreaSizes();
 
@@ -236,7 +238,9 @@ public class SchematicPlacement {
             BlockPos tmp;
             BlockPos boxPos1 = box.pos1();
             BlockPos boxPos2 = box.pos2();
-            if (boxPos1 == null || boxPos2 == null) continue;
+            if (boxPos1 == null || boxPos2 == null) {
+                continue;
+            }
             tmp = PositionUtils.getMinCorner(boxPos1, boxPos2);
 
             if (pos1 == null) {

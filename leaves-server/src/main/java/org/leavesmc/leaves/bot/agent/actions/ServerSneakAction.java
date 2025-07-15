@@ -14,7 +14,9 @@ public class ServerSneakAction extends ServerStateBotAction<ServerSneakAction> {
 
     @Override
     public boolean doTick(@NotNull ServerBot bot) {
-        if (bot.isShiftKeyDown()) return false;
+        if (bot.isShiftKeyDown()) {
+            return false;
+        }
 
         bot.setShiftKeyDown(true);
         return true;

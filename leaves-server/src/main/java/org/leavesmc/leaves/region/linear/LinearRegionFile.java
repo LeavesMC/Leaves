@@ -205,7 +205,9 @@ public class LinearRegionFile implements IRegionFile {
 
         while (true) {
             byte featureNameLength = buffer.get();
-            if (featureNameLength == 0) break;
+            if (featureNameLength == 0) {
+                break;
+            }
             byte[] featureNameBytes = new byte[featureNameLength];
             buffer.get(featureNameBytes);
             String featureName = new String(featureNameBytes);
@@ -227,12 +229,16 @@ public class LinearRegionFile implements IRegionFile {
                 bucketBuffers[i] = new byte[bucketSizes[i]];
                 buffer.get(bucketBuffers[i]);
                 long rawHash = LongHashFunction.xx().hashBytes(bucketBuffers[i]);
-                if (rawHash != bucketHashes[i]) throw new IOException("Region file hash incorrect " + this.regionFile);
+                if (rawHash != bucketHashes[i]) {
+                    throw new IOException("Region file hash incorrect " + this.regionFile);
+                }
             }
         }
 
         long footerSuperBlock = buffer.getLong();
-        if (footerSuperBlock != SUPERBLOCK) throw new IOException("Footer superblock invalid " + this.regionFile);
+        if (footerSuperBlock != SUPERBLOCK) {
+            throw new IOException("Footer superblock invalid " + this.regionFile);
+        }
     }
 
     private synchronized void markToSave() {

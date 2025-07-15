@@ -40,7 +40,7 @@ public class ServerUseItemAction extends ServerTimerBotAction<ServerUseItemActio
         tickToRelease--;
         if (tickToRelease >= 0) {
             boolean result = execute(bot);
-            if (useTick >=0) {
+            if (useTick >= 0) {
                 return false;
             } else {
                 return result;

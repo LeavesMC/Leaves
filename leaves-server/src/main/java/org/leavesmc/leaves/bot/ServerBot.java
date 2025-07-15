@@ -133,7 +133,9 @@ public class ServerBot extends ServerPlayer {
         if (this.invulnerableTime > 0) {
             this.invulnerableTime--;
         }
-        if (this.spawnInvulnerableTime > 0) --this.spawnInvulnerableTime; // Leaves - spawn invulnerable time
+        if (this.spawnInvulnerableTime > 0) {
+            --this.spawnInvulnerableTime; // Leaves - spawn invulnerable time
+        }
         // copy ServerPlayer end
 
         if (this.getConfigValue(Configs.SPAWN_PHANTOM)) {
@@ -141,18 +143,8 @@ public class ServerBot extends ServerPlayer {
         }
 
         if (LeavesConfig.modify.fakeplayer.regenAmount > 0.0 && getServer().getTickCount() % 20 == 0) {
-            float health = getHealth();
-            float maxHealth = getMaxHealth();
             float regenAmount = (float) (LeavesConfig.modify.fakeplayer.regenAmount * 20);
-            float amount;
-
-            if (health < maxHealth - regenAmount) {
-                amount = health + regenAmount;
-            } else {
-                amount = maxHealth;
-            }
-
-            this.setHealth(amount);
+            this.setHealth(Math.min(this.getHealth() + regenAmount, this.getMaxHealth()));
         }
 
         if (this.getConfigValue(Configs.TICK_TYPE) == TickType.ENTITY_LIST) {
@@ -277,7 +269,7 @@ public class ServerBot extends ServerPlayer {
     }
 
     @Override
-    public void knockback(double strength, double x, double z, @Nullable Entity attacker, EntityKnockbackEvent.Cause eventCause) {
+    public void knockback(double strength, double x, double z, @Nullable Entity attacker, EntityKnockbackEvent.@NotNull Cause eventCause) {
         if (!this.hurtMarked) {
             return;
         }

@@ -36,7 +36,9 @@ public class ServerPlacement {
 
     private static String removeExtension(final String fileName) {
         final int pos = fileName.lastIndexOf(".");
-        if (pos < 0) return fileName;
+        if (pos < 0) {
+            return fileName;
+        }
         return fileName.substring(0, pos);
     }
 

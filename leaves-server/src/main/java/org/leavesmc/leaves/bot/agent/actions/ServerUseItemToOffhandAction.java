@@ -41,7 +41,7 @@ public class ServerUseItemToOffhandAction extends ServerTimerBotAction<ServerUse
         if (tickToRelease >= 0) {
             Entity entity = bot.getTargetEntity(3, null);
             boolean result = execute(bot, entity);
-            if (useTick >=0) {
+            if (useTick >= 0) {
                 return false;
             } else {
                 return result;

@@ -78,11 +78,15 @@ public class BotUtil {
     public static UUID getBotLevel(@NotNull String realName, BotDataStorage botDataStorage) {
         UUID uuid = BotUtil.getBotUUID(realName);
         Optional<CompoundTag> tagOptional = botDataStorage.read(uuid.toString());
-        if (tagOptional.isEmpty()) return null;
+        if (tagOptional.isEmpty()) {
+            return null;
+        }
         CompoundTag tag = tagOptional.get();
         Optional<Long> worldUUIDMost = tag.getLong("WorldUUIDMost");
         Optional<Long> worldUUIDLeast = tag.getLong("WorldUUIDLeast");
-        if (worldUUIDMost.isEmpty() || worldUUIDLeast.isEmpty()) return null;
+        if (worldUUIDMost.isEmpty() || worldUUIDLeast.isEmpty()) {
+            return null;
+        }
         return new UUID(worldUUIDMost.get(), worldUUIDLeast.get());
     }
 

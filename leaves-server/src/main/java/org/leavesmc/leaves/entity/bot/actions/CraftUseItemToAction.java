@@ -23,6 +23,17 @@ public class CraftUseItemToAction extends CraftBotAction implements UseItemToAct
     }
 
     @Override
+    public int getUseTick() {
+        return serverAction.getUseTick();
+    }
+
+    @Override
+    public CraftUseItemToAction setUseTick(int useTick) {
+        serverAction.setUseTick(useTick);
+        return this;
+    }
+
+    @Override
     public ServerBotAction<?> getHandle() {
         return serverAction;
     }

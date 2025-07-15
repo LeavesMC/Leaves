@@ -34,7 +34,6 @@ public class Actions {
         register(new ServerFishAction(), FishAction.class);
         register(new ServerSwimAction(), SwimAction.class);
         register(new ServerRotationAction(), RotationAction.class);
-        register(new ServerShootAction(), ShootAction.class);
         register(new ServerMoveAction(), MoveAction.class);
     }
 

@@ -23,6 +23,17 @@ public class CraftUseItemAutoAction extends CraftBotAction implements UseItemAut
     }
 
     @Override
+    public int getUseTick() {
+        return serverAction.getUseTick();
+    }
+
+    @Override
+    public CraftUseItemAutoAction setUseTick(int useTick) {
+        serverAction.setUseTick(useTick);
+        return this;
+    }
+
+    @Override
     public ServerBotAction<?> getHandle() {
         return serverAction;
     }

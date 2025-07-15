@@ -223,6 +223,11 @@ public class ServerBot extends ServerPlayer {
     }
 
     @Override
+    public boolean canSimulateMovement() {
+        return true;
+    }
+
+    @Override
     public @Nullable ServerBot teleport(@NotNull TeleportTransition teleportTransition) {
         if (this.isSleeping() || this.isRemoved()) {
             return null;
@@ -438,11 +443,6 @@ public class ServerBot extends ServerPlayer {
                 }
             }
         }
-    }
-
-    @Override
-    public boolean isClientAuthoritative() {
-        return false;
     }
 
     public void sendPlayerInfo(ServerPlayer player) {

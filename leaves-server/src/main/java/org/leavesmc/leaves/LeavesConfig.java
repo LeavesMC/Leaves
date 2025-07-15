@@ -166,6 +166,9 @@ public final class LeavesConfig {
                 }
             }
 
+            @GlobalConfig("enable-locator-bar")
+            public boolean enableLocatorBar = false;
+
             @GlobalConfig("always-send-data")
             public boolean canSendDataAlways = true;
 

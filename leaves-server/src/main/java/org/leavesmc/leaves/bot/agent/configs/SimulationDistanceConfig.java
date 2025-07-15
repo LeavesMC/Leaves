@@ -40,6 +40,6 @@ public class SimulationDistanceConfig extends AbstractBotConfig<Integer> {
 
     @Override
     public void load(@NotNull CompoundTag nbt) {
-        this.setValue(nbt.getInt(NAME).orElseThrow());
+        this.setValue(nbt.getIntOr(NAME, this.bot.getBukkitEntity().getSimulationDistance()));
     }
 }

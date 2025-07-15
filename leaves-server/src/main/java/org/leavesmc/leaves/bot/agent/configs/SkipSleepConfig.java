@@ -35,6 +35,6 @@ public class SkipSleepConfig extends AbstractBotConfig<Boolean> {
 
     @Override
     public void load(@NotNull CompoundTag nbt) {
-        this.setValue(nbt.getBoolean(NAME).orElseThrow());
+        this.setValue(nbt.getBooleanOr(NAME, false));
     }
 }

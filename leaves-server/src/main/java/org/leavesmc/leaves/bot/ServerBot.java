@@ -6,8 +6,6 @@ import io.papermc.paper.adventure.PaperAdventure;
 import io.papermc.paper.event.entity.EntityKnockbackEvent;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.NonNullList;
-import net.minecraft.core.particles.BlockParticleOption;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
@@ -32,14 +30,12 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.PositionMoveRotation;
-import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.ChestMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.gameevent.GameEvent;
 import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.level.storage.ValueInput;
@@ -312,49 +308,6 @@ public class ServerBot extends ServerPlayer {
             }
         }
         return super.interact(player, hand);
-    }
-
-    @Override
-    public void checkFallDamage(double y, boolean onGround, @NotNull BlockState state, @NotNull BlockPos pos) {
-        ServerLevel serverLevel = this.level();
-        if (!this.isInWater() && y < 0.0) {
-            this.fallDistance -= (float) y;
-        }
-        if (onGround && this.fallDistance > 0.0F) {
-            this.onChangedBlock(serverLevel, pos);
-            double attributeValue = this.getAttributeValue(Attributes.SAFE_FALL_DISTANCE);
-            if (this.fallDistance > attributeValue && !state.isAir()) {
-                double x = this.getX();
-                double y1 = this.getY();
-                double z = this.getZ();
-                BlockPos blockPos = this.blockPosition();
-                if (pos.getX() != blockPos.getX() || pos.getZ() != blockPos.getZ()) {
-                    double d = x - pos.getX() - 0.5;
-                    double d1 = z - pos.getZ() - 0.5;
-                    double max = Math.max(Math.abs(d), Math.abs(d1));
-                    x = pos.getX() + 0.5 + d / max * 0.5;
-                    z = pos.getZ() + 0.5 + d1 / max * 0.5;
-                }
-
-                float f = Mth.ceil(this.fallDistance - attributeValue);
-                double min = Math.min(0.2F + f / 15.0F, 2.5);
-                int i = (int) (150.0 * min);
-                serverLevel.sendParticlesSource(this, new BlockParticleOption(ParticleTypes.BLOCK, state), false, false, x, y1, z, i, 0.0, 0.0, 0.0, 0.15F);
-            }
-        }
-
-        if (onGround) {
-            if (this.fallDistance > 0.0F) {
-                state.getBlock().fallOn(serverLevel, state, pos, this, this.fallDistance);
-                serverLevel.gameEvent(GameEvent.HIT_GROUND, this.position(),
-                    GameEvent.Context.of(this, this.mainSupportingBlockPos.map(supportingPos -> this.level().getBlockState(supportingPos)).orElse(state))
-                );
-            }
-
-            this.resetFallDistance();
-        } else if (y < 0.0D) {
-            this.fallDistance -= (float) y;
-        }
     }
 
     @Override

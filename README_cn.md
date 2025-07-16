@@ -30,7 +30,7 @@ maven {
 }
 
 dependencies {
-    compileOnly("org.leavesmc.leaves:leaves-api:1.21.5-R0.1-SNAPSHOT")
+    compileOnly("org.leavesmc.leaves:leaves-api:1.21.7-R0.1-SNAPSHOT")
 }
  ```
 
@@ -39,7 +39,7 @@ dependencies {
 Leaves-Server:
 ```kotlin
 dependencies {
-    compileOnly("org.leavesmc.leaves:leaves:1.21.5-R0.1-SNAPSHOT")
+    compileOnly("org.leavesmc.leaves:leaves:1.21.7-R0.1-SNAPSHOT")
 }
  ```
 

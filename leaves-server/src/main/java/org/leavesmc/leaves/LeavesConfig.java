@@ -1011,7 +1011,7 @@ public final class LeavesConfig {
             public boolean loginProtect = false;
 
             @GlobalConfig(value = "urls", lock = true, validator = ExtraYggdrasilUrlsValidator.class)
-            private final List<String> serviceList = List.of("https://url.with.authlib-injector-yggdrasil");
+            private List<String> serviceList = List.of("https://url.with.authlib-injector-yggdrasil");
 
             public static class ExtraYggdrasilUrlsValidator extends ListConfigValidator.STRING {
                 @Override

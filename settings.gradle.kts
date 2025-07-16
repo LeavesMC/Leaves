@@ -1,6 +1,5 @@
 pluginManagement {
     repositories {
-        mavenLocal() // Should remove this after we merge Leavesweight#2
         gradlePluginPortal()
         maven("https://repo.leavesmc.org/snapshots/")
         maven("https://repo.papermc.io/repository/maven-public/")

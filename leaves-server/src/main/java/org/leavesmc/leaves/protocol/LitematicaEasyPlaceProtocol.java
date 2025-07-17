@@ -51,9 +51,9 @@ public class LitematicaEasyPlaceProtocol {
         BlockStateProperties.ROTATION_16
     );
 
-    public static final ImmutableMap<Property<?>, ?> BLACKLISTED_PROPERTIES = ImmutableMap.of(
-        BlockStateProperties.WATERLOGGED, false,
-        BlockStateProperties.POWERED, false
+    public static final ImmutableSet<Property<?>> BLACKLISTED_PROPERTIES = ImmutableSet.of(
+        BlockStateProperties.WATERLOGGED,
+        BlockStateProperties.POWERED
     );
 
     public static BlockState applyPlacementProtocol(BlockState state, BlockPlaceContext context) {
@@ -97,7 +97,7 @@ public class LitematicaEasyPlaceProtocol {
                 if (property != null && property.equals(p)) {
                     continue;
                 }
-                if (!WHITELISTED_PROPERTIES.contains(p) || BLACKLISTED_PROPERTIES.containsKey(p)) {
+                if (!WHITELISTED_PROPERTIES.contains(p) || BLACKLISTED_PROPERTIES.contains(p)) {
                     continue;
                 }
 
@@ -127,12 +127,6 @@ public class LitematicaEasyPlaceProtocol {
             }
         } catch (Exception e) {
             LeavesLogger.LOGGER.warning("Exception trying to apply placement protocol value", e);
-        }
-
-        for (Map.Entry<Property<?>, ?> p : BLACKLISTED_PROPERTIES.entrySet()) {
-            if (state.hasProperty(p.getKey())) {
-                state = state.setValue((Property<T>) p.getKey(), (T) p.getValue());
-            }
         }
 
         if (state.canSurvive(context.getWorld(), context.getPos())) {

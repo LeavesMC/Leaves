@@ -64,6 +64,7 @@ public class ServuxStructuresProtocol implements LeavesProtocol {
     @ProtocolHandler.PlayerLeave
     public static void onPlayerLoggedOut(@NotNull ServerPlayer player) {
         players.remove(player.getId());
+        timeouts.remove(player.getUUID());
     }
 
     @ProtocolHandler.Ticker
@@ -75,11 +76,6 @@ public class ServuxStructuresProtocol implements LeavesProtocol {
             // TODO DimensionChange
             refreshTrackedChunks(player, tickCounter);
         }
-    }
-
-    @Override
-    public int tickerInterval(String tickerID) {
-        return updateInterval;
     }
 
     public static void onStartedWatchingChunk(ServerPlayer player, LevelChunk chunk) {
@@ -316,6 +312,11 @@ public class ServuxStructuresProtocol implements LeavesProtocol {
 
     private static void sendWithSplitter(ServerPlayer player, FriendlyByteBuf buf) {
         sendPacket(player, new StructuresPayload(StructuresPayloadType.PACKET_S2C_STRUCTURE_DATA, buf));
+    }
+
+    @Override
+    public int tickerInterval(String tickerID) {
+        return updateInterval;
     }
 
     @Override

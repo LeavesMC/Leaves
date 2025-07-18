@@ -39,6 +39,11 @@ public class ServuxEntityDataProtocol implements LeavesProtocol {
         sendMetadata(player);
     }
 
+    @ProtocolHandler.PlayerLeave
+    public static void onPlayerLeave(ServerPlayer player) {
+        readingSessionKeys.remove(player.getUUID());
+    }
+
     @ProtocolHandler.PayloadReceiver(payload = EntityDataPayload.class)
     public static void onPacketReceive(ServerPlayer player, EntityDataPayload payload) {
         switch (payload.packetType) {

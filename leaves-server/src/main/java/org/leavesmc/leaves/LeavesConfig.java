@@ -865,6 +865,12 @@ public final class LeavesConfig {
             @GlobalConfig("hud-metadata-protocol")
             public boolean hudMetadataProtocol = false;
 
+            @GlobalConfig("hud-logger-protocol")
+            public boolean hudLoggerProtocol = false;
+
+            @GlobalConfig("hud-enabled-loggers")
+            public List<String> hudEnabledLoggers = List.of("tps", "mob_caps");
+
             @GlobalConfig("hud-metadata-protocol-share-seed")
             public boolean hudMetadataShareSeed = true;
 

@@ -10,6 +10,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BedBlock;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
@@ -23,7 +24,8 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 
 public class LitematicaEasyPlaceProtocol {
 
@@ -51,9 +53,8 @@ public class LitematicaEasyPlaceProtocol {
         BlockStateProperties.ROTATION_16
     );
 
-    public static final ImmutableSet<Property<?>> BLACKLISTED_PROPERTIES = ImmutableSet.of(
-        BlockStateProperties.WATERLOGGED,
-        BlockStateProperties.POWERED
+    public static final ImmutableSet<BiFunction<BlockState, BlockState, BlockState>> DYNAMIC_PROPERTIES = ImmutableSet.of(
+        (state, old) -> state.setValue(BlockStateProperties.WATERLOGGED, old.is(Blocks.WATER))
     );
 
     public static BlockState applyPlacementProtocol(BlockState state, BlockPlaceContext context) {
@@ -70,6 +71,10 @@ public class LitematicaEasyPlaceProtocol {
         }
 
         EnumProperty<Direction> property = CarpetAlternativeBlockPlacement.getFirstDirectionProperty(state);
+
+        for (var func : DYNAMIC_PROPERTIES) {
+            func.apply(state, oldState);
+        }
 
         if (property != null && property != BlockStateProperties.VERTICAL_DIRECTION) {
             state = applyDirectionProperty(state, context, property, protocolValue);
@@ -97,7 +102,7 @@ public class LitematicaEasyPlaceProtocol {
                 if (property != null && property.equals(p)) {
                     continue;
                 }
-                if (!WHITELISTED_PROPERTIES.contains(p) || BLACKLISTED_PROPERTIES.contains(p)) {
+                if (!WHITELISTED_PROPERTIES.contains(p)) {
                     continue;
                 }
 

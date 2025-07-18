@@ -1,6 +1,5 @@
 package org.leavesmc.leaves.protocol;
 
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -25,7 +24,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.function.BiFunction;
-import java.util.function.Function;
 
 public class LitematicaEasyPlaceProtocol {
 

@@ -17,8 +17,9 @@ public class BlockPatternHelper {
             for (Direction direction : Direction.values()) {
                 for (Direction direction2 : Direction.values()) {
                     BlockPattern.BlockPatternMatch result;
-                    if (direction2 == direction || direction2 == direction.getOpposite() || (result = pattern.matches(blockPos, direction, direction2, loadingCache)) == null)
+                    if (direction2 == direction || direction2 == direction.getOpposite() || (result = pattern.matches(blockPos, direction, direction2, loadingCache)) == null) {
                         continue;
+                    }
                     return result;
                 }
             }

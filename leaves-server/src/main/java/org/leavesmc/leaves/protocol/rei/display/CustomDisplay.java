@@ -32,7 +32,7 @@ public class CustomDisplay extends CraftingDisplay {
         super(inputs, outputs, location);
         BitSet row = new BitSet(3);
         BitSet column = new BitSet(3);
-        for (int i = 0; i < 9; i++)
+        for (int i = 0; i < 9; i++) {
             if (i < inputs.size()) {
                 EntryIngredient stacks = inputs.get(i);
                 if (stacks.stream().anyMatch(stack -> !stack.isEmpty())) {
@@ -40,6 +40,7 @@ public class CustomDisplay extends CraftingDisplay {
                     column.set(i % 3);
                 }
             }
+        }
         this.width = column.cardinality();
         this.height = row.cardinality();
     }

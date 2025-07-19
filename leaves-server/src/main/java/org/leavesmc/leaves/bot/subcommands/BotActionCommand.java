@@ -10,9 +10,8 @@ import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.bot.BotList;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.bot.agent.AbstractBotAction;
 import org.leavesmc.leaves.bot.agent.Actions;
-import org.leavesmc.leaves.bot.agent.actions.CraftCustomBotAction;
+import org.leavesmc.leaves.bot.agent.actions.*;
 import org.leavesmc.leaves.command.LeavesSubcommand;
 import org.leavesmc.leaves.command.LeavesSuggestionBuilder;
 import org.leavesmc.leaves.event.bot.BotActionStopEvent;
@@ -21,7 +20,6 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static net.kyori.adventure.text.Component.text;
 
@@ -53,7 +51,7 @@ public class BotActionCommand implements LeavesSubcommand {
     }
 
     private void executeStart(ServerBot bot, CommandSender sender, String[] args) {
-        AbstractBotAction<?> action = Actions.getForName(args[2]);
+        ServerBotAction<?> action = Actions.getForName(args[2]);
         if (action == null) {
             sender.sendMessage(text("Invalid action", NamedTextColor.RED));
             return;
@@ -67,20 +65,12 @@ public class BotActionCommand implements LeavesSubcommand {
         }
 
         String[] realArgs = Arrays.copyOfRange(args, 3, args.length);
-        AbstractBotAction<?> newAction;
+        ServerBotAction<?> newAction;
         try {
-            if (action instanceof CraftCustomBotAction customBotAction) {
-                newAction = customBotAction.createCraft(player, realArgs);
-            } else {
-                newAction = action.create();
-                newAction.loadCommand(player.getHandle(), action.getArgument().parse(0, realArgs));
-            }
+            newAction = action.create();
+            newAction.loadCommand(player.getHandle(), action.getArgument().parse(0, realArgs));
         } catch (IllegalArgumentException e) {
             sender.sendMessage(text("Action create error, please check your arguments, " + e.getMessage(), NamedTextColor.RED));
-            return;
-        }
-
-        if (newAction == null) {
             return;
         }
 
@@ -97,15 +87,16 @@ public class BotActionCommand implements LeavesSubcommand {
 
         String index = args[2];
         if (index.equals("all")) {
-            Set<AbstractBotAction<?>> forRemoval = new HashSet<>();
+            Set<ServerBotAction<?>> forRemoval = new HashSet<>();
             for (int i = 0; i < bot.getBotActions().size(); i++) {
-                AbstractBotAction<?> action = bot.getBotActions().get(i);
+                ServerBotAction<?> action = bot.getBotActions().get(i);
                 BotActionStopEvent event = new BotActionStopEvent(
                     bot.getBukkitEntity(), action.getName(), action.getUUID(), BotActionStopEvent.Reason.COMMAND, sender
                 );
                 event.callEvent();
                 if (!event.isCancelled()) {
                     forRemoval.add(action);
+                    action.stop(bot, BotActionStopEvent.Reason.COMMAND);
                 }
             }
             bot.getBotActions().removeAll(forRemoval);
@@ -119,12 +110,13 @@ public class BotActionCommand implements LeavesSubcommand {
                 return;
             }
 
-            AbstractBotAction<?> action = bot.getBotActions().get(i);
+            ServerBotAction<?> action = bot.getBotActions().get(i);
             BotActionStopEvent event = new BotActionStopEvent(
                 bot.getBukkitEntity(), action.getName(), action.getUUID(), BotActionStopEvent.Reason.COMMAND, sender
             );
             event.callEvent();
             if (!event.isCancelled()) {
+                action.stop(bot, BotActionStopEvent.Reason.COMMAND);
                 bot.getBotActions().remove(i);
                 sender.sendMessage(bot.getScoreboardName() + "'s " + action.getName() + " stopped.");
 
@@ -158,7 +150,7 @@ public class BotActionCommand implements LeavesSubcommand {
                 }
             }
             case 4, 5, 6, 7 -> {
-                AbstractBotAction<?> action = Actions.getForName(args[2]);
+                ServerBotAction<?> action = Actions.getForName(args[2]);
                 if (action == null) {
                     return;
                 }

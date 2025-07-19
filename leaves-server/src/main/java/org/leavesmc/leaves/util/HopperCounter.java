@@ -314,9 +314,15 @@ public class HopperCounter {
         int r = (color >> 16 & 255);
         int g = (color >> 8 & 255);
         int b = (color & 255);
-        if (r < 70) r = 70;
-        if (g < 70) g = 70;
-        if (b < 70) b = 70;
+        if (r < 70) {
+            r = 70;
+        }
+        if (g < 70) {
+            g = 70;
+        }
+        if (b < 70) {
+            b = 70;
+        }
         return (r << 16) + (g << 8) + b;
     }
 

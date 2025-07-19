@@ -120,11 +120,13 @@ public abstract class Display {
                 }
                 if (potion.potion().get().unwrapKey().isPresent() && registeredPotions.add(potion.potion().get().unwrapKey().get().location())) {
                     List<EntryIngredient> input = new ArrayList<>();
-                    for (int i = 0; i < 4; i++)
+                    for (int i = 0; i < 4; i++) {
                         input.add(arrowIngredient);
+                    }
                     input.add(EntryIngredient.of(itemStack));
-                    for (int i = 0; i < 4; i++)
+                    for (int i = 0; i < 4; i++) {
                         input.add(arrowIngredient);
+                    }
                     ItemStack outputStack = new ItemStack(Items.TIPPED_ARROW, 8);
                     outputStack.set(DataComponents.POTION_CONTENTS, potion);
                     displays.add(new CustomDisplay(input, List.of(EntryIngredient.of(outputStack)), recipeHolder.id().location()));
@@ -192,7 +194,9 @@ public abstract class Display {
         List<Display> displays = new ArrayList<>();
         for (Holder<Item> additionStack : (Iterable<Holder<Item>>) recipe.additionIngredient().map(Ingredient::items).orElse(Stream.of())::iterator) {
             Holder<TrimMaterial> trimMaterial = getMaterialFromIngredient(registryAccess, additionStack).orElse(null);
-            if (trimMaterial == null) continue;
+            if (trimMaterial == null) {
+                continue;
+            }
 
             EntryIngredient baseIngredient = EntryIngredient.ofIngredient(recipe.baseIngredient());
             displays.add(new SmithingDisplay.Trimming(List.of(
@@ -241,7 +245,9 @@ public abstract class Display {
     }
 
     public static List<EntryIngredient> ofSlotDisplays(Collection<SlotDisplay> slots) {
-        if (slots instanceof Collection<?> collection && collection.isEmpty()) return Collections.emptyList();
+        if (slots instanceof Collection<?> collection && collection.isEmpty()) {
+            return Collections.emptyList();
+        }
         ImmutableList.Builder<EntryIngredient> ingredients = ImmutableList.builder();
         for (SlotDisplay slot : slots) {
             ingredients.add(ofSlotDisplay(slot));
@@ -252,11 +258,17 @@ public abstract class Display {
     public static <T extends ItemLike> EntryIngredient ofItemTag(TagKey<T> tagKey) {
         HolderGetter<T> getter = MinecraftServer.getServer().registryAccess().lookupOrThrow(tagKey.registry());
         HolderSet.Named<T> holders = getter.get(tagKey).orElse(null);
-        if (holders == null) return EntryIngredient.empty();
+        if (holders == null) {
+            return EntryIngredient.empty();
+        }
 
         int size = holders.size();
-        if (size == 0) return EntryIngredient.empty();
-        if (size == 1) return EntryIngredient.of(new ItemStack(holders.get(0).value()));
+        if (size == 0) {
+            return EntryIngredient.empty();
+        }
+        if (size == 1) {
+            return EntryIngredient.of(new ItemStack(holders.get(0).value()));
+        }
 
         List<ItemStack> stackList = new ArrayList<>();
         for (Holder<T> t : holders) {

@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
@@ -81,11 +82,16 @@ public class SyncmaticaProtocol {
 
     @NotNull
     public static String sanitizeFileName(final @NotNull String badFileName) {
+        String input = badFileName;
+        try {
+            input = Paths.get(input).getFileName().toString();
+        } catch (Exception ignored) {
+        }
         final StringBuilder sanitized = new StringBuilder();
-        final int len = badFileName.codePointCount(0, badFileName.length());
+        final int len = input.codePointCount(0, input.length());
 
         for (int i = 0; i < len; i++) {
-            final int c = badFileName.codePointAt(i);
+            final int c = input.codePointAt(i);
             if (Arrays.binarySearch(ILLEGAL_CHARS, c) < 0) {
                 sanitized.appendCodePoint(c);
                 if (sanitized.length() == 255) {

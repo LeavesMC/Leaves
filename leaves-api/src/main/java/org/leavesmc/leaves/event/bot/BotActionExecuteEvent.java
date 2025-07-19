@@ -3,7 +3,7 @@ package org.leavesmc.leaves.event.bot;
 import org.bukkit.event.Cancellable;
 import org.bukkit.event.HandlerList;
 import org.jetbrains.annotations.NotNull;
-import org.leavesmc.leaves.entity.Bot;
+import org.leavesmc.leaves.entity.bot.Bot;
 
 import java.util.UUID;
 

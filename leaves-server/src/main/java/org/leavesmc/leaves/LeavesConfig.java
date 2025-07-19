@@ -3,9 +3,7 @@ package org.leavesmc.leaves;
 import com.destroystokyo.paper.util.SneakyThrow;
 import io.papermc.paper.configuration.GlobalConfiguration;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import org.bukkit.command.Command;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -30,18 +28,15 @@ import org.leavesmc.leaves.protocol.CarpetServerProtocol.CarpetRules;
 import org.leavesmc.leaves.protocol.bladeren.BladerenProtocol.LeavesFeature;
 import org.leavesmc.leaves.protocol.bladeren.BladerenProtocol.LeavesFeatureSet;
 import org.leavesmc.leaves.region.RegionFileFormat;
-import org.leavesmc.leaves.util.ForcePeacefulModeSwitchType;
 import org.leavesmc.leaves.util.MathUtils;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Random;
-import java.util.Set;
 import java.util.function.Predicate;
 
 public final class LeavesConfig {
@@ -170,6 +165,9 @@ public final class LeavesConfig {
                     }
                 }
             }
+
+            @GlobalConfig("enable-locator-bar")
+            public boolean enableLocatorBar = false;
 
             @GlobalConfig("always-send-data")
             public boolean canSendDataAlways = true;
@@ -354,6 +352,18 @@ public final class LeavesConfig {
 
             @GlobalConfig("old-throwable-projectile-tick-order")
             public boolean oldThrowableProjectileTickOrder = false;
+
+            @GlobalConfig("keep-leash-connect-when-use-firework")
+            public boolean keepLeashConnectWhenUseFirework = false;
+
+            @GlobalConfig("tnt-wet-explosion-no-item-damage")
+            public boolean tntWetExplosionNoItemDamage = false;
+
+            @GlobalConfig("old-projectile-explosion-behavior")
+            public boolean oldProjectileExplosionBehavior = false;
+
+            @GlobalConfig("ender-dragon-part-can-use-end-portal")
+            public boolean enderDragonPartCanUseEndPortal = false;
         }
 
         public ElytraAeronauticsConfig elytraAeronautics = new ElytraAeronauticsConfig();
@@ -425,16 +435,25 @@ public final class LeavesConfig {
             }
         }
 
-        public int shulkerBoxStackSize = 1;
-        @GlobalConfig(value = "stackable-shulker-boxes", validator = StackableShulkerValidator.class)
-        private String stackableShulkerBoxes = "false";
+        public ShulkerBoxConfig shulkerBox = new ShulkerBoxConfig();
 
-        private static class StackableShulkerValidator extends StringConfigValidator {
-            @Override
-            public void verify(String old, String value) throws IllegalArgumentException {
-                String realValue = MathUtils.isNumeric(value) ? value : value.equals("true") ? "2" : "1";
-                LeavesConfig.modify.shulkerBoxStackSize = Integer.parseInt(realValue);
+        @GlobalConfigCategory("shulker-box")
+        public static class ShulkerBoxConfig {
+            public int shulkerBoxStackSize = 1;
+            @RemovedConfig(name = "stackable-shulker-boxes", category = "modify", transform = true)
+            @GlobalConfig(value = "stackable-shulker-boxes", validator = StackableShulkerValidator.class)
+            private String stackableShulkerBoxes = "false";
+
+            private static class StackableShulkerValidator extends StringConfigValidator {
+                @Override
+                public void verify(String old, String value) throws IllegalArgumentException {
+                    String realValue = MathUtils.isNumeric(value) ? value : value.equals("true") ? "2" : "1";
+                    LeavesConfig.modify.shulkerBox.shulkerBoxStackSize = Integer.parseInt(realValue);
+                }
             }
+
+            @GlobalConfig(value = "same-nbt-stackable")
+            public boolean sameNbtStackable = false;
         }
 
         @GlobalConfig(value = "force-void-trade", validator = ForceVoidTradeValidator.class)
@@ -956,7 +975,7 @@ public final class LeavesConfig {
             public String source = "application";
 
             public static class DownloadSourceValidator extends StringConfigValidator {
-                private static final List<String> suggestSourceList = List.of("application", "cloud");
+                private static List<String> suggestSourceList = List.of("application", "cloud");
 
                 @Override
                 public List<String> valueSuggest() {
@@ -1117,17 +1136,14 @@ public final class LeavesConfig {
         @GlobalConfig("vanilla-display-name")
         public boolean vanillaDisplayName = false;
 
-        @GlobalConfig(value = "collision-behavior")
-        public CollisionBehavior collisionBehavior = CollisionBehavior.BLOCK_SHAPE_VANILLA;
-
-        public enum CollisionBehavior {
-            VANILLA, BLOCK_SHAPE_VANILLA, PAPER
-        }
-
         @GlobalConfig("vanilla-portal-handle")
         public boolean vanillaPortalHandle = false;
 
+        @GlobalConfig("vanilla-fluid-pushing")
+        public boolean vanillaFluidPushing = true;
+
+        @RemovedConfig(name = "collision-behavior", category = "fix")
         @RemovedConfig(name = "spigot-EndPlatform-destroy", category = "fix")
-        private final boolean spigotEndPlatformDestroy = false;
+        private final boolean removed = false;
     }
 }

@@ -12,7 +12,7 @@ import org.leavesmc.leaves.bot.BotList;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.command.LeavesSubcommand;
 import org.leavesmc.leaves.command.LeavesSuggestionBuilder;
-import org.leavesmc.leaves.entity.Bot;
+import org.leavesmc.leaves.entity.bot.Bot;
 
 import java.util.ArrayList;
 import java.util.HashMap;

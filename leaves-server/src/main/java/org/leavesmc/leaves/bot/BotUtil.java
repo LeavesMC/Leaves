@@ -2,12 +2,14 @@ package org.leavesmc.leaves.bot;
 
 import com.google.common.base.Charsets;
 import net.minecraft.core.NonNullList;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.ItemStack;
 import org.bukkit.Bukkit;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesConfig;
 
+import java.util.Optional;
 import java.util.UUID;
 
 public class BotUtil {
@@ -71,6 +73,21 @@ public class BotUtil {
 
     public static UUID getBotUUID(@NotNull String realName) {
         return UUID.nameUUIDFromBytes(("Fakeplayer:" + realName).getBytes(Charsets.UTF_8));
+    }
+
+    public static UUID getBotLevel(@NotNull String realName, BotDataStorage botDataStorage) {
+        UUID uuid = BotUtil.getBotUUID(realName);
+        Optional<CompoundTag> tagOptional = botDataStorage.read(uuid.toString());
+        if (tagOptional.isEmpty()) {
+            return null;
+        }
+        CompoundTag tag = tagOptional.get();
+        Optional<Long> worldUUIDMost = tag.getLong("WorldUUIDMost");
+        Optional<Long> worldUUIDLeast = tag.getLong("WorldUUIDLeast");
+        if (worldUUIDMost.isEmpty() || worldUUIDLeast.isEmpty()) {
+            return null;
+        }
+        return new UUID(worldUUIDMost.get(), worldUUIDLeast.get());
     }
 
     public static String getFullName(String inputName) {

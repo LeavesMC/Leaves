@@ -54,6 +54,13 @@ public class CommandArgumentResult {
         return new Vector(pos[0], pos[1], pos[2]);
     }
 
+    public Object readObject() {
+        if (result.isEmpty()) {
+            return null;
+        }
+        return result.removeFirst();
+    }
+
     public <T> T read(Class<T> tClass, T def) {
         return Objects.requireNonNullElse(read(tClass), def);
     }

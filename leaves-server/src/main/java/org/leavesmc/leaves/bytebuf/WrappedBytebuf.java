@@ -1,6 +1,8 @@
 package org.leavesmc.leaves.bytebuf;
 
 import com.google.gson.JsonElement;
+import com.mojang.datafixers.util.Pair;
+import com.mojang.serialization.JsonOps;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.network.FriendlyByteBuf;
@@ -226,7 +228,7 @@ public class WrappedBytebuf implements Bytebuf {
 
     @Override
     public Bytebuf writeComponentJson(JsonElement json) {
-        Component component = Component.Serializer.fromJson(json, RegistryAccess.EMPTY);
+        Component component = ComponentSerialization.CODEC.decode(JsonOps.INSTANCE, json).mapOrElse(Pair::getFirst, v -> null);
         if (component == null) {
             throw new IllegalArgumentException("Null can not be serialize to Minecraft chat component");
         }
@@ -236,7 +238,7 @@ public class WrappedBytebuf implements Bytebuf {
 
     @Override
     public JsonElement readComponentJson() {
-        return Component.Serializer.serialize(ComponentSerialization.STREAM_CODEC.decode(new RegistryFriendlyByteBuf(buf, RegistryAccess.EMPTY)), RegistryAccess.EMPTY);
+        return ComponentSerialization.CODEC.encodeStart(JsonOps.INSTANCE, ComponentSerialization.STREAM_CODEC.decode(new RegistryFriendlyByteBuf(buf, RegistryAccess.EMPTY))).getOrThrow();
     }
 
     @Override

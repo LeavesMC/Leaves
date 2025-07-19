@@ -134,7 +134,7 @@ public class BBORProtocol implements LeavesProtocol {
     }
 
     private static void sendStructureList(@NotNull ServerPlayer player) {
-        final Registry<Structure> structureRegistry = player.server.registryAccess().lookupOrThrow(Registries.STRUCTURE);
+        final Registry<Structure> structureRegistry = MinecraftServer.getServer().registryAccess().lookupOrThrow(Registries.STRUCTURE);
         final Set<String> structureIds = structureRegistry.entrySet().stream()
             .map(e -> e.getKey().location().toString()).collect(Collectors.toSet());
         ProtocolUtils.sendBytebufPacket(player, STRUCTURE_LIST_SYNC, buf -> {

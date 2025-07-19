@@ -4,11 +4,7 @@ import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.bot.agent.configs.AlwaysSendDataConfig;
-import org.leavesmc.leaves.bot.agent.configs.SimulationDistanceConfig;
-import org.leavesmc.leaves.bot.agent.configs.SkipSleepConfig;
-import org.leavesmc.leaves.bot.agent.configs.SpawnPhantomConfig;
-import org.leavesmc.leaves.bot.agent.configs.TickTypeConfig;
+import org.leavesmc.leaves.bot.agent.configs.*;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -25,6 +21,7 @@ public class Configs<E> {
     public static final Configs<Boolean> SPAWN_PHANTOM = register(SpawnPhantomConfig.class, SpawnPhantomConfig::new);
     public static final Configs<Integer> SIMULATION_DISTANCE = register(SimulationDistanceConfig.class, SimulationDistanceConfig::new);
     public static final Configs<ServerBot.TickType> TICK_TYPE = register(TickTypeConfig.class, TickTypeConfig::new);
+    public static final Configs<Boolean> ENABLE_LOCATOR_BAR = register(LocatorBarConfig.class, LocatorBarConfig::new);
 
     private final Class<? extends AbstractBotConfig<E>> configClass;
     private final Supplier<? extends AbstractBotConfig<E>> configCreator;

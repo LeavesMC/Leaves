@@ -14,12 +14,18 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.npc.AbstractVillager;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.projectile.ThrownEnderpearl;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.storage.ValueInput;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
 import org.bukkit.craftbukkit.CraftWorld;
+import org.bukkit.event.entity.EntityRemoveEvent;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.LeavesConfig;
@@ -30,10 +36,12 @@ import org.leavesmc.leaves.event.bot.BotRemoveEvent;
 import org.leavesmc.leaves.event.bot.BotSpawnLocationEvent;
 import org.slf4j.Logger;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -50,6 +58,7 @@ public class BotList {
 
     private final Map<UUID, ServerBot> botsByUUID = Maps.newHashMap();
     private final Map<String, ServerBot> botsByName = Maps.newHashMap();
+    private final Map<String, Set<String>> botsNameByWorldUuid = Maps.newHashMap();
 
     public BotList(MinecraftServer server) {
         this.server = server;
@@ -94,15 +103,20 @@ public class BotList {
 
         ServerBot bot = new ServerBot(this.server, this.server.getLevel(Level.OVERWORLD), new GameProfile(uuid, realName));
         bot.connection = new ServerBotPacketListenerImpl(this.server, bot);
-        Optional<CompoundTag> optional = playerIO.load(bot);
+        Optional<ValueInput> optional;
+        try (ProblemReporter.ScopedCollector scopedCollector = new ProblemReporter.ScopedCollector(bot.problemPath(), LOGGER)) {
+            optional = playerIO.load(bot, scopedCollector);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
 
         if (optional.isEmpty()) {
             return null;
         }
-        CompoundTag nbt = optional.get();
+        ValueInput nbt = optional.get();
 
         ResourceKey<Level> resourcekey = null;
-        if (nbt.contains("WorldUUIDMost") && nbt.contains("WorldUUIDLeast")) {
+        if (nbt.getLong("WorldUUIDMost").isPresent() && nbt.getLong("WorldUUIDLeast").isPresent()) {
             org.bukkit.World bWorld = Bukkit.getServer().getWorld(new UUID(nbt.getLong("WorldUUIDMost").orElseThrow(), nbt.getLong("WorldUUIDLeast").orElseThrow()));
             if (bWorld != null) {
                 resourcekey = ((CraftWorld) bWorld).getHandle().dimension();
@@ -116,8 +130,8 @@ public class BotList {
         return this.placeNewBot(bot, world, bot.getLocation(), nbt);
     }
 
-    public ServerBot placeNewBot(@NotNull ServerBot bot, ServerLevel world, Location location, @Nullable CompoundTag save) {
-        Optional<CompoundTag> optional = Optional.ofNullable(save);
+    public ServerBot placeNewBot(@NotNull ServerBot bot, ServerLevel world, Location location, ValueInput save) {
+        Optional<ValueInput> optional = Optional.ofNullable(save);
 
         bot.isRealPlayer = true;
         bot.loginTime = System.currentTimeMillis();
@@ -129,7 +143,7 @@ public class BotList {
         location = event.getSpawnLocation();
 
         bot.spawnIn(world);
-        bot.gameMode.setLevel(bot.serverLevel());
+        bot.gameMode.setLevel(bot.level());
 
         bot.setPosRaw(location.getX(), location.getY(), location.getZ());
         bot.setRot(location.getYaw(), location.getPitch());
@@ -158,8 +172,12 @@ public class BotList {
         bot.renderAll();
         bot.supressTrackerForLogin = false;
 
-        bot.serverLevel().getChunkSource().chunkMap.addEntity(bot);
-        BotList.LOGGER.info("{}[{}] logged in with entity id {} at ([{}]{}, {}, {})", bot.getName().getString(), "Local", bot.getId(), bot.serverLevel().serverLevelData.getLevelName(), bot.getX(), bot.getY(), bot.getZ());
+        bot.level().getChunkSource().chunkMap.addEntity(bot);
+        bot.initInventoryMenu();
+        botsNameByWorldUuid
+            .computeIfAbsent(bot.level().uuid.toString(), (k) -> new HashSet<>())
+            .add(bot.getBukkitEntity().getRealName());
+        BotList.LOGGER.info("{}[{}] logged in with entity id {} at ([{}]{}, {}, {})", bot.getName().getString(), "Local", bot.getId(), bot.level().serverLevelData.getLevelName(), bot.getX(), bot.getY(), bot.getZ());
         return bot;
     }
 
@@ -172,7 +190,7 @@ public class BotList {
         this.server.server.getPluginManager().callEvent(event);
 
         if (event.isCancelled() && event.getReason() != BotRemoveEvent.RemoveReason.INTERNAL) {
-            return event.isCancelled();
+            return true;
         }
 
         if (bot.removeTaskId != -1) {
@@ -180,10 +198,13 @@ public class BotList {
             bot.removeTaskId = -1;
         }
 
+        bot.disconnect();
+
         if (event.shouldSave()) {
             playerIO.save(bot);
         } else {
             bot.dropAll(true);
+            botsNameByWorldUuid.get(bot.level().uuid.toString()).remove(bot.getBukkitEntity().getRealName());
         }
 
         if (bot.isPassenger() && event.shouldSave()) {
@@ -191,8 +212,8 @@ public class BotList {
             if (entity.hasExactlyOnePlayerPassenger()) {
                 bot.stopRiding();
                 entity.getPassengersAndSelf().forEach((entity1) -> {
-                    if (entity1 instanceof net.minecraft.world.entity.npc.AbstractVillager villager) {
-                        final net.minecraft.world.entity.player.Player human = villager.getTradingPlayer();
+                    if (!org.leavesmc.leaves.LeavesConfig.modify.oldMC.voidTrade && entity1 instanceof AbstractVillager villager) {
+                        final Player human = villager.getTradingPlayer();
                         if (human != null) {
                             villager.setTradingPlayer(null);
                         }
@@ -203,7 +224,15 @@ public class BotList {
         }
 
         bot.unRide();
-        bot.serverLevel().removePlayerImmediately(bot, Entity.RemovalReason.UNLOADED_WITH_PLAYER);
+        for (ThrownEnderpearl thrownEnderpearl : bot.getEnderPearls()) {
+            if (!thrownEnderpearl.level().paperConfig().misc.legacyEnderPearlBehavior) {
+                thrownEnderpearl.setRemoved(Entity.RemovalReason.UNLOADED_WITH_PLAYER, EntityRemoveEvent.Cause.PLAYER_QUIT);
+            } else {
+                thrownEnderpearl.setOwner(null);
+            }
+        }
+
+        bot.level().removePlayerImmediately(bot, Entity.RemovalReason.UNLOADED_WITH_PLAYER);
         this.bots.remove(bot);
         this.botsByName.remove(bot.getScoreboardName().toLowerCase(Locale.ROOT));
 
@@ -214,9 +243,10 @@ public class BotList {
         }
 
         bot.removeTab();
-        for (ServerPlayer player : bot.serverLevel().players()) {
+        ClientboundRemoveEntitiesPacket packet = new ClientboundRemoveEntitiesPacket(bot.getId());
+        for (ServerPlayer player : bot.level().players()) {
             if (!(player instanceof ServerBot)) {
-                player.connection.send(new ClientboundRemoveEntitiesPacket(bot.getId()));
+                player.connection.send(packet);
             }
         }
 
@@ -227,6 +257,15 @@ public class BotList {
         return true;
     }
 
+    public void removeAllIn(String worldUuid) {
+        for (String realName : this.botsNameByWorldUuid.getOrDefault(worldUuid, new HashSet<>())) {
+            ServerBot bot = this.getBotByName(realName);
+            if (bot != null) {
+                this.removeBot(bot, BotRemoveEvent.RemoveReason.INTERNAL, null, LeavesConfig.modify.fakeplayer.canResident);
+            }
+        }
+    }
+
     public void removeAll() {
         for (ServerBot bot : this.bots) {
             bot.resume = LeavesConfig.modify.fakeplayer.canResident;
@@ -234,16 +273,36 @@ public class BotList {
         }
     }
 
-    public void loadResume() {
-        if (LeavesConfig.modify.fakeplayer.enable && LeavesConfig.modify.fakeplayer.canResident) {
-            CompoundTag savedBotList = this.getSavedBotList().copy();
-            for (String realName : savedBotList.keySet()) {
-                CompoundTag nbt = savedBotList.getCompound(realName).orElseThrow();
-                if (nbt.getBoolean("resume").orElse(false)) {
-                    this.loadNewBot(realName);
-                }
-            }
+    public void loadBotInfo() {
+        if (!LeavesConfig.modify.fakeplayer.enable || !LeavesConfig.modify.fakeplayer.canResident) {
+            return;
         }
+        CompoundTag savedBotList = this.getSavedBotList().copy();
+        for (String realName : savedBotList.keySet()) {
+            CompoundTag nbt = savedBotList.getCompound(realName).orElseThrow();
+            if (!nbt.getBoolean("resume").orElse(false)) {
+                continue;
+            }
+            UUID levelUuid = BotUtil.getBotLevel(realName, this.dataStorage);
+            if (levelUuid == null) {
+                LOGGER.warn("Bot {} has no world UUID, skipping loading.", realName);
+                continue;
+            }
+            this.botsNameByWorldUuid
+                .computeIfAbsent(levelUuid.toString(), (k) -> new HashSet<>())
+                .add(realName);
+        }
+    }
+
+    public void loadResume(String worldUuid) {
+        if (!LeavesConfig.modify.fakeplayer.enable || !LeavesConfig.modify.fakeplayer.canResident) {
+            return;
+        }
+        Set<String> bots = this.botsNameByWorldUuid.get(worldUuid);
+        if (bots == null) {
+            return;
+        }
+        bots.forEach(this::loadNewBot);
     }
 
     public void networkTick() {

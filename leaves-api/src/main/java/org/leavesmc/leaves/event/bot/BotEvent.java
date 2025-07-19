@@ -2,7 +2,7 @@ package org.leavesmc.leaves.event.bot;
 
 import org.bukkit.event.Event;
 import org.jetbrains.annotations.NotNull;
-import org.leavesmc.leaves.entity.Bot;
+import org.leavesmc.leaves.entity.bot.Bot;
 
 /**
  * Represents a fakeplayer related event

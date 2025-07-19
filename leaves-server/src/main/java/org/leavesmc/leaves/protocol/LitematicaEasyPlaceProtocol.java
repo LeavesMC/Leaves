@@ -52,7 +52,7 @@ public class LitematicaEasyPlaceProtocol {
     );
 
     public static final ImmutableSet<BiFunction<BlockState, BlockState, BlockState>> DYNAMIC_PROPERTIES = ImmutableSet.of(
-        (state, old) -> state.setValue(BlockStateProperties.WATERLOGGED, old.is(Blocks.WATER))
+        (state, original) -> state.setValue(BlockStateProperties.WATERLOGGED, original.is(Blocks.WATER))
     );
 
     public static BlockState applyPlacementProtocol(BlockState state, BlockPlaceContext context) {
@@ -69,9 +69,13 @@ public class LitematicaEasyPlaceProtocol {
         }
 
         EnumProperty<Direction> property = CarpetAlternativeBlockPlacement.getFirstDirectionProperty(state);
+        BlockState original = context.getWorld().getBlockStateIfLoaded(context.pos);
+        if (original == null) {
+            return oldState;
+        }
 
         for (var func : DYNAMIC_PROPERTIES) {
-            func.apply(state, oldState);
+            state = func.apply(state, original);
         }
 
         if (property != null && property != BlockStateProperties.VERTICAL_DIRECTION) {

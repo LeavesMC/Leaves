@@ -8,6 +8,7 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
@@ -22,7 +23,9 @@ import org.leavesmc.leaves.protocol.core.LeavesCustomPayload;
 import org.leavesmc.leaves.protocol.core.LeavesProtocol;
 import org.leavesmc.leaves.protocol.core.ProtocolHandler;
 import org.leavesmc.leaves.protocol.core.ProtocolUtils;
+import org.leavesmc.leaves.protocol.servux.logger.DataLogger;
 
+import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -32,12 +35,35 @@ import java.util.Map;
 @LeavesProtocol.Register(namespace = "servux")
 public class ServuxHudDataProtocol implements LeavesProtocol {
 
-    public static final int PROTOCOL_VERSION = 1;
+    public static final int PROTOCOL_VERSION = 2;
 
     private static final List<ServerPlayer> players = new ArrayList<>();
     private static final int updateInterval = 80;
 
+    private static final HashMap<ServerPlayer, List<DataLogger.Type>> loggerPlayers = new HashMap<>();
+    private static final HashMap<DataLogger.Type, DataLogger<?>> LOGGERS = new HashMap<>();
+    private static final HashMap<DataLogger.Type, Tag> DATA = new HashMap<>();
+
     public static boolean refreshSpawnMetadata = false;
+
+    @ProtocolHandler.Init
+    private static void initializeLoggers() {
+        if (!LOGGERS.isEmpty()) {
+            return;
+        }
+        for (DataLogger.Type type : DataLogger.Type.VALUES) {
+            DataLogger<?> entry = type.init();
+            if (entry != null) {
+                LOGGERS.put(type, entry);
+            }
+        }
+    }
+
+    @ProtocolHandler.PlayerLeave
+    private static void onPlayerLeave(ServerPlayer player) {
+        players.remove(player);
+        loggerPlayers.remove(player);
+    }
 
     @ProtocolHandler.PayloadReceiver(payload = HudDataPayload.class)
     public static void onPacketReceive(ServerPlayer player, HudDataPayload payload) {
@@ -50,13 +76,20 @@ public class ServuxHudDataProtocol implements LeavesProtocol {
                 metadata.putString("id", HudDataPayload.CHANNEL.toString());
                 metadata.putInt("version", PROTOCOL_VERSION);
                 metadata.putString("servux", ServuxProtocol.SERVUX_STRING);
+                if (LeavesConfig.protocol.servux.hudLoggerProtocol) {
+                    CompoundTag nbt = new CompoundTag();
+                    for (DataLogger.Type type : DataLogger.Type.VALUES) {
+                        nbt.putBoolean(type.getSerializedName(), isLoggerTypeEnabled(type));
+                    }
+                    metadata.put("Loggers", nbt);
+                }
                 putWorldData(metadata);
 
                 sendPacket(player, new HudDataPayload(HudDataPayloadType.PACKET_S2C_METADATA, metadata));
             }
-
             case PACKET_C2S_SPAWN_DATA_REQUEST -> refreshSpawnMetadata(player);
             case PACKET_C2S_RECIPE_MANAGER_REQUEST -> refreshRecipeManager(player);
+            case PACKET_C2S_DATA_LOGGER_REQUEST -> refreshLoggers(player, payload.nbt);
         }
     }
 
@@ -134,6 +167,91 @@ public class ServuxHudDataProtocol implements LeavesProtocol {
         }
     }
 
+    public static void refreshLoggers(ServerPlayer player, @Nonnull CompoundTag nbt) {
+        if (!player.getBukkitEntity().hasPermission("servux.provider.hud_data.logger")) {
+            player.sendSystemMessage(Component.translatable("servux.hud_data.error.insufficient_for_loggers", "any"));
+            return;
+        }
+
+        if (nbt.isEmpty()) {
+            return;
+        }
+
+        List<DataLogger.Type> list = new ArrayList<>();
+
+        for (String key : nbt.keySet()) {
+            DataLogger.Type type = DataLogger.Type.fromStringStatic(key);
+
+            if (type != null && nbt.getBooleanOr(key, false)) {
+                list.add(type);
+            }
+        }
+        if (!list.isEmpty()) {
+            loggerPlayers.put(player, list);
+        } else {
+            loggerPlayers.remove(player);
+        }
+    }
+
+    private static boolean isLoggerTypeEnabled(DataLogger.Type type) {
+        return LeavesConfig.protocol.servux.hudEnabledLoggers.contains(type);
+    }
+
+    @ProtocolHandler.Ticker
+    public void protocolTick() {
+        for (ServerPlayer player : players) {
+            if (refreshSpawnMetadata) {
+                refreshSpawnMetadata(player);
+            }
+            refreshWeatherData(player);
+        }
+        refreshSpawnMetadata = false;
+    }
+
+    @ProtocolHandler.Ticker(tickerId = "logger")
+    public void loggerTick() {
+        if (!LeavesConfig.protocol.servux.hudLoggerProtocol) {
+            return;
+        }
+
+        MinecraftServer server = MinecraftServer.getServer();
+
+        if (server.getTickCount() % LeavesConfig.protocol.servux.hudUpdateInterval == 0) {
+            DATA.clear();
+            LOGGERS.forEach((type, logger) -> {
+                if (!isLoggerTypeEnabled(type)) {
+                    return;
+                }
+                DATA.put(type, logger.getResult(server));
+            });
+        }
+
+        for (ServerPlayer player : loggerPlayers.keySet()) {
+            List<DataLogger.Type> list = loggerPlayers.get(player);
+            if (list.isEmpty()) {
+                return;
+            }
+
+            CompoundTag nbt = new CompoundTag();
+            for (DataLogger.Type type : list) {
+                if (DATA.containsKey(type)) {
+                    nbt.put(type.getSerializedName(), DATA.get(type));
+                }
+            }
+            sendPacket(player, new HudDataPayload(HudDataPayloadType.PACKET_S2C_DATA_LOGGER_TICK, nbt));
+        }
+    }
+
+    @Override
+    public boolean isActive() {
+        return LeavesConfig.protocol.servux.hudMetadataProtocol;
+    }
+
+    @Override
+    public int tickerInterval(String tickerID) {
+        return tickerID.equals("logger") ? 1 : updateInterval;
+    }
+
     public static void sendPacket(ServerPlayer player, HudDataPayload payload) {
         if (payload.packetType == HudDataPayloadType.PACKET_S2C_NBT_RESPONSE_START) {
             FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
@@ -148,27 +266,6 @@ public class ServuxHudDataProtocol implements LeavesProtocol {
         sendPacket(player, new HudDataPayload(HudDataPayloadType.PACKET_S2C_NBT_RESPONSE_DATA, buf));
     }
 
-    @ProtocolHandler.Ticker
-    public void onTick() {
-        for (ServerPlayer player : players) {
-            if (refreshSpawnMetadata) {
-                refreshSpawnMetadata(player);
-            }
-            refreshWeatherData(player);
-        }
-        refreshSpawnMetadata = false;
-    }
-
-    @Override
-    public boolean isActive() {
-        return LeavesConfig.protocol.servux.hudMetadataProtocol;
-    }
-
-    @Override
-    public int tickerInterval(String tickerID) {
-        return updateInterval;
-    }
-
     public enum HudDataPayloadType {
         PACKET_S2C_METADATA(1),
         PACKET_C2S_METADATA_REQUEST(2),
@@ -176,6 +273,8 @@ public class ServuxHudDataProtocol implements LeavesProtocol {
         PACKET_C2S_SPAWN_DATA_REQUEST(4),
         PACKET_S2C_WEATHER_TICK(5),
         PACKET_C2S_RECIPE_MANAGER_REQUEST(6),
+        PACKET_S2C_DATA_LOGGER_TICK(7),
+        PACKET_C2S_DATA_LOGGER_REQUEST(8),
         // For Packet Splitter (Oversize Packets, S2C)
         PACKET_S2C_NBT_RESPONSE_START(10),
         PACKET_S2C_NBT_RESPONSE_DATA(11);
@@ -208,7 +307,8 @@ public class ServuxHudDataProtocol implements LeavesProtocol {
                 switch (payload.packetType()) {
                     case PACKET_S2C_NBT_RESPONSE_DATA -> buf.writeBytes(payload.buffer().copy());
                     case PACKET_C2S_METADATA_REQUEST, PACKET_S2C_METADATA, PACKET_C2S_SPAWN_DATA_REQUEST,
-                         PACKET_S2C_SPAWN_DATA, PACKET_S2C_WEATHER_TICK, PACKET_C2S_RECIPE_MANAGER_REQUEST -> buf.writeNbt(payload.nbt());
+                         PACKET_S2C_SPAWN_DATA, PACKET_S2C_WEATHER_TICK, PACKET_C2S_RECIPE_MANAGER_REQUEST,
+                         PACKET_C2S_DATA_LOGGER_REQUEST, PACKET_S2C_DATA_LOGGER_TICK -> buf.writeNbt(payload.nbt());
                 }
             },
             buf -> {
@@ -221,7 +321,7 @@ public class ServuxHudDataProtocol implements LeavesProtocol {
                         return new HudDataPayload(type, new FriendlyByteBuf(buf.readBytes(buf.readableBytes())));
                     }
                     case PACKET_C2S_METADATA_REQUEST, PACKET_S2C_METADATA, PACKET_C2S_SPAWN_DATA_REQUEST, PACKET_S2C_SPAWN_DATA, PACKET_S2C_WEATHER_TICK,
-                         PACKET_C2S_RECIPE_MANAGER_REQUEST -> {
+                         PACKET_C2S_RECIPE_MANAGER_REQUEST, PACKET_C2S_DATA_LOGGER_REQUEST, PACKET_S2C_DATA_LOGGER_TICK -> {
                         return new HudDataPayload(type, buf.readNbt());
                     }
                 }
@@ -236,6 +336,5 @@ public class ServuxHudDataProtocol implements LeavesProtocol {
         public HudDataPayload(HudDataPayloadType type, FriendlyByteBuf buffer) {
             this(type, new CompoundTag(), buffer);
         }
-
     }
 }

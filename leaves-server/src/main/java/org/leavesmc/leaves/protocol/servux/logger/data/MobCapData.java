@@ -1,19 +1,15 @@
 package org.leavesmc.leaves.protocol.servux.logger.data;
 
-import com.google.common.collect.ImmutableList;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.PrimitiveCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.entity.MobCategory;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.Arrays;
 import java.util.List;
 
 public class MobCapData {
-    protected static final int CAP_COUNT = EntityCategory.values().length;
+    protected static final int CAP_COUNT = MobCategory.values().length;
 
     public static final Codec<MobCapData> CODEC = RecordCodecBuilder.create(
         (inst) -> inst.group(
@@ -127,11 +123,11 @@ public class MobCapData {
         this.completionWorldTick = -1L;
     }
 
-    public Cap getCap(EntityCategory type) {
+    public Cap getCap(MobCategory type) {
         return this.data[type.ordinal()];
     }
 
-    public void setCurrentAndCapValues(EntityCategory type, int currentValue, int capValue, long worldTick) {
+    public void setCurrentAndCapValues(MobCategory type, int currentValue, int capValue, long worldTick) {
         int index = type.ordinal();
 
         this.stagingData[index].setCurrentAndCap(currentValue, capValue);
@@ -172,69 +168,6 @@ public class MobCapData {
 
         this.hasValidData = true;
         this.completionWorldTick = worldTick;
-    }
-
-    public enum EntityCategory implements StringRepresentable {
-        MONSTER("monster", MobCategory.MONSTER),
-        CREATURE("creature", MobCategory.CREATURE),
-        AMBIENT("ambient", MobCategory.AMBIENT),
-        AXOLOTLS("axolotls", MobCategory.AXOLOTLS),
-        UNDERGROUND_WATER_CREATURE("underground_water_creature", MobCategory.UNDERGROUND_WATER_CREATURE),
-        WATER_CREATURE("water_creature", MobCategory.WATER_CREATURE),
-        WATER_AMBIENT("water_ambient", MobCategory.WATER_AMBIENT),
-        MISC("misc", MobCategory.MISC);
-
-        public static final StringRepresentable.EnumCodec<EntityCategory> CODEC = StringRepresentable.fromEnum(EntityCategory::values);
-        public static final ImmutableList<EntityCategory> VALUES = ImmutableList.copyOf(values());
-
-        private final MobCategory vanillaCategory;
-        private final String name;
-
-        EntityCategory(String name, MobCategory vanillaCategory) {
-            this.name = name;
-            this.vanillaCategory = vanillaCategory;
-        }
-
-        public static EntityCategory fromVanillaCategory(MobCategory type) {
-            return switch (type) {
-                case MONSTER -> MONSTER;
-                case CREATURE -> CREATURE;
-                case AMBIENT -> AMBIENT;
-                case AXOLOTLS -> AXOLOTLS;
-                case UNDERGROUND_WATER_CREATURE -> UNDERGROUND_WATER_CREATURE;
-                case WATER_CREATURE -> WATER_CREATURE;
-                case WATER_AMBIENT -> WATER_AMBIENT;
-                case MISC -> MISC;
-            };
-        }
-
-        @Nullable
-        public static EntityCategory fromVanillaCategoryName(String name) {
-            return switch (name) {
-                case "monster" -> MONSTER;
-                case "creature" -> CREATURE;
-                case "ambient" -> AMBIENT;
-                case "axolotls" -> AXOLOTLS;
-                case "underground_water_creature" -> UNDERGROUND_WATER_CREATURE;
-                case "water_creature" -> WATER_CREATURE;
-                case "water_ambient" -> WATER_AMBIENT;
-                case "misc" -> MISC;
-                default -> null;
-            };
-        }
-
-        public String getName() {
-            return this.name;
-        }
-
-        @Override
-        public @NotNull String getSerializedName() {
-            return this.name;
-        }
-
-        public MobCategory getVanillaCategory() {
-            return this.vanillaCategory;
-        }
     }
 
     public static class Cap {

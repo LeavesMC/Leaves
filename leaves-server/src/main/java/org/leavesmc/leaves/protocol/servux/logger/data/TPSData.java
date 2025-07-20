@@ -5,6 +5,7 @@ import com.mojang.serialization.codecs.PrimitiveCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 public record TPSData(double mspt, double tps, long sprintTicks, boolean frozen, boolean sprinting, boolean stepping) {
+
     public static Codec<TPSData> CODEC = RecordCodecBuilder.create(
         (inst) -> inst.group(
             PrimitiveCodec.DOUBLE.fieldOf("mspt").forGetter(TPSData::mspt),

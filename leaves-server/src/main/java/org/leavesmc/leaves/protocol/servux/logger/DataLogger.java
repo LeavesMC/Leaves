@@ -16,7 +16,6 @@ import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.protocol.servux.logger.data.MobCapData;
 import org.leavesmc.leaves.protocol.servux.logger.data.TPSData;
 
-import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 public abstract class DataLogger<T> {
@@ -79,6 +78,7 @@ public abstract class DataLogger<T> {
     }
 
     public static class Tps extends DataLogger<CompoundTag> {
+
         public static final Codec<CompoundTag> CODEC = CompoundTag.CODEC;
 
         public Tps(Type type) {
@@ -115,6 +115,7 @@ public abstract class DataLogger<T> {
     }
 
     public static class MobCaps extends DataLogger<CompoundTag> {
+
         public static final Codec<CompoundTag> CODEC = CompoundTag.CODEC;
 
         public MobCaps(Type type) {
@@ -130,36 +131,30 @@ public abstract class DataLogger<T> {
                 MobCapData mobCapData = new MobCapData();
                 MobCapData.Cap[] data = MobCapData.createCapArray();
                 NaturalSpawner.SpawnState info = world.getChunkSource().getLastSpawnState();
+                int spawnableChunks = world.getChunkSource().chunkMap.getDistanceManager().getNaturalSpawnChunkCount();
 
-                if (info != null) {
-                    int spawnableChunks = world.getChunkSource().chunkMap.getDistanceManager().getNaturalSpawnChunkCount();
-                    int divisor = 17 * 17;
-                    long worldTime = world.getGameTime();
+                if (info == null || spawnableChunks <= 0) {
+                    continue;
+                }
 
-                    if (spawnableChunks <= 0) {
-                        continue;
-                    }
+                int divisor = 17 * 17;
+                long worldTime = world.getGameTime();
 
-                    for (Object2IntMap.Entry<MobCategory> entry : info.getMobCategoryCounts().object2IntEntrySet()) {
-                        MobCapData.EntityCategory category = MobCapData.EntityCategory.fromVanillaCategory(entry.getKey());
+                for (Object2IntMap.Entry<MobCategory> entry : info.getMobCategoryCounts().object2IntEntrySet()) {
+                    int current = entry.getIntValue();
+                    int capacity = entry.getKey().getMaxInstancesPerChunk() * spawnableChunks / divisor;
+                    int ordinal = entry.getKey().ordinal();
+                    data[ordinal].setCurrentAndCap(current, capacity);
 
-                        int current = entry.getIntValue();
-                        int capacity = entry.getKey().getMaxInstancesPerChunk() * spawnableChunks / divisor;
-                        data[category.ordinal()].setCurrentAndCap(current, capacity);
+                    MobCapData.Cap cap = data[ordinal];
+                    mobCapData.setCurrentAndCapValues(entry.getKey(), cap.getCurrent(), cap.getCap(), worldTime);
+                }
 
-                        for (MobCapData.EntityCategory type : MobCapData.EntityCategory.values()) {
-                            MobCapData.Cap cap = data[type.ordinal()];
-                            mobCapData.setCurrentAndCapValues(type, cap.getCurrent(), cap.getCap(), worldTime);
-                        }
-                    }
-
-                    try {
-                        CompoundTag nbtEntry = (CompoundTag) MobCapData.CODEC.encodeStart(world.registryAccess().createSerializationContext(NbtOps.INSTANCE), mobCapData).getPartialOrThrow();
-                        nbtEntry.putLong("WorldTick", worldTime);
-                        nbt.put(dimKey, nbtEntry);
-                    } catch (Exception ignored) {
-                    }
-
+                try {
+                    CompoundTag nbtEntry = (CompoundTag) MobCapData.CODEC.encodeStart(world.registryAccess().createSerializationContext(NbtOps.INSTANCE), mobCapData).getPartialOrThrow();
+                    nbtEntry.putLong("WorldTick", worldTime);
+                    nbt.put(dimKey, nbtEntry);
+                } catch (Exception ignored) {
                 }
             }
 

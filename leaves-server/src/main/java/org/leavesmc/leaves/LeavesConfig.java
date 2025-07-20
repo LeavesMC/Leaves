@@ -27,6 +27,7 @@ import org.leavesmc.leaves.protocol.CarpetServerProtocol.CarpetRule;
 import org.leavesmc.leaves.protocol.CarpetServerProtocol.CarpetRules;
 import org.leavesmc.leaves.protocol.bladeren.BladerenProtocol.LeavesFeature;
 import org.leavesmc.leaves.protocol.bladeren.BladerenProtocol.LeavesFeatureSet;
+import org.leavesmc.leaves.protocol.servux.logger.DataLogger;
 import org.leavesmc.leaves.region.RegionFileFormat;
 import org.leavesmc.leaves.util.MathUtils;
 
@@ -869,7 +870,10 @@ public final class LeavesConfig {
             public boolean hudLoggerProtocol = false;
 
             @GlobalConfig("hud-enabled-loggers")
-            public List<String> hudEnabledLoggers = List.of("tps", "mob_caps");
+            public List<DataLogger.Type> hudEnabledLoggers = List.of(DataLogger.Type.TPS, DataLogger.Type.MOB_CAPS);
+
+            @GlobalConfig("hud-update-interval")
+            public int hudUpdateInterval = 1;
 
             @GlobalConfig("hud-metadata-protocol-share-seed")
             public boolean hudMetadataShareSeed = true;

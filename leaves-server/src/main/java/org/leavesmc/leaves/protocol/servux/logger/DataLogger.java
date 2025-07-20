@@ -5,6 +5,7 @@ import com.mojang.serialization.Codec;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.Tag;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.ServerTickRateManager;
 import net.minecraft.server.level.ServerLevel;
@@ -16,9 +17,10 @@ import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.protocol.servux.logger.data.MobCapData;
 import org.leavesmc.leaves.protocol.servux.logger.data.TPSData;
 
+import java.util.ArrayList;
 import java.util.function.Function;
 
-public abstract class DataLogger<T> {
+public abstract class DataLogger<T extends Tag> {
 
     private final Type type;
 
@@ -98,7 +100,7 @@ public abstract class DataLogger<T> {
             ServerTickRateManager tickManager = server.tickRateManager();
             boolean frozen = tickManager.isFrozen();
             boolean sprinting = tickManager.isSprinting();
-            final double mspt = server.tickTimes5s.getAverage() / 1_000_000;
+            final double mspt = server.tickTimes5s.getAverage();
             double tps = 1000.0D / Math.max(sprinting ? 0.0 : tickManager.millisecondsPerTick(), mspt);
 
             if (frozen) {
@@ -127,33 +129,20 @@ public abstract class DataLogger<T> {
             CompoundTag nbt = new CompoundTag();
 
             for (ServerLevel world : server.getAllLevels()) {
-                String dimKey = world.dimension().registry().toString();
-                MobCapData mobCapData = new MobCapData();
-                MobCapData.Cap[] data = MobCapData.createCapArray();
                 NaturalSpawner.SpawnState info = world.getChunkSource().getLastSpawnState();
-                int spawnableChunks = world.getChunkSource().chunkMap.getDistanceManager().getNaturalSpawnChunkCount();
-
-                if (info == null || spawnableChunks <= 0) {
+                if (info == null) {
                     continue;
                 }
 
-                int divisor = 17 * 17;
-                long worldTime = world.getGameTime();
-
-                for (Object2IntMap.Entry<MobCategory> entry : info.getMobCategoryCounts().object2IntEntrySet()) {
-                    int current = entry.getIntValue();
-                    int capacity = entry.getKey().getMaxInstancesPerChunk() * spawnableChunks / divisor;
-                    int ordinal = entry.getKey().ordinal();
-                    data[ordinal].setCurrentAndCap(current, capacity);
-
-                    MobCapData.Cap cap = data[ordinal];
-                    mobCapData.setCurrentAndCapValues(entry.getKey(), cap.getCurrent(), cap.getCap(), worldTime);
+                int chunks = info.getSpawnableChunkCount();
+                Object2IntMap<MobCategory> counts = info.getMobCategoryCounts();
+                MobCapData mobCapData = new MobCapData(new ArrayList<>(), world.getGameTime());
+                for (MobCategory category : MobCategory.values()) {
+                    mobCapData.data().add(new MobCapData.Cap(counts.getOrDefault(category, 0), NaturalSpawner.globalLimitForCategory(world, category, chunks)));
                 }
 
                 try {
-                    CompoundTag nbtEntry = (CompoundTag) MobCapData.CODEC.encodeStart(world.registryAccess().createSerializationContext(NbtOps.INSTANCE), mobCapData).getPartialOrThrow();
-                    nbtEntry.putLong("WorldTick", worldTime);
-                    nbt.put(dimKey, nbtEntry);
+                    nbt.put(world.dimension().location().toString(), MobCapData.CODEC.encodeStart(world.registryAccess().createSerializationContext(NbtOps.INSTANCE), mobCapData).getPartialOrThrow());
                 } catch (Exception ignored) {
                 }
             }

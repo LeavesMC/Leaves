@@ -57,7 +57,11 @@ public enum ItemStorageExtensionProvider implements IServerExtensionProvider<Ite
                         if (blockEntity.getBlockState().getBlock() instanceof ChestBlock chestBlock) {
                             Container compound = null;
                             if (blockEntity.getLevel() != null) {
-                                compound = ChestBlock.getContainer(chestBlock, blockEntity.getBlockState(), blockEntity.getLevel(), blockEntity.getBlockPos(), false);
+                                compound = ChestBlock.getContainer(
+                                    chestBlock, blockEntity.getBlockState(),
+                                    blockEntity.getLevel(), blockEntity.getBlockPos(),
+                                    true // Bypass lock check
+                                );
                             }
                             if (compound != null) {
                                 return compound;

@@ -4,11 +4,62 @@ Date: Wed, 26 Jun 2024 17:59:56 +0800
 Subject: [PATCH] Allow grindstone overstacking
 
 
+diff --git a/net/minecraft/world/SimpleContainer.java b/net/minecraft/world/SimpleContainer.java
+index 75170c8d3be477a6ea2a1d62018a6ab630b0e54e..e5f348daf1ae9e604ae12928e5c8618c4803bd70 100644
+--- a/net/minecraft/world/SimpleContainer.java
++++ b/net/minecraft/world/SimpleContainer.java
+@@ -211,6 +211,12 @@ public class SimpleContainer implements Container, StackedContentsCompatible {
+     @Override
+     public void setItem(int index, ItemStack stack) {
+         this.items.set(index, stack);
++        // Leaves end - grindstone overstacking
++        if (org.leavesmc.leaves.LeavesConfig.modify.oldMC.allowGrindstoneOverstacking && org.leavesmc.leaves.util.ItemOverstackUtils.CurseEnchantedBook.isCursedEnchantedBook(stack)) {
++            this.setChanged();
++            return;
++        }
++        // Leaves end - grindstone overstacking
+         stack.limitSize(this.getMaxStackLeaves(stack)); // Leaves - item over-stack util
+         this.setChanged();
+     }
+diff --git a/net/minecraft/world/entity/vehicle/ContainerEntity.java b/net/minecraft/world/entity/vehicle/ContainerEntity.java
+index 99f109e2653eff10c011f380694bd77a76381cee..3d7ea706747a6bcd8db8dd62139989669acb9c08 100644
+--- a/net/minecraft/world/entity/vehicle/ContainerEntity.java
++++ b/net/minecraft/world/entity/vehicle/ContainerEntity.java
+@@ -163,6 +163,11 @@ public interface ContainerEntity extends Container, MenuProvider {
+     default void setChestVehicleItem(int slot, ItemStack stack) {
+         this.unpackChestVehicleLootTable(null);
+         this.getItemStacks().set(slot, stack);
++        // Leaves end - grindstone overstacking
++        if (org.leavesmc.leaves.LeavesConfig.modify.oldMC.allowGrindstoneOverstacking && org.leavesmc.leaves.util.ItemOverstackUtils.CurseEnchantedBook.isCursedEnchantedBook(stack)) {
++            return;
++        }
++        // Leaves end - grindstone overstacking
+         stack.limitSize(this.getMaxStackLeaves(stack)); // Leaves - item over-stack util
+     }
+ 
 diff --git a/net/minecraft/world/inventory/AbstractContainerMenu.java b/net/minecraft/world/inventory/AbstractContainerMenu.java
-index 8aa689129334f75986fb7a18895e2c3fb3c365c8..3686a28bacf267e4be4fa36f6482ac416c2873ee 100644
+index 863b9ab56304a58e8ecbe43657857b95a19cea87..5e0cd62bd693de025fb4cc70b8f31972f5fe531a 100644
 --- a/net/minecraft/world/inventory/AbstractContainerMenu.java
 +++ b/net/minecraft/world/inventory/AbstractContainerMenu.java
-@@ -754,10 +754,15 @@ public abstract class AbstractContainerMenu {
+@@ -607,7 +607,7 @@ public abstract class AbstractContainerMenu {
+                 } else if (carried.isEmpty()) {
+                     if (slot.mayPlace(item)) {
+                         int maxStackSize = slot.getMaxStackSize(item);
+-                        if (item.getCount() > maxStackSize) {
++                        if (!org.leavesmc.leaves.LeavesConfig.modify.oldMC.allowGrindstoneOverstacking && item.getCount() > maxStackSize) { // Leaves - grindstone overstacking
+                             slot.setByPlayer(item.split(maxStackSize));
+                         } else {
+                             inventory.setItem(button, ItemStack.EMPTY);
+@@ -616,7 +616,7 @@ public abstract class AbstractContainerMenu {
+                     }
+                 } else if (slot.mayPickup(player) && slot.mayPlace(item)) {
+                     int maxStackSize = slot.getMaxStackSize(item);
+-                    if (item.getCount() > maxStackSize) {
++                    if (!org.leavesmc.leaves.LeavesConfig.modify.oldMC.allowGrindstoneOverstacking && item.getCount() > maxStackSize) { // Leaves - grindstone overstacking
+                         slot.setByPlayer(item.split(maxStackSize));
+                         slot.onTake(player, carried);
+                         if (!inventory.add(carried)) {
+@@ -776,10 +776,15 @@ public abstract class AbstractContainerMenu {
      public abstract boolean stillValid(Player player);
  
      protected boolean moveItemStackTo(ItemStack stack, int startIndex, int endIndex, boolean reverseDirection) {
@@ -24,7 +75,7 @@ index 8aa689129334f75986fb7a18895e2c3fb3c365c8..3686a28bacf267e4be4fa36f6482ac41
          if (isCheck) {
              stack = stack.copy();
          }
-@@ -822,6 +827,14 @@ public abstract class AbstractContainerMenu {
+@@ -844,6 +849,14 @@ public abstract class AbstractContainerMenu {
                  // Paper end - Add PlayerTradeEvent and PlayerPurchaseEvent
                  if (itemx.isEmpty() && slotx.mayPlace(stack)) {
                      int i1 = slotx.getMaxStackSize(stack);
@@ -40,7 +91,7 @@ index 8aa689129334f75986fb7a18895e2c3fb3c365c8..3686a28bacf267e4be4fa36f6482ac41
                      if (isCheck) {
                          stack.shrink(Math.min(stack.getCount(), i1));
 diff --git a/net/minecraft/world/inventory/GrindstoneMenu.java b/net/minecraft/world/inventory/GrindstoneMenu.java
-index 6eaa468c90a826f9fdecf2cf672c4893122d2504..b7ef712181c88bac7ccb505147013405cb05c6cb 100644
+index 18c15a7657e6fd994a8f17d0812c822d6adc8eab..00a0ce28632a7f515a94087c2752e8787212f0d9 100644
 --- a/net/minecraft/world/inventory/GrindstoneMenu.java
 +++ b/net/minecraft/world/inventory/GrindstoneMenu.java
 @@ -178,7 +178,7 @@ public class GrindstoneMenu extends AbstractContainerMenu {
@@ -60,4 +111,54 @@ index 6eaa468c90a826f9fdecf2cf672c4893122d2504..b7ef712181c88bac7ccb505147013405
 +                if (!this.moveItemStackTo(item, 3, 39, true, false, org.leavesmc.leaves.LeavesConfig.modify.oldMC.allowGrindstoneOverstacking)) { // Leaves - allowGrindstoneOverstacking: Disable stack check
                      return ItemStack.EMPTY;
                  }
+ 
+diff --git a/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java b/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java
+index 4fdb3c36b39213f01f86ba281c7b62af99f5dcce..646d4c26870bb03f6d397b5e03ad97923d0928b2 100644
+--- a/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java
++++ b/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java
+@@ -409,7 +409,11 @@ public abstract class AbstractFurnaceBlockEntity extends BaseContainerBlockEntit
+         ItemStack itemStack = this.items.get(index);
+         boolean flag = !stack.isEmpty() && ItemStack.isSameItemSameComponents(itemStack, stack);
+         this.items.set(index, stack);
+-        stack.limitSize(this.getMaxStackLeaves(stack)); // Leaves - item over-stack util
++        // Leaves end - grindstone overstacking
++        if (!org.leavesmc.leaves.LeavesConfig.modify.oldMC.allowGrindstoneOverstacking || !org.leavesmc.leaves.util.ItemOverstackUtils.CurseEnchantedBook.isCursedEnchantedBook(itemStack)) {
++            stack.limitSize(this.getMaxStackLeaves(stack)); // Leaves - item over-stack util
++        }
++        // Leaves end - grindstone overstacking
+         if (index == 0 && !flag && this.level instanceof ServerLevel serverLevel) {
+             this.cookingTotalTime = getTotalCookTime(serverLevel, this, this.recipeType, this.cookSpeedMultiplier); // Paper - cook speed multiplier API
+             this.cookingTimer = 0;
+diff --git a/net/minecraft/world/level/block/entity/BaseContainerBlockEntity.java b/net/minecraft/world/level/block/entity/BaseContainerBlockEntity.java
+index 63d6a43dab067aa4c8fb67095c455130196eef9f..561acadcf81dc219d88e8ec8bdbd4f5f8fcbadc3 100644
+--- a/net/minecraft/world/level/block/entity/BaseContainerBlockEntity.java
++++ b/net/minecraft/world/level/block/entity/BaseContainerBlockEntity.java
+@@ -145,6 +145,12 @@ public abstract class BaseContainerBlockEntity extends BlockEntity implements Co
+     @Override
+     public void setItem(int slot, ItemStack stack) {
+         this.getItems().set(slot, stack);
++        // Leaves end - grindstone overstacking
++        if (org.leavesmc.leaves.LeavesConfig.modify.oldMC.allowGrindstoneOverstacking && org.leavesmc.leaves.util.ItemOverstackUtils.CurseEnchantedBook.isCursedEnchantedBook(stack)) {
++            this.setChanged();
++            return;
++        }
++        // Leaves end - grindstone overstacking
+         stack.limitSize(this.getMaxStackLeaves(stack)); // Leaves - item over-stack util
+         this.setChanged();
+     }
+diff --git a/net/minecraft/world/level/block/entity/HopperBlockEntity.java b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
+index 1a4326df24188918542349ba7c812578e78723ee..a900cde0d7e6ddd6faf961e7861c3cc499164d7a 100644
+--- a/net/minecraft/world/level/block/entity/HopperBlockEntity.java
++++ b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
+@@ -113,6 +113,11 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+     public void setItem(int index, ItemStack stack) {
+         this.unpackLootTable(null);
+         this.getItems().set(index, stack);
++        // Leaves end - grindstone overstacking
++        if (org.leavesmc.leaves.LeavesConfig.modify.oldMC.allowGrindstoneOverstacking && org.leavesmc.leaves.util.ItemOverstackUtils.CurseEnchantedBook.isCursedEnchantedBook(stack)) {
++            return;
++        }
++        // Leaves end - grindstone overstacking
+         stack.limitSize(this.getMaxStackLeaves(stack)); // Leaves - item over-stack util
+     }
  

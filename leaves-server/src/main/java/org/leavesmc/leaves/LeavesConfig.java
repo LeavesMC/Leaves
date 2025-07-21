@@ -3,9 +3,7 @@ package org.leavesmc.leaves;
 import com.destroystokyo.paper.util.SneakyThrow;
 import io.papermc.paper.configuration.GlobalConfiguration;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import org.bukkit.command.Command;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -29,19 +27,17 @@ import org.leavesmc.leaves.protocol.CarpetServerProtocol.CarpetRule;
 import org.leavesmc.leaves.protocol.CarpetServerProtocol.CarpetRules;
 import org.leavesmc.leaves.protocol.bladeren.BladerenProtocol.LeavesFeature;
 import org.leavesmc.leaves.protocol.bladeren.BladerenProtocol.LeavesFeatureSet;
+import org.leavesmc.leaves.protocol.servux.logger.DataLogger;
 import org.leavesmc.leaves.region.RegionFileFormat;
-import org.leavesmc.leaves.util.ForcePeacefulModeSwitchType;
 import org.leavesmc.leaves.util.MathUtils;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Random;
-import java.util.Set;
 import java.util.function.Predicate;
 
 public final class LeavesConfig {
@@ -171,20 +167,11 @@ public final class LeavesConfig {
                 }
             }
 
-            @GlobalConfig("always-send-data")
-            public boolean canSendDataAlways = true;
-
             @GlobalConfig("resident-fakeplayer")
             public boolean canResident = false;
 
             @GlobalConfig("open-fakeplayer-inventory")
             public boolean canOpenInventory = false;
-
-            @GlobalConfig("skip-sleep-check")
-            public boolean canSkipSleep = false;
-
-            @GlobalConfig("spawn-phantom")
-            public boolean canSpawnPhantom = false;
 
             @GlobalConfig("use-action")
             public boolean canUseAction = true;
@@ -198,8 +185,46 @@ public final class LeavesConfig {
             @GlobalConfig(value = "cache-skin", lock = true)
             public boolean useSkinCache = false;
 
-            @GlobalConfig(value = "tick-type")
-            public ServerBot.TickType tickType = ServerBot.TickType.NETWORK;
+            public InGameConfig inGame = new InGameConfig();
+
+            @GlobalConfigCategory("in-game")
+            public static class InGameConfig {
+
+                @RemovedConfig(name = "always-send-data", category = {"modify", "fakeplayer"}, transform = true)
+                @GlobalConfig("always-send-data")
+                public boolean canSendDataAlways = true;
+
+                @RemovedConfig(name = "skip-sleep-check", category = {"modify", "fakeplayer"}, transform = true)
+                @GlobalConfig("skip-sleep-check")
+                public boolean canSkipSleep = false;
+
+                @RemovedConfig(name = "spawn-phantom", category = {"modify", "fakeplayer"}, transform = true)
+                @GlobalConfig("spawn-phantom")
+                public boolean canSpawnPhantom = false;
+
+                @RemovedConfig(name = "tick-type", category = {"modify", "fakeplayer"}, transform = true)
+                @GlobalConfig("tick-type")
+                public ServerBot.TickType tickType = ServerBot.TickType.NETWORK;
+
+                @GlobalConfig(value = "simulation-distance", validator = BotSimulationDistanceValidator.class)
+                private int simulationDistance = -1;
+
+                public int getSimulationDistance(ServerBot bot) {
+                    return this.simulationDistance == -1 ? bot.getBukkitEntity().getSimulationDistance() : this.simulationDistance;
+                }
+
+                public static class BotSimulationDistanceValidator extends IntConfigValidator {
+                    @Override
+                    public void verify(Integer old, Integer value) throws IllegalArgumentException {
+                        if ((value < 2 && value != -1) || value > 32) {
+                            throw new IllegalArgumentException("simulation-distance must be a number between 2 and 32, got: " + value);
+                        }
+                    }
+                }
+
+                @GlobalConfig("enable-locator-bar")
+                public boolean enableLocatorBar = false;
+            }
         }
 
         public MinecraftOLDConfig oldMC = new MinecraftOLDConfig();
@@ -354,6 +379,18 @@ public final class LeavesConfig {
 
             @GlobalConfig("old-throwable-projectile-tick-order")
             public boolean oldThrowableProjectileTickOrder = false;
+
+            @GlobalConfig("keep-leash-connect-when-use-firework")
+            public boolean keepLeashConnectWhenUseFirework = false;
+
+            @GlobalConfig("tnt-wet-explosion-no-item-damage")
+            public boolean tntWetExplosionNoItemDamage = false;
+
+            @GlobalConfig("old-projectile-explosion-behavior")
+            public boolean oldProjectileExplosionBehavior = false;
+
+            @GlobalConfig("ender-dragon-part-can-use-end-portal")
+            public boolean enderDragonPartCanUseEndPortal = false;
         }
 
         public ElytraAeronauticsConfig elytraAeronautics = new ElytraAeronauticsConfig();
@@ -425,16 +462,25 @@ public final class LeavesConfig {
             }
         }
 
-        public int shulkerBoxStackSize = 1;
-        @GlobalConfig(value = "stackable-shulker-boxes", validator = StackableShulkerValidator.class)
-        private String stackableShulkerBoxes = "false";
+        public ShulkerBoxConfig shulkerBox = new ShulkerBoxConfig();
 
-        private static class StackableShulkerValidator extends StringConfigValidator {
-            @Override
-            public void verify(String old, String value) throws IllegalArgumentException {
-                String realValue = MathUtils.isNumeric(value) ? value : value.equals("true") ? "2" : "1";
-                LeavesConfig.modify.shulkerBoxStackSize = Integer.parseInt(realValue);
+        @GlobalConfigCategory("shulker-box")
+        public static class ShulkerBoxConfig {
+            public int shulkerBoxStackSize = 1;
+            @RemovedConfig(name = "stackable-shulker-boxes", category = "modify", transform = true)
+            @GlobalConfig(value = "stackable-shulker-boxes", validator = StackableShulkerValidator.class)
+            private String stackableShulkerBoxes = "false";
+
+            private static class StackableShulkerValidator extends StringConfigValidator {
+                @Override
+                public void verify(String old, String value) throws IllegalArgumentException {
+                    String realValue = MathUtils.isNumeric(value) ? value : value.equals("true") ? "2" : "1";
+                    LeavesConfig.modify.shulkerBox.shulkerBoxStackSize = Integer.parseInt(realValue);
+                }
             }
+
+            @GlobalConfig(value = "same-nbt-stackable")
+            public boolean sameNbtStackable = false;
         }
 
         @GlobalConfig(value = "force-void-trade", validator = ForceVoidTradeValidator.class)
@@ -846,6 +892,15 @@ public final class LeavesConfig {
             @GlobalConfig("hud-metadata-protocol")
             public boolean hudMetadataProtocol = false;
 
+            @GlobalConfig("hud-logger-protocol")
+            public boolean hudLoggerProtocol = false;
+
+            @GlobalConfig("hud-enabled-loggers")
+            public List<DataLogger.Type> hudEnabledLoggers = List.of(DataLogger.Type.TPS, DataLogger.Type.MOB_CAPS);
+
+            @GlobalConfig("hud-update-interval")
+            public int hudUpdateInterval = 1;
+
             @GlobalConfig("hud-metadata-protocol-share-seed")
             public boolean hudMetadataShareSeed = true;
 
@@ -956,7 +1011,7 @@ public final class LeavesConfig {
             public String source = "application";
 
             public static class DownloadSourceValidator extends StringConfigValidator {
-                private static final List<String> suggestSourceList = List.of("application", "cloud");
+                private static List<String> suggestSourceList = List.of("application", "cloud");
 
                 @Override
                 public List<String> valueSuggest() {
@@ -1117,17 +1172,14 @@ public final class LeavesConfig {
         @GlobalConfig("vanilla-display-name")
         public boolean vanillaDisplayName = false;
 
-        @GlobalConfig(value = "collision-behavior")
-        public CollisionBehavior collisionBehavior = CollisionBehavior.BLOCK_SHAPE_VANILLA;
-
-        public enum CollisionBehavior {
-            VANILLA, BLOCK_SHAPE_VANILLA, PAPER
-        }
-
         @GlobalConfig("vanilla-portal-handle")
         public boolean vanillaPortalHandle = false;
 
+        @GlobalConfig("vanilla-fluid-pushing")
+        public boolean vanillaFluidPushing = true;
+
+        @RemovedConfig(name = "collision-behavior", category = "fix")
         @RemovedConfig(name = "spigot-EndPlatform-destroy", category = "fix")
-        private final boolean spigotEndPlatformDestroy = false;
+        private final boolean removed = false;
     }
 }

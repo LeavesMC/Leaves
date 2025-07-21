@@ -2,6 +2,7 @@ package org.leavesmc.leaves.bot.agent.configs;
 
 import net.minecraft.nbt.CompoundTag;
 import org.jetbrains.annotations.NotNull;
+import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.bot.agent.AbstractBotConfig;
 import org.leavesmc.leaves.command.CommandArgument;
 import org.leavesmc.leaves.command.CommandArgumentType;
@@ -35,6 +36,6 @@ public class SkipSleepConfig extends AbstractBotConfig<Boolean> {
 
     @Override
     public void load(@NotNull CompoundTag nbt) {
-        this.setValue(nbt.getBoolean(NAME).orElseThrow());
+        this.setValue(nbt.getBooleanOr(NAME, LeavesConfig.modify.fakeplayer.inGame.canSkipSleep));
     }
 }

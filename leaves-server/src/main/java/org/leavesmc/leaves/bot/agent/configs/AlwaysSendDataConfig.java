@@ -17,7 +17,7 @@ public class AlwaysSendDataConfig extends AbstractBotConfig<Boolean> {
 
     public AlwaysSendDataConfig() {
         super(NAME, CommandArgument.of(CommandArgumentType.BOOLEAN).setSuggestion(0, List.of("true", "false")));
-        this.value = LeavesConfig.modify.fakeplayer.canSendDataAlways;
+        this.value = LeavesConfig.modify.fakeplayer.inGame.canSendDataAlways;
     }
 
     @Override
@@ -40,6 +40,6 @@ public class AlwaysSendDataConfig extends AbstractBotConfig<Boolean> {
 
     @Override
     public void load(@NotNull CompoundTag nbt) {
-        this.setValue(nbt.getBoolean(NAME).orElseThrow());
+        this.setValue(nbt.getBooleanOr(NAME, LeavesConfig.modify.fakeplayer.inGame.canSendDataAlways));
     }
 }

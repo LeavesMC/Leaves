@@ -19,6 +19,7 @@ import org.leavesmc.leaves.protocol.core.LeavesCustomPayload;
 import org.leavesmc.leaves.protocol.core.LeavesProtocol;
 import org.leavesmc.leaves.protocol.core.ProtocolHandler;
 import org.leavesmc.leaves.protocol.core.ProtocolUtils;
+import org.leavesmc.leaves.util.TagUtil;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -36,6 +37,11 @@ public class ServuxEntityDataProtocol implements LeavesProtocol {
     @ProtocolHandler.PlayerJoin
     public static void onPlayerJoin(ServerPlayer player) {
         sendMetadata(player);
+    }
+
+    @ProtocolHandler.PlayerLeave
+    public static void onPlayerLeave(ServerPlayer player) {
+        readingSessionKeys.remove(player.getUUID());
     }
 
     @ProtocolHandler.PayloadReceiver(payload = EntityDataPayload.class)
@@ -79,8 +85,8 @@ public class ServuxEntityDataProtocol implements LeavesProtocol {
 
     public static void onBlockEntityRequest(ServerPlayer player, BlockPos pos) {
         Bukkit.getGlobalRegionScheduler().run(MinecraftInternalPlugin.INSTANCE, (task) -> {
-            BlockEntity be = player.serverLevel().getBlockEntity(pos);
-            CompoundTag nbt = be != null ? be.saveWithoutMetadata(player.registryAccess()) : new CompoundTag();
+            BlockEntity be = player.level().getBlockEntity(pos);
+            CompoundTag nbt = be != null ? be.saveWithFullMetadata(player.registryAccess()) : new CompoundTag();
 
             EntityDataPayload payload = new EntityDataPayload(EntityDataPayloadType.PACKET_S2C_BLOCK_NBT_RESPONSE_SIMPLE);
             payload.pos = pos.immutable();
@@ -91,8 +97,8 @@ public class ServuxEntityDataProtocol implements LeavesProtocol {
 
     public static void onEntityRequest(ServerPlayer player, int entityId) {
         Bukkit.getGlobalRegionScheduler().run(MinecraftInternalPlugin.INSTANCE, (task) -> {
-            Entity entity = player.serverLevel().getEntity(entityId);
-            CompoundTag nbt = entity != null ? entity.saveWithoutId(new CompoundTag()) : new CompoundTag();
+            Entity entity = player.level().getEntity(entityId);
+            CompoundTag nbt = TagUtil.saveEntityWithoutId(entity);
 
             EntityDataPayload payload = new EntityDataPayload(EntityDataPayloadType.PACKET_S2C_ENTITY_NBT_RESPONSE_SIMPLE);
             payload.entityId = entityId;
@@ -179,7 +185,7 @@ public class ServuxEntityDataProtocol implements LeavesProtocol {
                         buf.writeVarInt(payload.entityId);
                         buf.writeNbt(payload.nbt);
                     }
-                    case PACKET_S2C_NBT_RESPONSE_DATA, PACKET_C2S_NBT_RESPONSE_DATA -> buf.writeBytes(payload.buffer.readBytes(payload.buffer.readableBytes()));
+                    case PACKET_S2C_NBT_RESPONSE_DATA, PACKET_C2S_NBT_RESPONSE_DATA -> buf.writeBytes(payload.buffer.copy());
                     case PACKET_C2S_METADATA_REQUEST, PACKET_S2C_METADATA -> buf.writeNbt(payload.nbt);
                 }
             },

@@ -1,10 +1,16 @@
 --- a/paper-server/build.gradle.kts
 +++ b/paper-server/build.gradle.kts
-@@ -9,25 +_,38 @@
+@@ -1,4 +_,3 @@
+-import io.papermc.fill.model.BuildChannel
+ import io.papermc.paperweight.attribute.DevBundleOutput
+ import io.papermc.paperweight.util.*
+ import io.papermc.paperweight.util.data.FileEntry
+@@ -10,24 +_,36 @@
      `java-library`
      `maven-publish`
      idea
 -    id("io.papermc.paperweight.core")
+-    id("io.papermc.fill.gradle") version "1.0.7"
 +    id("org.leavesmc.leavesweight.core") // Leaves - build change
  }
  
@@ -12,9 +18,9 @@
 +val leavesMavenPublicUrl = "https://repo.leavesmc.com/snapshots/" // Leaves - build change
  
  dependencies {
-     mache("io.papermc:mache:1.21.5+build.2")
+     mache("io.papermc:mache:1.21.8+build.1")
 -    paperclip("io.papermc:paperclip:3.0.3")
-+    leavesclip("org.leavesmc:leavesclip:3.0.0") // Leaves - build change
++    leavesclip("org.leavesmc:leavesclip:3.0.4") // Leaves - build change
      testRuntimeOnly("org.junit.platform:junit-platform-launcher")
  }
  
@@ -22,10 +28,6 @@
 -    minecraftVersion = providers.gradleProperty("mcVersion")
 +    minecraftVersion = rootProject.providers.gradleProperty("mcVersion") // Leaves - build change
      gitFilePatches = false
- 
-     //updatingMinecraft {
-     //    oldPaperCommit = "f4f275519f7c1fbe9db173b7144a4fe81440e365"
-     //}
  
 +    // Leaves start - build change
 +    val leaves = forks.register("leaves") {
@@ -40,9 +42,12 @@
 +    // Leaves end - build change
 +
      spigot {
-         buildDataRef = "702e1a0a5072b2c4082371d5228cb30525687efc"
-         packageVersion = "v1_21_R4" // also needs to be updated in MappingEnvironment
-@@ -50,6 +_,7 @@
+-        enabled = true
++        // enabled = true // Leaves - disable
+         buildDataRef = "436eac9815c211be1a2a6ca0702615f995e81c44"
+         packageVersion = "v1_21_R5" // also needs to be updated in MappingEnvironment
+     }
+@@ -49,6 +_,7 @@
      libraryRepositories.addAll(
          "https://repo.maven.apache.org/maven2/",
          paperMavenPublicUrl,
@@ -50,7 +55,7 @@
      )
  }
  
-@@ -108,7 +_,22 @@
+@@ -107,7 +_,22 @@
      }
  }
  
@@ -74,12 +79,13 @@
  configurations.named(log4jPlugins.compileClasspathConfigurationName) {
      extendsFrom(configurations.compileClasspath.get())
  }
-@@ -130,7 +_,18 @@
+@@ -129,7 +_,19 @@
  }
  
  dependencies {
 -    implementation(project(":paper-api"))
 +    implementation(project(":leaves-api")) // Leaves - build change
++    implementation("commons-lang:commons-lang:2.6") // Leaves - build change
 +    // Leaves start - linear
 +    implementation("com.github.luben:zstd-jni:1.5.4-1")
 +    implementation("org.lz4:lz4-java:1.8.0")
@@ -94,18 +100,15 @@
      implementation("ca.spottedleaf:concurrentutil:0.0.3")
      implementation("org.jline:jline-terminal-ffm:3.27.1") // use ffm on java 22+
      implementation("org.jline:jline-terminal-jni:3.27.1") // fall back to jni on java 21
-@@ -157,9 +_,9 @@
-     implementation("org.ow2.asm:asm-commons:9.8")
-     implementation("org.spongepowered:configurate-yaml:4.2.0-20250225.064233-199")
-     implementation("org.spongepowered:configurate-core:4.2.0-20250225.064233-204") // Pinned dependency of above pinned yaml snapshot.
-+    implementation("commons-lang:commons-lang:2.6") // Leaves
+@@ -157,7 +_,6 @@
+     implementation("org.spongepowered:configurate-yaml:4.2.0")
  
      // Deps that were previously in the API but have now been moved here for backwards compat, eventually to be removed
 -    runtimeOnly("commons-lang:commons-lang:2.6")
      runtimeOnly("org.xerial:sqlite-jdbc:3.49.1.0")
      runtimeOnly("com.mysql:mysql-connector-j:9.2.0")
      runtimeOnly("com.lmax:disruptor:3.4.4")
-@@ -194,6 +_,16 @@
+@@ -188,26 +_,36 @@
      implementation("me.lucko:spark-paper:1.10.133-20250413.112336-1")
  }
  
@@ -122,7 +125,13 @@
  tasks.jar {
      manifest {
          val git = Git(rootProject.layout.projectDirectory.path)
-@@ -206,14 +_,14 @@
+         val mcVersion = rootProject.providers.gradleProperty("mcVersion").get()
+         val build = System.getenv("BUILD_NUMBER") ?: null
+-        val buildTime = if (build != null) Instant.now() else Instant.EPOCH
++        val buildTime = Instant.now() // Leaves - always use build time
+         val gitHash = git.exec(providers, "rev-parse", "--short=7", "HEAD").get().trim()
+         val implementationVersion = "$mcVersion-${build ?: "DEV"}-$gitHash"
+         val date = git.exec(providers, "show", "-s", "--format=%ci", gitHash).get().trim()
          val gitBranch = git.exec(providers, "rev-parse", "--abbrev-ref", "HEAD").get().trim()
          attributes(
              "Main-Class" to "org.bukkit.craftbukkit.Main",
@@ -142,16 +151,27 @@
              "Build-Number" to (build ?: ""),
              "Build-Time" to buildTime.toString(),
              "Git-Branch" to gitBranch,
-@@ -267,7 +_,7 @@
+@@ -266,7 +_,7 @@
      jvmArgumentProviders.add(provider)
  }
  
 -val generatedDir: java.nio.file.Path = layout.projectDirectory.dir("src/generated/java").asFile.toPath()
-+val generatedDir: java.nio.file.Path = rootProject.layout.projectDirectory.dir("paper-server/src/generated/java").asFile.toPath()
++val generatedDir: java.nio.file.Path = rootProject.layout.projectDirectory.dir("paper-server/src/generated/java").asFile.toPath() // Leaves - build change
  idea {
      module {
          generatedSourceDirs.add(generatedDir.toFile())
-@@ -360,13 +_,26 @@
+@@ -315,6 +_,10 @@
+     }
+ 
+     args("--nogui")
++    systemProperty("stdout.encoding", "UTF-8") // Leaves - fix utf8
++    systemProperty("stderr.encoding", "UTF-8") // Leaves - fix utf8
++    systemProperty("net.kyori.ansi.colorLevel", "truecolor") // Leaves - fix utf8
++    systemProperty("terminal.jline", true) // Leaves - fix utf8
+     systemProperty("net.kyori.adventure.text.warnWhenLegacyFormattingDetected", true)
+     if (providers.gradleProperty("paper.runDisableWatchdog").getOrElse("false") == "true") {
+         systemProperty("disable.watchdog", true)
+@@ -359,30 +_,26 @@
      classpath(tasks.createReobfBundlerJar.flatMap { it.outputZip })
      mainClass.set(null as String?)
  }
@@ -164,6 +184,23 @@
 -    description = "Spin up a test server from the reobf Paperclip jar"
 -    classpath(tasks.createReobfPaperclipJar.flatMap { it.outputZip })
 -    mainClass.set(null as String?)
+-}
+-
+-fill {
+-    project("paper")
+-    versionFamily(paperweight.minecraftVersion.map { it.split(".", "-").takeWhile { part -> part.toIntOrNull() != null }.take(2).joinToString(".") })
+-    version(paperweight.minecraftVersion)
+-
+-    build {
+-        channel = BuildChannel.STABLE
+-
+-        downloads {
+-            register("server:default") {
+-                file = tasks.createMojmapPaperclipJar.flatMap { it.outputZip }
+-                nameResolver.set { project, _, version, build -> "$project-$version-$build.jar" }
+-            }
+-        }
+-    }
 -}
 +
 +// Leaves start - build change

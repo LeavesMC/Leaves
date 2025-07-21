@@ -18,7 +18,6 @@ subprojects {
     }
 
     repositories {
-        mavenLocal()
         mavenCentral()
         maven("https://repo.papermc.io/repository/maven-public/")
         maven("https://repo.leavesmc.org/releases") {
@@ -251,6 +250,7 @@ tasks.register("applyNextPatch") {
 
         if (failedIndex >= 0) {
             val directory = project.projectDir.resolve(patchDir[failedIndex])
+            executeCommand(listOf("git", "add", "."), directory)
 
             val gitCommand = if (hasGitChanges(directory)) {
                 listOf("git", "am", "--continue")

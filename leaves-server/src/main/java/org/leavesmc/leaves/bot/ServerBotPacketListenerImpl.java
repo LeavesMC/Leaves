@@ -1,14 +1,13 @@
 package org.leavesmc.leaves.bot;
 
+import io.netty.channel.ChannelFutureListener;
 import net.minecraft.network.Connection;
 import net.minecraft.network.DisconnectionDetails;
-import net.minecraft.network.PacketSendListener;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.PacketFlow;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.CommonListenerCookie;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
-import org.bukkit.event.player.PlayerKickEvent;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -19,19 +18,11 @@ public class ServerBotPacketListenerImpl extends ServerGamePacketListenerImpl {
     }
 
     @Override
-    public void sendPacket(@NotNull Packet<?> packet) {
+    public void send(@NotNull Packet<?> packet, @Nullable ChannelFutureListener listener) {
     }
 
     @Override
-    public void send(@NotNull Packet<?> packet) {
-    }
-
-    @Override
-    public void send(@NotNull Packet<?> packet, @Nullable PacketSendListener callbacks) {
-    }
-
-    @Override
-    public void disconnect(@NotNull DisconnectionDetails disconnectionInfo, PlayerKickEvent.@NotNull Cause cause) {
+    public void disconnect(@NotNull DisconnectionDetails disconnectionInfo) {
     }
 
     @Override
@@ -71,15 +62,7 @@ public class ServerBotPacketListenerImpl extends ServerGamePacketListenerImpl {
         }
 
         @Override
-        public void send(@NotNull Packet<?> packet) {
-        }
-
-        @Override
-        public void send(@NotNull Packet<?> packet, @Nullable PacketSendListener packetsendlistener) {
-        }
-
-        @Override
-        public void send(@NotNull Packet<?> packet, @Nullable PacketSendListener callbacks, boolean flush) {
+        public void send(@NotNull Packet<?> packet, @javax.annotation.Nullable ChannelFutureListener channelFutureListener, boolean flag) {
         }
     }
 }

@@ -27,25 +27,6 @@ index 47cb25aa9c37bd84d156288c397321009f1d9ae2..a94981882ac37ea215df3a71117d4a9b
      public void write(FriendlyByteBuf buffer) {
          buffer.writeCollection(this.entries, (buffer1, entry) -> entry.write(buffer1));
      }
-diff --git a/net/minecraft/network/FriendlyByteBuf.java b/net/minecraft/network/FriendlyByteBuf.java
-index 7da7d645f83f351e8c964da01734f3074a877ca1..a9d37c540397b5e24721b3eba47e2d5b2577579f 100644
---- a/net/minecraft/network/FriendlyByteBuf.java
-+++ b/net/minecraft/network/FriendlyByteBuf.java
-@@ -118,6 +118,14 @@ public class FriendlyByteBuf extends ByteBuf {
-     public <T> void writeJsonWithCodec(Codec<T> codec, T value, int maxLength) {
-         // Paper end - Adventure; add max length parameter
-         DataResult<JsonElement> dataResult = codec.encodeStart(JsonOps.INSTANCE, value);
-+        // Leaves start - no chat sign
-+        if (codec == net.minecraft.network.protocol.status.ServerStatus.CODEC) {
-+            JsonElement element = dataResult.getOrThrow(string -> new EncoderException("Failed to encode: " + string + " " + value));
-+            element.getAsJsonObject().addProperty("preventsChatReports", org.leavesmc.leaves.LeavesConfig.mics.noChatSign);
-+            this.writeUtf(GSON.toJson(element));
-+            return;
-+        }
-+        // Leaves end - no chat sign
-         this.writeUtf(GSON.toJson(dataResult.getOrThrow(exception -> new EncoderException("Failed to encode: " + exception + " " + value))), maxLength); // Paper - Adventure; add max length parameter
-     }
- 
 diff --git a/net/minecraft/network/protocol/game/ServerboundChatPacket.java b/net/minecraft/network/protocol/game/ServerboundChatPacket.java
 index b5afc05924ae899e020c303c8b86398e1d4ab8a0..4479634e577913372faf87138b5ba26ba02ea4f7 100644
 --- a/net/minecraft/network/protocol/game/ServerboundChatPacket.java
@@ -90,11 +71,45 @@ index 1df628ac0b414511aaed6e09d78f884c4170f730..b92081d70ffeec47c304e553ce1aea0a
          handler.handleChatSessionUpdate(this);
      }
  }
+diff --git a/net/minecraft/network/protocol/status/ServerStatus.java b/net/minecraft/network/protocol/status/ServerStatus.java
+index a491be4250de3199c3e1aa9e5482b568692bd2f5..9844b19020ef6e4fa5a3008dcd768bb674657d2f 100644
+--- a/net/minecraft/network/protocol/status/ServerStatus.java
++++ b/net/minecraft/network/protocol/status/ServerStatus.java
+@@ -20,7 +20,8 @@ public record ServerStatus(
+     Optional<ServerStatus.Players> players,
+     Optional<ServerStatus.Version> version,
+     Optional<ServerStatus.Favicon> favicon,
+-    boolean enforcesSecureChat
++    boolean enforcesSecureChat, // Leaves - no chat sign
++    boolean preventsChatReports // Leaves - no chat sign
+ ) {
+     public static final Codec<ServerStatus> CODEC = RecordCodecBuilder.create(
+         instance -> instance.group(
+@@ -28,11 +29,18 @@ public record ServerStatus(
+                 ServerStatus.Players.CODEC.lenientOptionalFieldOf("players").forGetter(ServerStatus::players),
+                 ServerStatus.Version.CODEC.lenientOptionalFieldOf("version").forGetter(ServerStatus::version),
+                 ServerStatus.Favicon.CODEC.lenientOptionalFieldOf("favicon").forGetter(ServerStatus::favicon),
+-                Codec.BOOL.lenientOptionalFieldOf("enforcesSecureChat", false).forGetter(ServerStatus::enforcesSecureChat)
++                Codec.BOOL.lenientOptionalFieldOf("enforcesSecureChat", false).forGetter(ServerStatus::enforcesSecureChat), // Leaves - no chat sign
++                Codec.BOOL.lenientOptionalFieldOf("preventsChatReports", false).forGetter(ServerStatus::preventsChatReports) // Leaves - no chat sign
+             )
+             .apply(instance, ServerStatus::new)
+     );
+ 
++    // Leaves start - no chat sign
++    public ServerStatus(Component description, Optional<ServerStatus.Players> players, Optional<ServerStatus.Version> version, Optional<ServerStatus.Favicon> favicon, boolean enforcesSecureChat) {
++        this(description, players, version, favicon, enforcesSecureChat, org.leavesmc.leaves.LeavesConfig.mics.noChatSign);
++    }
++    // Leaves end - no chat sign
++
+     public record Favicon(byte[] iconBytes) {
+         private static final String PREFIX = "data:image/png;base64,";
+         public static final Codec<ServerStatus.Favicon> CODEC = Codec.STRING.comapFlatMap(string -> {
 diff --git a/net/minecraft/server/dedicated/DedicatedServer.java b/net/minecraft/server/dedicated/DedicatedServer.java
-index e56f26fc504538d88bfa1954e929ee44fd31d657..e4946438d0c1fb9d2be616cb95768f890b32f286 100644
+index f85993fc507d699728e058b12bb49dcb7aaea44b..91babab6152bb12768399ef6f2ea6afcb5e644b7 100644
 --- a/net/minecraft/server/dedicated/DedicatedServer.java
 +++ b/net/minecraft/server/dedicated/DedicatedServer.java
-@@ -574,7 +574,7 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
+@@ -573,7 +573,7 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
          // Paper start - Add setting for proxy online mode status
          return properties.enforceSecureProfile
              && io.papermc.paper.configuration.GlobalConfiguration.get().proxies.isProxyOnlineMode()
@@ -104,10 +119,10 @@ index e56f26fc504538d88bfa1954e929ee44fd31d657..e4946438d0c1fb9d2be616cb95768f89
      }
  
 diff --git a/net/minecraft/server/network/ServerCommonPacketListenerImpl.java b/net/minecraft/server/network/ServerCommonPacketListenerImpl.java
-index ac5ef04fae4bc19bae9007c0ffd8f688434d22d7..649aeec6954d26cb67827e99c4b5b736f4f5bef4 100644
+index 2dd95aca955f19ce48be35b1ca9bcc94c3a1984d..e9d328dacdc23eea792ab350ec2ea9f8337ae008 100644
 --- a/net/minecraft/server/network/ServerCommonPacketListenerImpl.java
 +++ b/net/minecraft/server/network/ServerCommonPacketListenerImpl.java
-@@ -294,10 +294,24 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
+@@ -322,10 +322,24 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
      }
  
      public void send(Packet<?> packet) {
@@ -121,11 +136,11 @@ index ac5ef04fae4bc19bae9007c0ffd8f688434d22d7..649aeec6954d26cb67827e99c4b5b736
          this.send(packet, null);
      }
  
-     public void send(Packet<?> packet, @Nullable PacketSendListener listener) {
+     public void send(Packet<?> packet, @Nullable ChannelFutureListener channelFutureListener) {
 +        // Leaves start - no ClientboundPlayerChatHeaderPacket and rebuild ClientboundPlayerChatPacket
 +        if (org.leavesmc.leaves.LeavesConfig.mics.noChatSign) {
-+            if (packet instanceof net.minecraft.network.protocol.game.ClientboundPlayerChatPacket && listener != null) {
-+                listener = null;
++            if (packet instanceof net.minecraft.network.protocol.game.ClientboundPlayerChatPacket && channelFutureListener != null) {
++                channelFutureListener = null;
 +            }
 +        }
 +        // Leaves end - no ClientboundPlayerChatHeaderPacket and rebuild ClientboundPlayerChatPacket
@@ -133,10 +148,10 @@ index ac5ef04fae4bc19bae9007c0ffd8f688434d22d7..649aeec6954d26cb67827e99c4b5b736
          if (packet == null || this.processedDisconnect) { // Spigot
              return;
 diff --git a/net/minecraft/server/players/PlayerList.java b/net/minecraft/server/players/PlayerList.java
-index 0cf30681a9e3d68f3abe1d87b9fd4220083685a9..491d7b5a0cc099a3eb658e19cbe9d97b4419382c 100644
+index 204c25d33e86a736f091848a277ea882f129e468..742a49c9f1cec6a7ed343b1f0072fc36bb3df26b 100644
 --- a/net/minecraft/server/players/PlayerList.java
 +++ b/net/minecraft/server/players/PlayerList.java
-@@ -1339,7 +1339,7 @@ public abstract class PlayerList {
+@@ -1315,7 +1315,7 @@ public abstract class PlayerList {
      }
  
      public boolean verifyChatTrusted(PlayerChatMessage message) {

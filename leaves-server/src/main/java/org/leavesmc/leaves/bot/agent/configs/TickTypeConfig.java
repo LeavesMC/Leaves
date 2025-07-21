@@ -19,7 +19,7 @@ public class TickTypeConfig extends AbstractBotConfig<ServerBot.TickType> {
 
     public TickTypeConfig() {
         super(NAME, CommandArgument.of(TICK_TYPE_ARGUMENT).setSuggestion(0, List.of("network", "entity_list")));
-        this.value = LeavesConfig.modify.fakeplayer.tickType;
+        this.value = LeavesConfig.modify.fakeplayer.inGame.tickType;
     }
 
     @Override
@@ -42,6 +42,6 @@ public class TickTypeConfig extends AbstractBotConfig<ServerBot.TickType> {
 
     @Override
     public void load(@NotNull CompoundTag nbt) {
-        this.setValue(TICK_TYPE_ARGUMENT.parse(nbt.getString(NAME).orElseThrow()));
+        this.setValue(TICK_TYPE_ARGUMENT.parse(nbt.getStringOr(NAME, LeavesConfig.modify.fakeplayer.inGame.tickType.name())));
     }
 }

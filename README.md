@@ -30,7 +30,7 @@ maven {
 }
 
 dependencies {
-    compileOnly("org.leavesmc.leaves:leaves-api:1.21.5-R0.1-SNAPSHOT")
+    compileOnly("org.leavesmc.leaves:leaves-api:1.21.8-R0.1-SNAPSHOT")
 }
  ```
 
@@ -40,7 +40,7 @@ Each time you want to update your dependency, you must re-build Leaves.
 Leaves-Server:
 ```kotlin
 dependencies {
-    compileOnly("org.leavesmc.leaves:leaves:1.21.5-R0.1-SNAPSHOT")
+    compileOnly("org.leavesmc.leaves:leaves:1.21.8-R0.1-SNAPSHOT")
 }
  ```
 

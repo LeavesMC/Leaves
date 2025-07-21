@@ -3,10 +3,9 @@ package org.leavesmc.leaves.bot;
 import com.google.common.collect.ImmutableMap;
 import com.mojang.authlib.GameProfile;
 import io.papermc.paper.adventure.PaperAdventure;
+import io.papermc.paper.event.entity.EntityKnockbackEvent;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.NonNullList;
-import net.minecraft.core.particles.BlockParticleOption;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
@@ -31,16 +30,16 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.PositionMoveRotation;
-import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.ChestMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.gameevent.GameEvent;
 import net.minecraft.world.level.portal.TeleportTransition;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.EntityHitResult;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -50,11 +49,11 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.LeavesLogger;
-import org.leavesmc.leaves.bot.agent.AbstractBotAction;
 import org.leavesmc.leaves.bot.agent.AbstractBotConfig;
 import org.leavesmc.leaves.bot.agent.Actions;
 import org.leavesmc.leaves.bot.agent.Configs;
-import org.leavesmc.leaves.entity.CraftBot;
+import org.leavesmc.leaves.bot.agent.actions.*;
+import org.leavesmc.leaves.entity.bot.CraftBot;
 import org.leavesmc.leaves.event.bot.BotActionScheduleEvent;
 import org.leavesmc.leaves.event.bot.BotCreateEvent;
 import org.leavesmc.leaves.event.bot.BotDeathEvent;
@@ -73,7 +72,7 @@ import java.util.function.Predicate;
 
 public class ServerBot extends ServerPlayer {
 
-    private final List<AbstractBotAction<?>> actions;
+    private final List<ServerBotAction<?>> actions;
     private final Map<Configs<?>, AbstractBotConfig<?>> configs;
 
     public boolean resume = false;
@@ -106,7 +105,8 @@ public class ServerBot extends ServerPlayer {
         this.tracingRange = world.spigotConfig.playerTrackingRange * world.spigotConfig.playerTrackingRange;
 
         this.notSleepTicks = 0;
-        this.fauxSleeping = LeavesConfig.modify.fakeplayer.canSkipSleep;
+        this.fauxSleeping = LeavesConfig.modify.fakeplayer.inGame.canSkipSleep;
+        this.getBukkitEntity().setSimulationDistance(LeavesConfig.modify.fakeplayer.inGame.getSimulationDistance(this));
         this.setClientLoaded(true);
     }
 
@@ -130,26 +130,18 @@ public class ServerBot extends ServerPlayer {
         if (this.invulnerableTime > 0) {
             this.invulnerableTime--;
         }
-        if (this.spawnInvulnerableTime > 0) --this.spawnInvulnerableTime; // Leaves - spawn invulnerable time
+        if (this.spawnInvulnerableTime > 0) {
+            --this.spawnInvulnerableTime; // Leaves - spawn invulnerable time
+        }
         // copy ServerPlayer end
 
         if (this.getConfigValue(Configs.SPAWN_PHANTOM)) {
             this.notSleepTicks++;
         }
 
-        if (LeavesConfig.modify.fakeplayer.regenAmount > 0.0 && server.getTickCount() % 20 == 0) {
-            float health = getHealth();
-            float maxHealth = getMaxHealth();
+        if (LeavesConfig.modify.fakeplayer.regenAmount > 0.0 && getServer().getTickCount() % 20 == 0) {
             float regenAmount = (float) (LeavesConfig.modify.fakeplayer.regenAmount * 20);
-            float amount;
-
-            if (health < maxHealth - regenAmount) {
-                amount = health + regenAmount;
-            } else {
-                amount = maxHealth;
-            }
-
-            this.setHealth(amount);
+            this.setHealth(Math.min(this.getHealth() + regenAmount, this.getMaxHealth()));
         }
 
         if (this.getConfigValue(Configs.TICK_TYPE) == TickType.ENTITY_LIST) {
@@ -194,7 +186,7 @@ public class ServerBot extends ServerPlayer {
         this.updateIsUnderwater();
 
         if (this.getConfigValue(Configs.TICK_TYPE) == TickType.NETWORK) {
-            this.server.scheduleOnMain(this::runAction);
+            this.getServer().scheduleOnMain(this::runAction);
         }
 
         this.livingEntityTick();
@@ -228,6 +220,11 @@ public class ServerBot extends ServerPlayer {
     }
 
     @Override
+    public boolean canSimulateMovement() {
+        return true;
+    }
+
+    @Override
     public @Nullable ServerBot teleport(@NotNull TeleportTransition teleportTransition) {
         if (this.isSleeping() || this.isRemoved()) {
             return null;
@@ -236,7 +233,7 @@ public class ServerBot extends ServerPlayer {
             this.removeVehicle();
         }
 
-        ServerLevel fromLevel = this.serverLevel();
+        ServerLevel fromLevel = this.level();
         ServerLevel toLevel = teleportTransition.newLevel();
 
         if (toLevel.dimension() == fromLevel.dimension()) {
@@ -274,6 +271,14 @@ public class ServerBot extends ServerPlayer {
     }
 
     @Override
+    public void knockback(double strength, double x, double z, @Nullable Entity attacker, EntityKnockbackEvent.@NotNull Cause eventCause) {
+        if (!this.hurtMarked) {
+            return;
+        }
+        super.knockback(strength, x, z, attacker, eventCause);
+    }
+
+    @Override
     public void onItemPickup(@NotNull ItemEntity item) {
         super.onItemPickup(item);
         this.updateItemInHand(InteractionHand.MAIN_HAND);
@@ -296,7 +301,7 @@ public class ServerBot extends ServerPlayer {
         if (LeavesConfig.modify.fakeplayer.canOpenInventory) {
             if (player instanceof ServerPlayer player1 && player.getMainHandItem().isEmpty()) {
                 BotInventoryOpenEvent event = new BotInventoryOpenEvent(this.getBukkitEntity(), player1.getBukkitEntity());
-                this.server.server.getPluginManager().callEvent(event);
+                this.getServer().server.getPluginManager().callEvent(event);
                 if (!event.isCancelled()) {
                     player.openMenu(new SimpleMenuProvider((i, inventory, p) -> ChestMenu.sixRows(i, inventory, this.container), this.getDisplayName()));
                     return InteractionResult.SUCCESS;
@@ -307,56 +312,13 @@ public class ServerBot extends ServerPlayer {
     }
 
     @Override
-    public void checkFallDamage(double y, boolean onGround, @NotNull BlockState state, @NotNull BlockPos pos) {
-        ServerLevel serverLevel = this.serverLevel();
-        if (!this.isInWater() && y < 0.0) {
-            this.fallDistance -= (float) y;
-        }
-        if (onGround && this.fallDistance > 0.0F) {
-            this.onChangedBlock(serverLevel, pos);
-            double attributeValue = this.getAttributeValue(Attributes.SAFE_FALL_DISTANCE);
-            if (this.fallDistance > attributeValue && !state.isAir()) {
-                double x = this.getX();
-                double y1 = this.getY();
-                double z = this.getZ();
-                BlockPos blockPos = this.blockPosition();
-                if (pos.getX() != blockPos.getX() || pos.getZ() != blockPos.getZ()) {
-                    double d = x - pos.getX() - 0.5;
-                    double d1 = z - pos.getZ() - 0.5;
-                    double max = Math.max(Math.abs(d), Math.abs(d1));
-                    x = pos.getX() + 0.5 + d / max * 0.5;
-                    z = pos.getZ() + 0.5 + d1 / max * 0.5;
-                }
-
-                float f = Mth.ceil(this.fallDistance - attributeValue);
-                double min = Math.min(0.2F + f / 15.0F, 2.5);
-                int i = (int) (150.0 * min);
-                serverLevel.sendParticlesSource(this, new BlockParticleOption(ParticleTypes.BLOCK, state), false, false, x, y1, z, i, 0.0, 0.0, 0.0, 0.15F);
-            }
-        }
-
-        if (onGround) {
-            if (this.fallDistance > 0.0F) {
-                state.getBlock().fallOn(serverLevel, state, pos, this, this.fallDistance);
-                serverLevel.gameEvent(GameEvent.HIT_GROUND, this.position(),
-                    GameEvent.Context.of(this, this.mainSupportingBlockPos.map(supportingPos -> this.level().getBlockState(supportingPos)).orElse(state))
-                );
-            }
-
-            this.resetFallDistance();
-        } else if (y < 0.0D) {
-            this.fallDistance -= (float) y;
-        }
-    }
-
-    @Override
     public void attack(@NotNull Entity target) {
         super.attack(target);
         this.swing(InteractionHand.MAIN_HAND);
     }
 
     @Override
-    public void addAdditionalSaveData(@NotNull CompoundTag nbt) {
+    public void addAdditionalSaveData(@NotNull ValueOutput nbt) {
         super.addAdditionalSaveData(nbt);
         nbt.putBoolean("isShiftKeyDown", this.isShiftKeyDown());
 
@@ -373,31 +335,29 @@ public class ServerBot extends ServerPlayer {
             createNbt.put("skin", skin);
         }
 
-        nbt.put("createStatus", createNbt);
+        nbt.store("createStatus", CompoundTag.CODEC, createNbt);
 
         if (!this.actions.isEmpty()) {
-            ListTag actionNbt = new ListTag();
-            for (AbstractBotAction<?> action : this.actions) {
+            ValueOutput.TypedOutputList<CompoundTag> actionNbt = nbt.list("actions", CompoundTag.CODEC);
+            for (ServerBotAction<?> action : this.actions) {
                 actionNbt.add(action.save(new CompoundTag()));
             }
-            nbt.put("actions", actionNbt);
         }
 
         if (!this.configs.isEmpty()) {
-            ListTag configNbt = new ListTag();
+            ValueOutput.TypedOutputList<CompoundTag> configNbt = nbt.list("configs", CompoundTag.CODEC);
             for (AbstractBotConfig<?> config : this.configs.values()) {
                 configNbt.add(config.save(new CompoundTag()));
             }
-            nbt.put("configs", configNbt);
         }
     }
 
     @Override
-    public void readAdditionalSaveData(@NotNull CompoundTag nbt) {
+    public void readAdditionalSaveData(@NotNull ValueInput nbt) {
         super.readAdditionalSaveData(nbt);
-        this.setShiftKeyDown(nbt.getBoolean("isShiftKeyDown").orElse(false));
+        this.setShiftKeyDown(nbt.getBooleanOr("isShiftKeyDown", false));
 
-        CompoundTag createNbt = nbt.getCompound("createStatus").orElseThrow();
+        CompoundTag createNbt = nbt.read("createStatus", CompoundTag.CODEC).orElseThrow();
         BotCreateState.Builder createBuilder = BotCreateState.builder(createNbt.getString("realName").orElseThrow(), null).name(createNbt.getString("name").orElseThrow());
 
         String[] skin = null;
@@ -416,34 +376,27 @@ public class ServerBot extends ServerPlayer {
         this.gameProfile = new BotList.CustomGameProfile(this.getUUID(), this.createState.name(), this.createState.skin());
 
 
-        if (nbt.contains("actions")) {
-            ListTag actionNbt = nbt.getList("actions").orElseThrow();
-            for (int i = 0; i < actionNbt.size(); i++) {
-                CompoundTag actionTag = actionNbt.getCompound(i).orElseThrow();
-                AbstractBotAction<?> action = Actions.getForName(actionTag.getString("actionName").orElseThrow());
+        if (nbt.list("actions", CompoundTag.CODEC).isPresent()) {
+            ValueInput.TypedInputList<CompoundTag> actionNbt = nbt.list("actions", CompoundTag.CODEC).orElseThrow();
+            actionNbt.forEach(actionTag -> {
+                ServerBotAction<?> action = Actions.getForName(actionTag.getString("actionName").orElseThrow());
                 if (action != null) {
-                    AbstractBotAction<?> newAction = action.create();
+                    ServerBotAction<?> newAction = action.create();
                     newAction.load(actionTag);
                     this.actions.add(newAction);
                 }
-            }
+            });
         }
 
-        if (nbt.contains("configs")) {
-            ListTag configNbt = nbt.getList("configs").orElseThrow();
-            for (int i = 0; i < configNbt.size(); i++) {
-                CompoundTag configTag = configNbt.getCompound(i).orElseThrow();
+        if (nbt.list("configs", CompoundTag.CODEC).isPresent()) {
+            ValueInput.TypedInputList<CompoundTag> configNbt = nbt.list("configs", CompoundTag.CODEC).orElseThrow();
+            for (CompoundTag configTag : configNbt) {
                 Configs<?> configKey = Configs.getConfig(configTag.getString("configName").orElseThrow());
                 if (configKey != null) {
                     this.configs.get(configKey).load(configTag);
                 }
             }
         }
-    }
-
-    @Override
-    public boolean isClientAuthoritative() {
-        return false;
     }
 
     public void sendPlayerInfo(ServerPlayer player) {
@@ -461,7 +414,7 @@ public class ServerBot extends ServerPlayer {
     }
 
     public void sendFakeData(ServerPlayerConnection playerConnection, boolean login) {
-        ChunkMap.TrackedEntity entityTracker = ((ServerLevel) this.level()).getChunkSource().chunkMap.entityMap.get(this.getId());
+        ChunkMap.TrackedEntity entityTracker = this.level().getChunkSource().chunkMap.entityMap.get(this.getId());
 
         if (entityTracker == null) {
             LeavesLogger.LOGGER.warning("Fakeplayer cant get entity tracker for " + this.getId());
@@ -477,7 +430,7 @@ public class ServerBot extends ServerPlayer {
     }
 
     public void renderAll() {
-        this.server.getPlayerList().getPlayers().forEach(
+        this.getServer().getPlayerList().getPlayers().forEach(
             player -> {
                 this.sendPlayerInfo(player);
                 this.sendFakeDataIfNeed(player, false);
@@ -486,16 +439,16 @@ public class ServerBot extends ServerPlayer {
     }
 
     private void sendPacket(Packet<?> packet) {
-        this.server.getPlayerList().getPlayers().forEach(player -> player.connection.send(packet));
+        this.getServer().getPlayerList().getPlayers().forEach(player -> player.connection.send(packet));
     }
 
     @Override
     public void die(@NotNull DamageSource damageSource) {
-        boolean flag = this.serverLevel().getGameRules().getBoolean(GameRules.RULE_SHOWDEATHMESSAGES);
+        boolean flag = this.level().getGameRules().getBoolean(GameRules.RULE_SHOWDEATHMESSAGES);
         Component defaultMessage = this.getCombatTracker().getDeathMessage();
 
         BotDeathEvent event = new BotDeathEvent(this.getBukkitEntity(), PaperAdventure.asAdventure(defaultMessage), flag);
-        this.server.server.getPluginManager().callEvent(event);
+        this.getServer().server.getPluginManager().callEvent(event);
 
         if (event.isCancelled()) {
             if (this.getHealth() <= 0) {
@@ -508,10 +461,10 @@ public class ServerBot extends ServerPlayer {
 
         net.kyori.adventure.text.Component deathMessage = event.deathMessage();
         if (event.isSendDeathMessage() && deathMessage != null && !deathMessage.equals(net.kyori.adventure.text.Component.empty())) {
-            this.server.getPlayerList().broadcastSystemMessage(PaperAdventure.asVanilla(deathMessage), false);
+            this.getServer().getPlayerList().broadcastSystemMessage(PaperAdventure.asVanilla(deathMessage), false);
         }
 
-        this.server.getBotList().removeBot(this, BotRemoveEvent.RemoveReason.DEATH, null, false);
+        this.getServer().getBotList().removeBot(this, BotRemoveEvent.RemoveReason.DEATH, null, false);
     }
 
     public void removeTab() {
@@ -578,11 +531,11 @@ public class ServerBot extends ServerPlayer {
     private void runAction() {
         if (LeavesConfig.modify.fakeplayer.canUseAction) {
             this.actions.forEach(action -> action.tryTick(this));
-            this.actions.removeIf(AbstractBotAction::isCancelled);
+            this.actions.removeIf(ServerBotAction::isCancelled);
         }
     }
 
-    public boolean addBotAction(AbstractBotAction<?> action, CommandSender sender) {
+    public boolean addBotAction(ServerBotAction<?> action, CommandSender sender) {
         if (!LeavesConfig.modify.fakeplayer.canUseAction) {
             return false;
         }
@@ -596,7 +549,7 @@ public class ServerBot extends ServerPlayer {
         return true;
     }
 
-    public List<AbstractBotAction<?>> getBotActions() {
+    public List<ServerBotAction<?>> getBotActions() {
         return actions;
     }
 

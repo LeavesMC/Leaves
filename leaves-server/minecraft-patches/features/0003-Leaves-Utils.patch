@@ -5,50 +5,81 @@ Subject: [PATCH] Leaves Utils
 
 
 diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
-index 81a18b8e605bd4c28b48a32c80be231609182970..f8d45c1076852a0553c3dd7c5512f76a6891e2cb 100644
+index 70b6ea8ab35e88989b5b1f5ffd64490a9d743b56..ea616ff83c14dd582bdb49442bc0b9103fc8f1b3 100644
 --- a/net/minecraft/world/entity/Entity.java
 +++ b/net/minecraft/world/entity/Entity.java
-@@ -351,6 +351,8 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
+@@ -372,6 +372,8 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
      public boolean isTemporarilyActive;
      public long activatedImmunityTick = Integer.MIN_VALUE;
  
-+    private CompoundTag leavesData = new CompoundTag(); // Leaves - Leaves ex data
++    private net.minecraft.nbt.CompoundTag leavesData = new net.minecraft.nbt.CompoundTag(); // Leaves - Leaves ex data
 +
      public void inactiveTick() {
      }
      // Paper end - EAR 2
-@@ -2516,6 +2518,7 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
-                 compound.putBoolean("Paper.FreezeLock", true);
+@@ -2585,6 +2587,7 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
+                 output.putBoolean("Paper.FreezeLock", true);
              }
              // Paper end
-+            compound.put("Leaves.Data", leavesData); // Leaves - leaves ex data
-             return compound;
-         } catch (Throwable var8) {
-             CrashReport crashReport = CrashReport.forThrowable(var8, "Saving entity NBT");
-@@ -2646,6 +2649,11 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
-                 freezeLocked = compound.getBooleanOr("Paper.FreezeLock", false);
++            output.store("Leaves.Data", net.minecraft.nbt.CompoundTag.CODEC, leavesData); // Leaves - leaves ex data
+         } catch (Throwable var7) {
+             CrashReport crashReport = CrashReport.forThrowable(var7, "Saving entity NBT");
+             CrashReportCategory crashReportCategory = crashReport.addCategory("Entity being saved");
+@@ -2705,6 +2708,7 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
              }
+             freezeLocked = input.getBooleanOr("Paper.FreezeLock", false);
              // Paper end
-+            // Leaves start - leaves ex data
-+            if (compound.contains("Leaves.Data")) {
-+                leavesData = compound.getCompoundOrEmpty("Leaves.Data");
-+            }
-+            // Leaves end - leaves ex data
-         } catch (Throwable var8) {
-             CrashReport crashReport = CrashReport.forThrowable(var8, "Loading entity NBT");
++            leavesData = input.read("Leaves.Data", net.minecraft.nbt.CompoundTag.CODEC).orElse(new net.minecraft.nbt.CompoundTag());
+         } catch (Throwable var7) {
+             CrashReport crashReport = CrashReport.forThrowable(var7, "Loading entity NBT");
              CrashReportCategory crashReportCategory = crashReport.addCategory("Entity being loaded");
-@@ -5114,4 +5122,9 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
+@@ -4422,7 +4426,7 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
+         return SlotAccess.NULL;
+     }
+ 
+-    @Nullable
++    @org.jetbrains.annotations.NotNull // Leaves - notnull
+     public MinecraftServer getServer() {
+         return this.level().getServer();
+     }
+@@ -5364,4 +5368,9 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
          return ((ServerLevel) this.level()).isPositionEntityTicking(this.blockPosition());
      }
      // Paper end - Expose entity id counter
 +    // Leaves start - leaves ex data
-+    public CompoundTag getLeavesData() {
++    public net.minecraft.nbt.CompoundTag getLeavesData() {
 +        return leavesData;
 +    }
 +    // Leaves end - leaves ex data
  }
+diff --git a/net/minecraft/world/level/Level.java b/net/minecraft/world/level/Level.java
+index c41df4b1fff1f65532256e835dc30fadbb4f8c8b..9383d9f940163f42db8802f0a260925a83119160 100644
+--- a/net/minecraft/world/level/Level.java
++++ b/net/minecraft/world/level/Level.java
+@@ -962,7 +962,7 @@ public abstract class Level implements LevelAccessor, UUIDLookup<Entity>, AutoCl
+         return this.isClientSide;
+     }
+ 
+-    @Nullable
++    @org.jetbrains.annotations.NotNull // Leaves - notnull
+     @Override
+     public MinecraftServer getServer() {
+         return null;
+diff --git a/net/minecraft/world/level/LevelAccessor.java b/net/minecraft/world/level/LevelAccessor.java
+index 5f28df24876f93866312c3c7d19cb6bcaf5e2f8b..049133cba588612127b45c1489f80d2fe6d6e330 100644
+--- a/net/minecraft/world/level/LevelAccessor.java
++++ b/net/minecraft/world/level/LevelAccessor.java
+@@ -46,7 +46,7 @@ public interface LevelAccessor extends CommonLevelAccessor, LevelTimeAccess, Sch
+ 
+     DifficultyInstance getCurrentDifficultyAt(BlockPos pos);
+ 
+-    @Nullable
++    @org.jetbrains.annotations.NotNull // Leaves - notnull
+     MinecraftServer getServer();
+ 
+     default Difficulty getDifficulty() {
 diff --git a/net/minecraft/world/level/block/Block.java b/net/minecraft/world/level/block/Block.java
-index ae3e6e31171b1bcfba1ae51a0941b52dda270acd..f289e37f77e1c9d3b0f6c29da1b99f0d5f156e37 100644
+index be6f37f91569c659c609e5e8d38671ca86f8cd95..958914e40fceda5d67a98154817b4c5ce478a62d 100644
 --- a/net/minecraft/world/level/block/Block.java
 +++ b/net/minecraft/world/level/block/Block.java
 @@ -610,6 +610,13 @@ public class Block extends BlockBehaviour implements ItemLike {

@@ -4,7 +4,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.event.Cancellable;
 import org.bukkit.event.HandlerList;
 import org.jetbrains.annotations.NotNull;
-import org.leavesmc.leaves.entity.Bot;
+import org.leavesmc.leaves.entity.bot.Bot;
 
 public class BotConfigModifyEvent extends BotEvent implements Cancellable {
 

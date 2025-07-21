@@ -90,7 +90,9 @@ public class ElytraAeronauticsHelper {
             MinecraftServer.LOGGER.error("Attempted Double World add on {}", entity, new Throwable());
             return true;
         }
-        if (entity.spawnReason == null) entity.spawnReason = CreatureSpawnEvent.SpawnReason.DEFAULT;
+        if (entity.spawnReason == null) {
+            entity.spawnReason = CreatureSpawnEvent.SpawnReason.DEFAULT;
+        }
         if (entity.isRemoved()) {
             return false;
         }
@@ -121,8 +123,8 @@ public class ElytraAeronauticsHelper {
                 serverPlayer.sendSystemMessage(Component.literal(LeavesConfig.modify.elytraAeronautics.startMessage), true);
             }
             try {
-                PlatformHooks.get().removePlayerFromDistanceMaps(serverPlayer.serverLevel(), serverPlayer);
-                serverPlayer.serverLevel().chunkSource.chunkMap.getDistanceManager().removePlayer(serverPlayer.getLastSectionPos(), serverPlayer);
+                PlatformHooks.get().removePlayerFromDistanceMaps(serverPlayer.level(), serverPlayer);
+                serverPlayer.level().chunkSource.chunkMap.getDistanceManager().removePlayer(serverPlayer.getLastSectionPos(), serverPlayer);
             } catch (Exception ignored) {
             }
         }
@@ -136,8 +138,8 @@ public class ElytraAeronauticsHelper {
                 serverPlayer.sendSystemMessage(Component.literal(LeavesConfig.modify.elytraAeronautics.endMessage), true);
             }
             try {
-                PlatformHooks.get().addPlayerToDistanceMaps((ServerLevel) serverPlayer.level(), serverPlayer);
-                ((ServerLevel) serverPlayer.level()).chunkSource.chunkMap.getDistanceManager().addPlayer(SectionPos.of(serverPlayer), serverPlayer);
+                PlatformHooks.get().addPlayerToDistanceMaps(serverPlayer.level(), serverPlayer);
+                serverPlayer.level().chunkSource.chunkMap.getDistanceManager().addPlayer(SectionPos.of(serverPlayer), serverPlayer);
             } catch (Exception ignored) {
             }
         }

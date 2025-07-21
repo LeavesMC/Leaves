@@ -56,8 +56,11 @@ public class ReportCommand implements LeavesSubcommand {
             if (provider instanceof SpigotPluginProvider) {
                 spigotPlugins.put(configuration.getDisplayName(), provider);
             } else if (provider instanceof PaperPluginParent.PaperServerPluginProvider) {
-                if (provider.getMeta() instanceof LeavesPluginMeta) leavesPlugins.put(configuration.getDisplayName(), provider);
-                else paperPlugins.put(configuration.getDisplayName(), provider);
+                if (provider.getMeta() instanceof LeavesPluginMeta) {
+                    leavesPlugins.put(configuration.getDisplayName(), provider);
+                } else {
+                    paperPlugins.put(configuration.getDisplayName(), provider);
+                }
             }
         }
 

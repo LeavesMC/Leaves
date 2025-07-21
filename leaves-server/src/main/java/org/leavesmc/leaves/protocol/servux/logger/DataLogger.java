@@ -15,7 +15,7 @@ import net.minecraft.world.level.NaturalSpawner;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.protocol.servux.logger.data.MobCapData;
-import org.leavesmc.leaves.protocol.servux.logger.data.TPSData;
+import org.leavesmc.leaves.protocol.servux.logger.data.TickData;
 
 import java.util.ArrayList;
 import java.util.function.Function;
@@ -90,13 +90,13 @@ public abstract class DataLogger<T extends Tag> {
         @Override
         public CompoundTag getResult(MinecraftServer server) {
             try {
-                return (CompoundTag) TPSData.CODEC.encodeStart(server.registryAccess().createSerializationContext(NbtOps.INSTANCE), this.build(server)).getOrThrow();
+                return (CompoundTag) TickData.CODEC.encodeStart(server.registryAccess().createSerializationContext(NbtOps.INSTANCE), this.build(server)).getOrThrow();
             } catch (Exception e) {
                 return new CompoundTag();
             }
         }
 
-        private TPSData build(MinecraftServer server) {
+        private TickData build(MinecraftServer server) {
             ServerTickRateManager tickManager = server.tickRateManager();
             boolean frozen = tickManager.isFrozen();
             boolean sprinting = tickManager.isSprinting();
@@ -107,7 +107,7 @@ public abstract class DataLogger<T extends Tag> {
                 tps = 0.0d;
             }
 
-            return new TPSData(
+            return new TickData(
                 mspt, tps,
                 tickManager.getRemainingSprintTicks(),
                 frozen, sprinting,

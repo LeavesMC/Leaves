@@ -18,7 +18,7 @@ public class LocatorBarConfig extends AbstractBotConfig<Boolean> {
 
     public LocatorBarConfig() {
         super(NAME, CommandArgument.of(CommandArgumentType.BOOLEAN).setSuggestion(0, List.of("true", "false")));
-        this.value = LeavesConfig.modify.fakeplayer.enableLocatorBar;
+        this.value = LeavesConfig.modify.fakeplayer.inGame.enableLocatorBar;
     }
 
     @Override
@@ -46,6 +46,6 @@ public class LocatorBarConfig extends AbstractBotConfig<Boolean> {
 
     @Override
     public void load(@NotNull CompoundTag nbt) {
-        this.setValue(nbt.getBooleanOr(NAME, LeavesConfig.modify.fakeplayer.enableLocatorBar));
+        this.setValue(nbt.getBooleanOr(NAME, LeavesConfig.modify.fakeplayer.inGame.enableLocatorBar));
     }
 }

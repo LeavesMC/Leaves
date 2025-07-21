@@ -105,7 +105,8 @@ public class ServerBot extends ServerPlayer {
         this.tracingRange = world.spigotConfig.playerTrackingRange * world.spigotConfig.playerTrackingRange;
 
         this.notSleepTicks = 0;
-        this.fauxSleeping = LeavesConfig.modify.fakeplayer.canSkipSleep;
+        this.fauxSleeping = LeavesConfig.modify.fakeplayer.inGame.canSkipSleep;
+        this.getBukkitEntity().setSimulationDistance(LeavesConfig.modify.fakeplayer.inGame.getSimulationDistance(this));
         this.setClientLoaded(true);
     }
 

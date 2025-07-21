@@ -167,23 +167,11 @@ public final class LeavesConfig {
                 }
             }
 
-            @GlobalConfig("enable-locator-bar")
-            public boolean enableLocatorBar = false;
-
-            @GlobalConfig("always-send-data")
-            public boolean canSendDataAlways = true;
-
             @GlobalConfig("resident-fakeplayer")
             public boolean canResident = false;
 
             @GlobalConfig("open-fakeplayer-inventory")
             public boolean canOpenInventory = false;
-
-            @GlobalConfig("skip-sleep-check")
-            public boolean canSkipSleep = false;
-
-            @GlobalConfig("spawn-phantom")
-            public boolean canSpawnPhantom = false;
 
             @GlobalConfig("use-action")
             public boolean canUseAction = true;
@@ -197,8 +185,46 @@ public final class LeavesConfig {
             @GlobalConfig(value = "cache-skin", lock = true)
             public boolean useSkinCache = false;
 
-            @GlobalConfig(value = "tick-type")
-            public ServerBot.TickType tickType = ServerBot.TickType.NETWORK;
+            public InGameConfig inGame = new InGameConfig();
+
+            @GlobalConfigCategory("in-game")
+            public static class InGameConfig {
+
+                @RemovedConfig(name = "always-send-data", category = {"modify", "fakeplayer"}, transform = true)
+                @GlobalConfig("always-send-data")
+                public boolean canSendDataAlways = true;
+
+                @RemovedConfig(name = "skip-sleep-check", category = {"modify", "fakeplayer"}, transform = true)
+                @GlobalConfig("skip-sleep-check")
+                public boolean canSkipSleep = false;
+
+                @RemovedConfig(name = "spawn-phantom", category = {"modify", "fakeplayer"}, transform = true)
+                @GlobalConfig("spawn-phantom")
+                public boolean canSpawnPhantom = false;
+
+                @RemovedConfig(name = "tick-type", category = {"modify", "fakeplayer"}, transform = true)
+                @GlobalConfig("tick-type")
+                public ServerBot.TickType tickType = ServerBot.TickType.NETWORK;
+
+                @GlobalConfig(value = "simulation-distance", validator = BotSimulationDistanceValidator.class)
+                private int simulationDistance = -1;
+
+                public int getSimulationDistance(ServerBot bot) {
+                    return this.simulationDistance == -1 ? bot.getBukkitEntity().getSimulationDistance() : this.simulationDistance;
+                }
+
+                public static class BotSimulationDistanceValidator extends IntConfigValidator {
+                    @Override
+                    public void verify(Integer old, Integer value) throws IllegalArgumentException {
+                        if ((value < 2 && value != -1) || value > 32) {
+                            throw new IllegalArgumentException("simulation-distance must be a number between 2 and 32, got: " + value);
+                        }
+                    }
+                }
+
+                @GlobalConfig("enable-locator-bar")
+                public boolean enableLocatorBar = false;
+            }
         }
 
         public MinecraftOLDConfig oldMC = new MinecraftOLDConfig();

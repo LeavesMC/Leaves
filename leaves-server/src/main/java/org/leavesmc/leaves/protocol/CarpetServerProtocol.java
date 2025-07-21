@@ -43,7 +43,7 @@ public class CarpetServerProtocol implements LeavesProtocol {
     @ProtocolHandler.PayloadReceiver(payload = CarpetPayload.class)
     private static void handleHello(@NotNull ServerPlayer player, @NotNull CarpetServerProtocol.CarpetPayload payload) {
         if (payload.nbt.contains(HELLO)) {
-            LeavesLogger.LOGGER.info("Player " + player.getScoreboardName() + " joined with carpet " + payload.nbt.getString(HELLO));
+            LeavesLogger.LOGGER.info("Player " + player.getScoreboardName() + " joined with carpet " + payload.nbt.getString(HELLO).orElse("Unknown"));
             CompoundTag data = new CompoundTag();
             CarpetRules.write(data);
             ProtocolUtils.sendPayloadPacket(player, new CarpetPayload(data));

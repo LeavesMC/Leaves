@@ -59,6 +59,11 @@ public class ServuxHudDataProtocol implements LeavesProtocol {
         }
     }
 
+    @ProtocolHandler.PlayerJoin
+    private static void onPlayerJoin(ServerPlayer player) {
+        sendHudMetadata(player);
+    }
+
     @ProtocolHandler.PlayerLeave
     private static void onPlayerLeave(ServerPlayer player) {
         players.remove(player);
@@ -70,27 +75,30 @@ public class ServuxHudDataProtocol implements LeavesProtocol {
         switch (payload.packetType) {
             case PACKET_C2S_METADATA_REQUEST -> {
                 players.add(player);
-
-                CompoundTag metadata = new CompoundTag();
-                metadata.putString("name", "hud_metadata");
-                metadata.putString("id", HudDataPayload.CHANNEL.toString());
-                metadata.putInt("version", PROTOCOL_VERSION);
-                metadata.putString("servux", ServuxProtocol.SERVUX_STRING);
-                if (LeavesConfig.protocol.servux.hudLoggerProtocol) {
-                    CompoundTag nbt = new CompoundTag();
-                    for (DataLogger.Type type : DataLogger.Type.VALUES) {
-                        nbt.putBoolean(type.getSerializedName(), isLoggerTypeEnabled(type));
-                    }
-                    metadata.put("Loggers", nbt);
-                }
-                putWorldData(metadata);
-
-                sendPacket(player, new HudDataPayload(HudDataPayloadType.PACKET_S2C_METADATA, metadata));
+                sendHudMetadata(player);
             }
             case PACKET_C2S_SPAWN_DATA_REQUEST -> refreshSpawnMetadata(player);
             case PACKET_C2S_RECIPE_MANAGER_REQUEST -> refreshRecipeManager(player);
             case PACKET_C2S_DATA_LOGGER_REQUEST -> refreshLoggers(player, payload.nbt);
         }
+    }
+
+    public static void sendHudMetadata(ServerPlayer player) {
+        CompoundTag metadata = new CompoundTag();
+        metadata.putString("name", "hud_metadata");
+        metadata.putString("id", HudDataPayload.CHANNEL.toString());
+        metadata.putInt("version", PROTOCOL_VERSION);
+        metadata.putString("servux", ServuxProtocol.SERVUX_STRING);
+        if (LeavesConfig.protocol.servux.hudLoggerProtocol) {
+            CompoundTag nbt = new CompoundTag();
+            for (DataLogger.Type type : DataLogger.Type.VALUES) {
+                nbt.putBoolean(type.getSerializedName(), isLoggerTypeEnabled(type));
+            }
+            metadata.put("Loggers", nbt);
+        }
+        putWorldData(metadata);
+
+        sendPacket(player, new HudDataPayload(HudDataPayloadType.PACKET_S2C_METADATA, metadata));
     }
 
     public static void refreshSpawnMetadata(ServerPlayer player) {
@@ -125,7 +133,7 @@ public class ServuxHudDataProtocol implements LeavesProtocol {
 
     public static void refreshWeatherData(ServerPlayer player) {
         ServerLevel level = MinecraftServer.getServer().overworld();
-        if (level.getGameRules().getBoolean(GameRules.RULE_WEATHER_CYCLE)) {
+        if (!level.getGameRules().getBoolean(GameRules.RULE_WEATHER_CYCLE)) {
             return;
         }
 

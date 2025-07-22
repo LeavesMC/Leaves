@@ -28,10 +28,12 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntitySelector;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.PositionMoveRotation;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.inventory.ChestMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameRules;
@@ -40,7 +42,10 @@ import net.minecraft.world.level.gameevent.GameEvent;
 import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
@@ -496,21 +501,29 @@ public class ServerBot extends ServerPlayer {
         return this.getBukkitEntity().getLocation();
     }
 
-    public Entity getTargetEntity(int maxDistance, Predicate<? super Entity> predicate) {
-        List<Entity> entities = this.level().getEntities((Entity) null, this.getBoundingBox(), (e -> e != this && (predicate == null || predicate.test(e))));
-        if (!entities.isEmpty()) {
-            return entities.getFirst();
-        }
-        EntityHitResult hitResult = getEntityHitResult(maxDistance, predicate);
-        return hitResult == null ? null : hitResult.getEntity();
-    }
-
     public EntityHitResult getEntityHitResult(int maxDistance, Predicate<? super Entity> predicate) {
-        EntityHitResult result = this.getTargetEntity(maxDistance);
+        EntityHitResult result = this.pick(this, maxDistance);
         if (result != null && (predicate == null || predicate.test(result.getEntity()))) {
             return result;
         }
         return null;
+    }
+
+    private EntityHitResult pick(Entity entity, double maxDistance) {
+        double d = maxDistance;
+        double d1 = Mth.square(maxDistance);
+        Vec3 vec3 = entity.getEyePosition(1.0f);
+        HitResult hitResult = entity.pick(maxDistance, 1.0f, false);
+        double d2 = hitResult.getLocation().distanceToSqr(vec3);
+        if (hitResult.getType() != HitResult.Type.MISS) {
+            d1 = d2;
+            d = Math.sqrt(d2);
+        }
+
+        Vec3 viewStart = entity.getViewVector(1.0f);
+        Vec3 viewEnd = vec3.add(viewStart.x * d, viewStart.y * d, viewStart.z * d);
+        AABB aABB = entity.getBoundingBox().expandTowards(viewStart.scale(d)).inflate(1.0, 1.0, 1.0);
+        return ProjectileUtil.getEntityHitResult(entity, vec3, viewEnd, aABB, EntitySelector.CAN_BE_PICKED, d1);
     }
 
     public void dropAll(boolean death) {

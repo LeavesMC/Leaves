@@ -509,6 +509,14 @@ public class ServerBot extends ServerPlayer {
         return null;
     }
 
+    public EntityHitResult getEntityHitResult(int maxDistance, Predicate<? super Entity> predicate) {
+        EntityHitResult result = this.getBukkitEntity().rayTraceEntity(maxDistance, false);
+        if (result != null && (predicate == null || predicate.test(result.getEntity()))) {
+            return result;
+        }
+        return null;
+    }
+
     public void dropAll(boolean death) {
         NonNullList<ItemStack> items = this.getInventory().getNonEquipmentItems();
         for (int i = 0; i < items.size(); i++) {

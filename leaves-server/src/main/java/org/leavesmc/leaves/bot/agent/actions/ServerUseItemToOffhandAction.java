@@ -2,13 +2,17 @@ package org.leavesmc.leaves.bot.agent.actions;
 
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.decoration.ArmorStand;
+import net.minecraft.world.phys.EntityHitResult;
 import org.apache.commons.lang3.tuple.Pair;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.command.CommandArgument;
 import org.leavesmc.leaves.command.CommandArgumentResult;
 import org.leavesmc.leaves.command.CommandArgumentType;
+import org.leavesmc.leaves.entity.bot.actions.CraftUseItemToAction;
 import org.leavesmc.leaves.entity.bot.actions.CraftUseItemToOffhandAction;
 import org.leavesmc.leaves.event.bot.BotActionStopEvent;
 
@@ -39,8 +43,8 @@ public class ServerUseItemToOffhandAction extends ServerTimerBotAction<ServerUse
     public boolean doTick(@NotNull ServerBot bot) {
         tickToRelease--;
         if (tickToRelease >= 0) {
-            Entity entity = bot.getTargetEntity(3, null);
-            boolean result = execute(bot, entity);
+            EntityHitResult hitResult = bot.getEntityHitResult(3, null);
+            boolean result = execute(bot, hitResult).consumesAction();
             if (useTick >= 0) {
                 return false;
             } else {
@@ -69,17 +73,22 @@ public class ServerUseItemToOffhandAction extends ServerTimerBotAction<ServerUse
         this.useTick = useTick;
     }
 
-    public static boolean execute(ServerBot bot, Entity entity) {
-        if (entity == null) {
-            return false;
+    public static InteractionResult execute(ServerBot bot, EntityHitResult hitResult) {
+        if (hitResult == null) {
+            return InteractionResult.FAIL;
         }
 
-        boolean flag = bot.interactOn(entity, InteractionHand.OFF_HAND).consumesAction();
-        if (flag) {
+        InteractionResult result;
+        if (hitResult.getEntity() instanceof ArmorStand armorStand) {
+            result = armorStand.interactAt(bot, hitResult.getLocation().subtract(armorStand.position()), InteractionHand.OFF_HAND);
+        } else {
+            result = bot.interactOn(hitResult.getEntity(), InteractionHand.OFF_HAND);
+        }
+        if (result.consumesAction()) {
             bot.swing(InteractionHand.OFF_HAND);
             bot.updateItemInHand(InteractionHand.OFF_HAND);
         }
-        return flag;
+        return result;
     }
 
     @Override

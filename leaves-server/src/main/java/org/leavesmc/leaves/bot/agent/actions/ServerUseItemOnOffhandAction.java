@@ -94,30 +94,30 @@ public class ServerUseItemOnOffhandAction extends ServerTimerBotAction<ServerUse
         this.useTick = useTick;
     }
 
-    public static boolean execute(ServerBot bot, HitResult result) {
+    public static boolean execute(@NotNull ServerBot bot, HitResult result) {
         if (!(result instanceof BlockHitResult blockHitResult)) {
             return false;
         }
-
         BlockState state = bot.level().getBlockState(blockHitResult.getBlockPos());
         if (state.isAir()) {
             return false;
-        } else {
-            bot.swing(InteractionHand.OFF_HAND);
-            if (state.getBlock() == Blocks.TRAPPED_CHEST) {
-                BlockEntity entity = bot.level().getBlockEntity(blockHitResult.getBlockPos());
-                if (entity instanceof TrappedChestBlockEntity chestBlockEntity) {
-                    chestBlockEntity.startOpen(bot);
-                    Bukkit.getScheduler().runTaskLater(MinecraftInternalPlugin.INSTANCE, () -> chestBlockEntity.stopOpen(bot), 1);
-                    return true;
-                } else {
-                    return false;
-                }
-            } else {
-                bot.updateItemInHand(InteractionHand.OFF_HAND);
-                return bot.gameMode.useItemOn(bot, bot.level(), bot.getItemInHand(InteractionHand.OFF_HAND), InteractionHand.OFF_HAND, blockHitResult).consumesAction();
-            }
         }
+
+        boolean success;
+        if (state.getBlock() == Blocks.TRAPPED_CHEST &&
+            bot.level().getBlockEntity(blockHitResult.getBlockPos()) instanceof TrappedChestBlockEntity chestBlockEntity
+        ) {
+            chestBlockEntity.startOpen(bot);
+            Bukkit.getScheduler().runTaskLater(MinecraftInternalPlugin.INSTANCE, () -> chestBlockEntity.stopOpen(bot), 1);
+            success = true;
+        } else {
+            bot.updateItemInHand(InteractionHand.OFF_HAND);
+            success = bot.gameMode.useItemOn(bot, bot.level(), bot.getItemInHand(InteractionHand.OFF_HAND), InteractionHand.OFF_HAND, blockHitResult).consumesAction();
+        }
+        if (success) {
+            bot.swing(InteractionHand.OFF_HAND);
+        }
+        return success;
     }
 
     @Override

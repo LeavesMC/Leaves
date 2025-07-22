@@ -2,7 +2,10 @@ package org.leavesmc.leaves.bot.agent.actions;
 
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.decoration.ArmorStand;
+import net.minecraft.world.phys.EntityHitResult;
 import org.apache.commons.lang3.tuple.Pair;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
@@ -39,8 +42,8 @@ public class ServerUseItemToAction extends ServerTimerBotAction<ServerUseItemToA
     public boolean doTick(@NotNull ServerBot bot) {
         tickToRelease--;
         if (tickToRelease >= 0) {
-            Entity entity = bot.getTargetEntity(3, null);
-            boolean result = execute(bot, entity);
+            EntityHitResult hitResult = bot.getEntityHitResult(3, null);
+            boolean result = execute(bot, hitResult).consumesAction();
             if (useTick >= 0) {
                 return false;
             } else {
@@ -69,17 +72,22 @@ public class ServerUseItemToAction extends ServerTimerBotAction<ServerUseItemToA
         this.useTick = useTick;
     }
 
-    public static boolean execute(ServerBot bot, Entity entity) {
-        if (entity == null) {
-            return false;
+    public static InteractionResult execute(ServerBot bot, EntityHitResult hitResult) {
+        if (hitResult == null) {
+            return InteractionResult.FAIL;
         }
 
-        boolean flag = bot.interactOn(entity, InteractionHand.MAIN_HAND).consumesAction();
-        if (flag) {
+        InteractionResult result;
+        if (hitResult.getEntity() instanceof ArmorStand armorStand) {
+            result = armorStand.interactAt(bot, hitResult.getLocation().subtract(armorStand.position()), InteractionHand.MAIN_HAND);
+        } else {
+            result = bot.interactOn(hitResult.getEntity(), InteractionHand.MAIN_HAND);
+        }
+        if (result.consumesAction()) {
             bot.swing(InteractionHand.MAIN_HAND);
             bot.updateItemInHand(InteractionHand.MAIN_HAND);
         }
-        return flag;
+        return result;
     }
 
     @Override

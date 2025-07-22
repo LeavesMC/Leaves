@@ -506,7 +506,7 @@ public class ServerBot extends ServerPlayer {
     }
 
     public EntityHitResult getEntityHitResult(int maxDistance, Predicate<? super Entity> predicate) {
-        EntityHitResult result = this.getBukkitEntity().rayTraceEntity(maxDistance, false);
+        EntityHitResult result = this.getTargetEntity(maxDistance);
         if (result != null && (predicate == null || predicate.test(result.getEntity()))) {
             return result;
         }

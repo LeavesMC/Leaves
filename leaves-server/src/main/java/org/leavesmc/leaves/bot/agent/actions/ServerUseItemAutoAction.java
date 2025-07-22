@@ -78,7 +78,7 @@ public class ServerUseItemAutoAction extends ServerTimerBotAction<ServerUseItemA
         BlockHitResult blockHitResult = (BlockHitResult) bot.getRayTrace(5, ClipContext.Fluid.NONE);
         boolean mainSuccess, useTo = entity != null, useOn = !bot.level().getBlockState(blockHitResult.getBlockPos()).isAir();
         if (useTo) {
-            mainSuccess = ServerUseItemToAction.execute(bot, entity) || ServerUseItemAction.execute(bot);
+            mainSuccess = ServerUseItemToAction.execute(bot, entity);
         } else if (useOn) {
             mainSuccess = ServerUseItemOnAction.execute(bot, blockHitResult) || ServerUseItemAction.execute(bot);
         } else {
@@ -88,7 +88,7 @@ public class ServerUseItemAutoAction extends ServerTimerBotAction<ServerUseItemA
             return true;
         }
         if (useTo) {
-            return ServerUseItemToOffhandAction.execute(bot, entity) || ServerUseItemOffhandAction.execute(bot);
+            return ServerUseItemToOffhandAction.execute(bot, entity);
         } else if (useOn) {
             return ServerUseItemOnOffhandAction.execute(bot, blockHitResult) || ServerUseItemOffhandAction.execute(bot);
         } else {

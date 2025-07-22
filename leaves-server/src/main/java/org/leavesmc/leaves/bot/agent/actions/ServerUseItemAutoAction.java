@@ -80,7 +80,7 @@ public class ServerUseItemAutoAction extends ServerTimerBotAction<ServerUseItemA
         boolean mainSuccess, useTo = entityHitResult != null, useOn = !bot.level().getBlockState(blockHitResult.getBlockPos()).isAir();
         if (useTo) {
             InteractionResult result = ServerUseItemToAction.execute(bot, entityHitResult);
-            mainSuccess = result.consumesAction() || result == InteractionResult.PASS && ServerUseItemAction.execute(bot);
+            mainSuccess = result.consumesAction() || (result == InteractionResult.PASS && ServerUseItemAction.execute(bot));
         } else if (useOn) {
             mainSuccess = ServerUseItemOnAction.execute(bot, blockHitResult) || ServerUseItemAction.execute(bot);
         } else {

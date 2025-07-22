@@ -1,5 +1,6 @@
 package org.leavesmc.leaves.protocol;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -23,6 +24,7 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.function.BiFunction;
 
 public class LitematicaEasyPlaceProtocol {
@@ -51,8 +53,8 @@ public class LitematicaEasyPlaceProtocol {
         BlockStateProperties.ROTATION_16
     );
 
-    public static final ImmutableSet<BiFunction<BlockState, BlockState, BlockState>> DYNAMIC_PROPERTIES = ImmutableSet.of(
-        (state, original) -> state.setValue(BlockStateProperties.WATERLOGGED, original.is(Blocks.WATER))
+    public static final ImmutableMap<Property<?>, BiFunction<BlockState, BlockState, BlockState>> DYNAMIC_PROPERTIES = ImmutableMap.of(
+        BlockStateProperties.WATERLOGGED, (state, original) -> state.setValue(BlockStateProperties.WATERLOGGED, original.is(Blocks.WATER))
     );
 
     public static BlockState applyPlacementProtocol(BlockState state, BlockPlaceContext context) {
@@ -74,8 +76,10 @@ public class LitematicaEasyPlaceProtocol {
             return oldState;
         }
 
-        for (var func : DYNAMIC_PROPERTIES) {
-            state = func.apply(state, original);
+        for (Map.Entry<Property<?>, BiFunction<BlockState, BlockState, BlockState>> entry : DYNAMIC_PROPERTIES.entrySet()) {
+            if (state.hasProperty(entry.getKey())) {
+                state = entry.getValue().apply(state, original);
+            }
         }
 
         if (property != null && property != BlockStateProperties.VERTICAL_DIRECTION) {

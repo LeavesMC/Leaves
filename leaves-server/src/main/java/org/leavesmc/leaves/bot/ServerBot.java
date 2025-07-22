@@ -500,13 +500,9 @@ public class ServerBot extends ServerPlayer {
         List<Entity> entities = this.level().getEntities((Entity) null, this.getBoundingBox(), (e -> e != this && (predicate == null || predicate.test(e))));
         if (!entities.isEmpty()) {
             return entities.getFirst();
-        } else {
-            EntityHitResult result = this.getBukkitEntity().rayTraceEntity(maxDistance, false);
-            if (result != null && (predicate == null || predicate.test(result.getEntity()))) {
-                return result.getEntity();
-            }
         }
-        return null;
+        EntityHitResult hitResult = getEntityHitResult(maxDistance, predicate);
+        return hitResult == null ? null : hitResult.getEntity();
     }
 
     public EntityHitResult getEntityHitResult(int maxDistance, Predicate<? super Entity> predicate) {

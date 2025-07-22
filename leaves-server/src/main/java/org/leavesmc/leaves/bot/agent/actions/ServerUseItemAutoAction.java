@@ -91,7 +91,7 @@ public class ServerUseItemAutoAction extends ServerTimerBotAction<ServerUseItemA
         }
         if (useTo) {
             InteractionResult result = ServerUseItemToOffhandAction.execute(bot, entityHitResult);
-            return result.consumesAction() || result == InteractionResult.PASS && ServerUseItemOffhandAction.execute(bot);
+            return result.consumesAction() || (result == InteractionResult.PASS && ServerUseItemOffhandAction.execute(bot));
         } else if (useOn) {
             return ServerUseItemOnOffhandAction.execute(bot, blockHitResult) || ServerUseItemOffhandAction.execute(bot);
         } else {

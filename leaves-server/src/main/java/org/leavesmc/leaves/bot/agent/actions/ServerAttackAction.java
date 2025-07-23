@@ -1,6 +1,6 @@
 package org.leavesmc.leaves.bot.agent.actions;
 
-import net.minecraft.world.entity.Entity;
+import net.minecraft.world.phys.EntityHitResult;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.entity.bot.actions.CraftAttackAction;
@@ -13,11 +13,11 @@ public class ServerAttackAction extends ServerTimerBotAction<ServerAttackAction>
 
     @Override
     public boolean doTick(@NotNull ServerBot bot) {
-        Entity entity = bot.getTargetEntity(3, target -> target.isAttackable() && !target.skipAttackInteraction(bot));
-        if (entity == null) {
+        EntityHitResult hitResult = bot.getEntityHitResult(3, target -> target.isAttackable() && !target.skipAttackInteraction(bot));
+        if (hitResult == null) {
             return false;
         } else {
-            bot.attack(entity);
+            bot.attack(hitResult.getEntity());
             return true;
         }
     }

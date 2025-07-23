@@ -1,9 +1,10 @@
 package org.leavesmc.leaves.bot.agent.actions;
 
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.Entity;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.EntityHitResult;
 import org.apache.commons.lang3.tuple.Pair;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
@@ -74,11 +75,12 @@ public class ServerUseItemAutoAction extends ServerTimerBotAction<ServerUseItemA
             return false;
         }
 
-        Entity entity = bot.getTargetEntity(3, null);
+        EntityHitResult entityHitResult = bot.getEntityHitResult(3, null);
         BlockHitResult blockHitResult = (BlockHitResult) bot.getRayTrace(5, ClipContext.Fluid.NONE);
-        boolean mainSuccess, useTo = entity != null, useOn = !bot.level().getBlockState(blockHitResult.getBlockPos()).isAir();
+        boolean mainSuccess, useTo = entityHitResult != null, useOn = !bot.level().getBlockState(blockHitResult.getBlockPos()).isAir();
         if (useTo) {
-            mainSuccess = ServerUseItemToAction.execute(bot, entity) || ServerUseItemAction.execute(bot);
+            InteractionResult result = ServerUseItemToAction.execute(bot, entityHitResult);
+            mainSuccess = result.consumesAction() || (result == InteractionResult.PASS && ServerUseItemAction.execute(bot));
         } else if (useOn) {
             mainSuccess = ServerUseItemOnAction.execute(bot, blockHitResult) || ServerUseItemAction.execute(bot);
         } else {
@@ -88,7 +90,8 @@ public class ServerUseItemAutoAction extends ServerTimerBotAction<ServerUseItemA
             return true;
         }
         if (useTo) {
-            return ServerUseItemToOffhandAction.execute(bot, entity) || ServerUseItemOffhandAction.execute(bot);
+            InteractionResult result = ServerUseItemToOffhandAction.execute(bot, entityHitResult);
+            return result.consumesAction() || (result == InteractionResult.PASS && ServerUseItemOffhandAction.execute(bot));
         } else if (useOn) {
             return ServerUseItemOnOffhandAction.execute(bot, blockHitResult) || ServerUseItemOffhandAction.execute(bot);
         } else {

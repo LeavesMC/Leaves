@@ -1178,7 +1178,13 @@ public final class LeavesConfig {
         @GlobalConfig("vanilla-fluid-pushing")
         public boolean vanillaFluidPushing = true;
 
-        @RemovedConfig(name = "collision-behavior", category = "fix")
+        @GlobalConfig(value = "collision-behavior")
+        public CollisionBehavior collisionBehavior = CollisionBehavior.BLOCK_SHAPE_VANILLA;
+
+        public enum CollisionBehavior {
+            VANILLA, BLOCK_SHAPE_VANILLA, PAPER
+        }
+
         @RemovedConfig(name = "spigot-EndPlatform-destroy", category = "fix")
         private final boolean removed = false;
     }

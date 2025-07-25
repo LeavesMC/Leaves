@@ -1,17 +1,12 @@
 package org.leavesmc.leaves.util;
 
-import net.minecraft.core.MappedRegistry;
 import net.minecraft.core.component.DataComponents;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.component.ItemContainerContents;
-import net.minecraft.world.item.enchantment.Enchantment;
-import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
 import net.minecraft.world.level.block.ShulkerBoxBlock;
 import org.jetbrains.annotations.NotNull;
@@ -113,6 +108,17 @@ public class ItemOverstackUtils {
     }
 
     private static class ShulkerBox implements ItemUtil {
+        public static boolean shulkerBoxCheck(@NotNull ItemStack stack1, @NotNull ItemStack stack2) {
+            if (LeavesConfig.modify.shulkerBox.sameNbtStackable) {
+                return Objects.equals(stack1.getComponents(), stack2.getComponents());
+            }
+            return shulkerBoxNoItem(stack1) && shulkerBoxNoItem(stack2) && Objects.equals(stack1.getComponents(), stack2.getComponents());
+        }
+
+        public static boolean shulkerBoxNoItem(@NotNull ItemStack stack) {
+            return stack.getComponents().getOrDefault(DataComponents.CONTAINER, ItemContainerContents.EMPTY).stream().findAny().isEmpty();
+        }
+
         @Override
         public boolean isEnabled() {
             return LeavesConfig.modify.shulkerBox.shulkerBoxStackSize > 1;
@@ -159,21 +165,17 @@ public class ItemOverstackUtils {
             }
             return -1;
         }
-
-        public static boolean shulkerBoxCheck(@NotNull ItemStack stack1, @NotNull ItemStack stack2) {
-            if (LeavesConfig.modify.shulkerBox.sameNbtStackable) {
-                return Objects.equals(stack1.getComponents(), stack2.getComponents());
-            }
-            return shulkerBoxNoItem(stack1) && shulkerBoxNoItem(stack2) && Objects.equals(stack1.getComponents(), stack2.getComponents());
-        }
-
-        public static boolean shulkerBoxNoItem(@NotNull ItemStack stack) {
-            return stack.getComponents().getOrDefault(DataComponents.CONTAINER, ItemContainerContents.EMPTY).stream().findAny().isEmpty();
-        }
     }
 
     public static class CurseEnchantedBook implements ItemUtil {
-        private static final MappedRegistry<Enchantment> registry = (MappedRegistry<Enchantment>) MinecraftServer.getServer().registryAccess().lookup(Registries.ENCHANTMENT).orElseThrow();
+        public static boolean isCursedEnchantedBook(ItemStack stack) {
+            ItemEnchantments enchantments = stack.getOrDefault(DataComponents.STORED_ENCHANTMENTS, ItemEnchantments.EMPTY);
+            if (enchantments.size() != 1) {
+                return false;
+            }
+            return stack.getBukkitStack().getEnchantmentLevel(org.bukkit.enchantments.Enchantment.BINDING_CURSE) == 1 ||
+                stack.getBukkitStack().getEnchantmentLevel(org.bukkit.enchantments.Enchantment.BINDING_CURSE) == 1;
+        }
 
         @Override
         public boolean isEnabled() {
@@ -196,15 +198,6 @@ public class ItemOverstackUtils {
                 return 2;
             }
             return -1;
-        }
-
-        public static boolean isCursedEnchantedBook(ItemStack stack) {
-            ItemEnchantments enchantments = stack.getOrDefault(DataComponents.STORED_ENCHANTMENTS, ItemEnchantments.EMPTY);
-            if (enchantments.size() != 1) {
-                return false;
-            }
-            return enchantments.getLevel(registry.getOrThrow(Enchantments.BINDING_CURSE)) == 1 ||
-                enchantments.getLevel(registry.getOrThrow(Enchantments.VANISHING_CURSE)) == 1;
         }
     }
 }

@@ -6,6 +6,8 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.NbtAccounter;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
@@ -118,12 +120,12 @@ public class ServuxLitematicsProtocol implements LeavesProtocol {
                 }
                 playerSession.remove(uuid);
                 fullPacket.readVarInt();
-                CompoundTag compoundTag = fullPacket.readNbt();
-                if (compoundTag == null) {
+                Tag tag = FriendlyByteBuf.readNbt(fullPacket, new NbtAccounter(LeavesConfig.protocol.servux.litematics.maxNbtSize, 512));
+                if (!(tag instanceof CompoundTag)) {
                     ServuxProtocol.LOGGER.error("cannot read nbt tag from packet");
                     return;
                 }
-                handleClientPasteRequest(player, compoundTag);
+                handleClientPasteRequest(player, (CompoundTag) tag);
             }
         }
     }
@@ -258,7 +260,7 @@ public class ServuxLitematicsProtocol implements LeavesProtocol {
 
     @Override
     public boolean isActive() {
-        return LeavesConfig.protocol.servux.litematicsProtocol;
+        return LeavesConfig.protocol.servux.litematics.enable;
     }
 
     public enum ServuxLitematicaPayloadType {

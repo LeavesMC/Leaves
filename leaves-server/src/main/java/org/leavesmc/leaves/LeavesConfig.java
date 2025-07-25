@@ -11,25 +11,38 @@ import org.bukkit.permissions.Permission;
 import org.bukkit.permissions.PermissionDefault;
 import org.bukkit.plugin.PluginManager;
 import org.jetbrains.annotations.NotNull;
+import org.leavesmc.leaves.bot.BotCommand;
 import org.leavesmc.leaves.bot.ServerBot;
+import org.leavesmc.leaves.bot.agent.Actions;
 import org.leavesmc.leaves.command.LeavesCommand;
 import org.leavesmc.leaves.config.ConfigValidatorImpl.BooleanConfigValidator;
 import org.leavesmc.leaves.config.ConfigValidatorImpl.DoubleConfigValidator;
 import org.leavesmc.leaves.config.ConfigValidatorImpl.EnumConfigValidator;
 import org.leavesmc.leaves.config.ConfigValidatorImpl.IntConfigValidator;
 import org.leavesmc.leaves.config.ConfigValidatorImpl.ListConfigValidator;
+import org.leavesmc.leaves.config.ConfigValidatorImpl.LongConfigValidator;
 import org.leavesmc.leaves.config.ConfigValidatorImpl.StringConfigValidator;
 import org.leavesmc.leaves.config.GlobalConfigManager;
 import org.leavesmc.leaves.config.annotations.GlobalConfig;
 import org.leavesmc.leaves.config.annotations.GlobalConfigCategory;
 import org.leavesmc.leaves.config.annotations.RemovedConfig;
+import org.leavesmc.leaves.profile.LeavesMinecraftSessionService;
 import org.leavesmc.leaves.protocol.CarpetServerProtocol.CarpetRule;
 import org.leavesmc.leaves.protocol.CarpetServerProtocol.CarpetRules;
+import org.leavesmc.leaves.protocol.PcaSyncProtocol;
 import org.leavesmc.leaves.protocol.bladeren.BladerenProtocol.LeavesFeature;
 import org.leavesmc.leaves.protocol.bladeren.BladerenProtocol.LeavesFeatureSet;
+import org.leavesmc.leaves.protocol.rei.REIServerProtocol;
 import org.leavesmc.leaves.protocol.servux.logger.DataLogger;
+import org.leavesmc.leaves.protocol.syncmatica.SyncmaticaProtocol;
+import org.leavesmc.leaves.region.IRegionFileFactory;
 import org.leavesmc.leaves.region.RegionFileFormat;
+import org.leavesmc.leaves.region.linear.LinearVersion;
+import org.leavesmc.leaves.util.LeavesUpdateHelper;
 import org.leavesmc.leaves.util.MathUtils;
+import org.leavesmc.leaves.util.McTechnicalModeHelper;
+import org.leavesmc.leaves.util.ServerI18nUtil;
+import org.leavesmc.leaves.util.VillagerInfiniteDiscountHelper;
 
 import java.io.File;
 import java.io.IOException;
@@ -134,8 +147,8 @@ public final class LeavesConfig {
                 @Override
                 public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
                     if (value) {
-                        registerCommand("bot", new org.leavesmc.leaves.bot.BotCommand());
-                        org.leavesmc.leaves.bot.agent.Actions.registerAll();
+                        registerCommand("bot", new BotCommand());
+                        Actions.registerAll();
                     } else {
                         unregisterCommand("bot");
                     }
@@ -274,7 +287,7 @@ public final class LeavesConfig {
             private static class VillagerInfiniteDiscountsValidator extends BooleanConfigValidator {
                 @Override
                 public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
-                    org.leavesmc.leaves.util.VillagerInfiniteDiscountHelper.doVillagerInfiniteDiscount(value);
+                    VillagerInfiniteDiscountHelper.doVillagerInfiniteDiscount(value);
                 }
             }
 
@@ -509,7 +522,7 @@ public final class LeavesConfig {
             @Override
             public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
                 if (value) {
-                    org.leavesmc.leaves.util.McTechnicalModeHelper.doMcTechnicalMode();
+                    McTechnicalModeHelper.doMcTechnicalMode();
                 }
             }
         }
@@ -829,7 +842,7 @@ public final class LeavesConfig {
             public static class SyncmaticaValidator extends BooleanConfigValidator {
                 @Override
                 public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
-                    org.leavesmc.leaves.protocol.syncmatica.SyncmaticaProtocol.init(value);
+                    SyncmaticaProtocol.init(value);
                 }
             }
 
@@ -852,7 +865,7 @@ public final class LeavesConfig {
                 @Override
                 public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
                     if (old != null && old != value) {
-                        org.leavesmc.leaves.protocol.PcaSyncProtocol.onConfigModify(value);
+                        PcaSyncProtocol.onConfigModify(value);
                     }
                 }
             }
@@ -904,19 +917,39 @@ public final class LeavesConfig {
             @GlobalConfig("hud-metadata-protocol-share-seed")
             public boolean hudMetadataShareSeed = true;
 
-            @GlobalConfig(value = "litematics-protocol", validator = LitematicsProtocolValidator.class)
-            public boolean litematicsProtocol = false;
+            public LitematicsConfig litematics = new LitematicsConfig();
 
-            public static class LitematicsProtocolValidator extends BooleanConfigValidator {
-                @Override
-                public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
-                    PluginManager pluginManager = MinecraftServer.getServer().server.getPluginManager();
-                    if (value) {
-                        if (pluginManager.getPermission("leaves.protocol.litematics") == null) {
-                            pluginManager.addPermission(new Permission("leaves.protocol.litematics", PermissionDefault.OP));
+            @GlobalConfigCategory("litematics")
+            public static class LitematicsConfig {
+
+                @RemovedConfig(name = "litematics-protocol", category = {"protocol", "servux"}, transform = true)
+                @GlobalConfig(value = "enable", validator = LitematicsProtocolValidator.class)
+                public boolean enable = false;
+
+                @GlobalConfig(value = "max-nbt-size", validator = MaxNbtSizeValidator.class)
+                public long maxNbtSize = 2097152;
+
+                public static class MaxNbtSizeValidator extends LongConfigValidator {
+
+                    @Override
+                    public void verify(Long old, Long value) throws IllegalArgumentException {
+                        if (value <= 0) {
+                            throw new IllegalArgumentException("Max nbt size can not be <= 0!");
                         }
-                    } else {
-                        pluginManager.removePermission("leaves.protocol.litematics");
+                    }
+                }
+
+                public static class LitematicsProtocolValidator extends BooleanConfigValidator {
+                    @Override
+                    public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
+                        PluginManager pluginManager = MinecraftServer.getServer().server.getPluginManager();
+                        if (value) {
+                            if (pluginManager.getPermission("leaves.protocol.litematics") == null) {
+                                pluginManager.addPermission(new Permission("leaves.protocol.litematics", PermissionDefault.OP));
+                            }
+                        } else {
+                            pluginManager.removePermission("leaves.protocol.litematics");
+                        }
                     }
                 }
             }
@@ -968,7 +1001,7 @@ public final class LeavesConfig {
             @Override
             public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
                 if (old != value && value != null) {
-                    org.leavesmc.leaves.protocol.rei.REIServerProtocol.onConfigModify(value);
+                    REIServerProtocol.onConfigModify(value);
                 }
             }
         }
@@ -999,7 +1032,7 @@ public final class LeavesConfig {
                 @Override
                 public void runAfterLoader(Boolean value, boolean reload) {
                     if (!reload) {
-                        org.leavesmc.leaves.util.LeavesUpdateHelper.init();
+                        LeavesUpdateHelper.init();
                         if (value) {
                             LeavesLogger.LOGGER.warning("Auto-Update is not completely safe. Enabling it may cause data security problems!");
                         }
@@ -1052,7 +1085,7 @@ public final class LeavesConfig {
             public static class ExtraYggdrasilUrlsValidator extends ListConfigValidator.STRING {
                 @Override
                 public void verify(List<String> old, List<String> value) throws IllegalArgumentException {
-                    org.leavesmc.leaves.profile.LeavesMinecraftSessionService.initExtraYggdrasilList(value);
+                    LeavesMinecraftSessionService.initExtraYggdrasilList(value);
                 }
             }
         }
@@ -1075,8 +1108,8 @@ public final class LeavesConfig {
 
             @Override
             public void verify(String old, String value) throws IllegalArgumentException {
-                if (!org.leavesmc.leaves.util.ServerI18nUtil.finishPreload ||
-                    !org.leavesmc.leaves.util.ServerI18nUtil.tryAppendLanguages(supportLang)) {
+                if (!ServerI18nUtil.finishPreload ||
+                    !ServerI18nUtil.tryAppendLanguages(supportLang)) {
                     return;
                 }
                 if (!supportLang.contains(value)) {
@@ -1109,12 +1142,12 @@ public final class LeavesConfig {
     public static class RegionConfig {
 
         @GlobalConfig(value = "format", lock = true, validator = RegionFormatValidator.class)
-        public org.leavesmc.leaves.region.RegionFileFormat format = org.leavesmc.leaves.region.RegionFileFormat.ANVIL;
+        public RegionFileFormat format = RegionFileFormat.ANVIL;
 
-        private static class RegionFormatValidator extends EnumConfigValidator<org.leavesmc.leaves.region.RegionFileFormat> {
+        private static class RegionFormatValidator extends EnumConfigValidator<RegionFileFormat> {
             @Override
             public void verify(RegionFileFormat old, RegionFileFormat value) throws IllegalArgumentException {
-                org.leavesmc.leaves.region.IRegionFileFactory.initFirstRegion(value);
+                IRegionFileFactory.initFirstRegion(value);
             }
         }
 
@@ -1124,7 +1157,7 @@ public final class LeavesConfig {
         public static class LinearConfig {
 
             @GlobalConfig(value = "version", lock = true)
-            public org.leavesmc.leaves.region.linear.LinearVersion version = org.leavesmc.leaves.region.linear.LinearVersion.V2;
+            public LinearVersion version = LinearVersion.V2;
 
             @GlobalConfig(value = "flush-max-threads", lock = true)
             public int flushThreads = 6;

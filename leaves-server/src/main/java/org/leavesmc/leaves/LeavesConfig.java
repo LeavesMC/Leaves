@@ -932,12 +932,6 @@ public final class LeavesConfig {
                 public static class MaxNbtSizeValidator extends LongConfigValidator {
 
                     @Override
-                    public Long stringConvert(String value) throws IllegalArgumentException {
-                        long l = super.stringConvert(value);
-                        return l == -1 ? Long.MAX_VALUE : l;
-                    }
-
-                    @Override
                     public void verify(Long old, Long value) throws IllegalArgumentException {
                         if (value <= 0) {
                             throw new IllegalArgumentException("Max nbt size can not be <= 0!");

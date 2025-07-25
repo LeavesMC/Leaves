@@ -1,6 +1,5 @@
 package org.leavesmc.leaves.protocol;
 
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -10,7 +9,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BedBlock;
-import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.RepeaterBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
@@ -24,8 +23,6 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
-import java.util.function.BiFunction;
 
 public class LitematicaEasyPlaceProtocol {
 
@@ -53,10 +50,6 @@ public class LitematicaEasyPlaceProtocol {
         BlockStateProperties.ROTATION_16
     );
 
-    public static final ImmutableMap<Property<?>, BiFunction<BlockState, BlockState, BlockState>> DYNAMIC_PROPERTIES = ImmutableMap.of(
-        BlockStateProperties.WATERLOGGED, (state, original) -> state.setValue(BlockStateProperties.WATERLOGGED, original.is(Blocks.WATER))
-    );
-
     public static BlockState applyPlacementProtocol(BlockState state, BlockPlaceContext context) {
         return applyPlacementProtocolV3(state, UseContext.from(context, context.getHand()));
     }
@@ -71,17 +64,6 @@ public class LitematicaEasyPlaceProtocol {
         }
 
         EnumProperty<Direction> property = CarpetAlternativeBlockPlacement.getFirstDirectionProperty(state);
-        BlockState original = context.getWorld().getBlockStateIfLoaded(context.pos);
-        if (original == null) {
-            return oldState;
-        }
-
-        for (Map.Entry<Property<?>, BiFunction<BlockState, BlockState, BlockState>> entry : DYNAMIC_PROPERTIES.entrySet()) {
-            if (state.hasProperty(entry.getKey())) {
-                state = entry.getValue().apply(state, original);
-            }
-        }
-
         if (property != null && property != BlockStateProperties.VERTICAL_DIRECTION) {
             state = applyDirectionProperty(state, context, property, protocolValue);
 
@@ -138,6 +120,10 @@ public class LitematicaEasyPlaceProtocol {
             }
         } catch (Exception e) {
             LeavesLogger.LOGGER.warning("Exception trying to apply placement protocol value", e);
+        }
+
+        if (state.getBlock() instanceof RepeaterBlock repeaterBlock) {
+            state = state.setValue(RepeaterBlock.LOCKED, repeaterBlock.isLocked(context.getWorld(), context.getPos(), state));
         }
 
         if (state.canSurvive(context.getWorld(), context.getPos())) {

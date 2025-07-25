@@ -21,6 +21,9 @@ public final class AutoConfigValidator implements ConfigValidator<Object> {
         BASE_VALIDATOR.put(Integer.class, ConfigValidatorImpl.IntConfigValidator::new);
         BASE_VALIDATOR.put(int.class, ConfigValidatorImpl.IntConfigValidator::new);
 
+        BASE_VALIDATOR.put(Long.class, ConfigValidatorImpl.LongConfigValidator::new);
+        BASE_VALIDATOR.put(long.class, ConfigValidatorImpl.LongConfigValidator::new);
+
         BASE_VALIDATOR.put(Double.class, ConfigValidatorImpl.DoubleConfigValidator::new);
         BASE_VALIDATOR.put(double.class, ConfigValidatorImpl.DoubleConfigValidator::new);
 

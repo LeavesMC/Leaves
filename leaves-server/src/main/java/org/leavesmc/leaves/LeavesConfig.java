@@ -15,12 +15,12 @@ import org.leavesmc.leaves.bot.BotCommand;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.bot.agent.Actions;
 import org.leavesmc.leaves.command.LeavesCommand;
-import org.leavesmc.leaves.config.ConfigValidatorImpl;
 import org.leavesmc.leaves.config.ConfigValidatorImpl.BooleanConfigValidator;
 import org.leavesmc.leaves.config.ConfigValidatorImpl.DoubleConfigValidator;
 import org.leavesmc.leaves.config.ConfigValidatorImpl.EnumConfigValidator;
 import org.leavesmc.leaves.config.ConfigValidatorImpl.IntConfigValidator;
 import org.leavesmc.leaves.config.ConfigValidatorImpl.ListConfigValidator;
+import org.leavesmc.leaves.config.ConfigValidatorImpl.LongConfigValidator;
 import org.leavesmc.leaves.config.ConfigValidatorImpl.StringConfigValidator;
 import org.leavesmc.leaves.config.GlobalConfigManager;
 import org.leavesmc.leaves.config.annotations.GlobalConfig;
@@ -929,17 +929,12 @@ public final class LeavesConfig {
                 @GlobalConfig(value = "max-nbt-size", validator = MaxNbtSizeValidator.class)
                 public long maxNbtSize = 2097152;
 
-                public static class MaxNbtSizeValidator extends ConfigValidatorImpl<Long> {
+                public static class MaxNbtSizeValidator extends LongConfigValidator {
 
                     @Override
                     public Long stringConvert(String value) throws IllegalArgumentException {
-                        long l = Long.parseLong(value);
+                        long l = super.stringConvert(value);
                         return l == -1 ? Long.MAX_VALUE : l;
-                    }
-
-                    @Override
-                    public Long loadConvert(Object value) throws IllegalArgumentException {
-                        return stringConvert(value.toString());
                     }
 
                     @Override

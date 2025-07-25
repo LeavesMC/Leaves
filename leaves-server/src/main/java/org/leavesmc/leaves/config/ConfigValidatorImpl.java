@@ -31,6 +31,13 @@ public abstract class ConfigValidatorImpl<E> implements ConfigValidator<E> {
         }
     }
 
+    public static class LongConfigValidator extends ConfigValidatorImpl<Long> {
+        @Override
+        public Long stringConvert(String value) throws IllegalArgumentException {
+            return Long.parseLong(value);
+        }
+    }
+
     public static class StringConfigValidator extends ConfigValidatorImpl<String> {
         @Override
         public String stringConvert(String value) throws IllegalArgumentException {

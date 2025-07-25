@@ -330,9 +330,6 @@ public final class LeavesConfig {
             @GlobalConfig("old-hopper-suck-in-behavior")
             public boolean oldHopperSuckInBehavior = false;
 
-            @GlobalConfig("old-nether-portal-collision") // Should remove in 1.21.6
-            public boolean oldNetherPortalCollision = false;
-
             @GlobalConfig("old-zombie-piglin-drop")
             public boolean oldZombiePiglinDrop = false;
 
@@ -691,6 +688,7 @@ public final class LeavesConfig {
         @RemovedConfig(name = "ignore-lc", category = "modify")
         @RemovedConfig(name = "fix-fortress-mob-spawn", category = {"modify", "minecraft-old"})
         @RemovedConfig(name = "fast-resume", category = "modify")
+        @RemovedConfig(name = "old-nether-portal-collision", category = {"modify", "minecraft-old"})
         private final boolean removed = false;
     }
 

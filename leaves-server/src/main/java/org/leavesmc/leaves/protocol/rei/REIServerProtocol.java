@@ -5,6 +5,11 @@ import com.google.common.collect.ImmutableMap;
 import io.netty.buffer.Unpooled;
 import net.minecraft.ChatFormatting;
 import net.minecraft.Util;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
@@ -46,8 +51,15 @@ import org.leavesmc.leaves.protocol.rei.display.SmeltingDisplay;
 import org.leavesmc.leaves.protocol.rei.display.SmokingDisplay;
 import org.leavesmc.leaves.protocol.rei.display.StoneCuttingDisplay;
 import org.leavesmc.leaves.protocol.rei.payload.DisplaySyncPayload;
+import org.leavesmc.leaves.protocol.rei.transfer.InputSlotCrafter;
+import org.leavesmc.leaves.protocol.rei.transfer.NewInputSlotCrafter;
+import org.leavesmc.leaves.protocol.rei.transfer.slot.PlayerInventorySlotAccessor;
+import org.leavesmc.leaves.protocol.rei.transfer.slot.SlotAccessor;
+import org.leavesmc.leaves.protocol.rei.transfer.slot.VanillaSlotAccessor;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -63,9 +75,11 @@ public class REIServerProtocol implements LeavesProtocol {
     public static final String CHEAT_PERMISSION = "leaves.protocol.rei.cheat";
     public static final ResourceLocation DELETE_ITEMS_PACKET = ResourceLocation.fromNamespaceAndPath("roughlyenoughitems", "delete_item");
     public static final ResourceLocation CREATE_ITEMS_PACKET = ResourceLocation.fromNamespaceAndPath("roughlyenoughitems", "create_item");
-    public static final ResourceLocation CREATE_ITEMS_GRAB_PACKET = ResourceLocation.fromNamespaceAndPath("roughlyenoughitems", "create_item_grab");
     public static final ResourceLocation CREATE_ITEMS_HOTBAR_PACKET = ResourceLocation.fromNamespaceAndPath("roughlyenoughitems", "create_item_hotbar");
+    public static final ResourceLocation CREATE_ITEMS_GRAB_PACKET = ResourceLocation.fromNamespaceAndPath("roughlyenoughitems", "create_item_grab");
     public static final ResourceLocation CREATE_ITEMS_MESSAGE_PACKET = ResourceLocation.fromNamespaceAndPath("roughlyenoughitems", "ci_msg");
+    public static final ResourceLocation MOVE_ITEMS_NEW_PACKET = ResourceLocation.fromNamespaceAndPath("roughlyenoughitems", "move_items_new");
+    public static final ResourceLocation NOT_ENOUGH_ITEMS_PACKET = ResourceLocation.fromNamespaceAndPath("roughlyenoughitems", "og_not_enough"); // this pack is under to-do at rei-client, so we don't handle it
     public static final ResourceLocation SYNC_DISPLAYS_PACKET = ResourceLocation.fromNamespaceAndPath("roughlyenoughitems", "sync_displays");
 
     public static final Map<ResourceLocation, PacketTransformer> TRANSFORMERS = Util.make(() -> {
@@ -75,6 +89,7 @@ public class REIServerProtocol implements LeavesProtocol {
         builder.put(CREATE_ITEMS_PACKET, new PacketTransformer());
         builder.put(CREATE_ITEMS_GRAB_PACKET, new PacketTransformer());
         builder.put(CREATE_ITEMS_HOTBAR_PACKET, new PacketTransformer());
+        builder.put(MOVE_ITEMS_NEW_PACKET, new PacketTransformer());
         return builder.build();
     });
     private static final Set<ServerPlayer> enabledPlayers = new HashSet<>();
@@ -294,7 +309,48 @@ public class REIServerProtocol implements LeavesProtocol {
 
     @ProtocolHandler.BytebufReceiver(key = "move_items_new")
     public static void handleMoveItem(ServerPlayer player, RegistryFriendlyByteBuf buf) {
-        // TODO handle to disable REI client warning
+        BiConsumer<ResourceLocation, RegistryFriendlyByteBuf> consumer = (ignored, c2sWholeBuf) -> {
+            FriendlyByteBuf tmpBuf = new FriendlyByteBuf(Unpooled.buffer()).writeBytes(c2sWholeBuf.readByteArray());
+            AbstractContainerMenu container = player.containerMenu;
+            tmpBuf.readResourceLocation();
+            try {
+                boolean shift = tmpBuf.readBoolean();
+                try {
+                    CompoundTag nbt = tmpBuf.readNbt();
+                    if (nbt == null) {
+                        throw new IllegalStateException("NBT data is null");
+                    }
+                    int version = nbt.getInt("Version").orElse(-1);
+                    if (version != 1) {
+                        throw new IllegalStateException("Server and client REI protocol version mismatch! Server: 1, Client: " + version);
+                    }
+
+                    List<List<ItemStack>> recipes = readInputs(player.registryAccess(), nbt.getListOrEmpty("Inputs"));
+                    List<SlotAccessor> input = readSlots(container, player, nbt.getListOrEmpty("InputSlots"));
+                    List<SlotAccessor> inventory = readSlots(container, player, nbt.getListOrEmpty("InventorySlots"));
+                    NewInputSlotCrafter<AbstractContainerMenu> crafter = new NewInputSlotCrafter<>(container, input, inventory, recipes);
+                    Bukkit.getScheduler().runTask(MinecraftInternalPlugin.INSTANCE, () -> {
+                        try {
+                            crafter.fillInputSlots(player, shift);
+                        } catch (InputSlotCrafter.NotEnoughMaterialsException ignored1) {
+                        } catch (IllegalStateException e) {
+                            player.sendSystemMessage(Component.translatable(e.getMessage()).withStyle(ChatFormatting.RED));
+                        } catch (Exception e) {
+                            player.sendSystemMessage(Component.translatable("error.rei.internal.error", e.getMessage()).withStyle(ChatFormatting.RED));
+                            e.printStackTrace();
+                        }
+                    });
+                } catch (IllegalStateException e) {
+                    player.sendSystemMessage(Component.translatable(e.getMessage()).withStyle(ChatFormatting.RED));
+                } catch (Exception e) {
+                    player.sendSystemMessage(Component.translatable("error.rei.internal.error", e.getMessage()).withStyle(ChatFormatting.RED));
+                    e.printStackTrace();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        };
+        inboundTransform(player, MOVE_ITEMS_NEW_PACKET, buf, consumer);
     }
 
     private static void inboundTransform(ServerPlayer player, ResourceLocation id, RegistryFriendlyByteBuf buf, BiConsumer<ResourceLocation, RegistryFriendlyByteBuf> consumer) {
@@ -331,5 +387,45 @@ public class REIServerProtocol implements LeavesProtocol {
     @Override
     public int tickerInterval(String tickerID) {
         return 200;
+    }
+
+    private static List<List<ItemStack>> readInputs(RegistryAccess registryAccess, ListTag tag) {
+        List<List<ItemStack>> items = new ArrayList<>();
+        for (Tag t : tag) {
+            CompoundTag compoundTag = (CompoundTag) t;
+            compoundTag.getInt("Index").orElseThrow();
+            ListTag ingredientList = compoundTag.getListOrEmpty("Ingredient");
+            List<ItemStack> slotItems = new ArrayList<>();
+            for (Tag ingredient : ingredientList) {
+                CompoundTag ingredientTag = (CompoundTag) ingredient;
+                ItemStack stack = ItemStack.OPTIONAL_CODEC.parse(
+                    registryAccess.createSerializationContext(NbtOps.INSTANCE),
+                    ingredientTag.get("value")
+                ).getOrThrow();
+                slotItems.add(stack);
+            }
+            items.add(slotItems);
+        }
+        return items;
+    }
+
+    private static List<SlotAccessor> readSlots(AbstractContainerMenu menu, ServerPlayer player, ListTag tag) {
+        List<SlotAccessor> slots = new ArrayList<>();
+        for (Tag t : tag) {
+            CompoundTag compoundTag = (CompoundTag) t;
+            String id = compoundTag.getString("id").orElseThrow();
+            if (!id.startsWith(PROTOCOL_ID + ":")) {
+                throw new IllegalStateException("Invalid slot id: " + id + ", expected to start with '" + PROTOCOL_ID + ":'");
+            }
+            id = id.substring((PROTOCOL_ID + ":").length());
+            int slot = compoundTag.getInt("Slot").orElseThrow();
+            SlotAccessor accessor = switch (id) {
+                case "vanilla" -> new VanillaSlotAccessor(menu.slots.get(slot));
+                case "player" -> new PlayerInventorySlotAccessor(player, slot);
+                default -> throw new IllegalStateException("Unknown container id: " + id);
+            };
+            slots.add(accessor);
+        }
+        return slots;
     }
 }

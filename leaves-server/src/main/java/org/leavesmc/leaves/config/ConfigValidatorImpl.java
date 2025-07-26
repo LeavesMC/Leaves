@@ -36,6 +36,14 @@ public abstract class ConfigValidatorImpl<E> implements ConfigValidator<E> {
         public Long stringConvert(String value) throws IllegalArgumentException {
             return Long.parseLong(value);
         }
+
+        @Override
+        public Long loadConvert(Object value) throws IllegalArgumentException {
+            if (value instanceof Integer) {
+                return Long.valueOf((Integer) value);
+            }
+            return (Long) value;
+        }
     }
 
     public static class StringConfigValidator extends ConfigValidatorImpl<String> {

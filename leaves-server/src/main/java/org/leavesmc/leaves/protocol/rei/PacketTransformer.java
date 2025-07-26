@@ -37,6 +37,7 @@ public class PacketTransformer {
     public void inbound(ResourceLocation id, RegistryFriendlyByteBuf buf, ServerPlayer player, BiConsumer<ResourceLocation, RegistryFriendlyByteBuf> consumer) {
         UUID key = player.getUUID();
         PartData data;
+        buf.readVarInt();
         switch (buf.readByte()) {
             case START -> {
                 int partsNum = buf.readInt();

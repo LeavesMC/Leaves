@@ -61,16 +61,10 @@ public abstract class ServerBotAction<E extends ServerBotAction<E>> {
     }
 
     public void tryTick(ServerBot bot) {
-        if (this.numberRemaining == 0) {
-            this.stop(bot, BotActionStopEvent.Reason.DONE);
-            return;
-        }
-
         if (this.cancel) {
             this.stop(bot, BotActionStopEvent.Reason.PLUGIN);
             return;
         }
-
         if (this.tickToNext <= 0) {
             BotActionExecuteEvent event = new BotActionExecuteEvent(bot.getBukkitEntity(), name, uuid);
 
@@ -99,6 +93,9 @@ public abstract class ServerBotAction<E extends ServerBotAction<E>> {
             }
         } else {
             this.tickToNext--;
+        }
+        if (this.numberRemaining == 0) {
+            this.stop(bot, BotActionStopEvent.Reason.DONE);
         }
     }
 

@@ -16,9 +16,12 @@ import org.leavesmc.leaves.event.bot.BotActionStopEvent;
 
 import java.util.Collections;
 
+import static net.minecraft.world.InteractionResult.*;
+
 public class ServerUseItemToAction extends ServerTimerBotAction<ServerUseItemToAction> {
     private int useTick = -1;
     private int tickToRelease = -1;
+    private byte useData = 0;
 
     public ServerUseItemToAction() {
         super("use_to", CommandArgument.of(CommandArgumentType.INTEGER, CommandArgumentType.INTEGER, CommandArgumentType.INTEGER, CommandArgumentType.INTEGER), ServerUseItemToAction::new);
@@ -42,15 +45,18 @@ public class ServerUseItemToAction extends ServerTimerBotAction<ServerUseItemToA
         tickToRelease--;
         if (tickToRelease >= 0) {
             EntityHitResult hitResult = bot.getEntityHitResult(3, null);
-            boolean result = execute(bot, hitResult).consumesAction();
-            if (useTick >= 0) {
-                return false;
-            } else {
-                return result;
+            InteractionResult result = execute(bot, hitResult);
+            if (result == SUCCESS || result == SUCCESS_SERVER) {
+                useData += 2;
+            } else if (result == CONSUME) {
+                useData += 1;
             }
+            return useData >= 2;
         } else {
             syncTickToRelease();
             bot.releaseUsingItem();
+            useData = 0;
+
             return true;
         }
     }
@@ -82,9 +88,11 @@ public class ServerUseItemToAction extends ServerTimerBotAction<ServerUseItemToA
         } else {
             result = bot.interactOn(hitResult.getEntity(), InteractionHand.MAIN_HAND);
         }
+        if (result == SUCCESS || result == SUCCESS_SERVER) {
+            bot.updateItemInHand(InteractionHand.MAIN_HAND);
+        }
         if (result.consumesAction()) {
             bot.swing(InteractionHand.MAIN_HAND);
-            bot.updateItemInHand(InteractionHand.MAIN_HAND);
         }
         return result;
     }
@@ -92,7 +100,7 @@ public class ServerUseItemToAction extends ServerTimerBotAction<ServerUseItemToA
     @Override
     public void stop(@NotNull ServerBot bot, BotActionStopEvent.Reason reason) {
         super.stop(bot, reason);
-        bot.completeUsingItem();
+        bot.releaseUsingItem();
     }
 
     @Override

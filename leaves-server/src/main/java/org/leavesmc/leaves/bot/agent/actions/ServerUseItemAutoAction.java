@@ -16,9 +16,12 @@ import org.leavesmc.leaves.event.bot.BotActionStopEvent;
 
 import java.util.Collections;
 
+import static net.minecraft.world.InteractionResult.*;
+
 public class ServerUseItemAutoAction extends ServerTimerBotAction<ServerUseItemAutoAction> {
     private int useTick = -1;
     private int tickToRelease = -1;
+    private int useData = 0;
 
     public ServerUseItemAutoAction() {
         super("use_auto", CommandArgument.of(CommandArgumentType.INTEGER, CommandArgumentType.INTEGER, CommandArgumentType.INTEGER, CommandArgumentType.INTEGER), ServerUseItemAutoAction::new);
@@ -41,15 +44,17 @@ public class ServerUseItemAutoAction extends ServerTimerBotAction<ServerUseItemA
     public boolean doTick(@NotNull ServerBot bot) {
         tickToRelease--;
         if (tickToRelease >= 0) {
-            boolean result = execute(bot);
-            if (useTick >= 0) {
-                return false;
-            } else {
-                return result;
+            InteractionResult result = execute(bot);
+            if (result == SUCCESS || result == SUCCESS_SERVER) {
+                useData += 2;
+            } else if (result == CONSUME) {
+                useData += 1;
             }
+            return useData >= 2;
         } else {
-            syncTickToRelease();
             bot.releaseUsingItem();
+            syncTickToRelease();
+            useData = 0;
             return true;
         }
     }
@@ -70,30 +75,33 @@ public class ServerUseItemAutoAction extends ServerTimerBotAction<ServerUseItemA
         this.useTick = useTick;
     }
 
-    public boolean execute(@NotNull ServerBot bot) {
+    public InteractionResult execute(@NotNull ServerBot bot) {
         if (bot.isUsingItem()) {
-            return false;
+            return FAIL;
         }
 
         EntityHitResult entityHitResult = bot.getEntityHitResult(3, null);
         BlockHitResult blockHitResult = (BlockHitResult) bot.getRayTrace(5, ClipContext.Fluid.NONE);
-        boolean mainSuccess, useTo = entityHitResult != null, useOn = !bot.level().getBlockState(blockHitResult.getBlockPos()).isAir();
+        boolean useTo = entityHitResult != null, useOn = !bot.level().getBlockState(blockHitResult.getBlockPos()).isAir();
+        InteractionResult mainResult;
         if (useTo) {
             InteractionResult result = ServerUseItemToAction.execute(bot, entityHitResult);
-            mainSuccess = result.consumesAction() || (result == InteractionResult.PASS && ServerUseItemAction.execute(bot));
+            mainResult = result.consumesAction() ? result : result == InteractionResult.PASS ? ServerUseItemAction.execute(bot) : FAIL;
         } else if (useOn) {
-            mainSuccess = ServerUseItemOnAction.execute(bot, blockHitResult) || ServerUseItemAction.execute(bot);
+            InteractionResult result = ServerUseItemOnAction.execute(bot, blockHitResult);
+            mainResult = result.consumesAction() ? result : ServerUseItemAction.execute(bot);
         } else {
-            mainSuccess = ServerUseItemAction.execute(bot);
+            mainResult = ServerUseItemAction.execute(bot);
         }
-        if (mainSuccess) {
-            return true;
+        if (mainResult != FAIL && mainResult != PASS) {
+            return mainResult;
         }
         if (useTo) {
             InteractionResult result = ServerUseItemToOffhandAction.execute(bot, entityHitResult);
-            return result.consumesAction() || (result == InteractionResult.PASS && ServerUseItemOffhandAction.execute(bot));
+            return result.consumesAction() ? result : result == InteractionResult.PASS ? ServerUseItemOffhandAction.execute(bot) : FAIL;
         } else if (useOn) {
-            return ServerUseItemOnOffhandAction.execute(bot, blockHitResult) || ServerUseItemOffhandAction.execute(bot);
+            InteractionResult result = ServerUseItemOnOffhandAction.execute(bot, blockHitResult);
+            return result.consumesAction() ? result : ServerUseItemOffhandAction.execute(bot);
         } else {
             return ServerUseItemOffhandAction.execute(bot);
         }
@@ -102,7 +110,7 @@ public class ServerUseItemAutoAction extends ServerTimerBotAction<ServerUseItemA
     @Override
     public void stop(@NotNull ServerBot bot, BotActionStopEvent.Reason reason) {
         super.stop(bot, reason);
-        bot.completeUsingItem();
+        bot.releaseUsingItem();
     }
 
     @Override

@@ -3,6 +3,7 @@ package org.leavesmc.leaves.bot.agent.actions;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.TrappedChestBlockEntity;
@@ -22,9 +23,12 @@ import org.leavesmc.leaves.plugin.MinecraftInternalPlugin;
 
 import java.util.Collections;
 
+import static net.minecraft.world.InteractionResult.*;
+
 public class ServerUseItemOnAction extends ServerTimerBotAction<ServerUseItemOnAction> {
     private int useTick = -1;
     private int tickToRelease = -1;
+    private byte useData = 0;
 
     public ServerUseItemOnAction() {
         super("use_on", CommandArgument.of(CommandArgumentType.INTEGER, CommandArgumentType.INTEGER, CommandArgumentType.INTEGER, CommandArgumentType.INTEGER), ServerUseItemOnAction::new);
@@ -48,15 +52,17 @@ public class ServerUseItemOnAction extends ServerTimerBotAction<ServerUseItemOnA
         tickToRelease--;
         if (tickToRelease >= 0) {
             HitResult hitResult = bot.getRayTrace(5, ClipContext.Fluid.NONE);
-            boolean result = execute(bot, hitResult);
-            if (useTick >= 0) {
-                return false;
-            } else {
-                return result;
+            InteractionResult result = execute(bot, hitResult);
+            if (result == CONSUME) {
+                useData += 1;
+            } else if (result != FAIL) {
+                useData += 2;
             }
+            return useData >= 2;
         } else {
             syncTickToRelease();
             bot.releaseUsingItem();
+            useData = 0;
             return true;
         }
     }
@@ -93,36 +99,36 @@ public class ServerUseItemOnAction extends ServerTimerBotAction<ServerUseItemOnA
         this.useTick = useTick;
     }
 
-    public static boolean execute(@NotNull ServerBot bot, HitResult result) {
+    public static InteractionResult execute(@NotNull ServerBot bot, HitResult result) {
         if (!(result instanceof BlockHitResult blockHitResult)) {
-            return false;
+            return InteractionResult.FAIL;
         }
         BlockState state = bot.level().getBlockState(blockHitResult.getBlockPos());
         if (state.isAir()) {
-            return false;
+            return InteractionResult.FAIL;
         }
 
-        boolean success;
+        InteractionResult interactionResult;
         if (state.getBlock() == Blocks.TRAPPED_CHEST &&
             bot.level().getBlockEntity(blockHitResult.getBlockPos()) instanceof TrappedChestBlockEntity chestBlockEntity
         ) {
             chestBlockEntity.startOpen(bot);
             Bukkit.getScheduler().runTaskLater(MinecraftInternalPlugin.INSTANCE, () -> chestBlockEntity.stopOpen(bot), 1);
-            success = true;
+            interactionResult = InteractionResult.SUCCESS;
         } else {
+            interactionResult = bot.gameMode.useItemOn(bot, bot.level(), bot.getItemInHand(InteractionHand.MAIN_HAND), InteractionHand.MAIN_HAND, blockHitResult);
             bot.updateItemInHand(InteractionHand.MAIN_HAND);
-            success = bot.gameMode.useItemOn(bot, bot.level(), bot.getItemInHand(InteractionHand.MAIN_HAND), InteractionHand.MAIN_HAND, blockHitResult).consumesAction();
         }
-        if (success) {
+        if (interactionResult.consumesAction()) {
             bot.swing(InteractionHand.MAIN_HAND);
         }
-        return success;
+        return interactionResult;
     }
 
     @Override
     public void stop(@NotNull ServerBot bot, BotActionStopEvent.Reason reason) {
         super.stop(bot, reason);
-        bot.completeUsingItem();
+        bot.releaseUsingItem();
     }
 
     @Override

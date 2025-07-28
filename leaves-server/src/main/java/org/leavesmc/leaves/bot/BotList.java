@@ -36,6 +36,7 @@ import org.leavesmc.leaves.event.bot.BotRemoveEvent;
 import org.leavesmc.leaves.event.bot.BotSpawnLocationEvent;
 import org.slf4j.Logger;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -204,7 +205,7 @@ public class BotList {
             playerIO.save(bot);
         } else {
             bot.dropAll(true);
-            botsNameByWorldUuid.get(bot.level().uuid.toString()).remove(bot.getBukkitEntity().getRealName());
+            botsNameByWorldUuid.getOrDefault(bot.level().uuid.toString(), Collections.emptySet()).remove(bot.getBukkitEntity().getRealName());
         }
 
         if (bot.isPassenger() && event.shouldSave()) {

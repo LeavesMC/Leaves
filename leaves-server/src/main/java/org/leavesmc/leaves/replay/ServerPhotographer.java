@@ -146,6 +146,10 @@ public class ServerPhotographer extends ServerPlayer {
         this.followPlayer = followPlayer;
     }
 
+    public ServerPlayer getFollowPlayer() {
+        return followPlayer;
+    }
+
     public void setSaveFile(File saveFile) {
         this.saveFile = saveFile;
     }

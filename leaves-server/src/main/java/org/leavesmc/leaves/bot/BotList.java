@@ -205,7 +205,7 @@ public class BotList {
             playerIO.save(bot);
         } else {
             bot.dropAll(true);
-            botsNameByWorldUuid.getOrDefault(bot.level().uuid.toString(), Collections.emptySet()).remove(bot.getBukkitEntity().getRealName());
+            botsNameByWorldUuid.getOrDefault(bot.level().uuid.toString(), new HashSet<>()).remove(bot.getBukkitEntity().getRealName());
         }
 
         if (bot.isPassenger() && event.shouldSave()) {
@@ -304,6 +304,17 @@ public class BotList {
             return;
         }
         bots.forEach(this::loadNewBot);
+    }
+
+    public void updateBotLevel(ServerBot bot, ServerLevel level) {
+        String prevUuid = bot.level().uuid.toString();
+        String newUuid = level.uuid.toString();
+        this.botsNameByWorldUuid
+            .computeIfAbsent(newUuid, (k) -> new HashSet<>())
+            .add(bot.getBukkitEntity().getRealName());
+        this.botsNameByWorldUuid
+            .computeIfAbsent(prevUuid, (k) -> new HashSet<>())
+            .remove(bot.getBukkitEntity().getRealName());
     }
 
     public void networkTick() {

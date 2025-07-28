@@ -276,6 +276,12 @@ public class ServerBot extends ServerPlayer {
     }
 
     @Override
+    public void setServerLevel(ServerLevel level) {
+        BotList.INSTANCE.updateBotLevel(this, level);
+        super.setServerLevel(level);
+    }
+
+    @Override
     public void knockback(double strength, double x, double z, @Nullable Entity attacker, EntityKnockbackEvent.@NotNull Cause eventCause) {
         if (!this.hurtMarked) {
             return;

@@ -67,6 +67,7 @@ public class Recorder extends Connection {
     private final ServerPhotographer photographer;
     private final RecorderOption recorderOption;
     private final RecordMetaData metaData;
+    private final AtomicBoolean isSaving = new AtomicBoolean(false);
 
     private boolean stopped = false;
     private boolean paused = false;
@@ -77,7 +78,6 @@ public class Recorder extends Connection {
     private long timeShift = 0;
 
     private boolean isSaved;
-    private AtomicBoolean isSaving;
     private ConnectionProtocol state = ConnectionProtocol.LOGIN;
 
     public Recorder(ServerPhotographer photographer, RecorderOption recorderOption, File replayFile) throws IOException {
@@ -102,10 +102,7 @@ public class Recorder extends Connection {
         this.savePacket(new ClientboundLoginFinishedPacket(photographer.getGameProfile()), ConnectionProtocol.LOGIN);
         this.startConfiguration();
 
-        ServerPlayer follow = photographer.getFollowPlayer();
-        if (follow != null) {
-            savePacket(ClientboundPlayerPositionPacket.of(follow.getId(), PositionMoveRotation.of(follow), Collections.emptySet()));
-        }
+        savePacket(ClientboundPlayerPositionPacket.of(this.photographer.getId(), PositionMoveRotation.of(this.photographer), Collections.emptySet()));
 
         if (recorderOption.forceWeather != null) {
             setWeather(recorderOption.forceWeather);
@@ -255,24 +252,23 @@ public class Recorder extends Connection {
     }
 
     public CompletableFuture<Void> saveRecording(File dest, boolean save) {
-        if (isSaving.compareAndSet(false, true)) {
-            isSaved = true;
-            metaData.duration = (int) lastPacket;
-            return CompletableFuture.runAsync(() -> {
-                saveMetadata();
-                try {
-                    if (save) {
-                        replayFile.closeAndSave(dest);
-                    } else {
-                        replayFile.closeNotSave();
-                    }
-                } catch (IOException e) {
-                    throw new CompletionException(e);
-                }
-            }, saveService);
-        } else {
+        if (!isSaving.compareAndSet(false, true)) {
             LOGGER.warning("saveRecording() called twice");
             return CompletableFuture.failedFuture(new IllegalStateException("saveRecording() called twice"));
         }
+        isSaved = true;
+        metaData.duration = (int) lastPacket;
+        return CompletableFuture.runAsync(() -> {
+            try {
+                replayFile.saveMetaData(metaData);
+                if (save) {
+                    replayFile.closeAndSave(dest);
+                } else {
+                    replayFile.closeNotSave();
+                }
+            } catch (IOException e) {
+                throw new CompletionException(e);
+            }
+        }, saveService);
     }
 }

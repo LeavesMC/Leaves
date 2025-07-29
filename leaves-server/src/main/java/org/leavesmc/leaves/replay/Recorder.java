@@ -102,7 +102,7 @@ public class Recorder extends Connection {
         this.savePacket(new ClientboundLoginFinishedPacket(photographer.getGameProfile()), ConnectionProtocol.LOGIN);
         this.startConfiguration();
 
-        savePacket(ClientboundPlayerPositionPacket.of(this.photographer.getId(), PositionMoveRotation.of(this.photographer), Collections.emptySet()));
+        savePacket(ClientboundPlayerPositionPacket.of(photographer.getId(), PositionMoveRotation.of(photographer), Collections.emptySet()));
 
         if (recorderOption.forceWeather != null) {
             setWeather(recorderOption.forceWeather);

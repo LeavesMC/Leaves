@@ -768,6 +768,9 @@ public final class LeavesConfig {
         @GlobalConfig("fix-villagers-dont-release-memory")
         public boolean villagersDontReleaseMemoryFix = false;
 
+        @GlobalConfig("sleeping-block-entity")
+        public boolean sleepingBlockEntity = false;
+
         @RemovedConfig(name = "biome-temperatures-use-aging-cache", category = "performance")
         @RemovedConfig(name = "cache-world-generator-sea-level", category = "performance")
         @RemovedConfig(name = "cache-ominous-banner-item", category = "performance")

@@ -1045,7 +1045,7 @@ public final class LeavesConfig {
             public String source = "application";
 
             public static class DownloadSourceValidator extends StringConfigValidator {
-                private static List<String> suggestSourceList = List.of("application", "cloud");
+                private static final List<String> suggestSourceList = List.of("application", "cloud");
 
                 @Override
                 public List<String> valueSuggest() {

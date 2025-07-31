@@ -1212,6 +1212,9 @@ public final class LeavesConfig {
         @GlobalConfig("vanilla-fluid-pushing")
         public boolean vanillaFluidPushing = true;
 
+        @GlobalConfig("vanilla-endermite-spawn")
+        public boolean vanillaEndermiteSpawn = true;
+
         @GlobalConfig(value = "collision-behavior")
         public CollisionBehavior collisionBehavior = CollisionBehavior.BLOCK_SHAPE_VANILLA;
 

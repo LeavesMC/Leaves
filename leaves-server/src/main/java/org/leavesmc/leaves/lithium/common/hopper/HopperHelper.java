@@ -31,7 +31,6 @@ import net.minecraft.world.level.block.entity.HopperBlockEntity;
 import net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity;
 import net.minecraft.world.level.chunk.LevelChunk;
 import org.jetbrains.annotations.Nullable;
-import org.leavesmc.leaves.lithium.api.inventory.LithiumTransferConditionInventory;
 import org.leavesmc.leaves.lithium.common.util.DirectionConstants;
 import org.leavesmc.leaves.lithium.common.world.WorldHelper;
 

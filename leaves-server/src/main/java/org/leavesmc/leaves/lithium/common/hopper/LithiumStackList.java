@@ -26,7 +26,6 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.lithium.api.inventory.LithiumDefaultedList;
 import org.leavesmc.leaves.lithium.common.block.entity.inventory_change_tracking.InventoryChangeTracker;
-import org.leavesmc.leaves.lithium.common.util.change_tracking.ChangePublisher;
 import org.leavesmc.leaves.lithium.common.util.change_tracking.ChangeSubscriber;
 
 public class LithiumStackList extends NonNullList<ItemStack> implements LithiumDefaultedList, ChangeSubscriber.CountChangeSubscriber<ItemStack> {

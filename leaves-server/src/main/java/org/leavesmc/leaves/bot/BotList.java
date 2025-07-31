@@ -303,7 +303,8 @@ public class BotList {
         if (bots == null) {
             return;
         }
-        bots.forEach(this::loadNewBot);
+        Set<String> botsCopy = new HashSet<>(bots);
+        botsCopy.forEach(this::loadNewBot);
     }
 
     public void updateBotLevel(ServerBot bot, ServerLevel level) {

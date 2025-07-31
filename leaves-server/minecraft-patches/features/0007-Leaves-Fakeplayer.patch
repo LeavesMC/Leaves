@@ -30,7 +30,7 @@ index 41005f6b9f53a9c1125ad5e08538d9f5aacb3571..3e9b8c5fb2157f767de8bddc3e767512
      private DisconnectionDetails disconnectionDetails;
      private boolean encrypted;
 diff --git a/net/minecraft/server/MinecraftServer.java b/net/minecraft/server/MinecraftServer.java
-index 4e2e84bbd389d926b8e6f45f2e37c80f4df1af41..83b81e990fccebad35c67712d0d497537c4e3670 100644
+index d6cd8ac3b44b170b5bb3a530deb406396d0fb7ae..367882c1cad3fd75c038931a1ecca729db27d0e5 100644
 --- a/net/minecraft/server/MinecraftServer.java
 +++ b/net/minecraft/server/MinecraftServer.java
 @@ -304,6 +304,8 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
@@ -50,6 +50,15 @@ index 4e2e84bbd389d926b8e6f45f2e37c80f4df1af41..83b81e990fccebad35c67712d0d49753
          // CraftBukkit start
          if (this.server != null) {
              this.server.spark.disable(); // Paper - spark
+@@ -1492,7 +1495,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+         int i = this.pauseWhileEmptySeconds() * 20;
+         this.removeDisabledPluginsBlockingSleep(); // Paper - API to allow/disallow tick sleeping
+         if (i > 0) {
+-            if (this.playerList.getPlayerCount() == 0 && !this.tickRateManager.isSprinting() && this.pluginsBlockingSleep.isEmpty()) { // Paper - API to allow/disallow tick sleeping
++            if (this.playerList.getPlayerCount() == 0 && this.botList.bots.isEmpty() && !this.tickRateManager.isSprinting() && this.pluginsBlockingSleep.isEmpty()) { // Paper - API to allow/disallow tick sleeping // Leaves - fakeplayer
+                 this.emptyTicks++;
+             } else {
+                 this.emptyTicks = 0;
 @@ -1762,6 +1765,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
  
      public void tickConnection() {
@@ -58,7 +67,7 @@ index 4e2e84bbd389d926b8e6f45f2e37c80f4df1af41..83b81e990fccebad35c67712d0d49753
      }
  
      private void synchronizeTime(ServerLevel level) {
-@@ -2811,6 +2815,16 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+@@ -2814,6 +2818,16 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
          return 0;
      }
  
@@ -187,7 +196,7 @@ index 364d5e28646ea341034921622354c7b19644b343..c61c0b6d58f96955bfbdad0caaeb56f0
                  ServerLevel.this.updateSleepingPlayerList();
              }
 diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
-index 37c0a84758a1526791913898358659de202fa19f..7e4bf7ddc26fc087832f802856f14e268b0ca32b 100644
+index 8f94c963f2c59668d72d162f46f7505d6a6b06a5..e808b8059af035d09c24286b1e5893733906dca4 100644
 --- a/net/minecraft/server/level/ServerPlayer.java
 +++ b/net/minecraft/server/level/ServerPlayer.java
 @@ -219,7 +219,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
@@ -199,7 +208,7 @@ index 37c0a84758a1526791913898358659de202fa19f..7e4bf7ddc26fc087832f802856f14e26
      private final PlayerAdvancements advancements;
      private final ServerStatsCounter stats;
      private float lastRecordedHealthAndAbsorption = Float.MIN_VALUE;
-@@ -1450,6 +1450,11 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -1454,6 +1454,11 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
                  this.lastSentHealth = -1.0F;
                  this.lastSentFood = -1;
                  this.teleportSpectators(teleportTransition, serverLevel);
@@ -212,7 +221,7 @@ index 37c0a84758a1526791913898358659de202fa19f..7e4bf7ddc26fc087832f802856f14e26
                  org.bukkit.event.player.PlayerChangedWorldEvent changeEvent = new org.bukkit.event.player.PlayerChangedWorldEvent(this.getBukkitEntity(), serverLevel.getWorld());
                  this.level().getCraftServer().getPluginManager().callEvent(changeEvent);
 diff --git a/net/minecraft/server/players/PlayerList.java b/net/minecraft/server/players/PlayerList.java
-index bd3cb8d68ac2940cd6f3b28a91c17ebc64147f2d..204c25d33e86a736f091848a277ea882f129e468 100644
+index 2dffdc770529e048c4e8df7d70de59c94d3a77be..1135d32f1f275306792b95d10f76ac233e265e0d 100644
 --- a/net/minecraft/server/players/PlayerList.java
 +++ b/net/minecraft/server/players/PlayerList.java
 @@ -337,6 +337,19 @@ public abstract class PlayerList {
@@ -235,7 +244,7 @@ index bd3cb8d68ac2940cd6f3b28a91c17ebc64147f2d..204c25d33e86a736f091848a277ea882
              final net.kyori.adventure.text.Component jm = playerJoinEvent.joinMessage();
  
              if (jm != null && !jm.equals(net.kyori.adventure.text.Component.empty())) { // Paper - Adventure
-@@ -829,6 +842,12 @@ public abstract class PlayerList {
+@@ -827,6 +840,12 @@ public abstract class PlayerList {
          }
          // Paper end - Add PlayerPostRespawnEvent
  
@@ -248,7 +257,7 @@ index bd3cb8d68ac2940cd6f3b28a91c17ebc64147f2d..204c25d33e86a736f091848a277ea882
          // CraftBukkit end
  
          return serverPlayer;
-@@ -933,11 +952,16 @@ public abstract class PlayerList {
+@@ -931,11 +950,16 @@ public abstract class PlayerList {
      }
  
      public String[] getPlayerNamesArray() {
@@ -266,7 +275,7 @@ index bd3cb8d68ac2940cd6f3b28a91c17ebc64147f2d..204c25d33e86a736f091848a277ea882
  
          return strings;
      }
-@@ -1040,7 +1064,14 @@ public abstract class PlayerList {
+@@ -1038,7 +1062,14 @@ public abstract class PlayerList {
  
      @Nullable
      public ServerPlayer getPlayerByName(String username) {
@@ -282,7 +291,7 @@ index bd3cb8d68ac2940cd6f3b28a91c17ebc64147f2d..204c25d33e86a736f091848a277ea882
      }
  
      public void broadcast(@Nullable Player except, double x, double y, double z, double radius, ResourceKey<Level> dimension, Packet<?> packet) {
-@@ -1356,7 +1387,13 @@ public abstract class PlayerList {
+@@ -1354,7 +1385,13 @@ public abstract class PlayerList {
  
      @Nullable
      public ServerPlayer getPlayer(UUID playerUUID) {
@@ -326,7 +335,7 @@ index f9e7532f86122a379692561a639a209a126e8bba..2412f46837e967694222730e68e7d25a
  
          for (WaypointTransmitter waypointTransmitter : this.waypoints) {
 diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
-index ea616ff83c14dd582bdb49442bc0b9103fc8f1b3..843cbeb5d125ff1964a9e2c5a29215c738a98f76 100644
+index 61530843a32632f54f3d4ad913e649ee2dca3f38..d5051d8a2b0af5d8b63a0d10987c0a7ee7114ff0 100644
 --- a/net/minecraft/world/entity/Entity.java
 +++ b/net/minecraft/world/entity/Entity.java
 @@ -1173,7 +1173,7 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
@@ -405,7 +414,7 @@ index 5f3abbe943be394e9cb987945a238208940b5015..8c139d572bd3c44b8e2b6205e28ab09f
      public int timeUntilHooked;
      public float fishAngle;
 diff --git a/net/minecraft/world/inventory/AbstractContainerMenu.java b/net/minecraft/world/inventory/AbstractContainerMenu.java
-index 96da9b8e3556e58365dc6742f44d6dfd608e2953..e5811924577fb04fd2d67fb4a32a9de1dbe3c7b1 100644
+index 06846950348954328c07f64cd9b3359e79a1a468..e1783ad0adbb791b2ff7441243c9f0aeaf37c7f6 100644
 --- a/net/minecraft/world/inventory/AbstractContainerMenu.java
 +++ b/net/minecraft/world/inventory/AbstractContainerMenu.java
 @@ -400,6 +400,7 @@ public abstract class AbstractContainerMenu {

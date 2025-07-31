@@ -1135,6 +1135,9 @@ public final class LeavesConfig {
 
         @GlobalConfig("leaves-packet-event")
         public boolean leavesPacketEvent = true;
+
+        @GlobalConfig("chat-command-max-length")
+        public int chatCommandMaxLength = 32767;
     }
 
     public static RegionConfig region = new RegionConfig();

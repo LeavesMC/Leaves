@@ -17,7 +17,6 @@
 
 package org.leavesmc.leaves.lithium.common.block.entity.inventory_comparator_tracking;
 
-import org.leavesmc.leaves.lithium.common.util.DirectionConstants;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.Container;
@@ -26,6 +25,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import org.leavesmc.leaves.lithium.common.util.DirectionConstants;
 
 public class ComparatorTracking {
 

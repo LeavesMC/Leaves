@@ -17,8 +17,6 @@
 
 package org.leavesmc.leaves.lithium.common.hopper;
 
-import org.leavesmc.leaves.lithium.api.inventory.LithiumTransferConditionInventory;
-import org.leavesmc.leaves.lithium.common.util.DirectionConstants;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
@@ -33,6 +31,8 @@ import net.minecraft.world.level.block.entity.HopperBlockEntity;
 import net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity;
 import net.minecraft.world.level.chunk.LevelChunk;
 import org.jetbrains.annotations.Nullable;
+import org.leavesmc.leaves.lithium.api.inventory.LithiumTransferConditionInventory;
+import org.leavesmc.leaves.lithium.common.util.DirectionConstants;
 import org.leavesmc.leaves.lithium.common.world.WorldHelper;
 
 import java.util.Map;
@@ -41,7 +41,7 @@ public class HopperHelper {
 
     public static boolean tryMoveSingleItem(Container to, ItemStack stack, @Nullable Direction fromDirection) {
         ItemStack transferChecker;
-        if (((LithiumTransferConditionInventory) to).lithium$itemInsertionTestRequiresStackSize1()) {
+        if (to.lithium$itemInsertionTestRequiresStackSize1()) {
             transferChecker = stack.copy();
             transferChecker.setCount(1);
         } else {
@@ -52,14 +52,14 @@ public class HopperHelper {
         if (toSided != null && fromDirection != null) {
             int[] slots = toSided.getSlotsForFace(fromDirection);
 
-            for(int slotIndex = 0; slotIndex < slots.length; ++slotIndex) {
+            for (int slotIndex = 0; slotIndex < slots.length; ++slotIndex) {
                 if (tryMoveSingleItem(to, toSided, stack, transferChecker, slots[slotIndex], fromDirection)) {
                     return true; //caller needs to take the item from the original inventory and call to.markDirty()
                 }
             }
         } else {
             int j = to.getContainerSize();
-            for(int slot = 0; slot < j; ++slot) {
+            for (int slot = 0; slot < j; ++slot) {
                 if (tryMoveSingleItem(to, toSided, stack, transferChecker, slot, fromDirection)) {
                     return true; //caller needs to take the item from the original inventory and call to.markDirty()
                 }
@@ -111,7 +111,7 @@ public class HopperHelper {
             }
         }
         float f = contentWeight;
-        f /= (float)from.getContainerSize();
+        f /= (float) from.getContainerSize();
         int originalSignalStrength = Mth.floor(f * 14.0F) + (numOccupiedSlots > 0 ? 1 : 0);
 
 

@@ -27,11 +27,11 @@ import net.minecraft.world.level.block.entity.BlockEntity;
  * put it back right after. Some types of inventories will send comparator updates
  * every time a hopper does that. Multiple consecutive comparator updates
  * are not distinguishable from a single one and can therefore be omitted.
- *
+ * <p>
  * A hopper failing to take items can be predicted by testing whether the inventory
  * modification counter {@link LithiumStackList} of the hopper or the inventory above
  * have changed since just before the previous attempt to take items.
- *
+ * <p>
  * Decrementing and immediately incrementing the signal strength of an inventory
  * cannot be distinguished from setting the signal strength to 0 temporarily.
  *

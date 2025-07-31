@@ -1,8 +1,6 @@
 package org.leavesmc.leaves.lithium.common.tracking.entity;
 
 import ca.spottedleaf.moonrise.common.util.CoordinateUtils;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.EntitySelector;
@@ -47,9 +45,9 @@ public class ChunkSectionInventoryEntityTracker extends ChunkSectionEntityMoveme
 
         List<ChunkSectionInventoryEntityTracker> trackers = new ArrayList<>();
 
-        for(int x = worldSectionBox.chunkX1(); x <= worldSectionBox.chunkX2(); x++) {
-            for(int y = worldSectionBox.chunkY1(); y <= worldSectionBox.chunkY2(); y++) {
-                for(int z = worldSectionBox.chunkZ1(); z <= worldSectionBox.chunkZ2(); z++) {
+        for (int x = worldSectionBox.chunkX1(); x <= worldSectionBox.chunkX2(); x++) {
+            for (int y = worldSectionBox.chunkY1(); y <= worldSectionBox.chunkY2(); y++) {
+                for (int z = worldSectionBox.chunkZ1(); z <= worldSectionBox.chunkZ2(); z++) {
                     trackers.add(registerAt(CoordinateUtils.getChunkSectionKey(x, y, z)));
                 }
             }

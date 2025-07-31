@@ -17,10 +17,6 @@
 
 package org.leavesmc.leaves.lithium.common.hopper;
 
-import org.leavesmc.leaves.lithium.api.inventory.LithiumDefaultedList;
-import org.leavesmc.leaves.lithium.common.block.entity.inventory_change_tracking.InventoryChangeTracker;
-import org.leavesmc.leaves.lithium.common.util.change_tracking.ChangePublisher;
-import org.leavesmc.leaves.lithium.common.util.change_tracking.ChangeSubscriber;
 import net.minecraft.core.NonNullList;
 import net.minecraft.util.Mth;
 import net.minecraft.world.Container;
@@ -28,6 +24,10 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.leavesmc.leaves.lithium.api.inventory.LithiumDefaultedList;
+import org.leavesmc.leaves.lithium.common.block.entity.inventory_change_tracking.InventoryChangeTracker;
+import org.leavesmc.leaves.lithium.common.util.change_tracking.ChangePublisher;
+import org.leavesmc.leaves.lithium.common.util.change_tracking.ChangeSubscriber;
 
 public class LithiumStackList extends NonNullList<ItemStack> implements LithiumDefaultedList, ChangeSubscriber.CountChangeSubscriber<ItemStack> {
     final int maxCountPerStack;
@@ -64,8 +64,7 @@ public class LithiumStackList extends NonNullList<ItemStack> implements LithiumD
                 if (stack.getMaxStackSize() <= stack.getCount()) {
                     this.fullSlots++;
                 }
-                //noinspection unchecked
-                ((ChangePublisher<ItemStack>) (Object) stack).lithium$subscribe(this, i);
+                stack.lithium$subscribe(this, i);
             }
         }
 
@@ -78,6 +77,7 @@ public class LithiumStackList extends NonNullList<ItemStack> implements LithiumD
         this.cachedSignalStrength = -1;
         this.inventoryModificationCallback = null;
     }
+
     public long getModCount() {
         return this.modCount;
     }
@@ -98,15 +98,13 @@ public class LithiumStackList extends NonNullList<ItemStack> implements LithiumD
                 if (stack.getMaxStackSize() <= stack.getCount()) {
                     this.fullSlots++;
                 }
-                //noinspection unchecked
-                ((ChangePublisher<ItemStack>) (Object) stack).lithium$unsubscribe(this);
+                stack.lithium$unsubscribe(this);
             }
         }
         for (int i = 0; i < size; i++) {
             ItemStack stack = this.get(i);
             if (!stack.isEmpty()) {
-                //noinspection unchecked
-                ((ChangePublisher<ItemStack>) (Object) stack).lithium$subscribe(this, i);
+                stack.lithium$subscribe(this, i);
             }
         }
 
@@ -137,21 +135,18 @@ public class LithiumStackList extends NonNullList<ItemStack> implements LithiumD
         // At this point, the LithiumStackList unsubscribed from the stack when it reached 0.
         // Handle: If the previous == element, and the stack is not subscribed, we handle it as if an empty stack was replaced.
         if (previous == element && !element.isEmpty()) {
-            //noinspection unchecked
-            boolean notSubscribed = ((ChangePublisher<ItemStack>) (Object) previous).lithium$isSubscribedWithData(this, index);
-            if (!notSubscribed)  {
+            boolean notSubscribed = previous.lithium$isSubscribedWithData(this, index);
+            if (!notSubscribed) {
                 previous = ItemStack.EMPTY;
             }
         }
 
         if (previous != element) {
             if (!previous.isEmpty()) {
-                //noinspection unchecked
-                ((ChangePublisher<ItemStack>) (Object) previous).lithium$unsubscribeWithData(this, index);
+                previous.lithium$unsubscribeWithData(this, index);
             }
             if (!element.isEmpty()) {
-                //noinspection unchecked
-                ((ChangePublisher<ItemStack>) (Object) element).lithium$subscribe(this, index);
+                element.lithium$subscribe(this, index);
             }
 
             this.occupiedSlots += (previous.isEmpty() ? 1 : 0) - (element.isEmpty() ? 1 : 0);
@@ -166,8 +161,7 @@ public class LithiumStackList extends NonNullList<ItemStack> implements LithiumD
     public void add(int slot, ItemStack element) {
         super.add(slot, element);
         if (!element.isEmpty()) {
-            //noinspection unchecked
-            ((ChangePublisher<ItemStack>) (Object) element).lithium$subscribe(this, this.indexOf(element));
+            element.lithium$subscribe(this, this.indexOf(element));
         }
         this.changedALot();
     }
@@ -176,8 +170,7 @@ public class LithiumStackList extends NonNullList<ItemStack> implements LithiumD
     public ItemStack remove(int index) {
         ItemStack previous = super.remove(index);
         if (!previous.isEmpty()) {
-            //noinspection unchecked
-            ((ChangePublisher<ItemStack>) (Object) previous).lithium$unsubscribeWithData(this, index);
+            previous.lithium$unsubscribeWithData(this, index);
         }
         this.changedALot();
         return previous;
@@ -189,8 +182,7 @@ public class LithiumStackList extends NonNullList<ItemStack> implements LithiumD
         for (int i = 0; i < size; i++) {
             ItemStack stack = this.get(i);
             if (!stack.isEmpty()) {
-                //noinspection unchecked
-                ((ChangePublisher<ItemStack>) (Object) stack).lithium$unsubscribeWithData(this, i);
+                stack.lithium$unsubscribeWithData(this, i);
             }
         }
         super.clear();
@@ -299,11 +291,10 @@ public class LithiumStackList extends NonNullList<ItemStack> implements LithiumD
 
     @Override
     public void lithium$notifyCount(ItemStack stack, int index, int newCount) {
-        assert stack ==  this.get(index);
+        assert stack == this.get(index);
         int count = stack.getCount();
         if (newCount <= 0) {
-            //noinspection unchecked
-            ((ChangePublisher<ItemStack>) (Object) stack).lithium$unsubscribeWithData(this, index);
+            stack.lithium$unsubscribeWithData(this, index);
         }
         int maxCount = stack.getMaxStackSize();
         this.occupiedSlots -= newCount <= 0 ? 1 : 0;

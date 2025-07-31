@@ -18,11 +18,11 @@
 package org.leavesmc.leaves.lithium.common.util.change_tracking;
 
 import it.unimi.dsi.fastutil.ints.IntArrayList;
+import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
-import net.minecraft.world.item.ItemStack;
 
 public interface ChangeSubscriber<T> {
 
@@ -45,6 +45,7 @@ public interface ChangeSubscriber<T> {
             return new Multi<>(subscribers, subscriberDatas);
         }
     }
+
     static <T> ChangeSubscriber<T> without(ChangeSubscriber<T> prevSubscriber, ChangeSubscriber<T> removedSubscriber) {
         return without(prevSubscriber, removedSubscriber, 0, false);
     }
@@ -107,7 +108,8 @@ public interface ChangeSubscriber<T> {
 
     /**
      * Notify the subscriber that the publisher will be changed immediately after this call.
-     * @param publisher The publisher that is about to change
+     *
+     * @param publisher      The publisher that is about to change
      * @param subscriberData The data associated with the subscriber, given when the subscriber was added
      */
     void lithium$notify(@Nullable T publisher, int subscriberData);
@@ -116,7 +118,7 @@ public interface ChangeSubscriber<T> {
      * Notify the subscriber about being unsubscribed from the publisher. Used when the publisher becomes invalid.
      * The subscriber should not attempt to unsubscribe itself from the publisher in this method.
      *
-     * @param publisher The publisher unsubscribed from
+     * @param publisher      The publisher unsubscribed from
      * @param subscriberData The data associated with the subscriber, given when the subscriber was added
      */
     void lithium$forceUnsubscribe(T publisher, int subscriberData);
@@ -125,9 +127,10 @@ public interface ChangeSubscriber<T> {
 
         /**
          * Notify the subscriber that the publisher's count data will be changed immediately after this call.
-         * @param publisher The publisher that is about to change
+         *
+         * @param publisher      The publisher that is about to change
          * @param subscriberData The data associated with the subscriber, given when the subscriber was added
-         * @param newCount The new count of the publisher
+         * @param newCount       The new count of the publisher
          */
         void lithium$notifyCount(T publisher, int subscriberData, int newCount);
     }
@@ -136,7 +139,8 @@ public interface ChangeSubscriber<T> {
 
         /**
          * Notify the subscriber that the publisher's enchantment data has been changed immediately before this call.
-         * @param publisher The publisher that has changed
+         *
+         * @param publisher      The publisher that has changed
          * @param subscriberData The data associated with the subscriber, given when the subscriber was added
          */
         void lithium$notifyAfterEnchantmentChange(T publisher, int subscriberData);

@@ -17,8 +17,8 @@
 
 package org.leavesmc.leaves.lithium.api.inventory;
 
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.core.Direction;
+import net.minecraft.world.item.ItemStack;
 
 public interface LithiumDefaultedList {
     /**

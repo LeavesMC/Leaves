@@ -17,11 +17,11 @@
 
 package org.leavesmc.leaves.lithium.common.hopper;
 
-import org.leavesmc.leaves.lithium.common.block.entity.inventory_change_tracking.InventoryChangeTracker;
 import net.minecraft.world.CompoundContainer;
 import net.minecraft.world.Container;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.NotNull;
+import org.leavesmc.leaves.lithium.common.block.entity.inventory_change_tracking.InventoryChangeTracker;
 
 /**
  * Class to allow DoubleInventory to have LithiumStackList optimizations.
@@ -126,7 +126,7 @@ public class LithiumDoubleStackList extends LithiumStackList {
 
     /**
      * @param masterStackList the stacklist of the inventory that comparators read from (double inventory for double chests)
-     * @param inventory the blockentity / inventory that this stacklist is inside
+     * @param inventory       the blockentity / inventory that this stacklist is inside
      */
     public void runComparatorUpdatePatternOnFailedExtract(LithiumStackList masterStackList, Container inventory) {
         if (inventory instanceof CompoundContainer compoundContainer) {

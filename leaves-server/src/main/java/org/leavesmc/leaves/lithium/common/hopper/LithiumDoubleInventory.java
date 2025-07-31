@@ -18,16 +18,16 @@
 package org.leavesmc.leaves.lithium.common.hopper;
 
 import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet;
-import org.leavesmc.leaves.lithium.api.inventory.LithiumInventory;
-import org.leavesmc.leaves.lithium.common.block.entity.inventory_change_tracking.InventoryChangeEmitter;
-import org.leavesmc.leaves.lithium.common.block.entity.inventory_change_tracking.InventoryChangeListener;
-import org.leavesmc.leaves.lithium.common.block.entity.inventory_change_tracking.InventoryChangeTracker;
-import org.leavesmc.leaves.lithium.common.block.entity.inventory_comparator_tracking.ComparatorTracker;
 import net.minecraft.core.Direction;
 import net.minecraft.core.NonNullList;
 import net.minecraft.world.CompoundContainer;
 import net.minecraft.world.Container;
 import net.minecraft.world.item.ItemStack;
+import org.leavesmc.leaves.lithium.api.inventory.LithiumInventory;
+import org.leavesmc.leaves.lithium.common.block.entity.inventory_change_tracking.InventoryChangeEmitter;
+import org.leavesmc.leaves.lithium.common.block.entity.inventory_change_tracking.InventoryChangeListener;
+import org.leavesmc.leaves.lithium.common.block.entity.inventory_change_tracking.InventoryChangeTracker;
+import org.leavesmc.leaves.lithium.common.block.entity.inventory_comparator_tracking.ComparatorTracker;
 
 public class LithiumDoubleInventory extends CompoundContainer implements LithiumInventory, InventoryChangeTracker, InventoryChangeEmitter, InventoryChangeListener, ComparatorTracker {
 

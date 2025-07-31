@@ -17,9 +17,9 @@
 
 package org.leavesmc.leaves.lithium.common.hopper;
 
-import org.leavesmc.leaves.lithium.api.inventory.LithiumInventory;
 import net.minecraft.core.NonNullList;
 import net.minecraft.world.item.ItemStack;
+import org.leavesmc.leaves.lithium.api.inventory.LithiumInventory;
 
 public class InventoryHelper {
     public static LithiumStackList getLithiumStackList(LithiumInventory inventory) {

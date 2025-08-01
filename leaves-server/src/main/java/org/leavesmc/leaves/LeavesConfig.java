@@ -620,8 +620,17 @@ public final class LeavesConfig {
         @GlobalConfig("bow-infinity-fix")
         public boolean bowInfinityFix = false;
 
-        @GlobalConfig("hopper-counter")
-        public boolean hopperCounter = false;
+        public HopperCounterConfig hopperCounter = new HopperCounterConfig();
+
+        @GlobalConfigCategory("hopper-counter")
+        public static class HopperCounterConfig {
+            @RemovedConfig(name = "hopper-counter", category = "modify", transform = true)
+            @GlobalConfig("enabled")
+            public boolean enabled = false;
+
+            @GlobalConfig("unlimited-speed")
+            public boolean unlimitedSpeed = false;
+        }
 
         @GlobalConfig(value = "spider-jockeys-drop-gapples", validator = JockeysDropGAppleValidator.class)
         public double spiderJockeysDropGapples = -1.0;

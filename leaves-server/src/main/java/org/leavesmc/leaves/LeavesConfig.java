@@ -622,7 +622,7 @@ public final class LeavesConfig {
 
         @GlobalConfigCategory("hopper-counter")
         public static class HopperCounterConfig {
-            @RemovedConfig(category = "modify", name = "hopper-counter" , transform = true)
+            @RemovedConfig(name = "hopper-counter", category = "modify", transform = true)
             @GlobalConfig("enabled")
             public boolean enabled = false;
 

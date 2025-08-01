@@ -625,8 +625,9 @@ public final class LeavesConfig {
         @GlobalConfigCategory("hopper-counter")
         public static class HopperCounterConfig {
             @RemovedConfig(name = "hopper-counter", category = "modify", transform = true)
-            @GlobalConfig("enabled")
-            public boolean enabled = false;
+            @RemovedConfig(name = "enabled", category = {"modify", "hopper-counter"}, transform = true)
+            @GlobalConfig("enable")
+            public boolean enable = false;
 
             @GlobalConfig("unlimited-speed")
             public boolean unlimitedSpeed = false;

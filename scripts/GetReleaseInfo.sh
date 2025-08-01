@@ -53,7 +53,7 @@ mv leaves-server/build/libs/leaves-leavesclip-"$gradleVersion"-mojmap.jar "$jarN
   echo "### Commit Message"
 } >> $releaseinfo
 
-number=$(git log --oneline master ^"$(git describe --tags --abbrev=0)" | wc -l)
+number=$(git log --oneline HEAD ^"$(git describe --tags --abbrev=0)" | wc -l)
 git log --pretty='> [%h] %s' "-$number" >> $releaseinfo
 
 {

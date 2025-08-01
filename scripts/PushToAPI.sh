@@ -23,4 +23,4 @@ changes=$(git log --pretty='%H<<<%s>>>' -"$number" | sed ':a;N;$!ba;s/\n//g')
 jar_name="leaves-$mcversion.jar"
 jar_sha256=`sha256 $jar_name`
 
-curl --location --request POST "https://api.leavesmc.org/v2/commit/build" --header "Content-Type: application/json" --header "Authentication: Bearer $secret_v2" --data-raw "{\"project_id\":\"$project_id\",\"version\":\"$mcversion\",\"channel\":\"$channel\",\"changes\":\"$changes\",\"jar_name\":\"$jar_name\",\"sha256\":\"$jar_sha256\",\"tag\":\"$tag\"}"
+curl --location --request POST "https://api.leavesmc.org/v2/commit/build" --header "Content-Type: application/json" --header "Authorization: Bearer $secret_v2" --data-raw "{\"project_id\":\"$project_id\",\"version\":\"$mcversion\",\"channel\":\"$channel\",\"changes\":\"$changes\",\"jar_name\":\"$jar_name\",\"sha256\":\"$jar_sha256\",\"tag\":\"$tag\"}"

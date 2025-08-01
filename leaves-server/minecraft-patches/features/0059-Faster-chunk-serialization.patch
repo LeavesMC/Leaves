@@ -1,10 +1,10 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
-From: violetc <58360096+s-yh-china@users.noreply.github.com>
-Date: Tue, 18 Jul 2023 13:14:15 +0800
+From: Martijn Muijsers <martijnmuijsers@live.nl>
+Date: Wed, 30 Nov 2022 21:51:16 +0100
 Subject: [PATCH] Faster chunk serialization
 
 This patch is Powered by Gale(https://github.com/GaleMC/Gale)
-License: GPL-3.0 (https://www.gnu.org/licenses/gpl-3.0.html)
+License: GPL-3.0 (https://www.gnu.org/licenses/lgpl-3.0.html)
 
 This patch is based on the following mixins and classes:
 * "net/caffeinemc/mods/lithium/common/world/chunk/CompactingPackedIntegerArray.java"
@@ -13,7 +13,7 @@ This patch is based on the following mixins and classes:
 * "net/caffeinemc/mods/lithium/mixin/chunk/serialization/PalettedContainerMixin.java"
 By: Angeline <jellysquid3@users.noreply.github.com>
 As part of: Lithium (https://github.com/CaffeineMC/lithium-fabric)
-Licensed under: LGPL-3.0 (https://www.gnu.org/licenses/lgpl-3.0.html)
+Licensed under: GPL-3.0 (https://www.gnu.org/licenses/lgpl-3.0.html)
 
 diff --git a/net/minecraft/util/BitStorage.java b/net/minecraft/util/BitStorage.java
 index 02502d50f0255f5bbcc0ecb965abb48cc1a112da..674d714ba21fa0306283dae35ece466dcfcbdf6c 100644
@@ -99,7 +99,7 @@ index c723606fa0be811e580ba47de8c9c575583cc930..2483210ca43221feaa5a2f1ced5c5973
      int onResize(int bits, T objectAdded);
  }
 diff --git a/net/minecraft/world/level/chunk/PalettedContainer.java b/net/minecraft/world/level/chunk/PalettedContainer.java
-index a251ba67644cd02a0b00d7c8b0e2c64aa5e26291..a6ac21fd25426dcdfe9d248d40316f3c6a8456f7 100644
+index a251ba67644cd02a0b00d7c8b0e2c64aa5e26291..a826aff16aee6692ca07d485ab3c79c1c4a38b52 100644
 --- a/net/minecraft/world/level/chunk/PalettedContainer.java
 +++ b/net/minecraft/world/level/chunk/PalettedContainer.java
 @@ -24,6 +24,22 @@ import net.minecraft.util.ThreadingDetector;
@@ -125,7 +125,7 @@ index a251ba67644cd02a0b00d7c8b0e2c64aa5e26291..a6ac21fd25426dcdfe9d248d40316f3c
      private static final int MIN_PALETTE_BITS = 0;
      private final PaletteResize<T> dummyPaletteResize = (bits, objectAdded) -> 0;
      public final IdMap<T> registry;
-@@ -343,6 +359,55 @@ public class PalettedContainer<T> implements PaletteResize<T>, PalettedContainer
+@@ -343,6 +359,56 @@ public class PalettedContainer<T> implements PaletteResize<T>, PalettedContainer
      public synchronized PalettedContainerRO.PackedData<T> pack(IdMap<T> registry, PalettedContainer.Strategy strategy) { // Paper - synchronize
          this.acquire();
  
@@ -178,18 +178,11 @@ index a251ba67644cd02a0b00d7c8b0e2c64aa5e26291..a6ac21fd25426dcdfe9d248d40316f3c
 +
 +            return new PalettedContainerRO.PackedData<>(elements, data);
 +        }
++        // Leaves end - Gale - Lithium - faster chunk serialization
          PalettedContainerRO.PackedData var12;
          try {
              HashMapPalette<T> hashMapPalette = new HashMapPalette<>(registry, this.data.storage.getBits(), this.dummyPaletteResize);
-@@ -365,6 +430,7 @@ public class PalettedContainer<T> implements PaletteResize<T>, PalettedContainer
-         }
- 
-         return var12;
-+        // Leaves end - Gale - Lithium - faster chunk serialization
-     }
- 
-     private static <T> void swapPalette(int[] bits, IntUnaryOperator operator) {
-@@ -404,13 +470,33 @@ public class PalettedContainer<T> implements PaletteResize<T>, PalettedContainer
+@@ -404,13 +470,43 @@ public class PalettedContainer<T> implements PaletteResize<T>, PalettedContainer
  
      @Override
      public void count(PalettedContainer.CountConsumer<T> countConsumer) {
@@ -200,6 +193,16 @@ index a251ba67644cd02a0b00d7c8b0e2c64aa5e26291..a6ac21fd25426dcdfe9d248d40316f3c
 -            this.data.storage.getAll(id -> map.addTo(id, 1));
 -            map.int2IntEntrySet().forEach(idEntry -> countConsumer.accept(this.data.palette.valueFor(idEntry.getIntKey()), idEntry.getIntValue()));
 +        // Leaves start - Gale - Lithium - faster chunk serialization
++        if (!org.leavesmc.leaves.LeavesConfig.performance.fasterChunkSerialization) {
++            if (this.data.palette.getSize() == 1) {
++                countConsumer.accept(this.data.palette.valueFor(0), this.data.storage.getSize());
++            } else {
++                Int2IntOpenHashMap map = new Int2IntOpenHashMap();
++                this.data.storage.getAll(id -> map.addTo(id, 1));
++                map.int2IntEntrySet().forEach(idEntry -> countConsumer.accept(this.data.palette.valueFor(idEntry.getIntKey()), idEntry.getIntValue()));
++            }
++            return;
++        }
 +        int len = this.data.palette().getSize();
 +
 +        // Do not allocate huge arrays if we're using a large palette

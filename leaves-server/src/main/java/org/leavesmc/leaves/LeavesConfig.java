@@ -1,7 +1,9 @@
 package org.leavesmc.leaves;
 
 import com.destroystokyo.paper.util.SneakyThrow;
+import io.papermc.paper.adventure.PaperAdventure;
 import io.papermc.paper.configuration.GlobalConfiguration;
+import net.kyori.adventure.text.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
@@ -1215,8 +1217,20 @@ public final class LeavesConfig {
         @GlobalConfig("vanilla-hopper")
         public boolean vanillaHopper = false;
 
-        @GlobalConfig("vanilla-display-name")
-        public boolean vanillaDisplayName = false;
+        @GlobalConfig(value = "vanilla-display-name", validator = DisplayNameValidator.class)
+        public boolean vanillaDisplayName = true;
+
+        private static class DisplayNameValidator extends BooleanConfigValidator {
+            @Override
+            public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
+                if (value == old) {
+                    return;
+                }
+                for (ServerPlayer player : MinecraftServer.getServer().getPlayerList().getPlayers()) {
+                    player.adventure$displayName = value ? PaperAdventure.asAdventure(player.getDisplayName()) : Component.text(player.getScoreboardName());
+                }
+            }
+        }
 
         @GlobalConfig("vanilla-portal-handle")
         public boolean vanillaPortalHandle = false;

@@ -35,6 +35,7 @@ public class Actions {
         register(new ServerSwimAction(), SwimAction.class);
         register(new ServerRotationAction(), RotationAction.class);
         register(new ServerMoveAction(), MoveAction.class);
+        register(new ServerMountAction(), MountAction.class);
     }
 
     public static boolean register(@NotNull ServerBotAction<?> action, Class<? extends BotAction<?>> type) {

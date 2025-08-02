@@ -3,10 +3,12 @@ package org.leavesmc.leaves.entity.bot.actions;
 import org.leavesmc.leaves.bot.agent.actions.*;
 import org.leavesmc.leaves.entity.bot.action.*;
 
-public class CraftBreakBlockAction extends CraftBotAction<BreakBlockAction, ServerBreakBlockAction> implements BreakBlockAction {
+import java.util.function.Function;
 
-    public CraftBreakBlockAction(ServerBreakBlockAction serverAction) {
-        super(serverAction, CraftBreakBlockAction::new);
+public class CraftTimerBotAction<T extends TimerBotAction<T>, S extends ServerTimerBotAction<S>> extends CraftBotAction<T, S> implements TimerBotAction<T> {
+
+    public CraftTimerBotAction(S serverAction, Function<S, T> creator) {
+        super(serverAction, creator);
     }
 
     @Override

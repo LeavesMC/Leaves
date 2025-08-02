@@ -9,7 +9,8 @@ import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.command.CommandArgument;
 import org.leavesmc.leaves.command.CommandArgumentResult;
 import org.leavesmc.leaves.command.CommandArgumentType;
-import org.leavesmc.leaves.entity.bot.actions.CraftLookAction;
+import org.leavesmc.leaves.entity.bot.actions.CraftLookOnAction;
+import org.leavesmc.leaves.entity.bot.actions.CraftLookToAction;
 
 import java.text.DecimalFormat;
 import java.util.Arrays;
@@ -96,6 +97,11 @@ public abstract class ServerLookAction<T extends ServerLookAction<T>> extends Se
                 this.setTarget(player1);
             }
         }
+
+        @Override
+        public Object asCraft() {
+            return new CraftLookToAction(this);
+        }
     }
 
     public static class ON extends ServerLookAction<ON> {
@@ -117,10 +123,10 @@ public abstract class ServerLookAction<T extends ServerLookAction<T>> extends Se
                 this.setPos(vector);
             }
         }
-    }
 
-    @Override
-    public Object asCraft() {
-        return new CraftLookAction(this);
+        @Override
+        public Object asCraft() {
+            return new CraftLookOnAction(this);
+        }
     }
 }

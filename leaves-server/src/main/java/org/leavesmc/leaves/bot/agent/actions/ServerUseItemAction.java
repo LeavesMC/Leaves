@@ -3,6 +3,7 @@ package org.leavesmc.leaves.bot.agent.actions;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
 import org.apache.commons.lang3.tuple.Pair;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
@@ -14,9 +15,12 @@ import org.leavesmc.leaves.event.bot.BotActionStopEvent;
 
 import java.util.Collections;
 
+import static net.minecraft.world.InteractionResult.*;
+
 public class ServerUseItemAction extends ServerTimerBotAction<ServerUseItemAction> {
     private int useTick = -1;
     private int tickToRelease = -1;
+    private byte useData = 0;
 
     public ServerUseItemAction() {
         super("use", CommandArgument.of(CommandArgumentType.INTEGER, CommandArgumentType.INTEGER, CommandArgumentType.INTEGER, CommandArgumentType.INTEGER), ServerUseItemAction::new);
@@ -38,18 +42,19 @@ public class ServerUseItemAction extends ServerTimerBotAction<ServerUseItemActio
     @Override
     public boolean doTick(@NotNull ServerBot bot) {
         tickToRelease--;
-        if (tickToRelease >= 0) {
-            boolean result = execute(bot);
-            if (useTick >= 0) {
-                return false;
-            } else {
-                return result;
-            }
-        } else {
-            syncTickToRelease();
+        InteractionResult result = execute(bot);
+        if (result == CONSUME) {
+            useData += 1;
+        } else if (result != FAIL) {
+            useData += 2;
+        }
+        if (useData >= 2 || tickToRelease <= 0) {
             bot.releaseUsingItem();
+            syncTickToRelease();
+            useData = 0;
             return true;
         }
+        return false;
     }
 
     private void syncTickToRelease() {
@@ -84,23 +89,25 @@ public class ServerUseItemAction extends ServerTimerBotAction<ServerUseItemActio
         this.useTick = useTick;
     }
 
-    public static boolean execute(@NotNull ServerBot bot) {
+    public static InteractionResult execute(@NotNull ServerBot bot) {
         if (bot.isUsingItem()) {
-            return false;
+            return InteractionResult.FAIL;
         }
 
-        boolean flag = bot.gameMode.useItem(bot, bot.level(), bot.getItemInHand(InteractionHand.MAIN_HAND), InteractionHand.MAIN_HAND).consumesAction();
-        if (flag) {
+        InteractionResult result = bot.gameMode.useItem(bot, bot.level(), bot.getItemInHand(InteractionHand.MAIN_HAND), InteractionHand.MAIN_HAND);
+        if (result == SUCCESS || result == SUCCESS_SERVER) {
             bot.swing(InteractionHand.MAIN_HAND);
+        }
+        if (result.consumesAction()) {
             bot.updateItemInHand(InteractionHand.MAIN_HAND);
         }
-        return flag;
+        return result;
     }
 
     @Override
     public void stop(@NotNull ServerBot bot, BotActionStopEvent.Reason reason) {
         super.stop(bot, reason);
-        bot.completeUsingItem();
+        bot.releaseUsingItem();
     }
 
     @Override

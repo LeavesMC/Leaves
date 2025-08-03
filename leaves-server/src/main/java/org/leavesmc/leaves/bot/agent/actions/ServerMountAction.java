@@ -1,21 +1,16 @@
 package org.leavesmc.leaves.bot.agent.actions;
 
+import net.minecraft.world.entity.Entity;
 import org.bukkit.Location;
-import org.bukkit.World;
-import org.bukkit.craftbukkit.entity.CraftEntity;
 import org.bukkit.craftbukkit.entity.CraftVehicle;
-import org.bukkit.entity.Entity;
 import org.bukkit.entity.Vehicle;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.command.CommandArgument;
-import org.leavesmc.leaves.command.CommandArgumentType;
 import org.leavesmc.leaves.entity.bot.actions.CraftMountAction;
 
 import java.util.Collection;
-import java.util.HashSet;
-import java.util.Set;
 
 public class ServerMountAction extends ServerBotAction<ServerMountAction> {
 
@@ -25,12 +20,12 @@ public class ServerMountAction extends ServerBotAction<ServerMountAction> {
 
     @Override
     public boolean doTick(@NotNull ServerBot bot) {
-        Entity targetVehicle = findNearestAvailableVehicleOptimized(bot.getBukkitEntity());
-        if (targetVehicle == null) {
+        Vehicle target = findNearestAvailableVehicle(bot);
+        if (target == null) {
             return false;
         }
-        targetVehicle.addPassenger(bot.getBukkitEntity());
-        return true;
+
+        return bot.startRiding(((CraftVehicle) target).getHandle(), false);
     }
 
     @Override
@@ -38,68 +33,39 @@ public class ServerMountAction extends ServerBotAction<ServerMountAction> {
         return new CraftMountAction(this);
     }
 
-    public @Nullable Entity findNearestAvailableVehicleOptimized(@NotNull Entity sourceEntity) {
-        World world = sourceEntity.getWorld();
-        Location centerLocation = sourceEntity.getLocation();
+    public @Nullable Vehicle findNearestAvailableVehicle(@NotNull Entity sourceEntity) {
+        Location center = sourceEntity.getBukkitEntity().getLocation();
+        Collection<Vehicle> vehicles = center.getNearbyEntitiesByType(
+            Vehicle.class,
+            3,
+            vehicle -> vehicleHasSeat(vehicle, sourceEntity) && (manhattanDistance(sourceEntity, ((CraftVehicle) vehicle).getHandle()) <= 2)
+        );
 
-        Entity vehicle = searchAtManhattanDistance(world, centerLocation, 0, sourceEntity);
-        if (vehicle != null) {
-            return vehicle;
-        }
+        double minDistanceSqr = Double.MAX_VALUE;
+        Vehicle nearestVehicle = null;
 
-        vehicle = searchAtManhattanDistance(world, centerLocation, 1, sourceEntity);
-        if (vehicle != null) {
-            return vehicle;
-        }
-
-        return searchAtManhattanDistance(world, centerLocation, 2, sourceEntity);
-    }
-
-    private @Nullable Entity searchAtManhattanDistance(World world, Location center, int distance, Entity sourceEntity) {
-        Set<Location> positions = generateManhattanPositions(center, distance);
-
-        for (Location pos : positions) {
-            Collection<Entity> entities = world.getNearbyEntitiesByType(
-                    Vehicle.class,
-                    pos,
-                    0.5,
-                    0.5,
-                    0.5,
-                    entity -> isVehicleAvailable(entity, sourceEntity)
-            );
-
-            if (!entities.isEmpty()) {
-                return entities.iterator().next();
+        for (Vehicle vehicle : vehicles) {
+            double distanceSqr = center.distanceSquared(vehicle.getLocation());
+            if (distanceSqr < minDistanceSqr) {
+                minDistanceSqr = distanceSqr;
+                nearestVehicle = vehicle;
             }
         }
-        return null;
+
+        return nearestVehicle;
     }
 
-    private boolean isVehicleAvailable(Entity vehicleEntity, Entity entity) {
+    private boolean vehicleHasSeat(Vehicle vehicleEntity, Entity entity) {
         if (!(vehicleEntity instanceof Vehicle vehicle)) {
             return false;
         }
 
-        return ((CraftVehicle) vehicle).getHandle().canAddPassengerPublic(((CraftEntity) entity).getHandle());
+        return ((CraftVehicle) vehicle).getHandle().canAddPassengerPublic(entity);
     }
 
-    private @NotNull Set<Location> generateManhattanPositions(Location center, int distance) {
-        Set<Location> positions = new HashSet<>();
-
-        if (distance == 0) {
-            positions.add(center.clone());
-            return positions;
-        }
-
-        for (int x = -distance; x <= distance; x++) {
-            for (int y = -distance; y <= distance; y++) {
-                for (int z = -distance; z <= distance; z++) {
-                    if (Math.abs(x) + Math.abs(y) + Math.abs(z) == distance) {
-                        positions.add(center.clone().add(x, y, z));
-                    }
-                }
-            }
-        }
-        return positions;
+    private int manhattanDistance(@NotNull Entity entity1, @NotNull Entity entity2) {
+        return Math.abs(entity1.getBlockX() - entity2.getBlockX()) +
+            Math.abs(entity1.getBlockY() - entity2.getBlockY()) +
+            Math.abs(entity1.getBlockZ() - entity2.getBlockZ());
     }
 }

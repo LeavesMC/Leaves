@@ -14,7 +14,7 @@ import org.leavesmc.leaves.command.CommandArgumentType;
 import org.leavesmc.leaves.entity.bot.actions.CraftUseItemAutoAction;
 import org.leavesmc.leaves.event.bot.BotActionStopEvent;
 
-import java.util.Collections;
+import java.util.List;
 
 public class ServerUseItemAutoAction extends ServerTimerBotAction<ServerUseItemAutoAction> {
     private int useTick = -1;
@@ -22,7 +22,7 @@ public class ServerUseItemAutoAction extends ServerTimerBotAction<ServerUseItemA
 
     public ServerUseItemAutoAction() {
         super("use_auto", CommandArgument.of(CommandArgumentType.INTEGER, CommandArgumentType.INTEGER, CommandArgumentType.INTEGER, CommandArgumentType.INTEGER), ServerUseItemAutoAction::new);
-        this.setSuggestion(3, Pair.of(Collections.singletonList("-1"), "[UseTick]"));
+        this.setSuggestion(3, Pair.of(List.of("-1"), "[UseTick]"));
     }
 
     @Override

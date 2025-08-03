@@ -6,10 +6,10 @@ import org.bukkit.util.Vector;
 import org.leavesmc.leaves.bot.agent.actions.*;
 import org.leavesmc.leaves.entity.bot.action.*;
 
-public class CraftLookOnAction extends CraftBotAction<LookAction, ServerLookAction.ON> implements LookAction {
+public class CraftLookAction extends CraftBotAction<LookAction, ServerLookAction> implements LookAction {
 
-    public CraftLookOnAction(ServerLookAction.ON serverAction) {
-        super(serverAction, CraftLookOnAction::new);
+    public CraftLookAction(ServerLookAction serverAction) {
+        super(serverAction, CraftLookAction::new);
     }
 
     @Override

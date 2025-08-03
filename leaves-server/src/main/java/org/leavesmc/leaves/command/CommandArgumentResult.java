@@ -44,11 +44,11 @@ public class CommandArgumentResult {
         return new BlockPos(pos[0], pos[1], pos[2]);
     }
 
-    public Vector readVector() {
-        Double[] pos = {read(Double.class), read(Double.class), read(Double.class)};
+    public Vector readVectorYZ(double x) {
+        Double[] pos = {x, read(Double.class), read(Double.class)};
         for (Double po : pos) {
             if (po == null) {
-                return null;
+                throw new IllegalArgumentException("Failed to read vector!");
             }
         }
         return new Vector(pos[0], pos[1], pos[2]);

@@ -5,7 +5,6 @@ import org.bukkit.Location;
 import org.bukkit.craftbukkit.entity.CraftVehicle;
 import org.bukkit.entity.Vehicle;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.command.CommandArgument;
 import org.leavesmc.leaves.entity.bot.actions.CraftMountAction;
@@ -22,20 +21,11 @@ public class ServerMountAction extends ServerBotAction<ServerMountAction> {
 
     @Override
     public boolean doTick(@NotNull ServerBot bot) {
-        return tryRideNearestVehicle(bot);
-    }
-
-    @Override
-    public Object asCraft() {
-        return new CraftMountAction(this);
-    }
-
-    public boolean tryRideNearestVehicle(@NotNull Entity sourceEntity) {
-        Location center = sourceEntity.getBukkitEntity().getLocation();
+        Location center = bot.getBukkitEntity().getLocation();
         Collection<Vehicle> nearbyVehicles = center.getNearbyEntitiesByType(
             Vehicle.class,
             3,
-            vehicle -> manhattanDistance(sourceEntity, ((CraftVehicle) vehicle).getHandle()) <= 2
+            vehicle -> manhattanDistance(bot, ((CraftVehicle) vehicle).getHandle()) <= 2
         );
 
         List<Vehicle> vehicles = nearbyVehicles.stream().sorted(Comparator.comparingDouble(
@@ -43,12 +33,17 @@ public class ServerMountAction extends ServerBotAction<ServerMountAction> {
         )).toList();
 
         for (Vehicle vehicle : vehicles) {
-            if (sourceEntity.startRiding(((CraftVehicle) vehicle).getHandle(), false)) {
+            if (bot.startRiding(((CraftVehicle) vehicle).getHandle(), false)) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    @Override
+    public Object asCraft() {
+        return new CraftMountAction(this);
     }
 
     private double manhattanDistance(@NotNull Entity entity1, @NotNull Entity entity2) {

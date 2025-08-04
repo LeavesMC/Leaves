@@ -63,9 +63,9 @@ public class ServerMountAction extends ServerBotAction<ServerMountAction> {
         return ((CraftVehicle) vehicle).getHandle().canAddPassengerPublic(entity);
     }
 
-    private int manhattanDistance(@NotNull Entity entity1, @NotNull Entity entity2) {
-        return Math.abs(entity1.getBlockX() - entity2.getBlockX()) +
-            Math.abs(entity1.getBlockY() - entity2.getBlockY()) +
-            Math.abs(entity1.getBlockZ() - entity2.getBlockZ());
+    private double manhattanDistance(@NotNull Entity entity1, @NotNull Entity entity2) {
+        return Math.abs(entity1.getX() - entity2.getX()) +
+            Math.abs(entity1.getY() - entity2.getY()) +
+            Math.abs(entity1.getZ() - entity2.getZ());
     }
 }

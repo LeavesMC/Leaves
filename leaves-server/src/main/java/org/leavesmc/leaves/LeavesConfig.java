@@ -687,9 +687,6 @@ public final class LeavesConfig {
             }
         }
 
-        @GlobalConfig("large-barrel")
-        public boolean largeBarrel = false;
-
         @RemovedConfig(name = "tick", category = {"modify", "force-peaceful-mode-switch"})
         @RemovedConfig(name = "types", category = {"modify", "force-peaceful-mode-switch"})
         @RemovedConfig(name = "force-peaceful-mode-switch", category = "modify")

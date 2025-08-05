@@ -3,8 +3,8 @@ package org.leavesmc.leaves.entity.bot.actions;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
-import org.leavesmc.leaves.bot.agent.actions.*;
-import org.leavesmc.leaves.entity.bot.action.*;
+import org.leavesmc.leaves.bot.agent.actions.ServerLookAction;
+import org.leavesmc.leaves.entity.bot.action.LookAction;
 
 public class CraftLookAction extends CraftBotAction<LookAction, ServerLookAction> implements LookAction {
 

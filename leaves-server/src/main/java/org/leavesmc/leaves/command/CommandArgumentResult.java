@@ -2,6 +2,8 @@ package org.leavesmc.leaves.command;
 
 import net.minecraft.core.BlockPos;
 import org.bukkit.util.Vector;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.Objects;
@@ -44,7 +46,17 @@ public class CommandArgumentResult {
         return new BlockPos(pos[0], pos[1], pos[2]);
     }
 
-    public Vector readVectorYZ(double x) {
+    public @Nullable Vector readVector() {
+        Double[] pos = {read(Double.class), read(Double.class), read(Double.class)};
+        for (Double po : pos) {
+            if (po == null) {
+                return null;
+            }
+        }
+        return new Vector(pos[0], pos[1], pos[2]);
+    }
+
+    public @NotNull Vector readVectorYZ(double x) {
         Double[] pos = {x, read(Double.class), read(Double.class)};
         for (Double po : pos) {
             if (po == null) {

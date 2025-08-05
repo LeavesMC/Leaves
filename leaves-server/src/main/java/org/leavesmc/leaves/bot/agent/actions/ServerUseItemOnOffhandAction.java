@@ -20,7 +20,7 @@ import org.leavesmc.leaves.entity.bot.actions.CraftUseItemOnOffhandAction;
 import org.leavesmc.leaves.event.bot.BotActionStopEvent;
 import org.leavesmc.leaves.plugin.MinecraftInternalPlugin;
 
-import java.util.Collections;
+import java.util.List;
 
 public class ServerUseItemOnOffhandAction extends ServerTimerBotAction<ServerUseItemOnOffhandAction> {
     private int useTick = -1;
@@ -28,7 +28,7 @@ public class ServerUseItemOnOffhandAction extends ServerTimerBotAction<ServerUse
 
     public ServerUseItemOnOffhandAction() {
         super("use_on_offhand", CommandArgument.of(CommandArgumentType.INTEGER, CommandArgumentType.INTEGER, CommandArgumentType.INTEGER, CommandArgumentType.INTEGER), ServerUseItemOnOffhandAction::new);
-        this.setSuggestion(3, Pair.of(Collections.singletonList("-1"), "[UseTick]"));
+        this.setSuggestion(3, Pair.of(List.of("-1"), "[UseTick]"));
     }
 
     @Override

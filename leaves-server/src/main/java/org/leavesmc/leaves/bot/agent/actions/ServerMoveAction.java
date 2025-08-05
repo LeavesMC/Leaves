@@ -15,6 +15,7 @@ import java.util.Arrays;
 import java.util.List;
 
 public class ServerMoveAction extends ServerStateBotAction<ServerMoveAction> {
+
     private static final Pair<List<String>, String> suggestions = Pair.of(
         Arrays.stream(MoveDirection.values()).map((it) -> it.name).toList(),
         "<Direction>"
@@ -23,7 +24,7 @@ public class ServerMoveAction extends ServerStateBotAction<ServerMoveAction> {
 
     public ServerMoveAction() {
         super("move", CommandArgument.of(CommandArgumentType.ofEnum(MoveDirection.class)), ServerMoveAction::new);
-        this.setSuggestion(0, (sender, arg) -> suggestions);
+        this.setSuggestion(0, suggestions);
     }
 
     @Override

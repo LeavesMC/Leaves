@@ -216,7 +216,7 @@ public class LithiumStackList extends NonNullList<ItemStack> implements LithiumD
         for (int j = 0; j < inventorySize; ++j) {
             ItemStack itemStack = this.get(j);
             if (!itemStack.isEmpty()) {
-                f += (float) itemStack.getCount() / (float) Math.min(this.maxCountPerStack, itemStack.getMaxStackSize());
+                f += org.leavesmc.leaves.util.ItemOverstackUtils.getItemStackSignalStrength(this.maxCountPerStack, itemStack);
                 ++i;
             }
         }

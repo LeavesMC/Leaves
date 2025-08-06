@@ -1,14 +1,17 @@
 package org.leavesmc.leaves.util;
 
+import io.papermc.paper.datacomponent.DataComponentTypes;
+import io.papermc.paper.datacomponent.item.ItemEnchantments;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.Container;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.component.ItemContainerContents;
-import net.minecraft.world.item.enchantment.ItemEnchantments;
 import net.minecraft.world.level.block.ShulkerBoxBlock;
+import org.bukkit.enchantments.Enchantment;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesConfig;
 
@@ -86,6 +89,14 @@ public class ItemOverstackUtils {
             }
         }
         return itemStack;
+    }
+
+    public static float getItemStackSignalStrength(int maxStackSize, ItemStack itemStack) {
+        float result = (float) itemStack.getCount() / Math.min(maxStackSize, itemStack.getMaxStackSize());
+        if (LeavesConfig.modify.oldMC.allowGrindstoneOverstacking && CurseEnchantedBook.isCursedEnchantedBook(itemStack)) {
+            return result;
+        }
+        return Math.clamp(result, 0f, 1f);
     }
 
     public static boolean isStackable(ItemStack itemStack) {
@@ -169,12 +180,12 @@ public class ItemOverstackUtils {
 
     public static class CurseEnchantedBook implements ItemUtil {
         public static boolean isCursedEnchantedBook(ItemStack stack) {
-            ItemEnchantments enchantments = stack.getOrDefault(DataComponents.STORED_ENCHANTMENTS, ItemEnchantments.EMPTY);
-            if (enchantments.size() != 1) {
+            ItemEnchantments enchantments = stack.getBukkitStack().getData(DataComponentTypes.STORED_ENCHANTMENTS);
+            if (enchantments == null || enchantments.enchantments().size() != 1) {
                 return false;
             }
-            return stack.getBukkitStack().getEnchantmentLevel(org.bukkit.enchantments.Enchantment.BINDING_CURSE) == 1 ||
-                stack.getBukkitStack().getEnchantmentLevel(org.bukkit.enchantments.Enchantment.BINDING_CURSE) == 1;
+            return enchantments.enchantments().containsKey(Enchantment.BINDING_CURSE) ||
+                enchantments.enchantments().containsKey(Enchantment.VANISHING_CURSE);
         }
 
         @Override

@@ -22,7 +22,7 @@ public class ServerFishAction extends ServerTimerBotAction<ServerFishAction> {
 
     @Override
     public void setDoIntervalTick(int initialTickInterval) {
-        super.setDoIntervalTick(1);
+        super.setDoIntervalTick(0);
         this.initialFishInterval = initialTickInterval;
     }
 

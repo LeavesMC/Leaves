@@ -2,6 +2,7 @@ package org.leavesmc.leaves.bot.agent.actions;
 
 import net.minecraft.world.entity.Entity;
 import org.bukkit.Location;
+import org.bukkit.craftbukkit.entity.CraftEntity;
 import org.bukkit.craftbukkit.entity.CraftVehicle;
 import org.bukkit.entity.Vehicle;
 import org.jetbrains.annotations.NotNull;
@@ -24,13 +25,13 @@ public class ServerMountAction extends ServerBotAction<ServerMountAction> {
         List<Vehicle> vehicles = center.getNearbyEntitiesByType(
             Vehicle.class,
             3,
-            vehicle -> manhattanDistance(bot, ((CraftVehicle) vehicle).getHandle()) <= 2
+            vehicle -> manhattanDistance(bot, ((CraftEntity) vehicle).getHandle()) <= 2
         ).stream().sorted(Comparator.comparingDouble(
             (vehicle) -> center.distanceSquared(vehicle.getLocation())
         )).toList();
 
         for (Vehicle vehicle : vehicles) {
-            if (bot.startRiding(((CraftVehicle) vehicle).getHandle(), false)) {
+            if (bot.startRiding(((CraftEntity) vehicle).getHandle(), false)) {
                 return true;
             }
         }

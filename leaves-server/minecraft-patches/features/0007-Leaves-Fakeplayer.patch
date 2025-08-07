@@ -356,6 +356,42 @@ index 61530843a32632f54f3d4ad913e649ee2dca3f38..d5051d8a2b0af5d8b63a0d10987c0a7e
          final boolean xZero = movement.x == 0.0;
          final boolean yZero = movement.y == 0.0;
          final boolean zZero = movement.z == 0.0;
+diff --git a/net/minecraft/world/entity/LivingEntity.java b/net/minecraft/world/entity/LivingEntity.java
+index 0c52e315557e1dae6a852694786e72241fff1e29..2d12da130d43c1ef479ba25401f96a3cbdc1941a 100644
+--- a/net/minecraft/world/entity/LivingEntity.java
++++ b/net/minecraft/world/entity/LivingEntity.java
+@@ -3955,7 +3955,7 @@ public abstract class LivingEntity extends Entity implements Attackable, Waypoin
+         // Paper start - lag compensate eating
+         // we add 1 to the expected time to avoid lag compensating when we should not
+         final boolean shouldLagCompensate = this.useItem.has(DataComponents.FOOD) && this.eatStartTime != -1 && (System.nanoTime() - this.eatStartTime) > ((1L + this.totalEatTimeTicks) * 50L * (1000L * 1000L));
+-        if ((--this.useItemRemaining == 0 || shouldLagCompensate) && !this.level().isClientSide && !usingItem.useOnRelease()) {
++        if ((--this.useItemRemaining == 0 || shouldLagCompensate) && !(this instanceof org.leavesmc.leaves.bot.ServerBot) && !this.level().isClientSide && !usingItem.useOnRelease()) { // Leaves - Fakeplayer skip this check
+             this.useItemRemaining = 0;
+             // Paper end - lag compensate eating
+             this.completeUsingItem();
+@@ -4132,6 +4132,22 @@ public abstract class LivingEntity extends Entity implements Attackable, Waypoin
+         this.stopUsingItem();
+     }
+ 
++    public boolean releaseUsingItemWithResult() {
++        ItemStack itemInHand = this.getItemInHand(this.getUsedItemHand());
++        boolean result = false;
++        if (!this.useItem.isEmpty() && ItemStack.isSameItem(itemInHand, this.useItem)) {
++            this.useItem = itemInHand;
++            if (this instanceof ServerPlayer) new io.papermc.paper.event.player.PlayerStopUsingItemEvent((org.bukkit.entity.Player) getBukkitEntity(), useItem.asBukkitMirror(), getTicksUsingItem()).callEvent(); // Paper - Add PlayerStopUsingItemEvent
++            result = this.useItem.releaseUsingWithResult(this.level(), this, this.getUseItemRemainingTicks());
++            if (this.useItem.useOnRelease()) {
++                this.updatingUsingItem();
++            }
++        }
++
++        this.stopUsingItem();
++        return result;
++    }
++
+     public void stopUsingItem() {
+         if (!this.level().isClientSide) {
+             boolean isUsingItem = this.isUsingItem();
 diff --git a/net/minecraft/world/entity/player/Player.java b/net/minecraft/world/entity/player/Player.java
 index 8f4c45fbea2d7c1317aff36031bb834b07b23a82..8ec6f52f58bcc985fdc758a692798a35d6c86378 100644
 --- a/net/minecraft/world/entity/player/Player.java
@@ -448,6 +484,38 @@ index 06846950348954328c07f64cd9b3359e79a1a468..e1783ad0adbb791b2ff7441243c9f0ae
      private boolean tryItemClickBehaviourOverride(Player player, ClickAction action, Slot slot, ItemStack clickedItem, ItemStack carriedItem) {
          FeatureFlagSet featureFlagSet = player.level().enabledFeatures();
          return carriedItem.isItemEnabled(featureFlagSet) && carriedItem.overrideStackedOnOther(slot, action, player)
+diff --git a/net/minecraft/world/item/ItemStack.java b/net/minecraft/world/item/ItemStack.java
+index da16f4831c875e07c25d7ed041bed493db614658..b01a8f540a3b85b16db2e70b3decb5c21f19b940 100644
+--- a/net/minecraft/world/item/ItemStack.java
++++ b/net/minecraft/world/item/ItemStack.java
+@@ -442,7 +442,7 @@ public final class ItemStack implements DataComponentHolder {
+                     placeEvent = org.bukkit.craftbukkit.event.CraftEventFactory.callBlockPlaceEvent(serverLevel, player, hand, blocks.getFirst(), clickedPos);
+                 }
+ 
+-                if (placeEvent != null && (placeEvent.isCancelled() || !placeEvent.canBuild())) {
++                if (placeEvent != null && (placeEvent.isCancelled() || !placeEvent.canBuild()) && (!(player instanceof org.leavesmc.leaves.bot.ServerBot))) { // Leaves - Fakeplayer skip this check
+                     interactionResult = InteractionResult.FAIL; // cancel placement
+                     // PAIL: Remove this when MC-99075 fixed
+                     player.containerMenu.forceHeldSlot(hand);
+@@ -938,6 +938,18 @@ public final class ItemStack implements DataComponentHolder {
+         }
+     }
+ 
++    public boolean releaseUsingWithResult(Level level, LivingEntity livingEntity, int timeLeft) {
++        ItemStack itemStack = this.copy();
++        if (this.getItem().releaseUsing(this, level, livingEntity, timeLeft)) {
++            ItemStack itemStack1 = this.applyAfterUseComponentSideEffects(livingEntity, itemStack);
++            if (itemStack1 != this) {
++                livingEntity.setItemInHand(livingEntity.getUsedItemHand(), itemStack1);
++            }
++            return true;
++        }
++        return false;
++    }
++
+     public boolean useOnRelease() {
+         return this.getItem().useOnRelease(this);
+     }
 diff --git a/net/minecraft/world/level/block/piston/PistonMovingBlockEntity.java b/net/minecraft/world/level/block/piston/PistonMovingBlockEntity.java
 index f1ce4cff1c03a0037ade2c8ef989cf327c973a7e..0976aef81b950a062152094501372d00c20bb2b7 100644
 --- a/net/minecraft/world/level/block/piston/PistonMovingBlockEntity.java

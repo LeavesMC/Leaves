@@ -1238,9 +1238,6 @@ public final class LeavesConfig {
         @GlobalConfig("vanilla-fluid-pushing")
         public boolean vanillaFluidPushing = true;
 
-        @GlobalConfig("vanilla-endermite-spawn")
-        public boolean vanillaEndermiteSpawn = true;
-
         @GlobalConfig(value = "collision-behavior")
         public CollisionBehavior collisionBehavior = CollisionBehavior.BLOCK_SHAPE_VANILLA;
 
@@ -1250,5 +1247,8 @@ public final class LeavesConfig {
 
         @RemovedConfig(name = "spigot-EndPlatform-destroy", category = "fix")
         private final boolean removed = false;
+
+        @RemovedConfig(name = "vanilla-endermite-spawn", category = "fix")
+        public boolean vanillaEndermiteSpawn = true;
     }
 }

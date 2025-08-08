@@ -152,27 +152,13 @@ public class ServerBot extends ServerPlayer {
             this.doTick();
         }
 
-        boolean left = false;
-        boolean right = false;
-        boolean up = false;
-        boolean down = false;
-        if (this.xxa > 0) {
-            left = true;
-        } else if (this.xxa < 0) {
-            right = true;
-        }
-        if (this.zza > 0) {
-            up = true;
-        } else if (this.zza < 0) {
-            down = true;
-        }
         Input input = this.getLastClientInput();
         this.setLastClientInput(
             new Input(
-                up,
-                down,
-                left,
-                right,
+                this.zza > 0,
+                this.zza < 0,
+                this.xxa > 0,
+                this.xxa < 0,
                 input.jump(),
                 input.shift(),
                 input.sprint()

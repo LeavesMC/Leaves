@@ -1246,9 +1246,7 @@ public final class LeavesConfig {
         }
 
         @RemovedConfig(name = "spigot-EndPlatform-destroy", category = "fix")
-        private final boolean removed = false;
-
         @RemovedConfig(name = "vanilla-endermite-spawn", category = "fix")
-        public boolean vanillaEndermiteSpawn = true;
+        private final boolean removed = false;
     }
 }

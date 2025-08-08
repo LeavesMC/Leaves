@@ -34,6 +34,7 @@ import net.minecraft.world.entity.PositionMoveRotation;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
+import net.minecraft.world.entity.vehicle.AbstractBoat;
 import net.minecraft.world.inventory.ChestMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameRules;
@@ -79,17 +80,14 @@ public class ServerBot extends ServerPlayer {
 
     private final List<ServerBotAction<?>> actions;
     private final Map<Configs<?>, AbstractBotConfig<?>> configs;
-
-    public boolean resume = false;
-    public BotCreateState createState;
-    public UUID createPlayer;
-
     private final int tracingRange;
     private final BotStatsCounter stats;
     private final BotInventoryContainer container;
-
+    private boolean handsBusy = false;
+    public boolean resume = false;
+    public BotCreateState createState;
+    public UUID createPlayer;
     public int notSleepTicks;
-
     public int removeTaskId = -1;
 
     public ServerBot(MinecraftServer server, ServerLevel world, GameProfile profile) {
@@ -227,6 +225,36 @@ public class ServerBot extends ServerPlayer {
     @Override
     public boolean canSimulateMovement() {
         return true;
+    }
+
+    @Override
+    public void removeVehicle() {
+        super.removeVehicle();
+        this.handsBusy = false;
+    }
+
+    @Override
+    public void rideTick() {
+        super.rideTick();
+        this.handsBusy = false;
+        boolean left = false;
+        boolean right = false;
+        boolean up = false;
+        boolean down = false;
+        if (this.xxa > 0) {
+            left = true;
+        } else if (this.xxa < 0) {
+            right = true;
+        }
+        if (this.zza > 0) {
+            up = true;
+        } else if (this.zza < 0) {
+            down = true;
+        }
+        if (this.getControlledVehicle() instanceof AbstractBoat abstractBoat) {
+            abstractBoat.setInput(left, right, up, down);
+            this.handsBusy = this.handsBusy | (left || right || up || down);
+        }
     }
 
     @Override

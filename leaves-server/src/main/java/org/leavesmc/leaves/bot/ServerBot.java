@@ -32,6 +32,7 @@ import net.minecraft.world.entity.EntitySelector;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.PositionMoveRotation;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.player.Input;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.entity.vehicle.AbstractBoat;
@@ -150,6 +151,33 @@ public class ServerBot extends ServerPlayer {
         if (this.getConfigValue(Configs.TICK_TYPE) == TickType.ENTITY_LIST) {
             this.doTick();
         }
+
+        boolean left = false;
+        boolean right = false;
+        boolean up = false;
+        boolean down = false;
+        if (this.xxa > 0) {
+            left = true;
+        } else if (this.xxa < 0) {
+            right = true;
+        }
+        if (this.zza > 0) {
+            up = true;
+        } else if (this.zza < 0) {
+            down = true;
+        }
+        Input input = this.getLastClientInput();
+        this.setLastClientInput(
+            new Input(
+                up,
+                down,
+                left,
+                right,
+                input.jump(),
+                input.shift(),
+                input.sprint()
+            )
+        );
     }
 
     @Override
@@ -237,23 +265,10 @@ public class ServerBot extends ServerPlayer {
     public void rideTick() {
         super.rideTick();
         this.handsBusy = false;
-        boolean left = false;
-        boolean right = false;
-        boolean up = false;
-        boolean down = false;
-        if (this.xxa > 0) {
-            left = true;
-        } else if (this.xxa < 0) {
-            right = true;
-        }
-        if (this.zza > 0) {
-            up = true;
-        } else if (this.zza < 0) {
-            down = true;
-        }
         if (this.getControlledVehicle() instanceof AbstractBoat abstractBoat) {
-            abstractBoat.setInput(left, right, up, down);
-            this.handsBusy = this.handsBusy | (left || right || up || down);
+            Input input = this.getLastClientInput();
+            abstractBoat.setInput(input.left(), input.right(), input.forward(), input.backward());
+            this.handsBusy = this.handsBusy | (input.left() || input.right() || input.forward() || input.backward());
         }
     }
 

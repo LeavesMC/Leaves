@@ -32,8 +32,10 @@ import net.minecraft.world.entity.EntitySelector;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.PositionMoveRotation;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.player.Input;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
+import net.minecraft.world.entity.vehicle.AbstractBoat;
 import net.minecraft.world.inventory.ChestMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameRules;
@@ -83,6 +85,7 @@ public class ServerBot extends ServerPlayer {
     public boolean resume = false;
     public BotCreateState createState;
     public UUID createPlayer;
+    public boolean handsBusy = false;
 
     private final int tracingRange;
     private final BotStatsCounter stats;
@@ -152,6 +155,19 @@ public class ServerBot extends ServerPlayer {
         if (this.getConfigValue(Configs.TICK_TYPE) == TickType.ENTITY_LIST) {
             this.doTick();
         }
+
+        Input input = this.getLastClientInput();
+        this.setLastClientInput(
+            new Input(
+                this.zza > 0,
+                this.zza < 0,
+                this.xxa > 0,
+                this.xxa < 0,
+                input.jump(),
+                input.shift(),
+                input.sprint()
+            )
+        );
     }
 
     @Override
@@ -227,6 +243,23 @@ public class ServerBot extends ServerPlayer {
     @Override
     public boolean canSimulateMovement() {
         return true;
+    }
+
+    @Override
+    public void removeVehicle() {
+        super.removeVehicle();
+        this.handsBusy = false;
+    }
+
+    @Override
+    public void rideTick() {
+        super.rideTick();
+        this.handsBusy = false;
+        if (this.getControlledVehicle() instanceof AbstractBoat abstractBoat) {
+            Input input = this.getLastClientInput();
+            abstractBoat.setInput(input.left(), input.right(), input.forward(), input.backward());
+            this.handsBusy = this.handsBusy | (input.left() || input.right() || input.forward() || input.backward());
+        }
     }
 
     @Override

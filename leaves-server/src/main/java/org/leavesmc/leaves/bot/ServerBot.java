@@ -81,14 +81,18 @@ public class ServerBot extends ServerPlayer {
 
     private final List<ServerBotAction<?>> actions;
     private final Map<Configs<?>, AbstractBotConfig<?>> configs;
-    private final int tracingRange;
-    private final BotStatsCounter stats;
-    private final BotInventoryContainer container;
-    private boolean handsBusy = false;
+
     public boolean resume = false;
     public BotCreateState createState;
     public UUID createPlayer;
+    public boolean handsBusy = false;
+
+    private final int tracingRange;
+    private final BotStatsCounter stats;
+    private final BotInventoryContainer container;
+
     public int notSleepTicks;
+
     public int removeTaskId = -1;
 
     public ServerBot(MinecraftServer server, ServerLevel world, GameProfile profile) {

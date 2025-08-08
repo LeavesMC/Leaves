@@ -2,7 +2,6 @@ package org.leavesmc.leaves.bot.agent.actions;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import org.apache.commons.lang3.tuple.Pair;
 import org.jetbrains.annotations.NotNull;
@@ -107,7 +106,9 @@ public abstract class ServerUseBotAction<T extends ServerUseBotAction<T>> extend
     public void load(@NotNull CompoundTag nbt) {
         super.load(nbt);
         this.useTick = nbt.getInt("useTick").orElseThrow();
-        this.alreadyUsedTick = nbt.getInt("alreadyUsedTick").orElseThrow();
+        this.alreadyUsedTick = nbt.getInt("alreadyUsedTick").orElseGet(
+            () -> this.useTick - nbt.getInt("tickToRelease").orElseThrow()
+        );
     }
 
     public int getUseTick() {

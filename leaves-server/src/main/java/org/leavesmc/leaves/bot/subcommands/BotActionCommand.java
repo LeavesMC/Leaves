@@ -51,6 +51,10 @@ public class BotActionCommand implements LeavesSubcommand {
     }
 
     private void executeStart(ServerBot bot, CommandSender sender, String[] args) {
+        if (args.length < 3) {
+            sender.sendMessage(text("Invalid action", NamedTextColor.RED));
+            return;
+        }
         ServerBotAction<?> action = Actions.getForName(args[2]);
         if (action == null) {
             sender.sendMessage(text("Invalid action", NamedTextColor.RED));

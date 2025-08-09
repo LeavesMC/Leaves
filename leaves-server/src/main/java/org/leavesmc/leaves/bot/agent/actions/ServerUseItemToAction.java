@@ -17,12 +17,8 @@ public class ServerUseItemToAction extends ServerUseBotAction<ServerUseItemToAct
 
     @Override
     protected boolean interact(@NotNull ServerBot bot) {
-        EntityHitResult hitResult = getEntityHitResult(bot);
+        EntityHitResult hitResult = bot.getEntityHitResult();
         return useItemTo(bot, hitResult, InteractionHand.MAIN_HAND).consumesAction();
-    }
-
-    public static EntityHitResult getEntityHitResult(@NotNull ServerBot bot) {
-        return bot.getEntityHitResult((int) bot.entityInteractionRange(), null);
     }
 
     public static InteractionResult useItemTo(ServerBot bot, EntityHitResult hitResult, InteractionHand hand) {

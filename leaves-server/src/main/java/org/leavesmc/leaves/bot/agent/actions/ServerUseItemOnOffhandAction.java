@@ -6,7 +6,6 @@ import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.entity.bot.actions.CraftUseItemOnOffhandAction;
 
-import static org.leavesmc.leaves.bot.agent.actions.ServerUseItemOnAction.getBlockHitResult;
 import static org.leavesmc.leaves.bot.agent.actions.ServerUseItemOnAction.useItemOn;
 
 public class ServerUseItemOnOffhandAction extends ServerUseBotAction<ServerUseItemOnOffhandAction> {
@@ -17,7 +16,7 @@ public class ServerUseItemOnOffhandAction extends ServerUseBotAction<ServerUseIt
 
     @Override
     protected boolean interact(@NotNull ServerBot bot) {
-        BlockHitResult hitResult = getBlockHitResult(bot);
+        BlockHitResult hitResult = bot.getBlockHitResult();
         return useItemOn(bot, hitResult, InteractionHand.OFF_HAND).consumesAction();
     }
 

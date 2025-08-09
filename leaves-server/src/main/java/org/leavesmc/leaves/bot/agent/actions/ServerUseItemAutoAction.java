@@ -14,9 +14,7 @@ import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.entity.bot.actions.CraftUseItemAutoAction;
 
 import static org.leavesmc.leaves.bot.agent.actions.ServerUseItemAction.useItem;
-import static org.leavesmc.leaves.bot.agent.actions.ServerUseItemOnAction.getBlockHitResult;
 import static org.leavesmc.leaves.bot.agent.actions.ServerUseItemOnAction.useItemOn;
-import static org.leavesmc.leaves.bot.agent.actions.ServerUseItemToAction.getEntityHitResult;
 import static org.leavesmc.leaves.bot.agent.actions.ServerUseItemToAction.useItemTo;
 
 public class ServerUseItemAutoAction extends ServerUseBotAction<ServerUseItemAutoAction> {
@@ -66,10 +64,10 @@ public class ServerUseItemAutoAction extends ServerUseBotAction<ServerUseItemAut
     private static @Nullable HitResult getHitResult(@NotNull ServerBot bot) {
         Vec3 eyePos = bot.getEyePosition();
 
-        EntityHitResult entityHitResult = getEntityHitResult(bot);
+        EntityHitResult entityHitResult = bot.getEntityHitResult();
         double entityDistance = entityHitResult != null ? entityHitResult.getLocation().distanceToSqr(eyePos) : Double.MAX_VALUE;
 
-        BlockHitResult blockHitResult = getBlockHitResult(bot);
+        BlockHitResult blockHitResult = bot.getBlockHitResult();
         double blockDistance = blockHitResult != null ? blockHitResult.getLocation().distanceToSqr(eyePos) : Double.MAX_VALUE;
 
         if (entityDistance == Double.MAX_VALUE && blockDistance == Double.MAX_VALUE) {

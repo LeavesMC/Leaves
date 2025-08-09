@@ -13,7 +13,7 @@ public class ServerAttackAction extends ServerTimerBotAction<ServerAttackAction>
 
     @Override
     public boolean doTick(@NotNull ServerBot bot) {
-        EntityHitResult hitResult = bot.getEntityHitResult(3, target -> target.isAttackable() && !target.skipAttackInteraction(bot));
+        EntityHitResult hitResult = bot.getEntityHitResult(target -> target.isAttackable() && !target.skipAttackInteraction(bot));
         if (hitResult == null) {
             return false;
         } else {

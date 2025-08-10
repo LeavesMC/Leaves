@@ -45,6 +45,7 @@ import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
@@ -540,12 +541,20 @@ public class ServerBot extends ServerPlayer {
         return this.getBukkitEntity().getLocation();
     }
 
-    public EntityHitResult getEntityHitResult(int maxDistance, Predicate<? super Entity> predicate) {
-        EntityHitResult result = this.pick(this, maxDistance);
+    public EntityHitResult getEntityHitResult() {
+        return this.getEntityHitResult(null);
+    }
+
+    public EntityHitResult getEntityHitResult(Predicate<? super Entity> predicate) {
+        EntityHitResult result = this.pick(this, this.entityInteractionRange());
         if (result != null && (predicate == null || predicate.test(result.getEntity()))) {
             return result;
         }
         return null;
+    }
+
+    public BlockHitResult getBlockHitResult() {
+        return (BlockHitResult) this.pick(this.blockInteractionRange(), 1.0f, false);
     }
 
     private EntityHitResult pick(Entity entity, double maxDistance) {

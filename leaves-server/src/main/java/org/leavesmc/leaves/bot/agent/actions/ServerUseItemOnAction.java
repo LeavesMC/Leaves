@@ -3,11 +3,8 @@ package org.leavesmc.leaves.bot.agent.actions;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.HitResult;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.entity.bot.actions.CraftUseItemOnAction;
 
@@ -19,17 +16,8 @@ public class ServerUseItemOnAction extends ServerUseBotAction<ServerUseItemOnAct
 
     @Override
     protected boolean interact(@NotNull ServerBot bot) {
-        BlockHitResult hitResult = getBlockHitResult(bot);
+        BlockHitResult hitResult = bot.getBlockHitResult();
         return useItemOn(bot, hitResult, InteractionHand.MAIN_HAND).consumesAction();
-    }
-
-    public static @Nullable BlockHitResult getBlockHitResult(@NotNull ServerBot bot) {
-        HitResult result = bot.getRayTrace((int) bot.blockInteractionRange(), ClipContext.Fluid.NONE);
-        if (result instanceof BlockHitResult blockHitResult) {
-            return blockHitResult;
-        } else {
-            return null;
-        }
     }
 
     public static InteractionResult useItemOn(ServerBot bot, BlockHitResult hitResult, InteractionHand hand) {

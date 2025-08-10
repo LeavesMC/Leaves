@@ -474,14 +474,18 @@ public class ServerBot extends ServerPlayer {
         }
     }
 
-    public void renderAll() {
+    public void renderInfo() {
         this.getServer().getPlayerList().getPlayers().forEach(
-            player -> {
-                this.sendPlayerInfo(player);
-                this.sendFakeDataIfNeed(player, false);
-            }
+            player -> this.sendPlayerInfo(player)
         );
     }
+
+    public void renderData() {
+        this.getServer().getPlayerList().getPlayers().forEach(
+            player -> this.sendFakeDataIfNeed(player, false)
+        );
+    }
+
 
     private void sendPacket(Packet<?> packet) {
         this.getServer().getPlayerList().getPlayers().forEach(player -> player.connection.send(packet));

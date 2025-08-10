@@ -155,6 +155,7 @@ public class BotList {
         this.botsByName.put(bot.getScoreboardName().toLowerCase(Locale.ROOT), bot);
         this.botsByUUID.put(bot.getUUID(), bot);
 
+        bot.supressTrackerForLogin = true;
         world.addNewPlayer(bot);
         optional.ifPresent(nbt -> {
             bot.loadAndSpawnEnderPearls(nbt);
@@ -170,6 +171,7 @@ public class BotList {
         }
 
         bot.renderAll();
+        bot.supressTrackerForLogin = false;
 
         bot.level().getChunkSource().chunkMap.addEntity(bot);
         bot.initInventoryMenu();

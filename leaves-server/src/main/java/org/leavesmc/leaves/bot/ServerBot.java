@@ -486,7 +486,6 @@ public class ServerBot extends ServerPlayer {
         );
     }
 
-
     private void sendPacket(Packet<?> packet) {
         this.getServer().getPlayerList().getPlayers().forEach(player -> player.connection.send(packet));
     }

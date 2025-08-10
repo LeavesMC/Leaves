@@ -554,12 +554,7 @@ public class ServerBot extends ServerPlayer {
     }
 
     public BlockHitResult getBlockHitResult() {
-        HitResult result = this.pick(this.blockInteractionRange(), 1.0f, false);
-        if (result instanceof BlockHitResult blockHitResult) {
-            return blockHitResult;
-        } else {
-            return null;
-        }
+        return (BlockHitResult) this.pick(this.blockInteractionRange(), 1.0f, false);
     }
 
     private EntityHitResult pick(Entity entity, double maxDistance) {

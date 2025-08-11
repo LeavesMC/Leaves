@@ -5,7 +5,7 @@ Subject: [PATCH] Revert raid changes
 
 
 diff --git a/net/minecraft/world/effect/BadOmenMobEffect.java b/net/minecraft/world/effect/BadOmenMobEffect.java
-index 80f17f33f670018240c854df589cf90cdeab6e70..4c6ce6a4a730033802651b0c0052fc46edeed4d6 100644
+index 80f17f33f670018240c854df589cf90cdeab6e70..d7f443bcf91ac7817fe79881122960f49b331365 100644
 --- a/net/minecraft/world/effect/BadOmenMobEffect.java
 +++ b/net/minecraft/world/effect/BadOmenMobEffect.java
 @@ -22,6 +22,11 @@ class BadOmenMobEffect extends MobEffect {
@@ -13,7 +13,7 @@ index 80f17f33f670018240c854df589cf90cdeab6e70..4c6ce6a4a730033802651b0c0052fc46
              && level.getDifficulty() != Difficulty.PEACEFUL
              && level.isVillage(serverPlayer.blockPosition())) {
 +            // Leaves start - Revert raid changes
-+            if (org.leavesmc.leaves.LeavesConfig.modify.oldMC.raid.allowBadOmenTriggerRaid) {
++            if (org.leavesmc.leaves.LeavesConfig.modify.oldMC.oldRaidBehavior) {
 +                return level.getRaids().createOrExtendRaid(serverPlayer, serverPlayer.blockPosition()) == null;
 +            }
 +            // Leaves end - Revert raid changes
@@ -21,16 +21,25 @@ index 80f17f33f670018240c854df589cf90cdeab6e70..4c6ce6a4a730033802651b0c0052fc46
              if (raidAt == null || raidAt.getRaidOmenLevel() < raidAt.getMaxRaidOmenLevel()) {
                  serverPlayer.addEffect(new MobEffectInstance(MobEffects.RAID_OMEN, 600, amplifier));
 diff --git a/net/minecraft/world/entity/raid/Raid.java b/net/minecraft/world/entity/raid/Raid.java
-index b3a29ce523fb5de71589c7c17598bba17622f988..830c5fd003e17a4abfa833198d6072b2871dba59 100644
+index b3a29ce523fb5de71589c7c17598bba17622f988..f1e6fa76a7cc09142e7d2bd1a975a91c89d06628 100644
 --- a/net/minecraft/world/entity/raid/Raid.java
 +++ b/net/minecraft/world/entity/raid/Raid.java
+@@ -256,7 +256,7 @@ public class Raid {
+     }
+ 
+     public boolean absorbRaidOmen(ServerPlayer player) {
+-        MobEffectInstance effect = player.getEffect(MobEffects.RAID_OMEN);
++        MobEffectInstance effect = player.getEffect(org.leavesmc.leaves.LeavesConfig.modify.oldMC.oldRaidBehavior ? MobEffects.BAD_OMEN : MobEffects.RAID_OMEN); // Leaves - old Raid Behavior
+         if (effect == null) {
+             return false;
+         } else {
 @@ -333,7 +333,13 @@ public class Raid {
                          }
  
                          if (flag1) {
 -                            this.waveSpawnPos = this.getValidSpawnPos(level);
 +                            // Leaves Start - old FindSpawnPosition
-+                            if (org.leavesmc.leaves.LeavesConfig.modify.oldMC.raid.useOldFindSpawnPosition) {
++                            if (org.leavesmc.leaves.LeavesConfig.modify.oldMC.oldRaidBehavior) {
 +                                this.waveSpawnPos = this.preCalcRavagerSpawnLocation(level, this.raidCooldownTicks < 100 ? 1 : 0);
 +                            } else {
 +                                this.waveSpawnPos = this.getValidSpawnPos(level);
@@ -46,7 +55,7 @@ index b3a29ce523fb5de71589c7c17598bba17622f988..830c5fd003e17a4abfa833198d6072b2
 -                    BlockPos blockPos = this.waveSpawnPos.orElseGet(() -> this.findRandomSpawnPos(level, 20));
 +                    // Leaves Start - old FindSpawnPosition
 +                    BlockPos blockPos;
-+                    if (org.leavesmc.leaves.LeavesConfig.modify.oldMC.raid.useOldFindSpawnPosition) {
++                    if (org.leavesmc.leaves.LeavesConfig.modify.oldMC.oldRaidBehavior) {
 +                        blockPos = this.getRavagerSpawnLocation(level, i, 20);
 +                    } else {
 +                        blockPos = this.waveSpawnPos.orElseGet(() -> this.findRandomSpawnPos(level, 20));
@@ -60,10 +69,19 @@ index b3a29ce523fb5de71589c7c17598bba17622f988..830c5fd003e17a4abfa833198d6072b2
                      }
  
 -                    if (i > 5) {
-+                    if (i > (org.leavesmc.leaves.LeavesConfig.modify.oldMC.raid.useOldFindSpawnPosition ? 3 : 5)) { // Leaves - old FindSpawnPosition
++                    if (i > (org.leavesmc.leaves.LeavesConfig.modify.oldMC.oldRaidBehavior ? 3 : 5)) { // Leaves - old FindSpawnPosition
                          org.bukkit.craftbukkit.event.CraftEventFactory.callRaidStopEvent(level, this, org.bukkit.event.raid.RaidStopEvent.Reason.UNSPAWNABLE); // CraftBukkit
                          this.stop();
                          break;
+@@ -667,7 +680,7 @@ public class Raid {
+             int i2 = this.center.getX() + Mth.floor(Mth.cos(f2) * 32.0F * f) + level.random.nextInt(3) * Mth.floor(f);
+             int i3 = this.center.getZ() + Mth.floor(Mth.sin(f2) * 32.0F * f) + level.random.nextInt(3) * Mth.floor(f);
+             int height = level.getHeight(Heightmap.Types.WORLD_SURFACE, i2, i3);
+-            if (Mth.abs(height - this.center.getY()) <= 96) {
++            if (org.leavesmc.leaves.LeavesConfig.modify.oldMC.oldRaidBehavior || Mth.abs(height - this.center.getY()) <= 96) { // Leaves - skippable
+                 mutableBlockPos.set(i2, height, i3);
+                 if (!level.isVillage(mutableBlockPos) || i <= 7) {
+                     int i4 = 10;
 @@ -686,6 +699,36 @@ public class Raid {
          return null;
      }
@@ -157,7 +175,7 @@ index b3a29ce523fb5de71589c7c17598bba17622f988..830c5fd003e17a4abfa833198d6072b2
 +    // Leaves end - old FindSpawnPosition
  }
 diff --git a/net/minecraft/world/entity/raid/Raider.java b/net/minecraft/world/entity/raid/Raider.java
-index 7b697f1dfe8131296ef55cd88a8b9d7cd884eb44..56995040e0bb23e55031cd1179faa770596e15a3 100644
+index 7b697f1dfe8131296ef55cd88a8b9d7cd884eb44..0e9cfb43d6620790f04b8a85e75308a306ec4ea5 100644
 --- a/net/minecraft/world/entity/raid/Raider.java
 +++ b/net/minecraft/world/entity/raid/Raider.java
 @@ -128,6 +128,43 @@ public abstract class Raider extends PatrollingMonster {
@@ -167,7 +185,7 @@ index 7b697f1dfe8131296ef55cd88a8b9d7cd884eb44..56995040e0bb23e55031cd1179faa770
 +
 +            // Leaves start - Revert raid changes
 +            if (this.level() instanceof ServerLevel) {
-+                if (org.leavesmc.leaves.LeavesConfig.modify.oldMC.raid.giveBadOmenWhenKillPatrolLeader && !this.hasRaid()) {
++                if (org.leavesmc.leaves.LeavesConfig.modify.oldMC.oldRaidBehavior && !this.hasRaid()) {
 +                    ItemStack itemstack = this.getItemBySlot(EquipmentSlot.HEAD);
 +                    net.minecraft.world.entity.player.Player entityhuman = null;
 +                    if (entity instanceof net.minecraft.world.entity.player.Player player) {

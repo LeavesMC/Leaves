@@ -170,10 +170,11 @@ public class BotList {
             this.server.getPlayerList().broadcastSystemMessage(PaperAdventure.asVanilla(joinMessage), false);
         }
 
-        bot.renderAll();
+        bot.renderInfo();
         bot.supressTrackerForLogin = false;
 
         bot.level().getChunkSource().chunkMap.addEntity(bot);
+        bot.renderData();
         bot.initInventoryMenu();
         botsNameByWorldUuid
             .computeIfAbsent(bot.level().uuid.toString(), (k) -> new HashSet<>())

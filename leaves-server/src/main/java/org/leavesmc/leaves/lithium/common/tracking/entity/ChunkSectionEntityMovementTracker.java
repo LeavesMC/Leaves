@@ -10,14 +10,10 @@ import java.util.UUID;
 public abstract class ChunkSectionEntityMovementTracker {
     protected long lastChangeTime = 0;
     protected final ReferenceOpenHashSet<ChunkSectionEntityMovementListener> listeners = new ReferenceOpenHashSet<>();
-    protected final long sectionKey;
-    protected final UUID levelId;
     protected final ChunkSectionIdentifier identifier;
     protected int userCount = 0;
 
     public ChunkSectionEntityMovementTracker(long sectionKey, UUID levelId) {
-        this.sectionKey = sectionKey;
-        this.levelId = levelId;
         identifier = ChunkSectionIdentifier.of(sectionKey, levelId);
     }
 

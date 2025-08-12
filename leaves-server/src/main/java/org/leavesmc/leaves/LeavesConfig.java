@@ -8,6 +8,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import org.bukkit.command.Command;
+import org.bukkit.configuration.MemorySection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.permissions.Permission;
 import org.bukkit.permissions.PermissionDefault;
@@ -17,6 +18,7 @@ import org.leavesmc.leaves.bot.BotCommand;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.bot.agent.Actions;
 import org.leavesmc.leaves.command.LeavesCommand;
+import org.leavesmc.leaves.config.ConfigTransformer;
 import org.leavesmc.leaves.config.ConfigValidatorImpl.BooleanConfigValidator;
 import org.leavesmc.leaves.config.ConfigValidatorImpl.DoubleConfigValidator;
 import org.leavesmc.leaves.config.ConfigValidatorImpl.EnumConfigValidator;
@@ -335,21 +337,24 @@ public final class LeavesConfig {
             @GlobalConfig("old-zombie-piglin-drop")
             public boolean oldZombiePiglinDrop = false;
 
-            public RaidConfig raid = new RaidConfig();
+            @RemovedConfig(name = "revert-raid-changes", category = {"modify", "minecraft-old"}, transform = true, transformer = RaidConfigTransformer.class)
+            @GlobalConfig("old-raid-behavior")
+            public boolean oldRaidBehavior = false;
 
-            @GlobalConfigCategory("revert-raid-changes")
-            public static class RaidConfig {
-                @GlobalConfig("allow-bad-omen-trigger-raid")
-                public boolean allowBadOmenTriggerRaid = false;
+            public static class RaidConfigTransformer implements ConfigTransformer<MemorySection, Boolean> {
 
-                @GlobalConfig("give-bad-omen-when-kill-patrol-leader")
-                public boolean giveBadOmenWhenKillPatrolLeader = false;
+                @Override
+                public Boolean transform(@NotNull MemorySection raidConfig) {
+                    return raidConfig.getBoolean("allow-bad-omen-trigger-raid")
+                        || raidConfig.getBoolean("give-bad-omen-when-kill-patrol-leader")
+                        || raidConfig.getBoolean("skip-height-check")
+                        || raidConfig.getBoolean("use-old-find-spawn-position");
+                }
 
-                @GlobalConfig("use-old-find-spawn-position")
-                public boolean useOldFindSpawnPosition = false;
-
-                @GlobalConfig("skip-height-check")
-                public boolean skipHeightCheck = false;
+                @Override
+                public MemorySection stringConvert(String value) throws IllegalArgumentException {
+                    return null;
+                }
             }
 
             @GlobalConfig("old-zombie-reinforcement")

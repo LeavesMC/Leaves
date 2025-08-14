@@ -60,7 +60,7 @@ import org.leavesmc.leaves.LeavesLogger;
 import org.leavesmc.leaves.bot.agent.AbstractBotConfig;
 import org.leavesmc.leaves.bot.agent.Actions;
 import org.leavesmc.leaves.bot.agent.Configs;
-import org.leavesmc.leaves.bot.agent.actions.*;
+import org.leavesmc.leaves.bot.agent.actions.ServerBotAction;
 import org.leavesmc.leaves.entity.bot.CraftBot;
 import org.leavesmc.leaves.event.bot.BotActionScheduleEvent;
 import org.leavesmc.leaves.event.bot.BotCreateEvent;
@@ -310,7 +310,7 @@ public class ServerBot extends ServerPlayer {
     }
 
     @Override
-    public void setServerLevel(ServerLevel level) {
+    public void setServerLevel(@NotNull ServerLevel level) {
         BotList.INSTANCE.updateBotLevel(this, level);
         super.setServerLevel(level);
     }
@@ -475,9 +475,7 @@ public class ServerBot extends ServerPlayer {
     }
 
     public void renderInfo() {
-        this.getServer().getPlayerList().getPlayers().forEach(
-            player -> this.sendPlayerInfo(player)
-        );
+        this.getServer().getPlayerList().getPlayers().forEach(this::sendPlayerInfo);
     }
 
     public void renderData() {
@@ -513,6 +511,19 @@ public class ServerBot extends ServerPlayer {
         }
 
         this.getServer().getBotList().removeBot(this, BotRemoveEvent.RemoveReason.DEATH, null, false);
+    }
+
+    @Override
+    public boolean startRiding(Entity vehicle, boolean force) {
+        if (super.startRiding(vehicle, force)) {
+            if (vehicle instanceof AbstractBoat) {
+                this.setDeltaMovement(Vec3.ZERO);
+                this.setYRot(vehicle.yRotO);
+            }
+            return true;
+        } else {
+            return false;
+        }
     }
 
     public void removeTab() {

@@ -19,16 +19,7 @@ import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.protocol.core.ProtocolUtils;
 import org.leavesmc.leaves.util.UUIDSerializer;
 
-import java.io.BufferedOutputStream;
-import java.io.DataOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
-import java.io.Writer;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.List;
@@ -121,7 +112,7 @@ public class ReplayFile {
         }
     }
 
-    public void savePacket(long timestamp, Packet<?> packet, ConnectionProtocol protocol) throws Exception {
+    public void savePacket(long timestamp, Packet<?> packet, ConnectionProtocol protocol) {
         byte[] data = getPacketBytes(packet, protocol);
         saveService.execute(() -> {
             try {
@@ -129,8 +120,7 @@ public class ReplayFile {
                 packetStream.writeInt(data.length);
                 packetStream.write(data);
             } catch (Exception e) {
-                LOGGER.severe("Error saving packet");
-                e.printStackTrace();
+                LOGGER.severe("Error saving packet", e);
             }
         });
     }

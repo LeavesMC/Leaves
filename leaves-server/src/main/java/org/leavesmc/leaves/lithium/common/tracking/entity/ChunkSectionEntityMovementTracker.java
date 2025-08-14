@@ -1,18 +1,20 @@
 package org.leavesmc.leaves.lithium.common.tracking.entity;
 
 import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet;
+import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
+import java.util.UUID;
 
 public abstract class ChunkSectionEntityMovementTracker {
     protected long lastChangeTime = 0;
     protected final ReferenceOpenHashSet<ChunkSectionEntityMovementListener> listeners = new ReferenceOpenHashSet<>();
-    protected final long sectionKey;
+    protected final ChunkSectionIdentifier identifier;
     protected int userCount = 0;
 
-    public ChunkSectionEntityMovementTracker(long sectionKey) {
-        this.sectionKey = sectionKey;
+    public ChunkSectionEntityMovementTracker(long sectionKey, UUID levelId) {
+        identifier = ChunkSectionIdentifier.of(sectionKey, levelId);
     }
 
     public void register() {
@@ -64,5 +66,12 @@ public abstract class ChunkSectionEntityMovementTracker {
             listeners.clear();
         }
         setChanged(time);
+    }
+
+    public record ChunkSectionIdentifier(long sectionKey, UUID levelId) {
+        @Contract("_, _ -> new")
+        public static @NotNull ChunkSectionIdentifier of(long sectionKey, UUID levelId) {
+            return new ChunkSectionIdentifier(sectionKey, levelId);
+        }
     }
 }

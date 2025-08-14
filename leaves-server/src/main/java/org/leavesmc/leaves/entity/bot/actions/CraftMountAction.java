@@ -1,7 +1,7 @@
 package org.leavesmc.leaves.entity.bot.actions;
 
-import org.leavesmc.leaves.bot.agent.actions.*;
-import org.leavesmc.leaves.entity.bot.action.*;
+import org.leavesmc.leaves.bot.agent.actions.ServerMountAction;
+import org.leavesmc.leaves.entity.bot.action.MountAction;
 
 public class CraftMountAction extends CraftBotAction<MountAction, ServerMountAction> implements MountAction {
 

@@ -472,6 +472,20 @@ public class ServerBot extends ServerPlayer {
         this.getServer().getBotList().removeBot(this, BotRemoveEvent.RemoveReason.DEATH, null, false);
     }
 
+    // Some function depends on packet, re-implement without packet
+    @Override
+    public boolean startRiding(Entity vehicle, boolean force) {
+        if (super.startRiding(vehicle, force)) {
+            vehicle.positionRider(this);
+            this.setDeltaMovement(Vec3.ZERO);
+            this.setYRot(vehicle.yRotO);
+
+            return true;
+        } else {
+            return false;
+        }
+    }
+
     public void removeTab() {
         this.sendPacket(new ClientboundPlayerInfoRemovePacket(List.of(this.getUUID())));
     }

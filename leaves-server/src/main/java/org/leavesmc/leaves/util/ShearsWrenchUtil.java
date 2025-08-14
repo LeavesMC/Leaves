@@ -42,9 +42,7 @@ public class ShearsWrenchUtil {
         Level level = context.getLevel();
         BlockPos clickedPos = context.getClickedPos();
         Block block = blockState.getBlock();
-        if (context.getPlayer() == null ||
-            (context.getHand() == InteractionHand.OFF_HAND && !context.getPlayer().getItemInHand(InteractionHand.MAIN_HAND).isEmpty()) ||
-            !LeavesConfig.modify.redstoneShearsWrench || !(
+        if (!LeavesConfig.modify.redstoneShearsWrench || !(
             block instanceof ObserverBlock ||
                 block instanceof DispenserBlock ||
                 block instanceof PistonBaseBlock ||

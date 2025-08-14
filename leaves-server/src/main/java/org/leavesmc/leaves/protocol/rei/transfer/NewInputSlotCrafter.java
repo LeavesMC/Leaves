@@ -52,7 +52,7 @@ public class NewInputSlotCrafter<T extends AbstractContainerMenu> extends InputS
         for (SlotAccessor slot : getInputSlots()) {
             org.bukkit.inventory.ItemStack bukkitStack = slot.getItemStack().getBukkitStack();
             if (bukkitStack.getType().isAir()) {
-                return;
+                continue;
             }
             HashMap<Integer, org.bukkit.inventory.ItemStack> notAdded = player.getBukkitEntity().getInventory().addItem(bukkitStack);
             if (notAdded.isEmpty()) {

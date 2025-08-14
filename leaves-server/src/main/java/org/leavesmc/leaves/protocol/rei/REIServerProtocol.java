@@ -20,17 +20,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.FireworkRocketRecipe;
-import net.minecraft.world.item.crafting.MapCloningRecipe;
-import net.minecraft.world.item.crafting.RecipeHolder;
-import net.minecraft.world.item.crafting.RecipeMap;
-import net.minecraft.world.item.crafting.RecipeType;
-import net.minecraft.world.item.crafting.ShapedRecipe;
-import net.minecraft.world.item.crafting.ShapelessRecipe;
-import net.minecraft.world.item.crafting.SmithingTransformRecipe;
-import net.minecraft.world.item.crafting.SmithingTrimRecipe;
-import net.minecraft.world.item.crafting.TippedArrowRecipe;
-import net.minecraft.world.item.crafting.TransmuteRecipe;
+import net.minecraft.world.item.crafting.*;
 import org.bukkit.Bukkit;
 import org.bukkit.permissions.Permission;
 import org.bukkit.permissions.PermissionDefault;
@@ -38,6 +28,7 @@ import org.bukkit.plugin.PluginManager;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesConfig;
+import org.leavesmc.leaves.LeavesLogger;
 import org.leavesmc.leaves.plugin.MinecraftInternalPlugin;
 import org.leavesmc.leaves.protocol.core.LeavesProtocol;
 import org.leavesmc.leaves.protocol.core.ProtocolHandler;
@@ -337,17 +328,17 @@ public class REIServerProtocol implements LeavesProtocol {
                             player.sendSystemMessage(Component.translatable(e.getMessage()).withStyle(ChatFormatting.RED));
                         } catch (Exception e) {
                             player.sendSystemMessage(Component.translatable("error.rei.internal.error", e.getMessage()).withStyle(ChatFormatting.RED));
-                            e.printStackTrace();
+                            LeavesLogger.LOGGER.severe("Failed to move items for player " + player.getScoreboardName(), e);
                         }
                     });
                 } catch (IllegalStateException e) {
                     player.sendSystemMessage(Component.translatable(e.getMessage()).withStyle(ChatFormatting.RED));
                 } catch (Exception e) {
                     player.sendSystemMessage(Component.translatable("error.rei.internal.error", e.getMessage()).withStyle(ChatFormatting.RED));
-                    e.printStackTrace();
+                    LeavesLogger.LOGGER.severe("Failed to move items for player " + player.getScoreboardName(), e);
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                LeavesLogger.LOGGER.severe("Failed to move items for player " + player.getScoreboardName(), e);
             }
         };
         inboundTransform(player, MOVE_ITEMS_NEW_PACKET, buf, consumer);

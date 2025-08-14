@@ -50,7 +50,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -225,7 +224,7 @@ public class Recorder extends Connection {
             try {
                 replayFile.saveMetaData(metaData);
             } catch (IOException e) {
-                e.printStackTrace();
+                LOGGER.severe("Error saving metadata", e);
             }
         });
     }
@@ -235,13 +234,8 @@ public class Recorder extends Connection {
     }
 
     private void savePacket(Packet<?> packet, final ConnectionProtocol protocol) {
-        try {
-            final long timestamp = getCurrentTimeAndUpdate();
-            replayFile.savePacket(timestamp, packet, protocol);
-        } catch (Exception e) {
-            LOGGER.severe("Error saving packet");
-            e.printStackTrace();
-        }
+        final long timestamp = getCurrentTimeAndUpdate();
+        replayFile.savePacket(timestamp, packet, protocol);
     }
 
     public boolean isSaved() {

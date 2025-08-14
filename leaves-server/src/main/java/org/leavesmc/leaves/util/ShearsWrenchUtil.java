@@ -64,9 +64,13 @@ public class ShearsWrenchUtil {
         }
         StateDefinition<Block, BlockState> blockstatelist = block.getStateDefinition();
         Property<?> iblockstate;
-        if (block instanceof CrafterBlock) iblockstate = blockstatelist.getProperty("orientation");
-        else if (block instanceof BaseRailBlock) iblockstate = blockstatelist.getProperty("shape");
-        else iblockstate = blockstatelist.getProperty("facing");
+        if (block instanceof CrafterBlock) {
+            iblockstate = blockstatelist.getProperty("orientation");
+        } else if (block instanceof BaseRailBlock) {
+            iblockstate = blockstatelist.getProperty("shape");
+        } else {
+            iblockstate = blockstatelist.getProperty("facing");
+        }
         Player player = context.getPlayer();
 
         if (iblockstate == null || player == null) {
@@ -129,7 +133,9 @@ public class ShearsWrenchUtil {
             boolean isRailBlock = state.getBlock() instanceof RailBlock;
             possibleValues = possibleValues.stream().filter(possibleValue -> {
                 RailShape shape = (RailShape) possibleValue;
-                if (isRailBlock) return !shape.isSlope();
+                if (isRailBlock) {
+                    return !shape.isSlope();
+                }
                 return !shape.isSlope() && shape != RailShape.NORTH_EAST && shape != RailShape.NORTH_WEST && shape != RailShape.SOUTH_EAST && shape != RailShape.SOUTH_WEST;
             }).toList();
         }

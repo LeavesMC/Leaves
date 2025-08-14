@@ -1,7 +1,7 @@
 package org.leavesmc.leaves.entity.bot.actions;
 
-import org.leavesmc.leaves.bot.agent.actions.*;
-import org.leavesmc.leaves.entity.bot.action.*;
+import org.leavesmc.leaves.bot.agent.actions.ServerUseItemAutoAction;
+import org.leavesmc.leaves.entity.bot.action.UseItemAutoAction;
 
 public class CraftUseItemAutoAction extends CraftTimerBotAction<UseItemAutoAction, ServerUseItemAutoAction> implements UseItemAutoAction {
 

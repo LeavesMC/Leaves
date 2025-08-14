@@ -3,7 +3,6 @@ package org.leavesmc.leaves.bot.agent.actions;
 import net.minecraft.world.entity.Entity;
 import org.bukkit.Location;
 import org.bukkit.craftbukkit.entity.CraftEntity;
-import org.bukkit.craftbukkit.entity.CraftVehicle;
 import org.bukkit.entity.Vehicle;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;

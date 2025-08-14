@@ -34,6 +34,7 @@ import net.minecraft.world.entity.PositionMoveRotation;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
+import net.minecraft.world.entity.vehicle.AbstractBoat;
 import net.minecraft.world.inventory.ChestMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameRules;
@@ -475,9 +476,10 @@ public class ServerBot extends ServerPlayer {
     @Override
     public boolean startRiding(Entity vehicle, boolean force) {
         if (super.startRiding(vehicle, force)) {
-            vehicle.positionRider(this);
-            this.setDeltaMovement(Vec3.ZERO);
-            this.setYRot(vehicle.yRotO);
+            if (vehicle instanceof AbstractBoat) {
+                this.setDeltaMovement(Vec3.ZERO);
+                this.setYRot(vehicle.yRotO);
+            }
             return true;
         } else {
             return false;

@@ -42,22 +42,7 @@ public class ShearsWrenchUtil {
         Level level = context.getLevel();
         BlockPos clickedPos = context.getClickedPos();
         Block block = blockState.getBlock();
-        if (!LeavesConfig.modify.redstoneShearsWrench || !(
-            block instanceof ObserverBlock ||
-                block instanceof DispenserBlock ||
-                block instanceof PistonBaseBlock ||
-                block instanceof HopperBlock ||
-                block instanceof RepeaterBlock ||
-                block instanceof ComparatorBlock ||
-                block instanceof CrafterBlock ||
-                block instanceof LeverBlock ||
-                block instanceof CocoaBlock ||
-                block instanceof TrapDoorBlock ||
-                block instanceof FenceGateBlock ||
-                block instanceof LightningRodBlock ||
-                block instanceof CalibratedSculkSensorBlock ||
-                block instanceof BaseRailBlock
-        )) {
+        if (!LeavesConfig.modify.redstoneShearsWrench || !(block instanceof ObserverBlock || block instanceof DispenserBlock || block instanceof PistonBaseBlock || block instanceof HopperBlock || block instanceof RepeaterBlock || block instanceof ComparatorBlock || block instanceof CrafterBlock || block instanceof LeverBlock || block instanceof CocoaBlock || block instanceof TrapDoorBlock || block instanceof FenceGateBlock || block instanceof LightningRodBlock || block instanceof CalibratedSculkSensorBlock || block instanceof BaseRailBlock)) {
             return null;
         }
         StateDefinition<Block, BlockState> blockstatelist = block.getStateDefinition();

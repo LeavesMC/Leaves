@@ -1,7 +1,7 @@
 package org.leavesmc.leaves.entity.bot.actions;
 
-import org.leavesmc.leaves.bot.agent.actions.*;
-import org.leavesmc.leaves.entity.bot.action.*;
+import org.leavesmc.leaves.bot.agent.actions.ServerTimerBotAction;
+import org.leavesmc.leaves.entity.bot.action.TimerBotAction;
 
 import java.util.function.Function;
 

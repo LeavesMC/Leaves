@@ -101,6 +101,6 @@ public class CounterCommand implements LeavesSubcommand {
 
     @Override
     public boolean isEnabled() {
-        return LeavesConfig.modify.hopperCounter;
+        return LeavesConfig.modify.hopperCounter.enable;
     }
 }

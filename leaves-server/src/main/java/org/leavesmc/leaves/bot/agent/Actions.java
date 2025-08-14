@@ -29,12 +29,13 @@ public class Actions {
         register(new ServerUseItemOffhandAction(), UseItemOffhandAction.class);
         register(new ServerUseItemOnOffhandAction(), UseItemOnOffhandAction.class);
         register(new ServerUseItemToOffhandAction(), UseItemToOffhandAction.class);
-        register(new ServerLookAction.TO(), LookAction.class);
-        register(new ServerLookAction.ON(), LookAction.class);
+        register(new ServerLookAction(), LookAction.class);
         register(new ServerFishAction(), FishAction.class);
         register(new ServerSwimAction(), SwimAction.class);
         register(new ServerRotationAction(), RotationAction.class);
         register(new ServerMoveAction(), MoveAction.class);
+        register(new ServerMountAction(), MountAction.class);
+        register(new ServerSwapAction(), SwapAction.class);
     }
 
     public static boolean register(@NotNull ServerBotAction<?> action, Class<? extends BotAction<?>> type) {

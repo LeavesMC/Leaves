@@ -81,7 +81,7 @@ index 514f8fbdeb776087608665c35de95294aadf5cf0..2f78ca86f46ea08fdcf4b8047d3d0b04
                              if (players.size() >= resultLimit) {
                                  return players;
 diff --git a/net/minecraft/server/MinecraftServer.java b/net/minecraft/server/MinecraftServer.java
-index a9322925daca18b3f3120bd540c47b4758b1ecf7..57b0ec8336722197dae868d92d8733330f0b0722 100644
+index 39898e5e2bd75eced05f0b90b3881270d144fd93..25087f470db918dbca3ec582581d02822e5ff17d 100644
 --- a/net/minecraft/server/MinecraftServer.java
 +++ b/net/minecraft/server/MinecraftServer.java
 @@ -1638,7 +1638,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
@@ -93,6 +93,15 @@ index a9322925daca18b3f3120bd540c47b4758b1ecf7..57b0ec8336722197dae868d92d873333
          int maxPlayers = this.getMaxPlayers();
          if (this.hidesOnlinePlayers()) {
              return new ServerStatus.Players(maxPlayers, players.size(), List.of());
+@@ -1852,7 +1852,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+ 
+     @Override
+     public int getPlayerCount() {
+-        return this.playerList.getPlayerCount();
++        return this.playerList.realPlayers.size(); // Leaves - only real player
+     }
+ 
+     @Override
 diff --git a/net/minecraft/server/PlayerAdvancements.java b/net/minecraft/server/PlayerAdvancements.java
 index a14401edec04964e6c596c16ba58643b835ef9c1..924829d46f789752aab52c0a51f4d0925710eadf 100644
 --- a/net/minecraft/server/PlayerAdvancements.java
@@ -106,6 +115,41 @@ index a14401edec04964e6c596c16ba58643b835ef9c1..924829d46f789752aab52c0a51f4d092
              return false;
          }
          // Leaves end - bot can't get advancement
+diff --git a/net/minecraft/server/ServerScoreboard.java b/net/minecraft/server/ServerScoreboard.java
+index 5c9f2a8476ff260ec7f0843f7c956c71e9b0d34d..22d67e72e0bf2dbe8c7a936260bb3577c2cfa10b 100644
+--- a/net/minecraft/server/ServerScoreboard.java
++++ b/net/minecraft/server/ServerScoreboard.java
+@@ -244,7 +244,7 @@ public class ServerScoreboard extends Scoreboard {
+     public void startTrackingObjective(Objective objective) {
+         List<Packet<?>> startTrackingPackets = this.getStartTrackingPackets(objective);
+ 
+-        for (ServerPlayer serverPlayer : this.server.getPlayerList().getPlayers()) {
++        for (ServerPlayer serverPlayer : this.server.getPlayerList().realPlayers) { // Leaves - only real players
+             if (serverPlayer.getBukkitEntity().getScoreboard().getHandle() != this) continue; // CraftBukkit - Only players on this board
+             for (Packet<?> packet : startTrackingPackets) {
+                 serverPlayer.connection.send(packet);
+@@ -270,7 +270,7 @@ public class ServerScoreboard extends Scoreboard {
+     public void stopTrackingObjective(Objective objective) {
+         List<Packet<?>> stopTrackingPackets = this.getStopTrackingPackets(objective);
+ 
+-        for (ServerPlayer serverPlayer : this.server.getPlayerList().getPlayers()) {
++        for (ServerPlayer serverPlayer : this.server.getPlayerList().realPlayers) { // Leaves - only real players
+             if (serverPlayer.getBukkitEntity().getScoreboard().getHandle() != this) continue; // CraftBukkit - Only players on this board
+             for (Packet<?> packet : stopTrackingPackets) {
+                 serverPlayer.connection.send(packet);
+diff --git a/net/minecraft/server/commands/ListPlayersCommand.java b/net/minecraft/server/commands/ListPlayersCommand.java
+index c6ae34f91b3629990294fc5e69237a1e600ef038..2109b0a2d4099e64c34cd1c45b83f72654d3b615 100644
+--- a/net/minecraft/server/commands/ListPlayersCommand.java
++++ b/net/minecraft/server/commands/ListPlayersCommand.java
+@@ -33,7 +33,7 @@ public class ListPlayersCommand {
+     private static int format(CommandSourceStack source, Function<ServerPlayer, Component> nameExtractor) {
+         PlayerList playerList = source.getServer().getPlayerList();
+         // CraftBukkit start
+-        List<ServerPlayer> playersTemp = playerList.getPlayers();
++        List<ServerPlayer> playersTemp = playerList.realPlayers;
+         if (source.getBukkitSender() instanceof org.bukkit.entity.Player) {
+             org.bukkit.entity.Player sender = (org.bukkit.entity.Player) source.getBukkitSender();
+             playersTemp = playersTemp.stream().filter((ep) -> sender.canSee(ep.getBukkitEntity())).collect(java.util.stream.Collectors.toList());
 diff --git a/net/minecraft/server/commands/OpCommand.java b/net/minecraft/server/commands/OpCommand.java
 index f2286b96b8f40b4588f817913c42ae7b4a92340f..dbe6c37642d35ac6ee8b428cf1e45878a5dfa9da 100644
 --- a/net/minecraft/server/commands/OpCommand.java
@@ -142,7 +186,7 @@ index e6de7ef46d197c14495d4b55d094af34816fc063..5072dc7ac71e1640b2aad35c3c3560e0
                  }
                  // Leaves end - skip
 diff --git a/net/minecraft/server/players/PlayerList.java b/net/minecraft/server/players/PlayerList.java
-index 318ce28d0eb6373ecfb2f15d210085f8156ff8c7..de411c04a010d8d2b091b9060d42d4074a6712c8 100644
+index 7a0d36b9c6a633919a116fc4d47e500b2c6cbc28..95cb24f44412e2aad5f15f8256e3506366c1412d 100644
 --- a/net/minecraft/server/players/PlayerList.java
 +++ b/net/minecraft/server/players/PlayerList.java
 @@ -130,6 +130,7 @@ public abstract class PlayerList {
@@ -287,7 +331,15 @@ index 318ce28d0eb6373ecfb2f15d210085f8156ff8c7..de411c04a010d8d2b091b9060d42d407
              this.playersByName.put(player.getScoreboardName().toLowerCase(java.util.Locale.ROOT), player); // Spigot
              this.playersByUUID.put(player.getUUID(), player);
              // this.broadcastAll(ClientboundPlayerInfoUpdatePacket.createPlayerInitializing(List.of(player))); // CraftBukkit - replaced with loop below
-@@ -517,6 +638,43 @@ public abstract class PlayerList {
+@@ -503,6 +624,7 @@ public abstract class PlayerList {
+     }
+ 
+     protected void save(ServerPlayer player) {
++        if (player instanceof org.leavesmc.leaves.replay.ServerPhotographer) return; // Leaves - skip photographer
+         if (!player.getBukkitEntity().isPersistent()) return; // CraftBukkit
+         player.lastSave = MinecraftServer.currentTick; // Paper - Incremental chunk and player saving
+         this.playerIo.save(player);
+@@ -517,6 +639,43 @@ public abstract class PlayerList {
          }
      }
  
@@ -331,7 +383,7 @@ index 318ce28d0eb6373ecfb2f15d210085f8156ff8c7..de411c04a010d8d2b091b9060d42d407
      public @Nullable net.kyori.adventure.text.Component remove(ServerPlayer player) { // CraftBukkit - return string // Paper - return Component
          // Paper start - Fix kick event leave message not being sent
          return this.remove(player, net.kyori.adventure.text.Component.translatable("multiplayer.player.left", net.kyori.adventure.text.format.NamedTextColor.YELLOW, io.papermc.paper.configuration.GlobalConfiguration.get().messages.useDisplayNameInQuitMessage ? player.getBukkitEntity().displayName() : io.papermc.paper.adventure.PaperAdventure.asAdventure(player.getDisplayName())));
-@@ -592,6 +750,7 @@ public abstract class PlayerList {
+@@ -590,6 +749,7 @@ public abstract class PlayerList {
          player.retireScheduler(); // Paper - Folia schedulers
          player.getAdvancements().stopListening();
          this.players.remove(player);
@@ -339,7 +391,27 @@ index 318ce28d0eb6373ecfb2f15d210085f8156ff8c7..de411c04a010d8d2b091b9060d42d407
          this.playersByName.remove(player.getScoreboardName().toLowerCase(java.util.Locale.ROOT)); // Spigot
          this.server.getCustomBossEvents().onPlayerDisconnect(player);
          UUID uuid = player.getUUID();
-@@ -1032,7 +1191,7 @@ public abstract class PlayerList {
+@@ -964,14 +1124,14 @@ public abstract class PlayerList {
+     }
+ 
+     public String[] getPlayerNamesArray() {
+-        String[] strings = new String[this.players.size() + this.server.getBotList().bots.size()]; // Leaves - fakeplayer support
++        String[] strings = new String[this.realPlayers.size() + this.server.getBotList().bots.size()]; // Leaves - fakeplayer support, and skip photographer
+ 
+-        for (int i = 0; i < this.players.size(); i++) {
+-            strings[i] = this.players.get(i).getGameProfile().getName();
++        for (int i = 0; i < this.realPlayers.size(); i++) { // Leaves - only real players
++            strings[i] = this.realPlayers.get(i).getGameProfile().getName(); // Leaves - only real players
+         }
+         // Leaves start - fakeplayer support
+-        for (int i = this.players.size(); i < strings.length; ++i) {
+-            strings[i] = this.server.getBotList().bots.get(i - this.players.size()).getGameProfile().getName();
++        for (int i = this.realPlayers.size(); i < strings.length; ++i) { // Leaves - only real players
++            strings[i] = this.server.getBotList().bots.get(i - this.realPlayers.size()).getGameProfile().getName(); // Leaves - only real players
+         }
+         // Leaves end - fakeplayer support
+ 
+@@ -1030,7 +1190,7 @@ public abstract class PlayerList {
  
      // Paper start - whitelist verify event / login event
      public LoginResult canBypassFullServerLogin(final GameProfile profile, final LoginResult currentResult) {

@@ -1,108 +1,82 @@
 package org.leavesmc.leaves.bot.agent.actions;
 
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.entity.decoration.ArmorStand;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
-import org.apache.commons.lang3.tuple.Pair;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.command.CommandArgument;
-import org.leavesmc.leaves.command.CommandArgumentResult;
-import org.leavesmc.leaves.command.CommandArgumentType;
 import org.leavesmc.leaves.entity.bot.actions.CraftUseItemAutoAction;
-import org.leavesmc.leaves.event.bot.BotActionStopEvent;
 
-import java.util.Collections;
+import static org.leavesmc.leaves.bot.agent.actions.ServerUseItemAction.useItem;
+import static org.leavesmc.leaves.bot.agent.actions.ServerUseItemOnAction.useItemOn;
+import static org.leavesmc.leaves.bot.agent.actions.ServerUseItemToAction.useItemTo;
 
-public class ServerUseItemAutoAction extends ServerTimerBotAction<ServerUseItemAutoAction> {
-    private int useTick = -1;
-    private int tickToRelease = -1;
+public class ServerUseItemAutoAction extends ServerUseBotAction<ServerUseItemAutoAction> {
 
     public ServerUseItemAutoAction() {
-        super("use_auto", CommandArgument.of(CommandArgumentType.INTEGER, CommandArgumentType.INTEGER, CommandArgumentType.INTEGER, CommandArgumentType.INTEGER), ServerUseItemAutoAction::new);
-        this.setSuggestion(3, Pair.of(Collections.singletonList("-1"), "[UseTick]"));
+        super("use_auto", ServerUseItemAutoAction::new);
     }
 
     @Override
-    public void init() {
-        super.init();
-        syncTickToRelease();
-    }
-
-    @Override
-    public void loadCommand(ServerPlayer player, @NotNull CommandArgumentResult result) {
-        super.loadCommand(player, result);
-        this.useTick = result.readInt(-1);
-    }
-
-    @Override
-    public boolean doTick(@NotNull ServerBot bot) {
-        tickToRelease--;
-        if (tickToRelease >= 0) {
-            boolean result = execute(bot);
-            if (useTick >= 0) {
+    protected boolean interact(ServerBot bot) {
+        HitResult hitResult = getHitResult(bot);
+        for (InteractionHand hand : InteractionHand.values()) {
+            ItemStack itemStack = bot.getItemInHand(hand);
+            if (!itemStack.isItemEnabled(bot.level().enabledFeatures())) {
                 return false;
-            } else {
-                return result;
             }
+
+            if (hitResult != null) {
+                switch (hitResult.getType()) {
+                    case ENTITY -> {
+                        EntityHitResult entityHitResult = (EntityHitResult) hitResult;
+                        InteractionResult entityResult = useItemTo(bot, entityHitResult, hand);
+                        if (entityResult instanceof InteractionResult.Success) {
+                            return true;
+                        } else if (entityResult instanceof InteractionResult.Pass && entityHitResult.getEntity() instanceof ArmorStand) {
+                            return false;
+                        }
+                    }
+                    case BLOCK -> {
+                        InteractionResult blockResult = useItemOn(bot, (BlockHitResult) hitResult, hand);
+                        if (blockResult instanceof InteractionResult.Success) {
+                            return true;
+                        } else if (blockResult instanceof InteractionResult.Fail) {
+                            return false;
+                        }
+                    }
+                }
+            }
+            if (!itemStack.isEmpty() && useItem(bot, hand) instanceof InteractionResult.Success) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static @Nullable HitResult getHitResult(@NotNull ServerBot bot) {
+        Vec3 eyePos = bot.getEyePosition();
+
+        EntityHitResult entityHitResult = bot.getEntityHitResult();
+        double entityDistance = entityHitResult != null ? entityHitResult.getLocation().distanceToSqr(eyePos) : Double.MAX_VALUE;
+
+        BlockHitResult blockHitResult = bot.getBlockHitResult();
+        double blockDistance = blockHitResult != null ? blockHitResult.getLocation().distanceToSqr(eyePos) : Double.MAX_VALUE;
+
+        if (entityDistance == Double.MAX_VALUE && blockDistance == Double.MAX_VALUE) {
+            return null;
+        } else if (entityDistance < blockDistance) {
+            return entityHitResult;
         } else {
-            syncTickToRelease();
-            bot.releaseUsingItem();
-            return true;
+            return blockHitResult;
         }
-    }
-
-    private void syncTickToRelease() {
-        if (this.useTick >= 0) {
-            this.tickToRelease = this.useTick;
-        } else {
-            this.tickToRelease = Integer.MAX_VALUE;
-        }
-    }
-
-    public int getUseTick() {
-        return useTick;
-    }
-
-    public void setUseTick(int useTick) {
-        this.useTick = useTick;
-    }
-
-    public boolean execute(@NotNull ServerBot bot) {
-        if (bot.isUsingItem()) {
-            return false;
-        }
-
-        EntityHitResult entityHitResult = bot.getEntityHitResult(3, null);
-        BlockHitResult blockHitResult = (BlockHitResult) bot.getRayTrace(5, ClipContext.Fluid.NONE);
-        boolean mainSuccess, useTo = entityHitResult != null, useOn = !bot.level().getBlockState(blockHitResult.getBlockPos()).isAir();
-        if (useTo) {
-            InteractionResult result = ServerUseItemToAction.execute(bot, entityHitResult);
-            mainSuccess = result.consumesAction() || (result == InteractionResult.PASS && ServerUseItemAction.execute(bot));
-        } else if (useOn) {
-            mainSuccess = ServerUseItemOnAction.execute(bot, blockHitResult) || ServerUseItemAction.execute(bot);
-        } else {
-            mainSuccess = ServerUseItemAction.execute(bot);
-        }
-        if (mainSuccess) {
-            return true;
-        }
-        if (useTo) {
-            InteractionResult result = ServerUseItemToOffhandAction.execute(bot, entityHitResult);
-            return result.consumesAction() || (result == InteractionResult.PASS && ServerUseItemOffhandAction.execute(bot));
-        } else if (useOn) {
-            return ServerUseItemOnOffhandAction.execute(bot, blockHitResult) || ServerUseItemOffhandAction.execute(bot);
-        } else {
-            return ServerUseItemOffhandAction.execute(bot);
-        }
-    }
-
-    @Override
-    public void stop(@NotNull ServerBot bot, BotActionStopEvent.Reason reason) {
-        super.stop(bot, reason);
-        bot.completeUsingItem();
     }
 
     @Override

@@ -32,6 +32,7 @@ import net.minecraft.world.entity.EntitySelector;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.PositionMoveRotation;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.player.Input;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.entity.vehicle.AbstractBoat;
@@ -44,6 +45,7 @@ import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
@@ -84,6 +86,7 @@ public class ServerBot extends ServerPlayer {
     public boolean resume = false;
     public BotCreateState createState;
     public UUID createPlayer;
+    public boolean handsBusy = false;
 
     private final int tracingRange;
     private final BotStatsCounter stats;
@@ -153,6 +156,19 @@ public class ServerBot extends ServerPlayer {
         if (this.getConfigValue(Configs.TICK_TYPE) == TickType.ENTITY_LIST) {
             this.doTick();
         }
+
+        Input input = this.getLastClientInput();
+        this.setLastClientInput(
+            new Input(
+                this.zza > 0,
+                this.zza < 0,
+                this.xxa > 0,
+                this.xxa < 0,
+                input.jump(),
+                input.shift(),
+                input.sprint()
+            )
+        );
     }
 
     @Override
@@ -231,6 +247,23 @@ public class ServerBot extends ServerPlayer {
     }
 
     @Override
+    public void removeVehicle() {
+        super.removeVehicle();
+        this.handsBusy = false;
+    }
+
+    @Override
+    public void rideTick() {
+        super.rideTick();
+        this.handsBusy = false;
+        if (this.getControlledVehicle() instanceof AbstractBoat abstractBoat) {
+            Input input = this.getLastClientInput();
+            abstractBoat.setInput(input.left(), input.right(), input.forward(), input.backward());
+            this.handsBusy = this.handsBusy | (input.left() || input.right() || input.forward() || input.backward());
+        }
+    }
+
+    @Override
     public @Nullable ServerBot teleport(@NotNull TeleportTransition teleportTransition) {
         if (this.isSleeping() || this.isRemoved()) {
             return null;
@@ -274,6 +307,12 @@ public class ServerBot extends ServerPlayer {
         }
 
         return this;
+    }
+
+    @Override
+    public void setServerLevel(ServerLevel level) {
+        BotList.INSTANCE.updateBotLevel(this, level);
+        super.setServerLevel(level);
     }
 
     @Override
@@ -435,12 +474,15 @@ public class ServerBot extends ServerPlayer {
         }
     }
 
-    public void renderAll() {
+    public void renderInfo() {
         this.getServer().getPlayerList().getPlayers().forEach(
-            player -> {
-                this.sendPlayerInfo(player);
-                this.sendFakeDataIfNeed(player, false);
-            }
+            player -> this.sendPlayerInfo(player)
+        );
+    }
+
+    public void renderData() {
+        this.getServer().getPlayerList().getPlayers().forEach(
+            player -> this.sendFakeDataIfNeed(player, false)
         );
     }
 
@@ -515,12 +557,20 @@ public class ServerBot extends ServerPlayer {
         return this.getBukkitEntity().getLocation();
     }
 
-    public EntityHitResult getEntityHitResult(int maxDistance, Predicate<? super Entity> predicate) {
-        EntityHitResult result = this.pick(this, maxDistance);
+    public EntityHitResult getEntityHitResult() {
+        return this.getEntityHitResult(null);
+    }
+
+    public EntityHitResult getEntityHitResult(Predicate<? super Entity> predicate) {
+        EntityHitResult result = this.pick(this, this.entityInteractionRange());
         if (result != null && (predicate == null || predicate.test(result.getEntity()))) {
             return result;
         }
         return null;
+    }
+
+    public BlockHitResult getBlockHitResult() {
+        return (BlockHitResult) this.pick(this.blockInteractionRange(), 1.0f, false);
     }
 
     private EntityHitResult pick(Entity entity, double maxDistance) {

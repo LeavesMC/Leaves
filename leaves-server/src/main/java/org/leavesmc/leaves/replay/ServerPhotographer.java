@@ -55,6 +55,8 @@ public class ServerPhotographer extends ServerPlayer {
         GameProfile profile = new GameProfile(UUID.randomUUID(), state.id);
 
         ServerPhotographer photographer = new ServerPhotographer(server, world, profile);
+        photographer.absSnapTo(state.loc.x(), state.loc.y(), state.loc.z(), state.loc.getYaw(), state.loc.getPitch());
+
         photographer.recorder = new Recorder(photographer, state.option, new File("replay", state.id));
         photographer.saveFile = new File("replay", state.id + ".mcpr");
         photographer.createState = state;
@@ -75,7 +77,6 @@ public class ServerPhotographer extends ServerPlayer {
     @Override
     public void tick() {
         super.tick();
-        super.doTick();
 
         if (this.getServer().getTickCount() % 10 == 0) {
             connection.resetPosition();
@@ -144,6 +145,10 @@ public class ServerPhotographer extends ServerPlayer {
     public void setFollowPlayer(ServerPlayer followPlayer) {
         this.setCamera(followPlayer);
         this.followPlayer = followPlayer;
+    }
+
+    public ServerPlayer getFollowPlayer() {
+        return followPlayer;
     }
 
     public void setSaveFile(File saveFile) {

@@ -18,6 +18,7 @@ public class McTechnicalModeHelper {
         GlobalConfiguration.get().unsupportedSettings.allowHeadlessPistons = true;
         GlobalConfiguration.get().unsupportedSettings.allowPermanentBlockBreakExploits = true;
         GlobalConfiguration.get().unsupportedSettings.allowUnsafeEndPortalTeleportation = true;
+        GlobalConfiguration.get().unsupportedSettings.skipTripwireHookPlacementValidation = true;
         GlobalConfiguration.get().packetLimiter.allPackets = new GlobalConfiguration.PacketLimiter.PacketLimit(GlobalConfiguration.get().packetLimiter.allPackets.interval(),
             5000.0, GlobalConfiguration.get().packetLimiter.allPackets.action());
         GlobalConfiguration.get().packetLimiter.overrides = Map.of();

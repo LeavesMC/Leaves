@@ -3,6 +3,7 @@ package org.leavesmc.leaves.bot.agent.actions;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
 import org.apache.commons.lang3.tuple.Pair;
+import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.command.CommandArgument;
@@ -20,8 +21,8 @@ public class ServerRotationAction extends ServerBotAction<ServerRotationAction> 
 
     public ServerRotationAction() {
         super("rotation", CommandArgument.of(CommandArgumentType.FLOAT, CommandArgumentType.FLOAT), ServerRotationAction::new);
-        this.setSuggestion(0, (sender, arg) -> sender instanceof ServerPlayer player ? Pair.of(List.of(DF.format(player.getYRot())), "[yaw]") : Pair.of(List.of("0"), "<yaw>"));
-        this.setSuggestion(1, (sender, arg) -> sender instanceof ServerPlayer player ? Pair.of(List.of(DF.format(player.getXRot())), "[pitch]") : Pair.of(List.of("0"), "<pitch>"));
+        this.setSuggestion(0, (sender, arg) -> sender instanceof Player player ? Pair.of(List.of(DF.format(player.getYaw())), "[yaw]") : Pair.of(List.of("0"), "<yaw>"));
+        this.setSuggestion(1, (sender, arg) -> sender instanceof Player player ? Pair.of(List.of(DF.format(player.getPitch())), "[pitch]") : Pair.of(List.of("0"), "<pitch>"));
     }
 
     private float yaw = 0.0f;

@@ -1,11 +1,14 @@
 package org.leavesmc.leaves;
 
 import com.destroystokyo.paper.util.SneakyThrow;
+import io.papermc.paper.adventure.PaperAdventure;
 import io.papermc.paper.configuration.GlobalConfiguration;
+import net.kyori.adventure.text.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import org.bukkit.command.Command;
+import org.bukkit.configuration.MemorySection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.permissions.Permission;
 import org.bukkit.permissions.PermissionDefault;
@@ -15,6 +18,7 @@ import org.leavesmc.leaves.bot.BotCommand;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.bot.agent.Actions;
 import org.leavesmc.leaves.command.LeavesCommand;
+import org.leavesmc.leaves.config.ConfigTransformer;
 import org.leavesmc.leaves.config.ConfigValidatorImpl.BooleanConfigValidator;
 import org.leavesmc.leaves.config.ConfigValidatorImpl.DoubleConfigValidator;
 import org.leavesmc.leaves.config.ConfigValidatorImpl.EnumConfigValidator;
@@ -333,21 +337,24 @@ public final class LeavesConfig {
             @GlobalConfig("old-zombie-piglin-drop")
             public boolean oldZombiePiglinDrop = false;
 
-            public RaidConfig raid = new RaidConfig();
+            @RemovedConfig(name = "revert-raid-changes", category = {"modify", "minecraft-old"}, transform = true, transformer = RaidConfigTransformer.class)
+            @GlobalConfig("old-raid-behavior")
+            public boolean oldRaidBehavior = false;
 
-            @GlobalConfigCategory("revert-raid-changes")
-            public static class RaidConfig {
-                @GlobalConfig("allow-bad-omen-trigger-raid")
-                public boolean allowBadOmenTriggerRaid = false;
+            public static class RaidConfigTransformer implements ConfigTransformer<MemorySection, Boolean> {
 
-                @GlobalConfig("give-bad-omen-when-kill-patrol-leader")
-                public boolean giveBadOmenWhenKillPatrolLeader = false;
+                @Override
+                public Boolean transform(@NotNull MemorySection raidConfig) {
+                    return raidConfig.getBoolean("allow-bad-omen-trigger-raid")
+                        || raidConfig.getBoolean("give-bad-omen-when-kill-patrol-leader")
+                        || raidConfig.getBoolean("skip-height-check")
+                        || raidConfig.getBoolean("use-old-find-spawn-position");
+                }
 
-                @GlobalConfig("use-old-find-spawn-position")
-                public boolean useOldFindSpawnPosition = false;
-
-                @GlobalConfig("skip-height-check")
-                public boolean skipHeightCheck = false;
+                @Override
+                public MemorySection stringConvert(String value) throws IllegalArgumentException {
+                    return null;
+                }
             }
 
             @GlobalConfig("old-zombie-reinforcement")
@@ -618,8 +625,17 @@ public final class LeavesConfig {
         @GlobalConfig("bow-infinity-fix")
         public boolean bowInfinityFix = false;
 
-        @GlobalConfig("hopper-counter")
-        public boolean hopperCounter = false;
+        public HopperCounterConfig hopperCounter = new HopperCounterConfig();
+
+        @GlobalConfigCategory("counter")
+        public static class HopperCounterConfig {
+            @RemovedConfig(name = "hopper-counter", category = "modify", transform = true)
+            @GlobalConfig("enable")
+            public boolean enable = false;
+
+            @GlobalConfig("unlimited-speed")
+            public boolean unlimitedSpeed = false;
+        }
 
         @GlobalConfig(value = "spider-jockeys-drop-gapples", validator = JockeysDropGAppleValidator.class)
         public double spiderJockeysDropGapples = -1.0;
@@ -767,6 +783,9 @@ public final class LeavesConfig {
 
         @GlobalConfig("fix-villagers-dont-release-memory")
         public boolean villagersDontReleaseMemoryFix = false;
+
+        @GlobalConfig(value = "sleeping-block-entity", lock = true)
+        public boolean sleepingBlockEntity = false;
 
         @RemovedConfig(name = "biome-temperatures-use-aging-cache", category = "performance")
         @RemovedConfig(name = "cache-world-generator-sea-level", category = "performance")
@@ -1042,7 +1061,7 @@ public final class LeavesConfig {
             public String source = "application";
 
             public static class DownloadSourceValidator extends StringConfigValidator {
-                private static List<String> suggestSourceList = List.of("application", "cloud");
+                private static final List<String> suggestSourceList = List.of("application", "cloud");
 
                 @Override
                 public List<String> valueSuggest() {
@@ -1132,6 +1151,9 @@ public final class LeavesConfig {
 
         @GlobalConfig("leaves-packet-event")
         public boolean leavesPacketEvent = true;
+
+        @GlobalConfig("chat-command-max-length")
+        public int chatCommandMaxLength = 32767;
     }
 
     public static RegionConfig region = new RegionConfig();
@@ -1200,8 +1222,20 @@ public final class LeavesConfig {
         @GlobalConfig("vanilla-hopper")
         public boolean vanillaHopper = false;
 
-        @GlobalConfig("vanilla-display-name")
-        public boolean vanillaDisplayName = false;
+        @GlobalConfig(value = "vanilla-display-name", validator = DisplayNameValidator.class)
+        public boolean vanillaDisplayName = true;
+
+        private static class DisplayNameValidator extends BooleanConfigValidator {
+            @Override
+            public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
+                if (value == old) {
+                    return;
+                }
+                for (ServerPlayer player : MinecraftServer.getServer().getPlayerList().getPlayers()) {
+                    player.adventure$displayName = value ? PaperAdventure.asAdventure(player.getDisplayName()) : Component.text(player.getScoreboardName());
+                }
+            }
+        }
 
         @GlobalConfig("vanilla-portal-handle")
         public boolean vanillaPortalHandle = false;
@@ -1217,6 +1251,7 @@ public final class LeavesConfig {
         }
 
         @RemovedConfig(name = "spigot-EndPlatform-destroy", category = "fix")
+        @RemovedConfig(name = "vanilla-endermite-spawn", category = "fix")
         private final boolean removed = false;
     }
 }

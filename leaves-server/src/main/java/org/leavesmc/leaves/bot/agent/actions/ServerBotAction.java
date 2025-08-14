@@ -76,13 +76,13 @@ public abstract class ServerBotAction<E extends ServerBotAction<E>> {
 
             event.callEvent();
             if (event.getResult() == BotActionExecuteEvent.Result.SOFT_CANCEL) {
-                this.tickToNext = this.getDoIntervalTick() - 1;
+                this.tickToNext = this.getDoIntervalTick();
                 return;
             } else if (event.getResult() == BotActionExecuteEvent.Result.HARD_CANCEL) {
                 if (this.numberRemaining > 0) {
                     this.numberRemaining--;
                 }
-                this.tickToNext = this.getDoIntervalTick() - 1;
+                this.tickToNext = this.getDoIntervalTick();
                 return;
             }
 
@@ -90,7 +90,7 @@ public abstract class ServerBotAction<E extends ServerBotAction<E>> {
                 if (this.numberRemaining > 0) {
                     this.numberRemaining--;
                 }
-                this.tickToNext = this.getDoIntervalTick() - 1;
+                this.tickToNext = this.getDoIntervalTick();
                 if (this.onSuccess != null) {
                     this.onSuccess.accept((E) this);
                 }
@@ -178,7 +178,7 @@ public abstract class ServerBotAction<E extends ServerBotAction<E>> {
     }
 
     public void setDoIntervalTick(int initialTickInterval) {
-        this.initialTickInterval = Math.max(1, initialTickInterval);
+        this.initialTickInterval = Math.max(0, initialTickInterval);
     }
 
     public int getDoIntervalTick() {

@@ -339,6 +339,6 @@ public class HopperCounter {
     }
 
     public static boolean isEnabled() {
-        return LeavesConfig.modify.hopperCounter && enabled;
+        return LeavesConfig.modify.hopperCounter.enable && enabled;
     }
 }

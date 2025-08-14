@@ -513,6 +513,19 @@ public class ServerBot extends ServerPlayer {
         this.getServer().getBotList().removeBot(this, BotRemoveEvent.RemoveReason.DEATH, null, false);
     }
 
+    @Override
+    public boolean startRiding(Entity vehicle, boolean force) {
+        if (super.startRiding(vehicle, force)) {
+            if (vehicle instanceof AbstractBoat) {
+                this.setDeltaMovement(Vec3.ZERO);
+                this.setYRot(vehicle.yRotO);
+            }
+            return true;
+        } else {
+            return false;
+        }
+    }
+
     public void removeTab() {
         this.sendPacket(new ClientboundPlayerInfoRemovePacket(List.of(this.getUUID())));
     }

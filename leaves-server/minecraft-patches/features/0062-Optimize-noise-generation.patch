@@ -6,7 +6,7 @@ Subject: [PATCH] Optimize noise generation
 This patch is Powered by Gale(https://github.com/GaleMC/Gale)
 
 diff --git a/net/minecraft/world/level/levelgen/synth/ImprovedNoise.java b/net/minecraft/world/level/levelgen/synth/ImprovedNoise.java
-index fb11a2eea540d55e50eab59f9857ca5d99f556f8..47225646e98b5707af167cf8758f44c42c3cd38c 100644
+index fb11a2eea540d55e50eab59f9857ca5d99f556f8..a54ad0b2731b83ee2e3de09972c62992fbea0ff6 100644
 --- a/net/minecraft/world/level/levelgen/synth/ImprovedNoise.java
 +++ b/net/minecraft/world/level/levelgen/synth/ImprovedNoise.java
 @@ -11,6 +11,27 @@ public final class ImprovedNoise {
@@ -37,72 +37,99 @@ index fb11a2eea540d55e50eab59f9857ca5d99f556f8..47225646e98b5707af167cf8758f44c4
      public ImprovedNoise(RandomSource random) {
          this.xo = random.nextDouble() * 256.0;
          this.yo = random.nextDouble() * 256.0;
-@@ -41,9 +62,20 @@ public final class ImprovedNoise {
-         int floor = Mth.floor(d);
-         int floor1 = Mth.floor(d1);
-         int floor2 = Mth.floor(d2);
+@@ -38,40 +59,78 @@ public final class ImprovedNoise {
+         double d = x + this.xo;
+         double d1 = y + this.yo;
+         double d2 = z + this.zo;
+-        int floor = Mth.floor(d);
+-        int floor1 = Mth.floor(d1);
+-        int floor2 = Mth.floor(d2);
 -        double d3 = d - floor;
 -        double d4 = d1 - floor1;
 -        double d5 = d2 - floor2;
+-        double d7;
+-        if (yScale != 0.0) {
+-            double d6;
+-            if (yMax >= 0.0 && yMax < d4) {
+-                d6 = yMax;
 +        // Leaves start - optimize noise generation
-+        double d3;
-+        double d4;
-+        double d5;
 +        if (!org.leavesmc.leaves.LeavesConfig.performance.optimizeNoiseGeneration) {
-+            d3 = d - (double)floor;
-+            d4 = d1 - (double)floor1;
-+            d5 = d2 - (double)floor2;
-+        } else {
-+            d3 = d - floor;
-+            d4 = d1 - floor1;
-+            d5 = d2 - floor2;
-+        }
-+        // Leaves end - optimize noise generation
-         double d7;
-         if (yScale != 0.0) {
-             double d6;
-@@ -53,12 +85,24 @@ public final class ImprovedNoise {
-                 d6 = d4;
++            int floor = Mth.floor(d);
++            int floor1 = Mth.floor(d1);
++            int floor2 = Mth.floor(d2);
++            double d3 = d - floor;
++            double d4 = d1 - floor1;
++            double d5 = d2 - floor2;
++            double d7;
++            if (yScale != 0.0) {
++                double d6;
++                if (yMax >= 0.0 && yMax < d4) {
++                    d6 = yMax;
++                } else {
++                    d6 = d4;
++                }
++
++                d7 = Mth.floor(d6 / yScale + 1.0E-7F) * yScale;
+             } else {
+-                d6 = d4;
++                d7 = 0.0;
              }
  
 -            d7 = Mth.floor(d6 / yScale + 1.0E-7F) * yScale;
-+            // Leaves start - optimize noise generation
-+            if (!org.leavesmc.leaves.LeavesConfig.performance.optimizeNoiseGeneration) {
-+                d7 = (double)Mth.floor(d6 / yScale + 1.0E-7F) * yScale;
-+            } else {
-+                d7 = Math.floor(d6 / yScale + (double)1.0E-7F) * yScale;
-+            }
-+            // Leaves end - optimize noise generation
++            return this.sampleAndLerp(floor, floor1, floor2, d3, d4 - d7, d5, d4);
          } else {
-             d7 = 0.0;
-         }
+-            d7 = 0.0;
+-        }
++            double floor = Math.floor(d);
++            double floor1 = Math.floor(d1);
++            double floor2 = Math.floor(d2);
++            double d3 = d - floor;
++            double d4 = d1 - floor1;
++            double d5 = d2 - floor2;
++            double d7;
++            if (yScale != 0.0) {
++                double d6;
++                if (yMax >= 0.0 && yMax < d4) {
++                    d6 = yMax;
++                } else {
++                    d6 = d4;
++                }
++
++                d7 = Math.floor(d6 / yScale + 1.0E-7F) * yScale;
++            } else {
++                d7 = 0.0;
++            }
  
 -        return this.sampleAndLerp(floor, floor1, floor2, d3, d4 - d7, d5, d4);
-+        // Leaves start - optimize noise generation
-+        if (!org.leavesmc.leaves.LeavesConfig.performance.optimizeNoiseGeneration) {
-+            return this.sampleAndLerp(floor, floor1, floor2, d3, d4 - d7, d5, d4);
-+        } else {
 +            return this.sampleAndLerp((int) floor, (int) floor1, (int) floor2, d3, d4 - d7, d5, d4);
 +        }
 +        // Leaves end - optimize noise generation
      }
  
      public double noiseWithDerivative(double x, double y, double z, double[] values) {
-@@ -68,10 +112,19 @@ public final class ImprovedNoise {
-         int floor = Mth.floor(d);
-         int floor1 = Mth.floor(d1);
-         int floor2 = Mth.floor(d2);
+         double d = x + this.xo;
+         double d1 = y + this.yo;
+         double d2 = z + this.zo;
+-        int floor = Mth.floor(d);
+-        int floor1 = Mth.floor(d1);
+-        int floor2 = Mth.floor(d2);
 -        double d3 = d - floor;
 -        double d4 = d1 - floor1;
 -        double d5 = d2 - floor2;
 -        return this.sampleWithDerivative(floor, floor1, floor2, d3, d4, d5, values);
 +        // Leaves start - optimize noise generation
 +        if (!org.leavesmc.leaves.LeavesConfig.performance.optimizeNoiseGeneration) {
-+            double d3 = d - (double)floor;
-+            double d4 = d1 - (double)floor1;
-+            double d5 = d2 - (double)floor2;
++            int floor = Mth.floor(d);
++            int floor1 = Mth.floor(d1);
++            int floor2 = Mth.floor(d2);
++            double d3 = d - floor;
++            double d4 = d1 - floor1;
++            double d5 = d2 - floor2;
 +            return this.sampleWithDerivative(floor, floor1, floor2, d3, d4, d5, values);
 +        } else {
++            double floor = Math.floor(d);
++            double floor1 = Math.floor(d1);
++            double floor2 = Math.floor(d2);
 +            double d3 = d - floor;
 +            double d4 = d1 - floor1;
 +            double d5 = d2 - floor2;
@@ -112,7 +139,7 @@ index fb11a2eea540d55e50eab59f9857ca5d99f556f8..47225646e98b5707af167cf8758f44c4
      }
  
      private static double gradDot(int gradIndex, double xFactor, double yFactor, double zFactor) {
-@@ -83,24 +136,90 @@ public final class ImprovedNoise {
+@@ -83,24 +142,90 @@ public final class ImprovedNoise {
      }
  
      private double sampleAndLerp(int gridX, int gridY, int gridZ, double deltaX, double weirdDeltaY, double deltaZ, double deltaY) {
@@ -185,7 +212,7 @@ index fb11a2eea540d55e50eab59f9857ca5d99f556f8..47225646e98b5707af167cf8758f44c4
 +            final int var26 = (this.p[var18] & 15) << 2;
 +            final int var27 = (this.p[var19] & 15) << 2;
 +            final double var60 = deltaX - 1.0;
-+            final double var61 = deltaY - 1.0;
++            final double var61 = weirdDeltaY - 1.0;
 +            final double var62 = deltaZ - 1.0;
 +            final double var87 = FLAT_SIMPLEX_GRAD[(var20) | 0] * deltaX + FLAT_SIMPLEX_GRAD[(var20) | 1] * weirdDeltaY + FLAT_SIMPLEX_GRAD[(var20) | 2] * deltaZ;
 +            final double var88 = FLAT_SIMPLEX_GRAD[(var21) | 0] * var60 + FLAT_SIMPLEX_GRAD[(var21) | 1] * weirdDeltaY + FLAT_SIMPLEX_GRAD[(var21) | 2] * deltaZ;
@@ -197,13 +224,13 @@ index fb11a2eea540d55e50eab59f9857ca5d99f556f8..47225646e98b5707af167cf8758f44c4
 +            final double var94 = FLAT_SIMPLEX_GRAD[(var27) | 0] * var60 + FLAT_SIMPLEX_GRAD[(var27) | 1] * var61 + FLAT_SIMPLEX_GRAD[(var27) | 2] * var62;
 +
 +            final double var95 = deltaX * 6.0 - 15.0;
-+            final double var96 = weirdDeltaY * 6.0 - 15.0;
++            final double var96 = deltaY * 6.0 - 15.0;
 +            final double var97 = deltaZ * 6.0 - 15.0;
 +            final double var98 = deltaX * var95 + 10.0;
-+            final double var99 = weirdDeltaY * var96 + 10.0;
++            final double var99 = deltaY * var96 + 10.0;
 +            final double var100 = deltaZ * var97 + 10.0;
 +            final double var101 = deltaX * deltaX * deltaX * var98;
-+            final double var102 = weirdDeltaY * weirdDeltaY * weirdDeltaY * var99;
++            final double var102 = deltaY * deltaY * deltaY * var99;
 +            final double var103 = deltaZ * deltaZ * deltaZ * var100;
 +
 +            final double var113 = var87 + var101 * (var88 - var87);
@@ -222,7 +249,7 @@ index fb11a2eea540d55e50eab59f9857ca5d99f556f8..47225646e98b5707af167cf8758f44c4
  
      private double sampleWithDerivative(int gridX, int gridY, int gridZ, double deltaX, double deltaY, double deltaZ, double[] noiseValues) {
 diff --git a/net/minecraft/world/level/levelgen/synth/PerlinNoise.java b/net/minecraft/world/level/levelgen/synth/PerlinNoise.java
-index da3c26fbad32d75d71f7e59c8c3341316a754756..82a2569139b088b30f9d8a13f50d556fefd78742 100644
+index da3c26fbad32d75d71f7e59c8c3341316a754756..fde3efb7fa4fb9332ec0faafc6f9c4262a4f55c5 100644
 --- a/net/minecraft/world/level/levelgen/synth/PerlinNoise.java
 +++ b/net/minecraft/world/level/levelgen/synth/PerlinNoise.java
 @@ -26,6 +26,10 @@ public class PerlinNoise {
@@ -260,7 +287,7 @@ index da3c26fbad32d75d71f7e59c8c3341316a754756..82a2569139b088b30f9d8a13f50d556f
 +            double e = this.lowestFreqInputFactor;
 +            double f = this.lowestFreqValueFactor;
 +
-+            for(int i = 0; i < this.octaveSamplersCount; ++i) {
++            for (int i = 0; i < this.octaveSamplersCount; ++i) {
 +                ImprovedNoise perlinNoiseSampler = this.noiseLevels[i];
 +                if (perlinNoiseSampler != null) {
 +                    @SuppressWarnings("deprecation")
@@ -279,3 +306,18 @@ index da3c26fbad32d75d71f7e59c8c3341316a754756..82a2569139b088b30f9d8a13f50d556f
      }
  
      @Deprecated
+@@ -187,7 +218,13 @@ public class PerlinNoise {
+     }
+ 
+     public static double wrap(double value) {
+-        return value - Mth.lfloor(value / 3.3554432E7 + 0.5) * 3.3554432E7;
++        // Leaves start - optimize noise generation
++        if (!org.leavesmc.leaves.LeavesConfig.performance.optimizeNoiseGeneration) {
++            return value - Mth.lfloor(value / 3.3554432E7 + 0.5) * 3.3554432E7;
++        } else {
++            return value - Math.floor(value / 3.3554432E7 + 0.5) * 3.3554432E7;
++        }
++        // Leaves end - optimize noise generation
+     }
+ 
+     protected int firstOctave() {

@@ -1,7 +1,7 @@
 package org.leavesmc.leaves.config.annotations;
 
-import org.leavesmc.leaves.config.AutoConfigValidator;
-import org.leavesmc.leaves.config.ConfigValidator;
+import org.leavesmc.leaves.config.api.impl.AutoConfigValidator;
+import org.leavesmc.leaves.config.api.ConfigValidator;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

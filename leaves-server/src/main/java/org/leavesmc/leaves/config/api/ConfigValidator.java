@@ -1,8 +1,10 @@
-package org.leavesmc.leaves.config;
+package org.leavesmc.leaves.config.api;
 
 import java.util.List;
 
 public interface ConfigValidator<E> extends ConfigConverter<E> {
+    E stringConvert(String value) throws IllegalArgumentException;
+
     default void verify(E old, E value) throws IllegalArgumentException {
     }
 

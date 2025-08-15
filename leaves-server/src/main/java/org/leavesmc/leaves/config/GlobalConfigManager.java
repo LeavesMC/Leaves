@@ -6,6 +6,8 @@ import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.LeavesLogger;
 import org.leavesmc.leaves.config.annotations.GlobalConfig;
 import org.leavesmc.leaves.config.annotations.GlobalConfigCategory;
+import org.leavesmc.leaves.config.annotations.TransferConfig;
+import org.leavesmc.leaves.config.api.ConfigValidator;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -32,6 +34,7 @@ public class GlobalConfigManager {
             initField(field, null, CONFIG_START);
         }
         verifiedConfigs.values().forEach(config -> config.validator().runAfterLoader(config.get(), false));
+        clearRemovedConfig();
         LeavesConfig.save();
 
         loaded = true;
@@ -46,28 +49,16 @@ public class GlobalConfigManager {
             initField(field, null, CONFIG_START);
         }
         verifiedConfigs.values().stream().filter(config -> !config.lock()).forEach(config -> config.validator().runAfterLoader(config.get(), true));
+        clearRemovedConfig();
         LeavesConfig.save();
-    }
-
-    private static void initCategory(@NotNull Field categoryField, @NotNull GlobalConfigCategory globalCategory, @Nullable Object upstreamField, @NotNull String upstreamPath) {
-        try {
-            Object category = categoryField.get(upstreamField);
-            String categoryPath = upstreamPath + globalCategory.value() + ".";
-            for (Field field : categoryField.getType().getDeclaredFields()) {
-                initField(field, category, categoryPath);
-            }
-            traverseToNodeOrCreate(categoryPath.substring(CONFIG_START.length()));
-        } catch (Exception e) {
-            LeavesLogger.LOGGER.severe("Failure to load leaves config" + upstreamPath, e);
-        }
     }
 
     private static void initField(@NotNull Field field, @Nullable Object upstreamField, @NotNull String upstreamPath) {
         if (upstreamField != null || Modifier.isStatic(field.getModifiers())) {
             field.setAccessible(true);
 
-            for (org.leavesmc.leaves.config.annotations.RemovedConfig config : field.getAnnotationsByType(org.leavesmc.leaves.config.annotations.RemovedConfig.class)) {
-                VerifiedRemovedConfig.build(config, field, upstreamField).run();
+            for (TransferConfig config : field.getAnnotationsByType(TransferConfig.class)) {
+                VerifiedTransferConfig.build(config, field, upstreamField).run();
             }
 
             GlobalConfig globalConfig = field.getAnnotation(GlobalConfig.class);
@@ -80,6 +71,19 @@ public class GlobalConfigManager {
             if (globalCategory != null) {
                 initCategory(field, globalCategory, upstreamField, upstreamPath);
             }
+        }
+    }
+
+    private static void initCategory(@NotNull Field categoryField, @NotNull GlobalConfigCategory globalCategory, @Nullable Object upstreamField, @NotNull String upstreamPath) {
+        try {
+            Object category = categoryField.get(upstreamField);
+            String categoryPath = upstreamPath + globalCategory.value() + ".";
+            for (Field field : categoryField.getType().getDeclaredFields()) {
+                initField(field, category, categoryPath);
+            }
+            traverseToNodeOrCreate(categoryPath.substring(CONFIG_START.length()));
+        } catch (Exception e) {
+            LeavesLogger.LOGGER.severe("Failure to load leaves config" + upstreamPath, e);
         }
     }
 
@@ -116,6 +120,19 @@ public class GlobalConfigManager {
         } catch (Exception e) {
             LeavesLogger.LOGGER.severe("Failure to load leaves config", e);
             throw new RuntimeException();
+        }
+    }
+
+    private static void clearRemovedConfig() {
+        for (String key : LeavesConfig.config.getKeys(true)) {
+            if (!key.startsWith(CONFIG_START) || key.equals(CONFIG_START)) {
+                continue;
+            }
+
+            String keyWithoutPrefix = key.substring(CONFIG_START.length());
+            if (!verifiedConfigs.containsKey(keyWithoutPrefix) && getVerifiedConfigSubPaths(keyWithoutPrefix + ".").isEmpty()) {
+                LeavesConfig.config.set(key, null);
+            }
         }
     }
 

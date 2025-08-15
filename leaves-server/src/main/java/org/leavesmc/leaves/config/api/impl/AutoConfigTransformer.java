@@ -1,7 +1,9 @@
-package org.leavesmc.leaves.config;
+package org.leavesmc.leaves.config.api.impl;
 
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
+import org.leavesmc.leaves.config.api.ConfigTransformer;
+import org.leavesmc.leaves.config.api.ConfigValidator;
 
 import java.lang.reflect.Field;
 
@@ -14,16 +16,11 @@ public class AutoConfigTransformer implements ConfigTransformer<Object, Object> 
     }
 
     @Override
-    public Object transform(Object from) {
+    public Object transform(Object from) throws StopTransformException {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
-    @Override
-    public Object stringConvert(String value) throws IllegalArgumentException {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
-
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings({"unchecked", "rawtypes", "ClassCanBeRecord"})
     public static class SimpleConfigTransformer implements ConfigTransformer<Object, Object> {
 
         private final ConfigValidator validator;
@@ -33,13 +30,8 @@ public class AutoConfigTransformer implements ConfigTransformer<Object, Object> 
         }
 
         @Override
-        public Object transform(Object o) {
+        public Object transform(Object o) throws StopTransformException {
             return o;
-        }
-
-        @Override
-        public Object stringConvert(String value) throws IllegalArgumentException {
-            return validator.stringConvert(value);
         }
 
         @Override

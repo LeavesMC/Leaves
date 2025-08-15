@@ -1,6 +1,7 @@
-package org.leavesmc.leaves.config;
+package org.leavesmc.leaves.config.api.impl;
 
 import org.jetbrains.annotations.NotNull;
+import org.leavesmc.leaves.config.api.ConfigValidator;
 
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;

@@ -6,6 +6,8 @@ import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.LeavesLogger;
 import org.leavesmc.leaves.config.annotations.GlobalConfig;
+import org.leavesmc.leaves.config.api.ConfigValidator;
+import org.leavesmc.leaves.config.api.impl.AutoConfigValidator;
 
 import java.lang.reflect.Field;
 

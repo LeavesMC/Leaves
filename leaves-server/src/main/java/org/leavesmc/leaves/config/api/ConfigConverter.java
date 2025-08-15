@@ -1,9 +1,6 @@
-package org.leavesmc.leaves.config;
+package org.leavesmc.leaves.config.api;
 
 public interface ConfigConverter<E> {
-
-    E stringConvert(String value) throws IllegalArgumentException;
-
     @SuppressWarnings("unchecked")
     default E loadConvert(Object value) throws IllegalArgumentException {
         try {

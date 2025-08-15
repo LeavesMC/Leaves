@@ -18,18 +18,18 @@ import org.leavesmc.leaves.bot.BotCommand;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.bot.agent.Actions;
 import org.leavesmc.leaves.command.LeavesCommand;
-import org.leavesmc.leaves.config.ConfigTransformer;
-import org.leavesmc.leaves.config.ConfigValidatorImpl.BooleanConfigValidator;
-import org.leavesmc.leaves.config.ConfigValidatorImpl.DoubleConfigValidator;
-import org.leavesmc.leaves.config.ConfigValidatorImpl.EnumConfigValidator;
-import org.leavesmc.leaves.config.ConfigValidatorImpl.IntConfigValidator;
-import org.leavesmc.leaves.config.ConfigValidatorImpl.ListConfigValidator;
-import org.leavesmc.leaves.config.ConfigValidatorImpl.LongConfigValidator;
-import org.leavesmc.leaves.config.ConfigValidatorImpl.StringConfigValidator;
 import org.leavesmc.leaves.config.GlobalConfigManager;
 import org.leavesmc.leaves.config.annotations.GlobalConfig;
 import org.leavesmc.leaves.config.annotations.GlobalConfigCategory;
-import org.leavesmc.leaves.config.annotations.RemovedConfig;
+import org.leavesmc.leaves.config.annotations.TransferConfig;
+import org.leavesmc.leaves.config.api.ConfigTransformer;
+import org.leavesmc.leaves.config.api.impl.ConfigValidatorImpl.BooleanConfigValidator;
+import org.leavesmc.leaves.config.api.impl.ConfigValidatorImpl.DoubleConfigValidator;
+import org.leavesmc.leaves.config.api.impl.ConfigValidatorImpl.EnumConfigValidator;
+import org.leavesmc.leaves.config.api.impl.ConfigValidatorImpl.IntConfigValidator;
+import org.leavesmc.leaves.config.api.impl.ConfigValidatorImpl.ListConfigValidator;
+import org.leavesmc.leaves.config.api.impl.ConfigValidatorImpl.LongConfigValidator;
+import org.leavesmc.leaves.config.api.impl.ConfigValidatorImpl.StringConfigValidator;
 import org.leavesmc.leaves.profile.LeavesMinecraftSessionService;
 import org.leavesmc.leaves.protocol.CarpetServerProtocol.CarpetRule;
 import org.leavesmc.leaves.protocol.CarpetServerProtocol.CarpetRules;
@@ -143,7 +143,7 @@ public final class LeavesConfig {
         @GlobalConfigCategory("fakeplayer")
         public static class FakeplayerConfig {
 
-            @RemovedConfig(name = "enable", category = "fakeplayer", transform = true)
+            @TransferConfig("fakeplayer.enable")
             @GlobalConfig(value = "enable", validator = FakeplayerValidator.class)
             public boolean enable = true;
 
@@ -159,7 +159,7 @@ public final class LeavesConfig {
                 }
             }
 
-            @RemovedConfig(name = "unable-fakeplayer-names", category = "fakeplayer", transform = true)
+            @TransferConfig("fakeplayer.unable-fakeplayer-names")
             @GlobalConfig(value = "unable-fakeplayer-names")
             public List<String> unableNames = List.of("player-name");
 
@@ -207,19 +207,19 @@ public final class LeavesConfig {
             @GlobalConfigCategory("in-game")
             public static class InGameConfig {
 
-                @RemovedConfig(name = "always-send-data", category = {"modify", "fakeplayer"}, transform = true)
+                @TransferConfig("modify.fakeplayer.always-send-data")
                 @GlobalConfig("always-send-data")
                 public boolean canSendDataAlways = true;
 
-                @RemovedConfig(name = "skip-sleep-check", category = {"modify", "fakeplayer"}, transform = true)
+                @TransferConfig("modify.fakeplayer.skip-sleep-check")
                 @GlobalConfig("skip-sleep-check")
                 public boolean canSkipSleep = false;
 
-                @RemovedConfig(name = "spawn-phantom", category = {"modify", "fakeplayer"}, transform = true)
+                @TransferConfig("modify.fakeplayer.spawn-phantom")
                 @GlobalConfig("spawn-phantom")
                 public boolean canSpawnPhantom = false;
 
-                @RemovedConfig(name = "tick-type", category = {"modify", "fakeplayer"}, transform = true)
+                @TransferConfig("modify.fakeplayer.tick-type")
                 @GlobalConfig("tick-type")
                 public ServerBot.TickType tickType = ServerBot.TickType.NETWORK;
 
@@ -253,32 +253,32 @@ public final class LeavesConfig {
 
             @GlobalConfigCategory("block-updater")
             public static class BlockUpdaterConfig {
-                @RemovedConfig(name = "instant-block-updater-reintroduced", category = "modify", transform = true)
-                @RemovedConfig(name = "instant-block-updater-reintroduced", category = {"modify", "minecraft-old"}, transform = true)
+                @TransferConfig("modify.instant-block-updater-reintroduced")
+                @TransferConfig("modify.minecraft-old.instant-block-updater-reintroduced")
                 @GlobalConfig(value = "instant-block-updater-reintroduced", lock = true)
                 public boolean instantBlockUpdaterReintroduced = false;
 
-                @RemovedConfig(name = "cce-update-suppression", category = {"modify", "minecraft-old"}, transform = true)
+                @TransferConfig("modify.minecraft-old.cce-update-suppression")
                 @GlobalConfig("cce-update-suppression")
                 public boolean cceUpdateSuppression = false;
 
                 @GlobalConfig("sound-update-suppression")
                 public boolean soundUpdateSuppression = false;
 
-                @RemovedConfig(name = "redstone-wire-dont-connect-if-on-trapdoor", category = "modify", transform = true)
-                @RemovedConfig(name = "redstone-wire-dont-connect-if-on-trapdoor", category = {"modify", "minecraft-old"}, transform = true)
-                @RemovedConfig(name = "redstone-wire-dont-connect-if-on-trapdoor", category = {"modify", "minecraft-old", "block-updater"}, transform = true)
+                @TransferConfig("modify.redstone-wire-dont-connect-if-on-trapdoor")
+                @TransferConfig("modify.minecraft-old.redstone-wire-dont-connect-if-on-trapdoor")
+                @TransferConfig("modify.minecraft-old.block-updater.redstone-wire-dont-connect-if-on-trapdoor")
                 @GlobalConfig("redstone-ignore-upwards-update")
                 public boolean redstoneIgnoreUpwardsUpdate = false;
 
-                @RemovedConfig(name = "old-block-entity-behaviour", category = {"modify", "minecraft-old"}, transform = true)
-                @RemovedConfig(name = "old-block-entity-behaviour", category = {"modify", "minecraft-old", "block-updater"}, transform = true)
+                @TransferConfig("modify.minecraft-old.old-block-entity-behaviour")
+                @TransferConfig("modify.minecraft-old.block-updater.old-block-entity-behaviour")
                 @GlobalConfig("old-block-remove-behaviour")
                 public boolean oldBlockRemoveBehaviour = false;
             }
 
-            @RemovedConfig(name = "shears-in-dispenser-can-zero-amount", category = {}, transform = true)
-            @RemovedConfig(name = "shears-in-dispenser-can-zero-amount", category = "modify", transform = true)
+            @TransferConfig("shears-in-dispenser-can-zero-amount")
+            @TransferConfig("modify.shears-in-dispenser-can-zero-amount")
             @GlobalConfig("shears-in-dispenser-can-zero-amount")
             public boolean shearsInDispenserCanZeroAmount = false;
 
@@ -301,11 +301,11 @@ public final class LeavesConfig {
             @GlobalConfig("crafter-1gt-delay")
             public boolean crafter1gt = false;
 
-            @RemovedConfig(name = "zero-tick-plants", category = "modify", transform = true)
+            @TransferConfig("modify.zero-tick-plants")
             @GlobalConfig("zero-tick-plants")
             public boolean zeroTickPlants = false;
 
-            @RemovedConfig(name = "loot-world-random", category = {"modify", "minecraft-old"}, transform = true)
+            @TransferConfig("modify.minecraft-old.loot-world-random")
             @GlobalConfig(value = "rng-fishing", lock = true, validator = RNGFishingValidator.class)
             public boolean rngFishing = false;
 
@@ -337,23 +337,17 @@ public final class LeavesConfig {
             @GlobalConfig("old-zombie-piglin-drop")
             public boolean oldZombiePiglinDrop = false;
 
-            @RemovedConfig(name = "revert-raid-changes", category = {"modify", "minecraft-old"}, transform = true, transformer = RaidConfigTransformer.class)
+            @TransferConfig(value = "modify.minecraft-old.revert-raid-changes", transformer = RaidConfigTransformer.class)
             @GlobalConfig("old-raid-behavior")
             public boolean oldRaidBehavior = false;
 
             public static class RaidConfigTransformer implements ConfigTransformer<MemorySection, Boolean> {
-
                 @Override
                 public Boolean transform(@NotNull MemorySection raidConfig) {
                     return raidConfig.getBoolean("allow-bad-omen-trigger-raid")
                         || raidConfig.getBoolean("give-bad-omen-when-kill-patrol-leader")
                         || raidConfig.getBoolean("skip-height-check")
                         || raidConfig.getBoolean("use-old-find-spawn-position");
-                }
-
-                @Override
-                public MemorySection stringConvert(String value) throws IllegalArgumentException {
-                    return null;
                 }
             }
 
@@ -367,7 +361,7 @@ public final class LeavesConfig {
 
             @GlobalConfigCategory("tripwire-and-hook-behavior")
             public static class TripwireConfig {
-                @RemovedConfig(name = "string-tripwire-hook-duplicate", category = {"modify", "minecraft-old"}, transform = true)
+                @TransferConfig("modify.minecraft-old.string-tripwire-hook-duplicate")
                 @GlobalConfig("string-tripwire-hook-duplicate")
                 public boolean stringTripwireHookDuplicate = false;
 
@@ -433,12 +427,12 @@ public final class LeavesConfig {
             public String endMessage = "Flight exit cruise mode";
         }
 
-        @RemovedConfig(name = "redstone-shears-wrench", category = {}, transform = true)
+        @TransferConfig("redstone-shears-wrench")
         @GlobalConfig("redstone-shears-wrench")
         public boolean redstoneShearsWrench = true;
 
-        @RemovedConfig(name = "budding-amethyst-can-push-by-piston", category = {}, transform = true)
-        @RemovedConfig(name = "budding-amethyst-can-push-by-piston", category = "modify", transform = true)
+        @TransferConfig("budding-amethyst-can-push-by-piston")
+        @TransferConfig("modify.budding-amethyst-can-push-by-piston")
         @GlobalConfig(value = "movable-budding-amethyst", validator = MovableBuddingAmethystValidator.class)
         public boolean movableBuddingAmethyst = false;
 
@@ -449,15 +443,15 @@ public final class LeavesConfig {
             }
         }
 
-        @RemovedConfig(name = "spectator-dont-get-advancement", category = {}, transform = true)
+        @TransferConfig("spectator-dont-get-advancement")
         @GlobalConfig("spectator-dont-get-advancement")
         public boolean spectatorDontGetAdvancement = false;
 
-        @RemovedConfig(name = "stick-change-armorstand-arm-status", category = {}, transform = true)
+        @TransferConfig("stick-change-armorstand-arm-status")
         @GlobalConfig("stick-change-armorstand-arm-status")
         public boolean stickChangeArmorStandArmStatus = true;
 
-        @RemovedConfig(name = "snowball-and-egg-can-knockback-player", category = {}, transform = true)
+        @TransferConfig("snowball-and-egg-can-knockback-player")
         @GlobalConfig("snowball-and-egg-can-knockback-player")
         public boolean snowballAndEggCanKnockback = true;
 
@@ -483,8 +477,10 @@ public final class LeavesConfig {
 
         @GlobalConfigCategory("shulker-box")
         public static class ShulkerBoxConfig {
+
             public int shulkerBoxStackSize = 1;
-            @RemovedConfig(name = "stackable-shulker-boxes", category = "modify", transform = true)
+
+            @TransferConfig("modify.stackable-shulker-boxes")
             @GlobalConfig(value = "stackable-shulker-boxes", validator = StackableShulkerValidator.class)
             private String stackableShulkerBoxes = "false";
 
@@ -627,14 +623,27 @@ public final class LeavesConfig {
 
         public HopperCounterConfig hopperCounter = new HopperCounterConfig();
 
-        @GlobalConfigCategory("counter")
+        @GlobalConfigCategory("hopper-counter")
         public static class HopperCounterConfig {
-            @RemovedConfig(name = "hopper-counter", category = "modify", transform = true)
+            @TransferConfig(value = "modify.hopper-counter", transformer = HopperCounterTransfer.class)
+            @TransferConfig("modify.counter.enable")
             @GlobalConfig("enable")
             public boolean enable = false;
 
+            @TransferConfig("modify.counter.unlimited-speed")
             @GlobalConfig("unlimited-speed")
             public boolean unlimitedSpeed = false;
+
+            private static class HopperCounterTransfer implements ConfigTransformer<Object, Boolean> {
+                @Override
+                public Boolean transform(Object object) throws StopTransformException {
+                    if (object instanceof Boolean) {
+                        return (Boolean) object;
+                    } else {
+                        throw new StopTransformException();
+                    }
+                }
+            }
         }
 
         @GlobalConfig(value = "spider-jockeys-drop-gapples", validator = JockeysDropGAppleValidator.class)
@@ -691,21 +700,6 @@ public final class LeavesConfig {
                 };
             }
         }
-
-        @RemovedConfig(name = "tick", category = {"modify", "force-peaceful-mode-switch"})
-        @RemovedConfig(name = "types", category = {"modify", "force-peaceful-mode-switch"})
-        @RemovedConfig(name = "force-peaceful-mode-switch", category = "modify")
-        @RemovedConfig(name = "force-peaceful-mode", category = "modify")
-        @RemovedConfig(name = "tick-command", category = "modify")
-        @RemovedConfig(name = "player-can-edit-sign", category = "modify")
-        @RemovedConfig(name = "mending-compatibility-infinity", category = {"modify", "minecraft-old"})
-        @RemovedConfig(name = "protection-stacking", category = {"modify", "minecraft-old"})
-        @RemovedConfig(name = "disable-moved-wrongly-threshold", category = "modify")
-        @RemovedConfig(name = "ignore-lc", category = "modify")
-        @RemovedConfig(name = "fix-fortress-mob-spawn", category = {"modify", "minecraft-old"})
-        @RemovedConfig(name = "fast-resume", category = "modify")
-        @RemovedConfig(name = "old-nether-portal-collision", category = {"modify", "minecraft-old"})
-        private final boolean removed = false;
     }
 
     public static PerformanceConfig performance = new PerformanceConfig();
@@ -786,32 +780,6 @@ public final class LeavesConfig {
 
         @GlobalConfig(value = "sleeping-block-entity", lock = true)
         public boolean sleepingBlockEntity = false;
-
-        @RemovedConfig(name = "biome-temperatures-use-aging-cache", category = "performance")
-        @RemovedConfig(name = "cache-world-generator-sea-level", category = "performance")
-        @RemovedConfig(name = "cache-ominous-banner-item", category = "performance")
-        @RemovedConfig(name = "use-optimized-collection", category = "performance")
-        @RemovedConfig(name = "async-pathfinding", category = "performance")
-        @RemovedConfig(name = "async-mob-spawning", category = "performance")
-        @RemovedConfig(name = "async-entity-tracker", category = "performance")
-        @RemovedConfig(name = "fix-paper-6045", category = {"performance", "fix"})
-        @RemovedConfig(name = "fix-paper-9372", category = {"performance", "fix"})
-        @RemovedConfig(name = "skip-clone-loot-parameters", category = "performance")
-        @RemovedConfig(name = "skip-poi-find-in-vehicle", category = "performance")
-        @RemovedConfig(name = "strip-raytracing-for-entity", category = "performance")
-        @RemovedConfig(name = "get-nearby-players-streams", category = {"performance", "remove"})
-        @RemovedConfig(name = "optimize-world-generation-and-block-access", category = "performance")
-        @RemovedConfig(name = "cache-CubeVoxelShape-shape-array", category = "performance")
-        @RemovedConfig(name = "reduce-entity-fluid-lookup", category = "performance")
-        @RemovedConfig(name = "optimize-entity-coordinate-key", category = "performance")
-        @RemovedConfig(name = "entity-target-find-optimization", category = "performance")
-        @RemovedConfig(name = "use-more-thread-unsafe-random", category = "performance")
-        @RemovedConfig(name = "range-check-streams-and-iterators", category = {"performance", "remove"})
-        @RemovedConfig(name = "improve-fluid-direction-caching", category = "performance")
-        @RemovedConfig(name = "cache-BlockStatePairKey-hash", category = "performance")
-        @RemovedConfig(name = "optimize-chunk-ticking", category = "performance")
-        @RemovedConfig(name = "inventory-contains-iterators", category = {"performance", "remove"})
-        private final boolean removedPerformance = true;
     }
 
     public static ProtocolConfig protocol = new ProtocolConfig();
@@ -874,7 +842,7 @@ public final class LeavesConfig {
 
         @GlobalConfigCategory("pca")
         public static class PCAConfig {
-            @RemovedConfig(name = "pca-sync-protocol", category = "protocol", transform = true)
+            @TransferConfig("protocol.pca-sync-protocol")
             @GlobalConfig(value = "pca-sync-protocol", validator = PcaValidator.class)
             public boolean enable = false;
 
@@ -887,7 +855,7 @@ public final class LeavesConfig {
                 }
             }
 
-            @RemovedConfig(name = "pca-sync-player-entity", category = "protocol", transform = true)
+            @TransferConfig("protocol.pca-sync-player-entity")
             @GlobalConfig(value = "pca-sync-player-entity")
             public PcaPlayerEntityType syncPlayerEntity = PcaPlayerEntityType.OPS;
 
@@ -900,7 +868,7 @@ public final class LeavesConfig {
 
         @GlobalConfigCategory("appleskin")
         public static class AppleSkinConfig {
-            @RemovedConfig(name = "appleskin-protocol", category = "protocol")
+            @TransferConfig("protocol.appleskin-protocol")
             @GlobalConfig("protocol")
             public boolean enable = false;
 
@@ -912,7 +880,7 @@ public final class LeavesConfig {
 
         @GlobalConfigCategory("servux")
         public static class ServuxConfig {
-            @RemovedConfig(name = "servux-protocol", category = "protocol", transform = true)
+            @TransferConfig("protocol.servux-protocol")
             @GlobalConfig("structure-protocol")
             public boolean structureProtocol = false;
 
@@ -939,7 +907,7 @@ public final class LeavesConfig {
             @GlobalConfigCategory("litematics")
             public static class LitematicsConfig {
 
-                @RemovedConfig(name = "litematics-protocol", category = {"protocol", "servux"}, transform = true)
+                @TransferConfig("protocol.servux.litematics-protocol")
                 @GlobalConfig(value = "enable", validator = LitematicsProtocolValidator.class)
                 public boolean enable = false;
 
@@ -986,7 +954,6 @@ public final class LeavesConfig {
         }
 
         private static class AlternativePlaceValidator extends EnumConfigValidator<AlternativePlaceType> {
-
             @Override
             public void verify(AlternativePlaceType old, AlternativePlaceType value) throws IllegalArgumentException {
                 if (value != AlternativePlaceType.NONE) {
@@ -1025,12 +992,6 @@ public final class LeavesConfig {
 
         @GlobalConfig("chat-image-protocol")
         public boolean chatImageProtocol = false;
-
-        @RemovedConfig(name = "recipe-send-all", category = {"protocol"})
-        public boolean recipeSendAll = false;
-
-        @RemovedConfig(name = "lms-paster-protocol", category = {"protocol"})
-        public boolean lmsPasterProtocol = false;
     }
 
     public static MiscConfig mics = new MiscConfig();
@@ -1110,7 +1071,7 @@ public final class LeavesConfig {
         @GlobalConfig("disable-method-profiler")
         public boolean disableMethodProfiler = true;
 
-        @RemovedConfig(name = "no-chat-sign", category = {}, transform = true)
+        @TransferConfig("no-chat-sign")
         @GlobalConfig("no-chat-sign")
         public boolean noChatSign = true;
 
@@ -1207,11 +1168,6 @@ public final class LeavesConfig {
                     }
                 }
             }
-
-            @RemovedConfig(name = "flush-frequency", category = {"region", "linear"})
-            @RemovedConfig(name = "crash-on-broken-symlink", category = {"region", "linear"})
-            @RemovedConfig(name = "auto-convert-anvil-to-linear", category = {"region", "linear"})
-            private final boolean removed = true;
         }
     }
 
@@ -1249,9 +1205,5 @@ public final class LeavesConfig {
         public enum CollisionBehavior {
             VANILLA, BLOCK_SHAPE_VANILLA, PAPER
         }
-
-        @RemovedConfig(name = "spigot-EndPlatform-destroy", category = "fix")
-        @RemovedConfig(name = "vanilla-endermite-spawn", category = "fix")
-        private final boolean removed = false;
     }
 }

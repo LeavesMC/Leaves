@@ -131,7 +131,7 @@ public class ItemOverstackUtils {
 
         @Override
         public boolean isEnabled() {
-            return LeavesConfig.modify.shulkerBox.shulkerBoxStackSize > 1;
+            return LeavesConfig.modify.shulkerBox.stackableShulkerBoxes > 1;
         }
 
         @Override
@@ -147,8 +147,8 @@ public class ItemOverstackUtils {
             ItemStack otherStack = other.getItem();
             if (selfStack.getItem() == otherStack.getItem()
                 && shulkerBoxCheck(selfStack, otherStack)
-                && selfStack.getCount() != org.leavesmc.leaves.LeavesConfig.modify.shulkerBox.shulkerBoxStackSize) {
-                int amount = Math.min(otherStack.getCount(), org.leavesmc.leaves.LeavesConfig.modify.shulkerBox.shulkerBoxStackSize - selfStack.getCount());
+                && selfStack.getCount() != org.leavesmc.leaves.LeavesConfig.modify.shulkerBox.stackableShulkerBoxes) {
+                int amount = Math.min(otherStack.getCount(), org.leavesmc.leaves.LeavesConfig.modify.shulkerBox.stackableShulkerBoxes - selfStack.getCount());
 
                 selfStack.grow(amount);
                 self.setItem(selfStack);
@@ -171,7 +171,7 @@ public class ItemOverstackUtils {
         public int getMaxServerStackCount(ItemStack stack) {
             if (isEnabled() && stack.getItem() instanceof BlockItem bi &&
                 bi.getBlock() instanceof ShulkerBoxBlock && (LeavesConfig.modify.shulkerBox.sameNbtStackable || shulkerBoxNoItem(stack))) {
-                return LeavesConfig.modify.shulkerBox.shulkerBoxStackSize;
+                return LeavesConfig.modify.shulkerBox.stackableShulkerBoxes;
             }
             return -1;
         }

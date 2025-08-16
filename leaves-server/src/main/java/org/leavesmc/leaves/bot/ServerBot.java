@@ -22,6 +22,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerPlayerConnection;
 import net.minecraft.stats.ServerStatsCounter;
+import net.minecraft.stats.Stat;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -38,6 +39,7 @@ import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.entity.vehicle.AbstractBoat;
 import net.minecraft.world.inventory.ChestMenu;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.gameevent.GameEvent;
@@ -71,6 +73,7 @@ import org.leavesmc.leaves.plugin.MinecraftInternalPlugin;
 import org.leavesmc.leaves.util.MathUtils;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
@@ -110,6 +113,7 @@ public class ServerBot extends ServerPlayer {
         this.configs = configBuilder.build();
 
         this.stats = new BotStatsCounter(server);
+        this.recipeBook = new BotRecipeBook();
         this.container = new BotInventoryContainer(this.getInventory());
         this.tracingRange = world.spigotConfig.playerTrackingRange * world.spigotConfig.playerTrackingRange;
 
@@ -134,7 +138,7 @@ public class ServerBot extends ServerPlayer {
             this.joining = false;
         }
 
-        this.gameMode.tick();
+        this.resetOperationCountPerTick(); // Leaves - player operation limiter
         this.wardenSpawnTracker.tick();
         if (this.invulnerableTime > 0) {
             this.invulnerableTime--;
@@ -514,7 +518,7 @@ public class ServerBot extends ServerPlayer {
     }
 
     @Override
-    public boolean startRiding(Entity vehicle, boolean force) {
+    public boolean startRiding(@NotNull Entity vehicle, boolean force) {
         if (super.startRiding(vehicle, force)) {
             if (vehicle instanceof AbstractBoat) {
                 this.setDeltaMovement(Vec3.ZERO);
@@ -524,6 +528,32 @@ public class ServerBot extends ServerPlayer {
         } else {
             return false;
         }
+    }
+
+    @Override
+    public int awardRecipes(@NotNull Collection<RecipeHolder<?>> recipes) {
+        return 0;
+    }
+
+    @Override
+    public int resetRecipes(@NotNull Collection<RecipeHolder<?>> recipes) {
+        return 0;
+    }
+
+    @Override
+    public void triggerRecipeCrafted(@NotNull RecipeHolder<?> recipe, @NotNull List<ItemStack> items) {
+    }
+
+    @Override
+    public void awardKillScore(@NotNull Entity entity, @NotNull DamageSource damageSource) {
+    }
+
+    @Override
+    public void awardStat(@NotNull Stat<?> stat) {
+    }
+
+    @Override
+    public void resetStat(@NotNull Stat<?> stat) {
     }
 
     public void removeTab() {

@@ -23,6 +23,7 @@ import org.leavesmc.leaves.config.annotations.GlobalConfig;
 import org.leavesmc.leaves.config.annotations.GlobalConfigCategory;
 import org.leavesmc.leaves.config.annotations.TransferConfig;
 import org.leavesmc.leaves.config.api.ConfigTransformer;
+import org.leavesmc.leaves.config.api.ConfigValidator;
 import org.leavesmc.leaves.config.api.impl.ConfigValidatorImpl.BooleanConfigValidator;
 import org.leavesmc.leaves.config.api.impl.ConfigValidatorImpl.DoubleConfigValidator;
 import org.leavesmc.leaves.config.api.impl.ConfigValidatorImpl.EnumConfigValidator;
@@ -478,17 +479,60 @@ public final class LeavesConfig {
         @GlobalConfigCategory("shulker-box")
         public static class ShulkerBoxConfig {
 
-            public int shulkerBoxStackSize = 1;
-
             @TransferConfig("modify.stackable-shulker-boxes")
             @GlobalConfig(value = "stackable-shulker-boxes", validator = StackableShulkerValidator.class)
-            private String stackableShulkerBoxes = "false";
+            public int stackableShulkerBoxes = 1;
 
-            private static class StackableShulkerValidator extends StringConfigValidator {
+            private static class StackableShulkerValidator implements ConfigValidator<Integer> {
+
                 @Override
-                public void verify(String old, String value) throws IllegalArgumentException {
-                    String realValue = MathUtils.isNumeric(value) ? value : value.equals("true") ? "2" : "1";
-                    LeavesConfig.modify.shulkerBox.shulkerBoxStackSize = Integer.parseInt(realValue);
+                public Integer loadConvert(Object value) throws IllegalArgumentException {
+                    switch (value) {
+                        case String stringValue -> {
+                            if (stringValue.equals("true")) {
+                                return 2;
+                            } else if (!MathUtils.isNumeric(stringValue)) {
+                                return 1;
+                            } else {
+                                return Integer.parseInt(stringValue);
+                            }
+                        }
+                        case Integer integerValue -> {
+                            return integerValue;
+                        }
+                        case Boolean boolValue -> {
+                            return boolValue ? 2 : 1;
+                        }
+                        case null, default -> throw new IllegalArgumentException("stackable-shulker-boxes need string or integer or boolean");
+                    }
+                }
+
+                @Override
+                public Object saveConvert(Integer value) {
+                    if (value == 1) {
+                        return false;
+                    } else if (value == 2) {
+                        return true;
+                    } else {
+                        return value;
+                    }
+                }
+
+                @Override
+                public Integer stringConvert(String value) throws IllegalArgumentException {
+                    return loadConvert(value);
+                }
+
+                @Override
+                public void verify(Integer old, Integer value) throws IllegalArgumentException {
+                    if (value < 1 || value > 64) {
+                        throw new IllegalArgumentException("stackable-shulker-boxes need >= 1 and <= 64");
+                    }
+                }
+
+                @Override
+                public List<String> valueSuggest() {
+                    return List.of("true", "false", "64", "32");
                 }
             }
 

@@ -2,7 +2,6 @@ package org.leavesmc.leaves.bot;
 
 import net.kyori.adventure.text.Component;
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ServerPlayerGameMode;
 import net.minecraft.world.InteractionHand;
@@ -12,6 +11,7 @@ import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.GameMasterBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
@@ -52,36 +52,32 @@ public class ServerBotGameMode extends ServerPlayerGameMode {
 
     @Override
     public boolean destroyBlock(@NotNull BlockPos pos) {
-        BlockState iblockdata = this.level.getBlockState(pos);
-        BlockEntity tileentity = this.level.getBlockEntity(pos);
-        Block block = iblockdata.getBlock();
-
-        if (this.player.blockActionRestricted(this.level, pos, this.getGameModeForPlayer())) {
+        BlockState blockState = this.level.getBlockState(pos);
+        if (!this.player.getMainHandItem().canDestroyBlock(blockState, this.level, pos, this.player)) {
             return false;
         } else {
-            this.level.captureDrops = null;
-            BlockState iblockdata1 = org.leavesmc.leaves.command.subcommands.BlockUpdateCommand.isNoBlockUpdate() ? iblockdata : block.playerWillDestroy(this.level, pos, iblockdata, this.player); // Leaves - no block update
-            boolean flag = this.level.removeBlock(pos, false);
+            BlockEntity blockEntity = this.level.getBlockEntity(pos);
+            Block block = blockState.getBlock();
+            if (block instanceof GameMasterBlock) {
+                this.level.sendBlockUpdated(pos, blockState, blockState, 3);
+                return false;
+            } else {
+                BlockState blockState1 = org.leavesmc.leaves.command.subcommands.BlockUpdateCommand.isNoBlockUpdate() ? blockState : block.playerWillDestroy(this.level, pos, blockState, this.player); // Leaves - no block update
+                boolean flag = this.level.removeBlock(pos, false);
+                if (flag) {
+                    block.destroy(this.level, pos, blockState1);
+                }
 
-            if (flag) {
-                block.destroy(this.level, pos, iblockdata1);
+                ItemStack mainHandItem = this.player.getMainHandItem();
+                ItemStack itemStack = mainHandItem.copy();
+                boolean hasCorrectToolForDrops = this.player.hasCorrectToolForDrops(blockState1);
+                mainHandItem.getItem().mineBlock(mainHandItem, this.level, blockState1, pos, this.player);
+                if (flag && hasCorrectToolForDrops) {
+                    block.playerDestroy(this.level, this.player, pos, blockState1, blockEntity, itemStack, true, true);
+                }
+
+                return true;
             }
-
-            ItemStack itemstack = this.player.getMainHandItem();
-            ItemStack itemstack1 = itemstack.copy();
-
-            boolean flag1 = this.player.hasCorrectToolForDrops(iblockdata1);
-
-            itemstack.mineBlock(this.level, iblockdata1, pos, this.player);
-            if (flag && flag1) {
-                Block.dropResources(iblockdata1, this.level, pos, tileentity, this.player, itemstack1, true);
-            }
-
-            if (flag) {
-                iblockdata.getBlock().popExperience(this.level, pos, block.getExpDrop(iblockdata, this.level, pos, itemstack, true), this.player);
-            }
-
-            return true;
         }
     }
 

@@ -100,6 +100,105 @@ index fdeca41d40705f28864ce4443d01cd872c9d51b0..5c0e338dc1b0eb5724d10a73d6fc7975
          boolean flag = false;
          AdvancementProgress orStartProgress = this.getOrStartProgress(advancement);
          boolean isDone = orStartProgress.isDone();
+diff --git a/net/minecraft/server/commands/BanIpCommands.java b/net/minecraft/server/commands/BanIpCommands.java
+index bb5dbfeb6915a808d6f70e332bf9f0a3f9b7d19a..62f23d47b55eb59956d69153d508b5c9ab544adf 100644
+--- a/net/minecraft/server/commands/BanIpCommands.java
++++ b/net/minecraft/server/commands/BanIpCommands.java
+@@ -44,6 +44,12 @@ public class BanIpCommands {
+             return banIp(source, username, reason);
+         } else {
+             ServerPlayer playerByName = source.getServer().getPlayerList().getPlayerByName(username);
++            // Leaves start - disable ban
++            if (playerByName instanceof org.leavesmc.leaves.bot.ServerBot) {
++                source.sendFailure(Component.literal("Permission denied"));
++                return 0;
++            }
++            // Leaves end - disable ban
+             if (playerByName != null) {
+                 return banIp(source, playerByName.getIpAddress(), reason);
+             } else {
+diff --git a/net/minecraft/server/commands/BanPlayerCommands.java b/net/minecraft/server/commands/BanPlayerCommands.java
+index ac3ba9d0ea344fa189912d359b718fbe05e7aa49..61a4db144f721b47ac1000df72263bceb6e38ec0 100644
+--- a/net/minecraft/server/commands/BanPlayerCommands.java
++++ b/net/minecraft/server/commands/BanPlayerCommands.java
+@@ -44,8 +44,16 @@ public class BanPlayerCommands {
+     private static int banPlayers(CommandSourceStack source, Collection<GameProfile> gameProfiles, @Nullable Component reason) throws CommandSyntaxException {
+         UserBanList bans = source.getServer().getPlayerList().getBans();
+         int i = 0;
+-
++        boolean hasBot = false; // Leaves - disable kick
+         for (GameProfile gameProfile : gameProfiles) {
++            // Leaves start - disable ban
++            if (gameProfile instanceof org.leavesmc.leaves.bot.BotList.CustomGameProfile) {
++                source.sendFailure(Component.literal("Permission denied"));
++                hasBot = true;
++                continue;
++            }
++            // Leaves end - disable ban
++            ServerPlayer player = source.getServer().getPlayerList().getPlayer(gameProfile.getId());
+             if (!bans.isBanned(gameProfile)) {
+                 UserBanListEntry userBanListEntry = new UserBanListEntry(
+                     gameProfile, null, source.getTextName(), null, reason == null ? null : reason.getString()
+@@ -55,7 +63,6 @@ public class BanPlayerCommands {
+                 source.sendSuccess(
+                     () -> Component.translatable("commands.ban.success", Component.literal(gameProfile.getName()), userBanListEntry.getReason()), true
+                 );
+-                ServerPlayer player = source.getServer().getPlayerList().getPlayer(gameProfile.getId());
+                 if (player != null) {
+                     player.connection.disconnect(Component.translatable("multiplayer.disconnect.banned"), org.bukkit.event.player.PlayerKickEvent.Cause.BANNED); // Paper - kick event cause
+                 }
+@@ -63,7 +70,13 @@ public class BanPlayerCommands {
+         }
+ 
+         if (i == 0) {
+-            throw ERROR_ALREADY_BANNED.create();
++            // Leaves start - disable kick
++            if (hasBot) {
++                return i;
++            } else {
++                throw ERROR_ALREADY_BANNED.create();
++            }
++            // Leaves end - disable kick
+         } else {
+             return i;
+         }
+diff --git a/net/minecraft/server/commands/KickCommand.java b/net/minecraft/server/commands/KickCommand.java
+index 14e2e0fcf20c8fa875bbefb97a673be4928d099a..8af40a77dc3da1599da2793168488f88686b8785 100644
+--- a/net/minecraft/server/commands/KickCommand.java
++++ b/net/minecraft/server/commands/KickCommand.java
+@@ -46,9 +46,17 @@ public class KickCommand {
+         if (!source.getServer().isPublished()) {
+             throw ERROR_SINGLEPLAYER.create();
+         } else {
++            boolean hasBot = false; // Leaves - disable kick
+             int i = 0;
+ 
+             for (ServerPlayer serverPlayer : players) {
++                // Leaves start - disable kick
++                if (serverPlayer instanceof org.leavesmc.leaves.bot.ServerBot) {
++                    source.sendFailure(Component.literal("Permission denied"));
++                    hasBot = true;
++                    continue;
++                }
++                // Leaves end - disable kick
+                 if (!source.getServer().isSingleplayerOwner(serverPlayer.getGameProfile())) {
+                     serverPlayer.connection.disconnect(reason, org.bukkit.event.player.PlayerKickEvent.Cause.KICK_COMMAND); // Paper - kick event cause
+                     source.sendSuccess(() -> Component.translatable("commands.kick.success", serverPlayer.getDisplayName(), reason), true);
+@@ -57,7 +65,13 @@ public class KickCommand {
+             }
+ 
+             if (i == 0) {
+-                throw ERROR_KICKING_OWNER.create();
++                // Leaves start - disable kick
++                if (hasBot) {
++                    return i;
++                } else {
++                    throw ERROR_KICKING_OWNER.create();
++                }
++                // Leaves end - disable kick
+             } else {
+                 return i;
+             }
 diff --git a/net/minecraft/server/dedicated/DedicatedServer.java b/net/minecraft/server/dedicated/DedicatedServer.java
 index 414a8357a7498c69341fa634ada2e664e18ca03a..f85993fc507d699728e058b12bb49dcb7aaea44b 100644
 --- a/net/minecraft/server/dedicated/DedicatedServer.java
@@ -196,7 +295,7 @@ index 364d5e28646ea341034921622354c7b19644b343..c61c0b6d58f96955bfbdad0caaeb56f0
                  ServerLevel.this.updateSleepingPlayerList();
              }
 diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
-index 8f94c963f2c59668d72d162f46f7505d6a6b06a5..e808b8059af035d09c24286b1e5893733906dca4 100644
+index 8f94c963f2c59668d72d162f46f7505d6a6b06a5..87c8c4c7ca52f7d804ddaff87aaf381552e1aee2 100644
 --- a/net/minecraft/server/level/ServerPlayer.java
 +++ b/net/minecraft/server/level/ServerPlayer.java
 @@ -219,7 +219,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
@@ -208,6 +307,15 @@ index 8f94c963f2c59668d72d162f46f7505d6a6b06a5..e808b8059af035d09c24286b1e589373
      private final PlayerAdvancements advancements;
      private final ServerStatsCounter stats;
      private float lastRecordedHealthAndAbsorption = Float.MIN_VALUE;
+@@ -240,7 +240,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+     private Entity camera;
+     public boolean isChangingDimension;
+     public boolean seenCredits = false;
+-    private final ServerRecipeBook recipeBook;
++    protected ServerRecipeBook recipeBook; // Leaves - not final and private -> protected
+     @Nullable
+     private Vec3 levitationStartPos;
+     private int levitationStartTime;
 @@ -1454,6 +1454,11 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
                  this.lastSentHealth = -1.0F;
                  this.lastSentFood = -1;
@@ -220,6 +328,23 @@ index 8f94c963f2c59668d72d162f46f7505d6a6b06a5..e808b8059af035d09c24286b1e589373
                  // CraftBukkit start
                  org.bukkit.event.player.PlayerChangedWorldEvent changeEvent = new org.bukkit.event.player.PlayerChangedWorldEvent(this.getBukkitEntity(), serverLevel.getWorld());
                  this.level().getCraftServer().getPluginManager().callEvent(changeEvent);
+diff --git a/net/minecraft/server/players/GameProfileCache.java b/net/minecraft/server/players/GameProfileCache.java
+index 066f84df5c31242ab542932f1e243369d0e766e2..52706e843923666940e679a83a302db7a243dd11 100644
+--- a/net/minecraft/server/players/GameProfileCache.java
++++ b/net/minecraft/server/players/GameProfileCache.java
+@@ -125,6 +125,12 @@ public class GameProfileCache {
+     // Paper end
+ 
+     public Optional<GameProfile> get(String name) {
++        // Leaves start - fix bot
++        org.leavesmc.leaves.bot.ServerBot bot = org.leavesmc.leaves.bot.BotList.INSTANCE.getBotByName(name);
++        if (bot != null) {
++            return Optional.of(bot.getGameProfile());
++        }
++        // Leaves end - fix bot
+         String string = name.toLowerCase(Locale.ROOT);
+         boolean stateLocked = true; try { this.stateLock.lock(); // Paper - Fix GameProfileCache concurrency
+         GameProfileCache.GameProfileInfo gameProfileInfo = this.profilesByName.get(string);
 diff --git a/net/minecraft/server/players/PlayerList.java b/net/minecraft/server/players/PlayerList.java
 index 2dffdc770529e048c4e8df7d70de59c94d3a77be..1135d32f1f275306792b95d10f76ac233e265e0d 100644
 --- a/net/minecraft/server/players/PlayerList.java

@@ -3,6 +3,7 @@ package org.leavesmc.leaves.command.subcommands;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.JoinConfiguration;
 import net.kyori.adventure.text.format.NamedTextColor;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
 import org.jetbrains.annotations.NotNull;
@@ -13,21 +14,23 @@ import org.leavesmc.leaves.command.LeavesSuggestionBuilder;
 import org.leavesmc.leaves.config.GlobalConfigManager;
 import org.leavesmc.leaves.config.VerifiedConfig;
 
+import static net.kyori.adventure.text.Component.text;
+
 public class ConfigCommand implements LeavesSubcommand {
 
     @Override
     public void execute(CommandSender sender, String subCommand, String[] args) {
         if (args.length < 1) {
-            sender.sendMessage(Component.text("Leaves Config", NamedTextColor.GRAY));
+            sender.sendMessage(text("Leaves Config", NamedTextColor.GRAY));
             return;
         }
 
         VerifiedConfig verifiedConfig = GlobalConfigManager.getVerifiedConfig(args[0]);
         if (verifiedConfig == null) {
-            sender.sendMessage(Component.join(JoinConfiguration.noSeparators(),
-                Component.text("Config ", NamedTextColor.GRAY),
-                Component.text(args[0], NamedTextColor.RED),
-                Component.text(" is Not Found.", NamedTextColor.GRAY)
+            sender.sendMessage(Component.join(JoinConfiguration.spaces(),
+                text("Config", NamedTextColor.GRAY),
+                text(args[0], NamedTextColor.RED),
+                text("is Not Found.", NamedTextColor.GRAY)
             ));
             return;
         }
@@ -35,26 +38,35 @@ public class ConfigCommand implements LeavesSubcommand {
         if (args.length > 1) {
             try {
                 verifiedConfig.set(args[1]);
-                sender.sendMessage(Component.join(JoinConfiguration.noSeparators(),
-                    Component.text("Config ", NamedTextColor.GRAY),
-                    Component.text(args[0], NamedTextColor.AQUA),
-                    Component.text(" changed to ", NamedTextColor.GRAY),
-                    Component.text(verifiedConfig.getString(), NamedTextColor.AQUA)
+                sender.sendMessage(Component.join(JoinConfiguration.spaces(),
+                    text("Config", NamedTextColor.GRAY),
+                    text(args[0], NamedTextColor.AQUA),
+                    text("changed to", NamedTextColor.GRAY),
+                    text(verifiedConfig.getString(), NamedTextColor.AQUA)
                 ));
+                Bukkit.getOnlinePlayers().stream().filter(player -> player.hasPermission("leaves.command.config.notify") && player != sender).forEach(
+                    player -> player.sendMessage(Component.join(JoinConfiguration.spaces(),
+                        text(sender.getName() + ":", NamedTextColor.GRAY),
+                        text("Config", NamedTextColor.GRAY),
+                        text(args[0], NamedTextColor.AQUA),
+                        text("changed to", NamedTextColor.GRAY),
+                        text(verifiedConfig.getString(), NamedTextColor.AQUA)
+                    ))
+                );
             } catch (IllegalArgumentException exception) {
-                sender.sendMessage(Component.join(JoinConfiguration.noSeparators(),
-                    Component.text("Config ", NamedTextColor.GRAY),
-                    Component.text(args[0], NamedTextColor.RED),
-                    Component.text(" modify error by ", NamedTextColor.GRAY),
-                    Component.text(exception.getMessage(), NamedTextColor.RED)
+                sender.sendMessage(Component.join(JoinConfiguration.spaces(),
+                    text("Config", NamedTextColor.GRAY),
+                    text(args[0], NamedTextColor.RED),
+                    text("modify error by", NamedTextColor.GRAY),
+                    text(exception.getMessage(), NamedTextColor.RED)
                 ));
             }
         } else {
-            sender.sendMessage(Component.join(JoinConfiguration.noSeparators(),
-                Component.text("Config ", NamedTextColor.GRAY),
-                Component.text(args[0], NamedTextColor.AQUA),
-                Component.text(" value is ", NamedTextColor.GRAY),
-                Component.text(verifiedConfig.getString(), NamedTextColor.AQUA)
+            sender.sendMessage(Component.join(JoinConfiguration.spaces(),
+                text("Config", NamedTextColor.GRAY),
+                text(args[0], NamedTextColor.AQUA),
+                text("value is", NamedTextColor.GRAY),
+                text(verifiedConfig.getString(), NamedTextColor.AQUA)
             ));
         }
     }

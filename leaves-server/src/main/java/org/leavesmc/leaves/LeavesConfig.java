@@ -1,6 +1,5 @@
 package org.leavesmc.leaves;
 
-import com.destroystokyo.paper.util.SneakyThrow;
 import io.papermc.paper.adventure.PaperAdventure;
 import io.papermc.paper.configuration.GlobalConfiguration;
 import net.kyori.adventure.text.Component;
@@ -86,7 +85,6 @@ public final class LeavesConfig {
                 config.load(file);
             } catch (final Exception ex) {
                 LeavesLogger.LOGGER.severe("Failure to load leaves config", ex);
-                SneakyThrow.sneaky(ex);
                 throw new RuntimeException(ex);
             }
         }
@@ -107,7 +105,6 @@ public final class LeavesConfig {
             config.load(LeavesConfig.configFile);
         } catch (final Exception ex) {
             LeavesLogger.LOGGER.severe("Failure to reload leaves config", ex);
-            SneakyThrow.sneaky(ex);
             throw new RuntimeException(ex);
         }
 
@@ -430,7 +427,7 @@ public final class LeavesConfig {
 
         @TransferConfig("redstone-shears-wrench")
         @GlobalConfig("redstone-shears-wrench")
-        public boolean redstoneShearsWrench = true;
+        public boolean redstoneShearsWrench = false;
 
         @TransferConfig("budding-amethyst-can-push-by-piston")
         @TransferConfig("modify.budding-amethyst-can-push-by-piston")
@@ -819,9 +816,6 @@ public final class LeavesConfig {
         @GlobalConfig("skip-negligible-planar-movement-multiplication")
         public boolean skipNegligiblePlanarMovementMultiplication = true;
 
-        @GlobalConfig("fix-villagers-dont-release-memory")
-        public boolean villagersDontReleaseMemoryFix = false;
-
         @GlobalConfig(value = "sleeping-block-entity", lock = true)
         public boolean sleepingBlockEntity = false;
     }
@@ -1155,7 +1149,7 @@ public final class LeavesConfig {
         public boolean forceMinecraftCommand = false;
 
         @GlobalConfig("leaves-packet-event")
-        public boolean leavesPacketEvent = true;
+        public boolean leavesPacketEvent = false;
 
         @GlobalConfig("chat-command-max-length")
         public int chatCommandMaxLength = 32767;
@@ -1238,7 +1232,7 @@ public final class LeavesConfig {
         }
 
         @GlobalConfig("vanilla-portal-handle")
-        public boolean vanillaPortalHandle = false;
+        public boolean vanillaPortalHandle = true;
 
         @GlobalConfig("vanilla-fluid-pushing")
         public boolean vanillaFluidPushing = true;

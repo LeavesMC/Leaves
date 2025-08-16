@@ -30,6 +30,9 @@ public class ShearsWrenchUtil {
         if (!LeavesConfig.modify.redstoneShearsWrench || !(block instanceof ObserverBlock || block instanceof DispenserBlock || block instanceof PistonBaseBlock || block instanceof HopperBlock || block instanceof RepeaterBlock || block instanceof ComparatorBlock || block instanceof CrafterBlock || block instanceof LeverBlock || block instanceof CocoaBlock || block instanceof TrapDoorBlock || block instanceof FenceGateBlock || block instanceof LightningRodBlock || block instanceof CalibratedSculkSensorBlock || block instanceof BaseRailBlock)) {
             return null;
         }
+        if (context.getPlayer() == null || !context.getPlayer().getItemInHand(invert(context.getHand())).isEmpty()) {
+            return null;
+        }
         StateDefinition<Block, BlockState> blockstatelist = block.getStateDefinition();
         Property<?> iblockstate;
         if (block instanceof CrafterBlock) {
@@ -89,10 +92,8 @@ public class ShearsWrenchUtil {
         return InteractionResult.CONSUME;
     }
 
-    public static boolean shouldSkipPlace(BlockPlaceContext context) {
-        return LeavesConfig.modify.redstoneShearsWrench &&
-            context.getPlayer() != null &&
-            context.getPlayer().getItemInHand(InteractionHand.MAIN_HAND).is(Items.SHEARS);
+    private static InteractionHand invert(InteractionHand original) {
+        return original == InteractionHand.MAIN_HAND ? InteractionHand.OFF_HAND : InteractionHand.MAIN_HAND;
     }
 
     private static <T extends Comparable<T>> BlockState cycleState(BlockState state, Property<T> property, boolean inverse) {

@@ -19,7 +19,7 @@ index 3acfb2a78845dd8081dc3c01d653034232c76e60..efe3f1849e68e5bbe2cdb3793dafc8b5
  
      @Override
 diff --git a/net/minecraft/commands/arguments/selector/EntitySelector.java b/net/minecraft/commands/arguments/selector/EntitySelector.java
-index 514f8fbdeb776087608665c35de95294aadf5cf0..2f78ca86f46ea08fdcf4b8047d3d0b04e2e29b0a 100644
+index 514f8fbdeb776087608665c35de95294aadf5cf0..b75772897cabc3e7c59301d451685378fa55b6c3 100644
 --- a/net/minecraft/commands/arguments/selector/EntitySelector.java
 +++ b/net/minecraft/commands/arguments/selector/EntitySelector.java
 @@ -128,11 +128,12 @@ public class EntitySelector {
@@ -65,7 +65,7 @@ index 514f8fbdeb776087608665c35de95294aadf5cf0..2f78ca86f46ea08fdcf4b8047d3d0b04
              return playerByName == null ? List.of() : List.of(playerByName);
          } else {
              Vec3 vec3 = this.position.apply(source.getPosition());
-@@ -206,12 +210,12 @@ public class EntitySelector {
+@@ -206,11 +210,11 @@ public class EntitySelector {
                  int resultLimit = this.getResultLimit();
                  List<ServerPlayer> players;
                  if (this.isWorldLimited()) {
@@ -74,14 +74,13 @@ index 514f8fbdeb776087608665c35de95294aadf5cf0..2f78ca86f46ea08fdcf4b8047d3d0b04
                  } else {
                      players = new ObjectArrayList<>();
  
-                     for (ServerPlayer serverPlayer1 : source.getServer().getPlayerList().getPlayers()) {
--                        if (predicate.test(serverPlayer1)) {
-+                        if (predicate.test(serverPlayer1) && !(serverPlayer1 instanceof org.leavesmc.leaves.replay.ServerPhotographer)) { // Leaves - skip photographer
+-                    for (ServerPlayer serverPlayer1 : source.getServer().getPlayerList().getPlayers()) {
++                    for (ServerPlayer serverPlayer1 : source.getServer().getPlayerList().realPlayers) { // Leaves - only real players
+                         if (predicate.test(serverPlayer1)) {
                              players.add(serverPlayer1);
                              if (players.size() >= resultLimit) {
-                                 return players;
 diff --git a/net/minecraft/server/MinecraftServer.java b/net/minecraft/server/MinecraftServer.java
-index 39898e5e2bd75eced05f0b90b3881270d144fd93..25087f470db918dbca3ec582581d02822e5ff17d 100644
+index 39898e5e2bd75eced05f0b90b3881270d144fd93..2b29a8cdf8956e13143a59c16fcee2f5c9b49086 100644
 --- a/net/minecraft/server/MinecraftServer.java
 +++ b/net/minecraft/server/MinecraftServer.java
 @@ -1638,7 +1638,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
@@ -102,6 +101,24 @@ index 39898e5e2bd75eced05f0b90b3881270d144fd93..25087f470db918dbca3ec582581d0282
      }
  
      @Override
+@@ -2246,7 +2246,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+                     if (Thread.currentThread() != this.serverThread) return; // Paper
+                     // Paper start - we don't need to save everything, just advancements
+                     // this.getPlayerList().saveAll();
+-                    for (final ServerPlayer player : this.getPlayerList().getPlayers()) {
++                    for (final ServerPlayer player : this.getPlayerList().realPlayers) { // Leaves - only real players
+                         player.getAdvancements().save();
+                     }
+                     // Paper end - we don't need to save everything, just advancements
+@@ -2385,7 +2385,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+             if (!playerList.isUsingWhitelist()) return; // Paper - whitelist not enabled
+             UserWhiteList whiteList = playerList.getWhiteList();
+ 
+-            for (ServerPlayer serverPlayer : Lists.newArrayList(playerList.getPlayers())) {
++            for (ServerPlayer serverPlayer : Lists.newArrayList(playerList.realPlayers)) { // Leaves - only real player
+                 if (!whiteList.isWhiteListed(serverPlayer.getGameProfile()) && !this.getPlayerList().isOp(serverPlayer.getGameProfile())) { // Paper - Fix kicking ops when whitelist is reloaded (MC-171420)
+                     serverPlayer.connection.disconnect(net.kyori.adventure.text.Component.text(org.spigotmc.SpigotConfig.whitelistMessage), org.bukkit.event.player.PlayerKickEvent.Cause.WHITELIST); // Paper - use configurable message & kick event cause
+                 }
 diff --git a/net/minecraft/server/PlayerAdvancements.java b/net/minecraft/server/PlayerAdvancements.java
 index a14401edec04964e6c596c16ba58643b835ef9c1..924829d46f789752aab52c0a51f4d0925710eadf 100644
 --- a/net/minecraft/server/PlayerAdvancements.java
@@ -137,6 +154,19 @@ index 5c9f2a8476ff260ec7f0843f7c956c71e9b0d34d..22d67e72e0bf2dbe8c7a936260bb3577
              if (serverPlayer.getBukkitEntity().getScoreboard().getHandle() != this) continue; // CraftBukkit - Only players on this board
              for (Packet<?> packet : stopTrackingPackets) {
                  serverPlayer.connection.send(packet);
+diff --git a/net/minecraft/server/commands/DefaultGameModeCommands.java b/net/minecraft/server/commands/DefaultGameModeCommands.java
+index 84baf29ad8af6a8af0cd00ce3921b3c5b8b89451..17f5543b802d88811c3e373e579a6e8b4c9f263a 100644
+--- a/net/minecraft/server/commands/DefaultGameModeCommands.java
++++ b/net/minecraft/server/commands/DefaultGameModeCommands.java
+@@ -27,7 +27,7 @@ public class DefaultGameModeCommands {
+         server.setDefaultGameType(gamemode);
+         GameType forcedGameType = server.getForcedGameType();
+         if (forcedGameType != null) {
+-            for (ServerPlayer serverPlayer : server.getPlayerList().getPlayers()) {
++            for (ServerPlayer serverPlayer : server.getPlayerList().realPlayers) { // Leaves - only real players
+                 // Paper start - Expand PlayerGameModeChangeEvent
+                 org.bukkit.event.player.PlayerGameModeChangeEvent event = serverPlayer.setGameMode(gamemode, org.bukkit.event.player.PlayerGameModeChangeEvent.Cause.DEFAULT_GAMEMODE, net.kyori.adventure.text.Component.empty());
+                 if (event != null && event.isCancelled()) {
 diff --git a/net/minecraft/server/commands/ListPlayersCommand.java b/net/minecraft/server/commands/ListPlayersCommand.java
 index c6ae34f91b3629990294fc5e69237a1e600ef038..2109b0a2d4099e64c34cd1c45b83f72654d3b615 100644
 --- a/net/minecraft/server/commands/ListPlayersCommand.java
@@ -163,6 +193,96 @@ index f2286b96b8f40b4588f817913c42ae7b4a92340f..dbe6c37642d35ac6ee8b428cf1e45878
                                          .stream()
                                          .filter(serverPlayer -> !playerList.isOp(serverPlayer.getGameProfile()))
                                          .map(serverPlayer -> serverPlayer.getGameProfile().getName()),
+diff --git a/net/minecraft/server/commands/ParticleCommand.java b/net/minecraft/server/commands/ParticleCommand.java
+index 33d96239f4b72a5587dc70f9602847a870d6d6a5..a83ce2cd112fca02cf3545f8c38e5cafae2c7c0e 100644
+--- a/net/minecraft/server/commands/ParticleCommand.java
++++ b/net/minecraft/server/commands/ParticleCommand.java
+@@ -36,7 +36,7 @@ public class ParticleCommand {
+                                 0.0F,
+                                 0,
+                                 false,
+-                                commandContext.getSource().getServer().getPlayerList().getPlayers()
++                                commandContext.getSource().getServer().getPlayerList().realPlayers // Leaves - only real player
+                             )
+                         )
+                         .then(
+@@ -50,7 +50,7 @@ public class ParticleCommand {
+                                         0.0F,
+                                         0,
+                                         false,
+-                                        context1.getSource().getServer().getPlayerList().getPlayers()
++                                        context1.getSource().getServer().getPlayerList().realPlayers // Leaves - only real player
+                                     )
+                                 )
+                                 .then(
+@@ -68,7 +68,7 @@ public class ParticleCommand {
+                                                                 FloatArgumentType.getFloat(context1, "speed"),
+                                                                 IntegerArgumentType.getInteger(context1, "count"),
+                                                                 false,
+-                                                                context1.getSource().getServer().getPlayerList().getPlayers()
++                                                                context1.getSource().getServer().getPlayerList().realPlayers // Leaves - only real player
+                                                             )
+                                                         )
+                                                         .then(
+@@ -82,7 +82,7 @@ public class ParticleCommand {
+                                                                         FloatArgumentType.getFloat(context1, "speed"),
+                                                                         IntegerArgumentType.getInteger(context1, "count"),
+                                                                         true,
+-                                                                        context1.getSource().getServer().getPlayerList().getPlayers()
++                                                                        context1.getSource().getServer().getPlayerList().realPlayers // Leaves - only real player
+                                                                     )
+                                                                 )
+                                                                 .then(
+@@ -112,7 +112,7 @@ public class ParticleCommand {
+                                                                         FloatArgumentType.getFloat(context1, "speed"),
+                                                                         IntegerArgumentType.getInteger(context1, "count"),
+                                                                         false,
+-                                                                        context1.getSource().getServer().getPlayerList().getPlayers()
++                                                                        context1.getSource().getServer().getPlayerList().realPlayers // Leaves - only real player
+                                                                     )
+                                                                 )
+                                                                 .then(
+diff --git a/net/minecraft/server/commands/TeamMsgCommand.java b/net/minecraft/server/commands/TeamMsgCommand.java
+index 134d7b1a9d5a5a47ebf4aabff110dde914cd6fe1..894dd1d048904b8a775416ea6cb3112215c567bc 100644
+--- a/net/minecraft/server/commands/TeamMsgCommand.java
++++ b/net/minecraft/server/commands/TeamMsgCommand.java
+@@ -40,7 +40,7 @@ public class TeamMsgCommand {
+                                 } else {
+                                     List<ServerPlayer> list = commandSourceStack.getServer()
+                                         .getPlayerList()
+-                                        .getPlayers()
++                                        .realPlayers // Leaves - only real players
+                                         .stream()
+                                         .filter(player -> player == entityOrException || player.getTeam() == team)
+                                         .toList();
+diff --git a/net/minecraft/server/commands/WhitelistCommand.java b/net/minecraft/server/commands/WhitelistCommand.java
+index 763a51d9a0859296eb4ea52b6879d6c7703db673..25b4fcf79dbf3e227451b3321d8fd38bab55ffe9 100644
+--- a/net/minecraft/server/commands/WhitelistCommand.java
++++ b/net/minecraft/server/commands/WhitelistCommand.java
+@@ -43,7 +43,7 @@ public class WhitelistCommand {
+                                     (commandContext, suggestionsBuilder) -> {
+                                         PlayerList playerList = commandContext.getSource().getServer().getPlayerList();
+                                         return SharedSuggestionProvider.suggest(
+-                                            playerList.getPlayers()
++                                            playerList.realPlayers // Leaves - only real player
+                                                 .stream()
+                                                 .filter(serverPlayer -> !playerList.getWhiteList().isWhiteListed(serverPlayer.getGameProfile()))
+                                                 .map(serverPlayer -> serverPlayer.getGameProfile().getName()),
+diff --git a/net/minecraft/server/gui/PlayerListComponent.java b/net/minecraft/server/gui/PlayerListComponent.java
+index f5ba0c9a4c3f9eaa38eeb689de915c25c7165433..24bbc32bc17802edbd9cc14310fe8141c0ad85b0 100644
+--- a/net/minecraft/server/gui/PlayerListComponent.java
++++ b/net/minecraft/server/gui/PlayerListComponent.java
+@@ -17,8 +17,8 @@ public class PlayerListComponent extends JList<String> {
+         if (this.tickCount++ % 20 == 0) {
+             Vector<String> list = new Vector<>();
+ 
+-            for (int i = 0; i < this.server.getPlayerList().getPlayers().size(); i++) {
+-                list.add(this.server.getPlayerList().getPlayers().get(i).getGameProfile().getName());
++            for (int i = 0; i < this.server.getPlayerList().realPlayers.size(); i++) { // Leaves - only real players
++                list.add(this.server.getPlayerList().realPlayers.get(i).getGameProfile().getName()); // Leaves - only real players
+             }
+ 
+             this.setListData(list);
 diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
 index e6de7ef46d197c14495d4b55d094af34816fc063..5072dc7ac71e1640b2aad35c3c3560e0860ece94 100644
 --- a/net/minecraft/server/level/ServerLevel.java

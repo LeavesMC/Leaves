@@ -138,7 +138,7 @@ public class ServerBot extends ServerPlayer {
             this.joining = false;
         }
 
-        this.gameMode.tick();
+        this.resetOperationCountPerTick(); // Leaves - player operation limiter
         this.wardenSpawnTracker.tick();
         if (this.invulnerableTime > 0) {
             this.invulnerableTime--;

@@ -1,5 +1,7 @@
 package org.leavesmc.leaves.config;
 
+import org.jetbrains.annotations.NotNull;
+
 public record LeavesConfigValue(Object value) {
 
     public int getInt() {
@@ -30,7 +32,7 @@ public record LeavesConfigValue(Object value) {
         throw new ClassCastException("Value is not a string");
     }
 
-    public String toString() {
+    public @NotNull String toString() {
         return value.toString();
     }
 }

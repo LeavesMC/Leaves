@@ -120,8 +120,4 @@ public class ServerBotGameMode extends ServerPlayerGameMode {
             return InteractionResult.PASS;
         }
     }
-
-    @Override
-    public void setLevel(@NotNull ServerLevel world) {
-    }
 }

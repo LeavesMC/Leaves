@@ -40,7 +40,7 @@ public class UpdateSuppressionException extends RuntimeException {
     }
 
     public UpdateSuppressionException applyPlayer(@NotNull ServerPlayer player) {
-        return new UpdateSuppressionException(this.pos, this.level, this.source, player, this.type);
+        return new UpdateSuppressionException(this.pos, level != null ? level : player.level(), this.source, player, this.type);
     }
 
     public UpdateSuppressionException applyLevel(@NotNull Level level) {
@@ -93,7 +93,7 @@ public class UpdateSuppressionException extends RuntimeException {
         List<String> messages = new ArrayList<>();
         messages.add("An %s update suppression was triggered".formatted(getTypeName()));
         if (source != null) {
-            messages.add("from %s".formatted(source.getName()));
+            messages.add("from %s".formatted(CraftMagicNumbers.getMaterial(source).name()));
         }
         if (pos != null) {
             messages.add("at [x:%d,y:%d,z:%d]".formatted(pos.getX(), pos.getY(), pos.getZ()));
@@ -102,7 +102,7 @@ public class UpdateSuppressionException extends RuntimeException {
             messages.add("in %s".formatted(level.dimension().location()));
         }
         if (player != null) {
-            messages.add("by %s".formatted(player.getName()));
+            messages.add("by %s".formatted(player.displayName));
         }
         return String.join(" ", messages);
     }

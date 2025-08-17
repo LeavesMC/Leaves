@@ -39,26 +39,31 @@ public class UpdateSuppressionException extends RuntimeException {
         this.type = type;
     }
 
-    public void applyPlayer(@NotNull ServerPlayer player) {
+    public void providePlayer(@NotNull ServerPlayer player) {
         if (this.level == null) {
             this.level = player.level();
         }
         this.player = player;
     }
 
-    public void applyLevel(@NotNull Level level) {
-        this.level = level;
+    public void provideLevel(@NotNull Level level) {
+        if (this.level != null) {
+            this.level = level;
+        }
     }
 
-    public void applyBlock(@NotNull Level level, @NotNull BlockPos pos, @NotNull Block source) {
-        this.level = level;
-        this.pos = pos;
-        this.source = source;
+    public void provideBlock(@NotNull Level level, @NotNull BlockPos pos, @NotNull Block source) {
+        provideLevel(level);
+        provideBlock(pos, source);
     }
 
-    public void applyBlock(@NotNull BlockPos pos, @NotNull Block source) {
-        this.pos = pos;
-        this.source = source;
+    public void provideBlock(@NotNull BlockPos pos, @NotNull Block source) {
+        if (this.pos != null) {
+            this.pos = pos;
+        }
+        if (this.source != null) {
+            this.source = source;
+        }
     }
 
     public void consume() {
@@ -80,18 +85,6 @@ public class UpdateSuppressionException extends RuntimeException {
             bukkitPlayer = player.getBukkitEntity();
         }
         new UpdateSuppressionEvent(bukkitPlayer, location, material, type).callEvent();
-    }
-
-    public boolean noLevel() {
-        return level == null;
-    }
-
-    public boolean noBlock() {
-        return pos == null || source == null;
-    }
-
-    public boolean noPlayer() {
-        return player == null;
     }
 
     @Override

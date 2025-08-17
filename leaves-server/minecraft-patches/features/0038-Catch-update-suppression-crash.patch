@@ -5,7 +5,7 @@ Subject: [PATCH] Catch update suppression crash
 
 
 diff --git a/net/minecraft/network/protocol/PacketUtils.java b/net/minecraft/network/protocol/PacketUtils.java
-index 4535858701b2bb232b9d2feb2af6551526232ddc..43f84b1b762c4931981e0dca7ca3d3f46a7bc3bf 100644
+index 4535858701b2bb232b9d2feb2af6551526232ddc..03e70445dfe14c119284f7c301127075c009e915 100644
 --- a/net/minecraft/network/protocol/PacketUtils.java
 +++ b/net/minecraft/network/protocol/PacketUtils.java
 @@ -27,7 +27,20 @@ public class PacketUtils {
@@ -14,14 +14,14 @@ index 4535858701b2bb232b9d2feb2af6551526232ddc..43f84b1b762c4931981e0dca7ca3d3f4
                          packet.handle(processor);
 +                    // Leaves start - update suppression crash fix
 +                    } catch (org.leavesmc.leaves.util.UpdateSuppressionException exception) {
-+                        if (exception.noPlayer() && processor instanceof net.minecraft.server.network.ServerGamePacketListenerImpl gamePacketListener) {
-+                            exception.applyPlayer(gamePacketListener.player);
++                        if (processor instanceof net.minecraft.server.network.ServerGamePacketListenerImpl gamePacketListener) {
++                            exception.providePlayer(gamePacketListener.player);
 +                        }
 +                        exception.consume();
                      } catch (Exception var4) {
 +                        if (var4.getCause() instanceof org.leavesmc.leaves.util.UpdateSuppressionException exception) {
-+                            if (exception.noPlayer() && processor instanceof net.minecraft.server.network.ServerGamePacketListenerImpl gamePacketListener) {
-+                                exception.applyPlayer(gamePacketListener.player);
++                            if (processor instanceof net.minecraft.server.network.ServerGamePacketListenerImpl gamePacketListener) {
++                                exception.providePlayer(gamePacketListener.player);
 +                            }
 +                            exception.consume();
 +                        }
@@ -30,24 +30,20 @@ index 4535858701b2bb232b9d2feb2af6551526232ddc..43f84b1b762c4931981e0dca7ca3d3f4
                              throw makeReportedException(var4, packet, processor);
                          }
 diff --git a/net/minecraft/server/MinecraftServer.java b/net/minecraft/server/MinecraftServer.java
-index 3aa719636ea2b68463a7f412a9cbd5bf3a7925a7..1b988ce6d0fcd5c5b8cf1a0b997958b629097ba6 100644
+index 3aa719636ea2b68463a7f412a9cbd5bf3a7925a7..498102c2553f12badff29bed98ce30528162e536 100644
 --- a/net/minecraft/server/MinecraftServer.java
 +++ b/net/minecraft/server/MinecraftServer.java
-@@ -1725,7 +1725,20 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+@@ -1725,7 +1725,16 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
  
              try {
                  serverLevel.tick(hasTimeLeft);
 +            // Leaves start - update suppression crash fix
 +            } catch (org.leavesmc.leaves.util.UpdateSuppressionException exception) {
-+                if (exception.noLevel()) {
-+                    exception.applyLevel(serverLevel);
-+                }
++                exception.provideLevel(serverLevel);
 +                exception.consume();
              } catch (Throwable var7) {
 +                if (var7.getCause() instanceof org.leavesmc.leaves.util.UpdateSuppressionException exception) {
-+                    if (exception.noLevel()) {
-+                        exception.applyLevel(serverLevel);
-+                    }
++                    exception.provideLevel(serverLevel);
 +                    exception.consume();
 +                }
 +                // Leaves end - update suppression crash fix
@@ -55,50 +51,44 @@ index 3aa719636ea2b68463a7f412a9cbd5bf3a7925a7..1b988ce6d0fcd5c5b8cf1a0b997958b6
                  serverLevel.fillReportDetails(crashReport);
                  throw new ReportedException(crashReport);
 diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
-index ed05aaa76e1e34ca82fcc7cfb73f371a11600eee..220c0d75fcb9d71e2f810ceac356a78a96bc066c 100644
+index ed05aaa76e1e34ca82fcc7cfb73f371a11600eee..400cb6f7fb05d4e69a7c5bfb960480eef13f15c5 100644
 --- a/net/minecraft/server/level/ServerLevel.java
 +++ b/net/minecraft/server/level/ServerLevel.java
-@@ -814,6 +814,13 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+@@ -814,6 +814,11 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
                                      if (org.leavesmc.leaves.LeavesConfig.performance.remove.tickGuardLambda) {
                                          try {
                                              this.tickNonPassenger(entity); // Leaves - changed
 +                                        // Leaves start - update suppression crash fix - for dragon dupe
 +                                        } catch (org.leavesmc.leaves.util.UpdateSuppressionException exception) {
-+                                            if (exception.noLevel()) {
-+                                                exception.applyLevel(this);
-+                                            }
++                                            exception.provideLevel(this);
 +                                            exception.consume();
 +                                        // Leaves end - update suppression crash fix - for dragon dupe
                                          } catch (Throwable throwable) {
                                              if (throwable instanceof ThreadDeath) throw throwable; // Paper
                                              // Paper start - Prevent block entity and entity crashes
 diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
-index 895cee538086e0494eb0f57c6e6b32ccd43e72e7..5d5a87c3e0bc2d61462ee7f48e3f186b86389681 100644
+index 895cee538086e0494eb0f57c6e6b32ccd43e72e7..0cd867ccdd3fe4628c311176cb3346b4ec668fa9 100644
 --- a/net/minecraft/server/level/ServerPlayer.java
 +++ b/net/minecraft/server/level/ServerPlayer.java
-@@ -905,6 +905,17 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -905,6 +905,13 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
                  ((org.bukkit.craftbukkit.CraftWorldBorder) this.getBukkitEntity().getWorldBorder()).getHandle().tick();
              }
              // CraftBukkit end
 +        // Leaves start - update suppression crash fix
 +        } catch (org.leavesmc.leaves.util.UpdateSuppressionException exception) {
 +            org.leavesmc.leaves.util.UpdateSuppressionException e = exception;
-+            if (e.noPlayer()) {
-+                e.applyPlayer(this);
-+            }
-+            if (e.noLevel()) {
-+                e.applyLevel(this.level());
-+            }
++            e.providePlayer(this);
++            e.provideLevel(this.level());
 +            e.consume();
 +        // Leaves start - update suppression crash fix
          } catch (Throwable var4) {
              CrashReport crashReport = CrashReport.forThrowable(var4, "Ticking player");
              CrashReportCategory crashReportCategory = crashReport.addCategory("Player being ticked");
 diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
-index e6457e07e7e8e7690d160020b92fbc6874c1ec82..b698c0fce71fdb397add54158a8ae438a435a953 100644
+index e6457e07e7e8e7690d160020b92fbc6874c1ec82..6f25e84c8b94fc1b9207efec77c9bff6c4510ce5 100644
 --- a/net/minecraft/world/entity/Entity.java
 +++ b/net/minecraft/world/entity/Entity.java
-@@ -1351,9 +1351,23 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
+@@ -1351,9 +1351,18 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
                      this.walkingStepSound(pos, state);
                  }
  
@@ -108,14 +98,9 @@ index e6457e07e7e8e7690d160020b92fbc6874c1ec82..b698c0fce71fdb397add54158a8ae438
                      this.level().gameEvent(GameEvent.STEP, this.position(), GameEvent.Context.of(this, state));
 +                } catch (org.leavesmc.leaves.util.UpdateSuppressionException exception) {
 +                    org.leavesmc.leaves.util.UpdateSuppressionException e = exception;
-+                    if (e.noLevel()) {
-+                        e.applyLevel(level);
-+                    }
-+                    if (e.noPlayer() && this instanceof ServerPlayer player) {
-+                        e.applyPlayer(player);
-+                    }
-+                    if (e.noBlock()) {
-+                        e.applyBlock(pos, state.getBlock());
++                    e.provideBlock(level, pos, state.getBlock());
++                    if (this instanceof ServerPlayer player) {
++                        e.providePlayer(player);
 +                    }
 +                    e.consume();
                  }
@@ -159,7 +144,7 @@ index 9b9842462b210b0407279ee8a8e9ccecf3ead005..94461270cb7a74d8f51c2f95e1104f27
          // Paper end - optimise blockstate property access
      }
 diff --git a/net/minecraft/world/level/chunk/LevelChunk.java b/net/minecraft/world/level/chunk/LevelChunk.java
-index f24db919989bc2e5768e18b4fda68c38d6cde7e0..6a5b3da447df93da7d81355b4efc35b6f3ed99ba 100644
+index f24db919989bc2e5768e18b4fda68c38d6cde7e0..0e22116fefcbdbf2049b7ec285b35fd03c723dc5 100644
 --- a/net/minecraft/world/level/chunk/LevelChunk.java
 +++ b/net/minecraft/world/level/chunk/LevelChunk.java
 @@ -373,7 +373,7 @@ public class LevelChunk extends ChunkAccess implements ca.spottedleaf.moonrise.p
@@ -175,12 +160,12 @@ index f24db919989bc2e5768e18b4fda68c38d6cde7e0..6a5b3da447df93da7d81355b4efc35b6
                      this.markUnsaved();
                      return blockState;
                  }
-+                } catch (org.leavesmc.leaves.util.UpdateSuppressionException e) { e.applyBlock(level, pos, block); throw e; } // Leaves - update suppression crash fix
++                } catch (org.leavesmc.leaves.util.UpdateSuppressionException e) { e.provideBlock(level, pos, block); throw e; } // Leaves - update suppression crash fix
              }
          }
      }
 diff --git a/net/minecraft/world/level/redstone/NeighborUpdater.java b/net/minecraft/world/level/redstone/NeighborUpdater.java
-index 332b33a004ab11150cca0cc2cefc26d0286648f5..029e0a0ccbe42d20203954cadbb4a099c8f879cb 100644
+index 332b33a004ab11150cca0cc2cefc26d0286648f5..7928058d8b91a9ea4c1f77d89a685147936313ee 100644
 --- a/net/minecraft/world/level/redstone/NeighborUpdater.java
 +++ b/net/minecraft/world/level/redstone/NeighborUpdater.java
 @@ -60,9 +60,22 @@ public interface NeighborUpdater {
@@ -196,7 +181,7 @@ index 332b33a004ab11150cca0cc2cefc26d0286648f5..029e0a0ccbe42d20203954cadbb4a099
          } catch (Throwable var9) {
 +            if (org.leavesmc.leaves.LeavesConfig.modify.updateSuppressionCrashFix) {
 +                if (var9 instanceof org.leavesmc.leaves.util.UpdateSuppressionException ue) {
-+                    ue.applyBlock(level, pos, neighborBlock);
++                    ue.provideBlock(level, pos, neighborBlock);
 +                    throw ue;
 +                } else {
 +                    throw new org.leavesmc.leaves.util.UpdateSuppressionException(pos, level, neighborBlock, null, var9.getClass());

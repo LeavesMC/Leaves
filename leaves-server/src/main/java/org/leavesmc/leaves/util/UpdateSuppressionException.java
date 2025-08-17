@@ -41,7 +41,7 @@ public class UpdateSuppressionException extends RuntimeException {
     }
 
     public UpdateSuppressionException applyPlayer(@NotNull ServerPlayer player) {
-        return new UpdateSuppressionException(this.pos, level != null ? level : player.level(), this.source, player, this.type);
+        return new UpdateSuppressionException(this.pos, this.level != null ? this.level : player.level(), this.source, player, this.type);
     }
 
     public UpdateSuppressionException applyLevel(@NotNull Level level) {

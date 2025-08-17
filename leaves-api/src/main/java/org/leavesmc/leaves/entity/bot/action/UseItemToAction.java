@@ -13,15 +13,15 @@ public interface UseItemToAction extends TimerBotAction<UseItemToAction> {
      *
      * @return the equivalent right-click hold duration
      */
-    int getUseTick();
+    int getUseTickTimeout();
 
     /**
      * Sets the equivalent right-click hold duration in ticks.
      *
-     * @param useTick the equivalent right-click hold duration
+     * @param timeout the equivalent right-click hold duration
      * @return this action instance
      */
-    UseItemToAction setUseTick(int useTick);
+    UseItemToAction setUseTickTimeout(int timeout);
 
     static UseItemToAction create() {
         return Bukkit.getBotManager().newAction(UseItemToAction.class);

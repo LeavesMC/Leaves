@@ -15,19 +15,19 @@ import java.util.List;
 import java.util.function.Supplier;
 
 public abstract class ServerUseBotAction<T extends ServerUseBotAction<T>> extends ServerTimerBotAction<T> {
-    private int useTick = -1;
+    private int useTickTimeout = -1;
     private int alreadyUsedTick = 0;
     private int useItemRemainingTicks = 0;
 
     public ServerUseBotAction(String name, Supplier<T> supplier) {
         super(name, CommandArgument.of(CommandArgumentType.INTEGER, CommandArgumentType.INTEGER, CommandArgumentType.INTEGER, CommandArgumentType.INTEGER), supplier);
-        this.setSuggestion(3, Pair.of(List.of("-1"), "[UseTick]"));
+        this.setSuggestion(3, Pair.of(List.of("-1"), "[UseTickTimeout]"));
     }
 
     @Override
     public void loadCommand(ServerPlayer player, @NotNull CommandArgumentResult result) {
         super.loadCommand(player, result);
-        this.useTick = result.readInt(-1);
+        this.useTickTimeout = result.readInt(-1);
     }
 
     @Override
@@ -73,7 +73,7 @@ public abstract class ServerUseBotAction<T extends ServerUseBotAction<T>> extend
     }
 
     private boolean isUseTickLimitExceeded() {
-        int useTickLimit = useTick == -1 ? Integer.MAX_VALUE : useTick;
+        int useTickLimit = useTickTimeout == -1 ? Integer.MAX_VALUE : useTickTimeout;
         return alreadyUsedTick > useTickLimit;
     }
 
@@ -97,7 +97,7 @@ public abstract class ServerUseBotAction<T extends ServerUseBotAction<T>> extend
     @NotNull
     public CompoundTag save(@NotNull CompoundTag nbt) {
         super.save(nbt);
-        nbt.putInt("useTick", this.useTick);
+        nbt.putInt("useTick", this.useTickTimeout);
         nbt.putInt("alreadyUsedTick", this.alreadyUsedTick);
         return nbt;
     }
@@ -105,18 +105,18 @@ public abstract class ServerUseBotAction<T extends ServerUseBotAction<T>> extend
     @Override
     public void load(@NotNull CompoundTag nbt) {
         super.load(nbt);
-        this.useTick = nbt.getInt("useTick").orElseThrow();
+        this.useTickTimeout = nbt.getInt("useTick").orElseThrow();
         this.alreadyUsedTick = nbt.getInt("alreadyUsedTick").orElseGet(
-            () -> this.useTick - nbt.getInt("tickToRelease").orElseThrow()
+            () -> this.useTickTimeout - nbt.getInt("tickToRelease").orElseThrow()
         );
     }
 
-    public int getUseTick() {
-        return useTick;
+    public int getUseTickTimeout() {
+        return useTickTimeout;
     }
 
-    public void setUseTick(int useTick) {
-        this.useTick = useTick;
+    public void setUseTickTimeout(int useTickTimeout) {
+        this.useTickTimeout = useTickTimeout;
     }
 
     @Override

@@ -5,27 +5,32 @@ Subject: [PATCH] Fix block place desync due to update suppression
 
 
 diff --git a/net/minecraft/world/item/ItemStack.java b/net/minecraft/world/item/ItemStack.java
-index e59b8d42d602bbdae1071f2a5be1180420c4efb7..5dadbdb4bb4c0d3a2dcc33120ac725bfe3e6f65c 100644
+index e59b8d42d602bbdae1071f2a5be1180420c4efb7..c070785e0f2bedf24702a86cf5a32a9892335f3f 100644
 --- a/net/minecraft/world/item/ItemStack.java
 +++ b/net/minecraft/world/item/ItemStack.java
-@@ -389,8 +389,12 @@ public final class ItemStack implements DataComponentHolder {
+@@ -389,8 +389,17 @@ public final class ItemStack implements DataComponentHolder {
                  }
              }
              InteractionResult interactionResult;
-+            org.leavesmc.leaves.util.UpdateSuppressionException ue = null; // Leaves start - fix block place desync due to update suppression
++            // Leaves start - fix block place desync due to update suppression
++            org.leavesmc.leaves.util.UpdateSuppressionException ue = null;
              try {
                  interactionResult = item.useOn(context);
-+            } catch (org.leavesmc.leaves.util.UpdateSuppressionException te) {
++            } catch (org.leavesmc.leaves.util.UpdateSuppressionException ex) {
 +                interactionResult = net.minecraft.world.InteractionResult.SUCCESS.configurePaper(e -> e.placedBlockAt(clickedPos.immutable()));
-+                ue = te; // Leaves end - fix block place desync due to update suppression
++                ue = ex.applyBlock(context.getLevel(), context.getClickedPos(), serverLevel.getBlockState(context.getClickedPos()).getBlock());
++                if (player != null) {
++                    ue = ue.applyPlayer((net.minecraft.server.level.ServerPlayer) player);
++                }
++            // Leaves end - fix block place desync due to update suppression
              } finally {
                  serverLevel.captureBlockStates = false;
              }
-@@ -537,6 +541,7 @@ public final class ItemStack implements DataComponentHolder {
+@@ -537,6 +546,7 @@ public final class ItemStack implements DataComponentHolder {
              serverLevel.capturedBlockStates.clear();
              // CraftBukkit end
  
-+            if (ue != null) throw ue;
++            if (ue != null) throw ue; // Leaves - fix block place desync due to update suppression
              return interactionResult;
          }
      }

@@ -11,6 +11,7 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesLogger;
+import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.event.player.UpdateSuppressionEvent;
 
 import javax.annotation.Nullable;
@@ -102,7 +103,11 @@ public class UpdateSuppressionException extends RuntimeException {
             messages.add("in %s".formatted(level.dimension().location()));
         }
         if (player != null) {
-            messages.add("by %s".formatted(player.displayName));
+            if (player instanceof ServerBot) {
+                messages.add("by %s[bot]".formatted(player.displayName));
+            } else {
+                messages.add("by %s".formatted(player.displayName));
+            }
         }
         return String.join(" ", messages);
     }

@@ -67,42 +67,42 @@ index ed05aaa76e1e34ca82fcc7cfb73f371a11600eee..400cb6f7fb05d4e69a7c5bfb960480ee
                                              if (throwable instanceof ThreadDeath) throw throwable; // Paper
                                              // Paper start - Prevent block entity and entity crashes
 diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
-index 895cee538086e0494eb0f57c6e6b32ccd43e72e7..0cd867ccdd3fe4628c311176cb3346b4ec668fa9 100644
+index 895cee538086e0494eb0f57c6e6b32ccd43e72e7..e355939e153c05f9434482c4713743755b280d69 100644
 --- a/net/minecraft/server/level/ServerPlayer.java
 +++ b/net/minecraft/server/level/ServerPlayer.java
-@@ -905,6 +905,13 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -905,6 +905,12 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
                  ((org.bukkit.craftbukkit.CraftWorldBorder) this.getBukkitEntity().getWorldBorder()).getHandle().tick();
              }
              // CraftBukkit end
 +        // Leaves start - update suppression crash fix
 +        } catch (org.leavesmc.leaves.util.UpdateSuppressionException exception) {
-+            org.leavesmc.leaves.util.UpdateSuppressionException e = exception;
-+            e.providePlayer(this);
-+            e.provideLevel(this.level());
-+            e.consume();
++            exception.providePlayer(this);
++            exception.provideLevel(this.level());
++            exception.consume();
 +        // Leaves start - update suppression crash fix
          } catch (Throwable var4) {
              CrashReport crashReport = CrashReport.forThrowable(var4, "Ticking player");
              CrashReportCategory crashReportCategory = crashReport.addCategory("Player being ticked");
 diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
-index e6457e07e7e8e7690d160020b92fbc6874c1ec82..6f25e84c8b94fc1b9207efec77c9bff6c4510ce5 100644
+index e6457e07e7e8e7690d160020b92fbc6874c1ec82..f8e0275ebac65edfca3e8bb5d53001becd9a963f 100644
 --- a/net/minecraft/world/entity/Entity.java
 +++ b/net/minecraft/world/entity/Entity.java
-@@ -1351,9 +1351,18 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
+@@ -1351,9 +1351,19 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
                      this.walkingStepSound(pos, state);
                  }
  
--                if (broadcastGameEvent) {
 +                // Leaves start - update suppression crash fix
-+                if (broadcastGameEvent) try {
-                     this.level().gameEvent(GameEvent.STEP, this.position(), GameEvent.Context.of(this, state));
-+                } catch (org.leavesmc.leaves.util.UpdateSuppressionException exception) {
-+                    org.leavesmc.leaves.util.UpdateSuppressionException e = exception;
-+                    e.provideBlock(level, pos, state.getBlock());
-+                    if (this instanceof ServerPlayer player) {
-+                        e.providePlayer(player);
+                 if (broadcastGameEvent) {
+-                    this.level().gameEvent(GameEvent.STEP, this.position(), GameEvent.Context.of(this, state));
++                    try {
++                        this.level().gameEvent(net.minecraft.world.level.gameevent.GameEvent.STEP, this.position(), net.minecraft.world.level.gameevent.GameEvent.Context.of(this, state));
++                    } catch (org.leavesmc.leaves.util.UpdateSuppressionException exception) {
++                        exception.provideBlock(level, pos, state.getBlock());
++                        if (this instanceof net.minecraft.server.level.ServerPlayer player) {
++                            exception.providePlayer(player);
++                        }
++                        exception.consume();
 +                    }
-+                    e.consume();
                  }
 +                // Leaves end - update suppression crash fix
  

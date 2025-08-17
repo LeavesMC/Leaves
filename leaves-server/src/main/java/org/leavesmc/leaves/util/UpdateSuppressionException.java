@@ -6,7 +6,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.craftbukkit.util.CraftMagicNumbers;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
@@ -19,10 +18,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class UpdateSuppressionException extends RuntimeException {
-    private final @Nullable BlockPos pos;
-    private final @Nullable Level level;
-    private final @Nullable Block source;
-    private final @Nullable ServerPlayer player;
+    private @Nullable BlockPos pos;
+    private @Nullable Level level;
+    private @Nullable Block source;
+    private @Nullable ServerPlayer player;
     private final @NotNull Class<? extends Throwable> type;
 
     public UpdateSuppressionException(
@@ -40,20 +39,26 @@ public class UpdateSuppressionException extends RuntimeException {
         this.type = type;
     }
 
-    public UpdateSuppressionException applyPlayer(@NotNull ServerPlayer player) {
-        return new UpdateSuppressionException(this.pos, this.level != null ? this.level : player.level(), this.source, player, this.type);
+    public void applyPlayer(@NotNull ServerPlayer player) {
+        if (this.level == null) {
+            this.level = player.level();
+        }
+        this.player = player;
     }
 
-    public UpdateSuppressionException applyLevel(@NotNull Level level) {
-        return new UpdateSuppressionException(this.pos, level, this.source, this.player, this.type);
+    public void applyLevel(@NotNull Level level) {
+        this.level = level;
     }
 
-    public UpdateSuppressionException applyBlock(@NotNull Level level, @NotNull BlockPos pos, @NotNull Block source) {
-        return new UpdateSuppressionException(pos, level, source, this.player, this.type);
+    public void applyBlock(@NotNull Level level, @NotNull BlockPos pos, @NotNull Block source) {
+        this.level = level;
+        this.pos = pos;
+        this.source = source;
     }
 
-    public UpdateSuppressionException applyBlock(@NotNull BlockPos pos, @NotNull Block source) {
-        return new UpdateSuppressionException(pos, this.level, source, this.player, this.type);
+    public void applyBlock(@NotNull BlockPos pos, @NotNull Block source) {
+        this.pos = pos;
+        this.source = source;
     }
 
     public void consume() {
@@ -68,7 +73,7 @@ public class UpdateSuppressionException extends RuntimeException {
         }
         Material material = null;
         if (source != null) {
-            material = CraftMagicNumbers.getMaterial(source);
+            material = source.defaultBlockState().getBukkitMaterial();
         }
         Player bukkitPlayer = null;
         if (player != null) {
@@ -94,7 +99,7 @@ public class UpdateSuppressionException extends RuntimeException {
         List<String> messages = new ArrayList<>();
         messages.add("An %s update suppression was triggered".formatted(getTypeName()));
         if (source != null) {
-            messages.add("from %s".formatted(CraftMagicNumbers.getMaterial(source).name()));
+            messages.add("from %s".formatted(source.defaultBlockState().getBukkitMaterial().name()));
         }
         if (pos != null) {
             messages.add("at [x:%d,y:%d,z:%d]".formatted(pos.getX(), pos.getY(), pos.getZ()));

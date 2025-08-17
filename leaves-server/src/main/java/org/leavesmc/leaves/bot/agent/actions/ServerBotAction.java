@@ -92,7 +92,8 @@ public abstract class ServerBotAction<E extends ServerBotAction<E>> {
             try {
                 result = this.doTick(bot);
             } catch (UpdateSuppressionException e) {
-                e.applyPlayer(bot).consume();
+                e.applyPlayer(bot);
+                e.consume();
             } catch (Exception e) {
                 LeavesLogger.LOGGER.severe("An error occurred while executing bot " + bot.displayName + ", action " + this.name, e);
             }

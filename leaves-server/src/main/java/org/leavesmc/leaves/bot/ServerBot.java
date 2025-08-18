@@ -520,7 +520,7 @@ public class ServerBot extends ServerPlayer {
     @Override
     public boolean startRiding(@NotNull Entity vehicle, boolean force) {
         if (super.startRiding(vehicle, force)) {
-            if (vehicle instanceof AbstractBoat) {
+            if (vehicle.getControllingPassenger() == this) { // see net.minecraft.server.networkServerGamePacketListenerImpl#handleMoveVehicle
                 this.setDeltaMovement(Vec3.ZERO);
                 this.setYRot(vehicle.yRotO);
             }

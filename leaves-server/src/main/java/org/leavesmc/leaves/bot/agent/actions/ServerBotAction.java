@@ -6,11 +6,13 @@ import net.minecraft.server.level.ServerPlayer;
 import org.apache.commons.lang3.tuple.Pair;
 import org.bukkit.command.CommandSender;
 import org.jetbrains.annotations.NotNull;
+import org.leavesmc.leaves.LeavesLogger;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.command.CommandArgument;
 import org.leavesmc.leaves.command.CommandArgumentResult;
 import org.leavesmc.leaves.event.bot.BotActionExecuteEvent;
 import org.leavesmc.leaves.event.bot.BotActionStopEvent;
+import org.leavesmc.leaves.util.UpdateSuppressionException;
 
 import java.util.List;
 import java.util.UUID;
@@ -86,7 +88,17 @@ public abstract class ServerBotAction<E extends ServerBotAction<E>> {
                 return;
             }
 
-            if (this.doTick(bot)) {
+            boolean result = false;
+            try {
+                result = this.doTick(bot);
+            } catch (UpdateSuppressionException e) {
+                e.providePlayer(bot);
+                e.consume();
+            } catch (Exception e) {
+                LeavesLogger.LOGGER.severe("An error occurred while executing bot " + bot.displayName + ", action " + this.name, e);
+            }
+
+            if (result) {
                 if (this.numberRemaining > 0) {
                     this.numberRemaining--;
                 }

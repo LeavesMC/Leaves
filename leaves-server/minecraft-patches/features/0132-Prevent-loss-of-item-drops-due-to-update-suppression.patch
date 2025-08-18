@@ -6,31 +6,34 @@ Subject: [PATCH] Prevent loss of item drops due to update suppression when
 
 
 diff --git a/net/minecraft/server/level/ServerPlayerGameMode.java b/net/minecraft/server/level/ServerPlayerGameMode.java
-index f258bc30014f94243ad832b33dcb6c9acd1f2f08..a3934a0edd210af1ca4749ea64d050871cbfc96d 100644
+index f258bc30014f94243ad832b33dcb6c9acd1f2f08..9a4eb1f8e01517707befa30b3ccacc7c84c0abe9 100644
 --- a/net/minecraft/server/level/ServerPlayerGameMode.java
 +++ b/net/minecraft/server/level/ServerPlayerGameMode.java
-@@ -382,7 +382,14 @@ public class ServerPlayerGameMode {
+@@ -382,7 +382,18 @@ public class ServerPlayerGameMode {
                  this.level.captureDrops = new java.util.ArrayList<>();
                  // CraftBukkit end
                  BlockState blockState1 = org.leavesmc.leaves.command.subcommands.BlockUpdateCommand.isNoBlockUpdate() ? blockState : block.playerWillDestroy(this.level, pos, blockState, this.player); // Leaves - no block update
 -                boolean flag = this.level.removeBlock(pos, false);
-+                boolean flag; // Leaves start - Prevent loss of item drops due to update suppression when breaking blocks
++                // Leaves start - Prevent loss of item drops due to update suppression when breaking blocks
++                boolean flag;
 +                org.leavesmc.leaves.util.UpdateSuppressionException ex = null;
 +                try {
 +                    flag = this.level.removeBlock(pos, false);
 +                } catch (org.leavesmc.leaves.util.UpdateSuppressionException e) {
 +                    ex = e;
++                    ex.provideBlock(level, pos, block);
++                    ex.providePlayer(this.player);
 +                    flag = false;
 +                }
++                // Leaves end - Prevent loss of item drops due to update suppression when breaking blocks
                  if (flag) {
                      block.destroy(this.level, pos, blockState1);
                  }
-@@ -410,6 +417,8 @@ public class ServerPlayerGameMode {
+@@ -410,6 +421,7 @@ public class ServerPlayerGameMode {
                  if (event.isDropItems()) {
                      org.bukkit.craftbukkit.event.CraftEventFactory.handleBlockDropItemEvent(bblock, state, this.player, itemsToDrop); // Paper - capture all item additions to the world
                  }
-+                if (ex != null) throw ex;
-+                // Leaves end - Prevent loss of item drops due to update suppression when breaking blocks
++                if (ex != null) throw ex; // Leaves - Prevent loss of item drops due to update suppression when breaking blocks
  
                  // Drop event experience
                  if (flag) {

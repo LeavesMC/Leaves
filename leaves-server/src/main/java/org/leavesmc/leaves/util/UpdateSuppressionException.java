@@ -22,21 +22,21 @@ public class UpdateSuppressionException extends RuntimeException {
     private @Nullable Level level;
     private @Nullable Block source;
     private @Nullable ServerPlayer player;
-    private final @NotNull Class<? extends Throwable> type;
+    private final @NotNull Throwable throwable;
 
     public UpdateSuppressionException(
         @Nullable BlockPos pos,
         @Nullable Level level,
         @Nullable Block source,
         @Nullable ServerPlayer player,
-        @NotNull Class<? extends Throwable> type
+        @NotNull Throwable throwable
     ) {
         super("Update Suppression");
         this.pos = pos;
         this.level = level;
         this.source = source;
         this.player = player;
-        this.type = type;
+        this.throwable = throwable;
     }
 
     public void providePlayer(@NotNull ServerPlayer player) {
@@ -84,7 +84,7 @@ public class UpdateSuppressionException extends RuntimeException {
         if (player != null) {
             bukkitPlayer = player.getBukkitEntity();
         }
-        new UpdateSuppressionEvent(bukkitPlayer, location, material, type).callEvent();
+        new UpdateSuppressionEvent(bukkitPlayer, location, material, throwable).callEvent();
     }
 
     @Override
@@ -112,6 +112,7 @@ public class UpdateSuppressionException extends RuntimeException {
 
     @Contract(pure = true)
     private @NotNull String getTypeName() {
+        Class<? extends Throwable> type = throwable.getClass();
         if (type == ClassCastException.class) {
             return "CCE";
         } else if (type == StackOverflowError.class) {

@@ -14,13 +14,13 @@ public class UpdateSuppressionEvent extends Event {
     private final @Nullable Player player;
     private final @Nullable Location position;
     private final @Nullable Material material;
-    private final @NotNull Class<? extends Throwable> type;
+    private final @NotNull Throwable throwable;
 
-    public UpdateSuppressionEvent(@Nullable Player player, @Nullable Location position, @Nullable Material material, @NotNull Class<? extends Throwable> type) {
+    public UpdateSuppressionEvent(@Nullable Player player, @Nullable Location position, @Nullable Material material, @NotNull Throwable throwable) {
         this.player = player;
         this.position = position;
         this.material = material;
-        this.type = type;
+        this.throwable = throwable;
     }
 
     @Override
@@ -32,8 +32,8 @@ public class UpdateSuppressionEvent extends Event {
         return player;
     }
 
-    public @NotNull Class<? extends Throwable> getType() {
-        return type;
+    public @NotNull Throwable getThrowable() {
+        return throwable;
     }
 
     public @Nullable Location getPosition() {

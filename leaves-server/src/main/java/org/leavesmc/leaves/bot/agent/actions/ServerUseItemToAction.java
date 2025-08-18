@@ -32,10 +32,10 @@ public class ServerUseItemToAction extends ServerUseBotAction<ServerUseItemToAct
         }
 
         Vec3 vec3 = hitResult.getLocation().subtract(entity.getX(), entity.getY(), entity.getZ());
+        bot.updateItemInHand(hand);
         InteractionResult interactionResult = entity.interactAt(bot, vec3, hand);
         if (!interactionResult.consumesAction()) {
             interactionResult = bot.interactOn(hitResult.getEntity(), hand);
-            bot.updateItemInHand(hand);
         }
 
         if (shouldSwing(interactionResult)) {

@@ -18,12 +18,10 @@ public class ServerUseItemAction extends ServerUseBotAction<ServerUseItemAction>
     }
 
     public static @NotNull InteractionResult useItem(@NotNull ServerBot bot, InteractionHand hand) {
+        bot.updateItemInHand(hand);
         InteractionResult result = bot.gameMode.useItem(bot, bot.level(), bot.getItemInHand(hand), hand);
         if (shouldSwing(result)) {
             bot.swing(hand);
-        }
-        if (result.consumesAction()) {
-            bot.updateItemInHand(hand);
         }
         return result;
     }

@@ -22,6 +22,9 @@ public class ServerUseItemAction extends ServerUseBotAction<ServerUseItemAction>
         if (shouldSwing(result)) {
             bot.swing(hand);
         }
+        if (result.consumesAction()) {
+            bot.updateItemInHand(hand);
+        }
         return result;
     }
 

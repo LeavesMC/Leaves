@@ -225,23 +225,11 @@ public abstract class ServerBotAction<E extends ServerBotAction<E>> {
         this.onFail = onFail;
     }
 
-    public Consumer<E> getOnFail() {
-        return onFail;
-    }
-
     public void setOnSuccess(Consumer<E> onSuccess) {
         this.onSuccess = onSuccess;
     }
 
-    public Consumer<E> getOnSuccess() {
-        return onSuccess;
-    }
-
     public void setOnStop(Consumer<E> onStop) {
         this.onStop = onStop;
-    }
-
-    public Consumer<E> getOnStop() {
-        return onStop;
     }
 }

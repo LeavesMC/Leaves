@@ -8,20 +8,20 @@ import org.bukkit.Bukkit;
 public interface UseItemOnOffhandAction extends TimerBotAction<UseItemOnOffhandAction> {
 
     /**
-     * Gets the equivalent right-click hold duration in ticks.
-     * Default is -1, which means will not be released.
+     * Gets the equivalent right-click hold duration timeout in ticks.
+     * Default is -1, which means no timeout.
      *
-     * @return the equivalent right-click hold duration
+     * @return the equivalent right-click hold duration timeout
      */
-    int getUseTick();
+    int getUseTickTimeout();
 
     /**
-     * Sets the equivalent right-click hold duration in ticks.
+     * Sets the equivalent right-click hold duration timeout in ticks.
      *
-     * @param useTick the equivalent right-click hold duration
+     * @param timeout the equivalent right-click hold duration timeout
      * @return this action instance
      */
-    UseItemOnOffhandAction setUseTick(int useTick);
+    UseItemOnOffhandAction setUseTickTimeout(int timeout);
 
     static UseItemOnOffhandAction create() {
         return Bukkit.getBotManager().newAction(UseItemOnOffhandAction.class);

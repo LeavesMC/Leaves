@@ -10,13 +10,13 @@ public class CraftUseItemOnAction extends CraftTimerBotAction<UseItemOnAction, S
     }
 
     @Override
-    public int getUseTick() {
-        return serverAction.getUseTick();
+    public int getUseTickTimeout() {
+        return serverAction.getUseTickTimeout();
     }
 
     @Override
-    public CraftUseItemOnAction setUseTick(int useTick) {
-        serverAction.setUseTick(useTick);
+    public CraftUseItemOnAction setUseTickTimeout(int timeout) {
+        serverAction.setUseTickTimeout(timeout);
         return this;
     }
 }

@@ -1,37 +1,34 @@
 package org.leavesmc.leaves.bot.agent.actions;
 
-import net.minecraft.server.level.ServerPlayer;
-import org.apache.commons.lang3.tuple.Pair;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.command.CommandArgument;
-import org.leavesmc.leaves.command.CommandArgumentResult;
-import org.leavesmc.leaves.command.CommandArgumentType;
 import org.leavesmc.leaves.entity.bot.action.MoveAction.MoveDirection;
 import org.leavesmc.leaves.entity.bot.actions.CraftMoveAction;
 import org.leavesmc.leaves.event.bot.BotActionStopEvent;
+import org.leavesmc.leaves.neo_command.CommandContext;
 
 import java.util.Arrays;
-import java.util.List;
+
+import static org.leavesmc.leaves.neo_command.leaves.ArgumentSuggestions.strings;
 
 public class ServerMoveAction extends ServerStateBotAction<ServerMoveAction> {
 
-    private static final Pair<List<String>, String> suggestions = Pair.of(
-        Arrays.stream(MoveDirection.values()).map((it) -> it.name).toList(),
-        "<Direction>"
-    );
     private MoveDirection direction = MoveDirection.FORWARD;
 
     public ServerMoveAction() {
-        super("move", CommandArgument.of(CommandArgumentType.ofEnum(MoveDirection.class)), ServerMoveAction::new);
-        this.setSuggestion(0, suggestions);
+        super("move", ServerMoveAction::new);
+        this.addArgument("direction", StringArgumentType.word())
+            .suggests(strings(Arrays.stream(MoveDirection.values()).map(MoveDirection::name).toList()));
     }
 
     @Override
-    public void loadCommand(ServerPlayer player, @NotNull CommandArgumentResult result) {
-        this.direction = result.read(MoveDirection.class);
-        if (direction == null) {
-            throw new IllegalArgumentException("Invalid direction");
+    public void loadCommand(@NotNull CommandContext context) {
+        String raw = context.getArgument("direction", String.class);
+        try {
+            this.direction = MoveDirection.valueOf(raw);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid move direction: " + raw);
         }
     }
 

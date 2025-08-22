@@ -1,22 +1,24 @@
 package org.leavesmc.leaves.bot.agent.actions;
 
+import com.mojang.brigadier.arguments.ArgumentType;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.server.level.ServerPlayer;
 import org.apache.commons.lang3.tuple.Pair;
-import org.bukkit.command.CommandSender;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesLogger;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.command.CommandArgument;
-import org.leavesmc.leaves.command.CommandArgumentResult;
 import org.leavesmc.leaves.event.bot.BotActionExecuteEvent;
 import org.leavesmc.leaves.event.bot.BotActionStopEvent;
+import org.leavesmc.leaves.neo_command.CommandContext;
+import org.leavesmc.leaves.neo_command.WrappedArgument;
 import org.leavesmc.leaves.util.UpdateSuppressionException;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
-import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -24,9 +26,10 @@ import java.util.function.Supplier;
 public abstract class ServerBotAction<E extends ServerBotAction<E>> {
 
     private final String name;
-    private final CommandArgument argument;
+    private final Map<Integer, List<Pair<String, WrappedArgument<?>>>> arguments;
     private final Supplier<E> creator;
     private UUID uuid;
+    private int currentFork = 0;
 
     private int initialTickDelay;
     private int initialTickInterval;
@@ -40,11 +43,11 @@ public abstract class ServerBotAction<E extends ServerBotAction<E>> {
     private Consumer<E> onSuccess;
     private Consumer<E> onStop;
 
-    public ServerBotAction(String name, CommandArgument argument, Supplier<E> creator) {
+    public ServerBotAction(String name, Supplier<E> creator) {
         this.name = name;
-        this.argument = argument;
         this.uuid = UUID.randomUUID();
         this.creator = creator;
+        this.arguments = new HashMap<>();
 
         this.cancel = false;
         this.setStartDelayTick(0);
@@ -56,10 +59,37 @@ public abstract class ServerBotAction<E extends ServerBotAction<E>> {
 
     public abstract Object asCraft();
 
+    public List<Pair<String, String>> provideReadableActionData() {
+        return new ArrayList<>();
+    }
+
+    public String getReadableActionDataString() {
+        return provideReadableActionData().stream()
+            .map(pair -> pair.getLeft() + "=" + pair.getRight())
+            .reduce((a, b) -> a + ", " + b)
+            .orElse("No arguments");
+    }
+
     public void init() {
         this.tickToNext = initialTickDelay;
         this.numberRemaining = this.getDoNumber();
         this.setCancelled(false);
+    }
+
+    public void fork(int fork) {
+        currentFork = fork;
+    }
+
+    public <T> WrappedArgument<T> addArgument(String name, ArgumentType<T> type) {
+        WrappedArgument<T> argument = new WrappedArgument<>(name, type);
+        this.arguments
+            .computeIfAbsent(currentFork, k -> new ArrayList<>())
+            .add(Pair.of(name, argument));
+        return argument;
+    }
+
+    public Map<Integer, List<Pair<String, WrappedArgument<?>>>> getArguments() {
+        return this.arguments;
     }
 
     public void tryTick(ServerBot bot) {
@@ -149,28 +179,13 @@ public abstract class ServerBotAction<E extends ServerBotAction<E>> {
         }
     }
 
-    public void loadCommand(ServerPlayer player, @NotNull CommandArgumentResult result) {
-    }
-
-    public void setSuggestion(int n, BiFunction<CommandSender, String, Pair<List<String>, String>> suggestion) {
-        this.argument.setSuggestion(n, suggestion);
-    }
-
-    public void setSuggestion(int n, Pair<List<String>, String> suggestion) {
-        this.setSuggestion(n, (sender, arg) -> suggestion);
-    }
-
-    public void setSuggestion(int n, List<String> tabComplete) {
-        this.setSuggestion(n, Pair.of(tabComplete, null));
+    @SuppressWarnings("RedundantThrows")
+    public void loadCommand(@NotNull CommandContext context) throws CommandSyntaxException {
     }
 
     @NotNull
     public E create() {
         return this.creator.get();
-    }
-
-    public CommandArgument getArgument() {
-        return this.argument;
     }
 
     public String getName() {

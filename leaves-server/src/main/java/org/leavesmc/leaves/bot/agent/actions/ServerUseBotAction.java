@@ -1,18 +1,16 @@
 package org.leavesmc.leaves.bot.agent.actions;
 
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionResult;
-import org.apache.commons.lang3.tuple.Pair;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.command.CommandArgument;
-import org.leavesmc.leaves.command.CommandArgumentResult;
-import org.leavesmc.leaves.command.CommandArgumentType;
 import org.leavesmc.leaves.event.bot.BotActionStopEvent;
+import org.leavesmc.leaves.neo_command.CommandContext;
 
-import java.util.List;
 import java.util.function.Supplier;
+
+import static com.mojang.brigadier.arguments.IntegerArgumentType.integer;
 
 public abstract class ServerUseBotAction<T extends ServerUseBotAction<T>> extends ServerTimerBotAction<T> {
     private int useTickTimeout = -1;
@@ -20,14 +18,20 @@ public abstract class ServerUseBotAction<T extends ServerUseBotAction<T>> extend
     private int useItemRemainingTicks = 0;
 
     public ServerUseBotAction(String name, Supplier<T> supplier) {
-        super(name, CommandArgument.of(CommandArgumentType.INTEGER, CommandArgumentType.INTEGER, CommandArgumentType.INTEGER, CommandArgumentType.INTEGER), supplier);
-        this.setSuggestion(3, Pair.of(List.of("-1"), "[UseTickTimeout]"));
+        super(name, supplier);
+        this.addArgument("use_timeout", integer(-1))
+            .suggests((context, builder) -> {
+                builder.suggest("-1", Component.literal("no use timeout"));
+                builder.suggest("3", Component.literal("minimum bow shoot time"));
+                builder.suggest("10", Component.literal("minimum trident shoot time"));
+            })
+            .setOptional(true);
     }
 
     @Override
-    public void loadCommand(ServerPlayer player, @NotNull CommandArgumentResult result) {
-        super.loadCommand(player, result);
-        this.useTickTimeout = result.readInt(-1);
+    public void loadCommand(@NotNull CommandContext context) {
+        super.loadCommand(context);
+        this.useTickTimeout = context.getIntegerOrDefault("use_timeout", -1);
     }
 
     @Override

@@ -11,7 +11,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 
-import static org.leavesmc.leaves.neo_command.CommandNode.*;
+import static org.leavesmc.leaves.neo_command.CommandNode.getNameForNode;
 
 @SuppressWarnings({"ClassCanBeRecord", "unused"})
 public class CommandContext {
@@ -51,6 +51,13 @@ public class CommandContext {
         return (V) source.getArgument(name, Object.class);
     }
 
+    @SuppressWarnings("unchecked")
+    public <V, T> @NotNull V getCustomArgument(final Class<? extends CustomArgumentNode<V, T>> nodeClass) {
+        String name = getNameForNode(nodeClass);
+        T raw = (T) source.getArgument(name, Object.class);
+        return CustomArgumentNode.transform(nodeClass, raw);
+    }
+
     public <V> @NotNull V getArgumentOrDefault(final Class<? extends ArgumentNode<V>> nodeClass, final V defaultValue) {
         try {
             return getArgument(nodeClass);
@@ -67,12 +74,24 @@ public class CommandContext {
         }
     }
 
+    public <V, T> V getCustomArgumentOrDefault(final Class<? extends CustomArgumentNode<V, T>> nodeClass, final V defaultValue) {
+        try {
+            return getCustomArgument(nodeClass);
+        } catch (IllegalArgumentException e) {
+            return defaultValue;
+        }
+    }
+
     public String getStringOrDefault(final String name, final String defaultValue) {
         return getArgumentOrDefault(name, String.class, defaultValue);
     }
 
     public int getIntegerOrDefault(final String name, final int defaultValue) {
         return getArgumentOrDefault(name, Integer.class, defaultValue);
+    }
+
+    public float getFloatOrDefault(final String name, final float defaultValue) {
+        return getArgumentOrDefault(name, Float.class, defaultValue);
     }
 
     public RedirectModifier<CommandSourceStack> getRedirectModifier() {

@@ -1,32 +1,46 @@
 package org.leavesmc.leaves.bot.agent.actions;
 
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.network.chat.Component;
 import org.apache.commons.lang3.tuple.Pair;
 import org.jetbrains.annotations.NotNull;
-import org.leavesmc.leaves.command.CommandArgument;
-import org.leavesmc.leaves.command.CommandArgumentResult;
-import org.leavesmc.leaves.command.CommandArgumentType;
+import org.leavesmc.leaves.neo_command.CommandContext;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
+
+import static com.mojang.brigadier.arguments.IntegerArgumentType.integer;
+import static org.leavesmc.leaves.neo_command.leaves.ArgumentSuggestions.strings;
 
 public abstract class ServerTimerBotAction<E extends ServerTimerBotAction<E>> extends ServerBotAction<E> {
 
     public ServerTimerBotAction(String name, Supplier<E> creator) {
-        this(name, CommandArgument.of(CommandArgumentType.INTEGER, CommandArgumentType.INTEGER, CommandArgumentType.INTEGER), creator);
-    }
-
-    public ServerTimerBotAction(String name, CommandArgument argument, Supplier<E> creator) {
-        super(name, argument, creator);
-        this.setSuggestion(0, Pair.of(List.of("0"), "[TickDelay]"));
-        this.setSuggestion(1, Pair.of(List.of("20"), "[TickInterval]"));
-        this.setSuggestion(2, Pair.of(List.of("1", "-1"), "[DoNumber]"));
+        super(name, creator);
+        this.addArgument("delay", integer(0))
+            .suggests(strings("0", "5", "10", "20"))
+            .setOptional(true);
+        this.addArgument("interval", integer(0))
+            .suggests(strings("20", "0", "5", "10"))
+            .setOptional(true);
+        this.addArgument("do_number", integer(-1))
+            .suggests(((context, builder) -> builder.suggest("-1", Component.literal("do infinite times"))))
+            .setOptional(true);
     }
 
     @Override
-    public void loadCommand(ServerPlayer player, @NotNull CommandArgumentResult result) {
-        this.setStartDelayTick(result.readInt(0));
-        this.setDoIntervalTick(result.readInt(20));
-        this.setDoNumber(result.readInt(1));
+    public void loadCommand(@NotNull CommandContext context) {
+        this.setStartDelayTick(context.getIntegerOrDefault("delay", 0));
+        this.setDoIntervalTick(context.getIntegerOrDefault("interval", 20));
+        this.setDoNumber(context.getIntegerOrDefault("do_number", 1));
+    }
+
+    @Override
+    public List<Pair<String, String>> provideReadableActionData() {
+        return new ArrayList<>(List.of(
+            Pair.of("delay", String.valueOf(this.getStartDelayTick())),
+            Pair.of("interval", String.valueOf(this.getDoIntervalTick())),
+            Pair.of("do_number", String.valueOf(this.getDoNumber())),
+            Pair.of("remaining_do_number", String.valueOf(this.getDoNumberRemaining()))
+        ));
     }
 }

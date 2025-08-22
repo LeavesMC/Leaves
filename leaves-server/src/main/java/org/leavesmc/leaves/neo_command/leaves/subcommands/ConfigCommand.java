@@ -1,11 +1,9 @@
-package org.leavesmc.leaves.neo_command.subcommands;
+package org.leavesmc.leaves.neo_command.leaves.subcommands;
 
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.JoinConfiguration;
-import net.kyori.adventure.text.format.NamedTextColor;
+import net.minecraft.commands.CommandSourceStack;
 import org.bukkit.Bukkit;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -15,16 +13,25 @@ import org.leavesmc.leaves.config.VerifiedConfig;
 import org.leavesmc.leaves.neo_command.ArgumentNode;
 import org.leavesmc.leaves.neo_command.CommandContext;
 import org.leavesmc.leaves.neo_command.LiteralNode;
+import org.leavesmc.leaves.neo_command.leaves.LeavesCommand;
 
 import java.util.concurrent.CompletableFuture;
 
+import static net.kyori.adventure.text.Component.join;
 import static net.kyori.adventure.text.Component.text;
+import static net.kyori.adventure.text.JoinConfiguration.spaces;
+import static net.kyori.adventure.text.format.NamedTextColor.*;
 
 public class ConfigCommand extends LiteralNode {
 
     public ConfigCommand() {
         super("config");
         children(PathArgument::new);
+    }
+
+    @Override
+    protected boolean requires(@NotNull CommandSourceStack source) {
+        return LeavesCommand.hasPermission(source, "config");
     }
 
     private static class PathArgument extends ArgumentNode<String> {
@@ -43,7 +50,7 @@ public class ConfigCommand extends LiteralNode {
                     context.getSender(),
                     path.substring(dotIndex + 1),
                     GlobalConfigManager.getVerifiedConfigSubPaths(path),
-                    "bukkit.command.leaves.config"
+                    "bukkit.command.leaves"
                 )
                 .forEach(builder::suggest);
             return builder.buildFuture();
@@ -56,11 +63,11 @@ public class ConfigCommand extends LiteralNode {
             if (verifiedConfig == null) {
                 return false;
             }
-            context.getSender().sendMessage(Component.join(JoinConfiguration.spaces(),
-                text("Config", NamedTextColor.GRAY),
-                text(path, NamedTextColor.AQUA),
-                text("value is", NamedTextColor.GRAY),
-                text(verifiedConfig.getString(), NamedTextColor.AQUA)
+            context.getSender().sendMessage(join(spaces(),
+                text("Config", GRAY),
+                text(path, AQUA),
+                text("value is", GRAY),
+                text(verifiedConfig.getString(), AQUA)
             ));
             return true;
         }
@@ -69,10 +76,10 @@ public class ConfigCommand extends LiteralNode {
             String path = context.getArgument(PathArgument.class);
             VerifiedConfig verifiedConfig = GlobalConfigManager.getVerifiedConfig(path);
             if (verifiedConfig == null) {
-                context.getSender().sendMessage(Component.join(JoinConfiguration.spaces(),
-                    text("Config", NamedTextColor.GRAY),
-                    text(path, NamedTextColor.RED),
-                    text("is Not Found.", NamedTextColor.GRAY)
+                context.getSender().sendMessage(join(spaces(),
+                    text("Config", GRAY),
+                    text(path, RED),
+                    text("is Not Found.", GRAY)
                 ));
                 return null;
             }
@@ -113,31 +120,31 @@ public class ConfigCommand extends LiteralNode {
                 }
                 try {
                     verifiedConfig.set(value);
-                    context.getSender().sendMessage(Component.join(JoinConfiguration.spaces(),
-                        text("Config", NamedTextColor.GRAY),
-                        text(path, NamedTextColor.AQUA),
-                        text("changed to", NamedTextColor.GRAY),
-                        text(verifiedConfig.getString(), NamedTextColor.AQUA)
+                    context.getSender().sendMessage(join(spaces(),
+                        text("Config", GRAY),
+                        text(path, AQUA),
+                        text("changed to", GRAY),
+                        text(verifiedConfig.getString(), AQUA)
                     ));
                     Bukkit.getOnlinePlayers()
                         .stream()
                         .filter(player -> player.hasPermission("leaves.command.config.notify") && player != context.getSender())
                         .forEach(
-                            player -> player.sendMessage(Component.join(JoinConfiguration.spaces(),
-                                text(context.getSender().getName() + ":", NamedTextColor.GRAY),
-                                text("Config", NamedTextColor.GRAY),
-                                text(path, NamedTextColor.AQUA),
-                                text("changed to", NamedTextColor.GRAY),
-                                text(verifiedConfig.getString(), NamedTextColor.AQUA)
+                            player -> player.sendMessage(join(spaces(),
+                                text(context.getSender().getName() + ":", GRAY),
+                                text("Config", GRAY),
+                                text(path, AQUA),
+                                text("changed to", GRAY),
+                                text(verifiedConfig.getString(), AQUA)
                             ))
                         );
                     return true;
                 } catch (IllegalArgumentException exception) {
-                    context.getSender().sendMessage(Component.join(JoinConfiguration.spaces(),
-                        text("Config", NamedTextColor.GRAY),
-                        text(path, NamedTextColor.RED),
-                        text("modify error by", NamedTextColor.GRAY),
-                        text(exception.getMessage(), NamedTextColor.RED)
+                    context.getSender().sendMessage(join(spaces(),
+                        text("Config", GRAY),
+                        text(path, RED),
+                        text("modify error by", GRAY),
+                        text(exception.getMessage(), RED)
                     ));
                     return false;
                 }

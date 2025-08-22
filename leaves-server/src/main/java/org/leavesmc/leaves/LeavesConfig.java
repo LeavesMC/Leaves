@@ -30,6 +30,7 @@ import org.leavesmc.leaves.config.api.impl.ConfigValidatorImpl.IntConfigValidato
 import org.leavesmc.leaves.config.api.impl.ConfigValidatorImpl.ListConfigValidator;
 import org.leavesmc.leaves.config.api.impl.ConfigValidatorImpl.LongConfigValidator;
 import org.leavesmc.leaves.config.api.impl.ConfigValidatorImpl.StringConfigValidator;
+import org.leavesmc.leaves.neo_command.LeavesCommands;
 import org.leavesmc.leaves.profile.LeavesMinecraftSessionService;
 import org.leavesmc.leaves.protocol.CarpetServerProtocol.CarpetRule;
 import org.leavesmc.leaves.protocol.CarpetServerProtocol.CarpetRules;
@@ -94,6 +95,7 @@ public final class LeavesConfig {
         GlobalConfigManager.init();
 
         registerCommand("leaves", new LeavesCommand());
+        LeavesCommands.registerLeavesCommands();
     }
 
     public static void reload() {

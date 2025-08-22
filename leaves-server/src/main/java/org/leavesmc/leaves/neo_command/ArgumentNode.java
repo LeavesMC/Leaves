@@ -12,7 +12,7 @@ import net.minecraft.commands.Commands;
 import java.util.concurrent.CompletableFuture;
 
 public abstract class ArgumentNode<T> extends CommandNode {
-    private final ArgumentType<T> argumentType;
+    protected final ArgumentType<T> argumentType;
 
     protected ArgumentNode(String name, ArgumentType<T> argumentType) {
         super(name);
@@ -27,11 +27,13 @@ public abstract class ArgumentNode<T> extends CommandNode {
     @Override
     protected ArgumentBuilder<CommandSourceStack, ?> compileBase() {
         RequiredArgumentBuilder<CommandSourceStack, T> argumentBuilder = Commands.argument(name, argumentType);
+
         if (isMethodOverridden("getSuggestions", ArgumentNode.class)) {
             argumentBuilder.suggests(
                 (context, builder) -> getSuggestions(new CommandContext(context), builder)
             );
         }
+
         return argumentBuilder;
     }
 }

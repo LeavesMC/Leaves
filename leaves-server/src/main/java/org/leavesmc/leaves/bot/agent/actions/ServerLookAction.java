@@ -1,39 +1,60 @@
 package org.leavesmc.leaves.bot.agent.actions;
 
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.commands.arguments.coordinates.Coordinates;
+import net.minecraft.commands.arguments.coordinates.Vec3Argument;
+import net.minecraft.commands.arguments.selector.EntitySelector;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import org.apache.commons.lang3.tuple.Pair;
-import org.bukkit.entity.Player;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.phys.Vec3;
 import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.command.CommandArgument;
-import org.leavesmc.leaves.command.CommandArgumentResult;
-import org.leavesmc.leaves.command.CommandArgumentType;
 import org.leavesmc.leaves.entity.bot.actions.CraftLookAction;
-
-import java.text.DecimalFormat;
-import java.util.Arrays;
-import java.util.List;
-import java.util.stream.Stream;
+import org.leavesmc.leaves.neo_command.CommandContext;
 
 public class ServerLookAction extends ServerBotAction<ServerLookAction> {
 
     private static final Vector ZERO_VECTOR = new Vector(0, 0, 0);
-    private static final DecimalFormat DF = new DecimalFormat("0.0");
 
     private Vector pos = ZERO_VECTOR;
     private ServerPlayer target = null;
 
     public ServerLookAction() {
-        super("look", CommandArgument.of(CommandArgumentType.STRING, CommandArgumentType.DOUBLE, CommandArgumentType.DOUBLE), ServerLookAction::new);
-        this.setSuggestion(0, (sender, arg) -> sender instanceof Player player ?
-            Pair.of(Stream.concat(Arrays.stream(MinecraftServer.getServer().getPlayerNames()), Stream.of(DF.format(player.getX()))).toList(), "<Player>|<X>") :
-            Pair.of(Stream.concat(Arrays.stream(MinecraftServer.getServer().getPlayerNames()), Stream.of("0")).toList(), "<Player>|<X>")
-        );
-        this.setSuggestion(1, (sender, arg) -> sender instanceof Player player ? Pair.of(List.of(DF.format(player.getY())), "<Y>") : Pair.of(List.of("0"), "<Y>"));
-        this.setSuggestion(2, (sender, arg) -> sender instanceof Player player ? Pair.of(List.of(DF.format(player.getZ())), "<Z>") : Pair.of(List.of("0"), "<Z>"));
+        super("look", ServerLookAction::new);
+        declarePlayerBranch();
+        declareLocationBranch();
+    }
+
+    private void declarePlayerBranch() {
+        this.fork(0);
+        this.addArgument("player", EntityArgument.player())
+            .setOptional(true);
+    }
+
+    private void declareLocationBranch() {
+        this.fork(1);
+        this.addArgument("location", Vec3Argument.vec3(false));
+    }
+
+    @Override
+    public void loadCommand(@NotNull CommandContext context) throws CommandSyntaxException {
+        EntitySelector selector = context.getArgumentOrDefault("player", EntitySelector.class, null);
+        Coordinates location = context.getArgumentOrDefault("location", Coordinates.class, null);
+        CommandSourceStack source = context.getSource();
+        if (selector == null && location == null) {
+            Entity sender = source.getEntityOrException();
+            this.setPos(new Vector(sender.getX(), sender.getY(), sender.getZ()));
+        } else if (selector != null) {
+            ServerPlayer player = selector.findSinglePlayer(source);
+            this.setTarget(player);
+        } else {
+            Vec3 vector = location.getPosition(source);
+            this.setPos(new Vector(vector.x, vector.y, vector.z));
+        }
     }
 
     @Override
@@ -85,22 +106,6 @@ public class ServerLookAction extends ServerBotAction<ServerLookAction> {
             bot.look(pos.subtract(bot.getLocation().toVector()), false);
         }
         return true;
-    }
-
-    @Override
-    public void loadCommand(ServerPlayer player, @NotNull CommandArgumentResult result) {
-        String nameOrX = result.readString(player.getScoreboardName());
-        ServerPlayer player1 = player.getServer().getPlayerList().getPlayerByName(nameOrX);
-        if (player1 != null) {
-            this.setTarget(player1);
-            return;
-        }
-        try {
-            Vector vector = result.readVectorYZ(Double.parseDouble(nameOrX));
-            this.setPos(vector);
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Invalid vector");
-        }
     }
 
     @Override

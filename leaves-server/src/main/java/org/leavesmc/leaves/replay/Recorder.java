@@ -65,8 +65,8 @@ public class Recorder extends Connection {
     private final RecordMetaData metaData;
     private final AtomicBoolean isSaving = new AtomicBoolean(false);
 
-    private boolean stopped = false;
-    private boolean paused = false;
+    private volatile boolean stopped = false;
+    private volatile boolean paused = false;
     private boolean resumeOnNextPacket = true;
 
     private long startTime;
@@ -235,7 +235,11 @@ public class Recorder extends Connection {
 
     private void savePacket(Packet<?> packet, final ConnectionProtocol protocol) {
         final long timestamp = getCurrentTimeAndUpdate();
-        replayFile.savePacket(timestamp, packet, protocol);
+        try {
+            replayFile.savePacket(timestamp, packet, protocol);
+        } catch (Exception e) {
+            LOGGER.severe("Error saving packet on thread " + Thread.currentThread() + ". Are you using some plugin that modify data asynchronously?", e);
+        }
     }
 
     public boolean isSaved() {

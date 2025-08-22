@@ -65,8 +65,8 @@ public class Recorder extends Connection {
     private final RecordMetaData metaData;
     private final AtomicBoolean isSaving = new AtomicBoolean(false);
 
-    private volatile boolean stopped = false;
-    private volatile boolean paused = false;
+    private boolean stopped = false;
+    private boolean paused = false;
     private boolean resumeOnNextPacket = true;
 
     private long startTime;

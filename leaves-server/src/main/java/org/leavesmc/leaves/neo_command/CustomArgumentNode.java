@@ -2,6 +2,7 @@ package org.leavesmc.leaves.neo_command;
 
 import com.mojang.brigadier.builder.ArgumentBuilder;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.CommandSourceStack;
 import org.jetbrains.annotations.NotNull;
 
@@ -17,7 +18,7 @@ public class CustomArgumentNode<T, B> extends ArgumentNode<B> {
         TYPES.put(getClass(), argumentType);
     }
 
-    public static <T, B> T transform(Class<? extends CustomArgumentNode<T, B>> nodeClass, B base) {
+    public static <T, B> T transform(Class<? extends CustomArgumentNode<T, B>> nodeClass, B base) throws CommandSyntaxException {
         @SuppressWarnings("unchecked")
         CustomArgumentType<T, B> type = (CustomArgumentType<T, B>) TYPES.get(nodeClass);
         if (type == null) {

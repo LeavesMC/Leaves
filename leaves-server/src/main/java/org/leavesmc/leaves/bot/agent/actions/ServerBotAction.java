@@ -59,12 +59,13 @@ public abstract class ServerBotAction<E extends ServerBotAction<E>> {
 
     public abstract Object asCraft();
 
-    public List<Pair<String, String>> provideReadableActionData() {
-        return new ArrayList<>();
+    public void provideActionData(@NotNull ActionData data) {
     }
 
-    public String getReadableActionDataString() {
-        return provideReadableActionData().stream()
+    public String getActionDataString() {
+        ActionData data = new ActionData(new ArrayList<>());
+        provideActionData(data);
+        return data.raw.stream()
             .map(pair -> pair.getLeft() + "=" + pair.getRight())
             .reduce((a, b) -> a + ", " + b)
             .orElse("No arguments");
@@ -246,5 +247,13 @@ public abstract class ServerBotAction<E extends ServerBotAction<E>> {
 
     public void setOnStop(Consumer<E> onStop) {
         this.onStop = onStop;
+    }
+
+    public record ActionData(
+        List<Pair<String, String>> raw
+    ) {
+        public void add(String key, String value) {
+            raw.add(Pair.of(key, value));
+        }
     }
 }

@@ -4,6 +4,7 @@ import com.mojang.brigadier.Command;
 import com.mojang.brigadier.RedirectModifier;
 import com.mojang.brigadier.context.ParsedCommandNode;
 import com.mojang.brigadier.context.StringRange;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.tree.CommandNode;
 import net.minecraft.commands.CommandSourceStack;
 import org.bukkit.command.CommandSender;
@@ -52,13 +53,13 @@ public class CommandContext {
     }
 
     @SuppressWarnings("unchecked")
-    public <V, T> @NotNull V getCustomArgument(final Class<? extends CustomArgumentNode<V, T>> nodeClass) {
+    public <V, T> @NotNull V getCustomArgument(final Class<? extends CustomArgumentNode<V, T>> nodeClass) throws CommandSyntaxException {
         String name = getNameForNode(nodeClass);
         T raw = (T) source.getArgument(name, Object.class);
         return CustomArgumentNode.transform(nodeClass, raw);
     }
 
-    public <V> @NotNull V getArgumentOrDefault(final Class<? extends ArgumentNode<V>> nodeClass, final V defaultValue) {
+    public <V> V getArgumentOrDefault(final Class<? extends ArgumentNode<V>> nodeClass, final V defaultValue) {
         try {
             return getArgument(nodeClass);
         } catch (IllegalArgumentException e) {
@@ -74,7 +75,7 @@ public class CommandContext {
         }
     }
 
-    public <V, T> V getCustomArgumentOrDefault(final Class<? extends CustomArgumentNode<V, T>> nodeClass, final V defaultValue) {
+    public <V, T> V getCustomArgumentOrDefault(final Class<? extends CustomArgumentNode<V, T>> nodeClass, final V defaultValue) throws CommandSyntaxException {
         try {
             return getCustomArgument(nodeClass);
         } catch (IllegalArgumentException e) {
@@ -120,5 +121,9 @@ public class CommandContext {
 
     public boolean isForked() {
         return source.isForked();
+    }
+
+    public com.mojang.brigadier.context.CommandContext<CommandSourceStack> getMojangContext() {
+        return source;
     }
 }

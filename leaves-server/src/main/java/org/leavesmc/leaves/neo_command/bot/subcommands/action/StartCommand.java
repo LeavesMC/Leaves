@@ -38,21 +38,20 @@ public class StartCommand extends LiteralNode {
             .forEach(this::children);
     }
 
-    private boolean executor(CommandContext context, @NotNull ServerBotAction<?> action) throws CommandSyntaxException {
+    private boolean handleStartCommand(CommandContext context, @NotNull ServerBotAction<?> action) throws CommandSyntaxException {
         ServerBot bot = getBot(context);
         CommandSender sender = context.getSender();
-        if (bot == null) {
-            return false;
-        }
+
         action.loadCommand(context);
         if (bot.addBotAction(action, sender)) {
             sender.sendMessage(join(spaces(),
                 text("Action", GRAY),
-                text(action.getName(), AQUA).hoverEvent(showText(text(action.getReadableActionDataString()))),
+                text(action.getName(), AQUA).hoverEvent(showText(text(action.getActionDataString()))),
                 text("has been issued to", GRAY),
                 asAdventure(bot.getDisplayName())
             ));
         }
+
         return true;
     }
 
@@ -63,16 +62,17 @@ public class StartCommand extends LiteralNode {
             protected ArgumentBuilder<CommandSourceStack, ?> compile() {
                 ArgumentBuilder<CommandSourceStack, ?> builder = super.compile();
 
-                for (Map.Entry<Integer, List<Pair<String, WrappedArgument<?>>>> entry : action.getArguments().entrySet()) {
+                Map<Integer, List<Pair<String, WrappedArgument<?>>>> arguments = action.getArguments();
+                Command<CommandSourceStack> executor = context -> {
+                    if (handleStartCommand(new CommandContext(context), action)) {
+                        return Command.SINGLE_SUCCESS;
+                    } else {
+                        return 0;
+                    }
+                };
+                for (Map.Entry<Integer, List<Pair<String, WrappedArgument<?>>>> entry : arguments.entrySet()) {
                     List<Pair<String, WrappedArgument<?>>> value = entry.getValue();
                     ArgumentBuilder<CommandSourceStack, ?> branchArgumentBuilder = null;
-                    Command<CommandSourceStack> executor = context -> {
-                        if (executor(new CommandContext(context), action)) {
-                            return Command.SINGLE_SUCCESS;
-                        } else {
-                            return 0;
-                        }
-                    };
 
                     for (Pair<String, WrappedArgument<?>> stringWrappedArgumentPair : value.reversed()) {
                         WrappedArgument<?> argument = stringWrappedArgumentPair.getRight();
@@ -86,7 +86,7 @@ public class StartCommand extends LiteralNode {
                         }
                     }
 
-                    if (value.getFirst().getRight().isOptional()) {
+                    if (value.getFirst().getRight().isOptional() || value.isEmpty()) {
                         builder = builder.executes(executor);
                     }
 
@@ -94,6 +94,11 @@ public class StartCommand extends LiteralNode {
                         builder = builder.then(branchArgumentBuilder);
                     }
                 }
+
+                if (arguments.isEmpty()) {
+                    builder = builder.executes(executor);
+                }
+
                 return builder;
             }
         };

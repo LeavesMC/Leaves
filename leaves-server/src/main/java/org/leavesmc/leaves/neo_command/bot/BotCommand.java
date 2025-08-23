@@ -6,6 +6,8 @@ import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.neo_command.LiteralNode;
 import org.leavesmc.leaves.neo_command.bot.subcommands.ActionCommand;
+import org.leavesmc.leaves.neo_command.bot.subcommands.CreateCommand;
+import org.leavesmc.leaves.neo_command.bot.subcommands.ListCommand;
 
 public class BotCommand extends LiteralNode {
     private static final String PERM_BASE = "bukkit.command.bot";
@@ -13,7 +15,9 @@ public class BotCommand extends LiteralNode {
     public BotCommand() {
         super("bot_neo");
         this.children(
-            ActionCommand::new
+            ActionCommand::new,
+            ListCommand::new,
+            CreateCommand::new
         );
     }
 

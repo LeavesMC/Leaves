@@ -57,6 +57,13 @@ public class ServerRotationAction extends ServerBotAction<ServerRotationAction> 
     }
 
     @Override
+    public void provideActionData(@NotNull ActionData data) {
+        super.provideActionData(data);
+        data.add("yaw", DF.format(this.yaw));
+        data.add("pitch", DF.format(this.pitch));
+    }
+
+    @Override
     @NotNull
     public CompoundTag save(@NotNull CompoundTag nbt) {
         super.save(nbt);

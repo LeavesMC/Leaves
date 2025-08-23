@@ -98,6 +98,13 @@ public abstract class ServerUseBotAction<T extends ServerUseBotAction<T>> extend
     }
 
     @Override
+    public void provideActionData(@NotNull ActionData data) {
+        super.provideActionData(data);
+        data.add("use_timeout", String.valueOf(this.useTickTimeout));
+        data.add("already_used_tick", String.valueOf(this.alreadyUsedTick));
+    }
+
+    @Override
     @NotNull
     public CompoundTag save(@NotNull CompoundTag nbt) {
         super.save(nbt);

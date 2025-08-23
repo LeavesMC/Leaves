@@ -1,6 +1,7 @@
 package org.leavesmc.leaves.neo_command;
 
 import com.mojang.brigadier.builder.ArgumentBuilder;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.CommandSourceStack;
 import org.jetbrains.annotations.NotNull;
 
@@ -30,7 +31,7 @@ public abstract class CommandNode {
 
     protected abstract ArgumentBuilder<CommandSourceStack, ?> compileBase();
 
-    protected boolean execute(CommandContext context) {
+    protected boolean execute(CommandContext context) throws CommandSyntaxException {
         return true;
     }
 

@@ -2,8 +2,10 @@ package org.leavesmc.leaves.neo_command.bot;
 
 import com.mojang.brigadier.arguments.ArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
+import net.minecraft.network.chat.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.leavesmc.leaves.bot.ServerBot;
@@ -22,16 +24,19 @@ public class BotArgument implements CustomArgumentType<ServerBot, String> {
     }
 
     @Override
-    public ServerBot transform(String value) {
+    public ServerBot transform(String value) throws CommandSyntaxException {
         CraftBot craftBot = (CraftBot) Bukkit.getBotManager().getBot(value);
         if (craftBot == null) {
-            return null;
+            throw new CommandSyntaxException(
+                CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownArgument(),
+                Component.literal("Bot with name '" + value + "' does not exist")
+            );
         }
         return craftBot.getHandle();
     }
 
     @Override
-    public CompletableFuture<Suggestions> getSuggestions(CommandContext context, SuggestionsBuilder builder) {
+    public CompletableFuture<Suggestions> getSuggestions(CommandContext context, SuggestionsBuilder builder) throws CommandSyntaxException {
         Collection<Bot> bots = Bukkit.getBotManager().getBots();
         if (bots.isEmpty()) {
             return builder

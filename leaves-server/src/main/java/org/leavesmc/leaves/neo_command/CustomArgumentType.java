@@ -11,7 +11,7 @@ public interface CustomArgumentType<T, B> {
 
     ArgumentType<B> getBaseArgumentType();
 
-    T transform(B value);
+    T transform(B value) throws CommandSyntaxException;
 
     CompletableFuture<Suggestions> getSuggestions(CommandContext context, SuggestionsBuilder builder) throws CommandSyntaxException;
 }

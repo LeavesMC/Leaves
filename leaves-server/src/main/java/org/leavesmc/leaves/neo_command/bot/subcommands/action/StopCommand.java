@@ -1,6 +1,7 @@
 package org.leavesmc.leaves.neo_command.bot.subcommands.action;
 
 import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import net.minecraft.network.chat.Component;
@@ -15,6 +16,7 @@ import org.leavesmc.leaves.neo_command.LiteralNode;
 import org.leavesmc.leaves.neo_command.bot.subcommands.ActionCommand;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
@@ -40,29 +42,29 @@ public class StopCommand extends LiteralNode {
         }
 
         @Override
-        protected CompletableFuture<Suggestions> getSuggestions(CommandContext context, SuggestionsBuilder builder) {
+        protected CompletableFuture<Suggestions> getSuggestions(CommandContext context, SuggestionsBuilder builder) throws CommandSyntaxException {
             ServerBot bot = ActionCommand.BotArgument.getBot(context);
-            if (bot == null) {
-                return Suggestions.empty();
-            }
+
             for (int i = 0; i < bot.getBotActions().size(); i++) {
                 ServerBotAction<?> action = bot.getBotActions().get(i);
                 builder.suggest(String.valueOf(i), Component.literal(action.getName()));
             }
+
             return builder.buildFuture();
         }
 
         @Override
-        protected boolean execute(CommandContext context) {
+        protected boolean execute(CommandContext context) throws CommandSyntaxException {
             ServerBot bot = ActionCommand.BotArgument.getBot(context);
             CommandSender sender = context.getSender();
-            if (bot == null) {
-                return false;
+
+            int index = context.getArgument(StopIndexArgument.class);
+            int maxIndex = bot.getBotActions().size() - 1;
+            if (maxIndex < 0) {
+                throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownArgument().create();
             }
-            int index = context.getArgument("index", Integer.class);
-            if (index < 0 || index >= bot.getBotActions().size()) {
-                sender.sendMessage(text("Invalid index.", RED));
-                return false;
+            if (index > maxIndex) {
+                throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.integerTooHigh().create(index, maxIndex);
             }
 
             ServerBotAction<?> action = bot.getBotActions().get(index);
@@ -77,7 +79,7 @@ public class StopCommand extends LiteralNode {
                     text("Already stopped", GRAY),
                     asAdventure(bot.getDisplayName()).append(text("'s", GRAY)),
                     text("action", GRAY),
-                    text(action.getName(), AQUA).hoverEvent(showText(text(action.getReadableActionDataString())))
+                    text(action.getName(), AQUA).hoverEvent(showText(text(action.getActionDataString())))
                 ));
             } else {
                 sender.sendMessage(text("Action stop cancelled by a plugin", RED));
@@ -93,17 +95,21 @@ public class StopCommand extends LiteralNode {
         }
 
         @Override
-        protected boolean execute(@NotNull CommandContext context) {
+        protected boolean execute(@NotNull CommandContext context) throws CommandSyntaxException {
             ServerBot bot = ActionCommand.BotArgument.getBot(context);
-            if (bot == null) {
-                return false;
+
+            List<ServerBotAction<?>> actions = bot.getBotActions();
+            CommandSender sender = context.getSender();
+            if (actions.isEmpty()) {
+                sender.sendMessage(text("This bot has no active actions", GRAY));
+                return true;
             }
+
             Set<ServerBotAction<?>> canceled = new HashSet<>();
             Set<ServerBotAction<?>> forRemoval = new HashSet<>();
-            for (int i = 0; i < bot.getBotActions().size(); i++) {
-                ServerBotAction<?> action = bot.getBotActions().get(i);
+            for (ServerBotAction<?> action : actions) {
                 BotActionStopEvent event = new BotActionStopEvent(
-                    bot.getBukkitEntity(), action.getName(), action.getUUID(), BotActionStopEvent.Reason.COMMAND, context.getSender()
+                    bot.getBukkitEntity(), action.getName(), action.getUUID(), BotActionStopEvent.Reason.COMMAND, sender
                 );
                 event.callEvent();
                 if (!event.isCancelled()) {
@@ -114,14 +120,21 @@ public class StopCommand extends LiteralNode {
                 }
             }
             bot.getBotActions().removeAll(forRemoval);
+
             if (canceled.isEmpty()) {
-                context.getSender().sendMessage(bot.getScoreboardName() + "'s action list cleared.");
+                sender.sendMessage(join(spaces(),
+                    asAdventure(bot.getDisplayName()).append(text("'s", GRAY)),
+                    text("'s action list cleared", GRAY)
+                ));
             } else {
-                context.getSender().sendMessage("already tried to clear" + bot.getScoreboardName() + "'s action list, but following actions' stop was canceled by plugin:");
+                sender.sendMessage(join(spaces(),
+                    text("Tried to clear", GRAY),
+                    asAdventure(bot.getDisplayName()).append(text("'s", GRAY)),
+                    text("'s action list, but following actions' stop was canceled by plugin:", GRAY)
+                ));
                 for (ServerBotAction<?> action : canceled) {
                     context.getSender().sendMessage(
-                        text(action.getName(), AQUA)
-                            .hoverEvent(showText(text(action.getReadableActionDataString())))
+                        text(action.getName(), AQUA).hoverEvent(showText(text(action.getActionDataString())))
                     );
                 }
             }

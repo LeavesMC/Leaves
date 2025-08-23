@@ -99,6 +99,16 @@ public class ServerLookAction extends ServerBotAction<ServerLookAction> {
     }
 
     @Override
+    public void provideActionData(@NotNull ActionData data) {
+        super.provideActionData(data);
+        if (target != null) {
+            data.add("target", target.getName().getString());
+        } else {
+            data.add("position", String.format("(%.2f, %.2f, %.2f)", pos.getX(), pos.getY(), pos.getZ()));
+        }
+    }
+
+    @Override
     public boolean doTick(@NotNull ServerBot bot) {
         if (target != null) {
             bot.faceLocation(target.getBukkitEntity().getLocation());

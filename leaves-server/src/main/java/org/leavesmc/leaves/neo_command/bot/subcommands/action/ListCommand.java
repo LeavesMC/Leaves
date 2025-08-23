@@ -1,5 +1,7 @@
 package org.leavesmc.leaves.neo_command.bot.subcommands.action;
 
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import org.bukkit.command.CommandSender;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.bot.agent.actions.ServerBotAction;
@@ -9,6 +11,7 @@ import org.leavesmc.leaves.neo_command.bot.subcommands.ActionCommand;
 
 import java.util.List;
 
+import static io.papermc.paper.adventure.PaperAdventure.asAdventure;
 import static net.kyori.adventure.text.Component.join;
 import static net.kyori.adventure.text.Component.text;
 import static net.kyori.adventure.text.JoinConfiguration.spaces;
@@ -23,24 +26,25 @@ public class ListCommand extends LiteralNode {
     }
 
     @Override
-    protected boolean execute(@NotNull CommandContext context) {
+    protected boolean execute(@NotNull CommandContext context) throws CommandSyntaxException {
         ServerBot bot = ActionCommand.BotArgument.getBot(context);
-        if (bot == null) {
-            return false;
-        }
 
+        CommandSender sender = context.getSender();
         List<ServerBotAction<?>> actions = bot.getBotActions();
         if (actions.isEmpty()) {
-            context.getSender().sendMessage("This bot has no active actions");
+            sender.sendMessage(text("This bot has no active actions", GRAY));
             return true;
         }
 
-        context.getSender().sendMessage(bot.getScoreboardName() + "'s action list:");
+        sender.sendMessage(
+            asAdventure(bot.getDisplayName())
+                .append(text("'s action list:", GRAY))
+        );
         for (int i = 0; i < actions.size(); i++) {
             ServerBotAction<?> action = actions.get(i);
-            context.getSender().sendMessage(join(spaces(),
+            sender.sendMessage(join(spaces(),
                 text(i, GRAY),
-                text(action.getName(), AQUA).hoverEvent(showText(text(action.getReadableActionDataString())))
+                text(action.getName(), AQUA).hoverEvent(showText(text(action.getActionDataString())))
             ));
         }
 

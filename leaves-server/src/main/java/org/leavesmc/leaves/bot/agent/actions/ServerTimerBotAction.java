@@ -1,12 +1,9 @@
 package org.leavesmc.leaves.bot.agent.actions;
 
 import net.minecraft.network.chat.Component;
-import org.apache.commons.lang3.tuple.Pair;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.neo_command.CommandContext;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.function.Supplier;
 
 import static com.mojang.brigadier.arguments.IntegerArgumentType.integer;
@@ -35,12 +32,11 @@ public abstract class ServerTimerBotAction<E extends ServerTimerBotAction<E>> ex
     }
 
     @Override
-    public List<Pair<String, String>> provideReadableActionData() {
-        return new ArrayList<>(List.of(
-            Pair.of("delay", String.valueOf(this.getStartDelayTick())),
-            Pair.of("interval", String.valueOf(this.getDoIntervalTick())),
-            Pair.of("do_number", String.valueOf(this.getDoNumber())),
-            Pair.of("remaining_do_number", String.valueOf(this.getDoNumberRemaining()))
-        ));
+    public void provideActionData(@NotNull ActionData data) {
+        super.provideActionData(data);
+        data.add("delay", String.valueOf(this.getStartDelayTick()));
+        data.add("interval", String.valueOf(this.getDoIntervalTick()));
+        data.add("do_number", String.valueOf(this.getDoNumber()));
+        data.add("remaining_do_number", String.valueOf(this.getDoNumberRemaining()));
     }
 }

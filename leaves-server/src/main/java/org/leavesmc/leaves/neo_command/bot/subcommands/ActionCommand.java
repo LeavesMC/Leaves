@@ -1,8 +1,8 @@
 package org.leavesmc.leaves.neo_command.bot.subcommands;
 
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.CommandSourceStack;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.neo_command.CommandContext;
 import org.leavesmc.leaves.neo_command.CustomArgumentNode;
@@ -35,13 +35,8 @@ public class ActionCommand extends LiteralNode {
             );
         }
 
-        public static @Nullable ServerBot getBot(@NotNull CommandContext context) {
-            try {
-                return context.getCustomArgument(BotArgument.class);
-            } catch (IllegalArgumentException e) {
-                context.getSender().sendMessage("This bot does not exist.");
-                return null;
-            }
+        public static @NotNull ServerBot getBot(@NotNull CommandContext context) throws CommandSyntaxException {
+            return context.getCustomArgument(BotArgument.class);
         }
     }
 }

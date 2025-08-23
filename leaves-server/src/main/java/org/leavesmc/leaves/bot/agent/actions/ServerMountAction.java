@@ -22,8 +22,8 @@ public class ServerMountAction extends ServerBotAction<ServerMountAction> {
         Location center = bot.getBukkitEntity().getLocation();
         List<Vehicle> vehicles = center.getNearbyEntitiesByType(
             Vehicle.class,
-            3,
-            vehicle -> manhattanDistance(bot, ((CraftEntity) vehicle).getHandle()) <= 2
+            4,
+            vehicle -> manhattanDistance(bot, ((CraftEntity) vehicle).getHandle()) <= 3
         ).stream().sorted(Comparator.comparingDouble(
             (vehicle) -> center.distanceSquared(vehicle.getLocation())
         )).toList();

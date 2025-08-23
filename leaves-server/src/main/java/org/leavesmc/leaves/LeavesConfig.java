@@ -6,6 +6,7 @@ import net.kyori.adventure.text.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
+import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.configuration.MemorySection;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -30,7 +31,6 @@ import org.leavesmc.leaves.config.api.impl.ConfigValidatorImpl.IntConfigValidato
 import org.leavesmc.leaves.config.api.impl.ConfigValidatorImpl.ListConfigValidator;
 import org.leavesmc.leaves.config.api.impl.ConfigValidatorImpl.LongConfigValidator;
 import org.leavesmc.leaves.config.api.impl.ConfigValidatorImpl.StringConfigValidator;
-import org.leavesmc.leaves.neo_command.LeavesCommands;
 import org.leavesmc.leaves.profile.LeavesMinecraftSessionService;
 import org.leavesmc.leaves.protocol.CarpetServerProtocol.CarpetRule;
 import org.leavesmc.leaves.protocol.CarpetServerProtocol.CarpetRules;
@@ -95,7 +95,7 @@ public final class LeavesConfig {
         GlobalConfigManager.init();
 
         registerCommand("leaves", new LeavesCommand());
-        LeavesCommands.registerLeavesCommands();
+        org.leavesmc.leaves.neo_command.leaves.LeavesCommand.INSTANCE.register();
     }
 
     public static void reload() {
@@ -152,9 +152,16 @@ public final class LeavesConfig {
                 public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
                     if (value) {
                         registerCommand("bot", new BotCommand());
+                        org.leavesmc.leaves.neo_command.bot.BotCommand.INSTANCE.register();
                         Actions.registerAll();
                     } else {
                         unregisterCommand("bot");
+                        org.leavesmc.leaves.neo_command.bot.BotCommand.INSTANCE.unregister();
+                    }
+                    if (old != null && !old.equals(value)) {
+                        Bukkit.getOnlinePlayers().stream()
+                            .filter(org.leavesmc.leaves.neo_command.bot.BotCommand::hasPermission)
+                            .forEach(org.bukkit.entity.Player::updateCommands);
                     }
                 }
             }
@@ -190,14 +197,57 @@ public final class LeavesConfig {
             @GlobalConfig("open-fakeplayer-inventory")
             public boolean canOpenInventory = false;
 
-            @GlobalConfig("use-action")
+            @GlobalConfig(value = "use-action", validator = CanUseActionValidator.class)
             public boolean canUseAction = true;
 
-            @GlobalConfig("modify-config")
+            private static class CanUseActionValidator extends BooleanConfigValidator {
+                @Override
+                public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
+                    if (old != null && !old.equals(value)) {
+                        Bukkit.getOnlinePlayers().stream()
+                            .filter(sender ->
+                                org.leavesmc.leaves.neo_command.bot.BotCommand.hasPermission(sender)
+                                    || org.leavesmc.leaves.neo_command.bot.BotCommand.hasPermission(sender, "action")
+                            )
+                            .forEach(org.bukkit.entity.Player::updateCommands);
+                    }
+                }
+            }
+
+            @GlobalConfig(value = "modify-config", validator = CanModifyConfigValidator.class)
             public boolean canModifyConfig = false;
 
-            @GlobalConfig("manual-save-and-load")
+            private static class CanModifyConfigValidator extends BooleanConfigValidator {
+                @Override
+                public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
+                    if (old != null && !old.equals(value)) {
+                        Bukkit.getOnlinePlayers().stream()
+                            .filter(sender ->
+                                org.leavesmc.leaves.neo_command.bot.BotCommand.hasPermission(sender)
+                                    || org.leavesmc.leaves.neo_command.bot.BotCommand.hasPermission(sender, "config")
+                            )
+                            .forEach(org.bukkit.entity.Player::updateCommands);
+                    }
+                }
+            }
+
+            @GlobalConfig(value = "manual-save-and-load", validator = CanManualSaveAndLoadValidator.class)
             public boolean canManualSaveAndLoad = false;
+
+            private static class CanManualSaveAndLoadValidator extends BooleanConfigValidator {
+                @Override
+                public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
+                    if (old != null && !old.equals(value)) {
+                        Bukkit.getOnlinePlayers().stream()
+                            .filter(sender ->
+                                org.leavesmc.leaves.neo_command.bot.BotCommand.hasPermission(sender)
+                                    || org.leavesmc.leaves.neo_command.bot.BotCommand.hasPermission(sender, "save")
+                                    || org.leavesmc.leaves.neo_command.bot.BotCommand.hasPermission(sender, "load")
+                            )
+                            .forEach(org.bukkit.entity.Player::updateCommands);
+                    }
+                }
+            }
 
             @GlobalConfig(value = "cache-skin", lock = true)
             public boolean useSkinCache = false;

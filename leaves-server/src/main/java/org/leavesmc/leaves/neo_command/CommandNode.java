@@ -35,8 +35,12 @@ public abstract class CommandNode {
         return true;
     }
 
-    protected boolean requires(CommandSourceStack source) {
+    public boolean requires(CommandSourceStack source) {
         return true;
+    }
+
+    public String getName() {
+        return this.name;
     }
 
     protected ArgumentBuilder<CommandSourceStack, ?> compile() {

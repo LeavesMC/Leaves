@@ -3,16 +3,16 @@ package org.leavesmc.leaves.neo_command.bot.subcommands;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.CommandSourceStack;
 import org.jetbrains.annotations.NotNull;
+import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.neo_command.CommandContext;
 import org.leavesmc.leaves.neo_command.CustomArgumentNode;
-import org.leavesmc.leaves.neo_command.LiteralNode;
-import org.leavesmc.leaves.neo_command.bot.BotCommand;
+import org.leavesmc.leaves.neo_command.bot.BotSubcommand;
 import org.leavesmc.leaves.neo_command.bot.subcommands.action.ListCommand;
 import org.leavesmc.leaves.neo_command.bot.subcommands.action.StartCommand;
 import org.leavesmc.leaves.neo_command.bot.subcommands.action.StopCommand;
 
-public class ActionCommand extends LiteralNode {
+public class ActionCommand extends BotSubcommand {
 
     public ActionCommand() {
         super("action");
@@ -20,8 +20,8 @@ public class ActionCommand extends LiteralNode {
     }
 
     @Override
-    protected boolean requires(CommandSourceStack source) {
-        return BotCommand.hasPermission(source, "action");
+    public boolean requires(@NotNull CommandSourceStack source) {
+        return LeavesConfig.modify.fakeplayer.canUseAction && super.requires(source);
     }
 
     public static class BotArgument extends CustomArgumentNode<ServerBot, String> {

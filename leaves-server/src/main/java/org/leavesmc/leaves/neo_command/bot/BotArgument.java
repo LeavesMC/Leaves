@@ -20,7 +20,7 @@ import java.util.concurrent.CompletableFuture;
 public class BotArgument implements CustomArgumentType<ServerBot, String> {
     @Override
     public ArgumentType<String> getBaseArgumentType() {
-        return StringArgumentType.string();
+        return StringArgumentType.word();
     }
 
     @Override

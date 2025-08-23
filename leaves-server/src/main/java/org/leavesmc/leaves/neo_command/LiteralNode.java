@@ -5,7 +5,7 @@ import com.mojang.brigadier.builder.ArgumentBuilder;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
-import org.jetbrains.annotations.NotNull;
+import net.minecraft.server.MinecraftServer;
 
 public class LiteralNode extends CommandNode {
 
@@ -19,7 +19,17 @@ public class LiteralNode extends CommandNode {
     }
 
     @SuppressWarnings("unchecked")
-    public void register(@NotNull CommandDispatcher<CommandSourceStack> dispatcher) {
-        dispatcher.register((LiteralArgumentBuilder<CommandSourceStack>) compile());
+    public void register() {
+        MinecraftServer.getServer()
+            .getCommands()
+            .getDispatcher()
+            .register((LiteralArgumentBuilder<CommandSourceStack>) compile());
+    }
+
+    public void unregister() {
+        CommandDispatcher<CommandSourceStack> dispatcher = MinecraftServer.getServer()
+            .getCommands()
+            .getDispatcher();
+        dispatcher.getRoot().removeCommand(name);
     }
 }

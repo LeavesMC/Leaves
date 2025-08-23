@@ -22,12 +22,12 @@ import org.leavesmc.leaves.bot.BotList;
 import org.leavesmc.leaves.event.bot.BotCreateEvent;
 import org.leavesmc.leaves.neo_command.ArgumentNode;
 import org.leavesmc.leaves.neo_command.CommandContext;
-import org.leavesmc.leaves.neo_command.LiteralNode;
+import org.leavesmc.leaves.neo_command.bot.BotSubcommand;
 
 import static net.kyori.adventure.text.Component.text;
 import static net.minecraft.commands.arguments.DimensionArgument.getDimension;
 
-public class CreateCommand extends LiteralNode {
+public class CreateCommand extends BotSubcommand {
 
     public CreateCommand() {
         super("create");
@@ -133,7 +133,7 @@ public class CreateCommand extends LiteralNode {
         }
 
         @Override
-        protected boolean requires(@NotNull CommandSourceStack source) {
+        public boolean requires(@NotNull CommandSourceStack source) {
             return source.getSender() instanceof ConsoleCommandSender;
         }
     }

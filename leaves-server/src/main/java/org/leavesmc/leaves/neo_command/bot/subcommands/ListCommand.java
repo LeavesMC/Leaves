@@ -18,7 +18,7 @@ import org.leavesmc.leaves.bot.BotList;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.neo_command.ArgumentNode;
 import org.leavesmc.leaves.neo_command.CommandContext;
-import org.leavesmc.leaves.neo_command.LiteralNode;
+import org.leavesmc.leaves.neo_command.bot.BotSubcommand;
 
 import java.util.List;
 import java.util.Objects;
@@ -31,7 +31,7 @@ import static net.kyori.adventure.text.format.NamedTextColor.*;
 import static net.minecraft.commands.arguments.DimensionArgument.getDimension;
 
 
-public class ListCommand extends LiteralNode {
+public class ListCommand extends BotSubcommand {
 
     public ListCommand() {
         super("list");

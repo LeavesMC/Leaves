@@ -21,6 +21,7 @@ import static net.kyori.adventure.text.Component.join;
 import static net.kyori.adventure.text.Component.text;
 import static net.kyori.adventure.text.JoinConfiguration.spaces;
 import static net.kyori.adventure.text.format.NamedTextColor.*;
+import static org.leavesmc.leaves.neo_command.CommandUtils.getListClosestMatchingLast;
 
 public class ConfigCommand extends LiteralNode {
 
@@ -30,8 +31,8 @@ public class ConfigCommand extends LiteralNode {
     }
 
     @Override
-    protected boolean requires(@NotNull CommandSourceStack source) {
-        return LeavesCommand.hasPermission(source, "config");
+    public boolean requires(@NotNull CommandSourceStack source) {
+        return LeavesCommand.hasPermission(source.getSender(), "config");
     }
 
     private static class PathArgument extends ArgumentNode<String> {
@@ -46,13 +47,10 @@ public class ConfigCommand extends LiteralNode {
             String path = context.getArgumentOrDefault(PathArgument.class, "");
             int dotIndex = path.lastIndexOf(".");
             builder = builder.createOffset(builder.getInput().lastIndexOf(' ') + dotIndex + 2);
-            LeavesCommandUtil.getListClosestMatchingLast(
-                    context.getSender(),
+            getListClosestMatchingLast(
                     path.substring(dotIndex + 1),
-                    GlobalConfigManager.getVerifiedConfigSubPaths(path),
-                    "bukkit.command.leaves"
-                )
-                .forEach(builder::suggest);
+                    GlobalConfigManager.getVerifiedConfigSubPaths(path)
+                ).forEach(builder::suggest);
             return builder.buildFuture();
         }
 

@@ -7,7 +7,7 @@ import org.leavesmc.leaves.neo_command.CommandContext;
 import java.util.function.Supplier;
 
 import static com.mojang.brigadier.arguments.IntegerArgumentType.integer;
-import static org.leavesmc.leaves.neo_command.leaves.ArgumentSuggestions.strings;
+import static org.leavesmc.leaves.neo_command.ArgumentNode.ArgumentSuggestions.strings;
 
 public abstract class ServerTimerBotAction<E extends ServerTimerBotAction<E>> extends ServerBotAction<E> {
 

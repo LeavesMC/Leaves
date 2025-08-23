@@ -8,7 +8,10 @@ import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import org.jetbrains.annotations.Contract;
+import org.jetbrains.annotations.NotNull;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 public abstract class ArgumentNode<T> extends CommandNode {
@@ -35,5 +38,25 @@ public abstract class ArgumentNode<T> extends CommandNode {
         }
 
         return argumentBuilder;
+    }
+
+    public static class ArgumentSuggestions {
+        @Contract(pure = true)
+        public static WrappedArgument.@NotNull SuggestionApplier strings(String... values) {
+            return (context, builder) -> {
+                for (String s : values) {
+                    builder.suggest(s);
+                }
+            };
+        }
+
+        @Contract(pure = true)
+        public static WrappedArgument.@NotNull SuggestionApplier strings(List<String> values) {
+            return (context, builder) -> {
+                for (String s : values) {
+                    builder.suggest(s);
+                }
+            };
+        }
     }
 }

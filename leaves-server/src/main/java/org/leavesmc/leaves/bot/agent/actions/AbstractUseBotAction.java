@@ -6,7 +6,7 @@ import net.minecraft.world.InteractionResult;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.event.bot.BotActionStopEvent;
-import org.leavesmc.leaves.neo_command.CommandContext;
+import org.leavesmc.leaves.command.CommandContext;
 
 import java.util.function.Supplier;
 

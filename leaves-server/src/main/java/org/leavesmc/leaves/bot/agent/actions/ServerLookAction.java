@@ -14,7 +14,7 @@ import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.entity.bot.actions.CraftLookAction;
-import org.leavesmc.leaves.neo_command.CommandContext;
+import org.leavesmc.leaves.command.CommandContext;
 
 public class ServerLookAction extends AbstractBotAction<ServerLookAction> {
 

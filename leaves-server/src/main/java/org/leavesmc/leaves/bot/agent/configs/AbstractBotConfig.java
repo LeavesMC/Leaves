@@ -8,8 +8,8 @@ import net.minecraft.nbt.CompoundTag;
 import org.apache.commons.lang3.tuple.Pair;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.neo_command.CommandContext;
-import org.leavesmc.leaves.neo_command.WrappedArgument;
+import org.leavesmc.leaves.command.CommandContext;
+import org.leavesmc.leaves.command.WrappedArgument;
 
 import java.lang.reflect.Method;
 import java.util.List;

@@ -7,7 +7,7 @@ import net.minecraft.nbt.CompoundTag;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.neo_command.CommandContext;
+import org.leavesmc.leaves.command.CommandContext;
 
 public class TickTypeConfig extends AbstractBotConfig<ServerBot.TickType, String, TickTypeConfig> {
     private ServerBot.TickType value;

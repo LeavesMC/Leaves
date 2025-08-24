@@ -5,7 +5,7 @@ import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import net.minecraft.nbt.CompoundTag;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesConfig;
-import org.leavesmc.leaves.neo_command.CommandContext;
+import org.leavesmc.leaves.command.CommandContext;
 
 import static net.minecraft.network.chat.Component.literal;
 

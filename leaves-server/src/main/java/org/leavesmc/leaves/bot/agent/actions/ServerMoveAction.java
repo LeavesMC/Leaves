@@ -7,13 +7,13 @@ import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.entity.bot.action.MoveAction.MoveDirection;
 import org.leavesmc.leaves.entity.bot.actions.CraftMoveAction;
 import org.leavesmc.leaves.event.bot.BotActionStopEvent;
-import org.leavesmc.leaves.neo_command.CommandContext;
+import org.leavesmc.leaves.command.CommandContext;
 
 import java.util.Arrays;
 import java.util.Map;
 
 import static java.util.stream.Collectors.toMap;
-import static org.leavesmc.leaves.neo_command.ArgumentNode.ArgumentSuggestions.strings;
+import static org.leavesmc.leaves.command.ArgumentNode.ArgumentSuggestions.strings;
 
 public class ServerMoveAction extends AbstractStateBotAction<ServerMoveAction> {
     private static final Map<String, MoveDirection> NAME_TO_DIRECTION = Arrays.stream(MoveDirection.values()).collect(toMap(

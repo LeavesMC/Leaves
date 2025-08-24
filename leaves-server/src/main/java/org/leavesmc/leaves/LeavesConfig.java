@@ -7,7 +7,6 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import org.bukkit.Bukkit;
-import org.bukkit.command.Command;
 import org.bukkit.configuration.MemorySection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.permissions.Permission;
@@ -16,7 +15,6 @@ import org.bukkit.plugin.PluginManager;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.bot.agent.Actions;
-import org.leavesmc.leaves.command.LeavesCommand;
 import org.leavesmc.leaves.config.GlobalConfigManager;
 import org.leavesmc.leaves.config.annotations.GlobalConfig;
 import org.leavesmc.leaves.config.annotations.GlobalConfigCategory;
@@ -30,7 +28,8 @@ import org.leavesmc.leaves.config.api.impl.ConfigValidatorImpl.IntConfigValidato
 import org.leavesmc.leaves.config.api.impl.ConfigValidatorImpl.ListConfigValidator;
 import org.leavesmc.leaves.config.api.impl.ConfigValidatorImpl.LongConfigValidator;
 import org.leavesmc.leaves.config.api.impl.ConfigValidatorImpl.StringConfigValidator;
-import org.leavesmc.leaves.neo_command.bot.BotCommand;
+import org.leavesmc.leaves.command.bot.BotCommand;
+import org.leavesmc.leaves.command.leaves.LeavesCommand;
 import org.leavesmc.leaves.profile.LeavesMinecraftSessionService;
 import org.leavesmc.leaves.protocol.CarpetServerProtocol.CarpetRule;
 import org.leavesmc.leaves.protocol.CarpetServerProtocol.CarpetRules;
@@ -94,8 +93,7 @@ public final class LeavesConfig {
 
         GlobalConfigManager.init();
 
-        registerCommand("leaves", new LeavesCommand());
-        org.leavesmc.leaves.neo_command.leaves.LeavesCommand.INSTANCE.register();
+        LeavesCommand.INSTANCE.register();
     }
 
     public static void reload() {
@@ -119,11 +117,6 @@ public final class LeavesConfig {
         } catch (final Exception ex) {
             LeavesLogger.LOGGER.severe("Unable to save leaves config", ex);
         }
-    }
-
-    public static void registerCommand(String name, Command command) {
-        MinecraftServer.getServer().server.getCommandMap().register(name, "leaves", command);
-        MinecraftServer.getServer().server.syncCommands();
     }
 
     public static ModifyConfig modify = new ModifyConfig();
@@ -196,10 +189,8 @@ public final class LeavesConfig {
                 public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
                     if (old != null && !old.equals(value)) {
                         Bukkit.getOnlinePlayers().stream()
-                            .filter(sender ->
-                                BotCommand.hasPermission(sender)
-                                    || BotCommand.hasPermission(sender, "action")
-                            ).forEach(org.bukkit.entity.Player::updateCommands);
+                            .filter(sender -> BotCommand.hasPermission(sender, "action"))
+                            .forEach(org.bukkit.entity.Player::updateCommands);
                     }
                 }
             }
@@ -213,8 +204,7 @@ public final class LeavesConfig {
                     if (old != null && !old.equals(value)) {
                         Bukkit.getOnlinePlayers().stream()
                             .filter(sender ->
-                                BotCommand.hasPermission(sender)
-                                    || BotCommand.hasPermission(sender, "config")
+                                BotCommand.hasPermission(sender, "config")
                             ).forEach(org.bukkit.entity.Player::updateCommands);
                     }
                 }
@@ -229,9 +219,7 @@ public final class LeavesConfig {
                     if (old != null && !old.equals(value)) {
                         Bukkit.getOnlinePlayers().stream()
                             .filter(sender ->
-                                BotCommand.hasPermission(sender)
-                                    || BotCommand.hasPermission(sender, "save")
-                                    || BotCommand.hasPermission(sender, "load")
+                                BotCommand.hasPermission(sender, "save") || BotCommand.hasPermission(sender, "load")
                             ).forEach(org.bukkit.entity.Player::updateCommands);
                     }
                 }
@@ -678,8 +666,19 @@ public final class LeavesConfig {
             }
         }
 
-        @GlobalConfig(value = "no-block-update-command")
+        @GlobalConfig(value = "no-block-update-command", validator = NoBlockUpdateValidator.class)
         public boolean noBlockUpdateCommand = false;
+
+        private static class NoBlockUpdateValidator extends BooleanConfigValidator {
+            @Override
+            public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
+                if (old != null && !old.equals(value)) {
+                    Bukkit.getOnlinePlayers().stream()
+                        .filter(sender -> LeavesCommand.hasPermission(sender, "blockupdate"))
+                        .forEach(org.bukkit.entity.Player::updateCommands);
+                }
+            }
+        }
 
         @GlobalConfig("no-tnt-place-update")
         public boolean noTNTPlaceUpdate = false;
@@ -709,8 +708,19 @@ public final class LeavesConfig {
         public static class HopperCounterConfig {
             @TransferConfig(value = "modify.hopper-counter", transformer = HopperCounterTransfer.class)
             @TransferConfig("modify.counter.enable")
-            @GlobalConfig("enable")
+            @GlobalConfig(value = "enable", validator = HopperCounterValidator.class)
             public boolean enable = false;
+
+            private static class HopperCounterValidator extends BooleanConfigValidator {
+                @Override
+                public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
+                    if (old != null && !old.equals(value)) {
+                        Bukkit.getOnlinePlayers().stream()
+                            .filter(sender -> LeavesCommand.hasPermission(sender, "counter"))
+                            .forEach(org.bukkit.entity.Player::updateCommands);
+                    }
+                }
+            }
 
             @TransferConfig("modify.counter.unlimited-speed")
             @GlobalConfig("unlimited-speed")

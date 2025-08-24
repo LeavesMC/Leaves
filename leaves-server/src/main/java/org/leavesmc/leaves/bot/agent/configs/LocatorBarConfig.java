@@ -5,7 +5,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.waypoints.ServerWaypointManager;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesConfig;
-import org.leavesmc.leaves.neo_command.CommandContext;
+import org.leavesmc.leaves.command.CommandContext;
 
 public class LocatorBarConfig extends AbstractBotConfig<Boolean, Boolean, LocatorBarConfig> {
     private boolean value;

@@ -10,8 +10,8 @@ import org.leavesmc.leaves.LeavesLogger;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.event.bot.BotActionExecuteEvent;
 import org.leavesmc.leaves.event.bot.BotActionStopEvent;
-import org.leavesmc.leaves.neo_command.CommandContext;
-import org.leavesmc.leaves.neo_command.WrappedArgument;
+import org.leavesmc.leaves.command.CommandContext;
+import org.leavesmc.leaves.command.WrappedArgument;
 import org.leavesmc.leaves.util.UpdateSuppressionException;
 
 import java.util.ArrayList;

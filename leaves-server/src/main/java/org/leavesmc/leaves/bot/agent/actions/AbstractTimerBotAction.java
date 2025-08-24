@@ -2,12 +2,12 @@ package org.leavesmc.leaves.bot.agent.actions;
 
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.NotNull;
-import org.leavesmc.leaves.neo_command.CommandContext;
+import org.leavesmc.leaves.command.CommandContext;
 
 import java.util.function.Supplier;
 
 import static com.mojang.brigadier.arguments.IntegerArgumentType.integer;
-import static org.leavesmc.leaves.neo_command.ArgumentNode.ArgumentSuggestions.strings;
+import static org.leavesmc.leaves.command.ArgumentNode.ArgumentSuggestions.strings;
 
 public abstract class AbstractTimerBotAction<E extends AbstractTimerBotAction<E>> extends AbstractBotAction<E> {
 

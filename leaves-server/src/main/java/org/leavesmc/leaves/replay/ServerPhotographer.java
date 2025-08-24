@@ -32,7 +32,7 @@ public class ServerPhotographer extends ServerPlayer {
     private ServerPlayer followPlayer;
     private Recorder recorder;
     private File saveFile;
-    private Vec3 lastPos;
+    private Vec3 lastPosVec3;
 
     private final ServerStatsCounter stats;
 
@@ -41,7 +41,7 @@ public class ServerPhotographer extends ServerPlayer {
         this.gameMode = new ServerPhotographerGameMode(this);
         this.followPlayer = null;
         this.stats = new BotStatsCounter(server);
-        this.lastPos = this.position();
+        this.lastPosVec3 = this.position();
     }
 
     public static ServerPhotographer createPhotographer(@NotNull PhotographerCreateState state) throws IOException {
@@ -76,6 +76,7 @@ public class ServerPhotographer extends ServerPlayer {
 
     @Override
     public void tick() {
+        this.lastPos = this.blockPosition();
         super.tick();
 
         if (this.getServer().getTickCount() % 10 == 0) {
@@ -88,12 +89,12 @@ public class ServerPhotographer extends ServerPlayer {
                 this.getBukkitPlayer().teleport(this.getCamera().getBukkitEntity().getLocation());
                 this.setCamera(followPlayer);
             }
-            if (lastPos.distanceToSqr(this.position()) > 1024D) {
+            if (lastPosVec3.distanceToSqr(this.position()) > 1024D) {
                 this.getBukkitPlayer().teleport(this.getCamera().getBukkitEntity().getLocation());
             }
         }
 
-        lastPos = this.position();
+        lastPosVec3 = this.position();
     }
 
     @Override

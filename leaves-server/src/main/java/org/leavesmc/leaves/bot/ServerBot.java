@@ -673,6 +673,10 @@ public class ServerBot extends ServerPlayer {
         return (AbstractBotConfig<O, I, E>) Objects.requireNonNull(this.configs.get(config.getName()));
     }
 
+    public Collection<AbstractBotConfig<?, ?, ?>> getAllConfigs() {
+        return configs.values();
+    }
+
     public <O, I, E extends AbstractBotConfig<O, I, E>> O getConfigValue(@NotNull AbstractBotConfig<O, I, E> config) {
         return this.getConfig(config).getValue();
     }

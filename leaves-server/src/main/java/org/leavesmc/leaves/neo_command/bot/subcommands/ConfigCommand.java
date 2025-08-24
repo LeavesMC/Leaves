@@ -4,6 +4,7 @@ import com.mojang.brigadier.builder.ArgumentBuilder;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.CommandSourceStack;
+import org.bukkit.command.CommandSender;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesConfig;
@@ -15,6 +16,7 @@ import org.leavesmc.leaves.neo_command.CustomArgumentNode;
 import org.leavesmc.leaves.neo_command.LiteralNode;
 import org.leavesmc.leaves.neo_command.bot.BotSubcommand;
 
+import java.util.Collection;
 import java.util.function.Supplier;
 
 import static io.papermc.paper.adventure.PaperAdventure.asAdventure;
@@ -52,6 +54,26 @@ public class ConfigCommand extends BotSubcommand {
 
         public static @NotNull ServerBot getBot(@NotNull CommandContext context) throws CommandSyntaxException {
             return context.getCustomArgument(BotArgument.class);
+        }
+
+        @Override
+        protected boolean execute(CommandContext context) throws CommandSyntaxException {
+            ServerBot bot = BotArgument.getBot(context);
+            CommandSender sender = context.getSender();
+            Collection<AbstractBotConfig<?, ?, ?>> botConfigs = bot.getAllConfigs();
+            sender.sendMessage(join(spaces(),
+                text("Bot", GRAY),
+                asAdventure(bot.getDisplayName()).append(text("'s", GRAY)),
+                text("configs:", GRAY)
+            ));
+            for (AbstractBotConfig<?, ?, ?> botConfig : botConfigs) {
+                sender.sendMessage(join(spaces(),
+                    botConfig.getNameComponent(),
+                    text("=", GRAY),
+                    text(String.valueOf(botConfig.getValue()), AQUA)
+                ));
+            }
+            return true;
         }
     }
 

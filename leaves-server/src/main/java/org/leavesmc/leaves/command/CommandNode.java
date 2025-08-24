@@ -50,7 +50,7 @@ public abstract class CommandNode {
             builder = builder.then(child.compile());
         }
 
-        if (isMethodOverridden("execute", CommandNode.class)) {
+        if (canExecute()) {
             builder = builder.executes(mojangCtx -> {
                 CommandContext ctx = new CommandContext(mojangCtx);
                 return execute(ctx) ? 1 : 0;
@@ -58,6 +58,10 @@ public abstract class CommandNode {
         }
 
         return builder;
+    }
+
+    protected boolean canExecute() {
+        return isMethodOverridden("execute", CommandNode.class);
     }
 
     protected boolean isMethodOverridden(String methodName, @NotNull Class<?> baseClass) {

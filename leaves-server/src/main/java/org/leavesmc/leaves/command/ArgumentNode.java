@@ -27,11 +27,15 @@ public abstract class ArgumentNode<T> extends CommandNode {
         return Suggestions.empty();
     }
 
+    protected boolean overrideSuggestions() {
+        return isMethodOverridden("getSuggestions", ArgumentNode.class);
+    }
+
     @Override
     protected ArgumentBuilder<CommandSourceStack, ?> compileBase() {
         RequiredArgumentBuilder<CommandSourceStack, T> argumentBuilder = Commands.argument(name, argumentType);
 
-        if (isMethodOverridden("getSuggestions", ArgumentNode.class)) {
+        if (overrideSuggestions()) {
             argumentBuilder.suggests(
                 (context, builder) -> getSuggestions(new CommandContext(context), builder)
             );

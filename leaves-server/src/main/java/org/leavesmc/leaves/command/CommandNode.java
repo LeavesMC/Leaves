@@ -44,11 +44,7 @@ public abstract class CommandNode {
     }
 
     protected ArgumentBuilder<CommandSourceStack, ?> compile() {
-        ArgumentBuilder<CommandSourceStack, ?> builder = compileBase();
-
-        if (isMethodOverridden("requires", CommandNode.class)) {
-            builder = builder.requires(this::requires);
-        }
+        ArgumentBuilder<CommandSourceStack, ?> builder = compileBase().requires(this::requires);
 
         for (CommandNode child : children) {
             builder = builder.then(child.compile());

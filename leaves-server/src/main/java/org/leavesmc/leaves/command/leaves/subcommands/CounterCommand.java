@@ -59,7 +59,7 @@ public class CounterCommand extends LeavesSubcommand {
             if (HopperCounter.isEnabled()) {
                 sender.sendMessage(join(spaces(),
                     text("Hopper counter is already", GRAY),
-                    text("disabled", AQUA)
+                    text("enabled", AQUA)
                 ));
                 return true;
             }

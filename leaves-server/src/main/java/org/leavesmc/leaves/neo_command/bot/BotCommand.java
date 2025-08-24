@@ -12,6 +12,7 @@ import org.leavesmc.leaves.neo_command.bot.subcommands.ConfigCommand;
 import org.leavesmc.leaves.neo_command.bot.subcommands.CreateCommand;
 import org.leavesmc.leaves.neo_command.bot.subcommands.ListCommand;
 import org.leavesmc.leaves.neo_command.bot.subcommands.LoadCommand;
+import org.leavesmc.leaves.neo_command.bot.subcommands.RemoveCommand;
 import org.leavesmc.leaves.neo_command.bot.subcommands.SaveCommand;
 
 import java.util.ArrayList;
@@ -24,12 +25,13 @@ public class BotCommand extends LiteralNode {
     private BotCommand() {
         super("bot");
         this.children(
-            ActionCommand::new,
             ListCommand::new,
-            CreateCommand::new,
+            ConfigCommand::new,
+            RemoveCommand::new,
             LoadCommand::new,
             SaveCommand::new,
-            ConfigCommand::new
+            ActionCommand::new,
+            CreateCommand::new
         );
     }
 

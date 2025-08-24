@@ -191,7 +191,7 @@ public class BotList {
         this.server.server.getPluginManager().callEvent(event);
 
         if (event.isCancelled() && event.getReason() != BotRemoveEvent.RemoveReason.INTERNAL) {
-            return true;
+            return false;
         }
 
         if (bot.removeTaskId != -1) {

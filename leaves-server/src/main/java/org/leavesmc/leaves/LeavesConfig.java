@@ -54,7 +54,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Locale;
 import java.util.Random;
 import java.util.function.Predicate;
 
@@ -127,13 +126,6 @@ public final class LeavesConfig {
         MinecraftServer.getServer().server.syncCommands();
     }
 
-    public static void unregisterCommand(String name) {
-        name = name.toLowerCase(Locale.ENGLISH).trim();
-        MinecraftServer.getServer().server.getCommandMap().getKnownCommands().remove(name);
-        MinecraftServer.getServer().server.getCommandMap().getKnownCommands().remove("leaves:" + name);
-        MinecraftServer.getServer().server.syncCommands();
-    }
-
     public static ModifyConfig modify = new ModifyConfig();
 
     @GlobalConfigCategory("modify")
@@ -152,10 +144,9 @@ public final class LeavesConfig {
                 @Override
                 public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
                     if (value) {
-                        BotCommand.INSTANCE.register();
                         Actions.registerAll();
+                        BotCommand.INSTANCE.register();
                     } else {
-                        unregisterCommand("bot");
                         BotCommand.INSTANCE.unregister();
                     }
                     if (old != null && !old.equals(value)) {

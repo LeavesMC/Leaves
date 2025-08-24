@@ -32,7 +32,7 @@ public class SaveCommand extends BotSubcommand {
 
     private static class BotArgument extends CustomArgumentNode<ServerBot, String> {
 
-        public BotArgument() {
+        private BotArgument() {
             super("bot", new org.leavesmc.leaves.neo_command.bot.BotArgument());
         }
 
@@ -42,16 +42,17 @@ public class SaveCommand extends BotSubcommand {
             CommandSender sender = context.getSender();
             BotList botList = BotList.INSTANCE;
 
-            if (!botList.removeBot(bot, BotRemoveEvent.RemoveReason.COMMAND, sender, true)) {
-                sender.sendMessage(text("Failed to save bot, please check log", NamedTextColor.RED));
-                return false;
+            boolean success = botList.removeBot(bot, BotRemoveEvent.RemoveReason.COMMAND, sender, true);
+            if (success) {
+                sender.sendMessage(join(spaces(),
+                    text("Successfully saved bot", NamedTextColor.GRAY),
+                    asAdventure(bot.getDisplayName()),
+                    text("as " + bot.createState.realName(), NamedTextColor.GRAY)
+                ));
+            } else {
+                sender.sendMessage(text("Bot save canceled by a plugin", NamedTextColor.RED));
             }
-            sender.sendMessage(join(spaces(),
-                text("Successfully saved bot", NamedTextColor.GRAY),
-                asAdventure(bot.getDisplayName()),
-                text("as " + bot.createState.realName(), NamedTextColor.GRAY)
-            ));
-            return true;
+            return success;
         }
     }
 }

@@ -70,8 +70,7 @@ public class CraftBot extends CraftPlayer implements Bot {
 
     @Override
     public boolean remove(boolean save) {
-        BotList.INSTANCE.removeBot(this.getHandle(), BotRemoveEvent.RemoveReason.PLUGIN, null, save);
-        return true;
+        return BotList.INSTANCE.removeBot(this.getHandle(), BotRemoveEvent.RemoveReason.PLUGIN, null, save);
     }
 
     @Override

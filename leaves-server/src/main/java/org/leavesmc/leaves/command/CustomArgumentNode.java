@@ -32,7 +32,7 @@ public class CustomArgumentNode<T, B> extends ArgumentNode<B> {
     protected ArgumentBuilder<CommandSourceStack, ?> compileBase() {
         RequiredArgumentBuilder<CommandSourceStack, T> argumentBuilder = (RequiredArgumentBuilder<CommandSourceStack, T>) super.compileBase();
 
-        if (overrideSuggestions()) {
+        if (!overrideSuggestions()) {
             CustomArgumentType<T, B> customArgumentType = (CustomArgumentType<T, B>) TYPES.get(getClass());
             argumentBuilder.suggests(
                 (context, builder) -> customArgumentType.getSuggestions(new CommandContext(context), builder)

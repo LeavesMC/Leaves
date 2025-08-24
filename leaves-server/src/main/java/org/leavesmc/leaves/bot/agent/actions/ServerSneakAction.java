@@ -5,7 +5,7 @@ import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.entity.bot.actions.CraftSneakAction;
 import org.leavesmc.leaves.event.bot.BotActionStopEvent;
 
-public class ServerSneakAction extends ServerStateBotAction<ServerSneakAction> {
+public class ServerSneakAction extends AbstractStateBotAction<ServerSneakAction> {
 
     public ServerSneakAction() {
         super("sneak", ServerSneakAction::new);

@@ -1,23 +1,17 @@
 package org.leavesmc.leaves.bot.agent.configs;
 
+import com.mojang.brigadier.arguments.BoolArgumentType;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.waypoints.ServerWaypointManager;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesConfig;
-import org.leavesmc.leaves.bot.agent.AbstractBotConfig;
-import org.leavesmc.leaves.command.CommandArgument;
-import org.leavesmc.leaves.command.CommandArgumentType;
+import org.leavesmc.leaves.neo_command.CommandContext;
 
-import java.util.List;
-
-public class LocatorBarConfig extends AbstractBotConfig<Boolean> {
-
-    public static final String NAME = "enable_locator_bar";
-
+public class LocatorBarConfig extends AbstractBotConfig<Boolean, Boolean, LocatorBarConfig> {
     private boolean value;
 
     public LocatorBarConfig() {
-        super(NAME, CommandArgument.of(CommandArgumentType.BOOLEAN).setSuggestion(0, List.of("true", "false")));
+        super("enable_locator_bar", BoolArgumentType.bool(), LocatorBarConfig::new);
         this.value = LeavesConfig.modify.fakeplayer.inGame.enableLocatorBar;
     }
 
@@ -27,7 +21,7 @@ public class LocatorBarConfig extends AbstractBotConfig<Boolean> {
     }
 
     @Override
-    public void setValue(Boolean value) throws IllegalArgumentException {
+    public void setValue(@NotNull Boolean value) throws IllegalArgumentException {
         this.value = value;
         ServerWaypointManager manager = this.bot.level().getWaypointManager();
         if (value) {
@@ -38,14 +32,19 @@ public class LocatorBarConfig extends AbstractBotConfig<Boolean> {
     }
 
     @Override
+    public Boolean loadFromCommand(@NotNull CommandContext context) {
+        return context.getBoolean(getName());
+    }
+
+    @Override
     public @NotNull CompoundTag save(@NotNull CompoundTag nbt) {
         super.save(nbt);
-        nbt.putBoolean(NAME, this.getValue());
+        nbt.putBoolean(getName(), this.getValue());
         return nbt;
     }
 
     @Override
     public void load(@NotNull CompoundTag nbt) {
-        this.setValue(nbt.getBooleanOr(NAME, LeavesConfig.modify.fakeplayer.inGame.enableLocatorBar));
+        this.setValue(nbt.getBooleanOr(getName(), LeavesConfig.modify.fakeplayer.inGame.enableLocatorBar));
     }
 }

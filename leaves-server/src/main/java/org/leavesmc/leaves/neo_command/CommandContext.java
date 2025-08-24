@@ -46,6 +46,18 @@ public class CommandContext {
         return source.getArgument(name, clazz);
     }
 
+    public int getInteger(final String name) {
+        return source.getArgument(name, Integer.class);
+    }
+
+    public boolean getBoolean(final String name) {
+        return source.getArgument(name, Boolean.class);
+    }
+
+    public String getString(final String name) {
+        return source.getArgument(name, String.class);
+    }
+
     @SuppressWarnings("unchecked")
     public <V> @NotNull V getArgument(final Class<? extends ArgumentNode<V>> nodeClass) {
         String name = getNameForNode(nodeClass);

@@ -2,7 +2,6 @@ package org.leavesmc.leaves.bot;
 
 import net.minecraft.Util;
 import org.leavesmc.leaves.LeavesConfig;
-import org.leavesmc.leaves.bot.subcommands.BotConfigCommand;
 import org.leavesmc.leaves.bot.subcommands.BotCreateCommand;
 import org.leavesmc.leaves.bot.subcommands.BotListCommand;
 import org.leavesmc.leaves.bot.subcommands.BotLoadCommand;
@@ -24,7 +23,7 @@ public class BotCommand extends LeavesRootCommand {
         commands.put(Set.of("create"), new BotCreateCommand());
         commands.put(Set.of("remove"), new BotRemoveCommand());
 //        commands.put(Set.of("action"), new BotActionCommand());
-        commands.put(Set.of("config"), new BotConfigCommand());
+//        commands.put(Set.of("config"), new BotConfigCommand());
         commands.put(Set.of("save"), new BotSaveCommand());
         commands.put(Set.of("load"), new BotLoadCommand());
         commands.put(Set.of("list"), new BotListCommand());

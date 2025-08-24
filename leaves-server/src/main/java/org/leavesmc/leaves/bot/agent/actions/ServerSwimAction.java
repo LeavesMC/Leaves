@@ -5,7 +5,7 @@ import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.entity.bot.actions.CraftSwimAction;
 
-public class ServerSwimAction extends ServerStateBotAction<ServerSwimAction> {
+public class ServerSwimAction extends AbstractStateBotAction<ServerSwimAction> {
 
     public ServerSwimAction() {
         super("swim", ServerSwimAction::new);

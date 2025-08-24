@@ -9,9 +9,9 @@ import java.util.function.Supplier;
 import static com.mojang.brigadier.arguments.IntegerArgumentType.integer;
 import static org.leavesmc.leaves.neo_command.ArgumentNode.ArgumentSuggestions.strings;
 
-public abstract class ServerTimerBotAction<E extends ServerTimerBotAction<E>> extends ServerBotAction<E> {
+public abstract class AbstractTimerBotAction<E extends AbstractTimerBotAction<E>> extends AbstractBotAction<E> {
 
-    public ServerTimerBotAction(String name, Supplier<E> creator) {
+    public AbstractTimerBotAction(String name, Supplier<E> creator) {
         super(name, creator);
         this.addArgument("delay", integer(0))
             .suggests(strings("0", "5", "10", "20"))

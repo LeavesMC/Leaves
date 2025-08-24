@@ -1,21 +1,27 @@
 package org.leavesmc.leaves.bot.agent.configs;
 
+import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import net.minecraft.nbt.CompoundTag;
-import org.apache.commons.lang3.tuple.Pair;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesConfig;
-import org.leavesmc.leaves.bot.agent.AbstractBotConfig;
-import org.leavesmc.leaves.command.CommandArgument;
-import org.leavesmc.leaves.command.CommandArgumentType;
+import org.leavesmc.leaves.neo_command.CommandContext;
 
-import java.util.List;
+import static net.minecraft.network.chat.Component.literal;
 
-public class SimulationDistanceConfig extends AbstractBotConfig<Integer> {
-
-    public static final String NAME = "simulation_distance";
+public class SimulationDistanceConfig extends AbstractBotConfig<Integer, Integer, SimulationDistanceConfig> {
 
     public SimulationDistanceConfig() {
-        super(NAME, CommandArgument.of(CommandArgumentType.INTEGER).setSuggestion(0, Pair.of(List.of("2", "10"), "<INT 2 - 32>")));
+        super("simulation_distance", IntegerArgumentType.integer(2, 32), SimulationDistanceConfig::new);
+    }
+
+    @Override
+    public void applySuggestions(CommandContext context, @NotNull SuggestionsBuilder builder) {
+        builder.suggest("2", literal("Minimum simulation distance"));
+        builder.suggest("8");
+        builder.suggest("12");
+        builder.suggest("16");
+        builder.suggest("32", literal("Maximum simulation distance"));
     }
 
     @Override
@@ -25,22 +31,24 @@ public class SimulationDistanceConfig extends AbstractBotConfig<Integer> {
 
     @Override
     public void setValue(Integer value) {
-        if (value < 2 || value > 32) {
-            throw new IllegalArgumentException("simulation_distance must be a number between 2 and 32, got: " + value);
-        }
         this.bot.getBukkitEntity().setSimulationDistance(value);
+    }
+
+    @Override
+    public Integer loadFromCommand(@NotNull CommandContext context) {
+        return context.getInteger(getName());
     }
 
     @Override
     @NotNull
     public CompoundTag save(@NotNull CompoundTag nbt) {
         super.save(nbt);
-        nbt.putInt(NAME, this.getValue());
+        nbt.putInt(getName(), this.getValue());
         return nbt;
     }
 
     @Override
     public void load(@NotNull CompoundTag nbt) {
-        this.setValue(nbt.getIntOr(NAME, LeavesConfig.modify.fakeplayer.inGame.getSimulationDistance(this.bot)));
+        this.setValue(nbt.getIntOr(getName(), LeavesConfig.modify.fakeplayer.inGame.getSimulationDistance(this.bot)));
     }
 }

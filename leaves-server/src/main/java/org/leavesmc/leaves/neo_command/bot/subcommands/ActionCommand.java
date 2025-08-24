@@ -16,7 +16,7 @@ public class ActionCommand extends BotSubcommand {
 
     public ActionCommand() {
         super("action");
-        children(ActionCommand.BotArgument::new);
+        children(BotArgument::new);
     }
 
     @Override

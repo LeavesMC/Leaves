@@ -10,7 +10,7 @@ import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.bot.agent.Actions;
-import org.leavesmc.leaves.bot.agent.actions.ServerBotAction;
+import org.leavesmc.leaves.bot.agent.actions.AbstractBotAction;
 import org.leavesmc.leaves.neo_command.CommandContext;
 import org.leavesmc.leaves.neo_command.LiteralNode;
 import org.leavesmc.leaves.neo_command.WrappedArgument;
@@ -38,7 +38,7 @@ public class StartCommand extends LiteralNode {
             .forEach(this::children);
     }
 
-    private boolean handleStartCommand(CommandContext context, @NotNull ServerBotAction<?> action) throws CommandSyntaxException {
+    private boolean handleStartCommand(CommandContext context, @NotNull AbstractBotAction<?> action) throws CommandSyntaxException {
         ServerBot bot = getBot(context);
         CommandSender sender = context.getSender();
 
@@ -56,51 +56,60 @@ public class StartCommand extends LiteralNode {
     }
 
     @Contract(pure = true)
-    private @NotNull Supplier<LiteralNode> actionNodeCreator(ServerBotAction<?> action) {
-        return () -> new LiteralNode(action.getName()) {
-            @Override
-            protected ArgumentBuilder<CommandSourceStack, ?> compile() {
-                ArgumentBuilder<CommandSourceStack, ?> builder = super.compile();
+    private @NotNull Supplier<LiteralNode> actionNodeCreator(AbstractBotAction<?> action) {
+        return () -> new ActionLiteralNode(action);
+    }
 
-                Map<Integer, List<Pair<String, WrappedArgument<?>>>> arguments = action.getArguments();
-                Command<CommandSourceStack> executor = context -> {
-                    if (handleStartCommand(new CommandContext(context), action)) {
-                        return Command.SINGLE_SUCCESS;
+    private class ActionLiteralNode extends LiteralNode {
+        private final AbstractBotAction<?> action;
+
+        public ActionLiteralNode(@NotNull AbstractBotAction<?> action) {
+            super(action.getName());
+            this.action = action;
+        }
+
+        @Override
+        protected ArgumentBuilder<CommandSourceStack, ?> compile() {
+            ArgumentBuilder<CommandSourceStack, ?> builder = super.compile();
+
+            Map<Integer, List<Pair<String, WrappedArgument<?>>>> arguments = action.getArguments();
+            Command<CommandSourceStack> executor = context -> {
+                if (handleStartCommand(new CommandContext(context), action)) {
+                    return Command.SINGLE_SUCCESS;
+                } else {
+                    return 0;
+                }
+            };
+            for (Map.Entry<Integer, List<Pair<String, WrappedArgument<?>>>> entry : arguments.entrySet()) {
+                List<Pair<String, WrappedArgument<?>>> value = entry.getValue();
+                ArgumentBuilder<CommandSourceStack, ?> branchArgumentBuilder = null;
+
+                for (Pair<String, WrappedArgument<?>> stringWrappedArgumentPair : value.reversed()) {
+                    WrappedArgument<?> argument = stringWrappedArgumentPair.getRight();
+                    if (branchArgumentBuilder == null) {
+                        branchArgumentBuilder = argument.compile().executes(executor);
                     } else {
-                        return 0;
-                    }
-                };
-                for (Map.Entry<Integer, List<Pair<String, WrappedArgument<?>>>> entry : arguments.entrySet()) {
-                    List<Pair<String, WrappedArgument<?>>> value = entry.getValue();
-                    ArgumentBuilder<CommandSourceStack, ?> branchArgumentBuilder = null;
-
-                    for (Pair<String, WrappedArgument<?>> stringWrappedArgumentPair : value.reversed()) {
-                        WrappedArgument<?> argument = stringWrappedArgumentPair.getRight();
-                        if (branchArgumentBuilder == null) {
-                            branchArgumentBuilder = argument.compile().executes(executor);
-                        } else {
-                            branchArgumentBuilder = argument.compile().then(branchArgumentBuilder);
-                            if (argument.isOptional()) {
-                                branchArgumentBuilder = branchArgumentBuilder.executes(executor);
-                            }
+                        branchArgumentBuilder = argument.compile().then(branchArgumentBuilder);
+                        if (argument.isOptional()) {
+                            branchArgumentBuilder = branchArgumentBuilder.executes(executor);
                         }
-                    }
-
-                    if (value.getFirst().getRight().isOptional() || value.isEmpty()) {
-                        builder = builder.executes(executor);
-                    }
-
-                    if (branchArgumentBuilder != null) {
-                        builder = builder.then(branchArgumentBuilder);
                     }
                 }
 
-                if (arguments.isEmpty()) {
+                if (value.getFirst().getRight().isOptional() || value.isEmpty()) {
                     builder = builder.executes(executor);
                 }
 
-                return builder;
+                if (branchArgumentBuilder != null) {
+                    builder = builder.then(branchArgumentBuilder);
+                }
             }
-        };
+
+            if (arguments.isEmpty()) {
+                builder = builder.executes(executor);
+            }
+
+            return builder;
+        }
     }
 }

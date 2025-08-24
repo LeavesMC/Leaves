@@ -1,20 +1,15 @@
 package org.leavesmc.leaves.bot.agent.configs;
 
+import com.mojang.brigadier.arguments.BoolArgumentType;
 import net.minecraft.nbt.CompoundTag;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesConfig;
-import org.leavesmc.leaves.bot.agent.AbstractBotConfig;
-import org.leavesmc.leaves.command.CommandArgument;
-import org.leavesmc.leaves.command.CommandArgumentType;
+import org.leavesmc.leaves.neo_command.CommandContext;
 
-import java.util.List;
-
-public class SkipSleepConfig extends AbstractBotConfig<Boolean> {
-
-    public static final String NAME = "skip_sleep";
+public class SkipSleepConfig extends AbstractBotConfig<Boolean, Boolean, SkipSleepConfig> {
 
     public SkipSleepConfig() {
-        super(NAME, CommandArgument.of(CommandArgumentType.BOOLEAN).setSuggestion(0, List.of("true", "false")));
+        super("skip_sleep", BoolArgumentType.bool(), SkipSleepConfig::new);
     }
 
     @Override
@@ -28,14 +23,19 @@ public class SkipSleepConfig extends AbstractBotConfig<Boolean> {
     }
 
     @Override
+    public Boolean loadFromCommand(@NotNull CommandContext context) {
+        return context.getBoolean(getName());
+    }
+
+    @Override
     public @NotNull CompoundTag save(@NotNull CompoundTag nbt) {
         super.save(nbt);
-        nbt.putBoolean(NAME, this.getValue());
+        nbt.putBoolean(getName(), this.getValue());
         return nbt;
     }
 
     @Override
     public void load(@NotNull CompoundTag nbt) {
-        this.setValue(nbt.getBooleanOr(NAME, LeavesConfig.modify.fakeplayer.inGame.canSkipSleep));
+        this.setValue(nbt.getBooleanOr(getName(), LeavesConfig.modify.fakeplayer.inGame.canSkipSleep));
     }
 }

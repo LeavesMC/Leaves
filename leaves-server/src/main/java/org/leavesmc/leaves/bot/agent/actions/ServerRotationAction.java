@@ -11,7 +11,7 @@ import org.leavesmc.leaves.neo_command.CommandContext;
 
 import java.text.DecimalFormat;
 
-public class ServerRotationAction extends ServerBotAction<ServerRotationAction> {
+public class ServerRotationAction extends AbstractBotAction<ServerRotationAction> {
 
     private static final DecimalFormat DF = new DecimalFormat("0.00");
 

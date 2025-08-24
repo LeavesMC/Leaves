@@ -16,7 +16,7 @@ import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.entity.bot.actions.CraftLookAction;
 import org.leavesmc.leaves.neo_command.CommandContext;
 
-public class ServerLookAction extends ServerBotAction<ServerLookAction> {
+public class ServerLookAction extends AbstractBotAction<ServerLookAction> {
 
     private static final Vector ZERO_VECTOR = new Vector(0, 0, 0);
 

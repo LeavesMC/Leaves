@@ -11,7 +11,7 @@ import org.leavesmc.leaves.entity.bot.actions.CraftMountAction;
 import java.util.Comparator;
 import java.util.List;
 
-public class ServerMountAction extends ServerBotAction<ServerMountAction> {
+public class ServerMountAction extends AbstractBotAction<ServerMountAction> {
 
     public ServerMountAction() {
         super("mount", ServerMountAction::new);

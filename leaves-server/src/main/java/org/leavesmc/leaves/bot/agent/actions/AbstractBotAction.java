@@ -23,7 +23,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 @SuppressWarnings("unchecked")
-public abstract class ServerBotAction<E extends ServerBotAction<E>> {
+public abstract class AbstractBotAction<E extends AbstractBotAction<E>> {
 
     private final String name;
     private final Map<Integer, List<Pair<String, WrappedArgument<?>>>> arguments;
@@ -43,7 +43,7 @@ public abstract class ServerBotAction<E extends ServerBotAction<E>> {
     private Consumer<E> onSuccess;
     private Consumer<E> onStop;
 
-    public ServerBotAction(String name, Supplier<E> creator) {
+    public AbstractBotAction(String name, Supplier<E> creator) {
         this.name = name;
         this.uuid = UUID.randomUUID();
         this.creator = creator;

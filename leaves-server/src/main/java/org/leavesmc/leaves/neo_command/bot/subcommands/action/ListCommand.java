@@ -4,7 +4,7 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import org.bukkit.command.CommandSender;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.bot.agent.actions.ServerBotAction;
+import org.leavesmc.leaves.bot.agent.actions.AbstractBotAction;
 import org.leavesmc.leaves.neo_command.CommandContext;
 import org.leavesmc.leaves.neo_command.LiteralNode;
 import org.leavesmc.leaves.neo_command.bot.subcommands.ActionCommand;
@@ -30,7 +30,7 @@ public class ListCommand extends LiteralNode {
         ServerBot bot = ActionCommand.BotArgument.getBot(context);
 
         CommandSender sender = context.getSender();
-        List<ServerBotAction<?>> actions = bot.getBotActions();
+        List<AbstractBotAction<?>> actions = bot.getBotActions();
         if (actions.isEmpty()) {
             sender.sendMessage(text("This bot has no active actions", GRAY));
             return true;
@@ -41,7 +41,7 @@ public class ListCommand extends LiteralNode {
                 .append(text("'s action list:", GRAY))
         );
         for (int i = 0; i < actions.size(); i++) {
-            ServerBotAction<?> action = actions.get(i);
+            AbstractBotAction<?> action = actions.get(i);
             sender.sendMessage(join(spaces(),
                 text(i, GRAY),
                 text(action.getName(), AQUA).hoverEvent(showText(text(action.getActionDataString())))

@@ -15,7 +15,7 @@ import java.util.Map;
 import static java.util.stream.Collectors.toMap;
 import static org.leavesmc.leaves.neo_command.ArgumentNode.ArgumentSuggestions.strings;
 
-public class ServerMoveAction extends ServerStateBotAction<ServerMoveAction> {
+public class ServerMoveAction extends AbstractStateBotAction<ServerMoveAction> {
     private static final Map<String, MoveDirection> NAME_TO_DIRECTION = Arrays.stream(MoveDirection.values()).collect(toMap(
         it -> it.name,
         it -> it

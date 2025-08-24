@@ -59,10 +59,10 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.LeavesLogger;
-import org.leavesmc.leaves.bot.agent.AbstractBotConfig;
 import org.leavesmc.leaves.bot.agent.Actions;
 import org.leavesmc.leaves.bot.agent.Configs;
-import org.leavesmc.leaves.bot.agent.actions.ServerBotAction;
+import org.leavesmc.leaves.bot.agent.actions.AbstractBotAction;
+import org.leavesmc.leaves.bot.agent.configs.AbstractBotConfig;
 import org.leavesmc.leaves.entity.bot.CraftBot;
 import org.leavesmc.leaves.event.bot.BotActionScheduleEvent;
 import org.leavesmc.leaves.event.bot.BotCreateEvent;
@@ -83,8 +83,8 @@ import java.util.function.Predicate;
 
 public class ServerBot extends ServerPlayer {
 
-    private final List<ServerBotAction<?>> actions;
-    private final Map<Configs<?>, AbstractBotConfig<?>> configs;
+    private final List<AbstractBotAction<?>> actions;
+    private final Map<String, AbstractBotConfig<?, ?, ?>> configs;
 
     public boolean resume = false;
     public BotCreateState createState;
@@ -106,9 +106,9 @@ public class ServerBot extends ServerPlayer {
         this.gameMode = new ServerBotGameMode(this);
 
         this.actions = new ArrayList<>();
-        ImmutableMap.Builder<Configs<?>, AbstractBotConfig<?>> configBuilder = ImmutableMap.builder();
-        for (Configs<?> config : Configs.getConfigs()) {
-            configBuilder.put(config, config.createConfig(this));
+        ImmutableMap.Builder<String, AbstractBotConfig<?, ?, ?>> configBuilder = ImmutableMap.builder();
+        for (AbstractBotConfig<?, ?, ?> config : Configs.getConfigs()) {
+            configBuilder.put(config.getName(), config.create().setBot(this));
         }
         this.configs = configBuilder.build();
 
@@ -388,14 +388,14 @@ public class ServerBot extends ServerPlayer {
 
         if (!this.actions.isEmpty()) {
             ValueOutput.TypedOutputList<CompoundTag> actionNbt = nbt.list("actions", CompoundTag.CODEC);
-            for (ServerBotAction<?> action : this.actions) {
+            for (AbstractBotAction<?> action : this.actions) {
                 actionNbt.add(action.save(new CompoundTag()));
             }
         }
 
         if (!this.configs.isEmpty()) {
             ValueOutput.TypedOutputList<CompoundTag> configNbt = nbt.list("configs", CompoundTag.CODEC);
-            for (AbstractBotConfig<?> config : this.configs.values()) {
+            for (AbstractBotConfig<?, ?, ?> config : this.configs.values()) {
                 configNbt.add(config.save(new CompoundTag()));
             }
         }
@@ -428,9 +428,9 @@ public class ServerBot extends ServerPlayer {
         if (nbt.list("actions", CompoundTag.CODEC).isPresent()) {
             ValueInput.TypedInputList<CompoundTag> actionNbt = nbt.list("actions", CompoundTag.CODEC).orElseThrow();
             actionNbt.forEach(actionTag -> {
-                ServerBotAction<?> action = Actions.getForName(actionTag.getString("actionName").orElseThrow());
+                AbstractBotAction<?> action = Actions.getForName(actionTag.getString("actionName").orElseThrow());
                 if (action != null) {
-                    ServerBotAction<?> newAction = action.create();
+                    AbstractBotAction<?> newAction = action.create();
                     newAction.load(actionTag);
                     this.actions.add(newAction);
                 }
@@ -440,9 +440,9 @@ public class ServerBot extends ServerPlayer {
         if (nbt.list("configs", CompoundTag.CODEC).isPresent()) {
             ValueInput.TypedInputList<CompoundTag> configNbt = nbt.list("configs", CompoundTag.CODEC).orElseThrow();
             for (CompoundTag configTag : configNbt) {
-                Configs<?> configKey = Configs.getConfig(configTag.getString("configName").orElseThrow());
-                if (configKey != null) {
-                    this.configs.get(configKey).load(configTag);
+                AbstractBotConfig<?, ?, ?> config = Configs.getConfig(configTag.getString("configName").orElseThrow());
+                if (config != null) {
+                    config.load(configTag);
                 }
             }
         }
@@ -640,11 +640,11 @@ public class ServerBot extends ServerPlayer {
     private void runAction() {
         if (LeavesConfig.modify.fakeplayer.canUseAction) {
             this.actions.forEach(action -> action.tryTick(this));
-            this.actions.removeIf(ServerBotAction::isCancelled);
+            this.actions.removeIf(AbstractBotAction::isCancelled);
         }
     }
 
-    public boolean addBotAction(ServerBotAction<?> action, CommandSender sender) {
+    public boolean addBotAction(AbstractBotAction<?> action, CommandSender sender) {
         if (!LeavesConfig.modify.fakeplayer.canUseAction) {
             return false;
         }
@@ -658,7 +658,7 @@ public class ServerBot extends ServerPlayer {
         return true;
     }
 
-    public List<ServerBotAction<?>> getBotActions() {
+    public List<AbstractBotAction<?>> getBotActions() {
         return actions;
     }
 
@@ -669,11 +669,11 @@ public class ServerBot extends ServerPlayer {
     }
 
     @SuppressWarnings("unchecked")
-    public <E> AbstractBotConfig<E> getConfig(Configs<E> config) {
-        return (AbstractBotConfig<E>) Objects.requireNonNull(this.configs.get(config));
+    public <O, I, E extends AbstractBotConfig<O, I, E>> AbstractBotConfig<O, I, E> getConfig(@NotNull AbstractBotConfig<O, I, E> config) {
+        return (AbstractBotConfig<O, I, E>) Objects.requireNonNull(this.configs.get(config.getName()));
     }
 
-    public <E> E getConfigValue(Configs<E> config) {
+    public <O, I, E extends AbstractBotConfig<O, I, E>> O getConfigValue(@NotNull AbstractBotConfig<O, I, E> config) {
         return this.getConfig(config).getValue();
     }
 

@@ -12,12 +12,12 @@ import java.util.function.Supplier;
 
 import static com.mojang.brigadier.arguments.IntegerArgumentType.integer;
 
-public abstract class ServerUseBotAction<T extends ServerUseBotAction<T>> extends ServerTimerBotAction<T> {
+public abstract class AbstractUseBotAction<T extends AbstractUseBotAction<T>> extends AbstractTimerBotAction<T> {
     private int useTickTimeout = -1;
     private int alreadyUsedTick = 0;
     private int useItemRemainingTicks = 0;
 
-    public ServerUseBotAction(String name, Supplier<T> supplier) {
+    public AbstractUseBotAction(String name, Supplier<T> supplier) {
         super(name, supplier);
         this.addArgument("use_timeout", integer(-1))
             .suggests((context, builder) -> {

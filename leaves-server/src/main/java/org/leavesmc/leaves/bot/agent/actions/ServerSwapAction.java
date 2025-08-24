@@ -6,7 +6,7 @@ import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.entity.bot.actions.CraftSwapAction;
 
-public class ServerSwapAction extends ServerBotAction<ServerSwapAction> {
+public class ServerSwapAction extends AbstractBotAction<ServerSwapAction> {
 
     public ServerSwapAction() {
         super("swap", ServerSwapAction::new);

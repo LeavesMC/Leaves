@@ -48,9 +48,9 @@ public class ConfigCommand extends LiteralNode {
             int dotIndex = path.lastIndexOf(".");
             builder = builder.createOffset(builder.getInput().lastIndexOf(' ') + dotIndex + 2);
             getListClosestMatchingLast(
-                    path.substring(dotIndex + 1),
-                    GlobalConfigManager.getVerifiedConfigSubPaths(path)
-                ).forEach(builder::suggest);
+                path.substring(dotIndex + 1),
+                GlobalConfigManager.getVerifiedConfigSubPaths(path)
+            ).forEach(builder::suggest);
             return builder.buildFuture();
         }
 

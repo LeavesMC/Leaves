@@ -9,7 +9,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.bot.BotList;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.bot.agent.actions.ServerBotAction;
+import org.leavesmc.leaves.bot.agent.actions.AbstractBotAction;
 import org.leavesmc.leaves.entity.bot.action.BotAction;
 import org.leavesmc.leaves.entity.bot.actions.CraftBotAction;
 import org.leavesmc.leaves.event.bot.BotActionStopEvent;
@@ -63,7 +63,7 @@ public class CraftBot extends CraftPlayer implements Bot {
 
     @Override
     public void stopAllActions() {
-        for (ServerBotAction<?> action : this.getHandle().getBotActions()) {
+        for (AbstractBotAction<?> action : this.getHandle().getBotActions()) {
             action.stop(this.getHandle(), BotActionStopEvent.Reason.PLUGIN);
         }
     }

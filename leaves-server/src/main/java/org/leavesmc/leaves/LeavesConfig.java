@@ -14,7 +14,6 @@ import org.bukkit.permissions.Permission;
 import org.bukkit.permissions.PermissionDefault;
 import org.bukkit.plugin.PluginManager;
 import org.jetbrains.annotations.NotNull;
-import org.leavesmc.leaves.bot.BotCommand;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.bot.agent.Actions;
 import org.leavesmc.leaves.command.LeavesCommand;
@@ -31,6 +30,7 @@ import org.leavesmc.leaves.config.api.impl.ConfigValidatorImpl.IntConfigValidato
 import org.leavesmc.leaves.config.api.impl.ConfigValidatorImpl.ListConfigValidator;
 import org.leavesmc.leaves.config.api.impl.ConfigValidatorImpl.LongConfigValidator;
 import org.leavesmc.leaves.config.api.impl.ConfigValidatorImpl.StringConfigValidator;
+import org.leavesmc.leaves.neo_command.bot.BotCommand;
 import org.leavesmc.leaves.profile.LeavesMinecraftSessionService;
 import org.leavesmc.leaves.protocol.CarpetServerProtocol.CarpetRule;
 import org.leavesmc.leaves.protocol.CarpetServerProtocol.CarpetRules;
@@ -58,6 +58,7 @@ import java.util.Locale;
 import java.util.Random;
 import java.util.function.Predicate;
 
+@SuppressWarnings({"unused", "FieldMayBeFinal", "FieldCanBeLocal"})
 public final class LeavesConfig {
 
     public static final String CONFIG_HEADER = "Configuration file for Leaves.";
@@ -151,16 +152,15 @@ public final class LeavesConfig {
                 @Override
                 public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
                     if (value) {
-                        registerCommand("bot", new BotCommand());
-                        org.leavesmc.leaves.neo_command.bot.BotCommand.INSTANCE.register();
+                        BotCommand.INSTANCE.register();
                         Actions.registerAll();
                     } else {
                         unregisterCommand("bot");
-                        org.leavesmc.leaves.neo_command.bot.BotCommand.INSTANCE.unregister();
+                        BotCommand.INSTANCE.unregister();
                     }
                     if (old != null && !old.equals(value)) {
                         Bukkit.getOnlinePlayers().stream()
-                            .filter(org.leavesmc.leaves.neo_command.bot.BotCommand::hasPermission)
+                            .filter(BotCommand::hasPermission)
                             .forEach(org.bukkit.entity.Player::updateCommands);
                     }
                 }
@@ -206,10 +206,9 @@ public final class LeavesConfig {
                     if (old != null && !old.equals(value)) {
                         Bukkit.getOnlinePlayers().stream()
                             .filter(sender ->
-                                org.leavesmc.leaves.neo_command.bot.BotCommand.hasPermission(sender)
-                                    || org.leavesmc.leaves.neo_command.bot.BotCommand.hasPermission(sender, "action")
-                            )
-                            .forEach(org.bukkit.entity.Player::updateCommands);
+                                BotCommand.hasPermission(sender)
+                                    || BotCommand.hasPermission(sender, "action")
+                            ).forEach(org.bukkit.entity.Player::updateCommands);
                     }
                 }
             }
@@ -223,10 +222,9 @@ public final class LeavesConfig {
                     if (old != null && !old.equals(value)) {
                         Bukkit.getOnlinePlayers().stream()
                             .filter(sender ->
-                                org.leavesmc.leaves.neo_command.bot.BotCommand.hasPermission(sender)
-                                    || org.leavesmc.leaves.neo_command.bot.BotCommand.hasPermission(sender, "config")
-                            )
-                            .forEach(org.bukkit.entity.Player::updateCommands);
+                                BotCommand.hasPermission(sender)
+                                    || BotCommand.hasPermission(sender, "config")
+                            ).forEach(org.bukkit.entity.Player::updateCommands);
                     }
                 }
             }
@@ -240,11 +238,10 @@ public final class LeavesConfig {
                     if (old != null && !old.equals(value)) {
                         Bukkit.getOnlinePlayers().stream()
                             .filter(sender ->
-                                org.leavesmc.leaves.neo_command.bot.BotCommand.hasPermission(sender)
-                                    || org.leavesmc.leaves.neo_command.bot.BotCommand.hasPermission(sender, "save")
-                                    || org.leavesmc.leaves.neo_command.bot.BotCommand.hasPermission(sender, "load")
-                            )
-                            .forEach(org.bukkit.entity.Player::updateCommands);
+                                BotCommand.hasPermission(sender)
+                                    || BotCommand.hasPermission(sender, "save")
+                                    || BotCommand.hasPermission(sender, "load")
+                            ).forEach(org.bukkit.entity.Player::updateCommands);
                     }
                 }
             }

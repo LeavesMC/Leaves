@@ -6,6 +6,7 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.CommandSourceStack;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
+import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.bot.agent.Configs;
 import org.leavesmc.leaves.bot.agent.configs.AbstractBotConfig;
@@ -28,6 +29,11 @@ public class ConfigCommand extends BotSubcommand {
     public ConfigCommand() {
         super("config");
         children(BotArgument::new);
+    }
+
+    @Override
+    public boolean requires(@NotNull CommandSourceStack source) {
+        return LeavesConfig.modify.fakeplayer.canModifyConfig && super.requires(source);
     }
 
     private static class BotArgument extends CustomArgumentNode<ServerBot, String> {

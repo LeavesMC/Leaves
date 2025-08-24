@@ -22,7 +22,7 @@ public class BotCommand extends LiteralNode {
     private static final String PERM_BASE = "bukkit.command.bot";
 
     private BotCommand() {
-        super("bot_neo");
+        super("bot");
         this.children(
             ActionCommand::new,
             ListCommand::new,

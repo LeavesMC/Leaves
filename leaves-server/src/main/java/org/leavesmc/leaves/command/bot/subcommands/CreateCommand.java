@@ -76,7 +76,7 @@ public class CreateCommand extends BotSubcommand {
     private static boolean canCreate(CommandSender sender, @NotNull String name) {
         BotList botList = BotList.INSTANCE;
         if (!name.matches("^[a-zA-Z0-9_]{4,16}$")) {
-            sender.sendMessage(text("This name is illegal", NamedTextColor.RED));
+            sender.sendMessage(text("This name is illegal, bot name must be 4-16 characters and contain only letters, numbers, and underscores.", NamedTextColor.RED));
             return false;
         }
 
@@ -86,7 +86,7 @@ public class CreateCommand extends BotSubcommand {
         }
 
         if (LeavesConfig.modify.fakeplayer.unableNames.contains(name)) {
-            sender.sendMessage(text("This name is not allowed", NamedTextColor.RED));
+            sender.sendMessage(text("This name is not allowed in this server", NamedTextColor.RED));
             return false;
         }
 

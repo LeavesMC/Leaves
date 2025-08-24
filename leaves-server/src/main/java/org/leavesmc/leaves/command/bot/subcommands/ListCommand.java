@@ -56,13 +56,13 @@ public class ListCommand extends BotSubcommand {
     }
 
     protected static @Nullable Component getBotListMessage(@NotNull World world) {
-        BotList botList = BotList.INSTANCE;
-        List<ServerBot> botsInLevel = botList.bots.stream()
+        List<ServerBot> botsInLevel = BotList.INSTANCE.bots.stream()
             .filter((bot) -> bot.getBukkitEntity().getWorld().equals(world))
             .toList();
         if (botsInLevel.isEmpty()) {
             return null;
         }
+
         Component botsMsg = botsInLevel.stream()
             .map(Player::getDisplayName)
             .map(PaperAdventure::asAdventure)
@@ -78,7 +78,7 @@ public class ListCommand extends BotSubcommand {
 
     private static class WorldArgument extends ArgumentNode<ResourceLocation> {
 
-        protected WorldArgument() {
+        private WorldArgument() {
             super("world", DimensionArgument.dimension());
         }
 

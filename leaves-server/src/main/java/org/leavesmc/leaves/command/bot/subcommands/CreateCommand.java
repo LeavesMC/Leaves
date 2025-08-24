@@ -100,7 +100,7 @@ public class CreateCommand extends BotSubcommand {
 
     private static class NameArgument extends ArgumentNode<String> {
 
-        public NameArgument() {
+        private NameArgument() {
             super("name", StringArgumentType.word());
             children(SkinNameArgument::new);
         }
@@ -113,7 +113,7 @@ public class CreateCommand extends BotSubcommand {
 
     private static class SkinNameArgument extends ArgumentNode<String> {
 
-        public SkinNameArgument() {
+        private SkinNameArgument() {
             super("skin_name", StringArgumentType.word());
             children(WorldArgument::new);
         }
@@ -122,12 +122,11 @@ public class CreateCommand extends BotSubcommand {
         protected boolean execute(CommandContext context) throws CommandSyntaxException {
             return handleCreateCommand(context);
         }
-
     }
 
     private static class WorldArgument extends ArgumentNode<ResourceLocation> {
 
-        public WorldArgument() {
+        private WorldArgument() {
             super("world", DimensionArgument.dimension());
             children(LocationArgument::new);
         }
@@ -140,7 +139,7 @@ public class CreateCommand extends BotSubcommand {
 
     private static class LocationArgument extends ArgumentNode<Coordinates> {
 
-        public LocationArgument() {
+        private LocationArgument() {
             super("location", Vec3Argument.vec3(true));
         }
 

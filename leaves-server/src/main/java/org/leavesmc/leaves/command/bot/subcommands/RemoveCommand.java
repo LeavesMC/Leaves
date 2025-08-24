@@ -43,7 +43,7 @@ public class RemoveCommand extends BotSubcommand {
 
     private static class BotArgument extends CustomArgumentNode<ServerBot, String> {
 
-        public BotArgument() {
+        private BotArgument() {
             super("bot", new org.leavesmc.leaves.command.bot.BotArgument());
             children(RemoveTimeArgument::new);
         }

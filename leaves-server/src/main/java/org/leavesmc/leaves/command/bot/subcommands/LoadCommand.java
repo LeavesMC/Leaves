@@ -37,7 +37,7 @@ public class LoadCommand extends BotSubcommand {
 
     private static class BotNameArgument extends ArgumentNode<String> {
 
-        public BotNameArgument() {
+        private BotNameArgument() {
             super("bot_name", StringArgumentType.word());
         }
 
@@ -60,7 +60,6 @@ public class LoadCommand extends BotSubcommand {
                 text("Successfully loaded bot", NamedTextColor.GRAY),
                 asAdventure(bot.getDisplayName())
             ));
-
             return true;
         }
 

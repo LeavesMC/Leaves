@@ -26,7 +26,7 @@ public class ActionCommand extends BotSubcommand {
 
     public static class BotArgument extends CustomArgumentNode<ServerBot, String> {
 
-        protected BotArgument() {
+        private BotArgument() {
             super("bot", new org.leavesmc.leaves.command.bot.BotArgument());
             children(
                 StartCommand::new,

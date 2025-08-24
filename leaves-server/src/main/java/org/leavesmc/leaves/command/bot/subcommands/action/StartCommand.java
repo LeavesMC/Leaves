@@ -63,7 +63,7 @@ public class StartCommand extends LiteralNode {
     private class ActionLiteralNode extends LiteralNode {
         private final AbstractBotAction<?> action;
 
-        public ActionLiteralNode(@NotNull AbstractBotAction<?> action) {
+        private ActionLiteralNode(@NotNull AbstractBotAction<?> action) {
             super(action.getName());
             this.action = action;
         }

@@ -37,7 +37,7 @@ public class StopCommand extends LiteralNode {
 
     private static class StopIndexArgument extends ArgumentNode<Integer> {
 
-        protected StopIndexArgument() {
+        private StopIndexArgument() {
             super("index", IntegerArgumentType.integer(0));
         }
 
@@ -90,7 +90,7 @@ public class StopCommand extends LiteralNode {
 
     private static class StopAll extends LiteralNode {
 
-        public StopAll() {
+        private StopAll() {
             super("all");
         }
 

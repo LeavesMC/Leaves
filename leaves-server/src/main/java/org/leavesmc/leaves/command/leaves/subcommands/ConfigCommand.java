@@ -29,9 +29,9 @@ public class ConfigCommand extends LeavesSubcommand {
 
     private static class PathArgument extends ArgumentNode<String> {
 
-        public PathArgument() {
+        private PathArgument() {
             super("path", StringArgumentType.string());
-            children(ValueArgument::new);
+            children(ConfigCommand.ValueArgument::new);
         }
 
         @Override
@@ -76,63 +76,64 @@ public class ConfigCommand extends LeavesSubcommand {
             return verifiedConfig;
         }
 
-        private static class ValueArgument extends ArgumentNode<String> {
+    }
 
-            public ValueArgument() {
-                super("value", StringArgumentType.greedyString());
+    private static class ValueArgument extends ArgumentNode<String> {
+
+        private ValueArgument() {
+            super("value", StringArgumentType.greedyString());
+        }
+
+        @Override
+        protected CompletableFuture<Suggestions> getSuggestions(@NotNull CommandContext context, @NotNull SuggestionsBuilder builder) {
+            String path = context.getArgument(PathArgument.class);
+            VerifiedConfig verifiedConfig = GlobalConfigManager.getVerifiedConfig(path);
+            if (verifiedConfig == null) {
+                return builder
+                    .suggest("<ERROR CONFIG>", net.minecraft.network.chat.Component.literal("This config path does not exist."))
+                    .buildFuture();
             }
+            verifiedConfig.validator().valueSuggest().forEach(builder::suggest);
+            return builder.buildFuture();
+        }
 
-            @Override
-            protected CompletableFuture<Suggestions> getSuggestions(@NotNull CommandContext context, @NotNull SuggestionsBuilder builder) {
-                String path = context.getArgument(PathArgument.class);
-                VerifiedConfig verifiedConfig = GlobalConfigManager.getVerifiedConfig(path);
-                if (verifiedConfig == null) {
-                    return builder
-                        .suggest("<ERROR CONFIG>", net.minecraft.network.chat.Component.literal("This config path does not exist."))
-                        .buildFuture();
-                }
-                verifiedConfig.validator().valueSuggest().forEach(builder::suggest);
-                return builder.buildFuture();
+        @Override
+        protected boolean execute(@NotNull CommandContext context) {
+            VerifiedConfig verifiedConfig = PathArgument.getVerifiedConfig(context);
+            String path = context.getArgument(PathArgument.class);
+            String value = context.getArgument(ValueArgument.class);
+            if (verifiedConfig == null) {
+                return false;
             }
-
-            @Override
-            protected boolean execute(@NotNull CommandContext context) {
-                VerifiedConfig verifiedConfig = getVerifiedConfig(context);
-                String path = context.getArgument(PathArgument.class);
-                String value = context.getArgument(ValueArgument.class);
-                if (verifiedConfig == null) {
-                    return false;
-                }
-                try {
-                    verifiedConfig.set(value);
-                    context.getSender().sendMessage(join(spaces(),
-                        text("Config", GRAY),
-                        text(path, AQUA),
-                        text("changed to", GRAY),
-                        text(verifiedConfig.getString(), AQUA)
-                    ));
-                    Bukkit.getOnlinePlayers()
-                        .stream()
-                        .filter(player -> player.hasPermission("leaves.command.config.notify") && player != context.getSender())
-                        .forEach(
-                            player -> player.sendMessage(join(spaces(),
-                                text(context.getSender().getName() + ":", GRAY),
-                                text("Config", GRAY),
-                                text(path, AQUA),
-                                text("changed to", GRAY),
-                                text(verifiedConfig.getString(), AQUA)
-                            ))
-                        );
-                    return true;
-                } catch (IllegalArgumentException exception) {
-                    context.getSender().sendMessage(join(spaces(),
-                        text("Config", GRAY),
-                        text(path, RED),
-                        text("modify error by", GRAY),
-                        text(exception.getMessage(), RED)
-                    ));
-                    return false;
-                }
+            try {
+                verifiedConfig.set(value);
+                context.getSender().sendMessage(join(spaces(),
+                    text("Config", GRAY),
+                    text(path, AQUA),
+                    text("changed to", GRAY),
+                    text(verifiedConfig.getString(), AQUA)
+                ));
+                Bukkit.getOnlinePlayers()
+                    .stream()
+                    .filter(player -> player.hasPermission("leaves.command.config.notify") && player != context.getSender())
+                    .forEach(
+                        player -> player.sendMessage(join(spaces(),
+                            text(context.getSender().getName() + ":", GRAY),
+                            text("Config", GRAY),
+                            text(path, AQUA),
+                            text("changed to", GRAY),
+                            text(verifiedConfig.getString(), AQUA)
+                        ))
+                    );
+                return true;
+            } catch (IllegalArgumentException exception) {
+                context.getSender().sendMessage(join(spaces(),
+                    text("Config", GRAY),
+                    text(path, RED),
+                    text("modify error by", GRAY),
+                    text(exception.getMessage(), RED)
+                ));
+                return false;
             }
         }
     }

@@ -58,7 +58,7 @@ import java.util.Locale;
 import java.util.Random;
 import java.util.function.Predicate;
 
-@SuppressWarnings({"unused", "FieldMayBeFinal", "FieldCanBeLocal"})
+@SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal"})
 public final class LeavesConfig {
 
     public static final String CONFIG_HEADER = "Configuration file for Leaves.";
@@ -332,6 +332,7 @@ public final class LeavesConfig {
             @GlobalConfig("armor-stand-cant-kill-by-mob-projectile")
             public boolean armorStandCantKillByMobProjectile = false;
 
+            @SuppressWarnings("unused")
             @GlobalConfig(value = "villager-infinite-discounts", validator = VillagerInfiniteDiscountsValidator.class)
             private boolean villagerInfiniteDiscounts = false;
 
@@ -771,6 +772,7 @@ public final class LeavesConfig {
         @GlobalConfig("disable-vault-blacklist")
         public boolean disableVaultBlacklist = false;
 
+        @SuppressWarnings("unused")
         @GlobalConfig(value = "exp-orb-absorb-mode", validator = ExpOrbModeValidator.class)
         private ExpOrbAbsorbMode expOrbAbsorbMode = ExpOrbAbsorbMode.VANILLA;
 
@@ -1144,6 +1146,7 @@ public final class LeavesConfig {
             @GlobalConfig("login-protect")
             public boolean loginProtect = false;
 
+            @SuppressWarnings("unused")
             @GlobalConfig(value = "urls", lock = true, validator = ExtraYggdrasilUrlsValidator.class)
             private List<String> serviceList = List.of("https://url.with.authlib-injector-yggdrasil");
 

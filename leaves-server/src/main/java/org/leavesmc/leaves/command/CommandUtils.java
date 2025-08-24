@@ -58,7 +58,7 @@ public class CommandUtils {
                 candidates.add(Candidate.of(item, damerauLevenshteinDistance(lastLower, itemLower)));
             }
         }
-        candidates.sort(Comparator.comparingInt(c -> c.score));
+        candidates.sort(Comparator.comparingInt(Candidate::score));
 
         List<String> results = new ArrayList<>(candidates.size());
         for (Candidate candidate : candidates) {

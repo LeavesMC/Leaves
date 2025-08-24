@@ -89,7 +89,12 @@ public class BotList {
     }
 
     public ServerBot loadNewBot(String realName) {
-        return this.loadNewBot(realName, this.dataStorage);
+        try {
+            return this.loadNewBot(realName, this.dataStorage);
+        } catch (Exception e) {
+            LOGGER.error("Failed to load bot {}", realName, e);
+            return null;
+        }
     }
 
     public ServerBot loadNewBot(String realName, IPlayerDataStorage playerIO) {

@@ -60,7 +60,6 @@ public class LoadCommand extends BotSubcommand {
                 text("Successfully loaded bot", NamedTextColor.GRAY),
                 asAdventure(bot.getDisplayName())
             ));
-
             return true;
         }
 

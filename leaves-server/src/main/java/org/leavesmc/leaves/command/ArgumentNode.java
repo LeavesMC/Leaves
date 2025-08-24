@@ -10,6 +10,7 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -23,20 +24,14 @@ public abstract class ArgumentNode<T> extends CommandNode {
     }
 
     @SuppressWarnings({"unused", "RedundantThrows"})
-    protected CompletableFuture<Suggestions> getSuggestions(final CommandContext context, final SuggestionsBuilder builder) throws CommandSyntaxException {
-        return Suggestions.empty();
+    protected @Nullable CompletableFuture<Suggestions> getSuggestions(final CommandContext context, final SuggestionsBuilder builder) throws CommandSyntaxException {
+        return null;
     }
 
     @Override
     protected ArgumentBuilder<CommandSourceStack, ?> compileBase() {
         RequiredArgumentBuilder<CommandSourceStack, T> argumentBuilder = Commands.argument(name, argumentType);
-
-        if (isMethodOverridden("getSuggestions", ArgumentNode.class)) {
-            argumentBuilder.suggests(
-                (context, builder) -> getSuggestions(new CommandContext(context), builder)
-            );
-        }
-
+        argumentBuilder.suggests((context, builder) -> getSuggestions(new CommandContext(context), builder));
         return argumentBuilder;
     }
 

@@ -41,7 +41,7 @@ public class Configs {
     }
 
     @SuppressWarnings("unchecked")
-    private static <O, I, E extends AbstractBotConfig<O, I, E>> @NotNull E register(AbstractBotConfig<O, I, E> instance) {
+    private static <Value, Type, E extends AbstractBotConfig<Value, Type, E>> @NotNull E register(AbstractBotConfig<Value, Type, E> instance) {
         configs.put(instance.getClass(), instance);
         return (E) instance;
     }

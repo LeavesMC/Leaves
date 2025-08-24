@@ -44,17 +44,14 @@ public class WrappedArgument<T> {
     public RequiredArgumentBuilder<CommandSourceStack, T> compile() {
         RequiredArgumentBuilder<CommandSourceStack, T> builder = Commands.argument(name, type);
         if (asyncSuggestionProvider != null) {
-            builder.suggests(
-                (context, b) ->
-                    asyncSuggestionProvider.getSuggestions(new CommandContext(context), b)
+            builder.suggests((context, b) ->
+                asyncSuggestionProvider.getSuggestions(new CommandContext(context), b)
             );
         } else if (suggestionApplier != null) {
-            builder.suggests(
-                (context, b) -> {
-                    suggestionApplier.applySuggestions(new CommandContext(context), b);
-                    return CompletableFuture.completedFuture(b.build());
-                }
-            );
+            builder.suggests((context, b) -> {
+                suggestionApplier.applySuggestions(new CommandContext(context), b);
+                return CompletableFuture.completedFuture(b.build());
+            });
         }
         return builder;
     }

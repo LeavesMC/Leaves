@@ -30,15 +30,11 @@ public class CustomArgumentNode<T, B> extends ArgumentNode<B> {
     @Override
     @SuppressWarnings("unchecked")
     protected ArgumentBuilder<CommandSourceStack, ?> compileBase() {
-        RequiredArgumentBuilder<CommandSourceStack, T> argumentBuilder = (RequiredArgumentBuilder<CommandSourceStack, T>) super.compileBase();
-
-        if (!isMethodOverridden("getSuggestions", ArgumentNode.class)) {
-            CustomArgumentType<T, B> customArgumentType = (CustomArgumentType<T, B>) TYPES.get(getClass());
-            argumentBuilder.suggests(
-                (context, builder) -> customArgumentType.getSuggestions(new CommandContext(context), builder)
-            );
-        }
-
+        RequiredArgumentBuilder<CommandSourceStack, ?> argumentBuilder = (RequiredArgumentBuilder<CommandSourceStack, ?>) super.compileBase();
+        CustomArgumentType<T, B> customArgumentType = (CustomArgumentType<T, B>) TYPES.get(getClass());
+        argumentBuilder.suggests(
+            (context, builder) -> customArgumentType.getSuggestions(new CommandContext(context), builder)
+        );
         return argumentBuilder;
     }
 }

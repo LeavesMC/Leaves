@@ -8,6 +8,7 @@ import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import net.minecraft.network.chat.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import org.leavesmc.leaves.bot.BotList;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.entity.bot.Bot;
 import org.leavesmc.leaves.entity.bot.CraftBot;
@@ -25,25 +26,25 @@ public class BotArgument implements CustomArgumentType<ServerBot, String> {
 
     @Override
     public ServerBot transform(String value) throws CommandSyntaxException {
-        CraftBot craftBot = (CraftBot) Bukkit.getBotManager().getBot(value);
-        if (craftBot == null) {
+        ServerBot bot = BotList.INSTANCE.getBotByName(value);
+        if (bot == null) {
             throw new CommandSyntaxException(
                 CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownArgument(),
                 Component.literal("Bot with name '" + value + "' does not exist")
             );
         }
-        return craftBot.getHandle();
+        return bot;
     }
 
     @Override
     public CompletableFuture<Suggestions> getSuggestions(CommandContext context, SuggestionsBuilder builder) throws CommandSyntaxException {
-        Collection<Bot> bots = Bukkit.getBotManager().getBots();
+        Collection<ServerBot> bots = BotList.INSTANCE.bots;
         if (bots.isEmpty()) {
             return builder
                 .suggest("<NO BOT EXISTS>", net.minecraft.network.chat.Component.literal("There are no bots in the server, create one first."))
                 .buildFuture();
         }
-        bots.stream().map(Player::getName).forEach(builder::suggest);
+        bots.stream().map(ServerBot::getScoreboardName).forEach(builder::suggest);
         return builder.buildFuture();
     }
 }

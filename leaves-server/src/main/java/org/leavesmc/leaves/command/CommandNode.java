@@ -44,33 +44,17 @@ public abstract class CommandNode {
     }
 
     protected ArgumentBuilder<CommandSourceStack, ?> compile() {
-        ArgumentBuilder<CommandSourceStack, ?> builder = compileBase();
-
-        if (isMethodOverridden("requires", CommandNode.class)) {
-            builder = builder.requires(this::requires);
-        }
-
-        for (CommandNode child : children) {
-            builder = builder.then(child.compile());
-        }
-
-        if (isMethodOverridden("execute", CommandNode.class)) {
-            builder = builder.executes(mojangCtx -> {
+        ArgumentBuilder<CommandSourceStack, ?> builder = compileBase()
+            .requires(this::requires)
+            .executes(mojangCtx -> {
                 CommandContext ctx = new CommandContext(mojangCtx);
                 return execute(ctx) ? 1 : 0;
             });
-        }
 
+        for (CommandNode child : children) {
+            builder.then(child.compile());
+        }
         return builder;
-    }
-
-    protected boolean isMethodOverridden(String methodName, @NotNull Class<?> baseClass) {
-        for (Method method : getClass().getDeclaredMethods()) {
-            if (method.getName().equals(methodName)) {
-                return method.getDeclaringClass() != baseClass;
-            }
-        }
-        return false;
     }
 
     public static String getNameForNode(Class<? extends CommandNode> nodeClass) {

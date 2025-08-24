@@ -122,7 +122,6 @@ public class CreateCommand extends BotSubcommand {
         protected boolean execute(CommandContext context) throws CommandSyntaxException {
             return handleCreateCommand(context);
         }
-
     }
 
     private static class WorldArgument extends ArgumentNode<ResourceLocation> {

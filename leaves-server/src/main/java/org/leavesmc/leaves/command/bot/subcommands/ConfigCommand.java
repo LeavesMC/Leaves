@@ -77,10 +77,10 @@ public class ConfigCommand extends BotSubcommand {
         }
     }
 
-    private static class ConfigNode<O> extends LiteralNode {
-        private final AbstractBotConfig<O, ?, ?> config;
+    private static class ConfigNode<Value> extends LiteralNode {
+        private final AbstractBotConfig<Value, ?, ?> config;
 
-        private ConfigNode(@NotNull AbstractBotConfig<O, ?, ?> config) {
+        private ConfigNode(@NotNull AbstractBotConfig<Value, ?, ?> config) {
             super(config.getName());
             this.config = config;
         }
@@ -100,7 +100,7 @@ public class ConfigCommand extends BotSubcommand {
         @Override
         protected boolean execute(@NotNull CommandContext context) throws CommandSyntaxException {
             ServerBot bot = BotArgument.getBot(context);
-            AbstractBotConfig<O, ?, ?> botConfig = bot.getConfig(config);
+            AbstractBotConfig<Value, ?, ?> botConfig = bot.getConfig(config);
             context.getSender().sendMessage(join(spaces(),
                 text("Bot", GRAY),
                 asAdventure(bot.getDisplayName()).append(text("'s", GRAY)),
@@ -114,7 +114,7 @@ public class ConfigCommand extends BotSubcommand {
 
         private boolean executeSet(CommandContext context) throws CommandSyntaxException {
             ServerBot bot = BotArgument.getBot(context);
-            AbstractBotConfig<O, ?, ?> botConfig = bot.getConfig(config);
+            AbstractBotConfig<Value, ?, ?> botConfig = bot.getConfig(config);
             try {
                 botConfig.setValue(botConfig.loadFromCommand(context));
             } catch (ClassCastException e) {

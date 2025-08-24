@@ -4,7 +4,7 @@ import com.mojang.brigadier.builder.ArgumentBuilder;
 import net.minecraft.commands.CommandSourceStack;
 import org.bukkit.command.CommandSender;
 import org.jetbrains.annotations.NotNull;
-import org.leavesmc.leaves.command.LiteralNode;
+import org.leavesmc.leaves.command.RootNode;
 import org.leavesmc.leaves.command.bot.subcommands.ActionCommand;
 import org.leavesmc.leaves.command.bot.subcommands.ConfigCommand;
 import org.leavesmc.leaves.command.bot.subcommands.CreateCommand;
@@ -15,12 +15,12 @@ import org.leavesmc.leaves.command.bot.subcommands.SaveCommand;
 
 import static org.leavesmc.leaves.command.CommandUtils.registerPermissions;
 
-public class BotCommand extends LiteralNode {
+public class BotCommand extends RootNode {
     public static final BotCommand INSTANCE = new BotCommand();
     private static final String PERM_BASE = "bukkit.command.bot";
 
     private BotCommand() {
-        super("bot");
+        super("bot", PERM_BASE);
         this.children(
             ListCommand::new,
             ConfigCommand::new,
@@ -36,11 +36,6 @@ public class BotCommand extends LiteralNode {
     protected ArgumentBuilder<CommandSourceStack, ?> compile() {
         registerPermissions(PERM_BASE, this.children);
         return super.compile();
-    }
-
-    @Override
-    public boolean requires(@NotNull CommandSourceStack source) {
-        return children.stream().anyMatch(child -> child.requires(source));
     }
 
     public static boolean hasPermission(@NotNull CommandSender sender) {

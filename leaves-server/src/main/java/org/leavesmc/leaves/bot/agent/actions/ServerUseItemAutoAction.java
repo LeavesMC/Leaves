@@ -17,7 +17,7 @@ import static org.leavesmc.leaves.bot.agent.actions.ServerUseItemAction.useItem;
 import static org.leavesmc.leaves.bot.agent.actions.ServerUseItemOnAction.useItemOn;
 import static org.leavesmc.leaves.bot.agent.actions.ServerUseItemToAction.useItemTo;
 
-public class ServerUseItemAutoAction extends ServerUseBotAction<ServerUseItemAutoAction> {
+public class ServerUseItemAutoAction extends AbstractUseBotAction<ServerUseItemAutoAction> {
 
     public ServerUseItemAutoAction() {
         super("use_auto", ServerUseItemAutoAction::new);

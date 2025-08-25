@@ -2,14 +2,14 @@ package org.leavesmc.leaves.entity.bot.actions;
 
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.bot.agent.actions.ServerBotAction;
+import org.leavesmc.leaves.bot.agent.actions.AbstractBotAction;
 import org.leavesmc.leaves.entity.bot.action.BotAction;
 
 import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-public abstract class CraftBotAction<T extends BotAction<T>, S extends ServerBotAction<S>> implements BotAction<T> {
+public abstract class CraftBotAction<T extends BotAction<T>, S extends AbstractBotAction<S>> implements BotAction<T> {
 
     protected final S serverAction;
     protected final Function<S, T> creator;
@@ -23,7 +23,7 @@ public abstract class CraftBotAction<T extends BotAction<T>, S extends ServerBot
         this.creator = creator;
     }
 
-    public ServerBotAction<?> getHandle() {
+    public AbstractBotAction<?> getHandle() {
         return serverAction;
     }
 

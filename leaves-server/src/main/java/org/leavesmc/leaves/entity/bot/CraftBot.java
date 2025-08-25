@@ -40,10 +40,15 @@ public class CraftBot extends CraftPlayer implements Bot {
 
     @Override
     public <T extends BotAction<T>> void addAction(@NotNull T action) {
-        switch (action) {
-            case CraftBotAction act -> this.getHandle().addBotAction(act.getHandle(), null);
-            default -> throw new IllegalArgumentException("Action " + action.getClass().getName() + " is not a valid BotAction type!");
+        if (action instanceof CraftBotAction<?, ?> act) {
+            this.getHandle().addBotAction(act.getHandle(), null);
+        } else {
+            throw new IllegalArgumentException("Action " + action.getClass().getName() + " is not a valid BotAction type!");
         }
+    }
+
+    public void addAction(@NotNull AbstractBotAction<?> action) {
+        this.getHandle().addBotAction(action, null);
     }
 
     @Override

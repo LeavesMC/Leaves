@@ -14,7 +14,6 @@ import org.bukkit.permissions.PermissionDefault;
 import org.bukkit.plugin.PluginManager;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.bot.agent.Actions;
 import org.leavesmc.leaves.config.GlobalConfigManager;
 import org.leavesmc.leaves.config.annotations.GlobalConfig;
 import org.leavesmc.leaves.config.annotations.GlobalConfigCategory;
@@ -136,16 +135,13 @@ public final class LeavesConfig {
             private static class FakeplayerValidator extends BooleanConfigValidator {
                 @Override
                 public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
+                    if (old == null || old.equals(value)) {
+                       return;
+                    }
                     if (value) {
-                        Actions.registerAll();
                         BotCommand.INSTANCE.register();
                     } else {
                         BotCommand.INSTANCE.unregister();
-                    }
-                    if (old != null && !old.equals(value)) {
-                        Bukkit.getOnlinePlayers().stream()
-                            .filter(BotCommand::hasPermission)
-                            .forEach(org.bukkit.entity.Player::updateCommands);
                     }
                 }
             }

@@ -5,6 +5,7 @@ import com.mojang.brigadier.builder.ArgumentBuilder;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.server.MinecraftServer;
+import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.jetbrains.annotations.NotNull;
 
@@ -39,6 +40,7 @@ public abstract class RootNode extends LiteralNode {
             .getCommands()
             .getDispatcher()
             .register((LiteralArgumentBuilder<CommandSourceStack>) compile());
+        Bukkit.getOnlinePlayers().forEach(org.bukkit.entity.Player::updateCommands);
     }
 
     public void unregister() {
@@ -46,5 +48,6 @@ public abstract class RootNode extends LiteralNode {
             .getCommands()
             .getDispatcher();
         dispatcher.getRoot().removeCommand(name);
+        Bukkit.getOnlinePlayers().forEach(org.bukkit.entity.Player::updateCommands);
     }
 }

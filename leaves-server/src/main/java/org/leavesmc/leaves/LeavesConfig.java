@@ -459,9 +459,6 @@ public final class LeavesConfig {
         @GlobalConfig("player-operation-limiter")
         public boolean playerOperationLimiter = false;
 
-        @GlobalConfig("allow-end-void-rings")
-        public boolean allowEndVoidRings = false;
-
         @GlobalConfig(value = "renewable-elytra", validator = RenewableElytraValidator.class)
         public double renewableElytra = -1.0F;
 
@@ -1246,5 +1243,8 @@ public final class LeavesConfig {
         public enum CollisionBehavior {
             VANILLA, BLOCK_SHAPE_VANILLA, PAPER
         }
+
+        @GlobalConfig("vanilla-end-void-rings")
+        public boolean vanillaEndVoidRings = false;
     }
 }

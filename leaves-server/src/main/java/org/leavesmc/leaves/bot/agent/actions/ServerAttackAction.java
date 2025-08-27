@@ -5,7 +5,7 @@ import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.entity.bot.actions.CraftAttackAction;
 
-public class ServerAttackAction extends ServerTimerBotAction<ServerAttackAction> {
+public class ServerAttackAction extends AbstractTimerBotAction<ServerAttackAction> {
 
     public ServerAttackAction() {
         super("attack", ServerAttackAction::new);

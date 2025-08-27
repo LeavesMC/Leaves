@@ -14,9 +14,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class ChunkSectionInventoryEntityTracker extends ChunkSectionEntityMovementTracker {
-    public static final Map<ChunkSectionIdentifier, ChunkSectionInventoryEntityTracker> containerEntityMovementTrackerMap = new java.util.HashMap<>();
+    public static final Map<ChunkSectionIdentifier, ChunkSectionInventoryEntityTracker> containerEntityMovementTrackerMap = new ConcurrentHashMap<>();
 
     public ChunkSectionInventoryEntityTracker(long sectionKey, UUID levelId) {
         super(sectionKey, levelId);

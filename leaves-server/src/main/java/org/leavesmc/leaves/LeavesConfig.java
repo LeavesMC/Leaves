@@ -643,9 +643,6 @@ public final class LeavesConfig {
         @GlobalConfig("no-tnt-place-update")
         public boolean noTNTPlaceUpdate = false;
 
-        @GlobalConfig("raider-die-skip-self-raid-check")
-        public boolean skipSelfRaidCheck = false;
-
         @GlobalConfig("container-passthrough")
         public boolean containerPassthrough = false;
 

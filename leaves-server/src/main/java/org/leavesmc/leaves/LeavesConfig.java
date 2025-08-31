@@ -1237,5 +1237,8 @@ public final class LeavesConfig {
         public enum CollisionBehavior {
             VANILLA, BLOCK_SHAPE_VANILLA, PAPER
         }
+
+        @GlobalConfig("vanilla-end-void-rings")
+        public boolean vanillaEndVoidRings = false;
     }
 }

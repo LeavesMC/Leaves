@@ -280,9 +280,6 @@ public final class LeavesConfig {
             @GlobalConfig("shears-in-dispenser-can-zero-amount")
             public boolean shearsInDispenserCanZeroAmount = false;
 
-            @GlobalConfig("armor-stand-cant-kill-by-mob-projectile")
-            public boolean armorStandCantKillByMobProjectile = false;
-
             @GlobalConfig(value = "villager-infinite-discounts", validator = VillagerInfiniteDiscountsValidator.class)
             private boolean villagerInfiniteDiscounts = false;
 
@@ -642,9 +639,6 @@ public final class LeavesConfig {
 
         @GlobalConfig("no-tnt-place-update")
         public boolean noTNTPlaceUpdate = false;
-
-        @GlobalConfig("raider-die-skip-self-raid-check")
-        public boolean skipSelfRaidCheck = false;
 
         @GlobalConfig("container-passthrough")
         public boolean containerPassthrough = false;

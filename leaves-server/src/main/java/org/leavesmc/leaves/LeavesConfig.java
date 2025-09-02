@@ -135,7 +135,7 @@ public final class LeavesConfig {
             private static class FakeplayerValidator extends BooleanConfigValidator {
                 @Override
                 public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
-                    if (old == null || old.equals(value)) {
+                    if (value.equals(old)) {
                        return;
                     }
                     if (value) {

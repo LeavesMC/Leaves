@@ -5,9 +5,11 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.bot.agent.actions.*;
 import org.leavesmc.leaves.entity.bot.action.*;
+import org.leavesmc.leaves.entity.bot.action.custom.CustomAction_QUESTION_MARK;
 
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -16,7 +18,10 @@ public class Actions {
     private static final Map<String, AbstractBotAction<?>> actionsByName = new HashMap<>();
     private static final Map<Class<?>, AbstractBotAction<?>> actionsByClass = new HashMap<>();
 
-    static {
+
+    private static final Map<String, CustomAction_QUESTION_MARK> customActionsById = new HashMap<>();
+
+    static  {
         register(new ServerAttackAction(), AttackAction.class);
         register(new ServerBreakBlockAction(), BreakBlockAction.class);
         register(new ServerDropAction(), DropAction.class);
@@ -58,6 +63,22 @@ public class Actions {
             return true;
         }
         return false;
+    }
+
+    public static void addCustom(CustomAction_QUESTION_MARK questionMark) {
+        customActionsById.put(questionMark.id(), questionMark);
+    }
+
+    public static @Nullable CustomAction_QUESTION_MARK getCustom(String id) {
+        return customActionsById.get(id);
+    }
+
+    public static void removeCustom(String id) {
+        customActionsById.remove(id);
+    }
+
+    public static Collection<String> getCustomActions() {
+        return customActionsById.keySet();
     }
 
     @NotNull

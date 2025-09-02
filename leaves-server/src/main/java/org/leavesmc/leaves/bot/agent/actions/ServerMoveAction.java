@@ -1,38 +1,45 @@
 package org.leavesmc.leaves.bot.agent.actions;
 
-import net.minecraft.server.level.ServerPlayer;
-import org.apache.commons.lang3.tuple.Pair;
+import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.command.CommandArgument;
-import org.leavesmc.leaves.command.CommandArgumentResult;
-import org.leavesmc.leaves.command.CommandArgumentType;
 import org.leavesmc.leaves.entity.bot.action.MoveAction.MoveDirection;
 import org.leavesmc.leaves.entity.bot.actions.CraftMoveAction;
 import org.leavesmc.leaves.event.bot.BotActionStopEvent;
+import org.leavesmc.leaves.command.CommandContext;
 
 import java.util.Arrays;
-import java.util.List;
+import java.util.Map;
 
-public class ServerMoveAction extends ServerStateBotAction<ServerMoveAction> {
+import static java.util.stream.Collectors.toMap;
+import static org.leavesmc.leaves.command.ArgumentNode.ArgumentSuggestions.strings;
 
-    private static final Pair<List<String>, String> suggestions = Pair.of(
-        Arrays.stream(MoveDirection.values()).map((it) -> it.name).toList(),
-        "<Direction>"
-    );
+public class ServerMoveAction extends AbstractStateBotAction<ServerMoveAction> {
+    private static final Map<String, MoveDirection> NAME_TO_DIRECTION = Arrays.stream(MoveDirection.values()).collect(toMap(
+        it -> it.name,
+        it -> it
+    ));
     private MoveDirection direction = MoveDirection.FORWARD;
 
     public ServerMoveAction() {
-        super("move", CommandArgument.of(CommandArgumentType.ofEnum(MoveDirection.class)), ServerMoveAction::new);
-        this.setSuggestion(0, suggestions);
+        super("move", ServerMoveAction::new);
+        this.addArgument("direction", StringArgumentType.word())
+            .suggests(strings(
+                Arrays.stream(MoveDirection.values())
+                    .map((it) -> it.name)
+                    .toList()
+            ));
     }
 
     @Override
-    public void loadCommand(ServerPlayer player, @NotNull CommandArgumentResult result) {
-        this.direction = result.read(MoveDirection.class);
+    public void loadCommand(@NotNull CommandContext context) throws CommandSyntaxException {
+        String raw = context.getArgument("direction", String.class);
+        MoveDirection direction = NAME_TO_DIRECTION.get(raw);
         if (direction == null) {
-            throw new IllegalArgumentException("Invalid direction");
+            throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownArgument().create();
         }
+        this.direction = direction;
     }
 
     @Override
@@ -55,6 +62,12 @@ public class ServerMoveAction extends ServerStateBotAction<ServerMoveAction> {
             case RIGHT -> bot.xxa = -velocity;
         }
         return true;
+    }
+
+    @Override
+    public void provideActionData(@NotNull ActionData data) {
+        super.provideActionData(data);
+        data.add("direction", direction.name);
     }
 
     public MoveDirection getDirection() {

@@ -17,5 +17,5 @@ public interface CustomAction_QUESTION_MARK {
 
     List<String> getSuggestion(CommandSender sender, String[] args);
 
-    void loadAction(CommandSender sender, String[] args, CustomAction<?> action);
+    void loadAction(CommandSender sender, String[] args, CustomAction action);
 }

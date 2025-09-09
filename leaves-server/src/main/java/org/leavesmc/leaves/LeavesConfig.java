@@ -185,6 +185,9 @@ public final class LeavesConfig {
             @GlobalConfig("resident-fakeplayer")
             public boolean canResident = false;
 
+            @GlobalConfig("autosave-interval")
+            public int autoSaveInterval = 600;
+
             @GlobalConfig("open-fakeplayer-inventory")
             public boolean canOpenInventory = false;
 

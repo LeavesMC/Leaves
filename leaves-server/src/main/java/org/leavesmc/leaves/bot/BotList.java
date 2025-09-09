@@ -295,6 +295,15 @@ public class BotList {
         }
     }
 
+    public void saveAll() {
+        if (!LeavesConfig.modify.fakeplayer.enable || !LeavesConfig.modify.fakeplayer.canResident) {
+            return;
+        }
+        for (ServerBot bot : bots) {
+            this.dataStorage.save(bot);
+        }
+    }
+
     public void loadResume(String worldUuid) {
         if (!LeavesConfig.modify.fakeplayer.enable || !LeavesConfig.modify.fakeplayer.canResident) {
             return;
@@ -334,6 +343,10 @@ public class BotList {
 
     public CompoundTag getSavedBotList() {
         return this.dataStorage.getSavedBotList();
+    }
+
+    public List<String> getOfflineSavedBotList() {
+        return getSavedBotList().keySet().stream().filter(b -> !botsByName.containsKey(b)).toList();
     }
 
     public static class CustomGameProfile extends GameProfile {

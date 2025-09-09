@@ -93,6 +93,10 @@ public class BotList {
     }
 
     public ServerBot loadNewBot(String realName, IPlayerDataStorage playerIO) {
+        if (botsByName.containsKey(realName)) {
+            return null;
+        }
+
         UUID uuid = BotUtil.getBotUUID(realName);
 
         BotLoadEvent event = new BotLoadEvent(realName, uuid);

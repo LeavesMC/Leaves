@@ -57,10 +57,10 @@ public class ServerRotationAction extends AbstractBotAction<ServerRotationAction
     }
 
     @Override
-    public void provideActionData(@NotNull ActionData data) {
-        super.provideActionData(data);
+    public String getActionDataString(@NotNull ActionData data) {
         data.add("yaw", DF.format(this.yaw));
         data.add("pitch", DF.format(this.pitch));
+        return super.getActionDataString(data);
     }
 
     @Override

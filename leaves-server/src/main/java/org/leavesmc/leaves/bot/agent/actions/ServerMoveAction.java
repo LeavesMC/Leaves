@@ -3,6 +3,7 @@ package org.leavesmc.leaves.bot.agent.actions;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.entity.bot.action.MoveAction.MoveDirection;
 import org.leavesmc.leaves.entity.bot.actions.CraftMoveAction;
@@ -65,9 +66,9 @@ public class ServerMoveAction extends AbstractStateBotAction<ServerMoveAction> {
     }
 
     @Override
-    public void provideActionData(@NotNull ActionData data) {
-        super.provideActionData(data);
+    public String getActionDataString(@NotNull ActionData data) {
         data.add("direction", direction.name);
+        return super.getActionDataString(data);
     }
 
     public MoveDirection getDirection() {

@@ -98,10 +98,10 @@ public abstract class AbstractUseBotAction<T extends AbstractUseBotAction<T>> ex
     }
 
     @Override
-    public void provideActionData(@NotNull ActionData data) {
-        super.provideActionData(data);
+    public String getActionDataString(@NotNull ActionData data) {
         data.add("use_timeout", String.valueOf(this.useTickTimeout));
         data.add("already_used_tick", String.valueOf(this.alreadyUsedTick));
+        return super.getActionDataString(data);
     }
 
     @Override

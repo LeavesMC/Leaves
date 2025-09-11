@@ -14,6 +14,8 @@ import org.bukkit.permissions.PermissionDefault;
 import org.bukkit.plugin.PluginManager;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
+import org.leavesmc.leaves.command.bot.BotCommand;
+import org.leavesmc.leaves.command.leaves.LeavesCommand;
 import org.leavesmc.leaves.config.GlobalConfigManager;
 import org.leavesmc.leaves.config.annotations.GlobalConfig;
 import org.leavesmc.leaves.config.annotations.GlobalConfigCategory;
@@ -27,8 +29,6 @@ import org.leavesmc.leaves.config.api.impl.ConfigValidatorImpl.IntConfigValidato
 import org.leavesmc.leaves.config.api.impl.ConfigValidatorImpl.ListConfigValidator;
 import org.leavesmc.leaves.config.api.impl.ConfigValidatorImpl.LongConfigValidator;
 import org.leavesmc.leaves.config.api.impl.ConfigValidatorImpl.StringConfigValidator;
-import org.leavesmc.leaves.command.bot.BotCommand;
-import org.leavesmc.leaves.command.leaves.LeavesCommand;
 import org.leavesmc.leaves.profile.LeavesMinecraftSessionService;
 import org.leavesmc.leaves.protocol.CarpetServerProtocol.CarpetRule;
 import org.leavesmc.leaves.protocol.CarpetServerProtocol.CarpetRules;
@@ -135,13 +135,12 @@ public final class LeavesConfig {
             private static class FakeplayerValidator extends BooleanConfigValidator {
                 @Override
                 public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
-                    if (value.equals(old)) {
-                       return;
-                    }
-                    if (value) {
-                        BotCommand.INSTANCE.register();
-                    } else {
-                        BotCommand.INSTANCE.unregister();
+                    if (!value.equals(old)) {
+                        if (value) {
+                            BotCommand.INSTANCE.register();
+                        } else {
+                            BotCommand.INSTANCE.unregister();
+                        }
                     }
                 }
             }
@@ -177,46 +176,46 @@ public final class LeavesConfig {
             @GlobalConfig("open-fakeplayer-inventory")
             public boolean canOpenInventory = false;
 
-            @GlobalConfig(value = "use-action", validator = CanUseActionValidator.class)
+            @GlobalConfig(value = "use-action", validator = CanUseConfigValidator.class)
             public boolean canUseAction = true;
 
-            private static class CanUseActionValidator extends BooleanConfigValidator {
-                @Override
-                public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
-                    if (old != null && !old.equals(value)) {
-                        Bukkit.getOnlinePlayers().stream()
-                            .filter(sender -> BotCommand.hasPermission(sender, "action"))
-                            .forEach(org.bukkit.entity.Player::updateCommands);
-                    }
+            private static class CanUseConfigValidator extends BotSubcommandValidator {
+                private CanUseConfigValidator() {
+                    super("use");
                 }
             }
 
             @GlobalConfig(value = "modify-config", validator = CanModifyConfigValidator.class)
             public boolean canModifyConfig = false;
 
-            private static class CanModifyConfigValidator extends BooleanConfigValidator {
-                @Override
-                public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
-                    if (old != null && !old.equals(value)) {
-                        Bukkit.getOnlinePlayers().stream()
-                            .filter(sender ->
-                                BotCommand.hasPermission(sender, "config")
-                            ).forEach(org.bukkit.entity.Player::updateCommands);
-                    }
+            private static class CanModifyConfigValidator extends BotSubcommandValidator {
+                private CanModifyConfigValidator() {
+                    super("config");
                 }
             }
 
             @GlobalConfig(value = "manual-save-and-load", validator = CanManualSaveAndLoadValidator.class)
             public boolean canManualSaveAndLoad = false;
 
-            private static class CanManualSaveAndLoadValidator extends BooleanConfigValidator {
+            private static class CanManualSaveAndLoadValidator extends BotSubcommandValidator {
+                private CanManualSaveAndLoadValidator() {
+                    super("save", "load");
+                }
+            }
+
+            private static class BotSubcommandValidator extends BooleanConfigValidator {
+                private final List<String> subcommands;
+
+                private BotSubcommandValidator(String... subcommand) {
+                    this.subcommands = List.of(subcommand);
+                }
+
                 @Override
                 public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
                     if (old != null && !old.equals(value)) {
                         Bukkit.getOnlinePlayers().stream()
-                            .filter(sender ->
-                                BotCommand.hasPermission(sender, "save") || BotCommand.hasPermission(sender, "load")
-                            ).forEach(org.bukkit.entity.Player::updateCommands);
+                            .filter(sender -> subcommands.stream().allMatch(subcommand -> BotCommand.hasPermission(sender, subcommand)))
+                            .forEach(org.bukkit.entity.Player::updateCommands);
                     }
                 }
             }

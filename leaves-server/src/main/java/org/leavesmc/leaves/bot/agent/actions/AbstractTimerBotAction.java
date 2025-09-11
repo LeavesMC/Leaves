@@ -32,11 +32,11 @@ public abstract class AbstractTimerBotAction<E extends AbstractTimerBotAction<E>
     }
 
     @Override
-    public void provideActionData(@NotNull ActionData data) {
-        super.provideActionData(data);
+    public String getActionDataString(@NotNull ActionData data) {
         data.add("delay", String.valueOf(this.getStartDelayTick()));
         data.add("interval", String.valueOf(this.getDoIntervalTick()));
         data.add("do_number", String.valueOf(this.getDoNumber()));
         data.add("remaining_do_number", String.valueOf(this.getDoNumberRemaining()));
+        return super.getActionDataString(data);
     }
 }

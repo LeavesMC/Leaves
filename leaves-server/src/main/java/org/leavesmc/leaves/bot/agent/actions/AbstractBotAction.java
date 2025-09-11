@@ -6,12 +6,13 @@ import net.minecraft.core.UUIDUtil;
 import net.minecraft.nbt.CompoundTag;
 import org.apache.commons.lang3.tuple.Pair;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.LeavesLogger;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.event.bot.BotActionExecuteEvent;
-import org.leavesmc.leaves.event.bot.BotActionStopEvent;
 import org.leavesmc.leaves.command.CommandContext;
 import org.leavesmc.leaves.command.WrappedArgument;
+import org.leavesmc.leaves.event.bot.BotActionExecuteEvent;
+import org.leavesmc.leaves.event.bot.BotActionStopEvent;
 import org.leavesmc.leaves.util.UpdateSuppressionException;
 
 import java.util.ArrayList;
@@ -59,12 +60,11 @@ public abstract class AbstractBotAction<E extends AbstractBotAction<E>> {
 
     public abstract Object asCraft();
 
-    public void provideActionData(@NotNull ActionData data) {
+    public String getActionDataString() {
+        return getActionDataString(new ActionData(new ArrayList<>()));
     }
 
-    public String getActionDataString() {
-        ActionData data = new ActionData(new ArrayList<>());
-        provideActionData(data);
+    public String getActionDataString(@NotNull ActionData data) {
         return data.raw.stream()
             .map(pair -> pair.getLeft() + "=" + pair.getRight())
             .reduce((a, b) -> a + ", " + b)
@@ -249,9 +249,7 @@ public abstract class AbstractBotAction<E extends AbstractBotAction<E>> {
         this.onStop = onStop;
     }
 
-    public record ActionData(
-        List<Pair<String, String>> raw
-    ) {
+    public record ActionData(List<Pair<String, String>> raw) {
         public void add(String key, String value) {
             raw.add(Pair.of(key, value));
         }

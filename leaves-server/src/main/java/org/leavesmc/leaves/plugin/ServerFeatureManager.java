@@ -13,7 +13,9 @@ public class ServerFeatureManager implements FeatureManager {
     private ServerFeatureManager() {
         availableFeatures.addAll(Set.of(
             FAKEPLAYER,
-            PHOTOGRAPHER
+            PHOTOGRAPHER,
+            BYTEBUF,
+            UPDATE_SUPPRESSION_EVENT
         ));
         if (Boolean.getBoolean("leavesclip.enable.mixin")) {
             availableFeatures.add(MIXIN);

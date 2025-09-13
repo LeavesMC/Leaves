@@ -10,11 +10,15 @@ import org.leavesmc.leaves.bot.BotList;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.bot.agent.Actions;
 import org.leavesmc.leaves.bot.agent.actions.AbstractBotAction;
+import org.leavesmc.leaves.bot.agent.actions.custom.ServerCustomAction;
 import org.leavesmc.leaves.entity.bot.action.BotAction;
+import org.leavesmc.leaves.entity.bot.action.custom.CustomAction;
+import org.leavesmc.leaves.entity.bot.action.custom.CustomAction_QUESTION_MARK;
 import org.leavesmc.leaves.event.bot.BotCreateEvent;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 
 public class CraftBotManager implements BotManager {
@@ -65,6 +69,25 @@ public class CraftBotManager implements BotManager {
                 throw new RuntimeException("Failed to create action of type: " + type.getName(), e);
             }
         }
+    }
+
+    @Override
+    public CustomAction newCustomAction(String actionId) {
+        CustomAction_QUESTION_MARK questionMark = Actions.getCustom(actionId);
+        if (questionMark == null) {
+            throw new IllegalArgumentException("Can't find custom action " + actionId);
+        }
+        return (CustomAction) new ServerCustomAction(questionMark).asCraft();
+    }
+
+    @Override
+    public void registerAction(CustomAction_QUESTION_MARK executor) {
+
+    }
+
+    @Override
+    public List<String> getCustomActions() {
+        return List.of();
     }
 
     @Override

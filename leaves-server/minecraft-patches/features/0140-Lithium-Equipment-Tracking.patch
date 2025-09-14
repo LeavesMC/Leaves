@@ -24,7 +24,7 @@ As part of: Lithium (https://github.com/CaffeineMC/lithium)
 Licensed under: LGPL-3.0 (https://www.gnu.org/licenses/lgpl-3.0.html)
 
 diff --git a/net/minecraft/world/entity/EntityEquipment.java b/net/minecraft/world/entity/EntityEquipment.java
-index 90814ad07a2686c5a274860395f5aca29cc3bf13..e21968703dfee71946f64b1262cb35d9b3904b6c 100644
+index 90814ad07a2686c5a274860395f5aca29cc3bf13..a8360f12e6ea5d9bbbb8c55444919e770566d074 100644
 --- a/net/minecraft/world/entity/EntityEquipment.java
 +++ b/net/minecraft/world/entity/EntityEquipment.java
 @@ -7,7 +7,7 @@ import java.util.Objects;
@@ -32,7 +32,7 @@ index 90814ad07a2686c5a274860395f5aca29cc3bf13..e21968703dfee71946f64b1262cb35d9
  import net.minecraft.world.item.ItemStack;
  
 -public class EntityEquipment {
-+public class EntityEquipment implements net.caffeinemc.mods.lithium.common.entity.EquipmentInfo, org.leavesmc.leaves.lithium.common.util.change_tracking.ChangeSubscriber.CountChangeSubscriber<ItemStack> { // Leaves - Lithium - equipment tracking
++public class EntityEquipment implements org.leavesmc.leaves.lithium.common.util.change_tracking.ChangeSubscriber.CountChangeSubscriber<ItemStack> { // Leaves - Lithium - equipment tracking
      public static final Codec<EntityEquipment> CODEC = Codec.unboundedMap(EquipmentSlot.CODEC, ItemStack.CODEC).xmap(map -> {
          EnumMap<EquipmentSlot, ItemStack> map1 = new EnumMap<>(EquipmentSlot.class);
          map1.putAll((Map<? extends EquipmentSlot, ? extends ItemStack>)map);
@@ -91,23 +91,21 @@ index 90814ad07a2686c5a274860395f5aca29cc3bf13..e21968703dfee71946f64b1262cb35d9
      }
  
      // Paper start - EntityDeathEvent
-@@ -78,4 +101,99 @@ public class EntityEquipment {
+@@ -78,4 +101,98 @@ public class EntityEquipment {
          return this.items.containsKey(slot);
      }
      // Paper end - EntityDeathEvent
 +
-+    @Override
++    // Leaves start - Lithium - equipment tracking
 +    public boolean lithium$shouldTickEnchantments() {
 +        this.processScheduledEnchantmentCheck(null);
 +        return this.shouldTickEnchantments;
 +    }
 +
-+    @Override
 +    public boolean lithium$hasUnsentEquipmentChanges() {
 +        return this.hasUnsentEquipmentChanges;
 +    }
 +
-+    @Override
 +    public void lithium$onEquipmentChangesSent() {
 +        this.hasUnsentEquipmentChanges = false;
 +    }
@@ -190,6 +188,7 @@ index 90814ad07a2686c5a274860395f5aca29cc3bf13..e21968703dfee71946f64b1262cb35d9
 +    public void lithium$forceUnsubscribe(ItemStack publisher, int zero) {
 +        throw new UnsupportedOperationException();
 +    }
++    // Leaves end - Lithium - equipment tracking
  }
 diff --git a/net/minecraft/world/entity/LivingEntity.java b/net/minecraft/world/entity/LivingEntity.java
 index 951300caeca0421cabda44496ed2f09fc2258dd0..94d3ad59dbf105e827c69bac2fce67edbe3ea4ba 100644
@@ -224,9 +223,18 @@ index 951300caeca0421cabda44496ed2f09fc2258dd0..94d3ad59dbf105e827c69bac2fce67ed
          // Paper start - EntityEquipmentChangedEvent
          record EquipmentChangeImpl(org.bukkit.inventory.ItemStack oldItem, org.bukkit.inventory.ItemStack newItem) implements io.papermc.paper.event.entity.EntityEquipmentChangedEvent.EquipmentChange {
 diff --git a/net/minecraft/world/entity/decoration/ArmorStand.java b/net/minecraft/world/entity/decoration/ArmorStand.java
-index d7725b5ca689e3d5b512baab04e113be77c0b2ee..e20c90c6db23ce82f19526cfd384d52d4af06afc 100644
+index d7725b5ca689e3d5b512baab04e113be77c0b2ee..420054370b617f615b2fa1353a6a667df2fb1b7e 100644
 --- a/net/minecraft/world/entity/decoration/ArmorStand.java
 +++ b/net/minecraft/world/entity/decoration/ArmorStand.java
+@@ -89,7 +89,7 @@ public class ArmorStand extends LivingEntity {
+     // Paper start - Allow ArmorStands not to tick
+     public boolean canTick = true;
+     public boolean canTickSetByAPI = false;
+-    private boolean noTickEquipmentDirty = false;
++    public boolean noTickEquipmentDirty = false; // Leaves - private -> public
+     // Paper end - Allow ArmorStands not to tick
+ 
+     public ArmorStand(EntityType<? extends ArmorStand> entityType, Level level) {
 @@ -530,8 +530,9 @@ public class ArmorStand extends LivingEntity {
      public void tick() {
          if (!this.canTick) {

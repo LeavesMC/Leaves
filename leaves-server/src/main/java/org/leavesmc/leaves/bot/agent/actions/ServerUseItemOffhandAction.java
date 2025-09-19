@@ -7,7 +7,7 @@ import org.leavesmc.leaves.entity.bot.actions.CraftUseItemOffhandAction;
 
 import static org.leavesmc.leaves.bot.agent.actions.ServerUseItemAction.useItem;
 
-public class ServerUseItemOffhandAction extends ServerUseBotAction<ServerUseItemOffhandAction> {
+public class ServerUseItemOffhandAction extends AbstractUseBotAction<ServerUseItemOffhandAction> {
 
     public ServerUseItemOffhandAction() {
         super("use_offhand", ServerUseItemOffhandAction::new);

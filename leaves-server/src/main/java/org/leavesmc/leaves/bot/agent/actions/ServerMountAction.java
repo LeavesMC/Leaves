@@ -6,16 +6,15 @@ import org.bukkit.craftbukkit.entity.CraftEntity;
 import org.bukkit.entity.Vehicle;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.command.CommandArgument;
 import org.leavesmc.leaves.entity.bot.actions.CraftMountAction;
 
 import java.util.Comparator;
 import java.util.List;
 
-public class ServerMountAction extends ServerBotAction<ServerMountAction> {
+public class ServerMountAction extends AbstractBotAction<ServerMountAction> {
 
     public ServerMountAction() {
-        super("mount", CommandArgument.EMPTY, ServerMountAction::new);
+        super("mount", ServerMountAction::new);
     }
 
     @Override
@@ -23,8 +22,8 @@ public class ServerMountAction extends ServerBotAction<ServerMountAction> {
         Location center = bot.getBukkitEntity().getLocation();
         List<Vehicle> vehicles = center.getNearbyEntitiesByType(
             Vehicle.class,
-            3,
-            vehicle -> manhattanDistance(bot, ((CraftEntity) vehicle).getHandle()) <= 2
+            4,
+            vehicle -> manhattanDistance(bot, ((CraftEntity) vehicle).getHandle()) <= 3
         ).stream().sorted(Comparator.comparingDouble(
             (vehicle) -> center.distanceSquared(vehicle.getLocation())
         )).toList();

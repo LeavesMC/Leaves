@@ -12,7 +12,6 @@ import static net.kyori.adventure.text.Component.text;
 import static net.kyori.adventure.text.format.NamedTextColor.GREEN;
 
 public class ReloadCommand extends LeavesSubcommand {
-
     public ReloadCommand() {
         super("reload");
     }

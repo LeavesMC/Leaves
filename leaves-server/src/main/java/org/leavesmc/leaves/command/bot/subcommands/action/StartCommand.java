@@ -32,10 +32,7 @@ public class StartCommand extends LiteralNode {
 
     public StartCommand() {
         super("start");
-        Actions.getAll()
-            .stream()
-            .map(this::actionNodeCreator)
-            .forEach(this::children);
+        Actions.getAll().stream().map(this::actionNodeCreator).forEach(this::children);
     }
 
     private boolean handleStartCommand(CommandContext context, @NotNull AbstractBotAction<?> action) throws CommandSyntaxException {

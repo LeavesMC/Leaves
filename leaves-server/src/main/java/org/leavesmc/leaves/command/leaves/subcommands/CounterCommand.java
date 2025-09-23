@@ -48,7 +48,6 @@ public class CounterCommand extends LeavesSubcommand {
     }
 
     private static class EnableNode extends LiteralNode {
-
         private EnableNode() {
             super("enable");
         }
@@ -73,7 +72,6 @@ public class CounterCommand extends LeavesSubcommand {
     }
 
     private static class DisableNode extends LiteralNode {
-
         private DisableNode() {
             super("disable");
         }
@@ -98,7 +96,6 @@ public class CounterCommand extends LeavesSubcommand {
     }
 
     private static class ResetAllNode extends LiteralNode {
-
         private ResetAllNode() {
             super("reset");
         }
@@ -138,7 +135,6 @@ public class CounterCommand extends LeavesSubcommand {
         }
 
         private class ResetNode extends LiteralNode {
-
             private ResetNode() {
                 super("reset");
             }
@@ -155,7 +151,6 @@ public class CounterCommand extends LeavesSubcommand {
         }
 
         private class RealtimeNode extends LiteralNode {
-
             private RealtimeNode() {
                 super("realtime");
             }

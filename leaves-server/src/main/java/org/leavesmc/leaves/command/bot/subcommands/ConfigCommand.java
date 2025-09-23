@@ -42,9 +42,7 @@ public class ConfigCommand extends BotSubcommand {
 
         private BotArgument() {
             super("bot", new org.leavesmc.leaves.command.bot.BotArgument());
-            Configs.getConfigs().stream()
-                .map(this::configNodeCreator)
-                .forEach(this::children);
+            Configs.getConfigs().stream().map(this::configNodeCreator).forEach(this::children);
         }
 
         @Contract(pure = true)
@@ -93,8 +91,7 @@ public class ConfigCommand extends BotSubcommand {
                     CommandContext ctx = new CommandContext(mojangCtx);
                     return executeSet(ctx) ? 1 : 0;
                 });
-            return super.compileBase()
-                .then(argument);
+            return super.compileBase().then(argument);
         }
 
         @Override

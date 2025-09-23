@@ -16,7 +16,7 @@ public class Actions {
     private static final Map<String, AbstractBotAction<?>> actionsByName = new HashMap<>();
     private static final Map<Class<?>, AbstractBotAction<?>> actionsByClass = new HashMap<>();
 
-    static  {
+    static {
         register(new ServerAttackAction(), AttackAction.class);
         register(new ServerBreakBlockAction(), BreakBlockAction.class);
         register(new ServerDropAction(), DropAction.class);

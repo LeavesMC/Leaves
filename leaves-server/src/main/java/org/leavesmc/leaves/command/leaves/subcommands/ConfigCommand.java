@@ -6,11 +6,12 @@ import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import org.bukkit.Bukkit;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.leavesmc.leaves.config.GlobalConfigManager;
-import org.leavesmc.leaves.config.VerifiedConfig;
 import org.leavesmc.leaves.command.ArgumentNode;
 import org.leavesmc.leaves.command.CommandContext;
+import org.leavesmc.leaves.command.CommandUtils;
 import org.leavesmc.leaves.command.leaves.LeavesSubcommand;
+import org.leavesmc.leaves.config.GlobalConfigManager;
+import org.leavesmc.leaves.config.VerifiedConfig;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -18,7 +19,6 @@ import static net.kyori.adventure.text.Component.join;
 import static net.kyori.adventure.text.Component.text;
 import static net.kyori.adventure.text.JoinConfiguration.spaces;
 import static net.kyori.adventure.text.format.NamedTextColor.*;
-import static org.leavesmc.leaves.command.CommandUtils.getListClosestMatchingLast;
 
 public class ConfigCommand extends LeavesSubcommand {
 
@@ -39,10 +39,8 @@ public class ConfigCommand extends LeavesSubcommand {
             String path = context.getArgumentOrDefault(PathArgument.class, "");
             int dotIndex = path.lastIndexOf(".");
             builder = builder.createOffset(builder.getInput().lastIndexOf(' ') + dotIndex + 2);
-            getListClosestMatchingLast(
-                path.substring(dotIndex + 1),
-                GlobalConfigManager.getVerifiedConfigSubPaths(path)
-            ).forEach(builder::suggest);
+            CommandUtils.getListClosestMatchingLast(path.substring(dotIndex + 1), GlobalConfigManager.getVerifiedConfigSubPaths(path))
+                .forEach(builder::suggest);
             return builder.buildFuture();
         }
 
@@ -75,7 +73,6 @@ public class ConfigCommand extends LeavesSubcommand {
             }
             return verifiedConfig;
         }
-
     }
 
     private static class ValueArgument extends ArgumentNode<String> {

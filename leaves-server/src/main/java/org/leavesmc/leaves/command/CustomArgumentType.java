@@ -8,7 +8,6 @@ import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import java.util.concurrent.CompletableFuture;
 
 public interface CustomArgumentType<T, B> {
-
     ArgumentType<B> getBaseArgumentType();
 
     T transform(B value) throws CommandSyntaxException;

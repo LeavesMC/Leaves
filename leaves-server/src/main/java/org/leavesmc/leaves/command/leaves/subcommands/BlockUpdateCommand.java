@@ -46,7 +46,6 @@ public class BlockUpdateCommand extends LeavesSubcommand {
     }
 
     private class EnableNode extends LiteralNode {
-
         private EnableNode() {
             super("enable");
         }
@@ -73,7 +72,6 @@ public class BlockUpdateCommand extends LeavesSubcommand {
     }
 
     private class DisableNode extends LiteralNode {
-
         private DisableNode() {
             super("disable");
         }

@@ -3,12 +3,11 @@ package org.leavesmc.leaves.bot.agent.actions;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.bot.ServerBot;
+import org.leavesmc.leaves.command.CommandContext;
 import org.leavesmc.leaves.entity.bot.action.MoveAction.MoveDirection;
 import org.leavesmc.leaves.entity.bot.actions.CraftMoveAction;
 import org.leavesmc.leaves.event.bot.BotActionStopEvent;
-import org.leavesmc.leaves.command.CommandContext;
 
 import java.util.Arrays;
 import java.util.Map;
@@ -26,11 +25,7 @@ public class ServerMoveAction extends AbstractStateBotAction<ServerMoveAction> {
     public ServerMoveAction() {
         super("move", ServerMoveAction::new);
         this.addArgument("direction", StringArgumentType.word())
-            .suggests(strings(
-                Arrays.stream(MoveDirection.values())
-                    .map((it) -> it.name)
-                    .toList()
-            ));
+            .suggests(strings(Arrays.stream(MoveDirection.values()).map((it) -> it.name).toList()));
     }
 
     @Override

@@ -55,11 +55,7 @@ public class LoadCommand extends BotSubcommand {
                 sender.sendMessage(text("Failed to load bot, please check log", NamedTextColor.RED));
                 return false;
             }
-            sender.sendMessage(join(
-                spaces(),
-                text("Successfully loaded bot", NamedTextColor.GRAY),
-                asAdventure(bot.getDisplayName())
-            ));
+            sender.sendMessage(join(spaces(), text("Successfully loaded bot", NamedTextColor.GRAY), asAdventure(bot.getDisplayName())));
             return true;
         }
 

@@ -13,8 +13,8 @@ import net.minecraft.world.phys.Vec3;
 import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.entity.bot.actions.CraftLookAction;
 import org.leavesmc.leaves.command.CommandContext;
+import org.leavesmc.leaves.entity.bot.actions.CraftLookAction;
 
 public class ServerLookAction extends AbstractBotAction<ServerLookAction> {
 
@@ -25,17 +25,7 @@ public class ServerLookAction extends AbstractBotAction<ServerLookAction> {
 
     public ServerLookAction() {
         super("look", ServerLookAction::new);
-        declarePlayerBranch();
-        declareLocationBranch();
-    }
-
-    private void declarePlayerBranch() {
-        this.fork(0);
-        this.addArgument("player", EntityArgument.player())
-            .setOptional(true);
-    }
-
-    private void declareLocationBranch() {
+        this.addArgument("player", EntityArgument.player()).setOptional(true);
         this.fork(1);
         this.addArgument("location", Vec3Argument.vec3(false));
     }

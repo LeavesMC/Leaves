@@ -13,12 +13,8 @@ public abstract class AbstractTimerBotAction<E extends AbstractTimerBotAction<E>
 
     public AbstractTimerBotAction(String name, Supplier<E> creator) {
         super(name, creator);
-        this.addArgument("delay", integer(0))
-            .suggests(strings("0", "5", "10", "20"))
-            .setOptional(true);
-        this.addArgument("interval", integer(0))
-            .suggests(strings("20", "0", "5", "10"))
-            .setOptional(true);
+        this.addArgument("delay", integer(0)).suggests(strings("0", "5", "10", "20")).setOptional(true);
+        this.addArgument("interval", integer(0)).suggests(strings("20", "0", "5", "10")).setOptional(true);
         this.addArgument("do_number", integer(-1))
             .suggests(((context, builder) -> builder.suggest("-1", Component.literal("do infinite times"))))
             .setOptional(true);

@@ -36,10 +36,7 @@ public class ListCommand extends LiteralNode {
             return true;
         }
 
-        sender.sendMessage(
-            asAdventure(bot.getDisplayName())
-                .append(text("'s action list:", GRAY))
-        );
+        sender.sendMessage(asAdventure(bot.getDisplayName()).append(text("'s action list:", GRAY)));
         for (int i = 0; i < actions.size(); i++) {
             AbstractBotAction<?> action = actions.get(i);
             sender.sendMessage(join(spaces(),

@@ -8,10 +8,10 @@ import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.bot.BotList;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.event.bot.BotRemoveEvent;
 import org.leavesmc.leaves.command.CommandContext;
 import org.leavesmc.leaves.command.CustomArgumentNode;
 import org.leavesmc.leaves.command.bot.BotSubcommand;
+import org.leavesmc.leaves.event.bot.BotRemoveEvent;
 
 import static io.papermc.paper.adventure.PaperAdventure.asAdventure;
 import static net.kyori.adventure.text.Component.join;

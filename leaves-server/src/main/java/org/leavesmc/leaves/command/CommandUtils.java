@@ -40,10 +40,7 @@ public class CommandUtils {
     }
 
     @DefaultQualifier(NonNull.class)
-    public static @NotNull List<String> getListClosestMatchingLast(
-        final String last,
-        final Collection<?> collection
-    ) {
+    public static @NotNull List<String> getListClosestMatchingLast(final String last, final Collection<?> collection) {
         if (collection.isEmpty()) {
             return Collections.emptyList();
         }
@@ -132,7 +129,6 @@ public class CommandUtils {
         return H[s1Len + 1][s2Len + 1];
     }
 
-    // Copy from org/bukkit/command/defaults/HelpCommand.java
     private record Candidate(String item, int score) {
         @Contract("_, _ -> new")
         private static @NotNull Candidate of(String item, int score) {

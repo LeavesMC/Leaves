@@ -11,6 +11,7 @@ import org.leavesmc.leaves.command.leaves.subcommands.ReportCommand;
 import org.leavesmc.leaves.command.leaves.subcommands.UpdateCommand;
 
 public class LeavesCommand extends RootNode {
+
     public static final LeavesCommand INSTANCE = new LeavesCommand();
     private static final String PERM_BASE = "bukkit.command.leaves";
 

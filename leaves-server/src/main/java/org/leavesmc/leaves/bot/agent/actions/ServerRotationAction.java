@@ -6,8 +6,8 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.entity.bot.actions.CraftRotationAction;
 import org.leavesmc.leaves.command.CommandContext;
+import org.leavesmc.leaves.entity.bot.actions.CraftRotationAction;
 
 import java.text.DecimalFormat;
 

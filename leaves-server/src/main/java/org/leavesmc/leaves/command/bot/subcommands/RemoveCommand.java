@@ -9,11 +9,11 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.bot.BotList;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.event.bot.BotRemoveEvent;
 import org.leavesmc.leaves.command.ArgumentNode;
 import org.leavesmc.leaves.command.CommandContext;
 import org.leavesmc.leaves.command.CustomArgumentNode;
 import org.leavesmc.leaves.command.bot.BotSubcommand;
+import org.leavesmc.leaves.event.bot.BotRemoveEvent;
 import org.leavesmc.leaves.plugin.MinecraftInternalPlugin;
 
 import java.util.regex.Matcher;
@@ -42,7 +42,6 @@ public class RemoveCommand extends BotSubcommand {
     }
 
     private static class BotArgument extends CustomArgumentNode<ServerBot, String> {
-
         private BotArgument() {
             super("bot", new org.leavesmc.leaves.command.bot.BotArgument());
             children(RemoveTimeArgument::new);
@@ -116,9 +115,15 @@ public class RemoveCommand extends BotSubcommand {
                 foundMatch = true;
                 int value = Integer.parseInt(matcher.group(1));
                 switch (matcher.group(2).toLowerCase()) {
-                    case "h": seconds += value * 3600; break;
-                    case "m": seconds += value * 60; break;
-                    case "s": seconds += value; break;
+                    case "h":
+                        seconds += value * 3600;
+                        break;
+                    case "m":
+                        seconds += value * 60;
+                        break;
+                    case "s":
+                        seconds += value;
+                        break;
                 }
             }
 

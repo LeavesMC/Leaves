@@ -19,10 +19,10 @@ import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.bot.BotCreateState;
 import org.leavesmc.leaves.bot.BotList;
-import org.leavesmc.leaves.event.bot.BotCreateEvent;
 import org.leavesmc.leaves.command.ArgumentNode;
 import org.leavesmc.leaves.command.CommandContext;
 import org.leavesmc.leaves.command.bot.BotSubcommand;
+import org.leavesmc.leaves.event.bot.BotCreateEvent;
 
 import static net.kyori.adventure.text.Component.text;
 import static net.minecraft.commands.arguments.DimensionArgument.getDimension;
@@ -99,7 +99,6 @@ public class CreateCommand extends BotSubcommand {
     }
 
     private static class NameArgument extends ArgumentNode<String> {
-
         private NameArgument() {
             super("name", StringArgumentType.word());
             children(SkinNameArgument::new);
@@ -112,7 +111,6 @@ public class CreateCommand extends BotSubcommand {
     }
 
     private static class SkinNameArgument extends ArgumentNode<String> {
-
         private SkinNameArgument() {
             super("skin_name", StringArgumentType.word());
             children(WorldArgument::new);
@@ -125,7 +123,6 @@ public class CreateCommand extends BotSubcommand {
     }
 
     private static class WorldArgument extends ArgumentNode<ResourceLocation> {
-
         private WorldArgument() {
             super("world", DimensionArgument.dimension());
             children(LocationArgument::new);
@@ -138,7 +135,6 @@ public class CreateCommand extends BotSubcommand {
     }
 
     private static class LocationArgument extends ArgumentNode<Coordinates> {
-
         private LocationArgument() {
             super("location", Vec3Argument.vec3(true));
         }

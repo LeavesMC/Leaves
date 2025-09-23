@@ -812,6 +812,9 @@ public final class LeavesConfig {
 
         @GlobalConfig(value = "sleeping-block-entity", lock = true)
         public boolean sleepingBlockEntity = false;
+
+        @GlobalConfig(value = "equipment-tracking", lock = true)
+        public boolean equipmentTracking = false;
     }
 
     public static ProtocolConfig protocol = new ProtocolConfig();

@@ -6,6 +6,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
+import org.leavesmc.leaves.bot.agent.ExtraData;
 import org.leavesmc.leaves.command.CommandContext;
 import org.leavesmc.leaves.entity.bot.actions.CraftRotationAction;
 
@@ -57,7 +58,7 @@ public class ServerRotationAction extends AbstractBotAction<ServerRotationAction
     }
 
     @Override
-    public String getActionDataString(@NotNull ActionData data) {
+    public String getActionDataString(@NotNull ExtraData data) {
         data.add("yaw", DF.format(this.yaw));
         data.add("pitch", DF.format(this.pitch));
         return super.getActionDataString(data);

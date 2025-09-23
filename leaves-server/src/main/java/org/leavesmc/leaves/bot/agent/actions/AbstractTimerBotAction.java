@@ -2,6 +2,7 @@ package org.leavesmc.leaves.bot.agent.actions;
 
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.NotNull;
+import org.leavesmc.leaves.bot.agent.ExtraData;
 import org.leavesmc.leaves.command.CommandContext;
 
 import java.util.function.Supplier;
@@ -28,7 +29,7 @@ public abstract class AbstractTimerBotAction<E extends AbstractTimerBotAction<E>
     }
 
     @Override
-    public String getActionDataString(@NotNull ActionData data) {
+    public String getActionDataString(@NotNull ExtraData data) {
         data.add("delay", String.valueOf(this.getStartDelayTick()));
         data.add("interval", String.valueOf(this.getDoIntervalTick()));
         data.add("do_number", String.valueOf(this.getDoNumber()));

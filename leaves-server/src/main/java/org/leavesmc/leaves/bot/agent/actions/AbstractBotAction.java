@@ -8,6 +8,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesLogger;
 import org.leavesmc.leaves.bot.ServerBot;
+import org.leavesmc.leaves.bot.agent.ExtraData;
 import org.leavesmc.leaves.command.CommandContext;
 import org.leavesmc.leaves.command.WrappedArgument;
 import org.leavesmc.leaves.event.bot.BotActionExecuteEvent;
@@ -60,11 +61,11 @@ public abstract class AbstractBotAction<E extends AbstractBotAction<E>> {
     public abstract Object asCraft();
 
     public String getActionDataString() {
-        return getActionDataString(new ActionData(new ArrayList<>()));
+        return getActionDataString(new ExtraData(new ArrayList<>()));
     }
 
-    public String getActionDataString(@NotNull ActionData data) {
-        return data.raw.stream()
+    public String getActionDataString(@NotNull ExtraData data) {
+        return data.raw().stream()
             .map(pair -> pair.getLeft() + "=" + pair.getRight())
             .reduce((a, b) -> a + ", " + b)
             .orElse("No arguments");
@@ -246,11 +247,5 @@ public abstract class AbstractBotAction<E extends AbstractBotAction<E>> {
 
     public void setOnStop(Consumer<E> onStop) {
         this.onStop = onStop;
-    }
-
-    public record ActionData(List<Pair<String, String>> raw) {
-        public void add(String key, String value) {
-            raw.add(Pair.of(key, value));
-        }
     }
 }

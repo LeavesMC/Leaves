@@ -2,12 +2,10 @@ package org.leavesmc.leaves.bot.agent.configs;
 
 import com.mojang.brigadier.arguments.BoolArgumentType;
 import net.minecraft.nbt.CompoundTag;
-import org.apache.commons.lang3.tuple.Pair;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesConfig;
+import org.leavesmc.leaves.bot.agent.ExtraData;
 import org.leavesmc.leaves.command.CommandContext;
-
-import java.util.List;
 
 public class SpawnPhantomConfig extends AbstractBotConfig<Boolean, Boolean, SpawnPhantomConfig> {
     private boolean value;
@@ -28,8 +26,9 @@ public class SpawnPhantomConfig extends AbstractBotConfig<Boolean, Boolean, Spaw
     }
 
     @Override
-    public List<Pair<String, String>> getExtraData() {
-        return List.of(Pair.of("not_sleeping_ticks", String.valueOf(bot.notSleepTicks)));
+    public String getExtraDataString(@NotNull ExtraData data) {
+        data.add("not_sleeping_ticks", String.valueOf(bot.notSleepTicks));
+        return super.getExtraDataString(data);
     }
 
     @Override

@@ -21,7 +21,7 @@ import org.leavesmc.leaves.command.CommandContext;
 import org.leavesmc.leaves.command.LiteralNode;
 import org.leavesmc.leaves.command.WrappedArgument;
 import org.leavesmc.leaves.entity.bot.action.custom.CustomAction;
-import org.leavesmc.leaves.entity.bot.action.custom.CustomAction_QUESTION_MARK;
+import org.leavesmc.leaves.entity.bot.action.custom.CustomActionProvider;
 
 import java.util.Arrays;
 import java.util.List;
@@ -132,7 +132,7 @@ public class StartCommand extends LiteralNode {
             ServerBot bot = getBot(context);
             CommandSender sender = context.getSender();
             String[] args = StringUtils.split(context.getInput(), ' ');
-            CustomAction_QUESTION_MARK questionMark = Actions.getCustom(args[0]);
+            CustomActionProvider questionMark = Actions.getCustom(args[0]);
             if (questionMark == null) {
                 throw new IllegalArgumentException(args[0] + " is not a valid custom action");
             }
@@ -156,7 +156,7 @@ public class StartCommand extends LiteralNode {
             if (args.length == 1) {
                 Actions.getCustomActions().forEach(builder::suggest);
             } else {
-                CustomAction_QUESTION_MARK questionMark = Actions.getCustom(args[0]);
+                CustomActionProvider questionMark = Actions.getCustom(args[0]);
                 if (questionMark == null) {
                     return builder.buildFuture();
                 }

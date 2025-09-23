@@ -13,7 +13,7 @@ import org.leavesmc.leaves.bot.agent.actions.AbstractBotAction;
 import org.leavesmc.leaves.bot.agent.actions.custom.ServerCustomAction;
 import org.leavesmc.leaves.entity.bot.action.BotAction;
 import org.leavesmc.leaves.entity.bot.action.custom.CustomAction;
-import org.leavesmc.leaves.entity.bot.action.custom.CustomAction_QUESTION_MARK;
+import org.leavesmc.leaves.entity.bot.action.custom.CustomActionProvider;
 import org.leavesmc.leaves.event.bot.BotCreateEvent;
 
 import java.util.Collection;
@@ -73,7 +73,7 @@ public class CraftBotManager implements BotManager {
 
     @Override
     public CustomAction newCustomAction(String actionId) {
-        CustomAction_QUESTION_MARK questionMark = Actions.getCustom(actionId);
+        CustomActionProvider questionMark = Actions.getCustom(actionId);
         if (questionMark == null) {
             throw new IllegalArgumentException("Can't find custom action " + actionId);
         }
@@ -81,7 +81,7 @@ public class CraftBotManager implements BotManager {
     }
 
     @Override
-    public void registerAction(CustomAction_QUESTION_MARK executor) {
+    public void registerAction(CustomActionProvider executor) {
 
     }
 

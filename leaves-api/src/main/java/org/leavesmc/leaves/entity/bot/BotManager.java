@@ -1,12 +1,11 @@
 package org.leavesmc.leaves.entity.bot;
 
 import org.bukkit.Location;
-import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.entity.bot.action.BotAction;
 import org.leavesmc.leaves.entity.bot.action.custom.CustomAction;
-import org.leavesmc.leaves.entity.bot.action.custom.CustomAction_QUESTION_MARK;
+import org.leavesmc.leaves.entity.bot.action.custom.CustomActionProvider;
 
 import java.util.Collection;
 import java.util.List;
@@ -50,7 +49,7 @@ public interface BotManager {
 
     CustomAction newCustomAction(String actionId);
 
-    void registerAction(CustomAction_QUESTION_MARK executor);
+    void registerAction(CustomActionProvider executor);
 
     List<String> getCustomActions();
 

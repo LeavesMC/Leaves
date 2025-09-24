@@ -3,7 +3,7 @@ package org.leavesmc.leaves.entity.bot.actions;
 import org.leavesmc.leaves.bot.agent.actions.custom.ServerCustomAction;
 import org.leavesmc.leaves.entity.bot.action.custom.CustomAction;
 
-public class CraftCustomAction extends CraftBotAction<CustomAction, ServerCustomAction> implements  CustomAction {
+public class CraftCustomAction extends CraftBotAction<CustomAction, ServerCustomAction> implements CustomAction {
 
     public CraftCustomAction(ServerCustomAction serverAction) {
         super(serverAction, CraftCustomAction::new);

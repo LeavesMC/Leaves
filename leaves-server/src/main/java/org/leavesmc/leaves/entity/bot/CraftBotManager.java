@@ -73,11 +73,11 @@ public class CraftBotManager implements BotManager {
 
     @Override
     public CustomAction newCustomAction(String actionId) {
-        CustomActionProvider questionMark = Actions.getCustom(actionId);
-        if (questionMark == null) {
+        CustomActionProvider provider = Actions.getCustom(actionId);
+        if (provider == null) {
             throw new IllegalArgumentException("Can't find custom action " + actionId);
         }
-        return (CustomAction) new ServerCustomAction(questionMark).asCraft();
+        return (CustomAction) new ServerCustomAction(provider).asCraft();
     }
 
     @Override

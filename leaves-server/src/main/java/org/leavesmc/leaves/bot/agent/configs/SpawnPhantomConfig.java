@@ -7,7 +7,7 @@ import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.bot.agent.ExtraData;
 import org.leavesmc.leaves.command.CommandContext;
 
-public class SpawnPhantomConfig extends AbstractBotConfig<Boolean, Boolean, SpawnPhantomConfig> {
+public class SpawnPhantomConfig extends AbstractBotConfig<Boolean, SpawnPhantomConfig> {
     private boolean value;
 
     public SpawnPhantomConfig() {

@@ -84,7 +84,7 @@ import java.util.function.Predicate;
 public class ServerBot extends ServerPlayer {
 
     private final List<AbstractBotAction<?>> actions;
-    private final Map<String, AbstractBotConfig<?, ?, ?>> configs;
+    private final Map<String, AbstractBotConfig<?, ?>> configs;
 
     public boolean resume = false;
     public BotCreateState createState;
@@ -106,8 +106,8 @@ public class ServerBot extends ServerPlayer {
         this.gameMode = new ServerBotGameMode(this);
 
         this.actions = new ArrayList<>();
-        ImmutableMap.Builder<String, AbstractBotConfig<?, ?, ?>> configBuilder = ImmutableMap.builder();
-        for (AbstractBotConfig<?, ?, ?> config : Configs.getConfigs()) {
+        ImmutableMap.Builder<String, AbstractBotConfig<?, ?>> configBuilder = ImmutableMap.builder();
+        for (AbstractBotConfig<?, ?> config : Configs.getConfigs()) {
             configBuilder.put(config.getName(), config.create().setBot(this));
         }
         this.configs = configBuilder.build();
@@ -395,7 +395,7 @@ public class ServerBot extends ServerPlayer {
 
         if (!this.configs.isEmpty()) {
             ValueOutput.TypedOutputList<CompoundTag> configNbt = nbt.list("configs", CompoundTag.CODEC);
-            for (AbstractBotConfig<?, ?, ?> config : this.configs.values()) {
+            for (AbstractBotConfig<?, ?> config : this.configs.values()) {
                 configNbt.add(config.save(new CompoundTag()));
             }
         }
@@ -440,7 +440,7 @@ public class ServerBot extends ServerPlayer {
         if (nbt.list("configs", CompoundTag.CODEC).isPresent()) {
             ValueInput.TypedInputList<CompoundTag> configNbt = nbt.list("configs", CompoundTag.CODEC).orElseThrow();
             for (CompoundTag configTag : configNbt) {
-                AbstractBotConfig<?, ?, ?> config = Configs.getConfig(configTag.getString("configName").orElseThrow());
+                AbstractBotConfig<?, ?> config = Configs.getConfig(configTag.getString("configName").orElseThrow());
                 if (config != null) {
                     config.load(configTag);
                 }
@@ -669,15 +669,15 @@ public class ServerBot extends ServerPlayer {
     }
 
     @SuppressWarnings("unchecked")
-    public <O, I, E extends AbstractBotConfig<O, I, E>> AbstractBotConfig<O, I, E> getConfig(@NotNull AbstractBotConfig<O, I, E> config) {
-        return (AbstractBotConfig<O, I, E>) Objects.requireNonNull(this.configs.get(config.getName()));
+    public <T, E extends AbstractBotConfig<T, E>> AbstractBotConfig<T, E> getConfig(@NotNull AbstractBotConfig<T, E> config) {
+        return (AbstractBotConfig<T, E>) Objects.requireNonNull(this.configs.get(config.getName()));
     }
 
-    public Collection<AbstractBotConfig<?, ?, ?>> getAllConfigs() {
+    public Collection<AbstractBotConfig<?, ?>> getAllConfigs() {
         return configs.values();
     }
 
-    public <O, I, E extends AbstractBotConfig<O, I, E>> O getConfigValue(@NotNull AbstractBotConfig<O, I, E> config) {
+    public <T, E extends AbstractBotConfig<T, E>> T getConfigValue(@NotNull AbstractBotConfig<T, E> config) {
         return this.getConfig(config).getValue();
     }
 

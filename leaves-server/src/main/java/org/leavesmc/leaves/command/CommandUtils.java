@@ -40,7 +40,7 @@ public class CommandUtils {
     }
 
     @DefaultQualifier(NonNull.class)
-    public static @NotNull List<String> getListClosestMatchingLast(final String last, final Collection<?> collection) {
+    public static List<String> getListClosestMatchingLast(final String last, final Collection<?> collection) {
         if (collection.isEmpty()) {
             return Collections.emptyList();
         }

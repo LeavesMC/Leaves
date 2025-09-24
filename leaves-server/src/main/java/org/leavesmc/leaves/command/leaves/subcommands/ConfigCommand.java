@@ -31,7 +31,7 @@ public class ConfigCommand extends LeavesSubcommand {
 
         private PathArgument() {
             super("path", StringArgumentType.string());
-            children(ConfigCommand.ValueArgument::new);
+            children(ValueArgument::new);
         }
 
         @Override

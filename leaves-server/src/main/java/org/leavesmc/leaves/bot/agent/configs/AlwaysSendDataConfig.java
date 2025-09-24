@@ -6,7 +6,7 @@ import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.command.CommandContext;
 
-public class AlwaysSendDataConfig extends AbstractBotConfig<Boolean, Boolean, AlwaysSendDataConfig> {
+public class AlwaysSendDataConfig extends AbstractBotConfig<Boolean, AlwaysSendDataConfig> {
     private boolean value;
 
     public AlwaysSendDataConfig() {

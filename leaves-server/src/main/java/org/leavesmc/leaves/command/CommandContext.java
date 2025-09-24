@@ -4,9 +4,8 @@ import com.mojang.brigadier.Command;
 import com.mojang.brigadier.RedirectModifier;
 import com.mojang.brigadier.context.ParsedCommandNode;
 import com.mojang.brigadier.context.StringRange;
-import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.tree.CommandNode;
-import net.minecraft.commands.CommandSourceStack;
+import io.papermc.paper.command.brigadier.CommandSourceStack;
 import org.bukkit.command.CommandSender;
 import org.jetbrains.annotations.NotNull;
 
@@ -64,13 +63,6 @@ public class CommandContext {
         return (V) source.getArgument(name, Object.class);
     }
 
-    @SuppressWarnings("unchecked")
-    public <V, T> @NotNull V getCustomArgument(final Class<? extends CustomArgumentNode<V, T>> nodeClass) throws CommandSyntaxException {
-        String name = getNameForNode(nodeClass);
-        T raw = (T) source.getArgument(name, Object.class);
-        return CustomArgumentNode.transform(nodeClass, raw);
-    }
-
     public <V> V getArgumentOrDefault(final Class<? extends ArgumentNode<V>> nodeClass, final V defaultValue) {
         try {
             return getArgument(nodeClass);
@@ -82,14 +74,6 @@ public class CommandContext {
     public <V> V getArgumentOrDefault(final String name, final Class<V> clazz, final V defaultValue) {
         try {
             return source.getArgument(name, clazz);
-        } catch (IllegalArgumentException e) {
-            return defaultValue;
-        }
-    }
-
-    public <V, T> V getCustomArgumentOrDefault(final Class<? extends CustomArgumentNode<V, T>> nodeClass, final V defaultValue) throws CommandSyntaxException {
-        try {
-            return getCustomArgument(nodeClass);
         } catch (IllegalArgumentException e) {
             return defaultValue;
         }

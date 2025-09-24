@@ -1,15 +1,15 @@
 package org.leavesmc.leaves.bot.agent.actions;
 
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.commands.arguments.EntityArgument;
-import net.minecraft.commands.arguments.coordinates.Coordinates;
-import net.minecraft.commands.arguments.coordinates.Vec3Argument;
-import net.minecraft.commands.arguments.selector.EntitySelector;
+import io.papermc.paper.command.brigadier.CommandSourceStack;
+import io.papermc.paper.command.brigadier.argument.ArgumentTypes;
+import io.papermc.paper.command.brigadier.argument.resolvers.FinePositionResolver;
+import io.papermc.paper.command.brigadier.argument.resolvers.selector.PlayerSelectorArgumentResolver;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.phys.Vec3;
+import org.bukkit.command.CommandSender;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
+import org.bukkit.entity.Entity;
 import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
@@ -25,25 +25,28 @@ public class ServerLookAction extends AbstractBotAction<ServerLookAction> {
 
     public ServerLookAction() {
         super("look", ServerLookAction::new);
-        this.addArgument("player", EntityArgument.player()).setOptional(true);
+        this.addArgument("player", ArgumentTypes.player()).setOptional(true);
         this.fork(1);
-        this.addArgument("location", Vec3Argument.vec3(false));
+        this.addArgument("location", ArgumentTypes.finePosition());
     }
 
     @Override
     public void loadCommand(@NotNull CommandContext context) throws CommandSyntaxException {
-        EntitySelector selector = context.getArgumentOrDefault("player", EntitySelector.class, null);
-        Coordinates location = context.getArgumentOrDefault("location", Coordinates.class, null);
+        PlayerSelectorArgumentResolver playerSelectorResolver = context.getArgumentOrDefault("player", PlayerSelectorArgumentResolver.class, null);
+        FinePositionResolver positionResolver = context.getArgumentOrDefault("location", FinePositionResolver.class, null);
         CommandSourceStack source = context.getSource();
-        if (selector == null && location == null) {
-            Entity sender = source.getEntityOrException();
-            this.setPos(new Vector(sender.getX(), sender.getY(), sender.getZ()));
-        } else if (selector != null) {
-            ServerPlayer player = selector.findSinglePlayer(source);
-            this.setTarget(player);
+        if (playerSelectorResolver == null && positionResolver == null) {
+            CommandSender sender = context.getSender();
+            if (sender instanceof Entity entity) {
+                this.setPos(entity.getLocation().toVector());
+            } else {
+                throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownCommand().create();
+            }
+        } else if (playerSelectorResolver != null) {
+            CraftPlayer player = (CraftPlayer) playerSelectorResolver.resolve(source).getFirst();
+            this.setTarget(player.getHandle());
         } else {
-            Vec3 vector = location.getPosition(source);
-            this.setPos(new Vector(vector.x, vector.y, vector.z));
+            this.setPos(positionResolver.resolve(source).toVector());
         }
     }
 

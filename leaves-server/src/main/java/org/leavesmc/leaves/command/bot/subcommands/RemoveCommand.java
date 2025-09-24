@@ -11,7 +11,7 @@ import org.leavesmc.leaves.bot.BotList;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.command.ArgumentNode;
 import org.leavesmc.leaves.command.CommandContext;
-import org.leavesmc.leaves.command.CustomArgumentNode;
+import org.leavesmc.leaves.command.arguments.BotArgumentType;
 import org.leavesmc.leaves.command.bot.BotSubcommand;
 import org.leavesmc.leaves.event.bot.BotRemoveEvent;
 import org.leavesmc.leaves.plugin.MinecraftInternalPlugin;
@@ -41,15 +41,15 @@ public class RemoveCommand extends BotSubcommand {
         return success;
     }
 
-    private static class BotArgument extends CustomArgumentNode<ServerBot, String> {
+    private static class BotArgument extends ArgumentNode<ServerBot> {
         private BotArgument() {
-            super("bot", new org.leavesmc.leaves.command.bot.BotArgument());
+            super("bot", new BotArgumentType());
             children(RemoveTimeArgument::new);
         }
 
         @Override
-        protected boolean execute(@NotNull CommandContext context) throws CommandSyntaxException {
-            ServerBot bot = context.getCustomArgument(BotArgument.class);
+        protected boolean execute(@NotNull CommandContext context) {
+            ServerBot bot = context.getArgument(BotArgument.class);
             return removeBot(bot, context.getSender());
         }
     }
@@ -64,7 +64,7 @@ public class RemoveCommand extends BotSubcommand {
         protected boolean execute(@NotNull CommandContext context) throws CommandSyntaxException {
             String removeTimeStr = context.getArgument("remove_time", String.class);
             int removeTimeSeconds = parseRemoveTime(removeTimeStr);
-            ServerBot bot = context.getCustomArgument(BotArgument.class);
+            ServerBot bot = context.getArgument(BotArgument.class);
             CommandSender sender = context.getSender();
 
             boolean isReschedule = bot.removeTaskId != -1;

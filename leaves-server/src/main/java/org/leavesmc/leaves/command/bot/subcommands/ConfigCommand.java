@@ -3,7 +3,7 @@ package org.leavesmc.leaves.command.bot.subcommands;
 import com.mojang.brigadier.builder.ArgumentBuilder;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import net.minecraft.commands.CommandSourceStack;
+import io.papermc.paper.command.brigadier.CommandSourceStack;
 import org.bukkit.command.CommandSender;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
@@ -11,9 +11,10 @@ import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.bot.agent.Configs;
 import org.leavesmc.leaves.bot.agent.configs.AbstractBotConfig;
+import org.leavesmc.leaves.command.ArgumentNode;
 import org.leavesmc.leaves.command.CommandContext;
-import org.leavesmc.leaves.command.CustomArgumentNode;
 import org.leavesmc.leaves.command.LiteralNode;
+import org.leavesmc.leaves.command.arguments.BotArgumentType;
 import org.leavesmc.leaves.command.bot.BotSubcommand;
 
 import java.util.Collection;
@@ -38,33 +39,33 @@ public class ConfigCommand extends BotSubcommand {
         return LeavesConfig.modify.fakeplayer.canModifyConfig && super.requires(source);
     }
 
-    private static class BotArgument extends CustomArgumentNode<ServerBot, String> {
+    private static class BotArgument extends ArgumentNode<ServerBot> {
 
         private BotArgument() {
-            super("bot", new org.leavesmc.leaves.command.bot.BotArgument());
+            super("bot", new BotArgumentType());
             Configs.getConfigs().stream().map(this::configNodeCreator).forEach(this::children);
         }
 
         @Contract(pure = true)
-        private @NotNull Supplier<LiteralNode> configNodeCreator(AbstractBotConfig<?, ?, ?> config) {
+        private @NotNull Supplier<LiteralNode> configNodeCreator(AbstractBotConfig<?, ?> config) {
             return () -> new ConfigNode<>(config);
         }
 
-        public static @NotNull ServerBot getBot(@NotNull CommandContext context) throws CommandSyntaxException {
-            return context.getCustomArgument(BotArgument.class);
+        public static @NotNull ServerBot getBot(@NotNull CommandContext context) {
+            return context.getArgument(BotArgument.class);
         }
 
         @Override
-        protected boolean execute(CommandContext context) throws CommandSyntaxException {
+        protected boolean execute(CommandContext context) {
             ServerBot bot = BotArgument.getBot(context);
             CommandSender sender = context.getSender();
-            Collection<AbstractBotConfig<?, ?, ?>> botConfigs = bot.getAllConfigs();
+            Collection<AbstractBotConfig<?, ?>> botConfigs = bot.getAllConfigs();
             sender.sendMessage(join(spaces(),
                 text("Bot", GRAY),
                 asAdventure(bot.getDisplayName()).append(text("'s", GRAY)),
                 text("configs:", GRAY)
             ));
-            for (AbstractBotConfig<?, ?, ?> botConfig : botConfigs) {
+            for (AbstractBotConfig<?, ?> botConfig : botConfigs) {
                 sender.sendMessage(join(spaces(),
                     botConfig.getNameComponent(),
                     text("=", GRAY),
@@ -75,10 +76,10 @@ public class ConfigCommand extends BotSubcommand {
         }
     }
 
-    private static class ConfigNode<Value> extends LiteralNode {
-        private final AbstractBotConfig<Value, ?, ?> config;
+    private static class ConfigNode<T> extends LiteralNode {
+        private final AbstractBotConfig<T, ?> config;
 
-        private ConfigNode(@NotNull AbstractBotConfig<Value, ?, ?> config) {
+        private ConfigNode(@NotNull AbstractBotConfig<T, ?> config) {
             super(config.getName());
             this.config = config;
         }
@@ -95,9 +96,9 @@ public class ConfigCommand extends BotSubcommand {
         }
 
         @Override
-        protected boolean execute(@NotNull CommandContext context) throws CommandSyntaxException {
+        protected boolean execute(@NotNull CommandContext context) {
             ServerBot bot = BotArgument.getBot(context);
-            AbstractBotConfig<Value, ?, ?> botConfig = bot.getConfig(config);
+            AbstractBotConfig<T, ?> botConfig = bot.getConfig(config);
             context.getSender().sendMessage(join(spaces(),
                 text("Bot", GRAY),
                 asAdventure(bot.getDisplayName()).append(text("'s", GRAY)),
@@ -111,7 +112,7 @@ public class ConfigCommand extends BotSubcommand {
 
         private boolean executeSet(CommandContext context) throws CommandSyntaxException {
             ServerBot bot = BotArgument.getBot(context);
-            AbstractBotConfig<Value, ?, ?> botConfig = bot.getConfig(config);
+            AbstractBotConfig<T, ?> botConfig = bot.getConfig(config);
             try {
                 botConfig.setValue(botConfig.loadFromCommand(context));
             } catch (ClassCastException e) {

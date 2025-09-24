@@ -1,6 +1,6 @@
 package org.leavesmc.leaves.command.leaves;
 
-import net.minecraft.commands.CommandSourceStack;
+import io.papermc.paper.command.brigadier.CommandSourceStack;
 import org.bukkit.command.CommandSender;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.command.LiteralNode;

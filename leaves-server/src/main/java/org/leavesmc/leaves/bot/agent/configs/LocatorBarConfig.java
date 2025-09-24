@@ -7,7 +7,7 @@ import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.command.CommandContext;
 
-public class LocatorBarConfig extends AbstractBotConfig<Boolean, Boolean, LocatorBarConfig> {
+public class LocatorBarConfig extends AbstractBotConfig<Boolean, LocatorBarConfig> {
     private boolean value;
 
     public LocatorBarConfig() {

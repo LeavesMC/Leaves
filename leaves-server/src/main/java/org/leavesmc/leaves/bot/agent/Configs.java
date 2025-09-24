@@ -17,7 +17,7 @@ import java.util.Map;
 
 @SuppressWarnings({"unused"})
 public class Configs {
-    private static final Map<Class<?>, AbstractBotConfig<?, ?, ?>> configs = new HashMap<>();
+    private static final Map<Class<?>, AbstractBotConfig<?, ?>> configs = new HashMap<>();
 
     public static final SkipSleepConfig SKIP_SLEEP = register(new SkipSleepConfig());
     public static final AlwaysSendDataConfig ALWAYS_SEND_DATA = register(new AlwaysSendDataConfig());
@@ -27,7 +27,7 @@ public class Configs {
     public static final LocatorBarConfig ENABLE_LOCATOR_BAR = register(new LocatorBarConfig());
 
     @Nullable
-    public static AbstractBotConfig<?, ?, ?> getConfig(String name) {
+    public static AbstractBotConfig<?, ?> getConfig(String name) {
         return configs.values().stream()
             .filter(config -> config.getName().equals(name))
             .findFirst()
@@ -36,12 +36,12 @@ public class Configs {
 
     @NotNull
     @Contract(pure = true)
-    public static Collection<AbstractBotConfig<?, ?, ?>> getConfigs() {
+    public static Collection<AbstractBotConfig<?, ?>> getConfigs() {
         return configs.values();
     }
 
     @SuppressWarnings("unchecked")
-    private static <Value, Type, E extends AbstractBotConfig<Value, Type, E>> @NotNull E register(AbstractBotConfig<Value, Type, E> instance) {
+    private static <T, E extends AbstractBotConfig<T, E>> @NotNull E register(AbstractBotConfig<T, E> instance) {
         configs.put(instance.getClass(), instance);
         return (E) instance;
     }

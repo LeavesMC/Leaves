@@ -1,8 +1,8 @@
 package org.leavesmc.leaves.command;
 
 import com.mojang.brigadier.builder.ArgumentBuilder;
-import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.commands.Commands;
+import io.papermc.paper.command.brigadier.CommandSourceStack;
+import io.papermc.paper.command.brigadier.Commands;
 
 public class LiteralNode extends CommandNode {
 

@@ -17,14 +17,14 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.function.Supplier;
 
-public abstract class AbstractBotConfig<Value, Type, E extends AbstractBotConfig<Value, Type, E>> {
+public abstract class AbstractBotConfig<T, E extends AbstractBotConfig<T, E>> {
     private final String name;
-    private final WrappedArgument<Type> argument;
+    private final WrappedArgument<T> argument;
     private final Supplier<E> creator;
 
     protected ServerBot bot;
 
-    public AbstractBotConfig(String name, ArgumentType<Type> type, Supplier<E> creator) {
+    public AbstractBotConfig(String name, ArgumentType<T> type, Supplier<E> creator) {
         this.name = name;
         this.argument = new WrappedArgument<>(name, type);
         if (shouldApplySuggestions()) {
@@ -37,7 +37,7 @@ public abstract class AbstractBotConfig<Value, Type, E extends AbstractBotConfig
     public void applySuggestions(final CommandContext context, final SuggestionsBuilder builder) throws CommandSyntaxException {
     }
 
-    public AbstractBotConfig<Value, Type, E> setBot(ServerBot bot) {
+    public AbstractBotConfig<T, E> setBot(ServerBot bot) {
         this.bot = bot;
         return this;
     }
@@ -46,11 +46,11 @@ public abstract class AbstractBotConfig<Value, Type, E extends AbstractBotConfig
         return creator.get();
     }
 
-    public abstract Value getValue();
+    public abstract T getValue();
 
-    public abstract void setValue(Value value) throws CommandSyntaxException;
+    public abstract void setValue(T value) throws CommandSyntaxException;
 
-    public abstract Value loadFromCommand(@NotNull CommandContext context) throws CommandSyntaxException;
+    public abstract T loadFromCommand(@NotNull CommandContext context) throws CommandSyntaxException;
 
     public String getName() {
         return name;
@@ -71,7 +71,7 @@ public abstract class AbstractBotConfig<Value, Type, E extends AbstractBotConfig
             .orElse("No data");
     }
 
-    public WrappedArgument<Type> getArgument() {
+    public WrappedArgument<T> getArgument() {
         return argument;
     }
 

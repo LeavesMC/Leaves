@@ -6,7 +6,7 @@ import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.command.CommandContext;
 
-public class SkipSleepConfig extends AbstractBotConfig<Boolean, Boolean, SkipSleepConfig> {
+public class SkipSleepConfig extends AbstractBotConfig<Boolean, SkipSleepConfig> {
 
     public SkipSleepConfig() {
         super("skip_sleep", BoolArgumentType.bool(), SkipSleepConfig::new);

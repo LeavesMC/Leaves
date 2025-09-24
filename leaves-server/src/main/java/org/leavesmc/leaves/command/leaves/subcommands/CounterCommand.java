@@ -1,8 +1,8 @@
 package org.leavesmc.leaves.command.leaves.subcommands;
 
+import io.papermc.paper.command.brigadier.CommandSourceStack;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextColor;
-import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.item.DyeColor;
 import org.bukkit.command.CommandSender;

@@ -1,10 +1,9 @@
 package org.leavesmc.leaves.command;
 
-import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.builder.ArgumentBuilder;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
-import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.server.MinecraftServer;
+import io.papermc.paper.command.brigadier.CommandSourceStack;
+import io.papermc.paper.command.brigadier.PaperCommands;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.jetbrains.annotations.NotNull;
@@ -36,18 +35,16 @@ public abstract class RootNode extends LiteralNode {
 
     @SuppressWarnings("unchecked")
     public void register() {
-        MinecraftServer.getServer()
-            .getCommands()
-            .getDispatcher()
-            .register((LiteralArgumentBuilder<CommandSourceStack>) compile());
+        PaperCommands.INSTANCE.setValid();
+        PaperCommands.INSTANCE.getDispatcher().register((LiteralArgumentBuilder<CommandSourceStack>) compile());
+        PaperCommands.INSTANCE.invalidate();
         Bukkit.getOnlinePlayers().forEach(org.bukkit.entity.Player::updateCommands);
     }
 
     public void unregister() {
-        CommandDispatcher<CommandSourceStack> dispatcher = MinecraftServer.getServer()
-            .getCommands()
-            .getDispatcher();
-        dispatcher.getRoot().removeCommand(name);
+        PaperCommands.INSTANCE.setValid();
+        PaperCommands.INSTANCE.getDispatcher().getRoot().removeCommand(name);
+        PaperCommands.INSTANCE.invalidate();
         Bukkit.getOnlinePlayers().forEach(org.bukkit.entity.Player::updateCommands);
     }
 }

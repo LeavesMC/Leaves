@@ -1,42 +1,25 @@
 package org.leavesmc.leaves.bot.agent.actions;
 
-import com.mojang.brigadier.arguments.StringArgumentType;
-import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.bot.agent.ExtraData;
 import org.leavesmc.leaves.command.CommandContext;
+import org.leavesmc.leaves.command.arguments.EnumArgumentType;
 import org.leavesmc.leaves.entity.bot.action.MoveAction.MoveDirection;
 import org.leavesmc.leaves.entity.bot.actions.CraftMoveAction;
 import org.leavesmc.leaves.event.bot.BotActionStopEvent;
 
-import java.util.Arrays;
-import java.util.Map;
-
-import static java.util.stream.Collectors.toMap;
-import static org.leavesmc.leaves.command.ArgumentNode.ArgumentSuggestions.strings;
-
 public class ServerMoveAction extends AbstractStateBotAction<ServerMoveAction> {
-    private static final Map<String, MoveDirection> NAME_TO_DIRECTION = Arrays.stream(MoveDirection.values()).collect(toMap(
-        it -> it.name,
-        it -> it
-    ));
     private MoveDirection direction = MoveDirection.FORWARD;
 
     public ServerMoveAction() {
         super("move", ServerMoveAction::new);
-        this.addArgument("direction", StringArgumentType.word())
-            .suggests(strings(Arrays.stream(MoveDirection.values()).map((it) -> it.name).toList()));
+        this.addArgument("direction", EnumArgumentType.fromEnum(MoveDirection.class));
     }
 
     @Override
-    public void loadCommand(@NotNull CommandContext context) throws CommandSyntaxException {
-        String raw = context.getArgument("direction", String.class);
-        MoveDirection direction = NAME_TO_DIRECTION.get(raw);
-        if (direction == null) {
-            throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownArgument().create();
-        }
-        this.direction = direction;
+    public void loadCommand(@NotNull CommandContext context) {
+        this.direction = context.getArgument("direction", MoveDirection.class);
     }
 
     @Override

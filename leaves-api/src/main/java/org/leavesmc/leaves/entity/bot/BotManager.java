@@ -51,6 +51,8 @@ public interface BotManager {
 
     void registerAction(CustomActionProvider executor);
 
+    void unregisterAction(String id);
+
     List<String> getCustomActions();
 
     BotCreator botCreator(@NotNull String realName, @NotNull Location location);

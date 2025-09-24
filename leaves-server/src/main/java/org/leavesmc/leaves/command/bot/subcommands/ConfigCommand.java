@@ -42,7 +42,7 @@ public class ConfigCommand extends BotSubcommand {
     private static class BotArgument extends ArgumentNode<ServerBot> {
 
         private BotArgument() {
-            super("bot", new BotArgumentType());
+            super("bot", BotArgumentType.bot());
             Configs.getConfigs().stream().map(this::configNodeCreator).forEach(this::children);
         }
 

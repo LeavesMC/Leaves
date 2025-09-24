@@ -43,7 +43,7 @@ public class RemoveCommand extends BotSubcommand {
 
     private static class BotArgument extends ArgumentNode<ServerBot> {
         private BotArgument() {
-            super("bot", new BotArgumentType());
+            super("bot", BotArgumentType.bot());
             children(RemoveTimeArgument::new);
         }
 

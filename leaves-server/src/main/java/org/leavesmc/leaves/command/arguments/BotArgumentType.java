@@ -16,6 +16,13 @@ import java.util.concurrent.CompletableFuture;
 
 public class BotArgumentType implements CustomArgumentType.Converted<@NotNull ServerBot, @NotNull String> {
 
+    private BotArgumentType() {
+    }
+
+    public static @NotNull BotArgumentType bot() {
+        return new BotArgumentType();
+    }
+
     @Override
     public <S> @NotNull CompletableFuture<Suggestions> listSuggestions(com.mojang.brigadier.context.@NotNull CommandContext<S> context, @NotNull SuggestionsBuilder builder) {
         Collection<ServerBot> bots = BotList.INSTANCE.bots;

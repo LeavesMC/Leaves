@@ -27,7 +27,7 @@ public class ActionCommand extends BotSubcommand {
     public static class BotArgument extends ArgumentNode<ServerBot> {
 
         private BotArgument() {
-            super("bot", new BotArgumentType());
+            super("bot", BotArgumentType.bot());
             children(
                 StartCommand::new,
                 StopCommand::new,

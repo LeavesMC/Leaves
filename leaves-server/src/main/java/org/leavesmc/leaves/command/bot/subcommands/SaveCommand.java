@@ -33,7 +33,7 @@ public class SaveCommand extends BotSubcommand {
     private static class BotArgument extends ArgumentNode<ServerBot> {
 
         private BotArgument() {
-            super("bot", new BotArgumentType());
+            super("bot", BotArgumentType.bot());
         }
 
         @Override

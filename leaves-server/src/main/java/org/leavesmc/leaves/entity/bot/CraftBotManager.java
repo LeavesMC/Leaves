@@ -81,9 +81,15 @@ public class CraftBotManager implements BotManager {
     }
 
     @Override
-    public void registerAction(CustomActionProvider executor) {
-
+    public void registerAction(CustomActionProvider provider) {
+        Actions.addCustom(provider);
     }
+
+    @Override
+    public void unregisterAction(String id) {
+        Actions.removeCustom(id);
+    }
+
 
     @Override
     public List<String> getCustomActions() {

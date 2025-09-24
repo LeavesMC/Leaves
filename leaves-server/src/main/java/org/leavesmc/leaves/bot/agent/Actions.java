@@ -64,8 +64,8 @@ public class Actions {
         return false;
     }
 
-    public static void addCustom(CustomActionProvider questionMark) {
-        customActionsById.put(questionMark.id(), questionMark);
+    public static void addCustom(CustomActionProvider provider) {
+        customActionsById.put(provider.id(), provider);
     }
 
     public static @Nullable CustomActionProvider getCustom(String id) {

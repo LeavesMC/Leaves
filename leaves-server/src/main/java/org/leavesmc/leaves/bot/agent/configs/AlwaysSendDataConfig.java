@@ -4,7 +4,7 @@ import com.mojang.brigadier.arguments.BoolArgumentType;
 import net.minecraft.nbt.CompoundTag;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesConfig;
-import org.leavesmc.leaves.command.CommandContext;
+import org.leavesmc.leaves.command.LeavesCommandContext;
 
 public class AlwaysSendDataConfig extends AbstractBotConfig<Boolean, AlwaysSendDataConfig> {
     private boolean value;
@@ -25,7 +25,7 @@ public class AlwaysSendDataConfig extends AbstractBotConfig<Boolean, AlwaysSendD
     }
 
     @Override
-    public Boolean loadFromCommand(@NotNull CommandContext context) {
+    public Boolean loadFromCommand(@NotNull LeavesCommandContext context) {
         return context.getBoolean(getName());
     }
 

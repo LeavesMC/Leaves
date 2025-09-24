@@ -13,7 +13,7 @@ import org.bukkit.entity.Entity;
 import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.command.CommandContext;
+import org.leavesmc.leaves.command.LeavesCommandContext;
 import org.leavesmc.leaves.entity.bot.actions.CraftLookAction;
 
 public class ServerLookAction extends AbstractBotAction<ServerLookAction> {
@@ -31,7 +31,7 @@ public class ServerLookAction extends AbstractBotAction<ServerLookAction> {
     }
 
     @Override
-    public void loadCommand(@NotNull CommandContext context) throws CommandSyntaxException {
+    public void loadCommand(@NotNull LeavesCommandContext context) throws CommandSyntaxException {
         PlayerSelectorArgumentResolver playerSelectorResolver = context.getArgumentOrDefault("player", PlayerSelectorArgumentResolver.class, null);
         FinePositionResolver positionResolver = context.getArgumentOrDefault("location", FinePositionResolver.class, null);
         CommandSourceStack source = context.getSource();

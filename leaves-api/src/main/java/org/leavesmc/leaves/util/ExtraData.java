@@ -1,4 +1,4 @@
-package org.leavesmc.leaves.bot.agent;
+package org.leavesmc.leaves.util;
 
 import org.apache.commons.lang3.tuple.Pair;
 

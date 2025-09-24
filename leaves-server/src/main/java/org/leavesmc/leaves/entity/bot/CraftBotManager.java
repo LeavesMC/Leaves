@@ -2,7 +2,9 @@ package org.leavesmc.leaves.entity.bot;
 
 import com.google.common.collect.Lists;
 import net.minecraft.server.MinecraftServer;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.bot.BotCreateState;
@@ -11,6 +13,7 @@ import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.bot.agent.Actions;
 import org.leavesmc.leaves.bot.agent.actions.AbstractBotAction;
 import org.leavesmc.leaves.entity.bot.action.BotAction;
+import org.leavesmc.leaves.entity.bot.action.CustomBotAction;
 import org.leavesmc.leaves.event.bot.BotCreateEvent;
 
 import java.util.Collection;
@@ -70,5 +73,19 @@ public class CraftBotManager implements BotManager {
     @Override
     public BotCreator botCreator(@NotNull String realName, @NotNull Location location) {
         return BotCreateState.builder(realName, location).createReason(BotCreateEvent.CreateReason.PLUGIN);
+    }
+
+    @Override
+    public boolean registerCustomAction(@NotNull CustomBotAction customBotAction, boolean resendCommandTree) {
+        boolean result = Actions.register(customBotAction);
+        if (result && resendCommandTree) {
+            Bukkit.getOnlinePlayers().forEach(Player::updateCommands);
+        }
+        return result;
+    }
+
+    @Override
+    public boolean registerCustomAction(@NotNull CustomBotAction customBotAction) {
+        return registerCustomAction(customBotAction, true);
     }
 }

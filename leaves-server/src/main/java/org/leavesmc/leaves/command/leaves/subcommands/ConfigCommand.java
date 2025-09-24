@@ -8,6 +8,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.command.ArgumentNode;
 import org.leavesmc.leaves.command.CommandContext;
+import org.leavesmc.leaves.command.LeavesCommandContext;
 import org.leavesmc.leaves.command.CommandUtils;
 import org.leavesmc.leaves.command.leaves.LeavesSubcommand;
 import org.leavesmc.leaves.config.GlobalConfigManager;

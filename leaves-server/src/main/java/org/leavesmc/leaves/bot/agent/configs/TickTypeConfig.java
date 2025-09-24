@@ -4,7 +4,7 @@ import net.minecraft.nbt.CompoundTag;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.command.CommandContext;
+import org.leavesmc.leaves.command.LeavesCommandContext;
 import org.leavesmc.leaves.command.arguments.EnumArgumentType;
 
 public class TickTypeConfig extends AbstractBotConfig<ServerBot.TickType, TickTypeConfig> {
@@ -16,7 +16,7 @@ public class TickTypeConfig extends AbstractBotConfig<ServerBot.TickType, TickTy
     }
 
     @Override
-    public ServerBot.TickType loadFromCommand(@NotNull CommandContext context) {
+    public ServerBot.TickType loadFromCommand(@NotNull LeavesCommandContext context) {
         return context.getArgument("tick_type", ServerBot.TickType.class);
     }
 

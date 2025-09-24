@@ -6,14 +6,13 @@ import org.leavesmc.leaves.entity.bot.Bot;
 
 import java.util.List;
 
-// I don't know how to name it, meow~
 public interface CustomActionProvider {
 
     String id();
 
     Plugin provider();
 
-    boolean doTick(Bot bot);
+    boolean doTick(Bot bot, CustomAction action);
 
     List<String> getSuggestion(CommandSender sender, String[] args);
 

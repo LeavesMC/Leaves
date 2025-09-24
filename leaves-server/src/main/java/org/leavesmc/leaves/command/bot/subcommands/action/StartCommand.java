@@ -129,41 +129,50 @@ public class StartCommand extends LiteralNode {
 
         @Override
         protected boolean execute(CommandContext context) throws CommandSyntaxException {
-            ServerBot bot = getBot(context);
-            CommandSender sender = context.getSender();
-            String[] args = StringUtils.split(context.getInput(), ' ');
-            CustomActionProvider questionMark = Actions.getCustom(args[0]);
-            if (questionMark == null) {
-                throw new IllegalArgumentException(args[0] + " is not a valid custom action");
+            try {
+                ServerBot bot = getBot(context);
+                CommandSender sender = context.getSender();
+                String[] args = StringUtils.split(context.getArgument("custom", String.class), ' ');
+                CustomActionProvider provider = Actions.getCustom(args[0]);
+                if (provider == null) {
+                    return false;
+                }
+                String[] realArg = Arrays.copyOfRange(args, 1, args.length);
+                ServerCustomAction action = new ServerCustomAction(provider);
+                provider.loadAction(sender, realArg, (CustomAction) action.asCraft());
+                if (bot.addBotAction(action, sender)) {
+                    sender.sendMessage(join(spaces(),
+                        text("Action", GRAY),
+                        text(action.getName(), AQUA).hoverEvent(showText(text(action.getActionDataString()))),
+                        text("has been issued to", GRAY),
+                        asAdventure(bot.getDisplayName())
+                    ));
+                }
+                return true;
+            } catch (Exception e) {
+                e.printStackTrace();
             }
-            String[] realArg = Arrays.copyOfRange(args, 1, args.length);
-            ServerCustomAction action = new ServerCustomAction(questionMark);
-            questionMark.loadAction(sender, realArg, (CustomAction) action.asCraft());
-            if (bot.addBotAction(action, sender)) {
-                sender.sendMessage(join(spaces(),
-                    text("Action", GRAY),
-                    text(action.getName(), AQUA).hoverEvent(showText(text(action.getActionDataString()))),
-                    text("has been issued to", GRAY),
-                    asAdventure(bot.getDisplayName())
-                ));
-            }
-            return true;
+            return false;
         }
 
         @Override
         protected CompletableFuture<Suggestions> getSuggestions(CommandContext context, SuggestionsBuilder builder) throws CommandSyntaxException {
-            String[] args = StringUtils.split(context.getInput(), ' ');
-            if (args.length == 1) {
-                Actions.getCustomActions().forEach(builder::suggest);
-            } else {
-                CustomActionProvider questionMark = Actions.getCustom(args[0]);
-                if (questionMark == null) {
-                    return builder.buildFuture();
+            try {
+                String[] args = builder.getRemaining().split(" ", -1);
+                if (args.length <= 1) {
+                    Actions.getCustomActions().forEach(builder::suggest);
+                } else {
+                    CustomActionProvider provider = Actions.getCustom(args[0]);
+                    if (provider == null) {
+                        return builder.buildFuture();
+                    }
+                    String[] realArg = Arrays.copyOfRange(args, 1, args.length);
+                    List<String> suggestion = provider.getSuggestion(context.getSender(), realArg);
+                    builder = builder.createOffset(builder.getInput().lastIndexOf(' ') + 1);
+                    suggestion.forEach(builder::suggest);
                 }
-                String[] realArg = Arrays.copyOfRange(args, 1, args.length);
-                List<String> suggestion = questionMark.getSuggestion(context.getSender(), realArg);
-                builder = builder.createOffset(builder.getInput().lastIndexOf(' ') + 1);
-                suggestion.forEach(builder::suggest);
+            } catch (Exception e) {
+                e.printStackTrace();
             }
             return builder.buildFuture();
         }

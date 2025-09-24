@@ -3,6 +3,7 @@ package org.leavesmc.leaves.bot.agent.actions.custom;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.bot.agent.actions.AbstractBotAction;
+import org.leavesmc.leaves.entity.bot.action.custom.CustomAction;
 import org.leavesmc.leaves.entity.bot.action.custom.CustomActionProvider;
 import org.leavesmc.leaves.entity.bot.actions.CraftCustomAction;
 
@@ -22,7 +23,7 @@ public class ServerCustomAction extends AbstractBotAction<ServerCustomAction> {
 
     @Override
     public boolean doTick(@NotNull ServerBot bot) {
-        return customActionProvider.doTick(bot.getBukkitEntity());
+        return customActionProvider.doTick(bot.getBukkitEntity(), (CustomAction) this.asCraft());
     }
 
     @Override

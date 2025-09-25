@@ -87,22 +87,11 @@ index 09fd99c9cbd23b5f3c899bfb00c9b89651948ed8..d58539fe376f548930b49141c87ec5eb
 +
 +    @Override public <T> void compact(net.minecraft.world.level.chunk.Palette<T> srcPalette, net.minecraft.world.level.chunk.Palette<T> dstPalette, short[] out) {}  // Leaves - Gale - Lithium - faster chunk serialization
  }
-diff --git a/net/minecraft/world/level/chunk/PaletteResize.java b/net/minecraft/world/level/chunk/PaletteResize.java
-index c723606fa0be811e580ba47de8c9c575583cc930..2483210ca43221feaa5a2f1ced5c59731d5189fc 100644
---- a/net/minecraft/world/level/chunk/PaletteResize.java
-+++ b/net/minecraft/world/level/chunk/PaletteResize.java
-@@ -1,5 +1,5 @@
- package net.minecraft.world.level.chunk;
- 
--interface PaletteResize<T> {
-+public interface PaletteResize<T> {
-     int onResize(int bits, T objectAdded);
- }
 diff --git a/net/minecraft/world/level/chunk/PalettedContainer.java b/net/minecraft/world/level/chunk/PalettedContainer.java
-index a251ba67644cd02a0b00d7c8b0e2c64aa5e26291..a826aff16aee6692ca07d485ab3c79c1c4a38b52 100644
+index 1843046fe145bb23f2e9cf3269fb05c0fb617603..57fd2cba6d47af8f3156fe3487f16ddaf0db57b8 100644
 --- a/net/minecraft/world/level/chunk/PalettedContainer.java
 +++ b/net/minecraft/world/level/chunk/PalettedContainer.java
-@@ -24,6 +24,22 @@ import net.minecraft.util.ThreadingDetector;
+@@ -23,6 +23,22 @@ import net.minecraft.util.ThreadingDetector;
  import net.minecraft.util.ZeroBitStorage;
  
  public class PalettedContainer<T> implements PaletteResize<T>, PalettedContainerRO<T> {
@@ -123,12 +112,12 @@ index a251ba67644cd02a0b00d7c8b0e2c64aa5e26291..a826aff16aee6692ca07d485ab3c79c1
 +    // Leaves end - Gale - Lithium - faster chunk serialization
 +
      private static final int MIN_PALETTE_BITS = 0;
-     private final PaletteResize<T> dummyPaletteResize = (bits, objectAdded) -> 0;
-     public final IdMap<T> registry;
-@@ -343,6 +359,56 @@ public class PalettedContainer<T> implements PaletteResize<T>, PalettedContainer
-     public synchronized PalettedContainerRO.PackedData<T> pack(IdMap<T> registry, PalettedContainer.Strategy strategy) { // Paper - synchronize
+     public volatile PalettedContainer.Data<T> data; // Paper - optimise collisions - public
+     private final Strategy<T> strategy;
+@@ -340,7 +356,61 @@ public class PalettedContainer<T> implements PaletteResize<T>, PalettedContainer
+     public synchronized PalettedContainerRO.PackedData<T> pack(Strategy<T> strategy) { // Paper - synchronize
          this.acquire();
- 
+
 +        // Leaves start - Gale - Lithium - faster chunk serialization
 +        if (org.leavesmc.leaves.LeavesConfig.performance.fasterChunkSerialization) {
 +            Optional<LongStream> data = Optional.empty();
@@ -181,8 +170,9 @@ index a251ba67644cd02a0b00d7c8b0e2c64aa5e26291..a826aff16aee6692ca07d485ab3c79c1
 +        // Leaves end - Gale - Lithium - faster chunk serialization
          PalettedContainerRO.PackedData var12;
          try {
-             HashMapPalette<T> hashMapPalette = new HashMapPalette<>(registry, this.data.storage.getBits(), this.dummyPaletteResize);
-@@ -404,13 +470,43 @@ public class PalettedContainer<T> implements PaletteResize<T>, PalettedContainer
+             BitStorage bitStorage = this.data.storage;
+             Palette<T> palette = this.data.palette;
+@@ -412,12 +482,59 @@ public class PalettedContainer<T> implements PaletteResize<T>, PalettedContainer
  
      @Override
      public void count(PalettedContainer.CountConsumer<T> countConsumer) {

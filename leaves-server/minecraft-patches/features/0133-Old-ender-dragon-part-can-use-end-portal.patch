@@ -26,19 +26,19 @@ This patch is Powered by CrystalCarpetAddition(https://github.com/Crystal0404/Cr
  */
 
 diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
-index 3b9bd49fa39e3b44a7cbf51072e7cf09b186f254..6b56178967872923be58983ce8b14102ec0c3e14 100644
+index 7fff233c3aea5d5cf1084517f0040111d60fd054..dc76b783d112cf1b835852f616c8de767cf02140 100644
 --- a/net/minecraft/world/entity/Entity.java
 +++ b/net/minecraft/world/entity/Entity.java
-@@ -185,7 +185,7 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
+@@ -187,7 +187,7 @@ public abstract class Entity implements SyncedDataHolder, DebugValueSource, Name
      // Paper end - Share random for entities to make them more random
      public @Nullable org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason spawnReason; // Paper - Entity#getEntitySpawnReason
  
 -    private volatile @Nullable org.bukkit.craftbukkit.entity.CraftEntity bukkitEntity; // Paper - Folia schedulers - volatile
 +    public volatile @Nullable org.bukkit.craftbukkit.entity.CraftEntity bukkitEntity; // Paper - Folia schedulers - volatile // Leaves - private -> public
-     public boolean collisionLoadChunks = false; // Paper
  
      public org.bukkit.craftbukkit.entity.CraftEntity getBukkitEntity() {
-@@ -3958,7 +3958,7 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
+         if (this.bukkitEntity == null) {
+@@ -4024,7 +4024,7 @@ public abstract class Entity implements SyncedDataHolder, DebugValueSource, Name
      @Nullable
      public Entity teleport(TeleportTransition teleportTransition) {
          // Paper start - Fix item duplication and teleport issues
@@ -47,16 +47,16 @@ index 3b9bd49fa39e3b44a7cbf51072e7cf09b186f254..6b56178967872923be58983ce8b14102
              LOGGER.warn("Illegal Entity Teleport {} to {}:{}", this, teleportTransition.newLevel(), teleportTransition.position(), new Throwable());
              return null;
          }
-@@ -4074,7 +4074,7 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
+@@ -4140,7 +4140,7 @@ public abstract class Entity implements SyncedDataHolder, DebugValueSource, Name
+             // Paper end - Fix item duplication and teleport issues
              entityx.restoreFrom(this);
              this.removeAfterChangingDimensions();
-             entityx.teleportSetPosition(PositionMoveRotation.of(teleportTransition), teleportTransition.relatives());
--            if (this.inWorld) newLevel.addDuringTeleport(entityx); // CraftBukkit - Don't spawn the new entity if the current entity isn't spawned
-+            if (this.inWorld || (org.leavesmc.leaves.LeavesConfig.modify.oldMC.enderDragonPartCanUseEndPortal && this instanceof net.minecraft.world.entity.boss.EnderDragonPart)) newLevel.addDuringTeleport(entityx); // CraftBukkit - Don't spawn the new entity if the current entity isn't spawned // Leaves - endDragonPartCanUseEndPortal
+-            entityx.teleportSetPosition(PositionMoveRotation.of(this), PositionMoveRotation.of(teleportTransition), teleportTransition.relatives());
++            entityx.teleportSetPosition(PositionMoveRotation.of(teleportTransition), teleportTransition.relatives());
+             if (this.inWorld || (org.leavesmc.leaves.LeavesConfig.modify.oldMC.enderDragonPartCanUseEndPortal && this instanceof net.minecraft.world.entity.boss.EnderDragonPart)) newLevel.addDuringTeleport(entityx); // CraftBukkit - Don't spawn the new entity if the current entity isn't spawned // Leaves - endDragonPartCanUseEndPortal
  
              for (Entity entity2 : list) {
-                 entity2.startRiding(entityx, true);
-@@ -4209,6 +4209,7 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
+@@ -4283,6 +4283,7 @@ public abstract class Entity implements SyncedDataHolder, DebugValueSource, Name
      }
  
      public boolean canTeleport(Level fromLevel, Level toLevel) {
@@ -65,11 +65,11 @@ index 3b9bd49fa39e3b44a7cbf51072e7cf09b186f254..6b56178967872923be58983ce8b14102
          if (!this.isAlive() || !this.valid) return false; // Paper - Fix item duplication and teleport issues
          if (fromLevel.dimension() == Level.END && toLevel.dimension() == Level.OVERWORLD) {
 diff --git a/net/minecraft/world/entity/Mob.java b/net/minecraft/world/entity/Mob.java
-index 3b73d52ea902bb1c8bd615c77444c57917f8b645..5cab5889446d7d48259300cec96da4a4811967e5 100644
+index 09065cb08b3ee1aed8a20e4293ef7144cb473da9..7fbd90c335bd85edff8db2954f1aeb59dd2042d6 100644
 --- a/net/minecraft/world/entity/Mob.java
 +++ b/net/minecraft/world/entity/Mob.java
-@@ -385,6 +385,16 @@ public abstract class Mob extends LivingEntity implements EquipmentUser, Leashab
-         if (!this.level().isClientSide && this.tickCount % 5 == 0) {
+@@ -395,6 +395,16 @@ public abstract class Mob extends LivingEntity implements EquipmentUser, Leashab
+         if (!this.level().isClientSide() && this.tickCount % 5 == 0) {
              this.updateControlFlags();
          }
 +        // Leaves start - ender dragon part can use end portal

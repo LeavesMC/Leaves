@@ -2,10 +2,10 @@ package org.leavesmc.leaves.protocol.jade.util;
 
 import com.mojang.authlib.GameProfile;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.boss.EnderDragonPart;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
-import net.minecraft.world.level.block.entity.SkullBlockEntity;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.LeavesLogger;
 import org.leavesmc.leaves.protocol.jade.accessor.Accessor;
@@ -47,7 +47,7 @@ public class CommonUtil {
         if (uuid == null) {
             return null;
         }
-        Optional<GameProfile> optional = SkullBlockEntity.fetchGameProfile(String.valueOf(uuid)).getNow(Optional.empty());
+        Optional<GameProfile> optional = MinecraftServer.getServer().services.profileResolver().fetchById(uuid);
         return optional.map(GameProfile::name).orElse(null);
     }
 

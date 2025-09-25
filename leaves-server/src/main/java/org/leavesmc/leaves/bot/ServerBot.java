@@ -81,6 +81,8 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Predicate;
 
+import static net.minecraft.server.MinecraftServer.getServer;
+
 public class ServerBot extends ServerPlayer {
 
     private final List<ServerBotAction<?>> actions;
@@ -199,7 +201,7 @@ public class ServerBot extends ServerPlayer {
                 this.notSleepTicks = 0;
             }
 
-            if (!this.level().isClientSide && this.level().isBrightOutside()) {
+            if (!this.level().isClientSide() && this.level().isBrightOutside()) {
                 this.stopSleepInBed(false, true);
             }
         } else if (this.sleepCounter > 0) {
@@ -212,7 +214,7 @@ public class ServerBot extends ServerPlayer {
         this.updateIsUnderwater();
 
         if (this.getConfigValue(Configs.TICK_TYPE) == TickType.NETWORK) {
-            this.getServer().scheduleOnMain(this::runAction);
+            getServer().scheduleOnMain(this::runAction);
         }
 
         this.livingEntityTick();
@@ -350,7 +352,7 @@ public class ServerBot extends ServerPlayer {
         if (LeavesConfig.modify.fakeplayer.canOpenInventory) {
             if (player instanceof ServerPlayer player1 && player.getMainHandItem().isEmpty()) {
                 BotInventoryOpenEvent event = new BotInventoryOpenEvent(this.getBukkitEntity(), player1.getBukkitEntity());
-                this.getServer().server.getPluginManager().callEvent(event);
+                getServer().server.getPluginManager().callEvent(event);
                 if (!event.isCancelled()) {
                     player.openMenu(new SimpleMenuProvider((i, inventory, p) -> ChestMenu.sixRows(i, inventory, this.container), this.getDisplayName()));
                     return InteractionResult.SUCCESS;
@@ -479,17 +481,17 @@ public class ServerBot extends ServerPlayer {
     }
 
     public void renderInfo() {
-        this.getServer().getPlayerList().getPlayers().forEach(this::sendPlayerInfo);
+        getServer().getPlayerList().getPlayers().forEach(this::sendPlayerInfo);
     }
 
     public void renderData() {
-        this.getServer().getPlayerList().getPlayers().forEach(
+        getServer().getPlayerList().getPlayers().forEach(
             player -> this.sendFakeDataIfNeed(player, false)
         );
     }
 
     private void sendPacket(Packet<?> packet) {
-        this.getServer().getPlayerList().getPlayers().forEach(player -> player.connection.send(packet));
+        getServer().getPlayerList().getPlayers().forEach(player -> player.connection.send(packet));
     }
 
     @Override
@@ -498,7 +500,7 @@ public class ServerBot extends ServerPlayer {
         Component defaultMessage = this.getCombatTracker().getDeathMessage();
 
         BotDeathEvent event = new BotDeathEvent(this.getBukkitEntity(), PaperAdventure.asAdventure(defaultMessage), flag);
-        this.getServer().server.getPluginManager().callEvent(event);
+        getServer().server.getPluginManager().callEvent(event);
 
         if (event.isCancelled()) {
             if (this.getHealth() <= 0) {
@@ -511,15 +513,15 @@ public class ServerBot extends ServerPlayer {
 
         net.kyori.adventure.text.Component deathMessage = event.deathMessage();
         if (event.isSendDeathMessage() && deathMessage != null && !deathMessage.equals(net.kyori.adventure.text.Component.empty())) {
-            this.getServer().getPlayerList().broadcastSystemMessage(PaperAdventure.asVanilla(deathMessage), false);
+            getServer().getPlayerList().broadcastSystemMessage(PaperAdventure.asVanilla(deathMessage), false);
         }
 
-        this.getServer().getBotList().removeBot(this, BotRemoveEvent.RemoveReason.DEATH, null, false);
+        getServer().getBotList().removeBot(this, BotRemoveEvent.RemoveReason.DEATH, null, false);
     }
 
     @Override
-    public boolean startRiding(@NotNull Entity vehicle, boolean force) {
-        if (super.startRiding(vehicle, force)) {
+    public boolean startRiding(@NotNull Entity vehicle, boolean force, boolean sendGameEvent) {
+        if (super.startRiding(vehicle, force, sendGameEvent)) {
             if (vehicle.getControllingPassenger() == this) { // see net.minecraft.server.networkServerGamePacketListenerImpl#handleMoveVehicle
                 this.setDeltaMovement(Vec3.ZERO);
                 this.setYRot(vehicle.yRotO);

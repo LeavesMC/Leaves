@@ -69,8 +69,8 @@ public class BBORProtocol implements LeavesProtocol {
         ServerLevel overworld = MinecraftServer.getServer().overworld();
         ProtocolUtils.sendBytebufPacket(player, INITIALIZE_CLIENT, buf -> {
             buf.writeLong(overworld.getSeed());
-            buf.writeInt(overworld.levelData.getSpawnPos().getX());
-            buf.writeInt(overworld.levelData.getSpawnPos().getZ());
+            buf.writeInt(overworld.levelData.getRespawnData().pos().getX());
+            buf.writeInt(overworld.levelData.getRespawnData().pos().getZ());
         });
         sendStructureList(player);
     }

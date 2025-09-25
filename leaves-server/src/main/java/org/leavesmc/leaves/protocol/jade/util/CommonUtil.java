@@ -48,7 +48,7 @@ public class CommonUtil {
             return null;
         }
         Optional<GameProfile> optional = SkullBlockEntity.fetchGameProfile(String.valueOf(uuid)).getNow(Optional.empty());
-        return optional.map(GameProfile::getName).orElse(null);
+        return optional.map(GameProfile::name).orElse(null);
     }
 
 

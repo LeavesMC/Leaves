@@ -6,7 +6,7 @@ Subject: [PATCH] Replay Mod API
 This patch is Powered by ReplayMod(https://github.com/ReplayMod)
 
 diff --git a/net/minecraft/commands/CommandSourceStack.java b/net/minecraft/commands/CommandSourceStack.java
-index 6ead209287ab021b8245fa5c3b7f18ca7d9c66b3..c8744cb6ae4f5a2d1527bace129d9b4b8c1a8cd9 100644
+index 6ead209287ab021b8245fa5c3b7f18ca7d9c66b3..cc0213907d1291e31261e923c74bdeaae2765e2e 100644
 --- a/net/minecraft/commands/CommandSourceStack.java
 +++ b/net/minecraft/commands/CommandSourceStack.java
 @@ -580,7 +580,7 @@ public class CommandSourceStack implements ExecutionCommandSource<CommandSourceS
@@ -14,7 +14,7 @@ index 6ead209287ab021b8245fa5c3b7f18ca7d9c66b3..c8744cb6ae4f5a2d1527bace129d9b4b
      @Override
      public Collection<String> getOnlinePlayerNames() {
 -        return this.entity instanceof ServerPlayer sourcePlayer && !sourcePlayer.getBukkitEntity().hasPermission("paper.bypass-visibility.tab-completion") ? this.getServer().getPlayerList().getPlayers().stream().filter(serverPlayer -> sourcePlayer.getBukkitEntity().canSee(serverPlayer.getBukkitEntity())).map(serverPlayer -> serverPlayer.getGameProfile().name()).toList() : Lists.newArrayList(this.server.getPlayerNames()); // Paper - Make CommandSourceStack respect hidden players
-+        return this.entity instanceof ServerPlayer sourcePlayer && !(sourcePlayer instanceof org.leavesmc.leaves.replay.ServerPhotographer) && !sourcePlayer.getBukkitEntity().hasPermission("paper.bypass-visibility.tab-completion") ? this.getServer().getPlayerList().getPlayers().stream().filter(serverPlayer -> sourcePlayer.getBukkitEntity().canSee(serverPlayer.getBukkitEntity())).map(serverPlayer -> serverPlayer.getGameProfile().getName()).toList() : Lists.newArrayList(this.server.getPlayerNames()); // Paper - Make CommandSourceStack respect hidden players // Leaves - only real player
++        return this.entity instanceof ServerPlayer sourcePlayer && !(sourcePlayer instanceof org.leavesmc.leaves.replay.ServerPhotographer) && !sourcePlayer.getBukkitEntity().hasPermission("paper.bypass-visibility.tab-completion") ? this.getServer().getPlayerList().getPlayers().stream().filter(serverPlayer -> sourcePlayer.getBukkitEntity().canSee(serverPlayer.getBukkitEntity())).map(serverPlayer -> serverPlayer.getGameProfile().name()).toList() : Lists.newArrayList(this.server.getPlayerNames()); // Paper - Make CommandSourceStack respect hidden players // Leaves - only real player
      }
  
      @Override
@@ -265,21 +265,20 @@ index cfe62a56ce1b4222ed6d73fc6390b7726542a9cd..234478bca5f8b1ea768b487c943b44e0
                                                  .map(Player::nameAndId)
                                                  .filter(nameAndId -> !playerList.getWhiteList().isWhiteListed(nameAndId))
 diff --git a/net/minecraft/server/gui/PlayerListComponent.java b/net/minecraft/server/gui/PlayerListComponent.java
-index 5a8cd3e6b448a4472092690cf589bca10b142126..c9abb60b96e07fae86111be503bc49422ba92906 100644
+index 5a8cd3e6b448a4472092690cf589bca10b142126..8f22d5faf89006153b1fff4ff0b622f8de9fb588 100644
 --- a/net/minecraft/server/gui/PlayerListComponent.java
 +++ b/net/minecraft/server/gui/PlayerListComponent.java
-@@ -17,9 +17,8 @@ public class PlayerListComponent extends JList<String> {
+@@ -17,8 +17,8 @@ public class PlayerListComponent extends JList<String> {
          if (this.tickCount++ % 20 == 0) {
              Vector<String> list = new Vector<>();
  
 -            for (int i = 0; i < this.server.getPlayerList().getPlayers().size(); i++) {
 -                list.add(this.server.getPlayerList().getPlayers().get(i).getGameProfile().name());
--            }
 +            for (int i = 0; i < this.server.getPlayerList().realPlayers.size(); i++) { // Leaves - only real players
 +                list.add(this.server.getPlayerList().realPlayers.get(i).getGameProfile().name()); // Leaves - only real players
+             }
  
              this.setListData(list);
-         }
 diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
 index 5deab686b386e3b82205a828ae12a72cb0f2e6fb..0db088864eac6c65a78620953821a1280056a688 100644
 --- a/net/minecraft/server/level/ServerLevel.java
@@ -302,8 +301,21 @@ index 5deab686b386e3b82205a828ae12a72cb0f2e6fb..0db088864eac6c65a78620953821a128
                      ServerLevel.this.realPlayers.remove(serverPlayer);
                  }
                  // Leaves end - skip
+diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
+index 0981f5d07144f75148b035e41f82190d0cd6526a..13c6ed8e37875e1ae061cf0a55b05a7f10fa24e1 100644
+--- a/net/minecraft/server/level/ServerPlayer.java
++++ b/net/minecraft/server/level/ServerPlayer.java
+@@ -522,7 +522,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+         // Paper start - Expand PlayerGameModeChangeEvent
+         this.loadGameTypes(input);
+     }
+-    private void loadGameTypes(ValueInput input) {
++    public void loadGameTypes(ValueInput input) { // Leaves - private -> public
+         if (this.server.getForcedGameType() != null && this.server.getForcedGameType() != readPlayerMode(input, "playerGameType")) {
+             if (new org.bukkit.event.player.PlayerGameModeChangeEvent(this.getBukkitEntity(), org.bukkit.GameMode.getByValue(this.server.getDefaultGameType().getId()), org.bukkit.event.player.PlayerGameModeChangeEvent.Cause.DEFAULT_GAMEMODE, null).callEvent()) {
+                 this.gameMode.setGameModeForPlayer(this.server.getForcedGameType(), GameType.DEFAULT_MODE);
 diff --git a/net/minecraft/server/players/PlayerList.java b/net/minecraft/server/players/PlayerList.java
-index 248c08b4f1dc6cf47ac311d5872ae56485e3b425..39e624aca0cc803b682ea8d2304dcd86480265bb 100644
+index 248c08b4f1dc6cf47ac311d5872ae56485e3b425..19c8b1a728c28ed6e325b0b5e3d4aec764b74f0b 100644
 --- a/net/minecraft/server/players/PlayerList.java
 +++ b/net/minecraft/server/players/PlayerList.java
 @@ -125,6 +125,7 @@ public abstract class PlayerList {
@@ -363,7 +375,7 @@ index 248c08b4f1dc6cf47ac311d5872ae56485e3b425..39e624aca0cc803b682ea8d2304dcd86
 +        this.playersByName.put(player.getScoreboardName().toLowerCase(java.util.Locale.ROOT), player); // Spigot
 +        this.playersByUUID.put(player.getUUID(), player);
 +
-+        player.supressTrackerForLogin = true;
++        player.suppressTrackerForLogin = true;
 +        worldserver1.addNewPlayer(player);
 +        this.server.getCustomBossEvents().onPlayerConnect(player);
 +        org.bukkit.craftbukkit.entity.CraftPlayer bukkitPlayer = player.getBukkitEntity();
@@ -409,7 +421,7 @@ index 248c08b4f1dc6cf47ac311d5872ae56485e3b425..39e624aca0cc803b682ea8d2304dcd86
 +        }
 +
 +        player.sentListPacket = true;
-+        player.supressTrackerForLogin = false;
++        player.suppressTrackerForLogin = false;
 +        ((ServerLevel)player.level()).getChunkSource().chunkMap.addEntity(player);
 +
 +        this.sendLevelInfo(player, worldserver1);

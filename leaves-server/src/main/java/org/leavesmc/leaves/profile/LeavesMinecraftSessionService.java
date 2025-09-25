@@ -74,14 +74,14 @@ public class LeavesMinecraftSessionService extends PaperMinecraftSessionService 
                     final HasJoinedMinecraftServerResponse response = client.get(url, HasJoinedMinecraftServerResponse.class);
                     if (response != null && response.id() != null) {
                         if (LeavesConfig.mics.yggdrasil.loginProtect && cache != null) {
-                            if (!response.id().equals(cache.getId())) {
+                            if (!response.id().equals(cache.id())) {
                                 continue;
                             }
                         }
 
                         final GameProfile result1 = new GameProfile(response.id(), profileName);
                         if (response.properties() != null) {
-                            result1.getProperties().putAll(response.properties());
+                            result1.properties().putAll(response.properties());
                         }
 
                         final Set<ProfileActionType> profileActions = response.profileActions().stream()

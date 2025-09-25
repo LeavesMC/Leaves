@@ -4,31 +4,31 @@ Date: Fri, 17 Mar 2023 15:57:08 +0800
 Subject: [PATCH] Catch update suppression crash
 
 
-diff --git a/net/minecraft/network/protocol/PacketUtils.java b/net/minecraft/network/protocol/PacketUtils.java
-index ea687aab76df31a3e4ef7377c5a401ae76e17893..9b6f065d4ed6433ea1a067d46300f9d2525f5411 100644
---- a/net/minecraft/network/protocol/PacketUtils.java
-+++ b/net/minecraft/network/protocol/PacketUtils.java
-@@ -27,7 +27,20 @@ public class PacketUtils {
-                 if (processor.shouldHandleMessage(packet)) {
-                     try {
-                         packet.handle(processor);
+diff --git a/net/minecraft/network/PacketProcessor.java b/net/minecraft/network/PacketProcessor.java
+index 064c3dea7f1e7fe07f63853532edae6f0a3e4a5c..5b8425a964ff479940fd3a9f4ef3c912b525d93b 100644
+--- a/net/minecraft/network/PacketProcessor.java
++++ b/net/minecraft/network/PacketProcessor.java
+@@ -70,7 +70,20 @@ public class PacketProcessor implements AutoCloseable {
+             if (this.listener.shouldHandleMessage(this.packet)) {
+                 try {
+                     this.packet.handle(this.listener);
 +                    // Leaves start - update suppression crash fix
-+                    } catch (org.leavesmc.leaves.util.UpdateSuppressionException exception) {
-+                        if (processor instanceof net.minecraft.server.network.ServerGamePacketListenerImpl gamePacketListener) {
++                } catch (org.leavesmc.leaves.util.UpdateSuppressionException exception) {
++                    if (this.listener instanceof net.minecraft.server.network.ServerGamePacketListenerImpl gamePacketListener) {
++                        exception.providePlayer(gamePacketListener.player);
++                    }
++                    exception.consume();
+                 } catch (Exception var3) {
++                    if (var3.getCause() instanceof org.leavesmc.leaves.util.UpdateSuppressionException exception) {
++                        if (this.listener instanceof net.minecraft.server.network.ServerGamePacketListenerImpl gamePacketListener) {
 +                            exception.providePlayer(gamePacketListener.player);
 +                        }
 +                        exception.consume();
-+                    } catch (Exception var4) {
-+                        if (var4.getCause() instanceof org.leavesmc.leaves.util.UpdateSuppressionException exception) {
-+                            if (processor instanceof net.minecraft.server.network.ServerGamePacketListenerImpl gamePacketListener) {
-+                                exception.providePlayer(gamePacketListener.player);
-+                            }
-+                            exception.consume();
-+                        }
-+                        // Leaves end - update suppression crash fix
-                         if (var4 instanceof ReportedException reportedException && reportedException.getCause() instanceof OutOfMemoryError) {
-                             throw makeReportedException(var4, packet, processor);
-                         }
++                    }
++                    // Leaves end - update suppression crash fix
+                     if (var3 instanceof ReportedException reportedException && reportedException.getCause() instanceof OutOfMemoryError) {
+                         throw PacketUtils.makeReportedException(var3, this.packet, this.listener);
+                     }
 diff --git a/net/minecraft/server/MinecraftServer.java b/net/minecraft/server/MinecraftServer.java
 index 2bcd2e36c2a934a3b09f2407bd91a4b45989ed74..9b7fb261b6170afe3748bf8628dcac1c31b336f2 100644
 --- a/net/minecraft/server/MinecraftServer.java
@@ -109,14 +109,13 @@ index 537223e73dbc6e1f76752b6cd8fc059ffea635d4..b8d93586189567eca93bd3a723a222a4
                  return true;
              } else {
 diff --git a/net/minecraft/world/level/block/ShulkerBoxBlock.java b/net/minecraft/world/level/block/ShulkerBoxBlock.java
-index f3bc957110ef60ad5e4384b934b60dccea76d5a7..be76ec933182852504363048362ae1045a01dcf7 100644
+index f3bc957110ef60ad5e4384b934b60dccea76d5a7..ffca65d881ee6f4bde8e579d012ee5c1a11a0c2d 100644
 --- a/net/minecraft/world/level/block/ShulkerBoxBlock.java
 +++ b/net/minecraft/world/level/block/ShulkerBoxBlock.java
-@@ -182,8 +182,23 @@ public class ShulkerBoxBlock extends BaseEntityBlock {
-     }
+@@ -183,7 +183,17 @@ public class ShulkerBoxBlock extends BaseEntityBlock {
  
      @Override
-     protected int getAnalogOutputSignal(BlockState blockState, Level level, BlockPos pos) {
+     protected int getAnalogOutputSignal(BlockState state, Level level, BlockPos pos, Direction direction) {
 -        return AbstractContainerMenu.getRedstoneSignalFromBlockEntity(level.getBlockEntity(pos));
 +        // Leaves start - update suppression crash fix
 +        try {

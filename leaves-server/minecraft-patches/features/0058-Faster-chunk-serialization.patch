@@ -88,7 +88,7 @@ index 09fd99c9cbd23b5f3c899bfb00c9b89651948ed8..d58539fe376f548930b49141c87ec5eb
 +    @Override public <T> void compact(net.minecraft.world.level.chunk.Palette<T> srcPalette, net.minecraft.world.level.chunk.Palette<T> dstPalette, short[] out) {}  // Leaves - Gale - Lithium - faster chunk serialization
  }
 diff --git a/net/minecraft/world/level/chunk/PalettedContainer.java b/net/minecraft/world/level/chunk/PalettedContainer.java
-index 1843046fe145bb23f2e9cf3269fb05c0fb617603..57fd2cba6d47af8f3156fe3487f16ddaf0db57b8 100644
+index 1843046fe145bb23f2e9cf3269fb05c0fb617603..0221b3f4e7dab46ff4c3c601db163307f4cbe3cf 100644
 --- a/net/minecraft/world/level/chunk/PalettedContainer.java
 +++ b/net/minecraft/world/level/chunk/PalettedContainer.java
 @@ -23,6 +23,22 @@ import net.minecraft.util.ThreadingDetector;
@@ -114,10 +114,10 @@ index 1843046fe145bb23f2e9cf3269fb05c0fb617603..57fd2cba6d47af8f3156fe3487f16dda
      private static final int MIN_PALETTE_BITS = 0;
      public volatile PalettedContainer.Data<T> data; // Paper - optimise collisions - public
      private final Strategy<T> strategy;
-@@ -340,7 +356,61 @@ public class PalettedContainer<T> implements PaletteResize<T>, PalettedContainer
+@@ -340,6 +356,56 @@ public class PalettedContainer<T> implements PaletteResize<T>, PalettedContainer
      public synchronized PalettedContainerRO.PackedData<T> pack(Strategy<T> strategy) { // Paper - synchronize
          this.acquire();
-
+ 
 +        // Leaves start - Gale - Lithium - faster chunk serialization
 +        if (org.leavesmc.leaves.LeavesConfig.performance.fasterChunkSerialization) {
 +            Optional<LongStream> data = Optional.empty();
@@ -137,7 +137,7 @@ index 1843046fe145bb23f2e9cf3269fb05c0fb617603..57fd2cba6d47af8f3156fe3487f16dda
 +
 +                if (elements == null) {
 +                    org.leavesmc.leaves.lithium.common.world.chunk.LithiumHashPalette<T> compactedPalette = new org.leavesmc.leaves.lithium.common.world.chunk.LithiumHashPalette<>(registry, storage.getBits(), this.dummyPaletteResize);
-+                    short[] array = this.getOrCreate(strategy.size());
++                    short[] array = this.getOrCreate(strategy.entryCount());
 +
 +                    storage.compact(this.data.palette(), compactedPalette, array);
 +
@@ -146,7 +146,7 @@ index 1843046fe145bb23f2e9cf3269fb05c0fb617603..57fd2cba6d47af8f3156fe3487f16dda
 +                        data = this.asOptional(storage.getRaw().clone());
 +                        elements = hashPalette.getElements();
 +                    } else {
-+                        int bits = strategy.calculateBitsForSerialization(registry, compactedPalette.getSize());
++                        int bits = strategy.getConfigurationForPaletteSize(compactedPalette.getSize()).bitsInStorage();
 +                        if (bits != 0) {
 +                            // Re-pack the integer array as the palette has changed size
 +                            SimpleBitStorage copy = new SimpleBitStorage(bits, array.length);
@@ -168,11 +168,10 @@ index 1843046fe145bb23f2e9cf3269fb05c0fb617603..57fd2cba6d47af8f3156fe3487f16dda
 +            return new PalettedContainerRO.PackedData<>(elements, data);
 +        }
 +        // Leaves end - Gale - Lithium - faster chunk serialization
-         PalettedContainerRO.PackedData var12;
+         PalettedContainerRO.PackedData var14;
          try {
              BitStorage bitStorage = this.data.storage;
-             Palette<T> palette = this.data.palette;
-@@ -412,12 +482,59 @@ public class PalettedContainer<T> implements PaletteResize<T>, PalettedContainer
+@@ -412,13 +478,43 @@ public class PalettedContainer<T> implements PaletteResize<T>, PalettedContainer
  
      @Override
      public void count(PalettedContainer.CountConsumer<T> countConsumer) {
@@ -180,8 +179,8 @@ index 1843046fe145bb23f2e9cf3269fb05c0fb617603..57fd2cba6d47af8f3156fe3487f16dda
 -            countConsumer.accept(this.data.palette.valueFor(0), this.data.storage.getSize());
 -        } else {
 -            Int2IntOpenHashMap map = new Int2IntOpenHashMap();
--            this.data.storage.getAll(id -> map.addTo(id, 1));
--            map.int2IntEntrySet().forEach(idEntry -> countConsumer.accept(this.data.palette.valueFor(idEntry.getIntKey()), idEntry.getIntValue()));
+-            this.data.storage.getAll(i -> map.addTo(i, 1));
+-            map.int2IntEntrySet().forEach(entry -> countConsumer.accept(this.data.palette.valueFor(entry.getIntKey()), entry.getIntValue()));
 +        // Leaves start - Gale - Lithium - faster chunk serialization
 +        if (!org.leavesmc.leaves.LeavesConfig.performance.fasterChunkSerialization) {
 +            if (this.data.palette.getSize() == 1) {
@@ -221,4 +220,4 @@ index 1843046fe145bb23f2e9cf3269fb05c0fb617603..57fd2cba6d47af8f3156fe3487f16dda
 +        // Leaves end - Gale - Lithium - faster chunk serialization
      }
  
-     record Configuration<T>(Palette.Factory factory, int bits) {
+     @FunctionalInterface

@@ -80,7 +80,7 @@ index d438e31a082b675d7eb0eead7067a0b92363a9f9..c08f34bc17bec9f73c377b45389a7755
                              players.add(serverPlayer1);
                              if (players.size() >= resultLimit) {
 diff --git a/net/minecraft/server/MinecraftServer.java b/net/minecraft/server/MinecraftServer.java
-index e111da378b6b4c67a7baa05a145c53a7130683ac..299777b012bd733f76a6ab404d1c54645f7b4770 100644
+index e111da378b6b4c67a7baa05a145c53a7130683ac..9ea2fdfbf328b8bedac48e863021d92d40eae8cc 100644
 --- a/net/minecraft/server/MinecraftServer.java
 +++ b/net/minecraft/server/MinecraftServer.java
 @@ -1575,7 +1575,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
@@ -101,6 +101,15 @@ index e111da378b6b4c67a7baa05a145c53a7130683ac..299777b012bd733f76a6ab404d1c5464
      }
  
      public String[] getPlayerNames() {
+@@ -2029,7 +2029,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+         } else {
+             int i = 0;
+ 
+-            for (ServerPlayer serverPlayer : this.getPlayerList().getPlayers()) {
++            for (ServerPlayer serverPlayer : this.getPlayerList().realPlayers) { // Leaves - only real player
+                 // Paper start - Expand PlayerGameModeChangeEvent
+                 org.bukkit.event.player.PlayerGameModeChangeEvent event = serverPlayer.setGameMode(gameMode, org.bukkit.event.player.PlayerGameModeChangeEvent.Cause.DEFAULT_GAMEMODE, null);
+                 if (event != null && event.isCancelled()) {
 @@ -2197,7 +2197,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
                      if (Thread.currentThread() != this.serverThread) return; // Paper
                      // Paper start - we don't need to save everything, just advancements
@@ -110,13 +119,13 @@ index e111da378b6b4c67a7baa05a145c53a7130683ac..299777b012bd733f76a6ab404d1c5464
                          player.getAdvancements().save();
                      }
                      // Paper end - we don't need to save everything, just advancements
-@@ -2335,8 +2335,13 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+@@ -2335,7 +2335,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
              PlayerList playerList = this.getPlayerList();
              UserWhiteList whiteList = playerList.getWhiteList();
  
 -            for (ServerPlayer serverPlayer : Lists.newArrayList(playerList.getPlayers())) {
 +            for (ServerPlayer serverPlayer : Lists.newArrayList(playerList.realPlayers)) { // Leaves - only real player
-                 if (!whiteList.isWhiteListed(serverPlayer.getGameProfile()) && !this.getPlayerList().isOp(serverPlayer.getGameProfile())) { // Paper - Fix kicking ops when whitelist is reloaded (MC-171420)
+                 if (!whiteList.isWhiteListed(serverPlayer.nameAndId()) && !this.getPlayerList().isOp(serverPlayer.nameAndId())) { // Paper - Fix kicking ops when whitelist is reloaded (MC-171420)
                      serverPlayer.connection.disconnect(net.kyori.adventure.text.Component.text(org.spigotmc.SpigotConfig.whitelistMessage), org.bukkit.event.player.PlayerKickEvent.Cause.WHITELIST); // Paper - use configurable message & kick event cause
                  }
 diff --git a/net/minecraft/server/PlayerAdvancements.java b/net/minecraft/server/PlayerAdvancements.java
@@ -154,19 +163,6 @@ index 5c9f2a8476ff260ec7f0843f7c956c71e9b0d34d..22d67e72e0bf2dbe8c7a936260bb3577
              if (serverPlayer.getBukkitEntity().getScoreboard().getHandle() != this) continue; // CraftBukkit - Only players on this board
              for (Packet<?> packet : stopTrackingPackets) {
                  serverPlayer.connection.send(packet);
-diff --git a/net/minecraft/server/commands/DefaultGameModeCommands.java b/net/minecraft/server/commands/DefaultGameModeCommands.java
-index 843c8e299da32755f2d7648a7f0758820546f613..4de23b0f585ec7a5cee4efbc8ca0dac1f9fca689 100644
---- a/net/minecraft/server/commands/DefaultGameModeCommands.java
-+++ b/net/minecraft/server/commands/DefaultGameModeCommands.java
-@@ -27,7 +27,7 @@ public class DefaultGameModeCommands {
-         server.setDefaultGameType(gamemode);
-         GameType forcedGameType = server.getForcedGameType();
-         if (forcedGameType != null) {
--            for (ServerPlayer serverPlayer : server.getPlayerList().getPlayers()) {
-+            for (ServerPlayer serverPlayer : server.getPlayerList().realPlayers) { // Leaves - only real players
-                 // Paper start - Expand PlayerGameModeChangeEvent
-                 org.bukkit.event.player.PlayerGameModeChangeEvent event = serverPlayer.setGameMode(gamemode, org.bukkit.event.player.PlayerGameModeChangeEvent.Cause.DEFAULT_GAMEMODE, net.kyori.adventure.text.Component.empty());
-                 if (event != null && event.isCancelled()) {
 diff --git a/net/minecraft/server/commands/ListPlayersCommand.java b/net/minecraft/server/commands/ListPlayersCommand.java
 index e7c778a7f292fd0749cbd5e6586ad1b93ac7f29e..024b56405bb58801b17a6adad7fec7a461d12a5c 100644
 --- a/net/minecraft/server/commands/ListPlayersCommand.java
@@ -269,20 +265,21 @@ index cfe62a56ce1b4222ed6d73fc6390b7726542a9cd..234478bca5f8b1ea768b487c943b44e0
                                                  .map(Player::nameAndId)
                                                  .filter(nameAndId -> !playerList.getWhiteList().isWhiteListed(nameAndId))
 diff --git a/net/minecraft/server/gui/PlayerListComponent.java b/net/minecraft/server/gui/PlayerListComponent.java
-index 5a8cd3e6b448a4472092690cf589bca10b142126..5933a2f42d2d3c3ab02003ef80d5e9ce2234bad2 100644
+index 5a8cd3e6b448a4472092690cf589bca10b142126..c9abb60b96e07fae86111be503bc49422ba92906 100644
 --- a/net/minecraft/server/gui/PlayerListComponent.java
 +++ b/net/minecraft/server/gui/PlayerListComponent.java
-@@ -17,8 +17,13 @@ public class PlayerListComponent extends JList<String> {
+@@ -17,9 +17,8 @@ public class PlayerListComponent extends JList<String> {
          if (this.tickCount++ % 20 == 0) {
              Vector<String> list = new Vector<>();
  
 -            for (int i = 0; i < this.server.getPlayerList().getPlayers().size(); i++) {
--                list.add(this.server.getPlayerList().getPlayers().get(i).getGameProfile().getName());
+-                list.add(this.server.getPlayerList().getPlayers().get(i).getGameProfile().name());
+-            }
 +            for (int i = 0; i < this.server.getPlayerList().realPlayers.size(); i++) { // Leaves - only real players
-+                list.add(this.server.getPlayerList().realPlayers.get(i).getGameProfile().getName()); // Leaves - only real players
-             }
++                list.add(this.server.getPlayerList().realPlayers.get(i).getGameProfile().name()); // Leaves - only real players
  
              this.setListData(list);
+         }
 diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
 index 5deab686b386e3b82205a828ae12a72cb0f2e6fb..0db088864eac6c65a78620953821a1280056a688 100644
 --- a/net/minecraft/server/level/ServerLevel.java
@@ -306,7 +303,7 @@ index 5deab686b386e3b82205a828ae12a72cb0f2e6fb..0db088864eac6c65a78620953821a128
                  }
                  // Leaves end - skip
 diff --git a/net/minecraft/server/players/PlayerList.java b/net/minecraft/server/players/PlayerList.java
-index 248c08b4f1dc6cf47ac311d5872ae56485e3b425..190b5cce7e348c18612ba67eeca3ab19826e59fc 100644
+index 248c08b4f1dc6cf47ac311d5872ae56485e3b425..39e624aca0cc803b682ea8d2304dcd86480265bb 100644
 --- a/net/minecraft/server/players/PlayerList.java
 +++ b/net/minecraft/server/players/PlayerList.java
 @@ -125,6 +125,7 @@ public abstract class PlayerList {
@@ -443,17 +440,15 @@ index 248c08b4f1dc6cf47ac311d5872ae56485e3b425..190b5cce7e348c18612ba67eeca3ab19
      public void placeNewPlayer(Connection connection, ServerPlayer player, CommonListenerCookie cookie) {
          player.isRealPlayer = true; // Paper
          player.loginTime = System.currentTimeMillis(); // Paper - Replace OfflinePlayer#getLastPlayed
-@@ -234,9 +354,109 @@ public abstract class PlayerList {
-         org.bukkit.event.player.PlayerJoinEvent playerJoinEvent = new org.bukkit.event.player.PlayerJoinEvent(bukkitPlayer, io.papermc.paper.adventure.PaperAdventure.asAdventure(mutableComponent)); // Paper - Adventure
-         this.cserver.getPluginManager().callEvent(playerJoinEvent);
+@@ -215,6 +335,7 @@ public abstract class PlayerList {
  
-             // player.connection.send(ClientboundPlayerInfoUpdatePacket.createPlayerInitializing(this.players)); // CraftBukkit - replaced with loop below
-             this.players.add(player);
-+            this.realPlayers.add(player); // Leaves - replay api
-             this.playersByName.put(player.getScoreboardName().toLowerCase(java.util.Locale.ROOT), player); // Spigot
-             this.playersByUUID.put(player.getUUID(), player);
-             // this.broadcastAll(ClientboundPlayerInfoUpdatePacket.createPlayerInitializing(List.of(player))); // CraftBukkit - replaced with loop below
-@@ -503,6 +624,7 @@ public abstract class PlayerList {
+         // player.connection.send(ClientboundPlayerInfoUpdatePacket.createPlayerInitializing(this.players)); // CraftBukkit - replaced with loop below
+         this.players.add(player);
++        this.realPlayers.add(player); // Leaves - replay api
+         this.playersByName.put(player.getScoreboardName().toLowerCase(java.util.Locale.ROOT), player); // Spigot
+         this.playersByUUID.put(player.getUUID(), player);
+         // this.broadcastAll(ClientboundPlayerInfoUpdatePacket.createPlayerInitializing(List.of(player))); // CraftBukkit - replaced with loop below
+@@ -419,6 +540,7 @@ public abstract class PlayerList {
      }
  
      protected void save(ServerPlayer player) {
@@ -461,7 +456,7 @@ index 248c08b4f1dc6cf47ac311d5872ae56485e3b425..190b5cce7e348c18612ba67eeca3ab19
          if (!player.getBukkitEntity().isPersistent()) return; // CraftBukkit
          player.lastSave = MinecraftServer.currentTick; // Paper - Incremental chunk and player saving
          this.playerIo.save(player);
-@@ -433,6 +654,43 @@ public abstract class PlayerList {
+@@ -433,6 +555,43 @@ public abstract class PlayerList {
          }
      }
  
@@ -505,7 +500,7 @@ index 248c08b4f1dc6cf47ac311d5872ae56485e3b425..190b5cce7e348c18612ba67eeca3ab19
      public @Nullable net.kyori.adventure.text.Component remove(ServerPlayer player) { // CraftBukkit - return string // Paper - return Component
          // Paper start - Fix kick event leave message not being sent
          return this.remove(player, net.kyori.adventure.text.Component.translatable("multiplayer.player.left", net.kyori.adventure.text.format.NamedTextColor.YELLOW, io.papermc.paper.configuration.GlobalConfiguration.get().messages.useDisplayNameInQuitMessage ? player.getBukkitEntity().displayName() : io.papermc.paper.adventure.PaperAdventure.asAdventure(player.getDisplayName())));
-@@ -506,6 +764,7 @@ public abstract class PlayerList {
+@@ -506,6 +665,7 @@ public abstract class PlayerList {
          player.retireScheduler(); // Paper - Folia schedulers
          player.getAdvancements().stopListening();
          this.players.remove(player);
@@ -513,7 +508,7 @@ index 248c08b4f1dc6cf47ac311d5872ae56485e3b425..190b5cce7e348c18612ba67eeca3ab19
          this.playersByName.remove(player.getScoreboardName().toLowerCase(java.util.Locale.ROOT)); // Spigot
          this.server.getCustomBossEvents().onPlayerDisconnect(player);
          UUID uuid = player.getUUID();
-@@ -881,14 +1140,19 @@ public abstract class PlayerList {
+@@ -881,14 +1041,14 @@ public abstract class PlayerList {
      }
  
      public String[] getPlayerNamesArray() {
@@ -521,25 +516,24 @@ index 248c08b4f1dc6cf47ac311d5872ae56485e3b425..190b5cce7e348c18612ba67eeca3ab19
 +        String[] strings = new String[this.realPlayers.size() + this.server.getBotList().bots.size()]; // Leaves - fakeplayer support, and skip photographer
  
 -        for (int i = 0; i < this.players.size(); i++) {
--            strings[i] = this.players.get(i).getGameProfile().getName();
+-            strings[i] = this.players.get(i).getGameProfile().name();
 +        for (int i = 0; i < this.realPlayers.size(); i++) { // Leaves - only real players
-+            strings[i] = this.realPlayers.get(i).getGameProfile().getName(); // Leaves - only real players
++            strings[i] = this.realPlayers.get(i).getGameProfile().name(); // Leaves - only real players
          }
          // Leaves start - fakeplayer support
 -        for (int i = this.players.size(); i < strings.length; ++i) {
 -            strings[i] = this.server.getBotList().bots.get(i - this.players.size()).getGameProfile().getName();
 +        for (int i = this.realPlayers.size(); i < strings.length; ++i) { // Leaves - only real players
-+            strings[i] = this.server.getBotList().bots.get(i - this.realPlayers.size()).getGameProfile().getName(); // Leaves - only real players
++            strings[i] = this.server.getBotList().bots.get(i - this.realPlayers.size()).getGameProfile().name(); // Leaves - only real players
          }
          // Leaves end - fakeplayer support
  
-@@ -958,8 +1222,13 @@ public abstract class PlayerList {
-     }
+@@ -959,7 +1119,7 @@ public abstract class PlayerList {
  
      // Paper start - whitelist verify event / login event
-     public LoginResult canBypassFullServerLogin(final GameProfile profile, final LoginResult currentResult) {
--        final boolean shouldKick = this.players.size() >= this.maxPlayers && !this.canBypassPlayerLimit(profile);
-+        final boolean shouldKick = this.realPlayers.size() >= this.maxPlayers && !this.canBypassPlayerLimit(profile); // Leaves - only real player
+     public LoginResult canBypassFullServerLogin(final NameAndId nameAndId, final LoginResult currentResult) {
+-        final boolean shouldKick = this.players.size() >= this.getMaxPlayers() && !this.canBypassPlayerLimit(nameAndId);
++        final boolean shouldKick = this.realPlayers.size() >= this.getMaxPlayers() && !this.canBypassPlayerLimit(nameAndId); // Leaves - only real player
          final io.papermc.paper.event.player.PlayerServerFullCheckEvent fullCheckEvent = new io.papermc.paper.event.player.PlayerServerFullCheckEvent(
              new com.destroystokyo.paper.profile.CraftPlayerProfile(nameAndId),
              io.papermc.paper.adventure.PaperAdventure.asAdventure(currentResult.message),

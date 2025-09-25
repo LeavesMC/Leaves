@@ -20,9 +20,11 @@ import net.minecraft.world.entity.npc.AbstractVillager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.ThrownEnderpearl;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.level.storage.ValueInput;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.command.CommandSender;
 import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.event.entity.EntityRemoveEvent;
@@ -106,7 +108,12 @@ public class BotList {
         bot.connection = new ServerBotPacketListenerImpl(this.server, bot);
         Optional<ValueInput> optional;
         try (ProblemReporter.ScopedCollector scopedCollector = new ProblemReporter.ScopedCollector(bot.problemPath(), LOGGER)) {
-            optional = playerIO.load(bot, scopedCollector);
+            Optional<CompoundTag> nbt = playerIO.load(bot.nameAndId());
+            if (nbt.isEmpty()) {
+                optional = Optional.empty();
+            } else {
+                optional = Optional.of(TagValueInput.create(scopedCollector, bot.registryAccess(), nbt.orElseThrow()));
+            }
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -118,7 +125,7 @@ public class BotList {
 
         ResourceKey<Level> resourcekey = null;
         if (nbt.getLong("WorldUUIDMost").isPresent() && nbt.getLong("WorldUUIDLeast").isPresent()) {
-            org.bukkit.World bWorld = Bukkit.getServer().getWorld(new UUID(nbt.getLong("WorldUUIDMost").orElseThrow(), nbt.getLong("WorldUUIDLeast").orElseThrow()));
+            World bWorld = Bukkit.getServer().getWorld(new UUID(nbt.getLong("WorldUUIDMost").orElseThrow(), nbt.getLong("WorldUUIDLeast").orElseThrow()));
             if (bWorld != null) {
                 resourcekey = ((CraftWorld) bWorld).getHandle().dimension();
             }

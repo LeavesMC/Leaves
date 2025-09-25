@@ -26,6 +26,7 @@ import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
 import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.event.entity.EntityRemoveEvent;
+import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.LeavesConfig;
@@ -78,7 +79,7 @@ public class BotList {
         Location location = event.getCreateLocation();
         ServerLevel world = ((CraftWorld) location.getWorld()).getHandle();
 
-        CustomGameProfile profile = new CustomGameProfile(BotUtil.getBotUUID(state), state.name(), state.skin());
+        GameProfile profile = createBotProfile(BotUtil.getBotUUID(state), state.name(), state.skin());
         ServerBot bot = new ServerBot(this.server, world, profile);
         bot.createState = state;
         if (event.getCreator() instanceof org.bukkit.entity.Player player) {
@@ -336,17 +337,13 @@ public class BotList {
         return this.dataStorage.getSavedBotList();
     }
 
-    public static class CustomGameProfile extends GameProfile {
-
-        public CustomGameProfile(UUID uuid, String name, String[] skin) {
-            super(uuid, name);
-            this.setSkin(skin);
+    @Contract("_, _, _ -> new")
+    public static @NotNull GameProfile createBotProfile(UUID uuid, String name, String[] skin) {
+        GameProfile profile = new GameProfile(uuid, name);
+        profile.properties().put("is_bot", new Property("is_bot", "true"));
+        if (skin != null) {
+            profile.properties().put("textures", new Property("textures", skin[0], skin[1]));
         }
-
-        public void setSkin(String[] skin) {
-            if (skin != null) {
-                this.properties().put("textures", new Property("textures", skin[0], skin[1]));
-            }
-        }
+        return new GameProfile(uuid, name);
     }
 }

@@ -118,7 +118,7 @@ index 79910948d3d835ac0eaec5785efbf87440dc5489..ad29caa0cd6e8b84760f9a19252d6d4f
                  return banIp(source, playerByName.getIpAddress(), reason);
              } else {
 diff --git a/net/minecraft/server/commands/BanPlayerCommands.java b/net/minecraft/server/commands/BanPlayerCommands.java
-index ac88de89b4a66e17f25ed4d36d911dc5e84dc892..4ab56431509f3344d759ae31f70bda23cb1cef95 100644
+index ac88de89b4a66e17f25ed4d36d911dc5e84dc892..ba44f6e7ada2903d217a6b327435f1f777d4c626 100644
 --- a/net/minecraft/server/commands/BanPlayerCommands.java
 +++ b/net/minecraft/server/commands/BanPlayerCommands.java
 @@ -44,8 +44,15 @@ public class BanPlayerCommands {
@@ -129,7 +129,7 @@ index ac88de89b4a66e17f25ed4d36d911dc5e84dc892..4ab56431509f3344d759ae31f70bda23
 +        boolean hasBot = false; // Leaves - disable kick
          for (NameAndId nameAndId : gameProfiles) {
 +            // Leaves start - disable ban
-+            if (nameAndId instanceof org.leavesmc.leaves.bot.BotList.CustomGameProfile) {
++            if (nameAndId.isBot()) {
 +                source.sendFailure(Component.literal("Permission denied"));
 +                hasBot = true;
 +                continue;
@@ -191,19 +191,19 @@ index a5e5b0e0cd67a65b9fe3f69416070429196c5fa8..1a756a09cd281e60e8802a4111f71b0b
                  return i;
              }
 diff --git a/net/minecraft/server/commands/OpCommand.java b/net/minecraft/server/commands/OpCommand.java
-index 72e593966e66e27064030f5486f68a905885da1f..a1f0fb0f5532e39f4b12bfe40786a0eba1ffbaba 100644
+index 72e593966e66e27064030f5486f68a905885da1f..2682f6debf14ed3040a78b02d820e949ca3832c5 100644
 --- a/net/minecraft/server/commands/OpCommand.java
 +++ b/net/minecraft/server/commands/OpCommand.java
 @@ -43,6 +43,7 @@ public class OpCommand {
          int i = 0;
  
          for (NameAndId nameAndId : gameProfiles) {
-+            if (nameAndId instanceof org.leavesmc.leaves.bot.BotList.CustomGameProfile) continue; // Leaves - disable op
++            if (nameAndId.isBot()) continue; // Leaves - disable op
              if (!playerList.isOp(nameAndId)) {
                  playerList.op(nameAndId);
                  i++;
 diff --git a/net/minecraft/server/dedicated/DedicatedServer.java b/net/minecraft/server/dedicated/DedicatedServer.java
-index 4f0f0a6f8c8a3dd95213ce9148c2093010b440d9..a3a47b5ee911f48452d3521692373d331ce10db2 100644
+index ecdb937f08a437a1d2398e49ca835071015844f2..fdda4acec6186c5a0290f3d9895cbcec782b8629 100644
 --- a/net/minecraft/server/dedicated/DedicatedServer.java
 +++ b/net/minecraft/server/dedicated/DedicatedServer.java
 @@ -255,6 +255,7 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
@@ -348,6 +348,54 @@ index c4c1274481cf2353c8af5c1feb697a1bcf0ce5f4..a358e6727c6952e902689d3521393eeb
          String string = username.toLowerCase(Locale.ROOT);
          boolean stateLocked = true; try { this.stateLock.lock(); // Paper - Fix GameProfileCache concurrency
          CachedUserNameToIdResolver.GameProfileInfo gameProfileInfo = this.profilesByName.get(string);
+diff --git a/net/minecraft/server/players/NameAndId.java b/net/minecraft/server/players/NameAndId.java
+index 4888e84144c76edddee1a51dab3b05bc0f484c83..bba9101149c1b582fe261280fe4f6613ab4193b9 100644
+--- a/net/minecraft/server/players/NameAndId.java
++++ b/net/minecraft/server/players/NameAndId.java
+@@ -8,18 +8,22 @@ import java.util.UUID;
+ import javax.annotation.Nullable;
+ import net.minecraft.core.UUIDUtil;
+ 
+-public record NameAndId(UUID id, String name) {
++public record NameAndId(UUID id, String name, boolean isBot) { // Leaves - fakeplayer
+     public static final Codec<NameAndId> CODEC = RecordCodecBuilder.create(
+         instance -> instance.group(UUIDUtil.STRING_CODEC.fieldOf("id").forGetter(NameAndId::id), Codec.STRING.fieldOf("name").forGetter(NameAndId::name))
+             .apply(instance, NameAndId::new)
+     );
+ 
+     public NameAndId(GameProfile profile) {
+-        this(profile.id(), profile.name());
++        this(profile.id(), profile.name(), com.google.common.collect.Iterables.getFirst(profile.properties().get("is_bot"), "false").equals("true")); // Leaves - fakeplayer
+     }
+ 
+     public NameAndId(com.mojang.authlib.yggdrasil.response.NameAndId nameAndId) {
+-        this(nameAndId.id(), nameAndId.name());
++        this(nameAndId.id(), nameAndId.name(), false); // Leaves - fakeplayer
++    }
++
++    public NameAndId(UUID uuid, String name) {
++        this(uuid, name, false); // Leaves - fakeplayer
+     }
+ 
+     @Nullable
+@@ -34,7 +38,7 @@ public record NameAndId(UUID id, String name) {
+                 return null;
+             }
+ 
+-            return new NameAndId(uuid, json.get("name").getAsString());
++            return new NameAndId(uuid, json.get("name").getAsString(), false); // Leaves - fakeplayer
+         } else {
+             return null;
+         }
+@@ -47,7 +51,7 @@ public record NameAndId(UUID id, String name) {
+ 
+     public static NameAndId createOffline(String username) {
+         UUID uuid = UUIDUtil.createOfflinePlayerUUID(username);
+-        return new NameAndId(uuid, username);
++        return new NameAndId(uuid, username, false); // Leaves - fakeplayer
+     }
+ 
+     // Paper start - utility method for common conversion back to the game profile
 diff --git a/net/minecraft/server/players/PlayerList.java b/net/minecraft/server/players/PlayerList.java
 index 03ae88e05414a2e46d096e52039faabaf14d2b7f..cf362c3c8b3018378173c7bf25e29fcb398a517a 100644
 --- a/net/minecraft/server/players/PlayerList.java

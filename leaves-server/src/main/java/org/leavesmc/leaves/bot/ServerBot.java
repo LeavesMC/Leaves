@@ -424,7 +424,7 @@ public class ServerBot extends ServerPlayer {
         createBuilder.createReason(BotCreateEvent.CreateReason.INTERNAL).creator(null);
 
         this.createState = createBuilder.build();
-        this.gameProfile = new BotList.CustomGameProfile(this.getUUID(), this.createState.name(), this.createState.skin());
+        this.gameProfile = BotList.createBotProfile(this.getUUID(), this.createState.name(), this.createState.skin());
 
 
         if (nbt.list("actions", CompoundTag.CODEC).isPresent()) {

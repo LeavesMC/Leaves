@@ -4,7 +4,6 @@ import org.bukkit.Location;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.entity.bot.action.BotAction;
-import org.leavesmc.leaves.entity.bot.action.CustomBotAction;
 
 import java.util.Collection;
 import java.util.UUID;
@@ -46,8 +45,4 @@ public interface BotManager {
     <T extends BotAction<T>> T newAction(@NotNull Class<T> type);
 
     BotCreator botCreator(@NotNull String realName, @NotNull Location location);
-
-    boolean registerCustomAction(@NotNull CustomBotAction customBotAction, boolean resendCommandTree);
-
-    boolean registerCustomAction(@NotNull CustomBotAction customBotAction);
 }

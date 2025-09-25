@@ -2,8 +2,8 @@ package org.leavesmc.leaves.bot.agent.actions;
 
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.NotNull;
-import org.leavesmc.leaves.util.ExtraData;
-import org.leavesmc.leaves.command.LeavesCommandContext;
+import org.leavesmc.leaves.bot.agent.ExtraData;
+import org.leavesmc.leaves.command.CommandContext;
 
 import java.util.function.Supplier;
 
@@ -22,7 +22,7 @@ public abstract class AbstractTimerBotAction<E extends AbstractTimerBotAction<E>
     }
 
     @Override
-    public void loadCommand(@NotNull LeavesCommandContext context) {
+    public void loadCommand(@NotNull CommandContext context) {
         this.setStartDelayTick(context.getIntegerOrDefault("delay", 0));
         this.setDoIntervalTick(context.getIntegerOrDefault("interval", 20));
         this.setDoNumber(context.getIntegerOrDefault("do_number", 1));

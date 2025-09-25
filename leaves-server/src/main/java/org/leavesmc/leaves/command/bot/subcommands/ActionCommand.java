@@ -6,7 +6,6 @@ import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.command.ArgumentNode;
 import org.leavesmc.leaves.command.CommandContext;
-import org.leavesmc.leaves.command.LeavesCommandContext;
 import org.leavesmc.leaves.command.arguments.BotArgumentType;
 import org.leavesmc.leaves.command.bot.BotSubcommand;
 import org.leavesmc.leaves.command.bot.subcommands.action.ListCommand;

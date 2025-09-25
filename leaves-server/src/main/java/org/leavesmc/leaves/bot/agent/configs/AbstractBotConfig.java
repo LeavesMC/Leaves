@@ -9,8 +9,8 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.minecraft.nbt.CompoundTag;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.util.ExtraData;
-import org.leavesmc.leaves.command.LeavesCommandContext;
+import org.leavesmc.leaves.bot.agent.ExtraData;
+import org.leavesmc.leaves.command.CommandContext;
 import org.leavesmc.leaves.command.WrappedArgument;
 
 import java.lang.reflect.Method;
@@ -34,7 +34,7 @@ public abstract class AbstractBotConfig<T, E extends AbstractBotConfig<T, E>> {
     }
 
     @SuppressWarnings("RedundantThrows")
-    public void applySuggestions(final LeavesCommandContext context, final SuggestionsBuilder builder) throws CommandSyntaxException {
+    public void applySuggestions(final CommandContext context, final SuggestionsBuilder builder) throws CommandSyntaxException {
     }
 
     public AbstractBotConfig<T, E> setBot(ServerBot bot) {
@@ -50,7 +50,7 @@ public abstract class AbstractBotConfig<T, E extends AbstractBotConfig<T, E>> {
 
     public abstract void setValue(T value) throws CommandSyntaxException;
 
-    public abstract T loadFromCommand(@NotNull LeavesCommandContext context) throws CommandSyntaxException;
+    public abstract T loadFromCommand(@NotNull CommandContext context) throws CommandSyntaxException;
 
     public String getName() {
         return name;

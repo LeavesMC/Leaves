@@ -14,7 +14,7 @@ import java.util.List;
 import static org.leavesmc.leaves.command.CommandNode.getNameForNode;
 
 @SuppressWarnings({"ClassCanBeRecord", "unused"})
-public class CommandContext implements LeavesCommandContext {
+public class CommandContext {
     private final com.mojang.brigadier.context.CommandContext<CommandSourceStack> source;
 
     public CommandContext(com.mojang.brigadier.context.CommandContext<CommandSourceStack> source) {
@@ -119,7 +119,7 @@ public class CommandContext implements LeavesCommandContext {
         return source.isForked();
     }
 
-    public com.mojang.brigadier.context.CommandContext<CommandSourceStack> rawContext() {
+    public com.mojang.brigadier.context.CommandContext<CommandSourceStack> getMojangContext() {
         return source;
     }
 }

@@ -8,8 +8,8 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesLogger;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.util.ExtraData;
-import org.leavesmc.leaves.command.LeavesCommandContext;
+import org.leavesmc.leaves.bot.agent.ExtraData;
+import org.leavesmc.leaves.command.CommandContext;
 import org.leavesmc.leaves.command.WrappedArgument;
 import org.leavesmc.leaves.event.bot.BotActionExecuteEvent;
 import org.leavesmc.leaves.event.bot.BotActionStopEvent;
@@ -181,7 +181,7 @@ public abstract class AbstractBotAction<E extends AbstractBotAction<E>> {
     }
 
     @SuppressWarnings("RedundantThrows")
-    public void loadCommand(@NotNull LeavesCommandContext context) throws CommandSyntaxException {
+    public void loadCommand(@NotNull CommandContext context) throws CommandSyntaxException {
     }
 
     @NotNull

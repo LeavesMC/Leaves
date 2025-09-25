@@ -7,7 +7,6 @@ import org.bukkit.command.CommandSender;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.command.CommandContext;
-import org.leavesmc.leaves.command.LeavesCommandContext;
 import org.leavesmc.leaves.command.LiteralNode;
 import org.leavesmc.leaves.command.leaves.LeavesSubcommand;
 

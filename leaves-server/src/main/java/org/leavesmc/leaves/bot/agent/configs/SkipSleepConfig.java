@@ -4,7 +4,7 @@ import com.mojang.brigadier.arguments.BoolArgumentType;
 import net.minecraft.nbt.CompoundTag;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesConfig;
-import org.leavesmc.leaves.command.LeavesCommandContext;
+import org.leavesmc.leaves.command.CommandContext;
 
 public class SkipSleepConfig extends AbstractBotConfig<Boolean, SkipSleepConfig> {
 
@@ -23,7 +23,7 @@ public class SkipSleepConfig extends AbstractBotConfig<Boolean, SkipSleepConfig>
     }
 
     @Override
-    public Boolean loadFromCommand(@NotNull LeavesCommandContext context) {
+    public Boolean loadFromCommand(@NotNull CommandContext context) {
         return context.getBoolean(getName());
     }
 

@@ -38,10 +38,6 @@ public class Actions {
         register(new ServerSwapAction(), SwapAction.class);
     }
 
-    public static boolean register(@NotNull CustomBotAction customBotAction) {
-        return register(new ServerCustomBotAction(customBotAction), customBotAction.getClass());
-    }
-
     public static boolean register(@NotNull AbstractBotAction<?> action, Class<?> type) {
         if (!actionsByName.containsKey(action.getName())) {
             actionsByName.put(action.getName(), action);

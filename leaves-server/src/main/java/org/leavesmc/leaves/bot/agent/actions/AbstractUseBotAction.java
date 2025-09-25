@@ -5,8 +5,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionResult;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.util.ExtraData;
-import org.leavesmc.leaves.command.LeavesCommandContext;
+import org.leavesmc.leaves.bot.agent.ExtraData;
+import org.leavesmc.leaves.command.CommandContext;
 import org.leavesmc.leaves.event.bot.BotActionStopEvent;
 
 import java.util.function.Supplier;
@@ -30,7 +30,7 @@ public abstract class AbstractUseBotAction<T extends AbstractUseBotAction<T>> ex
     }
 
     @Override
-    public void loadCommand(@NotNull LeavesCommandContext context) {
+    public void loadCommand(@NotNull CommandContext context) {
         super.loadCommand(context);
         this.useTickTimeout = context.getIntegerOrDefault("use_timeout", -1);
     }

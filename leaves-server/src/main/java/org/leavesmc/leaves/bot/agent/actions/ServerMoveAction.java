@@ -2,8 +2,8 @@ package org.leavesmc.leaves.bot.agent.actions;
 
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.util.ExtraData;
-import org.leavesmc.leaves.command.LeavesCommandContext;
+import org.leavesmc.leaves.bot.agent.ExtraData;
+import org.leavesmc.leaves.command.CommandContext;
 import org.leavesmc.leaves.command.arguments.EnumArgumentType;
 import org.leavesmc.leaves.entity.bot.action.MoveAction.MoveDirection;
 import org.leavesmc.leaves.entity.bot.actions.CraftMoveAction;
@@ -18,7 +18,7 @@ public class ServerMoveAction extends AbstractStateBotAction<ServerMoveAction> {
     }
 
     @Override
-    public void loadCommand(@NotNull LeavesCommandContext context) {
+    public void loadCommand(@NotNull CommandContext context) {
         this.direction = context.getArgument("direction", MoveDirection.class);
     }
 

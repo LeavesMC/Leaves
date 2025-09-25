@@ -7,8 +7,8 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Entity;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.util.ExtraData;
-import org.leavesmc.leaves.command.LeavesCommandContext;
+import org.leavesmc.leaves.bot.agent.ExtraData;
+import org.leavesmc.leaves.command.CommandContext;
 import org.leavesmc.leaves.entity.bot.actions.CraftRotationAction;
 
 import java.text.DecimalFormat;
@@ -47,7 +47,7 @@ public class ServerRotationAction extends AbstractBotAction<ServerRotationAction
     private float pitch = 0.0f;
 
     @Override
-    public void loadCommand(@NotNull LeavesCommandContext context) {
+    public void loadCommand(@NotNull CommandContext context) {
         CommandSender sender = context.getSender();
         if (sender instanceof Entity entity) {
             this.yaw = entity.getYaw();

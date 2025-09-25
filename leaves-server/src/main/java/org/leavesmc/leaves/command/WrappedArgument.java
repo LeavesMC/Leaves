@@ -2,12 +2,15 @@ package org.leavesmc.leaves.command;
 
 import com.mojang.brigadier.arguments.ArgumentType;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.brigadier.suggestion.Suggestions;
+import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
 
 import java.util.concurrent.CompletableFuture;
 
-public class WrappedArgument<T> implements LeavesWrappedArgument<T> {
+public class WrappedArgument<T> {
     private final String name;
     private final ArgumentType<T> type;
     private AsyncSuggestionProvider asyncSuggestionProvider = null;
@@ -51,5 +54,15 @@ public class WrappedArgument<T> implements LeavesWrappedArgument<T> {
             });
         }
         return builder;
+    }
+
+    @FunctionalInterface
+    public interface SuggestionApplier {
+        void applySuggestions(final CommandContext context, final SuggestionsBuilder builder) throws CommandSyntaxException;
+    }
+
+    @FunctionalInterface
+    public interface AsyncSuggestionProvider {
+        CompletableFuture<Suggestions> getSuggestions(final CommandContext context, final SuggestionsBuilder builder) throws CommandSyntaxException;
     }
 }

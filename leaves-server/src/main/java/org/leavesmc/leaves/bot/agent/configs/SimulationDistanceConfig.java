@@ -5,7 +5,7 @@ import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import net.minecraft.nbt.CompoundTag;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesConfig;
-import org.leavesmc.leaves.command.LeavesCommandContext;
+import org.leavesmc.leaves.command.CommandContext;
 
 import static net.minecraft.network.chat.Component.literal;
 
@@ -16,7 +16,7 @@ public class SimulationDistanceConfig extends AbstractBotConfig<Integer, Simulat
     }
 
     @Override
-    public void applySuggestions(LeavesCommandContext context, @NotNull SuggestionsBuilder builder) {
+    public void applySuggestions(CommandContext context, @NotNull SuggestionsBuilder builder) {
         builder.suggest("2", literal("Minimum simulation distance"));
         builder.suggest("8");
         builder.suggest("12");
@@ -35,7 +35,7 @@ public class SimulationDistanceConfig extends AbstractBotConfig<Integer, Simulat
     }
 
     @Override
-    public Integer loadFromCommand(@NotNull LeavesCommandContext context) {
+    public Integer loadFromCommand(@NotNull CommandContext context) {
         return context.getInteger(getName());
     }
 

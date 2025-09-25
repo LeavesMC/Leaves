@@ -4,8 +4,11 @@ import org.bukkit.Location;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.entity.bot.action.BotAction;
+import org.leavesmc.leaves.entity.bot.action.custom.CustomAction;
+import org.leavesmc.leaves.entity.bot.action.custom.CustomActionProvider;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -43,6 +46,14 @@ public interface BotManager {
      * @return a bot action instance if one was found, null otherwise
      */
     <T extends BotAction<T>> T newAction(@NotNull Class<T> type);
+
+    CustomAction newCustomAction(String actionId);
+
+    void registerAction(CustomActionProvider executor);
+
+    void unregisterAction(String id);
+
+    List<String> getCustomActions();
 
     BotCreator botCreator(@NotNull String realName, @NotNull Location location);
 }

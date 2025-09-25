@@ -154,7 +154,7 @@ public class BotList {
         this.botsByName.put(bot.getScoreboardName().toLowerCase(Locale.ROOT), bot);
         this.botsByUUID.put(bot.getUUID(), bot);
 
-        bot.supressTrackerForLogin = true;
+        bot.suppressTrackerForLogin = true;
         world.addNewPlayer(bot);
         optional.ifPresent(nbt -> {
             bot.loadAndSpawnEnderPearls(nbt);
@@ -170,7 +170,7 @@ public class BotList {
         }
 
         bot.renderInfo();
-        bot.supressTrackerForLogin = false;
+        bot.suppressTrackerForLogin = false;
 
         bot.level().getChunkSource().chunkMap.addEntity(bot);
         bot.renderData();
@@ -345,7 +345,7 @@ public class BotList {
 
         public void setSkin(String[] skin) {
             if (skin != null) {
-                this.getProperties().put("textures", new Property("textures", skin[0], skin[1]));
+                this.properties().put("textures", new Property("textures", skin[0], skin[1]));
             }
         }
     }

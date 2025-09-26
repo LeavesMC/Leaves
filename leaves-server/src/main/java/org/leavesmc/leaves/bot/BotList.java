@@ -5,6 +5,7 @@ import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.properties.Property;
 import com.mojang.logging.LogUtils;
 import io.papermc.paper.adventure.PaperAdventure;
+import io.papermc.paper.profile.MutablePropertyMap;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.Style;
 import net.minecraft.nbt.CompoundTag;
@@ -346,7 +347,7 @@ public class BotList {
 
     @Contract("_, _, _ -> new")
     public static @NotNull GameProfile createBotProfile(UUID uuid, String name, String[] skin) {
-        GameProfile profile = new GameProfile(uuid, name);
+        GameProfile profile = new GameProfile(uuid, name, new MutablePropertyMap());
         profile.properties().put("is_bot", new Property("is_bot", "true"));
         if (skin != null) {
             profile.properties().put("textures", new Property("textures", skin[0], skin[1]));

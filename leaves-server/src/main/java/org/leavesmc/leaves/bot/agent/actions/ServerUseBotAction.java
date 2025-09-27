@@ -13,6 +13,7 @@ import org.leavesmc.leaves.event.bot.BotActionStopEvent;
 
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.function.Supplier;
 
 public abstract class ServerUseBotAction<T extends ServerUseBotAction<T>> extends ServerTimerBotAction<T> {
@@ -108,13 +109,7 @@ public abstract class ServerUseBotAction<T extends ServerUseBotAction<T>> extend
         super.load(nbt);
         this.useTickTimeout = nbt.getIntOr("useTick", this.useTickTimeout);
         this.alreadyUsedTick = nbt.getInt("alreadyUsedTick").orElseGet(
-            () -> {
-                try {
-                    return this.useTickTimeout - nbt.getInt("tickToRelease").orElseThrow();
-                } catch (NoSuchElementException e) {
-                    return this.alreadyUsedTick;
-                }
-            }
+            () -> nbt.getInt("tickToRelease").map(integer -> this.useTickTimeout - integer).orElseGet(() -> this.alreadyUsedTick)
         );
     }
 

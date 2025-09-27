@@ -35,6 +35,8 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static net.minecraft.server.MinecraftServer.getServer;
+
 // Powered by Servux(https://github.com/sakura-ryoko/servux)
 
 @LeavesProtocol.Register(namespace = "servux")
@@ -69,7 +71,7 @@ public class ServuxStructuresProtocol implements LeavesProtocol {
 
     @ProtocolHandler.Ticker
     public static void tick() {
-        MinecraftServer server = MinecraftServer.getServer();
+        MinecraftServer server = getServer();
         int tickCounter = server.getTickCount();
         retainDistance = server.getPlayerList().getViewDistance() + 2;
         for (ServerPlayer player : players.values()) {
@@ -79,8 +81,8 @@ public class ServuxStructuresProtocol implements LeavesProtocol {
     }
 
     public static void onStartedWatchingChunk(ServerPlayer player, LevelChunk chunk) {
-        MinecraftServer server = player.getServer();
-        if (players.containsKey(player.getId()) && server != null) {
+        MinecraftServer server = getServer();
+        if (players.containsKey(player.getId())) {
             addChunkTimeoutIfHasReferences(player.getUUID(), chunk, server.getTickCount());
         }
     }
@@ -119,7 +121,7 @@ public class ServuxStructuresProtocol implements LeavesProtocol {
             LeavesLogger.LOGGER.warning(player.getScoreboardName() + " re-register servux:structures");
         }
 
-        MinecraftServer server = MinecraftServer.getServer();
+        MinecraftServer server = getServer();
         sendMetaData(player);
         initialSyncStructures(player, player.moonrise$getViewDistanceHolder().getViewDistances().sendViewDistance() + 2, server.getTickCount());
     }

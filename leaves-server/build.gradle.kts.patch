@@ -1,10 +1,12 @@
 --- a/paper-server/build.gradle.kts
 +++ b/paper-server/build.gradle.kts
-@@ -1,4 +_,3 @@
+@@ -1,5 +_,5 @@
 -import io.papermc.fill.model.BuildChannel
  import io.papermc.paperweight.attribute.DevBundleOutput
++import io.papermc.paperweight.tasks.IncludeMappings // Leaves - TEMP remove mapping tasks and make it buildable
  import io.papermc.paperweight.util.*
  import io.papermc.paperweight.util.data.FileEntry
+ import paper.libs.com.google.gson.annotations.SerializedName
 @@ -10,24 +_,36 @@
      `java-library`
      `maven-publish`
@@ -18,7 +20,7 @@
 +val leavesMavenPublicUrl = "https://repo.leavesmc.com/snapshots/" // Leaves - build change
  
  dependencies {
-     mache("io.papermc:mache:1.21.8+build.2")
+     mache("io.papermc:mache:1.21.9-rc1+build.1")
 -    paperclip("io.papermc:paperclip:3.0.3")
 +    leavesclip("org.leavesmc:leavesclip:3.0.7") // Leaves - build change
      testRuntimeOnly("org.junit.platform:junit-platform-launcher")
@@ -42,8 +44,8 @@
 +    // Leaves end - build change
 +
      spigot {
--        enabled = true
-+        // enabled = true // Leaves - disable
+-        enabled = false
++        // enabled = false // Leaves - disable
          buildDataRef = "436eac9815c211be1a2a6ca0702615f995e81c44"
          packageVersion = "v1_21_R5" // also needs to be updated in MappingEnvironment
      }
@@ -97,7 +99,7 @@
 +        exclude(group = "com.google.guava", module = "guava")
 +    }
 +    // Leaves end - leaves plugin
-     implementation("ca.spottedleaf:concurrentutil:0.0.3")
+     implementation("ca.spottedleaf:concurrentutil:0.0.5")
      implementation("org.jline:jline-terminal-ffm:3.27.1") // use ffm on java 22+
      implementation("org.jline:jline-terminal-jni:3.27.1") // fall back to jni on java 21
 @@ -157,7 +_,6 @@
@@ -160,7 +162,7 @@
  idea {
      module {
          generatedSourceDirs.add(generatedDir.toFile())
-@@ -315,6 +_,10 @@
+@@ -303,6 +_,10 @@
      }
  
      args("--nogui")
@@ -171,7 +173,7 @@
      systemProperty("net.kyori.adventure.text.warnWhenLegacyFormattingDetected", true)
      if (providers.gradleProperty("paper.runDisableWatchdog").getOrElse("false") == "true") {
          systemProperty("disable.watchdog", true)
-@@ -359,30 +_,26 @@
+@@ -347,30 +_,64 @@
      classpath(tasks.createReobfBundlerJar.flatMap { it.outputZip })
      mainClass.set(null as String?)
  }
@@ -192,16 +194,13 @@
 -    version(paperweight.minecraftVersion)
 -
 -    build {
--        channel = BuildChannel.STABLE
+-        channel = BuildChannel.ALPHA
 -
 -        downloads {
 -            register("server:default") {
 -                file = tasks.createMojmapPaperclipJar.flatMap { it.outputZip }
 -                nameResolver.set { project, _, version, build -> "$project-$version-$build.jar" }
 -            }
--        }
--    }
--}
 +
 +// Leaves start - build change
 +tasks.registerRunTask("runLeavesclip") {
@@ -225,3 +224,41 @@
 +    classpath(sourceSets.main.map { it.runtimeClasspath })
 +}
 +// Leaves end - create config file
++
++// Leaves start - TEMP remove mapping tasks and make it buildable
++
++// Disable unwanted Paperweight tasks
++listOf(
++    "generateSpigotMappings",
++    "spigotRemapJar",
++    "cleanupMappings",
++    "patchMappings",
++    "generateReobfMappings",
++    "patchReobfMappings",
++    "generateRelocatedReobfMappings"
++).forEach { taskName ->
++    tasks.named(taskName) {
++        enabled = false
++    }
++}
++
++val dummyMappingsFile = layout.projectDirectory
++    .dir("leaves-server/.gradle/caches/paperweight/mappings")
++    .file("mojang-spigot-reobf-patched-relocated.tiny")
++
++tasks.register("createDummyTiny") {
++    outputs.file(dummyMappingsFile)
++    doLast {
++        val f = dummyMappingsFile.asFile
++        f.parentFile.mkdirs()
++        if (!f.exists()) {
++            f.writeText("tiny\t2\t0\tmojang\tspigot\n")
+         }
+     }
+ }
++
++tasks.named<IncludeMappings>("includeMappings") {
++    dependsOn("createDummyTiny")
++    mappings.set(dummyMappingsFile)
++}
++// Leaves end - TEMP remove mapping tasks and make it buildable

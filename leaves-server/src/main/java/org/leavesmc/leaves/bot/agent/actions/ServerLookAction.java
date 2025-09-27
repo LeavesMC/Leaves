@@ -18,6 +18,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
 
+import static net.minecraft.server.MinecraftServer.getServer;
+
 public class ServerLookAction extends ServerBotAction<ServerLookAction> {
 
     private static final Vector ZERO_VECTOR = new Vector(0, 0, 0);
@@ -29,8 +31,8 @@ public class ServerLookAction extends ServerBotAction<ServerLookAction> {
     public ServerLookAction() {
         super("look", CommandArgument.of(CommandArgumentType.STRING, CommandArgumentType.DOUBLE, CommandArgumentType.DOUBLE), ServerLookAction::new);
         this.setSuggestion(0, (sender, arg) -> sender instanceof Player player ?
-            Pair.of(Stream.concat(Arrays.stream(MinecraftServer.getServer().getPlayerNames()), Stream.of(DF.format(player.getX()))).toList(), "<Player>|<X>") :
-            Pair.of(Stream.concat(Arrays.stream(MinecraftServer.getServer().getPlayerNames()), Stream.of("0")).toList(), "<Player>|<X>")
+            Pair.of(Stream.concat(Arrays.stream(getServer().getPlayerNames()), Stream.of(DF.format(player.getX()))).toList(), "<Player>|<X>") :
+            Pair.of(Stream.concat(Arrays.stream(getServer().getPlayerNames()), Stream.of("0")).toList(), "<Player>|<X>")
         );
         this.setSuggestion(1, (sender, arg) -> sender instanceof Player player ? Pair.of(List.of(DF.format(player.getY())), "<Y>") : Pair.of(List.of("0"), "<Y>"));
         this.setSuggestion(2, (sender, arg) -> sender instanceof Player player ? Pair.of(List.of(DF.format(player.getZ())), "<Z>") : Pair.of(List.of("0"), "<Z>"));
@@ -90,7 +92,7 @@ public class ServerLookAction extends ServerBotAction<ServerLookAction> {
     @Override
     public void loadCommand(ServerPlayer player, @NotNull CommandArgumentResult result) {
         String nameOrX = result.readString(player.getScoreboardName());
-        ServerPlayer player1 = player.getServer().getPlayerList().getPlayerByName(nameOrX);
+        ServerPlayer player1 = getServer().getPlayerList().getPlayerByName(nameOrX);
         if (player1 != null) {
             this.setTarget(player1);
             return;

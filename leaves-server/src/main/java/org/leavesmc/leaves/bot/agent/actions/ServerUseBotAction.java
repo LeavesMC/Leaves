@@ -105,9 +105,9 @@ public abstract class ServerUseBotAction<T extends ServerUseBotAction<T>> extend
     @Override
     public void load(@NotNull CompoundTag nbt) {
         super.load(nbt);
-        this.useTickTimeout = nbt.getInt("useTick").orElseThrow();
+        this.useTickTimeout = nbt.getInt("useTick").orElse(this.useTickTimeout);
         this.alreadyUsedTick = nbt.getInt("alreadyUsedTick").orElseGet(
-            () -> this.useTickTimeout - nbt.getInt("tickToRelease").orElseThrow()
+            () -> this.useTickTimeout - nbt.getInt("tickToRelease").orElse(this.alreadyUsedTick)
         );
     }
 

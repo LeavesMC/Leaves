@@ -107,7 +107,7 @@ public abstract class ServerUseBotAction<T extends ServerUseBotAction<T>> extend
         super.load(nbt);
         this.useTickTimeout = nbt.getIntOr("useTick", this.useTickTimeout);
         this.alreadyUsedTick = nbt.getInt("alreadyUsedTick").orElseGet(
-            () -> nbt.getInt("tickToRelease").map(integer -> this.useTickTimeout - integer).orElseGet(() -> this.alreadyUsedTick)
+            () -> nbt.getInt("tickToRelease").map(tickToRelease -> this.useTickTimeout - tickToRelease).orElseGet(() -> this.alreadyUsedTick)
         );
     }
 

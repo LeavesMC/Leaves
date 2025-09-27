@@ -23,8 +23,8 @@ public class BotLoadCommand implements LeavesSubcommand {
 
         String realName = args[0];
         BotList botList = BotList.INSTANCE;
-        if (!botList.getSavedBotList().contains(realName)) {
-            sender.sendMessage(text("This fakeplayer is not saved", NamedTextColor.RED));
+        if (!botList.getOfflineSavedBotList().contains(realName)) {
+            sender.sendMessage(text("This fakeplayer is not saved or still online", NamedTextColor.RED));
             return;
         }
 
@@ -37,7 +37,7 @@ public class BotLoadCommand implements LeavesSubcommand {
     public void suggest(@NotNull CommandSender sender, @NotNull String alias, @NotNull String @NotNull [] args, @Nullable Location location, LeavesSuggestionBuilder builder) throws IllegalArgumentException {
         BotList botList = BotList.INSTANCE;
         if (args.length <= 1) {
-            botList.getSavedBotList().keySet().forEach(builder::suggest);
+            botList.getOfflineSavedBotList().forEach(builder::suggest);
         }
     }
 

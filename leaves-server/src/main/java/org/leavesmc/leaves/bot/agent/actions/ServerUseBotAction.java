@@ -12,8 +12,6 @@ import org.leavesmc.leaves.command.CommandArgumentType;
 import org.leavesmc.leaves.event.bot.BotActionStopEvent;
 
 import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.Optional;
 import java.util.function.Supplier;
 
 public abstract class ServerUseBotAction<T extends ServerUseBotAction<T>> extends ServerTimerBotAction<T> {

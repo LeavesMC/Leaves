@@ -133,12 +133,12 @@ public abstract class ServerBotAction<E extends ServerBotAction<E>> {
     public void load(@NotNull CompoundTag nbt) {
         this.uuid = nbt.read("actionUUID", UUIDUtil.CODEC).orElse(UUID.randomUUID());
 
-        this.initialTickDelay = nbt.getInt("initialTickDelay").orElse(0);
-        this.initialTickInterval = nbt.getInt("initialTickInterval").orElse(0);
-        this.initialNumber = nbt.getInt("initialNumber").orElse(0);
+        this.initialTickDelay = nbt.getIntOr("initialTickDelay", 0);
+        this.initialTickInterval = nbt.getIntOr("initialTickInterval", 0);
+        this.initialNumber = nbt.getIntOr("initialNumber", 0);
 
-        this.tickToNext = nbt.getInt("tickToNext").orElse(0);
-        this.numberRemaining = nbt.getInt("numberRemaining").orElse(0);
+        this.tickToNext = nbt.getIntOr("tickToNext", 0);
+        this.numberRemaining = nbt.getIntOr("numberRemaining", 0);
     }
 
     public void stop(@NotNull ServerBot bot, BotActionStopEvent.Reason reason) {

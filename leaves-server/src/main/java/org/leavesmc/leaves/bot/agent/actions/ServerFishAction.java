@@ -38,8 +38,8 @@ public class ServerFishAction extends AbstractTimerBotAction<ServerFishAction> {
     @Override
     public void load(@NotNull CompoundTag nbt) {
         super.load(nbt);
-        this.initialFishInterval = nbt.getInt("initialFishInterval").orElseThrow();
-        this.tickToNextFish = nbt.getInt("tickToNextFish").orElseThrow();
+        this.initialFishInterval = nbt.getIntOr("initialFishInterval", this.initialFishInterval);
+        this.tickToNextFish = nbt.getIntOr("tickToNextFish", this.tickToNextFish);
     }
 
     @Override

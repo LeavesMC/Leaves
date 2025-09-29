@@ -352,6 +352,6 @@ public class BotList {
         if (skin != null) {
             profile.properties().put("textures", new Property("textures", skin[0], skin[1]));
         }
-        return new GameProfile(uuid, name);
+        return profile;
     }
 }

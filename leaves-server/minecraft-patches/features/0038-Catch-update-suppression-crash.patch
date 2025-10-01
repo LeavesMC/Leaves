@@ -4,36 +4,36 @@ Date: Fri, 17 Mar 2023 15:57:08 +0800
 Subject: [PATCH] Catch update suppression crash
 
 
-diff --git a/net/minecraft/network/protocol/PacketUtils.java b/net/minecraft/network/protocol/PacketUtils.java
-index 4535858701b2bb232b9d2feb2af6551526232ddc..03e70445dfe14c119284f7c301127075c009e915 100644
---- a/net/minecraft/network/protocol/PacketUtils.java
-+++ b/net/minecraft/network/protocol/PacketUtils.java
-@@ -27,7 +27,20 @@ public class PacketUtils {
-                 if (processor.shouldHandleMessage(packet)) {
-                     try {
-                         packet.handle(processor);
+diff --git a/net/minecraft/network/PacketProcessor.java b/net/minecraft/network/PacketProcessor.java
+index 064c3dea7f1e7fe07f63853532edae6f0a3e4a5c..5b8425a964ff479940fd3a9f4ef3c912b525d93b 100644
+--- a/net/minecraft/network/PacketProcessor.java
++++ b/net/minecraft/network/PacketProcessor.java
+@@ -70,7 +70,20 @@ public class PacketProcessor implements AutoCloseable {
+             if (this.listener.shouldHandleMessage(this.packet)) {
+                 try {
+                     this.packet.handle(this.listener);
 +                    // Leaves start - update suppression crash fix
-+                    } catch (org.leavesmc.leaves.util.UpdateSuppressionException exception) {
-+                        if (processor instanceof net.minecraft.server.network.ServerGamePacketListenerImpl gamePacketListener) {
++                } catch (org.leavesmc.leaves.util.UpdateSuppressionException exception) {
++                    if (this.listener instanceof net.minecraft.server.network.ServerGamePacketListenerImpl gamePacketListener) {
++                        exception.providePlayer(gamePacketListener.player);
++                    }
++                    exception.consume();
+                 } catch (Exception var3) {
++                    if (var3.getCause() instanceof org.leavesmc.leaves.util.UpdateSuppressionException exception) {
++                        if (this.listener instanceof net.minecraft.server.network.ServerGamePacketListenerImpl gamePacketListener) {
 +                            exception.providePlayer(gamePacketListener.player);
 +                        }
 +                        exception.consume();
-                     } catch (Exception var4) {
-+                        if (var4.getCause() instanceof org.leavesmc.leaves.util.UpdateSuppressionException exception) {
-+                            if (processor instanceof net.minecraft.server.network.ServerGamePacketListenerImpl gamePacketListener) {
-+                                exception.providePlayer(gamePacketListener.player);
-+                            }
-+                            exception.consume();
-+                        }
-+                        // Leaves end - update suppression crash fix
-                         if (var4 instanceof ReportedException reportedException && reportedException.getCause() instanceof OutOfMemoryError) {
-                             throw makeReportedException(var4, packet, processor);
-                         }
++                    }
++                    // Leaves end - update suppression crash fix
+                     if (var3 instanceof ReportedException reportedException && reportedException.getCause() instanceof OutOfMemoryError) {
+                         throw PacketUtils.makeReportedException(var3, this.packet, this.listener);
+                     }
 diff --git a/net/minecraft/server/MinecraftServer.java b/net/minecraft/server/MinecraftServer.java
-index 4cc0bb9c612986934bf44f933aa402b3787394ba..2545c7ebbe4bab45ea22d3843d42c7e55941387e 100644
+index 2bcd2e36c2a934a3b09f2407bd91a4b45989ed74..9b7fb261b6170afe3748bf8628dcac1c31b336f2 100644
 --- a/net/minecraft/server/MinecraftServer.java
 +++ b/net/minecraft/server/MinecraftServer.java
-@@ -1726,7 +1726,16 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+@@ -1663,7 +1663,16 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
  
              try {
                  serverLevel.tick(hasTimeLeft);
@@ -51,10 +51,10 @@ index 4cc0bb9c612986934bf44f933aa402b3787394ba..2545c7ebbe4bab45ea22d3843d42c7e5
                  serverLevel.fillReportDetails(crashReport);
                  throw new ReportedException(crashReport);
 diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
-index ed05aaa76e1e34ca82fcc7cfb73f371a11600eee..400cb6f7fb05d4e69a7c5bfb960480eef13f15c5 100644
+index 99153cbb1de2d6de7289955b24d0e5fe633453d6..93e07c2036e32648c7568651e1791ffeb2128ff6 100644
 --- a/net/minecraft/server/level/ServerLevel.java
 +++ b/net/minecraft/server/level/ServerLevel.java
-@@ -814,6 +814,11 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+@@ -835,6 +835,11 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
                                      if (org.leavesmc.leaves.LeavesConfig.performance.remove.tickGuardLambda) {
                                          try {
                                              this.tickNonPassenger(entity); // Leaves - changed
@@ -67,10 +67,10 @@ index ed05aaa76e1e34ca82fcc7cfb73f371a11600eee..400cb6f7fb05d4e69a7c5bfb960480ee
                                              if (throwable instanceof ThreadDeath) throw throwable; // Paper
                                              // Paper start - Prevent block entity and entity crashes
 diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
-index 895cee538086e0494eb0f57c6e6b32ccd43e72e7..e355939e153c05f9434482c4713743755b280d69 100644
+index 5402ed9510037b49d26e512be6d35a07ad183420..0981f5d07144f75148b035e41f82190d0cd6526a 100644
 --- a/net/minecraft/server/level/ServerPlayer.java
 +++ b/net/minecraft/server/level/ServerPlayer.java
-@@ -905,6 +905,12 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -901,6 +901,12 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
                  ((org.bukkit.craftbukkit.CraftWorldBorder) this.getBukkitEntity().getWorldBorder()).getHandle().tick();
              }
              // CraftBukkit end
@@ -84,10 +84,10 @@ index 895cee538086e0494eb0f57c6e6b32ccd43e72e7..e355939e153c05f9434482c471374375
              CrashReport crashReport = CrashReport.forThrowable(var4, "Ticking player");
              CrashReportCategory crashReportCategory = crashReport.addCategory("Player being ticked");
 diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
-index d06e5719e62b500432bb6fcb60d6049b8379c17d..df01a171a8073b6a7ef16248bd09b4c902227887 100644
+index 537223e73dbc6e1f76752b6cd8fc059ffea635d4..b8d93586189567eca93bd3a723a222a430f69f25 100644
 --- a/net/minecraft/world/entity/Entity.java
 +++ b/net/minecraft/world/entity/Entity.java
-@@ -1351,9 +1351,19 @@ public abstract class Entity implements SyncedDataHolder, Nameable, EntityAccess
+@@ -1361,9 +1361,19 @@ public abstract class Entity implements SyncedDataHolder, DebugValueSource, Name
                      this.walkingStepSound(pos, state);
                  }
  
@@ -109,13 +109,13 @@ index d06e5719e62b500432bb6fcb60d6049b8379c17d..df01a171a8073b6a7ef16248bd09b4c9
                  return true;
              } else {
 diff --git a/net/minecraft/world/level/block/ShulkerBoxBlock.java b/net/minecraft/world/level/block/ShulkerBoxBlock.java
-index 49bac7af90b0a7c490141be6357563447783c6ca..787a4226789b0e6d35ef1a36601655b0a8666b6f 100644
+index f3bc957110ef60ad5e4384b934b60dccea76d5a7..ffca65d881ee6f4bde8e579d012ee5c1a11a0c2d 100644
 --- a/net/minecraft/world/level/block/ShulkerBoxBlock.java
 +++ b/net/minecraft/world/level/block/ShulkerBoxBlock.java
 @@ -183,7 +183,17 @@ public class ShulkerBoxBlock extends BaseEntityBlock {
  
      @Override
-     protected int getAnalogOutputSignal(BlockState blockState, Level level, BlockPos pos) {
+     protected int getAnalogOutputSignal(BlockState state, Level level, BlockPos pos, Direction direction) {
 -        return AbstractContainerMenu.getRedstoneSignalFromBlockEntity(level.getBlockEntity(pos));
 +        // Leaves start - update suppression crash fix
 +        try {
@@ -132,7 +132,7 @@ index 49bac7af90b0a7c490141be6357563447783c6ca..787a4226789b0e6d35ef1a36601655b0
  
      public static Block getBlockByColor(@Nullable DyeColor color) {
 diff --git a/net/minecraft/world/level/block/state/StateHolder.java b/net/minecraft/world/level/block/state/StateHolder.java
-index 9b9842462b210b0407279ee8a8e9ccecf3ead005..ba9c8a677c1759e75392344df7877c5fcc9b9910 100644
+index 040919c61ed29b3eda73b5d0f8ed905011e969a4..22dae9cf15fafda4b398025d85bad3e2a5965066 100644
 --- a/net/minecraft/world/level/block/state/StateHolder.java
 +++ b/net/minecraft/world/level/block/state/StateHolder.java
 @@ -104,7 +104,16 @@ public abstract class StateHolder<O, S> implements ca.spottedleaf.moonrise.patch
@@ -154,10 +154,10 @@ index 9b9842462b210b0407279ee8a8e9ccecf3ead005..ba9c8a677c1759e75392344df7877c5f
      }
  
 diff --git a/net/minecraft/world/level/chunk/LevelChunk.java b/net/minecraft/world/level/chunk/LevelChunk.java
-index f24db919989bc2e5768e18b4fda68c38d6cde7e0..0e22116fefcbdbf2049b7ec285b35fd03c723dc5 100644
+index 90287336da43a8eefd5f154c00fba6ee90eda211..e96a7693eb0d94888a3b1db680378374e7aebb91 100644
 --- a/net/minecraft/world/level/chunk/LevelChunk.java
 +++ b/net/minecraft/world/level/chunk/LevelChunk.java
-@@ -373,7 +373,7 @@ public class LevelChunk extends ChunkAccess implements ca.spottedleaf.moonrise.p
+@@ -380,7 +380,7 @@ public class LevelChunk extends ChunkAccess implements DebugValueSource, ca.spot
              if (blockState == state) {
                  return null;
              } else {
@@ -166,7 +166,7 @@ index f24db919989bc2e5768e18b4fda68c38d6cde7e0..0e22116fefcbdbf2049b7ec285b35fd0
                  this.heightmaps.get(Heightmap.Types.MOTION_BLOCKING).update(i, y, i2, state);
                  this.heightmaps.get(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES).update(i, y, i2, state);
                  this.heightmaps.get(Heightmap.Types.OCEAN_FLOOR).update(i, y, i2, state);
-@@ -445,6 +445,7 @@ public class LevelChunk extends ChunkAccess implements ca.spottedleaf.moonrise.p
+@@ -452,6 +452,7 @@ public class LevelChunk extends ChunkAccess implements DebugValueSource, ca.spot
                      this.markUnsaved();
                      return blockState;
                  }

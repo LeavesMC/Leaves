@@ -5,12 +5,10 @@ import net.minecraft.core.UUIDUtil;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.nbt.NbtIo;
-import net.minecraft.util.ProblemReporter;
+import net.minecraft.server.players.NameAndId;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.storage.LevelResource;
 import net.minecraft.world.level.storage.LevelStorageSource;
-import net.minecraft.world.level.storage.TagValueInput;
-import net.minecraft.world.level.storage.ValueInput;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.util.TagUtil;
 import org.slf4j.Logger;
@@ -76,17 +74,10 @@ public class BotDataStorage implements IPlayerDataStorage {
         }
     }
 
-    @Override
-    public Optional<ValueInput> load(Player player, ProblemReporter reporter) {
-        return this.load(player.getScoreboardName(), player.getStringUUID()).map(nbt -> {
-            ValueInput valueInput = TagValueInput.create(reporter, player.registryAccess(), nbt);
-            player.load(valueInput);
-            return valueInput;
-        });
-    }
 
-    private Optional<CompoundTag> load(String name, String uuid) {
-        File file = new File(this.botDir, uuid + ".dat");
+    @Override
+    public Optional<CompoundTag> load(NameAndId nameAndId) {
+        File file = new File(this.botDir, nameAndId.id() + ".dat");
 
         if (file.exists() && file.isFile()) {
             try {
@@ -94,11 +85,11 @@ public class BotDataStorage implements IPlayerDataStorage {
                 if (!file.delete()) {
                     throw new IOException("Failed to delete fakeplayer data");
                 }
-                this.savedBotList.remove(name);
+                this.savedBotList.remove(nameAndId.name());
                 this.saveBotList();
                 return optional;
             } catch (Exception exception) {
-                BotDataStorage.LOGGER.warn("Failed to load fakeplayer data for {}", name);
+                BotDataStorage.LOGGER.warn("Failed to load fakeplayer data for {}", nameAndId.name());
             }
         }
 

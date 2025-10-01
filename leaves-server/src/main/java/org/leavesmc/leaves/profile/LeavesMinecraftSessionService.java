@@ -13,6 +13,7 @@ import com.mojang.authlib.yggdrasil.response.HasJoinedMinecraftServerResponse;
 import com.mojang.authlib.yggdrasil.response.ProfileAction;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.players.NameAndId;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.bot.ServerBot;
@@ -63,9 +64,9 @@ public class LeavesMinecraftSessionService extends PaperMinecraftSessionService 
                 arguments.put("ip", address.getHostAddress());
             }
 
-            GameProfile cache = null;
+            NameAndId cache = null;
             if (LeavesConfig.mics.yggdrasil.loginProtect) {
-                cache = MinecraftServer.getServer().services.profileCache().getProfileIfCached(profileName);
+                cache = MinecraftServer.getServer().services.nameToIdCache().getIfCached(profileName);
             }
 
             for (URL checkUrl : extraYggdrasilList) {
@@ -74,14 +75,14 @@ public class LeavesMinecraftSessionService extends PaperMinecraftSessionService 
                     final HasJoinedMinecraftServerResponse response = client.get(url, HasJoinedMinecraftServerResponse.class);
                     if (response != null && response.id() != null) {
                         if (LeavesConfig.mics.yggdrasil.loginProtect && cache != null) {
-                            if (!response.id().equals(cache.getId())) {
+                            if (!response.id().equals(cache.id())) {
                                 continue;
                             }
                         }
 
                         final GameProfile result1 = new GameProfile(response.id(), profileName);
                         if (response.properties() != null) {
-                            result1.getProperties().putAll(response.properties());
+                            result1.properties().putAll(response.properties());
                         }
 
                         final Set<ProfileActionType> profileActions = response.profileActions().stream()

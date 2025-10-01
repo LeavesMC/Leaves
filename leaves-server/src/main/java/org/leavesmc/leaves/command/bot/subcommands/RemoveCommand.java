@@ -115,15 +115,9 @@ public class RemoveCommand extends BotSubcommand {
                 foundMatch = true;
                 int value = Integer.parseInt(matcher.group(1));
                 switch (matcher.group(2).toLowerCase()) {
-                    case "h":
-                        seconds += value * 3600;
-                        break;
-                    case "m":
-                        seconds += value * 60;
-                        break;
-                    case "s":
-                        seconds += value;
-                        break;
+                    case "h" -> seconds += value * 3600;
+                    case "m" -> seconds += value * 60;
+                    case "s" -> seconds += value;
                 }
             }
 

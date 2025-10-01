@@ -104,7 +104,7 @@ public class ServuxLitematicsProtocol implements LeavesProtocol {
             case PACKET_C2S_BLOCK_ENTITY_REQUEST -> onBlockEntityRequest(player, payload.getPos());
 
             case PACKET_C2S_ENTITY_REQUEST -> onEntityRequest(player, payload.getEntityId());
-            
+
             case PACKET_C2S_BULK_ENTITY_NBT_REQUEST -> onBulkEntityRequest(player, payload.getChunkPos(), payload.getCompound());
 
             case PACKET_C2S_NBT_RESPONSE_DATA -> {

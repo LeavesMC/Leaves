@@ -93,7 +93,12 @@ public class BotList {
     }
 
     public ServerBot loadNewBot(String realName) {
-        return this.loadNewBot(realName, this.dataStorage);
+        try {
+            return this.loadNewBot(realName, this.dataStorage);
+        } catch (Exception e) {
+            LOGGER.error("Failed to load bot {}", realName, e);
+            return null;
+        }
     }
 
     public ServerBot loadNewBot(String realName, IPlayerDataStorage playerIO) {
@@ -200,7 +205,7 @@ public class BotList {
         this.server.server.getPluginManager().callEvent(event);
 
         if (event.isCancelled() && event.getReason() != BotRemoveEvent.RemoveReason.INTERNAL) {
-            return true;
+            return false;
         }
 
         if (bot.removeTaskId != -1) {

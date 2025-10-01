@@ -1,41 +1,60 @@
 package org.leavesmc.leaves.bot.agent.actions;
 
+import com.mojang.brigadier.arguments.FloatArgumentType;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.server.level.ServerPlayer;
-import org.apache.commons.lang3.tuple.Pair;
-import org.bukkit.entity.Player;
+import net.minecraft.network.chat.Component;
+import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Entity;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.command.CommandArgument;
-import org.leavesmc.leaves.command.CommandArgumentResult;
-import org.leavesmc.leaves.command.CommandArgumentType;
+import org.leavesmc.leaves.bot.agent.ExtraData;
+import org.leavesmc.leaves.command.CommandContext;
 import org.leavesmc.leaves.entity.bot.actions.CraftRotationAction;
 
 import java.text.DecimalFormat;
-import java.util.List;
-import java.util.Objects;
 
-public class ServerRotationAction extends ServerBotAction<ServerRotationAction> {
+public class ServerRotationAction extends AbstractBotAction<ServerRotationAction> {
 
     private static final DecimalFormat DF = new DecimalFormat("0.00");
 
     public ServerRotationAction() {
-        super("rotation", CommandArgument.of(CommandArgumentType.FLOAT, CommandArgumentType.FLOAT), ServerRotationAction::new);
-        this.setSuggestion(0, (sender, arg) -> sender instanceof Player player ? Pair.of(List.of(DF.format(player.getYaw())), "[yaw]") : Pair.of(List.of("0"), "<yaw>"));
-        this.setSuggestion(1, (sender, arg) -> sender instanceof Player player ? Pair.of(List.of(DF.format(player.getPitch())), "[pitch]") : Pair.of(List.of("0"), "<pitch>"));
+        super("rotation", ServerRotationAction::new);
+        this.addArgument("yaw", FloatArgumentType.floatArg(-180, 180))
+            .suggests((context, builder) -> {
+                CommandSender sender = context.getSender();
+                if (sender instanceof Entity entity) {
+                    builder.suggest(
+                        DF.format(entity.getYaw()),
+                        Component.literal("current player yaw")
+                    );
+                }
+            })
+            .setOptional(true);
+        this.addArgument("pitch", FloatArgumentType.floatArg(-90, 90))
+            .suggests((context, builder) -> {
+                CommandSender sender = context.getSender();
+                if (sender instanceof Entity entity) {
+                    builder.suggest(
+                        DF.format(entity.getPitch()),
+                        Component.literal("current player pitch")
+                    );
+                }
+            })
+            .setOptional(true);
     }
 
     private float yaw = 0.0f;
     private float pitch = 0.0f;
 
     @Override
-    public void loadCommand(ServerPlayer player, @NotNull CommandArgumentResult result) {
-        try {
-            this.yaw = result.readFloat(Objects.requireNonNull(player).getYRot());
-            this.pitch = result.readFloat(player.getXRot());
-        } catch (Exception e) {
-            throw new IllegalArgumentException("No valid rotation specified", e);
+    public void loadCommand(@NotNull CommandContext context) {
+        CommandSender sender = context.getSender();
+        if (sender instanceof Entity entity) {
+            this.yaw = entity.getYaw();
+            this.pitch = entity.getPitch();
         }
+        this.yaw = context.getFloatOrDefault("yaw", this.yaw);
+        this.pitch = context.getFloatOrDefault("pitch", this.pitch);
     }
 
     public void setYaw(float yaw) {
@@ -52,6 +71,13 @@ public class ServerRotationAction extends ServerBotAction<ServerRotationAction> 
 
     public float getPitch() {
         return this.pitch;
+    }
+
+    @Override
+    public String getActionDataString(@NotNull ExtraData data) {
+        data.add("yaw", DF.format(this.yaw));
+        data.add("pitch", DF.format(this.pitch));
+        return super.getActionDataString(data);
     }
 
     @Override

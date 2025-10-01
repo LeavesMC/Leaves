@@ -13,7 +13,7 @@ import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.entity.bot.actions.CraftBreakBlockAction;
 
-public class ServerBreakBlockAction extends ServerTimerBotAction<ServerBreakBlockAction> {
+public class ServerBreakBlockAction extends AbstractTimerBotAction<ServerBreakBlockAction> {
 
     public ServerBreakBlockAction() {
         super("break", ServerBreakBlockAction::new);

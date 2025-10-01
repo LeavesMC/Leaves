@@ -31,7 +31,7 @@ public class ServerMountAction extends AbstractBotAction<ServerMountAction> {
             if (!bot.hasLineOfSight(craftVehicle.getHandle())) {
                 continue;
             }
-            if (bot.startRiding(craftVehicle.getHandle(), false)) {
+            if (bot.startRiding(craftVehicle.getHandle())) {
                 return true;
             }
         }

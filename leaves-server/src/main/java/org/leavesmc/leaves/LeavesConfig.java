@@ -782,6 +782,9 @@ public final class LeavesConfig {
                 };
             }
         }
+
+        @GlobalConfig("follow-tick-sequence-merge")
+        public boolean followTickSequenceMerge = false;
     }
 
     public static PerformanceConfig performance = new PerformanceConfig();

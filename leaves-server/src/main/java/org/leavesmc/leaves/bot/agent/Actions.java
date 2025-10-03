@@ -5,6 +5,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.bot.agent.actions.*;
 import org.leavesmc.leaves.entity.bot.action.*;
+import org.leavesmc.leaves.entity.bot.action.custom.CustomActionProvider;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -16,7 +17,10 @@ public class Actions {
     private static final Map<String, AbstractBotAction<?>> actionsByName = new HashMap<>();
     private static final Map<Class<?>, AbstractBotAction<?>> actionsByClass = new HashMap<>();
 
-    static {
+
+    private static final Map<String, CustomActionProvider> customActionsById = new HashMap<>();
+
+    static  {
         register(new ServerAttackAction(), AttackAction.class);
         register(new ServerBreakBlockAction(), BreakBlockAction.class);
         register(new ServerDropAction(), DropAction.class);
@@ -58,6 +62,22 @@ public class Actions {
             return true;
         }
         return false;
+    }
+
+    public static void addCustom(CustomActionProvider provider) {
+        customActionsById.put(provider.id(), provider);
+    }
+
+    public static @Nullable CustomActionProvider getCustom(String id) {
+        return customActionsById.get(id);
+    }
+
+    public static void removeCustom(String id) {
+        customActionsById.remove(id);
+    }
+
+    public static Collection<String> getCustomActions() {
+        return customActionsById.keySet();
     }
 
     @NotNull

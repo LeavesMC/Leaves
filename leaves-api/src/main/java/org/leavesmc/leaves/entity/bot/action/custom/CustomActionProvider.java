@@ -1,20 +1,25 @@
 package org.leavesmc.leaves.entity.bot.action.custom;
 
-import org.bukkit.command.CommandSender;
 import org.bukkit.plugin.Plugin;
+import org.jetbrains.annotations.ApiStatus;
 import org.leavesmc.leaves.entity.bot.Bot;
 
-import java.util.List;
+public abstract class CustomActionProvider {
 
-public interface CustomActionProvider {
+    private CommandProcessor processor = CommandProcessor.DUMMY_PROCESSOR;
 
-    String id();
+    public abstract String id();
 
-    Plugin provider();
+    public abstract Plugin provider();
 
-    boolean doTick(Bot bot, CustomAction action);
+    public abstract boolean doTick(Bot bot, CustomAction action);
 
-    List<String> getSuggestion(CommandSender sender, String[] args);
+    public void withProcessor(CommandProcessor processor) {
+        this.processor = processor;
+    }
 
-    void loadAction(CommandSender sender, String[] args, CustomAction action);
+    @ApiStatus.Internal
+    public CommandProcessor processor() {
+        return processor;
+    }
 }

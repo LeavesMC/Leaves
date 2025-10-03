@@ -4,7 +4,6 @@ import com.google.common.collect.Lists;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.component.DataComponents;
-import net.minecraft.nbt.NbtOps;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
@@ -36,9 +35,9 @@ public enum CampfireProvider implements IServerExtensionProvider<ItemStack> {
                 }
                 stack = stack.copy();
 
+                int finalI = i;
                 CustomData customData = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY)
-                    .update(NbtOps.INSTANCE, COOKING_TIME_CODEC, campfire.cookingTime[i] - campfire.cookingProgress[i])
-                    .getOrThrow();
+                    .update(tag -> tag.store(COOKING_TIME_CODEC, campfire.cookingTime[finalI] - campfire.cookingProgress[finalI]));
                 stack.set(DataComponents.CUSTOM_DATA, customData);
 
                 list.add(stack);

@@ -101,7 +101,7 @@ public class ServuxHudDataProtocol implements LeavesProtocol {
         sendPacket(player, new HudDataPayload(HudDataPayloadType.PACKET_S2C_METADATA, metadata));
     }
 
-    public static void refreshSpawnMetadata(ServerPlayer player) {
+    public static void refreshSpawnMetadata(ServerPlayer player) { // TODO: 1.21.9 removed spawn chunk, should we keep this?
         CompoundTag metadata = new CompoundTag();
         metadata.putString("id", HudDataPayload.CHANNEL.toString());
         metadata.putString("servux", ServuxProtocol.SERVUX_STRING);
@@ -164,11 +164,11 @@ public class ServuxHudDataProtocol implements LeavesProtocol {
 
     private static void putWorldData(@NotNull CompoundTag metadata) {
         ServerLevel level = MinecraftServer.getServer().overworld();
-        BlockPos spawnPos = level.levelData.getSpawnPos();
+        BlockPos spawnPos = level.levelData.getRespawnData().pos();
         metadata.putInt("spawnPosX", spawnPos.getX());
         metadata.putInt("spawnPosY", spawnPos.getY());
         metadata.putInt("spawnPosZ", spawnPos.getZ());
-        metadata.putInt("spawnChunkRadius", level.getGameRules().getInt(GameRules.RULE_SPAWN_CHUNK_RADIUS));
+        // metadata.putInt("spawnChunkRadius", level.getGameRules().getInt(GameRules.RULE_SPAWN_CHUNK_RADIUS)); // TODO: 1.21.9 removed spawn chunk, should we keep this?
 
         if (LeavesConfig.protocol.servux.hudMetadataShareSeed) {
             metadata.putLong("worldSeed", level.getSeed());

@@ -20,6 +20,7 @@ import org.leavesmc.leaves.command.ArgumentNode;
 import org.leavesmc.leaves.command.CommandContext;
 import org.leavesmc.leaves.command.LiteralNode;
 import org.leavesmc.leaves.command.WrappedArgument;
+import org.leavesmc.leaves.entity.bot.action.custom.BukkitLikeProcessor;
 import org.leavesmc.leaves.entity.bot.action.custom.CustomAction;
 import org.leavesmc.leaves.entity.bot.action.custom.CustomActionProvider;
 
@@ -128,18 +129,18 @@ public class StartCommand extends LiteralNode {
         }
 
         @Override
-        protected boolean execute(CommandContext context) throws CommandSyntaxException {
+        protected boolean execute(CommandContext context) {
             try {
                 ServerBot bot = getBot(context);
                 CommandSender sender = context.getSender();
                 String[] args = StringUtils.split(context.getArgument("custom", String.class), ' ');
                 CustomActionProvider provider = Actions.getCustom(args[0]);
-                if (provider == null) {
+                if (provider == null || !(provider.processor() instanceof BukkitLikeProcessor processor)) {
                     return false;
                 }
                 String[] realArg = Arrays.copyOfRange(args, 1, args.length);
                 ServerCustomAction action = new ServerCustomAction(provider);
-                provider.loadAction(sender, realArg, (CustomAction) action.asCraft());
+                processor.loadAction(sender, realArg, (CustomAction) action.asCraft());
                 if (bot.addBotAction(action, sender)) {
                     sender.sendMessage(join(spaces(),
                         text("Action", GRAY),
@@ -163,11 +164,11 @@ public class StartCommand extends LiteralNode {
                     Actions.getCustomActions().forEach(builder::suggest);
                 } else {
                     CustomActionProvider provider = Actions.getCustom(args[0]);
-                    if (provider == null) {
+                    if (provider == null || !(provider.processor() instanceof BukkitLikeProcessor processor)) {
                         return builder.buildFuture();
                     }
                     String[] realArg = Arrays.copyOfRange(args, 1, args.length);
-                    List<String> suggestion = provider.getSuggestion(context.getSender(), realArg);
+                    List<String> suggestion = processor.getSuggestion(context.getSender(), realArg);
                     builder = builder.createOffset(builder.getInput().lastIndexOf(' ') + 1);
                     suggestion.forEach(builder::suggest);
                 }

@@ -11,6 +11,7 @@ import com.mojang.authlib.yggdrasil.ProfileResult;
 import com.mojang.authlib.yggdrasil.ServicesKeySet;
 import com.mojang.authlib.yggdrasil.response.HasJoinedMinecraftServerResponse;
 import com.mojang.authlib.yggdrasil.response.ProfileAction;
+import io.papermc.paper.profile.MutablePropertyMap;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.players.NameAndId;
@@ -80,7 +81,7 @@ public class LeavesMinecraftSessionService extends PaperMinecraftSessionService 
                             }
                         }
 
-                        final GameProfile result1 = new GameProfile(response.id(), profileName);
+                        final GameProfile result1 = new GameProfile(response.id(), profileName, new MutablePropertyMap());
                         if (response.properties() != null) {
                             result1.properties().putAll(response.properties());
                         }

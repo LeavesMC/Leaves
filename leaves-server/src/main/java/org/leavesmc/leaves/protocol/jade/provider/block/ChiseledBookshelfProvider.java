@@ -18,7 +18,7 @@ import static net.minecraft.world.level.block.CampfireBlock.FACING;
 public enum ChiseledBookshelfProvider implements StreamServerDataProvider<BlockAccessor, ItemStack> {
     INSTANCE;
 
-    private static final ResourceLocation MC_CHISELED_BOOKSHELF = JadeProtocol.mc_id("chiseled_bookshelf");
+    private static final ResourceLocation MC_CHISELED_BOOKSHELF = JadeProtocol.mc_id("shelf");
 
     @Override
     public @Nullable ItemStack streamData(@NotNull BlockAccessor accessor) {

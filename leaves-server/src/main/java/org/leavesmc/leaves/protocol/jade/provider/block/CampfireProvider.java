@@ -1,8 +1,6 @@
 package org.leavesmc.leaves.protocol.jade.provider.block;
 
 import com.google.common.collect.Lists;
-import com.mojang.serialization.Codec;
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
@@ -21,7 +19,6 @@ import java.util.List;
 public enum CampfireProvider implements IServerExtensionProvider<ItemStack> {
     INSTANCE;
 
-    private static final MapCodec<Integer> COOKING_TIME_CODEC = Codec.INT.fieldOf("jade:cooking");
     private static final ResourceLocation MC_CAMPFIRE = JadeProtocol.mc_id("campfire");
 
     @Override
@@ -35,9 +32,8 @@ public enum CampfireProvider implements IServerExtensionProvider<ItemStack> {
                 }
                 stack = stack.copy();
 
-                int finalI = i;
-                CustomData customData = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY)
-                    .update(tag -> tag.store(COOKING_TIME_CODEC, campfire.cookingTime[finalI] - campfire.cookingProgress[finalI]));
+                int time = campfire.cookingTime[i] - campfire.cookingProgress[i];
+                CustomData customData = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).update(tag -> tag.putInt("jade:cooking", time));
                 stack.set(DataComponents.CUSTOM_DATA, customData);
 
                 list.add(stack);

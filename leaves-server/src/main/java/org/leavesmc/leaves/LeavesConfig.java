@@ -421,6 +421,9 @@ public final class LeavesConfig {
 
             @GlobalConfig("ender-dragon-part-can-use-end-portal")
             public boolean enderDragonPartCanUseEndPortal = false;
+
+            @GlobalConfig("old-minecart-motion-behavior")
+            public boolean oldMinecartMotionBehavior = false;
         }
 
         public ElytraAeronauticsConfig elytraAeronautics = new ElytraAeronauticsConfig();

@@ -208,7 +208,7 @@ public class LeavesProtocolManager {
         try {
             return codec.decode(ProtocolUtils.decorate(buf));
         } catch (Exception e) {
-            LOGGER.severe("Failed to decode " + location, e);
+            LOGGER.severe("Failed to decode payload " + location, e);
             throw e;
         }
     }

@@ -444,6 +444,7 @@ public class ServerBot extends ServerPlayer {
             for (CompoundTag configTag : configNbt) {
                 AbstractBotConfig<?, ?> config = Configs.getConfig(configTag.getString("configName").orElseThrow());
                 if (config != null) {
+                    config.setBot(this);
                     config.load(configTag);
                 }
             }

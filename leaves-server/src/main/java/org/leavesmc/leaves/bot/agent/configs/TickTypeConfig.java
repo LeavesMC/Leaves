@@ -7,6 +7,8 @@ import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.command.CommandContext;
 import org.leavesmc.leaves.command.arguments.EnumArgumentType;
 
+import java.util.Locale;
+
 public class TickTypeConfig extends AbstractBotConfig<ServerBot.TickType, TickTypeConfig> {
     private ServerBot.TickType value;
 
@@ -34,14 +36,14 @@ public class TickTypeConfig extends AbstractBotConfig<ServerBot.TickType, TickTy
     @NotNull
     public CompoundTag save(@NotNull CompoundTag nbt) {
         super.save(nbt);
-        nbt.putString(getName(), this.getValue().toString());
+        nbt.putString(getName(), this.getValue().toString().toLowerCase(Locale.ROOT));
         return nbt;
     }
 
     @Override
     public void load(@NotNull CompoundTag nbt) {
         String raw = nbt.getStringOr(getName(), LeavesConfig.modify.fakeplayer.inGame.tickType.name());
-        this.setValue(switch (raw) {
+        this.setValue(switch (raw.toLowerCase(Locale.ROOT)) {
             case "network" -> ServerBot.TickType.NETWORK;
             case "entity_list" -> ServerBot.TickType.ENTITY_LIST;
             default -> throw new IllegalStateException("Unexpected bot tick type value: " + raw);

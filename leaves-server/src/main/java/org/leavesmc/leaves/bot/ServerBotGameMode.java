@@ -19,6 +19,8 @@ import org.bukkit.event.player.PlayerGameModeChangeEvent;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import static org.leavesmc.leaves.command.leaves.subcommands.BlockUpdateCommand.isNoBlockUpdate;
+
 public class ServerBotGameMode extends ServerPlayerGameMode {
 
     public ServerBotGameMode(ServerBot bot) {
@@ -62,7 +64,7 @@ public class ServerBotGameMode extends ServerPlayerGameMode {
                 this.level.sendBlockUpdated(pos, blockState, blockState, 3);
                 return false;
             } else {
-                BlockState blockState1 = org.leavesmc.leaves.command.subcommands.BlockUpdateCommand.isNoBlockUpdate() ? blockState : block.playerWillDestroy(this.level, pos, blockState, this.player); // Leaves - no block update
+                BlockState blockState1 = isNoBlockUpdate() ? blockState : block.playerWillDestroy(this.level, pos, blockState, this.player); // Leaves - no block update
                 boolean flag = this.level.removeBlock(pos, false);
                 if (flag) {
                     block.destroy(this.level, pos, blockState1);

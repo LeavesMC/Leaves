@@ -19,7 +19,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Optional;
 
-public class BotDataStorage implements IPlayerDataStorage {
+public class BotDataStorage {
 
     private static final LevelResource BOT_DATA_DIR = new LevelResource("fakeplayerdata");
     private static final LevelResource BOT_LIST_FILE = new LevelResource("fakeplayer.dat");
@@ -45,7 +45,6 @@ public class BotDataStorage implements IPlayerDataStorage {
         }
     }
 
-    @Override
     public void save(Player player) {
         boolean flag = true;
         try {
@@ -76,11 +75,11 @@ public class BotDataStorage implements IPlayerDataStorage {
         }
     }
 
-    @Override
-    public Optional<ValueInput> load(Player player, ProblemReporter reporter) {
-        return this.load(player.getScoreboardName(), player.getStringUUID()).map(nbt -> {
-            ValueInput valueInput = TagValueInput.create(reporter, player.registryAccess(), nbt);
-            player.load(valueInput);
+
+    public Optional<ValueInput> load(@NotNull ServerBot bot, ProblemReporter reporter) {
+        return this.load(bot.nameAndId().name(), bot.nameAndId().id().toString()).map(nbt -> {
+            ValueInput valueInput = TagValueInput.create(reporter, bot.registryAccess(), nbt);
+            bot.load(valueInput);
             return valueInput;
         });
     }

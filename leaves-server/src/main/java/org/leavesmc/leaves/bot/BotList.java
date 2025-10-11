@@ -5,6 +5,7 @@ import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.properties.Property;
 import com.mojang.logging.LogUtils;
 import io.papermc.paper.adventure.PaperAdventure;
+import io.papermc.paper.profile.MutablePropertyMap;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.Style;
 import net.minecraft.nbt.CompoundTag;
@@ -26,6 +27,7 @@ import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
 import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.event.entity.EntityRemoveEvent;
+import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.LeavesConfig;
@@ -78,7 +80,7 @@ public class BotList {
         Location location = event.getCreateLocation();
         ServerLevel world = ((CraftWorld) location.getWorld()).getHandle();
 
-        CustomGameProfile profile = new CustomGameProfile(BotUtil.getBotUUID(state), state.name(), state.skin());
+        GameProfile profile = createBotProfile(BotUtil.getBotUUID(state), state.name(), state.skin());
         ServerBot bot = new ServerBot(this.server, world, profile);
         bot.createState = state;
         if (event.getCreator() instanceof org.bukkit.entity.Player player) {
@@ -89,45 +91,46 @@ public class BotList {
     }
 
     public ServerBot loadNewBot(String realName) {
-        return this.loadNewBot(realName, this.dataStorage);
-    }
+        try {
+            UUID uuid = BotUtil.getBotUUID(realName);
 
-    public ServerBot loadNewBot(String realName, IPlayerDataStorage playerIO) {
-        UUID uuid = BotUtil.getBotUUID(realName);
-
-        BotLoadEvent event = new BotLoadEvent(realName, uuid);
-        this.server.server.getPluginManager().callEvent(event);
-        if (event.isCancelled()) {
-            return null;
-        }
-
-        ServerBot bot = new ServerBot(this.server, this.server.getLevel(Level.OVERWORLD), new GameProfile(uuid, realName));
-        bot.connection = new ServerBotPacketListenerImpl(this.server, bot);
-        Optional<ValueInput> optional;
-        try (ProblemReporter.ScopedCollector scopedCollector = new ProblemReporter.ScopedCollector(bot.problemPath(), LOGGER)) {
-            optional = playerIO.load(bot, scopedCollector);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-
-        if (optional.isEmpty()) {
-            return null;
-        }
-        ValueInput nbt = optional.get();
-
-        ResourceKey<Level> resourcekey = null;
-        if (nbt.getLong("WorldUUIDMost").isPresent() && nbt.getLong("WorldUUIDLeast").isPresent()) {
-            org.bukkit.World bWorld = Bukkit.getServer().getWorld(new UUID(nbt.getLong("WorldUUIDMost").orElseThrow(), nbt.getLong("WorldUUIDLeast").orElseThrow()));
-            if (bWorld != null) {
-                resourcekey = ((CraftWorld) bWorld).getHandle().dimension();
+            BotLoadEvent event = new BotLoadEvent(realName, uuid);
+            this.server.server.getPluginManager().callEvent(event);
+            if (event.isCancelled()) {
+                return null;
             }
-        }
-        if (resourcekey == null) {
+
+            ServerBot bot = new ServerBot(this.server, this.server.getLevel(Level.OVERWORLD), new GameProfile(uuid, realName));
+            bot.connection = new ServerBotPacketListenerImpl(this.server, bot);
+            Optional<ValueInput> optional;
+            try (ProblemReporter.ScopedCollector scopedCollector = new ProblemReporter.ScopedCollector(bot.problemPath(), LOGGER)) {
+                optional = this.dataStorage.load(bot, scopedCollector);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+
+            if (optional.isEmpty()) {
+                return null;
+            }
+            ValueInput nbt = optional.get();
+
+            ResourceKey<Level> resourcekey = null;
+            if (nbt.getLong("WorldUUIDMost").isPresent() && nbt.getLong("WorldUUIDLeast").isPresent()) {
+                org.bukkit.World bWorld = Bukkit.getServer().getWorld(new UUID(nbt.getLong("WorldUUIDMost").orElseThrow(), nbt.getLong("WorldUUIDLeast").orElseThrow()));
+                if (bWorld != null) {
+                    resourcekey = ((CraftWorld) bWorld).getHandle().dimension();
+                }
+            }
+            if (resourcekey == null) {
+                return null;
+            }
+
+            ServerLevel world = this.server.getLevel(resourcekey);
+            return this.placeNewBot(bot, world, bot.getLocation(), nbt);
+        } catch (Exception e) {
+            LOGGER.error("Failed to load bot {}", realName, e);
             return null;
         }
-
-        ServerLevel world = this.server.getLevel(resourcekey);
-        return this.placeNewBot(bot, world, bot.getLocation(), nbt);
     }
 
     public ServerBot placeNewBot(@NotNull ServerBot bot, ServerLevel world, Location location, ValueInput save) {
@@ -154,7 +157,7 @@ public class BotList {
         this.botsByName.put(bot.getScoreboardName().toLowerCase(Locale.ROOT), bot);
         this.botsByUUID.put(bot.getUUID(), bot);
 
-        bot.supressTrackerForLogin = true;
+        bot.suppressTrackerForLogin = true;
         world.addNewPlayer(bot);
         optional.ifPresent(nbt -> {
             bot.loadAndSpawnEnderPearls(nbt);
@@ -170,7 +173,7 @@ public class BotList {
         }
 
         bot.renderInfo();
-        bot.supressTrackerForLogin = false;
+        bot.suppressTrackerForLogin = false;
 
         bot.level().getChunkSource().chunkMap.addEntity(bot);
         bot.renderData();
@@ -183,15 +186,11 @@ public class BotList {
     }
 
     public boolean removeBot(@NotNull ServerBot bot, @NotNull BotRemoveEvent.RemoveReason reason, @Nullable CommandSender remover, boolean saved) {
-        return this.removeBot(bot, reason, remover, saved, this.dataStorage);
-    }
-
-    public boolean removeBot(@NotNull ServerBot bot, @NotNull BotRemoveEvent.RemoveReason reason, @Nullable CommandSender remover, boolean saved, IPlayerDataStorage playerIO) {
         BotRemoveEvent event = new BotRemoveEvent(bot.getBukkitEntity(), reason, remover, PaperAdventure.asAdventure(Component.translatable("multiplayer.player.left", bot.getDisplayName())).style(Style.style(NamedTextColor.YELLOW)), saved);
         this.server.server.getPluginManager().callEvent(event);
 
         if (event.isCancelled() && event.getReason() != BotRemoveEvent.RemoveReason.INTERNAL) {
-            return true;
+            return false;
         }
 
         if (bot.removeTaskId != -1) {
@@ -202,7 +201,7 @@ public class BotList {
         bot.disconnect();
 
         if (event.shouldSave()) {
-            playerIO.save(bot);
+            this.dataStorage.save(bot);
         } else {
             bot.dropAll(true);
             botsNameByWorldUuid.getOrDefault(bot.level().uuid.toString(), new HashSet<>()).remove(bot.getBukkitEntity().getRealName());
@@ -336,17 +335,13 @@ public class BotList {
         return this.dataStorage.getSavedBotList();
     }
 
-    public static class CustomGameProfile extends GameProfile {
-
-        public CustomGameProfile(UUID uuid, String name, String[] skin) {
-            super(uuid, name);
-            this.setSkin(skin);
+    @Contract("_, _, _ -> new")
+    public static @NotNull GameProfile createBotProfile(UUID uuid, String name, String[] skin) {
+        GameProfile profile = new GameProfile(uuid, name, new MutablePropertyMap());
+        profile.properties().put("is_bot", new Property("is_bot", "true"));
+        if (skin != null) {
+            profile.properties().put("textures", new Property("textures", skin[0], skin[1]));
         }
-
-        public void setSkin(String[] skin) {
-            if (skin != null) {
-                this.getProperties().put("textures", new Property("textures", skin[0], skin[1]));
-            }
-        }
+        return profile;
     }
 }

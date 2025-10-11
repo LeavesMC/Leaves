@@ -1,5 +1,6 @@
 package org.leavesmc.leaves.protocol.jade.accessor;
 
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
@@ -28,6 +29,10 @@ public interface EntityAccessor extends Accessor<EntityHitResult> {
         }
 
         Builder hit(Supplier<EntityHitResult> hit);
+
+        Builder serverData(CompoundTag serverData);
+
+        Builder showDetails(boolean showDetails);
 
         default Builder entity(Entity entity) {
             return entity(() -> entity);

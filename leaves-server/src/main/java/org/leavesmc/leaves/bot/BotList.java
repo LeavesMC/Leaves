@@ -128,6 +128,7 @@ public class BotList {
             return null;
         }
         ValueInput nbt = optional.get();
+        bot.load(nbt);
 
         ResourceKey<Level> resourcekey = null;
         if (nbt.getLong("WorldUUIDMost").isPresent() && nbt.getLong("WorldUUIDLeast").isPresent()) {

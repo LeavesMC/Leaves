@@ -21,11 +21,9 @@ import net.minecraft.world.entity.npc.AbstractVillager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.ThrownEnderpearl;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.level.storage.ValueInput;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
-import org.bukkit.World;
 import org.bukkit.command.CommandSender;
 import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.event.entity.EntityRemoveEvent;
@@ -94,55 +92,45 @@ public class BotList {
 
     public ServerBot loadNewBot(String realName) {
         try {
-            return this.loadNewBot(realName, this.dataStorage);
+            UUID uuid = BotUtil.getBotUUID(realName);
+
+            BotLoadEvent event = new BotLoadEvent(realName, uuid);
+            this.server.server.getPluginManager().callEvent(event);
+            if (event.isCancelled()) {
+                return null;
+            }
+
+            ServerBot bot = new ServerBot(this.server, this.server.getLevel(Level.OVERWORLD), new GameProfile(uuid, realName));
+            bot.connection = new ServerBotPacketListenerImpl(this.server, bot);
+            Optional<ValueInput> optional;
+            try (ProblemReporter.ScopedCollector scopedCollector = new ProblemReporter.ScopedCollector(bot.problemPath(), LOGGER)) {
+                optional = this.dataStorage.load(bot, scopedCollector);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+
+            if (optional.isEmpty()) {
+                return null;
+            }
+            ValueInput nbt = optional.get();
+
+            ResourceKey<Level> resourcekey = null;
+            if (nbt.getLong("WorldUUIDMost").isPresent() && nbt.getLong("WorldUUIDLeast").isPresent()) {
+                org.bukkit.World bWorld = Bukkit.getServer().getWorld(new UUID(nbt.getLong("WorldUUIDMost").orElseThrow(), nbt.getLong("WorldUUIDLeast").orElseThrow()));
+                if (bWorld != null) {
+                    resourcekey = ((CraftWorld) bWorld).getHandle().dimension();
+                }
+            }
+            if (resourcekey == null) {
+                return null;
+            }
+
+            ServerLevel world = this.server.getLevel(resourcekey);
+            return this.placeNewBot(bot, world, bot.getLocation(), nbt);
         } catch (Exception e) {
             LOGGER.error("Failed to load bot {}", realName, e);
             return null;
         }
-    }
-
-    public ServerBot loadNewBot(String realName, IPlayerDataStorage playerIO) {
-        UUID uuid = BotUtil.getBotUUID(realName);
-
-        BotLoadEvent event = new BotLoadEvent(realName, uuid);
-        this.server.server.getPluginManager().callEvent(event);
-        if (event.isCancelled()) {
-            return null;
-        }
-
-        ServerBot bot = new ServerBot(this.server, this.server.getLevel(Level.OVERWORLD), new GameProfile(uuid, realName));
-        bot.connection = new ServerBotPacketListenerImpl(this.server, bot);
-        Optional<ValueInput> optional;
-        try (ProblemReporter.ScopedCollector scopedCollector = new ProblemReporter.ScopedCollector(bot.problemPath(), LOGGER)) {
-            Optional<CompoundTag> nbt = playerIO.load(bot.nameAndId());
-            if (nbt.isEmpty()) {
-                optional = Optional.empty();
-            } else {
-                optional = Optional.of(TagValueInput.create(scopedCollector, bot.registryAccess(), nbt.orElseThrow()));
-            }
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-
-        if (optional.isEmpty()) {
-            return null;
-        }
-        ValueInput nbt = optional.get();
-        bot.load(nbt);
-
-        ResourceKey<Level> resourcekey = null;
-        if (nbt.getLong("WorldUUIDMost").isPresent() && nbt.getLong("WorldUUIDLeast").isPresent()) {
-            World bWorld = Bukkit.getServer().getWorld(new UUID(nbt.getLong("WorldUUIDMost").orElseThrow(), nbt.getLong("WorldUUIDLeast").orElseThrow()));
-            if (bWorld != null) {
-                resourcekey = ((CraftWorld) bWorld).getHandle().dimension();
-            }
-        }
-        if (resourcekey == null) {
-            return null;
-        }
-
-        ServerLevel world = this.server.getLevel(resourcekey);
-        return this.placeNewBot(bot, world, bot.getLocation(), nbt);
     }
 
     public ServerBot placeNewBot(@NotNull ServerBot bot, ServerLevel world, Location location, ValueInput save) {
@@ -198,10 +186,6 @@ public class BotList {
     }
 
     public boolean removeBot(@NotNull ServerBot bot, @NotNull BotRemoveEvent.RemoveReason reason, @Nullable CommandSender remover, boolean saved) {
-        return this.removeBot(bot, reason, remover, saved, this.dataStorage);
-    }
-
-    public boolean removeBot(@NotNull ServerBot bot, @NotNull BotRemoveEvent.RemoveReason reason, @Nullable CommandSender remover, boolean saved, IPlayerDataStorage playerIO) {
         BotRemoveEvent event = new BotRemoveEvent(bot.getBukkitEntity(), reason, remover, PaperAdventure.asAdventure(Component.translatable("multiplayer.player.left", bot.getDisplayName())).style(Style.style(NamedTextColor.YELLOW)), saved);
         this.server.server.getPluginManager().callEvent(event);
 
@@ -217,7 +201,7 @@ public class BotList {
         bot.disconnect();
 
         if (event.shouldSave()) {
-            playerIO.save(bot);
+            this.dataStorage.save(bot);
         } else {
             bot.dropAll(true);
             botsNameByWorldUuid.getOrDefault(bot.level().uuid.toString(), new HashSet<>()).remove(bot.getBukkitEntity().getRealName());

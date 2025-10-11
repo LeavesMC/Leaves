@@ -5,10 +5,12 @@ import net.minecraft.core.UUIDUtil;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.nbt.NbtIo;
-import net.minecraft.server.players.NameAndId;
+import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.storage.LevelResource;
 import net.minecraft.world.level.storage.LevelStorageSource;
+import net.minecraft.world.level.storage.TagValueInput;
+import net.minecraft.world.level.storage.ValueInput;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.util.TagUtil;
 import org.slf4j.Logger;
@@ -17,7 +19,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Optional;
 
-public class BotDataStorage implements IPlayerDataStorage {
+public class BotDataStorage {
 
     private static final LevelResource BOT_DATA_DIR = new LevelResource("fakeplayerdata");
     private static final LevelResource BOT_LIST_FILE = new LevelResource("fakeplayer.dat");
@@ -43,7 +45,6 @@ public class BotDataStorage implements IPlayerDataStorage {
         }
     }
 
-    @Override
     public void save(Player player) {
         boolean flag = true;
         try {
@@ -75,9 +76,16 @@ public class BotDataStorage implements IPlayerDataStorage {
     }
 
 
-    @Override
-    public Optional<CompoundTag> load(NameAndId nameAndId) {
-        File file = new File(this.botDir, nameAndId.id() + ".dat");
+    public Optional<ValueInput> load(@NotNull ServerBot bot, ProblemReporter reporter) {
+        return this.load(bot.nameAndId().name(), bot.nameAndId().id().toString()).map(nbt -> {
+            ValueInput valueInput = TagValueInput.create(reporter, bot.registryAccess(), nbt);
+            bot.load(valueInput);
+            return valueInput;
+        });
+    }
+
+    private Optional<CompoundTag> load(String name, String uuid) {
+        File file = new File(this.botDir, uuid + ".dat");
 
         if (file.exists() && file.isFile()) {
             try {
@@ -85,11 +93,11 @@ public class BotDataStorage implements IPlayerDataStorage {
                 if (!file.delete()) {
                     throw new IOException("Failed to delete fakeplayer data");
                 }
-                this.savedBotList.remove(nameAndId.name());
+                this.savedBotList.remove(name);
                 this.saveBotList();
                 return optional;
             } catch (Exception exception) {
-                BotDataStorage.LOGGER.warn("Failed to load fakeplayer data for {}", nameAndId.name());
+                BotDataStorage.LOGGER.warn("Failed to load fakeplayer data for {}", name);
             }
         }
 

@@ -46,11 +46,11 @@ public class LoadCommand extends BotSubcommand {
             String botName = context.getArgument(BotNameArgument.class);
             BotList botList = BotList.INSTANCE;
             CommandSender sender = context.getSender();
-            if (!botList.getSavedBotList().contains(botName)) {
+            if (!botList.getManualSavedBotList().contains(botName)) {
                 throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownArgument().create();
             }
 
-            ServerBot bot = botList.loadNewBot(botName);
+            ServerBot bot = botList.loadNewManualSavedBot(botName);
             if (bot == null) {
                 sender.sendMessage(text("Failed to load bot, please check log", NamedTextColor.RED));
                 return false;
@@ -62,7 +62,7 @@ public class LoadCommand extends BotSubcommand {
         @Override
         protected CompletableFuture<Suggestions> getSuggestions(CommandContext context, @NotNull SuggestionsBuilder builder) {
             BotList botList = BotList.INSTANCE;
-            Set<String> bots = botList.getSavedBotList().keySet();
+            Set<String> bots = botList.getManualSavedBotList().keySet();
             if (bots.isEmpty()) {
                 return builder
                     .suggest("<NO SAVED BOT EXISTS>", net.minecraft.network.chat.Component.literal("There are no bots saved before, save one first."))

@@ -42,7 +42,7 @@ public class SaveCommand extends BotSubcommand {
             CommandSender sender = context.getSender();
             BotList botList = BotList.INSTANCE;
 
-            boolean success = botList.removeBot(bot, BotRemoveEvent.RemoveReason.COMMAND, sender, true);
+            boolean success = botList.removeBot(bot, BotRemoveEvent.RemoveReason.COMMAND, sender, true, false);
             if (success) {
                 sender.sendMessage(join(spaces(),
                     text("Successfully saved bot", NamedTextColor.GRAY),

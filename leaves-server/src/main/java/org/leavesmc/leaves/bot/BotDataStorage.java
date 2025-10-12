@@ -21,18 +21,15 @@ import java.util.Optional;
 
 public class BotDataStorage {
 
-    private static final LevelResource BOT_DATA_DIR = new LevelResource("fakeplayerdata");
-    private static final LevelResource BOT_LIST_FILE = new LevelResource("fakeplayer.dat");
-
     private static final Logger LOGGER = LogUtils.getLogger();
     private final File botDir;
     private final File botListFile;
 
     private CompoundTag savedBotList;
 
-    public BotDataStorage(LevelStorageSource.@NotNull LevelStorageAccess session) {
-        this.botDir = session.getLevelPath(BOT_DATA_DIR).toFile();
-        this.botListFile = session.getLevelPath(BOT_LIST_FILE).toFile();
+    public BotDataStorage(LevelStorageSource.@NotNull LevelStorageAccess session, String dataDir, String listFileName) {
+        this.botDir = session.getLevelPath(new LevelResource(dataDir)).toFile();
+        this.botListFile = session.getLevelPath(new LevelResource(listFileName)).toFile();
         this.botDir.mkdirs();
 
         this.savedBotList = new CompoundTag();
@@ -82,6 +79,10 @@ public class BotDataStorage {
             bot.load(valueInput);
             return valueInput;
         });
+    }
+
+    public void removeSavedData(@NotNull ServerBot bot) {
+        this.load(bot.nameAndId().name(), bot.nameAndId().id().toString());
     }
 
     private Optional<CompoundTag> load(String name, String uuid) {

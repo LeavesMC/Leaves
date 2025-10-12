@@ -62,6 +62,7 @@ public class BotList {
     private final Map<UUID, ServerBot> botsByUUID = Maps.newHashMap();
     private final Map<String, ServerBot> botsByName = Maps.newHashMap();
     private final Map<String, Set<String>> botsNameByWorldUuid = Maps.newHashMap();
+    private final Map<String, Set<String>> legacyBotsNameByWorldUuid = Maps.newHashMap();
 
     public BotList(@NotNull MinecraftServer server) {
         this.server = server;
@@ -303,10 +304,6 @@ public class BotList {
         }
         CompoundTag savedBotList = this.getResumeBotList().copy();
         for (String realName : savedBotList.keySet()) {
-            CompoundTag nbt = savedBotList.getCompound(realName).orElseThrow();
-            if (!nbt.getBoolean("resume").orElse(false)) {
-                continue;
-            }
             UUID levelUuid = BotUtil.getBotLevel(realName, this.resumeDataStorage);
             if (levelUuid == null) {
                 LOGGER.warn("Bot {} has no world UUID, skipping loading.", realName);
@@ -316,18 +313,33 @@ public class BotList {
                 .computeIfAbsent(levelUuid.toString(), (k) -> new HashSet<>())
                 .add(realName);
         }
+        loadLegacyResumeBotInfo();
+    }
+
+    private void loadLegacyResumeBotInfo() {
+        CompoundTag savedBotList = this.getManualSavedBotList().copy();
+        for (String realName : savedBotList.keySet()) {
+            CompoundTag nbt = savedBotList.getCompound(realName).orElseThrow();
+            if (!nbt.getBoolean("resume").orElse(false)) {
+                continue;
+            }
+            UUID levelUuid = BotUtil.getBotLevel(realName, this.manualSaveDataStorage);
+            if (levelUuid == null) {
+                LOGGER.warn("Bot {} has no world UUID, skipping loading.", realName);
+                continue;
+            }
+            this.legacyBotsNameByWorldUuid
+                .computeIfAbsent(levelUuid.toString(), (k) -> new HashSet<>())
+                .add(realName);
+        }
     }
 
     public void loadResume(String worldUuid) {
         if (!LeavesConfig.modify.fakeplayer.enable || !LeavesConfig.modify.fakeplayer.canResident) {
             return;
         }
-        Set<String> bots = this.botsNameByWorldUuid.get(worldUuid);
-        if (bots == null) {
-            return;
-        }
-        Set<String> botsCopy = new HashSet<>(bots);
-        botsCopy.forEach(this::loadNewResumeBot);
+        new HashSet<>(this.botsNameByWorldUuid.getOrDefault(worldUuid, new HashSet<>())).forEach(this::loadNewResumeBot);
+        new HashSet<>(this.legacyBotsNameByWorldUuid.getOrDefault(worldUuid, new HashSet<>())).forEach(this::loadNewManualSavedBot);
     }
 
     public void updateBotLevel(@NotNull ServerBot bot, @NotNull ServerLevel level) {

@@ -45,7 +45,7 @@ public class BBORProtocol implements LeavesProtocol {
 
     @Contract("_ -> new")
     public static ResourceLocation id(String path) {
-        return ResourceLocation.tryBuild(PROTOCOL_ID, path);
+        return ResourceLocation.fromNamespaceAndPath(PROTOCOL_ID, path);
     }
 
     @ProtocolHandler.Ticker

@@ -24,7 +24,7 @@ public class ChatImageProtocol implements LeavesProtocol {
 
     @Contract("_ -> new")
     public static ResourceLocation id(String path) {
-        return ResourceLocation.tryBuild(PROTOCOL_ID, path);
+        return ResourceLocation.fromNamespaceAndPath(PROTOCOL_ID, path);
     }
 
     @ProtocolHandler.PayloadReceiver(payload = FileChannelPayload.class)

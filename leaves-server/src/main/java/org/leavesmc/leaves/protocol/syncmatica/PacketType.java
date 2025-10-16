@@ -25,6 +25,6 @@ public enum PacketType {
     public final ResourceLocation identifier;
 
     PacketType(final String id) {
-        identifier = ResourceLocation.tryBuild(SyncmaticaProtocol.PROTOCOL_ID, id);
+        identifier = ResourceLocation.fromNamespaceAndPath(SyncmaticaProtocol.PROTOCOL_ID, id);
     }
 }

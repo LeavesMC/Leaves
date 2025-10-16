@@ -1,38 +1,25 @@
 package org.leavesmc.leaves.bot.agent.actions;
 
-import net.minecraft.server.level.ServerPlayer;
-import org.apache.commons.lang3.tuple.Pair;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.command.CommandArgument;
-import org.leavesmc.leaves.command.CommandArgumentResult;
-import org.leavesmc.leaves.command.CommandArgumentType;
+import org.leavesmc.leaves.bot.agent.ExtraData;
+import org.leavesmc.leaves.command.CommandContext;
+import org.leavesmc.leaves.command.arguments.EnumArgumentType;
 import org.leavesmc.leaves.entity.bot.action.MoveAction.MoveDirection;
 import org.leavesmc.leaves.entity.bot.actions.CraftMoveAction;
 import org.leavesmc.leaves.event.bot.BotActionStopEvent;
 
-import java.util.Arrays;
-import java.util.List;
-
-public class ServerMoveAction extends ServerStateBotAction<ServerMoveAction> {
-
-    private static final Pair<List<String>, String> suggestions = Pair.of(
-        Arrays.stream(MoveDirection.values()).map((it) -> it.name).toList(),
-        "<Direction>"
-    );
+public class ServerMoveAction extends AbstractStateBotAction<ServerMoveAction> {
     private MoveDirection direction = MoveDirection.FORWARD;
 
     public ServerMoveAction() {
-        super("move", CommandArgument.of(CommandArgumentType.ofEnum(MoveDirection.class)), ServerMoveAction::new);
-        this.setSuggestion(0, suggestions);
+        super("move", ServerMoveAction::new);
+        this.addArgument("direction", EnumArgumentType.fromEnum(MoveDirection.class));
     }
 
     @Override
-    public void loadCommand(ServerPlayer player, @NotNull CommandArgumentResult result) {
-        this.direction = result.read(MoveDirection.class);
-        if (direction == null) {
-            throw new IllegalArgumentException("Invalid direction");
-        }
+    public void loadCommand(@NotNull CommandContext context) {
+        this.direction = context.getArgument("direction", MoveDirection.class);
     }
 
     @Override
@@ -55,6 +42,12 @@ public class ServerMoveAction extends ServerStateBotAction<ServerMoveAction> {
             case RIGHT -> bot.xxa = -velocity;
         }
         return true;
+    }
+
+    @Override
+    public String getActionDataString(@NotNull ExtraData data) {
+        data.add("direction", direction.name);
+        return super.getActionDataString(data);
     }
 
     public MoveDirection getDirection() {

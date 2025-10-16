@@ -9,7 +9,7 @@ import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.entity.bot.actions.CraftFishAction;
 
-public class ServerFishAction extends ServerTimerBotAction<ServerFishAction> {
+public class ServerFishAction extends AbstractTimerBotAction<ServerFishAction> {
 
     public ServerFishAction() {
         super("fish", ServerFishAction::new);

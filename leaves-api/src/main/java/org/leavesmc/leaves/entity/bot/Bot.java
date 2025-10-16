@@ -74,4 +74,13 @@ public interface Bot extends Player {
      * @return success
      */
     boolean remove(boolean save);
+
+    /**
+     * Remove the fakeplayer
+     *
+     * @param save should save
+     * @param resume should resume at next server start
+     * @return success
+     */
+    boolean remove(boolean save, boolean resume);
 }

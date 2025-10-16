@@ -1,11 +1,11 @@
 package org.leavesmc.leaves.entity.bot.actions;
 
-import org.leavesmc.leaves.bot.agent.actions.ServerTimerBotAction;
+import org.leavesmc.leaves.bot.agent.actions.AbstractTimerBotAction;
 import org.leavesmc.leaves.entity.bot.action.TimerBotAction;
 
 import java.util.function.Function;
 
-public class CraftTimerBotAction<T extends TimerBotAction<T>, S extends ServerTimerBotAction<S>> extends CraftBotAction<T, S> implements TimerBotAction<T> {
+public class CraftTimerBotAction<T extends TimerBotAction<T>, S extends AbstractTimerBotAction<S>> extends CraftBotAction<T, S> implements TimerBotAction<T> {
 
     public CraftTimerBotAction(S serverAction, Function<S, T> creator) {
         super(serverAction, creator);

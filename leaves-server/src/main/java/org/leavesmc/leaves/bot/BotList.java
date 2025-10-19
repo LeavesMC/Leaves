@@ -220,12 +220,12 @@ public class BotList {
 
         bot.disconnect();
 
+        this.resumeDataStorage.removeSavedData(bot);
         if (event.shouldSave()) {
             if (resume) {
                 this.resumeDataStorage.save(bot);
             } else {
                 this.manualSaveDataStorage.save(bot);
-                this.resumeDataStorage.removeSavedData(bot);
             }
         } else {
             bot.dropAll(true);

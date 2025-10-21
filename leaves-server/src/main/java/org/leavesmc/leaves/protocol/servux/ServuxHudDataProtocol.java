@@ -234,10 +234,9 @@ public class ServuxHudDataProtocol implements LeavesProtocol {
             });
         }
 
-        for (ServerPlayer player : loggerPlayers.keySet()) {
-            List<DataLogger.Type> list = loggerPlayers.get(player);
+        loggerPlayers.forEach((player, list) -> {
             if (list.isEmpty()) {
-                continue;
+                return;
             }
 
             CompoundTag nbt = new CompoundTag();
@@ -247,7 +246,7 @@ public class ServuxHudDataProtocol implements LeavesProtocol {
                 }
             }
             sendPacket(player, new HudDataPayload(HudDataPayloadType.PACKET_S2C_DATA_LOGGER_TICK, nbt));
-        }
+        });
     }
 
     @Override

@@ -237,7 +237,7 @@ public class ServuxHudDataProtocol implements LeavesProtocol {
         for (ServerPlayer player : loggerPlayers.keySet()) {
             List<DataLogger.Type> list = loggerPlayers.get(player);
             if (list.isEmpty()) {
-                return;
+                continue;
             }
 
             CompoundTag nbt = new CompoundTag();

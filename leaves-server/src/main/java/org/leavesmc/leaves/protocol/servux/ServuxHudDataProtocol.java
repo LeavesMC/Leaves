@@ -234,20 +234,17 @@ public class ServuxHudDataProtocol implements LeavesProtocol {
             });
         }
 
-        for (ServerPlayer player : loggerPlayers.keySet()) {
-            List<DataLogger.Type> list = loggerPlayers.get(player);
-            if (list.isEmpty()) {
-                return;
-            }
-
+        loggerPlayers.forEach((player, list) -> {
             CompoundTag nbt = new CompoundTag();
             for (DataLogger.Type type : list) {
                 if (DATA.containsKey(type)) {
                     nbt.put(type.getSerializedName(), DATA.get(type));
                 }
             }
-            sendPacket(player, new HudDataPayload(HudDataPayloadType.PACKET_S2C_DATA_LOGGER_TICK, nbt));
-        }
+            if (!nbt.isEmpty()) {
+                sendPacket(player, new HudDataPayload(HudDataPayloadType.PACKET_S2C_DATA_LOGGER_TICK, nbt));
+            }
+        });
     }
 
     @Override

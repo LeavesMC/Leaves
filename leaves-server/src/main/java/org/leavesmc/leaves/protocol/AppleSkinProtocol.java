@@ -38,7 +38,7 @@ public class AppleSkinProtocol implements LeavesProtocol {
 
     @Contract("_ -> new")
     public static ResourceLocation id(String path) {
-        return ResourceLocation.tryBuild(PROTOCOL_ID, path);
+        return ResourceLocation.fromNamespaceAndPath(PROTOCOL_ID, path);
     }
 
     @ProtocolHandler.PlayerJoin
@@ -54,7 +54,7 @@ public class AppleSkinProtocol implements LeavesProtocol {
 
     @ProtocolHandler.MinecraftRegister(onlyNamespace = true)
     public static void onPlayerSubscribed(@NotNull Context context, ResourceLocation id) {
-        subscribedChannels.computeIfAbsent(context.profile().getId(), k -> new HashSet<>()).add(id.getPath());
+        subscribedChannels.computeIfAbsent(context.profile().id(), k -> new HashSet<>()).add(id.getPath());
     }
 
     @ProtocolHandler.Ticker

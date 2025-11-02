@@ -108,12 +108,21 @@ public class RemoveCommand extends BotSubcommand {
             }
 
             Matcher matcher = Pattern.compile("(\\d+)([hmsHMS])").matcher(timeStr);
-            int seconds = 0;
+            long seconds = 0;
             boolean foundMatch = false;
 
             while (matcher.find()) {
                 foundMatch = true;
-                int value = Integer.parseInt(matcher.group(1));
+                long value;
+                try {
+                    value = Long.parseLong(matcher.group(1));
+                } catch (NumberFormatException e) {
+                    throw new CommandSyntaxException(
+                        CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherParseException(),
+                        literal("Number too large: " + matcher.group(1))
+                    );
+                }
+
                 switch (matcher.group(2).toLowerCase()) {
                     case "h" -> seconds += value * 3600;
                     case "m" -> seconds += value * 60;
@@ -128,7 +137,14 @@ public class RemoveCommand extends BotSubcommand {
                 );
             }
 
-            return seconds;
+            if (seconds > Integer.MAX_VALUE) {
+                throw new CommandSyntaxException(
+                    CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherParseException(),
+                    literal("Total time exceeds maximum limit")
+                );
+            }
+
+            return (int) seconds;
         }
 
         private static @NotNull String formatSeconds(int totalSeconds) {

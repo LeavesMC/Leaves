@@ -93,21 +93,6 @@ public class BlockAccessorImpl extends AccessorImpl<BlockHitResult> implements B
         }
 
         @Override
-        public Builder serverData(CompoundTag serverData) {
-            return this;
-        }
-
-        @Override
-        public Builder showDetails(boolean showDetails) {
-            return this;
-        }
-
-        @Override
-        public Builder serversideRep(ItemStack stack) {
-            return this;
-        }
-
-        @Override
         public Builder blockEntity(Supplier<BlockEntity> blockEntity) {
             this.blockEntity = blockEntity;
             return this;
@@ -151,12 +136,9 @@ public class BlockAccessorImpl extends AccessorImpl<BlockHitResult> implements B
             return new Builder()
                 .level(player.level())
                 .player(player)
-                .showDetails(showDetails)
                 .hit(hit)
                 .blockState(blockState)
                 .blockEntity(blockEntity)
-                .serversideRep(serversideRep)
-                .serverData(data)
                 .build();
         }
     }

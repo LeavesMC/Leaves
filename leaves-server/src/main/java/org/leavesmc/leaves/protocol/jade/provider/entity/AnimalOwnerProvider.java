@@ -43,7 +43,6 @@ public enum AnimalOwnerProvider implements StreamServerDataProvider<EntityAccess
         Entity entity = level.getEntity(uuid);
         if (entity != null) {
             return entity.getName();
-//            return getEntityName(entity, false); // TODO WTF THIS IS
         }
         String name = lookupPlayerName(uuid, level.getServer().services());
         return name == null ? null : Component.literal(name);

@@ -1,10 +1,8 @@
 package org.leavesmc.leaves.protocol.jade.accessor;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -36,12 +34,6 @@ public interface BlockAccessor extends Accessor<BlockHitResult> {
         default Builder blockEntity(BlockEntity blockEntity) {
             return blockEntity(() -> blockEntity);
         }
-
-        Builder serverData(CompoundTag serverData);
-
-        Builder showDetails(boolean showDetails);
-
-        Builder serversideRep(ItemStack stack);
 
         Builder blockEntity(Supplier<BlockEntity> blockEntity);
 

@@ -67,16 +67,6 @@ public class EntityAccessorImpl extends AccessorImpl<EntityHitResult> implements
         }
 
         @Override
-        public Builder serverData(CompoundTag serverData) {
-            return this;
-        }
-
-        @Override
-        public Builder showDetails(boolean showDetails) {
-            return this;
-        }
-
-        @Override
         public Builder entity(Supplier<Entity> entity) {
             this.entity = entity;
             return this;
@@ -117,10 +107,8 @@ public class EntityAccessorImpl extends AccessorImpl<EntityHitResult> implements
             return new EntityAccessorImpl.Builder()
                 .level(player.level())
                 .player(player)
-                .showDetails(showDetails)
                 .entity(entity)
                 .hit(Suppliers.memoize(() -> new EntityHitResult(entity.get(), hitVec)))
-                .serverData(data)
                 .build();
         }
     }

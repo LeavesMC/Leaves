@@ -6,7 +6,6 @@ import org.leavesmc.leaves.protocol.core.LeavesProtocol;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 
 public abstract class AbstractInvokerHolder<T> {
 

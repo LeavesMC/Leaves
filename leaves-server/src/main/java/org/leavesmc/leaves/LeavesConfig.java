@@ -13,6 +13,7 @@ import org.bukkit.permissions.Permission;
 import org.bukkit.permissions.PermissionDefault;
 import org.bukkit.plugin.PluginManager;
 import org.jetbrains.annotations.NotNull;
+import org.leavesmc.leaves.bot.BotList;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.command.bot.BotCommand;
 import org.leavesmc.leaves.command.leaves.LeavesCommand;
@@ -140,6 +141,7 @@ public final class LeavesConfig {
                             BotCommand.INSTANCE.register();
                         } else {
                             BotCommand.INSTANCE.unregister();
+                            BotList.INSTANCE.removeAll();
                         }
                     }
                 }

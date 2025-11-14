@@ -1,6 +1,7 @@
 package org.leavesmc.leaves.protocol.jade.accessor;
 
 import com.google.common.base.Suppliers;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
@@ -86,7 +87,7 @@ public class EntityAccessorImpl extends AccessorImpl<EntityHitResult> implements
         }
     }
 
-    public record SyncData(boolean showDetails, int id, int partIndex, Vec3 hitVec) {
+    public record SyncData(boolean showDetails, int id, int partIndex, Vec3 hitVec, CompoundTag data) {
         public static final StreamCodec<RegistryFriendlyByteBuf, SyncData> STREAM_CODEC = StreamCodec.composite(
             ByteBufCodecs.BOOL,
             SyncData::showDetails,
@@ -96,6 +97,8 @@ public class EntityAccessorImpl extends AccessorImpl<EntityHitResult> implements
             SyncData::partIndex,
             ByteBufCodecs.VECTOR3F.map(Vec3::new, Vec3::toVector3f),
             SyncData::hitVec,
+            ByteBufCodecs.COMPOUND_TAG,
+            SyncData::data,
             SyncData::new
         );
 

@@ -60,7 +60,7 @@ public class PcaSyncProtocol implements LeavesProtocol {
 
     @Contract("_ -> new")
     public static ResourceLocation id(String path) {
-        return ResourceLocation.tryBuild(PROTOCOL_ID, path);
+        return ResourceLocation.fromNamespaceAndPath(PROTOCOL_ID, path);
     }
 
     @ProtocolHandler.PlayerJoin
@@ -142,12 +142,12 @@ public class PcaSyncProtocol implements LeavesProtocol {
                             }
                         }
                         case OPS -> {
-                            if (!(entity instanceof ServerBot) && !server.getPlayerList().isOp(player.gameProfile)) {
+                            if (!(entity instanceof ServerBot) && !server.getPlayerList().isOp(player.nameAndId())) {
                                 return;
                             }
                         }
                         case OPS_AND_SELF -> {
-                            if (!(entity instanceof ServerBot) && !server.getPlayerList().isOp(player.gameProfile) && entity != player) {
+                            if (!(entity instanceof ServerBot) && !server.getPlayerList().isOp(player.nameAndId()) && entity != player) {
                                 return;
                             }
                         }

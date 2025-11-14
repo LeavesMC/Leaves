@@ -13,10 +13,10 @@ import java.util.Set;
 
 public class Actions {
 
-    private static final Map<String, ServerBotAction<?>> actionsByName = new HashMap<>();
-    private static final Map<Class<?>, ServerBotAction<?>> actionsByClass = new HashMap<>();
+    private static final Map<String, AbstractBotAction<?>> actionsByName = new HashMap<>();
+    private static final Map<Class<?>, AbstractBotAction<?>> actionsByClass = new HashMap<>();
 
-    public static void registerAll() {
+    static {
         register(new ServerAttackAction(), AttackAction.class);
         register(new ServerBreakBlockAction(), BreakBlockAction.class);
         register(new ServerDropAction(), DropAction.class);
@@ -38,7 +38,7 @@ public class Actions {
         register(new ServerSwapAction(), SwapAction.class);
     }
 
-    public static boolean register(@NotNull ServerBotAction<?> action, Class<? extends BotAction<?>> type) {
+    public static boolean register(@NotNull AbstractBotAction<?> action, Class<?> type) {
         if (!actionsByName.containsKey(action.getName())) {
             actionsByName.put(action.getName(), action);
             actionsByClass.put(type, action);
@@ -47,14 +47,22 @@ public class Actions {
         return false;
     }
 
+    public static boolean register(@NotNull AbstractBotAction<?> action) {
+        return register(action, action.getClass());
+    }
+
     public static boolean unregister(@NotNull String name) {
-        // TODO add in custom action api
-        return true;
+        AbstractBotAction<?> action = actionsByName.remove(name);
+        if (action != null) {
+            actionsByClass.remove(action.getClass());
+            return true;
+        }
+        return false;
     }
 
     @NotNull
     @Contract(pure = true)
-    public static Collection<ServerBotAction<?>> getAll() {
+    public static Collection<AbstractBotAction<?>> getAll() {
         return actionsByName.values();
     }
 
@@ -64,12 +72,12 @@ public class Actions {
     }
 
     @Nullable
-    public static ServerBotAction<?> getForName(String name) {
+    public static AbstractBotAction<?> getForName(String name) {
         return actionsByName.get(name);
     }
 
     @Nullable
-    public static ServerBotAction<?> getForClass(@NotNull Class<?> type) {
+    public static AbstractBotAction<?> getForClass(@NotNull Class<?> type) {
         return actionsByClass.get(type);
     }
 }

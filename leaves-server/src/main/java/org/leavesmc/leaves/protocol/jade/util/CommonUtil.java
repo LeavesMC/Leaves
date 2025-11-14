@@ -1,20 +1,15 @@
 package org.leavesmc.leaves.protocol.jade.util;
 
-import com.mojang.authlib.GameProfile;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.boss.EnderDragonPart;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
-import net.minecraft.world.level.block.entity.SkullBlockEntity;
-import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.LeavesLogger;
 import org.leavesmc.leaves.protocol.jade.accessor.Accessor;
 import org.leavesmc.leaves.protocol.jade.provider.IServerExtensionProvider;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
 
 public class CommonUtil {
 
@@ -39,16 +34,6 @@ public class CommonUtil {
             }
         }
         return parent;
-    }
-
-
-    @Nullable
-    public static String getLastKnownUsername(@Nullable UUID uuid) {
-        if (uuid == null) {
-            return null;
-        }
-        Optional<GameProfile> optional = SkullBlockEntity.fetchGameProfile(String.valueOf(uuid)).getNow(Optional.empty());
-        return optional.map(GameProfile::getName).orElse(null);
     }
 
 

@@ -2,6 +2,7 @@ package org.leavesmc.leaves.protocol.jade.accessor;
 
 import com.google.common.base.Suppliers;
 import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
@@ -113,21 +114,22 @@ public class BlockAccessorImpl extends AccessorImpl<BlockHitResult> implements B
         }
     }
 
-    public record SyncData(boolean showDetails, BlockHitResult hit, BlockState blockState, ItemStack fakeBlock) {
+    public record SyncData(boolean showDetails, BlockHitResult hit, ItemStack serversideRep, CompoundTag data) {
         public static final StreamCodec<RegistryFriendlyByteBuf, SyncData> STREAM_CODEC = StreamCodec.composite(
             ByteBufCodecs.BOOL,
             SyncData::showDetails,
             StreamCodec.of(FriendlyByteBuf::writeBlockHitResult, FriendlyByteBuf::readBlockHitResult),
             SyncData::hit,
-            ByteBufCodecs.idMapper(Block.BLOCK_STATE_REGISTRY),
-            SyncData::blockState,
             ItemStack.OPTIONAL_STREAM_CODEC,
-            SyncData::fakeBlock,
+            SyncData::serversideRep,
+            ByteBufCodecs.COMPOUND_TAG,
+            SyncData::data,
             SyncData::new
         );
 
         public BlockAccessor unpack(ServerPlayer player) {
             Supplier<BlockEntity> blockEntity = null;
+            BlockState blockState = player.level().getBlockState(hit.getBlockPos());
             if (blockState.hasBlockEntity()) {
                 blockEntity = Suppliers.memoize(() -> player.level().getBlockEntity(hit.getBlockPos()));
             }

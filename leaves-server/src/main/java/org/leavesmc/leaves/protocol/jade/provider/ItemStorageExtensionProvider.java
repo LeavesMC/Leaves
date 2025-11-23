@@ -30,7 +30,7 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
-public enum ItemStorageExtensionProvider implements IServerExtensionProvider<ItemStack> {
+public enum ItemStorageExtensionProvider implements ServerExtensionProvider<ItemStack> {
     INSTANCE;
 
     public static final Cache<Object, ItemCollector<?>> targetCache = CacheBuilder.newBuilder().weakKeys().expireAfterAccess(60, TimeUnit.SECONDS).build();

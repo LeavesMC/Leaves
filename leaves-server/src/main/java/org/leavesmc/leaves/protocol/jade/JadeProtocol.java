@@ -41,9 +41,9 @@ import org.leavesmc.leaves.protocol.jade.payload.ReceiveDataPayload;
 import org.leavesmc.leaves.protocol.jade.payload.RequestBlockPayload;
 import org.leavesmc.leaves.protocol.jade.payload.RequestEntityPayload;
 import org.leavesmc.leaves.protocol.jade.payload.ServerHandshakePayload;
-import org.leavesmc.leaves.protocol.jade.provider.IJadeProvider;
-import org.leavesmc.leaves.protocol.jade.provider.IServerDataProvider;
-import org.leavesmc.leaves.protocol.jade.provider.IServerExtensionProvider;
+import org.leavesmc.leaves.protocol.jade.provider.JadeProvider;
+import org.leavesmc.leaves.protocol.jade.provider.ServerDataProvider;
+import org.leavesmc.leaves.protocol.jade.provider.ServerExtensionProvider;
 import org.leavesmc.leaves.protocol.jade.provider.ItemStorageExtensionProvider;
 import org.leavesmc.leaves.protocol.jade.provider.ItemStorageProvider;
 import org.leavesmc.leaves.protocol.jade.provider.block.*;
@@ -71,12 +71,12 @@ public class JadeProtocol implements LeavesProtocol {
 
     public static final String PROTOCOL_ID = "jade";
     public static final String PROTOCOL_VERSION = "9";
-    public static final HierarchyLookup<IServerDataProvider<EntityAccessor>> entityDataProviders = new HierarchyLookup<>(Entity.class);
-    public static final PairHierarchyLookup<IServerDataProvider<BlockAccessor>> blockDataProviders = new PairHierarchyLookup<>(new HierarchyLookup<>(Block.class), new HierarchyLookup<>(BlockEntity.class));
-    public static final WrappedHierarchyLookup<IServerExtensionProvider<ItemStack>> itemStorageProviders = WrappedHierarchyLookup.forAccessor();
+    public static final HierarchyLookup<ServerDataProvider<EntityAccessor>> entityDataProviders = new HierarchyLookup<>(Entity.class);
+    public static final PairHierarchyLookup<ServerDataProvider<BlockAccessor>> blockDataProviders = new PairHierarchyLookup<>(new HierarchyLookup<>(Block.class), new HierarchyLookup<>(BlockEntity.class));
+    public static final WrappedHierarchyLookup<ServerExtensionProvider<ItemStack>> itemStorageProviders = WrappedHierarchyLookup.forAccessor();
     private static final Set<ServerPlayer> enabledPlayers = new HashSet<>();
 
-    public static PriorityStore<ResourceLocation, IJadeProvider> priorities;
+    public static PriorityStore<ResourceLocation, JadeProvider> priorities;
     private static List<Block> shearableBlocks = null;
 
     @Contract("_ -> new")
@@ -91,7 +91,7 @@ public class JadeProtocol implements LeavesProtocol {
 
     @ProtocolHandler.Init
     public static void init() {
-        priorities = new PriorityStore<>(IJadeProvider::getDefaultPriority, IJadeProvider::getUid);
+        priorities = new PriorityStore<>(JadeProvider::getDefaultPriority, JadeProvider::getUid);
 
         // core plugin
         blockDataProviders.register(BlockEntity.class, BlockNameProvider.INSTANCE);
@@ -173,13 +173,13 @@ public class JadeProtocol implements LeavesProtocol {
                 return;
             }
 
-            List<IServerDataProvider<EntityAccessor>> providers = entityDataProviders.get(entity);
+            List<ServerDataProvider<EntityAccessor>> providers = entityDataProviders.get(entity);
             if (providers.isEmpty()) {
                 return;
             }
 
             CompoundTag tag = new CompoundTag();
-            for (IServerDataProvider<EntityAccessor> provider : providers) {
+            for (ServerDataProvider<EntityAccessor> provider : providers) {
                 if (!payload.dataProviders().contains(provider)) {
                     continue;
                 }
@@ -211,7 +211,7 @@ public class JadeProtocol implements LeavesProtocol {
                 return;
             }
 
-            List<IServerDataProvider<BlockAccessor>> providers;
+            List<ServerDataProvider<BlockAccessor>> providers;
             if (blockEntity != null) {
                 providers = blockDataProviders.getMerged(block, blockEntity);
             } else {
@@ -223,7 +223,7 @@ public class JadeProtocol implements LeavesProtocol {
             }
 
             CompoundTag tag = new CompoundTag();
-            for (IServerDataProvider<BlockAccessor> provider : providers) {
+            for (ServerDataProvider<BlockAccessor> provider : providers) {
                 if (!payload.dataProviders().contains(provider)) {
                     continue;
                 }

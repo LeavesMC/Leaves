@@ -11,12 +11,12 @@ import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Unmodifiable;
 import org.leavesmc.leaves.protocol.jade.JadeProtocol;
 import org.leavesmc.leaves.protocol.jade.accessor.Accessor;
-import org.leavesmc.leaves.protocol.jade.provider.IServerExtensionProvider;
+import org.leavesmc.leaves.protocol.jade.provider.ServerExtensionProvider;
 import org.leavesmc.leaves.protocol.jade.util.ViewGroup;
 
 import java.util.List;
 
-public enum CampfireProvider implements IServerExtensionProvider<ItemStack> {
+public enum CampfireProvider implements ServerExtensionProvider<ItemStack> {
     INSTANCE;
 
     private static final ResourceLocation MC_CAMPFIRE = JadeProtocol.mc_id("campfire");

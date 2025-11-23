@@ -6,7 +6,7 @@ import net.minecraft.world.entity.boss.EnderDragonPart;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 import org.leavesmc.leaves.LeavesLogger;
 import org.leavesmc.leaves.protocol.jade.accessor.Accessor;
-import org.leavesmc.leaves.protocol.jade.provider.IServerExtensionProvider;
+import org.leavesmc.leaves.protocol.jade.provider.ServerExtensionProvider;
 
 import java.util.List;
 import java.util.Map;
@@ -39,7 +39,7 @@ public class CommonUtil {
 
     public static <T> Map.Entry<ResourceLocation, List<ViewGroup<T>>> getServerExtensionData(
         Accessor<?> accessor,
-        WrappedHierarchyLookup<IServerExtensionProvider<T>> lookup) {
+        WrappedHierarchyLookup<ServerExtensionProvider<T>> lookup) {
         for (var provider : lookup.wrappedGet(accessor)) {
             List<ViewGroup<T>> groups;
             try {

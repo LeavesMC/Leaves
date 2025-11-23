@@ -22,7 +22,7 @@ import org.leavesmc.leaves.protocol.jade.util.ViewGroup;
 import java.util.List;
 import java.util.Map;
 
-public abstract class ItemStorageProvider<T extends Accessor<?>> implements IServerDataProvider<T> {
+public abstract class ItemStorageProvider<T extends Accessor<?>> implements ServerDataProvider<T> {
 
     private static final StreamCodec<RegistryFriendlyByteBuf, Map.Entry<ResourceLocation, List<ViewGroup<ItemStack>>>> STREAM_CODEC = ViewGroup.listCodec(ItemStack.OPTIONAL_STREAM_CODEC);
 

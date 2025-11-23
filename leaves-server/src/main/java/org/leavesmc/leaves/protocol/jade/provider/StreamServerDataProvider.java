@@ -6,7 +6,7 @@ import net.minecraft.network.codec.StreamCodec;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.protocol.jade.accessor.Accessor;
 
-public interface StreamServerDataProvider<T extends Accessor<?>, D> extends IServerDataProvider<T> {
+public interface StreamServerDataProvider<T extends Accessor<?>, D> extends ServerDataProvider<T> {
 
     @Override
     default void appendServerData(CompoundTag data, T accessor) {

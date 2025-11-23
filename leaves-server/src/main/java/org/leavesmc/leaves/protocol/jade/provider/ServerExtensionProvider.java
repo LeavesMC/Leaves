@@ -5,6 +5,6 @@ import org.leavesmc.leaves.protocol.jade.util.ViewGroup;
 
 import java.util.List;
 
-public interface IServerExtensionProvider<T> extends IJadeProvider {
+public interface ServerExtensionProvider<T> extends JadeProvider {
     List<ViewGroup<T>> getGroups(Accessor<?> request);
 }

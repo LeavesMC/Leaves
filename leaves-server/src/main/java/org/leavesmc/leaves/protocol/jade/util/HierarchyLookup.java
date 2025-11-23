@@ -14,7 +14,7 @@ import net.minecraft.resources.ResourceLocation;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.LeavesLogger;
 import org.leavesmc.leaves.protocol.jade.JadeProtocol;
-import org.leavesmc.leaves.protocol.jade.provider.IJadeProvider;
+import org.leavesmc.leaves.protocol.jade.provider.JadeProvider;
 
 import java.util.Collection;
 import java.util.Comparator;
@@ -25,7 +25,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Stream;
 
-public class HierarchyLookup<T extends IJadeProvider> implements IHierarchyLookup<T> {
+public class HierarchyLookup<T extends JadeProvider> implements IHierarchyLookup<T> {
     private final Class<?> baseClass;
     private final Cache<Class<?>, List<T>> resultCache = CacheBuilder.newBuilder().build();
     private final boolean singleton;
@@ -108,7 +108,7 @@ public class HierarchyLookup<T extends IJadeProvider> implements IHierarchyLooku
     }
 
     @Override
-    public void loadComplete(PriorityStore<ResourceLocation, IJadeProvider> priorityStore) {
+    public void loadComplete(PriorityStore<ResourceLocation, JadeProvider> priorityStore) {
         objects.asMap().forEach((clazz, list) -> {
             if (list.size() < 2) {
                 return;

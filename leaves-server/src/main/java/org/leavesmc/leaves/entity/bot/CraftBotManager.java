@@ -10,11 +10,15 @@ import org.leavesmc.leaves.bot.BotList;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.bot.agent.Actions;
 import org.leavesmc.leaves.bot.agent.actions.AbstractBotAction;
+import org.leavesmc.leaves.bot.agent.actions.custom.ServerCustomAction;
 import org.leavesmc.leaves.entity.bot.action.BotAction;
+import org.leavesmc.leaves.entity.bot.action.custom.CustomAction;
+import org.leavesmc.leaves.entity.bot.action.custom.CustomActionProvider;
 import org.leavesmc.leaves.event.bot.BotCreateEvent;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 
 public class CraftBotManager implements BotManager {
@@ -65,6 +69,30 @@ public class CraftBotManager implements BotManager {
                 throw new RuntimeException("Failed to create action of type: " + type.getName(), e);
             }
         }
+    }
+
+    @Override
+    public CustomAction newCustomAction(String actionId) {
+        CustomActionProvider provider = Actions.getCustom(actionId);
+        if (provider == null) {
+            throw new IllegalArgumentException("Can't find custom action " + actionId);
+        }
+        return (CustomAction) new ServerCustomAction(provider).asCraft();
+    }
+
+    @Override
+    public void registerAction(CustomActionProvider provider) {
+        Actions.addCustom(provider);
+    }
+
+    @Override
+    public void unregisterAction(String id) {
+        Actions.removeCustom(id);
+    }
+
+    @Override
+    public List<String> getCustomActions() {
+        return List.of();
     }
 
     @Override

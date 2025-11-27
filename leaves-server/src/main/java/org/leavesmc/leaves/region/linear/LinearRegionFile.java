@@ -360,10 +360,10 @@ public class LinearRegionFile implements IRegionFile {
                 regionX = Integer.parseInt(parts[1]);
                 regionZ = Integer.parseInt(parts[2]);
             } else {
-                LOGGER.warn("Unexpected file fullName format: {}", fileName);
+                LOGGER.warn("Unexpected file name format: {}", fileName);
             }
         } catch (NumberFormatException e) {
-            LOGGER.error("Failed to parse region coordinates from file fullName: {}", fileName, e);
+            LOGGER.error("Failed to parse region coordinates from file name: {}", fileName, e);
         }
 
         dataStream.writeInt(regionX);

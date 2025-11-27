@@ -101,6 +101,6 @@ public class CraftBot extends CraftPlayer implements Bot {
 
     @Override
     public String toString() {
-        return "CraftBot{" + "fullName=" + getName() + '}';
+        return "CraftBot{" + "name=" + getName() + '}';
     }
 }

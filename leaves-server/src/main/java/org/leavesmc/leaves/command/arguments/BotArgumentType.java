@@ -41,7 +41,7 @@ public class BotArgumentType implements CustomArgumentType.Converted<@NotNull Se
         if (bot == null) {
             throw new CommandSyntaxException(
                 CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownArgument(),
-                Component.literal("Bot with fullName '" + nativeType + "' does not exist")
+                Component.literal("Bot with name '" + nativeType + "' does not exist")
             );
         }
         return bot;

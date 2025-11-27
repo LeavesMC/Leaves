@@ -12,6 +12,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.level.NaturalSpawner;
+import org.bukkit.Bukkit;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.protocol.servux.logger.data.MobCapData;
@@ -100,7 +101,7 @@ public abstract class DataLogger<T extends Tag> {
             ServerTickRateManager tickManager = server.tickRateManager();
             boolean frozen = tickManager.isFrozen();
             boolean sprinting = tickManager.isSprinting();
-            final double mspt = server.tickTimes5s.getAverage();
+            final double mspt = Bukkit.getAverageTickTime();
             double tps = 1000.0D / Math.max(sprinting ? 0.0 : tickManager.millisecondsPerTick(), mspt);
 
             if (frozen) {

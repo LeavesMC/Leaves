@@ -28,7 +28,7 @@ public class ItemOverstackUtils {
     public static int getItemStackMaxCount(ItemStack stack) {
         int size;
         for (ItemUtil util : overstackUtils) {
-            if ((size = util.getMaxServerStackCount(stack)) != -1) {
+            if (util.isEnabled() && (size = util.getMaxServerStackCount(stack)) != -1) {
                 return size;
             }
         }
@@ -38,7 +38,7 @@ public class ItemOverstackUtils {
     public static int getNetworkMaxCount(ItemStack stack) {
         int size;
         for (ItemUtil util : overstackUtils) {
-            if ((size = util.getMaxClientStackCount(stack)) != -1) {
+            if (util.isEnabled() && (size = util.getMaxClientStackCount(stack)) != -1) {
                 return size;
             }
         }
@@ -47,7 +47,7 @@ public class ItemOverstackUtils {
 
     public static boolean tryStackItems(ItemEntity self, ItemEntity other) {
         for (ItemUtil util : overstackUtils) {
-            if (util.tryStackItems(self, other)) {
+            if (util.isEnabled() && util.tryStackItems(self, other)) {
                 return true;
             }
         }
@@ -55,7 +55,12 @@ public class ItemOverstackUtils {
     }
 
     public static boolean hasOverstackingItem() {
-        return overstackUtils.stream().anyMatch(ItemUtil::isEnabled);
+        for (ItemUtil util : overstackUtils) {
+            if (util.isEnabled()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static int getItemStackMaxCountReal(ItemStack stack) {
@@ -102,7 +107,6 @@ public class ItemOverstackUtils {
         return getItemStackMaxCount(itemStack) > 1 && (!itemStack.isDamageableItem() || !itemStack.isDamaged());
     }
 
-
     private interface ItemUtil {
         boolean isEnabled();
 
@@ -137,10 +141,7 @@ public class ItemOverstackUtils {
         @Override
         public boolean tryStackItems(ItemEntity self, ItemEntity other) {
             ItemStack selfStack = self.getItem();
-            if (!isEnabled() ||
-                !(selfStack.getItem() instanceof net.minecraft.world.item.BlockItem blockItem) ||
-                !(blockItem.getBlock() instanceof net.minecraft.world.level.block.ShulkerBoxBlock)
-            ) {
+            if (!(selfStack.getItem() instanceof BlockItem blockItem) || !(blockItem.getBlock() instanceof ShulkerBoxBlock)) {
                 return false;
             }
 
@@ -169,7 +170,7 @@ public class ItemOverstackUtils {
 
         @Override
         public int getMaxServerStackCount(ItemStack stack) {
-            if (isEnabled() && stack.getItem() instanceof BlockItem bi &&
+            if (stack.getItem() instanceof BlockItem bi &&
                 bi.getBlock() instanceof ShulkerBoxBlock && (LeavesConfig.modify.shulkerBox.sameNbtStackable || shulkerBoxNoItem(stack))) {
                 return LeavesConfig.modify.shulkerBox.stackableShulkerBoxes;
             }
@@ -204,10 +205,7 @@ public class ItemOverstackUtils {
 
         @Override
         public int getMaxClientStackCount(ItemStack stack) {
-            if (isEnabled() && isCursedEnchantedBook(stack)) {
-                return 2;
-            }
-            return -1;
+            return isCursedEnchantedBook(stack) ? 2 : -1;
         }
     }
 }

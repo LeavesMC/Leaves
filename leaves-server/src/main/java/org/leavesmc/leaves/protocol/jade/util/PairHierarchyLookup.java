@@ -9,7 +9,7 @@ import net.minecraft.resources.ResourceLocation;
 import org.apache.commons.lang3.tuple.Pair;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.LeavesLogger;
-import org.leavesmc.leaves.protocol.jade.provider.IJadeProvider;
+import org.leavesmc.leaves.protocol.jade.provider.JadeProvider;
 
 import java.util.Collection;
 import java.util.List;
@@ -18,7 +18,7 @@ import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Stream;
 
-public class PairHierarchyLookup<T extends IJadeProvider> implements IHierarchyLookup<T> {
+public class PairHierarchyLookup<T extends JadeProvider> implements IHierarchyLookup<T> {
     public final IHierarchyLookup<T> first;
     public final IHierarchyLookup<T> second;
     private final Cache<Pair<Class<?>, Class<?>>, List<T>> mergedCache = CacheBuilder.newBuilder().build();
@@ -105,7 +105,7 @@ public class PairHierarchyLookup<T extends IJadeProvider> implements IHierarchyL
     }
 
     @Override
-    public void loadComplete(PriorityStore<ResourceLocation, IJadeProvider> priorityStore) {
+    public void loadComplete(PriorityStore<ResourceLocation, JadeProvider> priorityStore) {
         first.loadComplete(priorityStore);
         second.loadComplete(priorityStore);
         if (idMapped) {

@@ -4,7 +4,7 @@ import java.util.Locale
 
 plugins {
     java
-    id("org.leavesmc.leavesweight.patcher") version "2.0.0-SNAPSHOT"
+    id("org.leavesmc.leavesweight.patcher") version "2.1.0-SNAPSHOT"
 }
 
 subprojects {

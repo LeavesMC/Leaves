@@ -1,5 +1,7 @@
 package org.leavesmc.leaves.protocol.core;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
@@ -16,12 +18,14 @@ import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
 public class ProtocolUtils {
 
-    private static final Function<ByteBuf, RegistryFriendlyByteBuf> bufDecorator = buf -> buf instanceof RegistryFriendlyByteBuf registry ? registry : new RegistryFriendlyByteBuf(buf, MinecraftServer.getServer().registryAccess());
+    private static final Cache<ServerCommonPacketListenerImpl, IdentifierSelector> SELECTOR_CACHE = CacheBuilder.newBuilder().expireAfterAccess(30, TimeUnit.SECONDS).build();
+    private static final Function<ByteBuf, RegistryFriendlyByteBuf> BUF_DECORATOR = buf -> buf instanceof RegistryFriendlyByteBuf registry ? registry : new RegistryFriendlyByteBuf(buf, MinecraftServer.getServer().registryAccess());
     private static final byte[] EMPTY = new byte[0];
 
     public static String buildProtocolVersion(String protocol) {
@@ -57,12 +61,20 @@ public class ProtocolUtils {
     }
 
     public static RegistryFriendlyByteBuf decorate(ByteBuf buf) {
-        return bufDecorator.apply(buf);
+        return BUF_DECORATOR.apply(buf);
     }
 
     public static IdentifierSelector createSelector(ServerCommonPacketListenerImpl common) {
+        IdentifierSelector selector = SELECTOR_CACHE.getIfPresent(common);
+        if (selector != null) {
+            return selector;
+        }
         ServerPlayer player = common instanceof ServerGamePacketListenerImpl game ? game.getPlayer() : null;
-        return new IdentifierSelector(new Context(common.profile, common.connection), player);
+        selector = new IdentifierSelector(new Context(common.profile, common.connection), player);
+        if (player != null) {
+            SELECTOR_CACHE.put(common, selector);
+        }
+        return selector;
     }
 
     public static ByteBuf wrapNullable(byte @Nullable [] data) {

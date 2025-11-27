@@ -19,10 +19,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Optional;
 
-public class BotDataStorage implements IPlayerDataStorage {
-
-    private static final LevelResource BOT_DATA_DIR = new LevelResource("fakeplayerdata");
-    private static final LevelResource BOT_LIST_FILE = new LevelResource("fakeplayer.dat");
+public class BotDataStorage {
 
     private static final Logger LOGGER = LogUtils.getLogger();
     private final File botDir;
@@ -30,9 +27,9 @@ public class BotDataStorage implements IPlayerDataStorage {
 
     private CompoundTag savedBotList;
 
-    public BotDataStorage(LevelStorageSource.@NotNull LevelStorageAccess session) {
-        this.botDir = session.getLevelPath(BOT_DATA_DIR).toFile();
-        this.botListFile = session.getLevelPath(BOT_LIST_FILE).toFile();
+    public BotDataStorage(LevelStorageSource.@NotNull LevelStorageAccess session, String dataDir, String listFileName) {
+        this.botDir = session.getLevelPath(new LevelResource(dataDir)).toFile();
+        this.botListFile = session.getLevelPath(new LevelResource(listFileName)).toFile();
         this.botDir.mkdirs();
 
         this.savedBotList = new CompoundTag();
@@ -45,7 +42,6 @@ public class BotDataStorage implements IPlayerDataStorage {
         }
     }
 
-    @Override
     public void save(Player player) {
         boolean flag = true;
         try {
@@ -68,21 +64,25 @@ public class BotDataStorage implements IPlayerDataStorage {
 
         if (flag && player instanceof ServerBot bot) {
             CompoundTag nbt = new CompoundTag();
-            nbt.putString("name", bot.createState.name());
+            nbt.putString("name", bot.createState.fullName());
             nbt.store("uuid", UUIDUtil.CODEC, bot.getUUID());
             nbt.putBoolean("resume", bot.resume);
-            this.savedBotList.put(bot.createState.realName(), nbt);
+            this.savedBotList.put(bot.createState.fullName(), nbt);
             this.saveBotList();
         }
     }
 
-    @Override
-    public Optional<ValueInput> load(Player player, ProblemReporter reporter) {
-        return this.load(player.getScoreboardName(), player.getStringUUID()).map(nbt -> {
-            ValueInput valueInput = TagValueInput.create(reporter, player.registryAccess(), nbt);
-            player.load(valueInput);
+
+    public Optional<ValueInput> load(@NotNull ServerBot bot, ProblemReporter reporter) {
+        return this.load(bot.nameAndId().name(), bot.nameAndId().id().toString()).map(nbt -> {
+            ValueInput valueInput = TagValueInput.create(reporter, bot.registryAccess(), nbt);
+            bot.load(valueInput);
             return valueInput;
         });
+    }
+
+    public void removeSavedData(@NotNull ServerBot bot) {
+        this.load(bot.nameAndId().name(), bot.nameAndId().id().toString());
     }
 
     private Optional<CompoundTag> load(String name, String uuid) {

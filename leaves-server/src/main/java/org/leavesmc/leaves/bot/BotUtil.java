@@ -68,15 +68,15 @@ public class BotUtil {
 
     @NotNull
     public static UUID getBotUUID(@NotNull BotCreateState state) {
-        return getBotUUID(state.realName());
+        return getBotUUID(state.fullName());
     }
 
-    public static UUID getBotUUID(@NotNull String realName) {
-        return UUID.nameUUIDFromBytes(("Fakeplayer:" + realName).getBytes(Charsets.UTF_8));
+    public static UUID getBotUUID(@NotNull String fullName) {
+        return UUID.nameUUIDFromBytes(("Fakeplayer:" + fullName).getBytes(Charsets.UTF_8));
     }
 
-    public static UUID getBotLevel(@NotNull String realName, BotDataStorage botDataStorage) {
-        UUID uuid = BotUtil.getBotUUID(realName);
+    public static UUID getBotLevel(@NotNull String fullName, BotDataStorage botDataStorage) {
+        UUID uuid = getBotUUID(fullName);
         Optional<CompoundTag> tagOptional = botDataStorage.read(uuid.toString());
         if (tagOptional.isEmpty()) {
             return null;

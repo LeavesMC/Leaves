@@ -1,44 +1,134 @@
 package org.leavesmc.leaves.protocol.jade.accessor;
 
+import com.google.common.base.Suppliers;
 import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
-import org.jetbrains.annotations.ApiStatus;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.function.Supplier;
 
-public interface BlockAccessor extends Accessor<BlockHitResult> {
+/**
+ * Class to get information of block target and context.
+ */
+public class BlockAccessor extends Accessor<BlockHitResult> {
 
-    Block getBlock();
+    private final BlockState blockState;
+    @Nullable
+    private final Supplier<BlockEntity> blockEntity;
 
-    BlockState getBlockState();
+    private BlockAccessor(Builder builder) {
+        super(builder.level, builder.player, Suppliers.ofInstance(builder.hit));
+        blockState = builder.blockState;
+        blockEntity = builder.blockEntity;
+    }
 
-    BlockEntity getBlockEntity();
+    public Block getBlock() {
+        return getBlockState().getBlock();
+    }
 
-    BlockPos getPosition();
+    public BlockState getBlockState() {
+        return blockState;
+    }
 
-    @ApiStatus.NonExtendable
-    interface Builder {
-        Builder level(ServerLevel level);
+    public BlockEntity getBlockEntity() {
+        return blockEntity == null ? null : blockEntity.get();
+    }
 
-        Builder player(Player player);
+    public BlockPos getPosition() {
+        return getHitResult().getBlockPos();
+    }
 
-        Builder hit(BlockHitResult hit);
+    @Nullable
+    @Override
+    public Object getTarget() {
+        return getBlockEntity();
+    }
 
-        Builder blockState(BlockState state);
+    public static class Builder {
+        private ServerLevel level;
+        private Player player;
+        private BlockHitResult hit;
+        private BlockState blockState = Blocks.AIR.defaultBlockState();
+        private Supplier<BlockEntity> blockEntity;
 
-        default Builder blockEntity(BlockEntity blockEntity) {
-            return blockEntity(() -> blockEntity);
+        public Builder level(ServerLevel level) {
+            this.level = level;
+            return this;
         }
 
-        Builder blockEntity(Supplier<BlockEntity> blockEntity);
+        public Builder player(Player player) {
+            this.player = player;
+            return this;
+        }
 
-        Builder from(BlockAccessor accessor);
+        public Builder hit(BlockHitResult hit) {
+            this.hit = hit;
+            return this;
+        }
 
-        BlockAccessor build();
+        public Builder blockState(BlockState blockState) {
+            this.blockState = blockState;
+            return this;
+        }
+
+        public Builder blockEntity(Supplier<BlockEntity> blockEntity) {
+            this.blockEntity = blockEntity;
+            return this;
+        }
+
+        public Builder from(BlockAccessor accessor) {
+            level = accessor.getLevel();
+            player = accessor.getPlayer();
+            hit = accessor.getHitResult();
+            blockEntity = accessor::getBlockEntity;
+            blockState = accessor.getBlockState();
+            return this;
+        }
+
+        public BlockAccessor build() {
+            return new BlockAccessor(this);
+        }
+    }
+
+    public record SyncData(boolean showDetails, BlockHitResult hit, ItemStack serversideRep, CompoundTag data) {
+        public static final StreamCodec<RegistryFriendlyByteBuf, SyncData> STREAM_CODEC = StreamCodec.composite(
+            ByteBufCodecs.BOOL,
+            SyncData::showDetails,
+            StreamCodec.of(FriendlyByteBuf::writeBlockHitResult, FriendlyByteBuf::readBlockHitResult),
+            SyncData::hit,
+            ItemStack.OPTIONAL_STREAM_CODEC,
+            SyncData::serversideRep,
+            ByteBufCodecs.COMPOUND_TAG,
+            SyncData::data,
+            SyncData::new
+        );
+
+        public BlockAccessor unpack(ServerPlayer player) {
+            Supplier<BlockEntity> blockEntity = null;
+            BlockState blockState = player.level().getBlockState(hit.getBlockPos());
+            if (blockState.hasBlockEntity()) {
+                blockEntity = Suppliers.memoize(() -> player.level().getBlockEntity(hit.getBlockPos()));
+            }
+            return new Builder()
+                .level(player.level())
+                .player(player)
+                .hit(hit)
+                .blockState(blockState)
+                .blockEntity(blockEntity)
+                .build();
+        }
     }
 }

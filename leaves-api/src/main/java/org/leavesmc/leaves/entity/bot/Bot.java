@@ -22,9 +22,9 @@ public interface Bot extends Player {
     /**
      * Gets the fakeplayer name without prefix and suffix
      *
-     * @return fakeplayer real name
+     * @return fakeplayer raw name
      */
-    @NotNull String getRealName();
+    @NotNull String getRawName();
 
     /**
      * Gets the creator's UUID of the fakeplayer
@@ -74,4 +74,13 @@ public interface Bot extends Player {
      * @return success
      */
     boolean remove(boolean save);
+
+    /**
+     * Remove the fakeplayer
+     *
+     * @param save should save
+     * @param resume should resume at next server start
+     * @return success
+     */
+    boolean remove(boolean save, boolean resume);
 }

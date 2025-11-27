@@ -44,5 +44,5 @@ public interface BotManager {
      */
     <T extends BotAction<T>> T newAction(@NotNull Class<T> type);
 
-    BotCreator botCreator(@NotNull String realName, @NotNull Location location);
+    BotCreator botCreator(@NotNull String rawName, @NotNull Location location);
 }

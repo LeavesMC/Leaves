@@ -24,6 +24,8 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import static net.minecraft.server.MinecraftServer.getServer;
+
 public class ServerPhotographer extends ServerPlayer {
 
     private static final List<ServerPhotographer> photographers = new CopyOnWriteArrayList<>();
@@ -49,7 +51,7 @@ public class ServerPhotographer extends ServerPlayer {
             throw new IllegalArgumentException(state.id + " is a invalid photographer id");
         }
 
-        MinecraftServer server = MinecraftServer.getServer();
+        MinecraftServer server = getServer();
 
         ServerLevel world = ((CraftWorld) state.loc.getWorld()).getHandle();
         GameProfile profile = new GameProfile(UUID.randomUUID(), state.id);
@@ -62,7 +64,7 @@ public class ServerPhotographer extends ServerPlayer {
         photographer.createState = state;
 
         photographer.recorder.start();
-        MinecraftServer.getServer().getPlayerList().placeNewPhotographer(photographer.recorder, photographer, world);
+        getServer().getPlayerList().placeNewPhotographer(photographer.recorder, photographer, world);
         photographer.level().chunkSource.move(photographer);
         photographer.setInvisible(true);
         photographers.add(photographer);
@@ -79,7 +81,7 @@ public class ServerPhotographer extends ServerPlayer {
         this.lastPos = this.blockPosition();
         super.tick();
 
-        if (this.getServer().getTickCount() % 10 == 0) {
+        if (getServer().getTickCount() % 10 == 0) {
             connection.resetPosition();
             this.level().chunkSource.move(this);
         }
@@ -131,7 +133,7 @@ public class ServerPhotographer extends ServerPlayer {
         super.remove(RemovalReason.KILLED);
         photographers.remove(this);
         this.recorder.stop();
-        this.getServer().getPlayerList().removePhotographer(this);
+        getServer().getPlayerList().removePhotographer(this);
 
         LeavesLogger.LOGGER.info("Photographer " + createState.id + " removed");
 

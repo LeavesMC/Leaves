@@ -10,7 +10,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.protocol.jade.accessor.Accessor;
 import org.leavesmc.leaves.protocol.jade.accessor.BlockAccessor;
-import org.leavesmc.leaves.protocol.jade.provider.IJadeProvider;
+import org.leavesmc.leaves.protocol.jade.provider.JadeProvider;
 
 import java.util.Collection;
 import java.util.List;
@@ -19,7 +19,7 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-public class WrappedHierarchyLookup<T extends IJadeProvider> extends HierarchyLookup<T> {
+public class WrappedHierarchyLookup<T extends JadeProvider> extends HierarchyLookup<T> {
     public final List<Pair<IHierarchyLookup<T>, Function<Accessor<?>, @Nullable Object>>> overrides = Lists.newArrayList();
     private boolean empty = true;
 
@@ -28,7 +28,7 @@ public class WrappedHierarchyLookup<T extends IJadeProvider> extends HierarchyLo
     }
 
     @NotNull
-    public static <T extends IJadeProvider> WrappedHierarchyLookup<T> forAccessor() {
+    public static <T extends JadeProvider> WrappedHierarchyLookup<T> forAccessor() {
         WrappedHierarchyLookup<T> lookup = new WrappedHierarchyLookup<>();
         lookup.overrides.add(Pair.of(
             new HierarchyLookup<>(Block.class), accessor -> {
@@ -84,7 +84,7 @@ public class WrappedHierarchyLookup<T extends IJadeProvider> extends HierarchyLo
     }
 
     @Override
-    public void loadComplete(PriorityStore<ResourceLocation, IJadeProvider> priorityStore) {
+    public void loadComplete(PriorityStore<ResourceLocation, JadeProvider> priorityStore) {
         for (var override : overrides) {
             override.getLeft().loadComplete(priorityStore);
         }

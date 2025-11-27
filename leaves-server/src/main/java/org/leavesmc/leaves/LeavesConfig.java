@@ -6,17 +6,17 @@ import net.kyori.adventure.text.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
-import org.bukkit.command.Command;
+import org.bukkit.Bukkit;
 import org.bukkit.configuration.MemorySection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.permissions.Permission;
 import org.bukkit.permissions.PermissionDefault;
 import org.bukkit.plugin.PluginManager;
 import org.jetbrains.annotations.NotNull;
-import org.leavesmc.leaves.bot.BotCommand;
+import org.leavesmc.leaves.bot.BotList;
 import org.leavesmc.leaves.bot.ServerBot;
-import org.leavesmc.leaves.bot.agent.Actions;
-import org.leavesmc.leaves.command.LeavesCommand;
+import org.leavesmc.leaves.command.bot.BotCommand;
+import org.leavesmc.leaves.command.leaves.LeavesCommand;
 import org.leavesmc.leaves.config.GlobalConfigManager;
 import org.leavesmc.leaves.config.annotations.GlobalConfig;
 import org.leavesmc.leaves.config.annotations.GlobalConfigCategory;
@@ -53,10 +53,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Locale;
 import java.util.Random;
 import java.util.function.Predicate;
 
+@SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal"})
 public final class LeavesConfig {
 
     public static final String CONFIG_HEADER = "Configuration file for Leaves.";
@@ -93,7 +93,7 @@ public final class LeavesConfig {
 
         GlobalConfigManager.init();
 
-        registerCommand("leaves", new LeavesCommand());
+        LeavesCommand.INSTANCE.register();
     }
 
     public static void reload() {
@@ -119,18 +119,6 @@ public final class LeavesConfig {
         }
     }
 
-    public static void registerCommand(String name, Command command) {
-        MinecraftServer.getServer().server.getCommandMap().register(name, "leaves", command);
-        MinecraftServer.getServer().server.syncCommands();
-    }
-
-    public static void unregisterCommand(String name) {
-        name = name.toLowerCase(Locale.ENGLISH).trim();
-        MinecraftServer.getServer().server.getCommandMap().getKnownCommands().remove(name);
-        MinecraftServer.getServer().server.getCommandMap().getKnownCommands().remove("leaves:" + name);
-        MinecraftServer.getServer().server.syncCommands();
-    }
-
     public static ModifyConfig modify = new ModifyConfig();
 
     @GlobalConfigCategory("modify")
@@ -148,11 +136,13 @@ public final class LeavesConfig {
             private static class FakeplayerValidator extends BooleanConfigValidator {
                 @Override
                 public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
-                    if (value) {
-                        registerCommand("bot", new BotCommand());
-                        Actions.registerAll();
-                    } else {
-                        unregisterCommand("bot");
+                    if (!value.equals(old)) {
+                        if (value) {
+                            BotCommand.INSTANCE.register();
+                        } else {
+                            BotCommand.INSTANCE.unregister();
+                            BotList.INSTANCE.removeAll();
+                        }
                     }
                 }
             }
@@ -188,14 +178,49 @@ public final class LeavesConfig {
             @GlobalConfig("open-fakeplayer-inventory")
             public boolean canOpenInventory = false;
 
-            @GlobalConfig("use-action")
+            @GlobalConfig(value = "use-action", validator = CanUseConfigValidator.class)
             public boolean canUseAction = true;
 
-            @GlobalConfig("modify-config")
+            private static class CanUseConfigValidator extends BotSubcommandValidator {
+                private CanUseConfigValidator() {
+                    super("use");
+                }
+            }
+
+            @GlobalConfig(value = "modify-config", validator = CanModifyConfigValidator.class)
             public boolean canModifyConfig = false;
 
-            @GlobalConfig("manual-save-and-load")
+            private static class CanModifyConfigValidator extends BotSubcommandValidator {
+                private CanModifyConfigValidator() {
+                    super("config");
+                }
+            }
+
+            @GlobalConfig(value = "manual-save-and-load", validator = CanManualSaveAndLoadValidator.class)
             public boolean canManualSaveAndLoad = false;
+
+            private static class CanManualSaveAndLoadValidator extends BotSubcommandValidator {
+                private CanManualSaveAndLoadValidator() {
+                    super("save", "load");
+                }
+            }
+
+            private static class BotSubcommandValidator extends BooleanConfigValidator {
+                private final List<String> subcommands;
+
+                private BotSubcommandValidator(String... subcommand) {
+                    this.subcommands = List.of(subcommand);
+                }
+
+                @Override
+                public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
+                    if (old != null && !old.equals(value)) {
+                        Bukkit.getOnlinePlayers().stream()
+                            .filter(sender -> subcommands.stream().allMatch(subcommand -> BotCommand.hasPermission(sender, subcommand)))
+                            .forEach(org.bukkit.entity.Player::updateCommands);
+                    }
+                }
+            }
 
             @GlobalConfig(value = "cache-skin", lock = true)
             public boolean useSkinCache = false;
@@ -280,6 +305,7 @@ public final class LeavesConfig {
             @GlobalConfig("shears-in-dispenser-can-zero-amount")
             public boolean shearsInDispenserCanZeroAmount = false;
 
+            @SuppressWarnings("unused")
             @GlobalConfig(value = "villager-infinite-discounts", validator = VillagerInfiniteDiscountsValidator.class)
             private boolean villagerInfiniteDiscounts = false;
 
@@ -397,6 +423,9 @@ public final class LeavesConfig {
 
             @GlobalConfig("ender-dragon-part-can-use-end-portal")
             public boolean enderDragonPartCanUseEndPortal = false;
+
+            @GlobalConfig("old-minecart-motion-behavior")
+            public boolean oldMinecartMotionBehavior = false;
         }
 
         public ElytraAeronauticsConfig elytraAeronautics = new ElytraAeronauticsConfig();
@@ -634,8 +663,19 @@ public final class LeavesConfig {
             }
         }
 
-        @GlobalConfig(value = "no-block-update-command")
+        @GlobalConfig(value = "no-block-update-command", validator = NoBlockUpdateValidator.class)
         public boolean noBlockUpdateCommand = false;
+
+        private static class NoBlockUpdateValidator extends BooleanConfigValidator {
+            @Override
+            public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
+                if (old != null && !old.equals(value)) {
+                    Bukkit.getOnlinePlayers().stream()
+                        .filter(sender -> LeavesCommand.hasPermission(sender, "blockupdate"))
+                        .forEach(org.bukkit.entity.Player::updateCommands);
+                }
+            }
+        }
 
         @GlobalConfig("no-tnt-place-update")
         public boolean noTNTPlaceUpdate = false;
@@ -662,8 +702,19 @@ public final class LeavesConfig {
         public static class HopperCounterConfig {
             @TransferConfig(value = "modify.hopper-counter", transformer = HopperCounterTransfer.class)
             @TransferConfig("modify.counter.enable")
-            @GlobalConfig("enable")
+            @GlobalConfig(value = "enable", validator = HopperCounterValidator.class)
             public boolean enable = false;
+
+            private static class HopperCounterValidator extends BooleanConfigValidator {
+                @Override
+                public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
+                    if (old != null && !old.equals(value)) {
+                        Bukkit.getOnlinePlayers().stream()
+                            .filter(sender -> LeavesCommand.hasPermission(sender, "counter"))
+                            .forEach(org.bukkit.entity.Player::updateCommands);
+                    }
+                }
+            }
 
             @TransferConfig("modify.counter.unlimited-speed")
             @GlobalConfig("unlimited-speed")
@@ -716,6 +767,7 @@ public final class LeavesConfig {
         @GlobalConfig("disable-vault-blacklist")
         public boolean disableVaultBlacklist = false;
 
+        @SuppressWarnings("unused")
         @GlobalConfig(value = "exp-orb-absorb-mode", validator = ExpOrbModeValidator.class)
         private ExpOrbAbsorbMode expOrbAbsorbMode = ExpOrbAbsorbMode.VANILLA;
 
@@ -735,6 +787,9 @@ public final class LeavesConfig {
                 };
             }
         }
+
+        @GlobalConfig("follow-tick-sequence-merge")
+        public boolean followTickSequenceMerge = false;
     }
 
     public static PerformanceConfig performance = new PerformanceConfig();
@@ -1092,6 +1147,7 @@ public final class LeavesConfig {
             @GlobalConfig("login-protect")
             public boolean loginProtect = false;
 
+            @SuppressWarnings("unused")
             @GlobalConfig(value = "urls", lock = true, validator = ExtraYggdrasilUrlsValidator.class)
             private List<String> serviceList = List.of("https://url.with.authlib-injector-yggdrasil");
 

@@ -68,7 +68,7 @@ public class CraftBotManager implements BotManager {
     }
 
     @Override
-    public BotCreator botCreator(@NotNull String realName, @NotNull Location location) {
-        return BotCreateState.builder(realName, location).createReason(BotCreateEvent.CreateReason.PLUGIN);
+    public BotCreator botCreator(@NotNull String rawName, @NotNull Location location) {
+        return BotCreateState.builder(rawName, location).createReason(BotCreateEvent.CreateReason.PLUGIN);
     }
 }

@@ -64,10 +64,10 @@ public class BotDataStorage {
 
         if (flag && player instanceof ServerBot bot) {
             CompoundTag nbt = new CompoundTag();
-            nbt.putString("name", bot.createState.name());
+            nbt.putString("name", bot.createState.fullName());
             nbt.store("uuid", UUIDUtil.CODEC, bot.getUUID());
             nbt.putBoolean("resume", bot.resume);
-            this.savedBotList.put(bot.createState.realName(), nbt);
+            this.savedBotList.put(bot.createState.fullName(), nbt);
             this.saveBotList();
         }
     }

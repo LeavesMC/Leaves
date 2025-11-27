@@ -47,7 +47,7 @@ public class SaveCommand extends BotSubcommand {
                 sender.sendMessage(join(spaces(),
                     text("Successfully saved bot", NamedTextColor.GRAY),
                     asAdventure(bot.getDisplayName()),
-                    text("as " + bot.createState.realName(), NamedTextColor.GRAY)
+                    text("as " + bot.createState.fullName(), NamedTextColor.GRAY)
                 ));
             } else {
                 sender.sendMessage(text("Bot save canceled by a plugin", NamedTextColor.RED));

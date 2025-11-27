@@ -29,8 +29,8 @@ public class CraftBot extends CraftPlayer implements Bot {
     }
 
     @Override
-    public @NotNull String getRealName() {
-        return this.getHandle().createState.realName();
+    public @NotNull String getRawName() {
+        return this.getHandle().createState.rawName();
     }
 
     @Override
@@ -101,6 +101,6 @@ public class CraftBot extends CraftPlayer implements Bot {
 
     @Override
     public String toString() {
-        return "CraftBot{" + "name=" + getName() + '}';
+        return "CraftBot{" + "fullName=" + getName() + '}';
     }
 }

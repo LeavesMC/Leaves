@@ -374,8 +374,8 @@ public class ServerBot extends ServerPlayer {
         nbt.putBoolean("isShiftKeyDown", this.isShiftKeyDown());
 
         CompoundTag createNbt = new CompoundTag();
-        createNbt.putString("realName", this.createState.realName());
-        createNbt.putString("name", this.createState.name());
+        createNbt.putString("rawName", this.createState.rawName());
+        createNbt.putString("name", this.createState.fullName());
 
         createNbt.putString("skinName", this.createState.skinName());
         if (this.createState.skin() != null) {
@@ -409,7 +409,11 @@ public class ServerBot extends ServerPlayer {
         this.setShiftKeyDown(nbt.getBooleanOr("isShiftKeyDown", false));
 
         CompoundTag createNbt = nbt.read("createStatus", CompoundTag.CODEC).orElseThrow();
-        BotCreateState.Builder createBuilder = BotCreateState.builder(createNbt.getString("realName").orElseThrow(), null).name(createNbt.getString("name").orElseThrow());
+        BotCreateState.Builder createBuilder = BotCreateState
+            .builder(createNbt.getString("rawName")
+                .orElseGet(() -> createNbt.getString("realName")
+                    .orElseThrow()), null) // Convert from legacy version, consider to use ca.spottedleaf.dataconverter.minecraft.MCDataConverter instead for release version
+            .name(createNbt.getString("name").orElseThrow());
 
         String[] skin = null;
         if (createNbt.contains("skin")) {
@@ -424,7 +428,7 @@ public class ServerBot extends ServerPlayer {
         createBuilder.createReason(BotCreateEvent.CreateReason.INTERNAL).creator(null);
 
         this.createState = createBuilder.build();
-        this.gameProfile = BotList.createBotProfile(this.getUUID(), this.createState.name(), this.createState.skin());
+        this.gameProfile = BotList.createBotProfile(this.getUUID(), this.createState.fullName(), this.createState.skin());
 
 
         if (nbt.list("actions", CompoundTag.CODEC).isPresent()) {
@@ -517,6 +521,11 @@ public class ServerBot extends ServerPlayer {
             getServer().getPlayerList().broadcastSystemMessage(PaperAdventure.asVanilla(deathMessage), false);
         }
 
+        // TODO: separate die and remove logic, call super.die here
+        this.removeEntitiesOnShoulder();
+        if (this.level().getGameRules().getBoolean(GameRules.RULE_FORGIVE_DEAD_PLAYERS)) {
+            this.tellNeutralMobsThatIDied();
+        }
         getServer().getBotList().removeBot(this, BotRemoveEvent.RemoveReason.DEATH, null, false, false);
     }
 

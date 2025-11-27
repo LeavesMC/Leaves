@@ -17,6 +17,7 @@ import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.bot.BotCreateState;
 import org.leavesmc.leaves.bot.BotList;
+import org.leavesmc.leaves.bot.BotUtil;
 import org.leavesmc.leaves.command.ArgumentNode;
 import org.leavesmc.leaves.command.CommandContext;
 import org.leavesmc.leaves.command.bot.BotSubcommand;
@@ -34,11 +35,12 @@ public class CreateCommand extends BotSubcommand {
     protected static boolean handleCreateCommand(@NotNull CommandContext context) throws CommandSyntaxException {
         CommandSender sender = context.getSender();
 
-        String name = context.getArgument(NameArgument.class);
-        if (!canCreate(sender, name)) {
+        String rawName = context.getArgument(NameArgument.class);
+        String fullName = BotUtil.getFullName(rawName);
+        if (!canCreate(sender, fullName)) { // Check full name
             return false;
         }
-        String skinName = context.getArgumentOrDefault(SkinNameArgument.class, name);
+        String skinName = context.getArgumentOrDefault(SkinNameArgument.class, rawName); // Use raw name for correct skin
 
         World world;
         try {
@@ -61,7 +63,7 @@ public class CreateCommand extends BotSubcommand {
         }
 
         BotCreateState
-            .builder(name, location)
+            .builder(rawName, location)
             .createReason(BotCreateEvent.CreateReason.COMMAND)
             .skinName(skinName)
             .creator(sender)
@@ -73,7 +75,7 @@ public class CreateCommand extends BotSubcommand {
     private static boolean canCreate(CommandSender sender, @NotNull String name) {
         BotList botList = BotList.INSTANCE;
         if (!name.matches("^[a-zA-Z0-9_]{4,16}$")) {
-            sender.sendMessage(text("This name is illegal, bot name must be 4-16 characters and contain only letters, numbers, and underscores.", NamedTextColor.RED));
+            sender.sendMessage(text("This fullName is illegal, bot fullName must be 4-16 characters and contain only letters, numbers, and underscores.", NamedTextColor.RED));
             return false;
         }
 
@@ -83,7 +85,7 @@ public class CreateCommand extends BotSubcommand {
         }
 
         if (LeavesConfig.modify.fakeplayer.unableNames.contains(name)) {
-            sender.sendMessage(text("This name is not allowed in this server", NamedTextColor.RED));
+            sender.sendMessage(text("This fullName is not allowed in this server", NamedTextColor.RED));
             return false;
         }
 

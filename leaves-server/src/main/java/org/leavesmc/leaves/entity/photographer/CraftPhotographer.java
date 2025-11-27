@@ -68,6 +68,6 @@ public class CraftPhotographer extends CraftPlayer implements Photographer {
 
     @Override
     public String toString() {
-        return "CraftPhotographer{" + "name=" + getName() + '}';
+        return "CraftPhotographer{" + "fullName=" + getName() + '}';
     }
 }

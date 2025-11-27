@@ -81,8 +81,8 @@ public class BotList {
     }
 
     public ServerBot createNewBot(@NotNull BotCreateState state) {
-        BotCreateEvent event = new BotCreateEvent(state.name(), state.skinName(), state.location(), state.createReason(), state.creator());
-        event.setCancelled(!BotUtil.isCreateLegal(state.name()));
+        BotCreateEvent event = new BotCreateEvent(state.fullName(), state.skinName(), state.location(), state.createReason(), state.creator());
+        event.setCancelled(!BotUtil.isCreateLegal(state.fullName()));
         this.server.server.getPluginManager().callEvent(event);
 
         if (event.isCancelled()) {
@@ -92,7 +92,7 @@ public class BotList {
         Location location = event.getCreateLocation();
         ServerLevel world = ((CraftWorld) location.getWorld()).getHandle();
 
-        GameProfile profile = createBotProfile(BotUtil.getBotUUID(state), state.name(), state.skin());
+        GameProfile profile = createBotProfile(BotUtil.getBotUUID(state), state.fullName(), state.skin());
         ServerBot bot = new ServerBot(this.server, world, profile);
         bot.createState = state;
         if (event.getCreator() instanceof org.bukkit.entity.Player player) {
@@ -102,25 +102,25 @@ public class BotList {
         return this.placeNewBot(bot, world, location, null);
     }
 
-    public ServerBot loadNewManualSavedBot(String realName) {
-        return this.loadNewBot(realName, this.manualSaveDataStorage);
+    public ServerBot loadNewManualSavedBot(String fullName) {
+        return this.loadNewBot(fullName, this.manualSaveDataStorage);
     }
 
-    public ServerBot loadNewResumeBot(String realName) {
-        return this.loadNewBot(realName, this.resumeDataStorage);
+    public ServerBot loadNewResumeBot(String fullName) {
+        return this.loadNewBot(fullName, this.resumeDataStorage);
     }
 
-    public ServerBot loadNewBot(String realName, BotDataStorage storage) {
+    public ServerBot loadNewBot(String fullName, BotDataStorage storage) {
         try {
-            UUID uuid = BotUtil.getBotUUID(realName);
+            UUID uuid = BotUtil.getBotUUID(fullName);
 
-            BotLoadEvent event = new BotLoadEvent(realName, uuid);
+            BotLoadEvent event = new BotLoadEvent(fullName, uuid);
             this.server.server.getPluginManager().callEvent(event);
             if (event.isCancelled()) {
                 return null;
             }
 
-            ServerBot bot = new ServerBot(this.server, this.server.getLevel(Level.OVERWORLD), new GameProfile(uuid, realName));
+            ServerBot bot = new ServerBot(this.server, this.server.getLevel(Level.OVERWORLD), new GameProfile(uuid, fullName));
             bot.connection = new ServerBotPacketListenerImpl(this.server, bot);
             Optional<ValueInput> optional;
             try (ProblemReporter.ScopedCollector scopedCollector = new ProblemReporter.ScopedCollector(bot.problemPath(), LOGGER)) {
@@ -148,7 +148,7 @@ public class BotList {
             ServerLevel world = this.server.getLevel(resourcekey);
             return this.placeNewBot(bot, world, bot.getLocation(), nbt);
         } catch (Exception e) {
-            LOGGER.error("Failed to load bot {}", realName, e);
+            LOGGER.error("Failed to load bot {}", fullName, e);
             return null;
         }
     }
@@ -200,7 +200,7 @@ public class BotList {
         bot.initInventoryMenu();
         botsNameByWorldUuid
             .computeIfAbsent(bot.level().uuid.toString(), (k) -> new HashSet<>())
-            .add(bot.getBukkitEntity().getRealName());
+            .add(bot.getBukkitEntity().getName());
         BotList.LOGGER.info("{}[{}] logged in with entity id {} at ([{}]{}, {}, {})", bot.getName().getString(), "Local", bot.getId(), bot.level().serverLevelData.getLevelName(), bot.getX(), bot.getY(), bot.getZ());
         return bot;
     }
@@ -229,7 +229,7 @@ public class BotList {
             }
         } else {
             bot.dropAll(true);
-            botsNameByWorldUuid.getOrDefault(bot.level().uuid.toString(), new HashSet<>()).remove(bot.getBukkitEntity().getRealName());
+            botsNameByWorldUuid.getOrDefault(bot.level().uuid.toString(), new HashSet<>()).remove(bot.getBukkitEntity().getName());
         }
 
         if (bot.isPassenger() && event.shouldSave()) {
@@ -283,8 +283,8 @@ public class BotList {
     }
 
     public void removeAllIn(String worldUuid) {
-        for (String realName : this.botsNameByWorldUuid.getOrDefault(worldUuid, new HashSet<>())) {
-            ServerBot bot = this.getBotByName(realName);
+        for (String fullName : this.botsNameByWorldUuid.getOrDefault(worldUuid, new HashSet<>())) {
+            ServerBot bot = this.getBotByName(fullName);
             if (bot != null) {
                 this.removeBot(bot, BotRemoveEvent.RemoveReason.INTERNAL, null, LeavesConfig.modify.fakeplayer.canResident, LeavesConfig.modify.fakeplayer.canResident);
             }
@@ -303,34 +303,34 @@ public class BotList {
             return;
         }
         CompoundTag savedBotList = this.getResumeBotList().copy();
-        for (String realName : savedBotList.keySet()) {
-            UUID levelUuid = BotUtil.getBotLevel(realName, this.resumeDataStorage);
+        for (String fullName : savedBotList.keySet()) {
+            UUID levelUuid = BotUtil.getBotLevel(fullName, this.resumeDataStorage);
             if (levelUuid == null) {
-                LOGGER.warn("Bot {} has no world UUID, skipping loading.", realName);
+                LOGGER.warn("Bot {} has no world UUID, skipping loading.", fullName);
                 continue;
             }
             this.botsNameByWorldUuid
                 .computeIfAbsent(levelUuid.toString(), (k) -> new HashSet<>())
-                .add(realName);
+                .add(fullName);
         }
         loadLegacyResumeBotInfo();
     }
 
     private void loadLegacyResumeBotInfo() {
         CompoundTag savedBotList = this.getManualSavedBotList().copy();
-        for (String realName : savedBotList.keySet()) {
-            CompoundTag nbt = savedBotList.getCompound(realName).orElseThrow();
+        for (String fullName : savedBotList.keySet()) {
+            CompoundTag nbt = savedBotList.getCompound(fullName).orElseThrow();
             if (!nbt.getBoolean("resume").orElse(false)) {
                 continue;
             }
-            UUID levelUuid = BotUtil.getBotLevel(realName, this.manualSaveDataStorage);
+            UUID levelUuid = BotUtil.getBotLevel(fullName, this.manualSaveDataStorage);
             if (levelUuid == null) {
-                LOGGER.warn("Bot {} has no world UUID, skipping loading.", realName);
+                LOGGER.warn("Bot {} has no world UUID, skipping loading.", fullName);
                 continue;
             }
             this.legacyBotsNameByWorldUuid
                 .computeIfAbsent(levelUuid.toString(), (k) -> new HashSet<>())
-                .add(realName);
+                .add(fullName);
         }
     }
 
@@ -347,10 +347,10 @@ public class BotList {
         String newUuid = level.uuid.toString();
         this.botsNameByWorldUuid
             .computeIfAbsent(newUuid, (k) -> new HashSet<>())
-            .add(bot.getBukkitEntity().getRealName());
+            .add(bot.getBukkitEntity().getName());
         this.botsNameByWorldUuid
             .computeIfAbsent(prevUuid, (k) -> new HashSet<>())
-            .remove(bot.getBukkitEntity().getRealName());
+            .remove(bot.getBukkitEntity().getName());
     }
 
     public void networkTick() {

@@ -19,7 +19,7 @@ public class MixinConfiguration {
             return;
         }
         if (packageName == null) {
-            throw new IllegalStateException("Already define mixins: " + mixins + ", but no mixin package-name provided");
+            throw new IllegalStateException("Already define mixins: " + mixins + ", but no mixin package-fullName provided");
         }
     }
 

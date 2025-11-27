@@ -60,6 +60,6 @@ public class SubRegionPlacementModification {
 
     @Override
     public String toString() {
-        return String.format("[name=%s, position=%s, rotation=%s, mirror=%s]", name, position, rotation, mirror);
+        return String.format("[fullName=%s, position=%s, rotation=%s, mirror=%s]", name, position, rotation, mirror);
     }
 }

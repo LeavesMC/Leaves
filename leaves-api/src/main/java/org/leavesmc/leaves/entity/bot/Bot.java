@@ -22,9 +22,9 @@ public interface Bot extends Player {
     /**
      * Gets the fakeplayer name without prefix and suffix
      *
-     * @return fakeplayer real name
+     * @return fakeplayer raw name
      */
-    @NotNull String getRealName();
+    @NotNull String getRawName();
 
     /**
      * Gets the creator's UUID of the fakeplayer

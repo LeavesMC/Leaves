@@ -16,7 +16,7 @@ import org.leavesmc.leaves.plugin.MinecraftInternalPlugin;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-public record BotCreateState(String realName, String name, String skinName, String[] skin, Location location, BotCreateEvent.CreateReason createReason, CommandSender creator) {
+public record BotCreateState(String rawName, String fullName, String skinName, String[] skin, Location location, BotCreateEvent.CreateReason createReason, CommandSender creator) {
 
     private static final MinecraftServer server = MinecraftServer.getServer();
 
@@ -25,15 +25,15 @@ public record BotCreateState(String realName, String name, String skinName, Stri
     }
 
     @NotNull
-    public static Builder builder(@NotNull String realName, @Nullable Location location) {
-        return new Builder(realName, location);
+    public static Builder builder(@NotNull String rawName, @Nullable Location location) {
+        return new Builder(rawName, location);
     }
 
     public static class Builder implements BotCreator {
 
-        private final String realName;
+        private final String rawName; // For internal calculation, use it as little as possible
 
-        private String name;
+        private String fullName;
         private Location location;
 
         private String skinName;
@@ -42,14 +42,14 @@ public record BotCreateState(String realName, String name, String skinName, Stri
         private BotCreateEvent.CreateReason createReason;
         private CommandSender creator;
 
-        private Builder(@NotNull String realName, @Nullable Location location) {
-            Objects.requireNonNull(realName);
+        private Builder(@NotNull String rawName, @Nullable Location location) {
+            Objects.requireNonNull(rawName);
 
-            this.realName = realName;
+            this.rawName = rawName;
             this.location = location;
 
-            this.name = LeavesConfig.modify.fakeplayer.prefix + realName + LeavesConfig.modify.fakeplayer.suffix;
-            this.skinName = this.realName;
+            this.fullName = BotUtil.getFullName(rawName);
+            this.skinName = this.rawName;
             this.skin = null;
             this.createReason = BotCreateEvent.CreateReason.UNKNOWN;
             this.creator = null;
@@ -57,7 +57,7 @@ public record BotCreateState(String realName, String name, String skinName, Stri
 
         public Builder name(@NotNull String name) {
             Objects.requireNonNull(name);
-            this.name = name;
+            this.fullName = name;
             return this;
         }
 
@@ -95,7 +95,7 @@ public record BotCreateState(String realName, String name, String skinName, Stri
         }
 
         public BotCreateState build() {
-            return new BotCreateState(realName, name, skinName, skin, location, createReason, creator);
+            return new BotCreateState(rawName, fullName, skinName, skin, location, createReason, creator);
         }
 
         public void spawnWithSkin(Consumer<Bot> consumer) {

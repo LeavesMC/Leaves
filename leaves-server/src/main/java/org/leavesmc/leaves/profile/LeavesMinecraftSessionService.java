@@ -53,7 +53,7 @@ public class LeavesMinecraftSessionService extends PaperMinecraftSessionService 
 
         ServerPlayer player = MinecraftServer.getServer().getPlayerList().getPlayerByName(profileName);
         if (player != null && !(player instanceof ServerBot)) {
-            return null; // if it has same name, return null
+            return null; // if it has same fullName, return null
         }
 
         if (LeavesConfig.mics.yggdrasil.enable && result == null) {

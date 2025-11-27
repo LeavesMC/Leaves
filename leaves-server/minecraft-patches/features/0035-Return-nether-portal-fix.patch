@@ -6,10 +6,10 @@ Subject: [PATCH] Return nether portal fix
 This patch is powered by NetherPortalFix(https://github.com/TwelveIterationMods/NetherPortalFix)
 
 diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
-index a01c80065ecdabc89276fc755f0aee29a3fe4542..5402ed9510037b49d26e512be6d35a07ad183420 100644
+index d4df6ca7360d4bc605a51061444191d7929c7778..134f6eba6655b7294ebcdf5cf5d9e2183e2ecf5b 100644
 --- a/net/minecraft/server/level/ServerPlayer.java
 +++ b/net/minecraft/server/level/ServerPlayer.java
-@@ -1579,6 +1579,21 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+@@ -1576,6 +1576,21 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
                  org.bukkit.event.player.PlayerChangedWorldEvent changeEvent = new org.bukkit.event.player.PlayerChangedWorldEvent(this.getBukkitEntity(), serverLevel.getWorld());
                  this.level().getCraftServer().getPluginManager().callEvent(changeEvent);
                  // CraftBukkit end
@@ -32,13 +32,13 @@ index a01c80065ecdabc89276fc755f0aee29a3fe4542..5402ed9510037b49d26e512be6d35a07
                  if (this.isBlocking()) {
                      this.stopUsingItem();
 diff --git a/net/minecraft/server/players/PlayerList.java b/net/minecraft/server/players/PlayerList.java
-index f951ea1c6c2b63cc6b7f330cd3100adb507f8e54..248c08b4f1dc6cf47ac311d5872ae56485e3b425 100644
+index bf5d8fe260aaca48a73d6ffe9d1312f5161f9365..7977a0cfe18c99c4c6ba8c5b56387b690ede554d 100644
 --- a/net/minecraft/server/players/PlayerList.java
 +++ b/net/minecraft/server/players/PlayerList.java
-@@ -738,6 +738,20 @@ public abstract class PlayerList {
-         if (fromWorld != level) {
-             org.bukkit.event.player.PlayerChangedWorldEvent event = new org.bukkit.event.player.PlayerChangedWorldEvent(player.getBukkitEntity(), fromWorld.getWorld());
-             this.server.server.getPluginManager().callEvent(event);
+@@ -700,6 +700,20 @@ public abstract class PlayerList {
+         // It's possible for respawn to be in a diff dimension
+         if (fromLevel != level) {
+             new org.bukkit.event.player.PlayerChangedWorldEvent(serverPlayer.getBukkitEntity(), fromLevel.getWorld()).callEvent();
 +            // Leaves start - nether portal fix
 +            if (org.leavesmc.leaves.LeavesConfig.modify.netherPortalFix) {
 +                final ResourceKey<Level> fromDim = player.level().dimension();
@@ -53,14 +53,14 @@ index f951ea1c6c2b63cc6b7f330cd3100adb507f8e54..248c08b4f1dc6cf47ac311d5872ae564
 +                }
 +            }
 +            // Leaves end - nether portal fix
+             serverPlayer.triggerDimensionChangeTriggers(level);
          }
  
-         // Save player file again if they were disconnected
 diff --git a/net/minecraft/world/entity/LivingEntity.java b/net/minecraft/world/entity/LivingEntity.java
-index 16154e00d4548dfef44b0a8926bb86397fb8e5f2..4f4331cfb39f3ec30983ef510580ddedcec6795d 100644
+index ce4c8e14d3d7b5837dcce006fa67722f3f430fa4..759c320fc331704efe5df10d3f1f33aa87262290 100644
 --- a/net/minecraft/world/entity/LivingEntity.java
 +++ b/net/minecraft/world/entity/LivingEntity.java
-@@ -258,7 +258,7 @@ public abstract class LivingEntity extends Entity implements Attackable, Waypoin
+@@ -259,7 +259,7 @@ public abstract class LivingEntity extends Entity implements Attackable, Waypoin
      protected ItemStack useItem = ItemStack.EMPTY;
      public int useItemRemaining;
      protected int fallFlyTicks;
@@ -70,14 +70,14 @@ index 16154e00d4548dfef44b0a8926bb86397fb8e5f2..4f4331cfb39f3ec30983ef510580dded
      @Nullable
      private DamageSource lastDamageSource;
 diff --git a/net/minecraft/world/level/block/NetherPortalBlock.java b/net/minecraft/world/level/block/NetherPortalBlock.java
-index c4ca30c8696e63e78d1b798343a429657cfb8d4d..e6bd9a79dfcf9fa835897933d83abda9e4a8b15d 100644
+index d3f0a61c0c91d3a6a1dc4e59d57743ba89a9c19a..1ad863dc255a7b91d0b163000b6bb5d43e2ad204 100644
 --- a/net/minecraft/world/level/block/NetherPortalBlock.java
 +++ b/net/minecraft/world/level/block/NetherPortalBlock.java
 @@ -179,7 +179,18 @@ public class NetherPortalBlock extends Block implements Portal {
  
      @Nullable
-     private TeleportTransition getExitPortal(ServerLevel level, Entity entity, BlockPos pos, BlockPos exitPos, boolean isNether, WorldBorder worldBorder, int searchRadius, boolean canCreatePortal, int createRadius) { // CraftBukkit
--        Optional<BlockPos> optional = level.getPortalForcer().findClosestPortalPosition(exitPos, worldBorder, searchRadius); // CraftBukkit
+     private TeleportTransition getExitPortal(ServerLevel level, Entity entity, BlockPos pos, BlockPos exitPos, WorldBorder worldBorder, org.bukkit.craftbukkit.event.PortalEventResult result) { // CraftBukkit
+-        Optional<BlockPos> optional = level.getPortalForcer().findClosestPortalPosition(exitPos, worldBorder, result.searchRadius()); // CraftBukkit
 +        // Leaves start - fix return portal
 +        Optional<BlockPos> optional = Optional.empty();
 +        if (org.leavesmc.leaves.LeavesConfig.modify.netherPortalFix && entity instanceof net.minecraft.server.level.ServerPlayer player) {
@@ -87,7 +87,7 @@ index c4ca30c8696e63e78d1b798343a429657cfb8d4d..e6bd9a79dfcf9fa835897933d83abda9
 +            }
 +        }
 +        if (optional.isEmpty()) {
-+            optional = level.getPortalForcer().findClosestPortalPosition(exitPos, worldBorder, searchRadius); // CraftBukkit
++            level.getPortalForcer().findClosestPortalPosition(exitPos, worldBorder, result.searchRadius()); // CraftBukkit
 +        }
 +        // Leaves end - fix return portal
          BlockUtil.FoundRectangle largestRectangleAround;

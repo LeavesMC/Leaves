@@ -1299,5 +1299,8 @@ public final class LeavesConfig {
 
         @GlobalConfig("vanilla-end-void-rings")
         public boolean vanillaEndVoidRings = false;
+
+        @GlobalConfig("stacked-container-destroyed-drop")
+        public boolean stackedContainerDestroyedDrop;
     }
 }

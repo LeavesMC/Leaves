@@ -1198,7 +1198,7 @@ public final class LeavesConfig {
         @GlobalConfig("bstats-privacy-mode")
         public boolean bstatsPrivacyMode = false;
 
-        @GlobalConfig("force-minecraft-command")
+        @GlobalConfig(value = "force-minecraft-command", lock = true)
         public boolean forceMinecraftCommand = false;
 
         @GlobalConfig("leaves-packet-event")

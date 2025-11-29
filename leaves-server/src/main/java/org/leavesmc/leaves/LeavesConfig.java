@@ -1301,6 +1301,6 @@ public final class LeavesConfig {
         public boolean vanillaEndVoidRings = false;
 
         @GlobalConfig("stacked-container-destroyed-drop")
-        public boolean stackedContainerDestroyedDrop;
+        public boolean stackedContainerDestroyedDrop = true;
     }
 }

@@ -6,6 +6,7 @@ import com.mojang.authlib.properties.Property;
 import com.mojang.logging.LogUtils;
 import io.papermc.paper.adventure.PaperAdventure;
 import io.papermc.paper.profile.MutablePropertyMap;
+import io.papermc.paper.util.MCUtil;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.Style;
 import net.minecraft.nbt.CompoundTag;
@@ -71,6 +72,19 @@ public class BotList {
         INSTANCE = this;
     }
 
+    public void saveAllResumeBots(final int interval) {
+        MCUtil.ensureMain("Save Bots", () -> {
+            final long now = MinecraftServer.currentTick;
+            for (ServerBot bot : bots) {
+                if (interval == -1 || now - bot.lastSave >= interval) {
+                    this.resumeDataStorage.save(bot);
+                    bot.lastSave = MinecraftServer.currentTick;
+                }
+            }
+            return null;
+        });
+    }
+
     public void saveAllResumeBots() {
         if (!LeavesConfig.modify.fakeplayer.enable || !LeavesConfig.modify.fakeplayer.canResident) {
             return;
@@ -111,6 +125,9 @@ public class BotList {
     }
 
     public ServerBot loadNewBot(String fullName, BotDataStorage storage) {
+        if (botsByName.containsKey(fullName)) {
+            return null;
+        }
         try {
             UUID uuid = BotUtil.getBotUUID(fullName);
 
@@ -295,6 +312,13 @@ public class BotList {
         for (ServerBot bot : this.bots) {
             bot.resume = LeavesConfig.modify.fakeplayer.canResident;
             this.removeBot(bot, BotRemoveEvent.RemoveReason.INTERNAL, null, LeavesConfig.modify.fakeplayer.canResident, LeavesConfig.modify.fakeplayer.canResident);
+        }
+    }
+
+    public void handlePlayerJoin(String name) {
+        ServerBot bot = getBotByName(name);
+        if (bot != null) {
+            removeBot(bot, BotRemoveEvent.RemoveReason.INTERNAL, null, LeavesConfig.modify.fakeplayer.canResident, LeavesConfig.modify.fakeplayer.canResident);
         }
     }
 

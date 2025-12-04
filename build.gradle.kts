@@ -14,11 +14,12 @@ subprojects {
     extensions.configure<JavaPluginExtension> {
         toolchain {
             languageVersion = JavaLanguageVersion.of(21)
-            vendor = JvmVendorSpec.ADOPTIUM
+            //vendor = JvmVendorSpec.ADOPTIUM
         }
     }
 
     repositories {
+        mavenLocal()
         mavenCentral()
         maven("https://repo.papermc.io/repository/maven-public/")
         maven("https://repo.leavesmc.org/releases") {

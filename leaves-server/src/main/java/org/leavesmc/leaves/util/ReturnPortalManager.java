@@ -55,7 +55,7 @@ public class ReturnPortalManager {
         for (Tag entry : portalList) {
             CompoundTag portal = (CompoundTag) entry;
             ResourceKey<Level> entryFromDim = ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(portal.getString(FROM_DIM).orElseThrow()));
-            if (entryFromDim == fromDim) {
+            if (entryFromDim.equals(fromDim)) {
                 BlockPos portalTrigger = BlockPos.of(portal.getLong(FROM_POS).orElseThrow());
                 if (portalTrigger.distSqr(fromPos) <= MAX_PORTAL_DISTANCE_SQ) {
                     final UUID uid = portal.contains(RETURN_PORTAL_UID) ? portal.read(RETURN_PORTAL_UID, UUIDUtil.CODEC).orElseThrow() : UUID.randomUUID();

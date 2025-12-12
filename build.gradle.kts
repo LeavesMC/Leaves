@@ -19,7 +19,6 @@ subprojects {
     }
 
     repositories {
-        mavenLocal()
         mavenCentral()
         maven("https://repo.papermc.io/repository/maven-public/")
         maven("https://repo.leavesmc.org/releases") {

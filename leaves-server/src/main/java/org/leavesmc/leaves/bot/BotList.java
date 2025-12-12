@@ -315,13 +315,6 @@ public class BotList {
         }
     }
 
-    public void handlePlayerJoin(String name) {
-        ServerBot bot = getBotByName(name);
-        if (bot != null) {
-            removeBot(bot, BotRemoveEvent.RemoveReason.INTERNAL, null, LeavesConfig.modify.fakeplayer.canResident, LeavesConfig.modify.fakeplayer.canResident);
-        }
-    }
-
     public void loadResumeBotInfo() {
         if (!LeavesConfig.modify.fakeplayer.enable || !LeavesConfig.modify.fakeplayer.canResident) {
             return;

@@ -50,7 +50,7 @@ public class LoadCommand extends BotSubcommand {
                 throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownArgument().create();
             }
             if (botList.getBotByName(botName) != null) {
-                sender.sendMessage(text("Bot with name " + botName + " already exists!",  NamedTextColor.RED));
+                sender.sendMessage(text("Bot with name " + botName + " already exists!", NamedTextColor.RED));
                 return false;
             }
 

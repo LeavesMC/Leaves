@@ -2,6 +2,7 @@ package org.leavesmc.leaves.protocol.servux;
 
 import com.mojang.serialization.DataResult;
 import io.netty.buffer.Unpooled;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -177,7 +178,7 @@ public class ServuxHudDataProtocol implements LeavesProtocol {
 
     public static void refreshLoggers(ServerPlayer player, @Nonnull CompoundTag nbt) {
         if (!player.getBukkitEntity().hasPermission("servux.provider.hud_data.logger")) {
-            player.sendSystemMessage(Component.translatable("servux.hud_data.error.insufficient_for_loggers", "any"));
+            player.sendSystemMessage(Component.literal("Insufficient Permissions for Data Logger: 'any'.").withStyle(ChatFormatting.RED));
             return;
         }
 

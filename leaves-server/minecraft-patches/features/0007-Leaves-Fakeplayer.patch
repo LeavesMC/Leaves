@@ -30,7 +30,7 @@ index 14addbaf68b7ad80490187d12d9c9b00891e2ce1..b186b5e0d3b32d7b51b2f58f0ef4b2bf
      private DisconnectionDetails disconnectionDetails;
      private boolean encrypted;
 diff --git a/net/minecraft/server/MinecraftServer.java b/net/minecraft/server/MinecraftServer.java
-index 2493722c47b92cbcd13c08af0caf38a543ac7e37..309ff4c55b2a4ccf3d18951b51c2e10d0ff39bfc 100644
+index 2493722c47b92cbcd13c08af0caf38a543ac7e37..9ae09e08afbc99cd2f54d55f8822bc92d317f960 100644
 --- a/net/minecraft/server/MinecraftServer.java
 +++ b/net/minecraft/server/MinecraftServer.java
 @@ -378,6 +378,8 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
@@ -59,7 +59,15 @@ index 2493722c47b92cbcd13c08af0caf38a543ac7e37..309ff4c55b2a4ccf3d18951b51c2e10d
                  this.emptyTicks++;
              } else {
                  this.emptyTicks = 0;
-@@ -1857,6 +1860,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+@@ -1634,6 +1637,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+             this.isSaving = true;
+             if (playerSaveInterval > 0) {
+                 this.playerList.saveAll(playerSaveInterval);
++                org.leavesmc.leaves.bot.BotList.INSTANCE.saveAllResumeBots(playerSaveInterval); // Leaves - resident fakeplayer
+             }
+             for (final ServerLevel level : this.getAllLevels()) {
+                 if (level.paperConfig().chunks.autoSaveInterval.value() > 0) {
+@@ -1857,6 +1861,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
  
      public void tickConnection() {
          this.getConnection().tick();
@@ -67,7 +75,7 @@ index 2493722c47b92cbcd13c08af0caf38a543ac7e37..309ff4c55b2a4ccf3d18951b51c2e10d
      }
  
      private void synchronizeTime(ServerLevel level) {
-@@ -2973,6 +2977,16 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+@@ -2973,6 +2978,16 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
          return this.debugSubscribers;
      }
  
@@ -341,7 +349,7 @@ index b4a996ac6c570e988b38237a32f90ec5042cbc17..04ea4e33504703c4074aef6e74ec06dc
                  org.bukkit.event.player.PlayerChangedWorldEvent changeEvent = new org.bukkit.event.player.PlayerChangedWorldEvent(this.getBukkitEntity(), serverLevel.getWorld());
                  this.level().getCraftServer().getPluginManager().callEvent(changeEvent);
 diff --git a/net/minecraft/server/players/CachedUserNameToIdResolver.java b/net/minecraft/server/players/CachedUserNameToIdResolver.java
-index 3dc78b91cc853cfa6dce69979273b5f35b5f87f1..0625ebf19b5c514e096e6a91539c807ccf0b3f87 100644
+index 3dc78b91cc853cfa6dce69979273b5f35b5f87f1..97bf1895a1235d1fc6b8e1de4a965b12f74a9d8f 100644
 --- a/net/minecraft/server/players/CachedUserNameToIdResolver.java
 +++ b/net/minecraft/server/players/CachedUserNameToIdResolver.java
 @@ -121,6 +121,12 @@ public class CachedUserNameToIdResolver implements UserNameToIdResolver {
@@ -406,12 +414,12 @@ index fdcc23c618b5db59e384a38f9ef91b6d2e922a8a..ccb56f29e79805f3286bbb80ce6c4d4b
  
      // Paper start - utility method for common conversion back to the game profile
 diff --git a/net/minecraft/server/players/PlayerList.java b/net/minecraft/server/players/PlayerList.java
-index 4abf4ea7f86955351b5e4da2c89a707003802d2e..6dec8565e9d290302ce7766357a56b8c2295c163 100644
+index 65a2d77bc2e740c7f7777a801607dd7a2b2845f0..5d1d71858c730c431120d4a66244969ebf2a5164 100644
 --- a/net/minecraft/server/players/PlayerList.java
 +++ b/net/minecraft/server/players/PlayerList.java
 @@ -241,6 +241,19 @@ public abstract class PlayerList {
  
-             org.leavesmc.leaves.protocol.core.LeavesProtocolManager.handlePlayerJoin(player);
+         org.leavesmc.leaves.protocol.core.LeavesProtocolManager.handlePlayerJoin(player);
  
 +        // Leaves start - bot support
 +        if (org.leavesmc.leaves.LeavesConfig.modify.fakeplayer.enable) {
@@ -476,15 +484,7 @@ index 4abf4ea7f86955351b5e4da2c89a707003802d2e..6dec8565e9d290302ce7766357a56b8c
      }
  
      public void broadcast(@Nullable Player except, double x, double y, double z, double radius, ResourceKey<Level> dimension, Packet<?> packet) {
-@@ -960,6 +991,7 @@ public abstract class PlayerList {
-             }
-             // Paper end - Incremental chunk and player saving
-         }
-+        org.leavesmc.leaves.bot.BotList.INSTANCE.saveAllResumeBots(); // Leaves - resident fakeplayer
-         return null; }); // Paper - ensure main
-     }
- 
-@@ -1226,7 +1258,13 @@ public abstract class PlayerList {
+@@ -1226,7 +1257,13 @@ public abstract class PlayerList {
  
      @Nullable
      public ServerPlayer getPlayer(UUID playerUUID) {
@@ -683,7 +683,7 @@ index adab5dc640a7a0299c04020225a68317282aebe9..e127a670935186ba3d96a8d85640cf46
      protected SoundEvent getPaddleSound() {
          return switch (this.getStatus()) {
 diff --git a/net/minecraft/world/inventory/AbstractContainerMenu.java b/net/minecraft/world/inventory/AbstractContainerMenu.java
-index 670090c4466d6472a83263e1769f19e3e491c927..4e53e7c05af11cae2ce8cf313c69a83336e22ba6 100644
+index 670090c4466d6472a83263e1769f19e3e491c927..c097bfe559c648bc279a9dffe874f3180ff80e27 100644
 --- a/net/minecraft/world/inventory/AbstractContainerMenu.java
 +++ b/net/minecraft/world/inventory/AbstractContainerMenu.java
 @@ -400,6 +400,7 @@ public abstract class AbstractContainerMenu {

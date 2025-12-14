@@ -1198,7 +1198,7 @@ public final class LeavesConfig {
         @GlobalConfig("bstats-privacy-mode")
         public boolean bstatsPrivacyMode = false;
 
-        @GlobalConfig("force-minecraft-command")
+        @GlobalConfig(value = "force-minecraft-command", lock = true)
         public boolean forceMinecraftCommand = false;
 
         @GlobalConfig("leaves-packet-event")
@@ -1299,5 +1299,8 @@ public final class LeavesConfig {
 
         @GlobalConfig("vanilla-end-void-rings")
         public boolean vanillaEndVoidRings = false;
+
+        @GlobalConfig("stacked-container-destroyed-drop")
+        public boolean stackedContainerDestroyedDrop = true;
     }
 }

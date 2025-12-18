@@ -6,7 +6,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
@@ -162,7 +162,7 @@ public class ServuxEntityDataProtocol implements LeavesProtocol {
     public static class EntityDataPayload implements LeavesCustomPayload {
 
         @ID
-        public static final ResourceLocation CHANNEL = ServuxProtocol.id("entity_data");
+        public static final Identifier CHANNEL = ServuxProtocol.id("entity_data");
 
         @Codec
         public static final StreamCodec<FriendlyByteBuf, EntityDataPayload> CODEC = StreamCodec.of(

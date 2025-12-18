@@ -1,6 +1,6 @@
 package org.leavesmc.leaves.protocol.jade.util;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.boss.EnderDragonPart;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
@@ -37,7 +37,7 @@ public class CommonUtil {
     }
 
 
-    public static <T> Map.Entry<ResourceLocation, List<ViewGroup<T>>> getServerExtensionData(
+    public static <T> Map.Entry<Identifier, List<ViewGroup<T>>> getServerExtensionData(
         Accessor<?> accessor,
         WrappedHierarchyLookup<ServerExtensionProvider<T>> lookup) {
         for (var provider : lookup.wrappedGet(accessor)) {

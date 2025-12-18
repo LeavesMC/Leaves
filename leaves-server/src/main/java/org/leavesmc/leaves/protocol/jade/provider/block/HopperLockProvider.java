@@ -3,7 +3,7 @@ package org.leavesmc.leaves.protocol.jade.provider.block;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.protocol.jade.JadeProtocol;
@@ -13,7 +13,7 @@ import org.leavesmc.leaves.protocol.jade.provider.StreamServerDataProvider;
 public enum HopperLockProvider implements StreamServerDataProvider<BlockAccessor, Boolean> {
     INSTANCE;
 
-    private static final ResourceLocation MC_HOPPER_LOCK = JadeProtocol.mc_id("hopper_lock");
+    private static final Identifier MC_HOPPER_LOCK = JadeProtocol.mc_id("hopper_lock");
 
     @Override
     public Boolean streamData(@NotNull BlockAccessor accessor) {
@@ -26,7 +26,7 @@ public enum HopperLockProvider implements StreamServerDataProvider<BlockAccessor
     }
 
     @Override
-    public ResourceLocation getUid() {
+    public Identifier getUid() {
         return MC_HOPPER_LOCK;
     }
 

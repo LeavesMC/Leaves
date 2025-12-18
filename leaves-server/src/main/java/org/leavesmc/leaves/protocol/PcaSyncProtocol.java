@@ -5,7 +5,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -48,19 +48,19 @@ public class PcaSyncProtocol implements LeavesProtocol {
     public static final ReentrantLock pairLock = new ReentrantLock(true);
 
     // send
-    private static final ResourceLocation ENABLE_PCA_SYNC_PROTOCOL = id("enable_pca_sync_protocol");
-    private static final ResourceLocation DISABLE_PCA_SYNC_PROTOCOL = id("disable_pca_sync_protocol");
+    private static final Identifier ENABLE_PCA_SYNC_PROTOCOL = id("enable_pca_sync_protocol");
+    private static final Identifier DISABLE_PCA_SYNC_PROTOCOL = id("disable_pca_sync_protocol");
 
-    private static final Map<ServerPlayer, Pair<ResourceLocation, BlockPos>> playerWatchBlockPos = new HashMap<>();
-    private static final Map<ServerPlayer, Pair<ResourceLocation, Entity>> playerWatchEntity = new HashMap<>();
-    private static final Map<Pair<ResourceLocation, BlockPos>, Set<ServerPlayer>> blockPosWatchPlayerSet = new HashMap<>();
-    private static final Map<Pair<ResourceLocation, Entity>, Set<ServerPlayer>> entityWatchPlayerSet = new HashMap<>();
-    private static final MutablePair<ResourceLocation, Entity> ResourceLocationEntityPair = new MutablePair<>();
-    private static final MutablePair<ResourceLocation, BlockPos> ResourceLocationBlockPosPair = new MutablePair<>();
+    private static final Map<ServerPlayer, Pair<Identifier, BlockPos>> playerWatchBlockPos = new HashMap<>();
+    private static final Map<ServerPlayer, Pair<Identifier, Entity>> playerWatchEntity = new HashMap<>();
+    private static final Map<Pair<Identifier, BlockPos>, Set<ServerPlayer>> blockPosWatchPlayerSet = new HashMap<>();
+    private static final Map<Pair<Identifier, Entity>, Set<ServerPlayer>> entityWatchPlayerSet = new HashMap<>();
+    private static final MutablePair<Identifier, Entity> IdentifierEntityPair = new MutablePair<>();
+    private static final MutablePair<Identifier, BlockPos> IdentifierBlockPosPair = new MutablePair<>();
 
     @Contract("_ -> new")
-    public static ResourceLocation id(String path) {
-        return ResourceLocation.fromNamespaceAndPath(PROTOCOL_ID, path);
+    public static Identifier id(String path) {
+        return Identifier.fromNamespaceAndPath(PROTOCOL_ID, path);
     }
 
     @ProtocolHandler.PlayerJoin
@@ -108,7 +108,7 @@ public class PcaSyncProtocol implements LeavesProtocol {
                 updateBlockEntity(player, blockEntity);
             }
 
-            Pair<ResourceLocation, BlockPos> pair = new ImmutablePair<>(player.level().dimension().location(), pos);
+            Pair<Identifier, BlockPos> pair = new ImmutablePair<>(player.level().dimension().location(), pos);
             lock.lock();
             playerWatchBlockPos.put(player, pair);
             if (!blockPosWatchPlayerSet.containsKey(pair)) {
@@ -158,7 +158,7 @@ public class PcaSyncProtocol implements LeavesProtocol {
                 }
                 updateEntity(player, entity);
 
-                Pair<ResourceLocation, Entity> pair = new ImmutablePair<>(entity.level().dimension().location(), entity);
+                Pair<Identifier, Entity> pair = new ImmutablePair<>(entity.level().dimension().location(), entity);
                 lock.lock();
                 playerWatchEntity.put(player, pair);
                 if (!entityWatchPlayerSet.containsKey(pair)) {
@@ -203,28 +203,28 @@ public class PcaSyncProtocol implements LeavesProtocol {
         ProtocolUtils.sendPayloadPacket(player, new UpdateBlockEntityPayload(world.dimension().location(), blockEntity.getBlockPos(), blockEntity.saveWithoutMetadata(world.registryAccess())));
     }
 
-    private static MutablePair<ResourceLocation, Entity> getResourceLocationEntityPair(ResourceLocation ResourceLocation, Entity entity) {
+    private static MutablePair<Identifier, Entity> getIdentifierEntityPair(Identifier Identifier, Entity entity) {
         pairLock.lock();
-        ResourceLocationEntityPair.setLeft(ResourceLocation);
-        ResourceLocationEntityPair.setRight(entity);
+        IdentifierEntityPair.setLeft(Identifier);
+        IdentifierEntityPair.setRight(entity);
         pairLock.unlock();
-        return ResourceLocationEntityPair;
+        return IdentifierEntityPair;
     }
 
-    private static MutablePair<ResourceLocation, BlockPos> getResourceLocationBlockPosPair(ResourceLocation ResourceLocation, BlockPos pos) {
+    private static MutablePair<Identifier, BlockPos> getIdentifierBlockPosPair(Identifier Identifier, BlockPos pos) {
         pairLock.lock();
-        ResourceLocationBlockPosPair.setLeft(ResourceLocation);
-        ResourceLocationBlockPosPair.setRight(pos);
+        IdentifierBlockPosPair.setLeft(Identifier);
+        IdentifierBlockPosPair.setRight(pos);
         pairLock.unlock();
-        return ResourceLocationBlockPosPair;
+        return IdentifierBlockPosPair;
     }
 
     private static @Nullable Set<ServerPlayer> getWatchPlayerList(@NotNull Entity entity) {
-        return entityWatchPlayerSet.get(getResourceLocationEntityPair(entity.level().dimension().location(), entity));
+        return entityWatchPlayerSet.get(getIdentifierEntityPair(entity.level().dimension().location(), entity));
     }
 
     private static @Nullable Set<ServerPlayer> getWatchPlayerList(@NotNull Level world, @NotNull BlockPos blockPos) {
-        return blockPosWatchPlayerSet.get(getResourceLocationBlockPosPair(world.dimension().location(), blockPos));
+        return blockPosWatchPlayerSet.get(getIdentifierBlockPosPair(world.dimension().location(), blockPos));
     }
 
     public static boolean syncEntityToClient(@NotNull Entity entity) {
@@ -285,7 +285,7 @@ public class PcaSyncProtocol implements LeavesProtocol {
 
     private static void clearPlayerWatchEntity(ServerPlayer player) {
         lock.lock();
-        Pair<ResourceLocation, Entity> pair = playerWatchEntity.get(player);
+        Pair<Identifier, Entity> pair = playerWatchEntity.get(player);
         if (pair != null) {
             Set<ServerPlayer> playerSet = entityWatchPlayerSet.get(pair);
             playerSet.remove(player);
@@ -299,7 +299,7 @@ public class PcaSyncProtocol implements LeavesProtocol {
 
     private static void clearPlayerWatchBlock(ServerPlayer player) {
         lock.lock();
-        Pair<ResourceLocation, BlockPos> pair = playerWatchBlockPos.get(player);
+        Pair<Identifier, BlockPos> pair = playerWatchBlockPos.get(player);
         if (pair != null) {
             Set<ServerPlayer> playerSet = blockPosWatchPlayerSet.get(pair);
             playerSet.remove(player);
@@ -340,14 +340,14 @@ public class PcaSyncProtocol implements LeavesProtocol {
         return LeavesConfig.protocol.pca.enable;
     }
 
-    public record UpdateEntityPayload(ResourceLocation dimension, int entityId, CompoundTag tag) implements LeavesCustomPayload {
+    public record UpdateEntityPayload(Identifier dimension, int entityId, CompoundTag tag) implements LeavesCustomPayload {
 
         @ID
-        public static final ResourceLocation UPDATE_ENTITY = PcaSyncProtocol.id("update_entity");
+        public static final Identifier UPDATE_ENTITY = PcaSyncProtocol.id("update_entity");
 
         @Codec
         public static final StreamCodec<FriendlyByteBuf, UpdateEntityPayload> CODEC = StreamCodec.composite(
-            ResourceLocation.STREAM_CODEC,
+            Identifier.STREAM_CODEC,
             UpdateEntityPayload::dimension,
             ByteBufCodecs.INT,
             UpdateEntityPayload::entityId,
@@ -357,14 +357,14 @@ public class PcaSyncProtocol implements LeavesProtocol {
         );
     }
 
-    public record UpdateBlockEntityPayload(ResourceLocation dimension, BlockPos blockPos, CompoundTag tag) implements LeavesCustomPayload {
+    public record UpdateBlockEntityPayload(Identifier dimension, BlockPos blockPos, CompoundTag tag) implements LeavesCustomPayload {
 
         @ID
-        private static final ResourceLocation UPDATE_BLOCK_ENTITY = PcaSyncProtocol.id("update_block_entity");
+        private static final Identifier UPDATE_BLOCK_ENTITY = PcaSyncProtocol.id("update_block_entity");
 
         @Codec
         private static final StreamCodec<FriendlyByteBuf, UpdateBlockEntityPayload> CODEC = StreamCodec.composite(
-            ResourceLocation.STREAM_CODEC,
+            Identifier.STREAM_CODEC,
             UpdateBlockEntityPayload::dimension,
             BlockPos.STREAM_CODEC,
             UpdateBlockEntityPayload::blockPos,
@@ -376,7 +376,7 @@ public class PcaSyncProtocol implements LeavesProtocol {
 
     public record SyncBlockEntityPayload(BlockPos pos) implements LeavesCustomPayload {
         @ID
-        public static final ResourceLocation SYNC_BLOCK_ENTITY = PcaSyncProtocol.id("sync_block_entity");
+        public static final Identifier SYNC_BLOCK_ENTITY = PcaSyncProtocol.id("sync_block_entity");
 
         @Codec
         private static final StreamCodec<FriendlyByteBuf, SyncBlockEntityPayload> CODEC = StreamCodec.composite(
@@ -386,7 +386,7 @@ public class PcaSyncProtocol implements LeavesProtocol {
 
     public record SyncEntityPayload(int entityId) implements LeavesCustomPayload {
         @ID
-        public static final ResourceLocation SYNC_ENTITY = PcaSyncProtocol.id("sync_entity");
+        public static final Identifier SYNC_ENTITY = PcaSyncProtocol.id("sync_entity");
 
         @Codec
         private static final StreamCodec<FriendlyByteBuf, SyncEntityPayload> CODEC = StreamCodec.composite(

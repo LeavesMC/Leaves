@@ -2,7 +2,7 @@ package org.leavesmc.leaves.protocol.syncmatica.exchange;
 
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.protocol.syncmatica.FeatureSet;
 import org.leavesmc.leaves.protocol.syncmatica.PacketType;
@@ -15,13 +15,13 @@ public abstract class FeatureExchange extends AbstractExchange {
     }
 
     @Override
-    public boolean checkPacket(final @NotNull ResourceLocation id, final FriendlyByteBuf packetBuf) {
+    public boolean checkPacket(final @NotNull Identifier id, final FriendlyByteBuf packetBuf) {
         return id.equals(PacketType.FEATURE_REQUEST.identifier)
             || id.equals(PacketType.FEATURE.identifier);
     }
 
     @Override
-    public void handle(final @NotNull ResourceLocation id, final FriendlyByteBuf packetBuf) {
+    public void handle(final @NotNull Identifier id, final FriendlyByteBuf packetBuf) {
         if (id.equals(PacketType.FEATURE_REQUEST.identifier)) {
             sendFeatures();
         } else if (id.equals(PacketType.FEATURE.identifier)) {

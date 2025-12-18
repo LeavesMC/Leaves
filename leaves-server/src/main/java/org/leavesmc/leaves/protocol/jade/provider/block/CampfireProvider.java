@@ -2,7 +2,7 @@ package org.leavesmc.leaves.protocol.jade.provider.block;
 
 import com.google.common.collect.Lists;
 import net.minecraft.core.component.DataComponents;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.block.entity.CampfireBlockEntity;
@@ -19,7 +19,7 @@ import java.util.List;
 public enum CampfireProvider implements ServerExtensionProvider<ItemStack> {
     INSTANCE;
 
-    private static final ResourceLocation MC_CAMPFIRE = JadeProtocol.mc_id("campfire");
+    private static final Identifier MC_CAMPFIRE = JadeProtocol.mc_id("campfire");
 
     @Override
     public @Nullable @Unmodifiable List<ViewGroup<ItemStack>> getGroups(@NotNull Accessor<?> request) {
@@ -44,7 +44,7 @@ public enum CampfireProvider implements ServerExtensionProvider<ItemStack> {
     }
 
     @Override
-    public ResourceLocation getUid() {
+    public Identifier getUid() {
         return MC_CAMPFIRE;
     }
 }

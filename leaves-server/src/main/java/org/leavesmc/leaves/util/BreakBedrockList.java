@@ -57,7 +57,7 @@ public class BreakBedrockList {
                 }
             } else {
                 if (!MBB.isEmpty()) {
-                    ScoreHolder world = ScoreHolder.forNameOnly("$" + level.dimension().location());
+                    ScoreHolder world = ScoreHolder.forNameOnly("$" + level.dimension().identifier());
                     for (Objective objective : MBB) {
                         level.getScoreboard().getOrCreatePlayerScore(world, objective).increment();
                         level.getScoreboard().getOrCreatePlayerScore(ScoreHolder.forNameOnly("$total"), objective).increment();

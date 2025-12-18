@@ -4,7 +4,7 @@ import io.netty.buffer.ByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.protocol.core.LeavesCustomPayload;
 import org.leavesmc.leaves.protocol.jade.JadeProtocol;
@@ -19,7 +19,7 @@ import static org.leavesmc.leaves.protocol.jade.JadeProtocol.entityDataProviders
 public record RequestEntityPayload(EntityAccessor.SyncData data, List<@Nullable ServerDataProvider<EntityAccessor>> dataProviders) implements LeavesCustomPayload {
 
     @ID
-    private static final ResourceLocation PACKET_REQUEST_ENTITY = JadeProtocol.id("request_entity");
+    private static final Identifier PACKET_REQUEST_ENTITY = JadeProtocol.id("request_entity");
 
     @Codec
     private static final StreamCodec<RegistryFriendlyByteBuf, RequestEntityPayload> CODEC = StreamCodec.composite(

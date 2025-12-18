@@ -3,7 +3,7 @@ package org.leavesmc.leaves.protocol.rei.display;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.protocol.rei.ingredient.EntryIngredient;
 
@@ -17,18 +17,18 @@ public class CustomDisplay extends CraftingDisplay {
         CustomDisplay::getInputEntries,
         EntryIngredient.CODEC.apply(ByteBufCodecs.list()),
         CustomDisplay::getOutputEntries,
-        ByteBufCodecs.optional(ResourceLocation.STREAM_CODEC),
+        ByteBufCodecs.optional(Identifier.STREAM_CODEC),
         CustomDisplay::getOptionalLocation,
         CustomDisplay::of
     );
-    private static final ResourceLocation SERIALIZER_ID = ResourceLocation.tryBuild("minecraft", "default/crafting/custom");
+    private static final Identifier SERIALIZER_ID = Identifier.tryBuild("minecraft", "default/crafting/custom");
     private final int width;
     private final int height;
 
     /**
      * see me.shedaniel.rei.plugin.common.displays.crafting.DefaultCustomDisplay#DefaultCustomDisplay
      */
-    public CustomDisplay(@NotNull List<EntryIngredient> inputs, @NotNull List<EntryIngredient> outputs, @NotNull ResourceLocation location) {
+    public CustomDisplay(@NotNull List<EntryIngredient> inputs, @NotNull List<EntryIngredient> outputs, @NotNull Identifier location) {
         super(inputs, outputs, location);
         BitSet row = new BitSet(3);
         BitSet column = new BitSet(3);
@@ -46,7 +46,7 @@ public class CustomDisplay extends CraftingDisplay {
     }
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    private static CustomDisplay of(@NotNull List<EntryIngredient> inputs, @NotNull List<EntryIngredient> outputs, @NotNull Optional<ResourceLocation> id) {
+    private static CustomDisplay of(@NotNull List<EntryIngredient> inputs, @NotNull List<EntryIngredient> outputs, @NotNull Optional<Identifier> id) {
         throw new UnsupportedOperationException();
     }
 
@@ -61,7 +61,7 @@ public class CustomDisplay extends CraftingDisplay {
     }
 
     @Override
-    public ResourceLocation getSerializerId() {
+    public Identifier getSerializerId() {
         return SERIALIZER_ID;
     }
 

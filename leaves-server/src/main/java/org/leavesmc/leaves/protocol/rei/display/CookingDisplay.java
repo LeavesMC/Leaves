@@ -3,7 +3,7 @@ package org.leavesmc.leaves.protocol.rei.display;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.AbstractCookingRecipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
@@ -21,7 +21,7 @@ public abstract class CookingDisplay extends Display {
         CookingDisplay::getInputEntries,
         EntryIngredient.CODEC.apply(ByteBufCodecs.list()),
         CookingDisplay::getOutputEntries,
-        ByteBufCodecs.optional(ResourceLocation.STREAM_CODEC),
+        ByteBufCodecs.optional(Identifier.STREAM_CODEC),
         CookingDisplay::getOptionalLocation,
         ByteBufCodecs.FLOAT,
         CookingDisplay::getXp,
@@ -32,7 +32,7 @@ public abstract class CookingDisplay extends Display {
     protected float xp;
     protected double cookTime;
 
-    private CookingDisplay(@NotNull List<EntryIngredient> inputs, @NotNull List<EntryIngredient> outputs, @NotNull ResourceLocation id, float xp, double cookTime) {
+    private CookingDisplay(@NotNull List<EntryIngredient> inputs, @NotNull List<EntryIngredient> outputs, @NotNull Identifier id, float xp, double cookTime) {
         super(inputs, outputs, id);
         this.xp = xp;
         this.cookTime = cookTime;
@@ -49,7 +49,7 @@ public abstract class CookingDisplay extends Display {
     }
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    private static CookingDisplay of(@NotNull List<EntryIngredient> inputs, @NotNull List<EntryIngredient> outputs, @NotNull Optional<ResourceLocation> id, float xp, double cookTime) {
+    private static CookingDisplay of(@NotNull List<EntryIngredient> inputs, @NotNull List<EntryIngredient> outputs, @NotNull Optional<Identifier> id, float xp, double cookTime) {
         throw new UnsupportedOperationException();
     }
 

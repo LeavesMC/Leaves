@@ -3,7 +3,7 @@ package org.leavesmc.leaves.protocol.jade.provider.block;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.AbstractFurnaceBlockEntity;
 import org.jetbrains.annotations.NotNull;
@@ -16,7 +16,7 @@ import java.util.List;
 public enum FurnaceProvider implements StreamServerDataProvider<BlockAccessor, FurnaceProvider.Data> {
     INSTANCE;
 
-    private static final ResourceLocation MC_FURNACE = JadeProtocol.mc_id("furnace");
+    private static final Identifier MC_FURNACE = JadeProtocol.mc_id("furnace");
 
     @Override
     public @NotNull Data streamData(@NotNull BlockAccessor accessor) {
@@ -34,7 +34,7 @@ public enum FurnaceProvider implements StreamServerDataProvider<BlockAccessor, F
     }
 
     @Override
-    public ResourceLocation getUid() {
+    public Identifier getUid() {
         return MC_FURNACE;
     }
 

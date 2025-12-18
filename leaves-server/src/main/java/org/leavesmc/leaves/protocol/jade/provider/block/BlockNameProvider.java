@@ -6,7 +6,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.ComponentSerialization;
 import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.Nameable;
 import net.minecraft.world.level.block.ChestBlock;
@@ -21,7 +21,7 @@ import org.leavesmc.leaves.protocol.jade.provider.StreamServerDataProvider;
 public enum BlockNameProvider implements StreamServerDataProvider<BlockAccessor, Component> {
     INSTANCE;
 
-    private static final ResourceLocation CORE_OBJECT_NAME = JadeProtocol.id("object_name");
+    private static final Identifier CORE_OBJECT_NAME = JadeProtocol.id("object_name");
 
     @Override
     @Nullable
@@ -49,7 +49,7 @@ public enum BlockNameProvider implements StreamServerDataProvider<BlockAccessor,
     }
 
     @Override
-    public ResourceLocation getUid() {
+    public Identifier getUid() {
         return CORE_OBJECT_NAME;
     }
 

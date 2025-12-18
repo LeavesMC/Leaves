@@ -1287,9 +1287,6 @@ public final class LeavesConfig {
         @GlobalConfig("vanilla-portal-handle")
         public boolean vanillaPortalHandle = true;
 
-        @GlobalConfig("vanilla-fluid-pushing")
-        public boolean vanillaFluidPushing = true;
-
         @GlobalConfig(value = "collision-behavior")
         public CollisionBehavior collisionBehavior = CollisionBehavior.BLOCK_SHAPE_VANILLA;
 

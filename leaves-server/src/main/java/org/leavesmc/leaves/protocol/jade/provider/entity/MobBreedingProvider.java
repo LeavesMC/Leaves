@@ -3,7 +3,7 @@ package org.leavesmc.leaves.protocol.jade.provider.entity;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.animal.allay.Allay;
@@ -16,7 +16,7 @@ import org.leavesmc.leaves.protocol.jade.provider.StreamServerDataProvider;
 public enum MobBreedingProvider implements StreamServerDataProvider<EntityAccessor, Integer> {
     INSTANCE;
 
-    private static final ResourceLocation MC_MOB_BREEDING = JadeProtocol.mc_id("mob_breeding");
+    private static final Identifier MC_MOB_BREEDING = JadeProtocol.mc_id("mob_breeding");
 
     @Override
     public @Nullable Integer streamData(@NotNull EntityAccessor accessor) {
@@ -38,7 +38,7 @@ public enum MobBreedingProvider implements StreamServerDataProvider<EntityAccess
     }
 
     @Override
-    public ResourceLocation getUid() {
+    public Identifier getUid() {
         return MC_MOB_BREEDING;
     }
 }

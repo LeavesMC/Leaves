@@ -8,7 +8,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -354,7 +354,7 @@ public class ServuxStructuresProtocol implements LeavesProtocol {
     public record StructuresPayload(StructuresPayloadType packetType, CompoundTag nbt, FriendlyByteBuf buffer) implements LeavesCustomPayload {
 
         @ID
-        public static final ResourceLocation CHANNEL = ServuxProtocol.id("structures");
+        public static final Identifier CHANNEL = ServuxProtocol.id("structures");
 
         @Codec
         public static final StreamCodec<FriendlyByteBuf, StructuresPayload> CODEC = StreamCodec.of(

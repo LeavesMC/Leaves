@@ -1,9 +1,9 @@
 package org.leavesmc.leaves.util;
 
-import net.minecraft.Util;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.Util;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -15,9 +15,12 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.level.block.state.properties.RailShape;
+import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesConfig;
 
 import java.util.List;
+
+import static net.minecraft.world.level.block.Block.UPDATE_KNOWN_SHAPE;
 
 public class ShearsWrenchUtil {
 
@@ -31,7 +34,7 @@ public class ShearsWrenchUtil {
         if (context.getPlayer() == null || !context.getPlayer().getItemInHand(invert(context.getHand())).isEmpty()) {
             return null;
         }
-        StateDefinition<Block, BlockState> blockstatelist = block.getStateDefinition();
+        StateDefinition<@NotNull Block, @NotNull BlockState> blockstatelist = block.getStateDefinition();
         Property<?> iblockstate;
         if (block instanceof CrafterBlock) {
             iblockstate = blockstatelist.getProperty("orientation");
@@ -85,7 +88,7 @@ public class ShearsWrenchUtil {
         }
 
         BlockState iblockdata1 = cycleState(blockState, iblockstate, player.isSecondaryUseActive());
-        level.setBlock(clickedPos, iblockdata1, 18);
+        level.setBlock(clickedPos, iblockdata1, Block.UPDATE_CLIENTS | UPDATE_KNOWN_SHAPE);
         message(player, Component.translatable("item.minecraft.debug_stick.update", iblockstate.getName(), getNameHelper(iblockdata1, iblockstate)));
         return InteractionResult.CONSUME;
     }
@@ -94,7 +97,7 @@ public class ShearsWrenchUtil {
         return original == InteractionHand.MAIN_HAND ? InteractionHand.OFF_HAND : InteractionHand.MAIN_HAND;
     }
 
-    private static <T extends Comparable<T>> BlockState cycleState(BlockState state, Property<T> property, boolean inverse) {
+    private static <T extends Comparable<T>> BlockState cycleState(BlockState state, Property<@NotNull T> property, boolean inverse) {
         List<T> possibleValues = property.getPossibleValues();
         if (possibleValues.getFirst() instanceof RailShape) {
             boolean isRailBlock = state.getBlock() instanceof RailBlock;
@@ -117,7 +120,7 @@ public class ShearsWrenchUtil {
         ((ServerPlayer) player).sendSystemMessage(message, true);
     }
 
-    private static <T extends Comparable<T>> String getNameHelper(BlockState state, Property<T> property) {
+    private static <T extends Comparable<T>> String getNameHelper(BlockState state, Property<@NotNull T> property) {
         return property.getName(state.getValue(property));
     }
 }

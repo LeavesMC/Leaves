@@ -4,7 +4,7 @@ import io.netty.buffer.ByteBuf;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
@@ -40,9 +40,9 @@ public class ViewGroup<T> {
             ViewGroup::new);
     }
 
-    public static <B extends ByteBuf, T> StreamCodec<B, Map.Entry<ResourceLocation, List<ViewGroup<T>>>> listCodec(StreamCodec<B, T> viewCodec) {
+    public static <B extends ByteBuf, T> StreamCodec<B, Map.Entry<Identifier, List<ViewGroup<T>>>> listCodec(StreamCodec<B, T> viewCodec) {
         return StreamCodec.composite(
-            ResourceLocation.STREAM_CODEC,
+            Identifier.STREAM_CODEC,
             Map.Entry::getKey,
             ByteBufCodecs.<B, ViewGroup<T>>list().apply(codec(viewCodec)),
             Map.Entry::getValue,

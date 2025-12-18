@@ -2,7 +2,7 @@ package org.leavesmc.leaves.protocol.syncmatica.exchange;
 
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.protocol.syncmatica.CommunicationManager;
 import org.leavesmc.leaves.protocol.syncmatica.FeatureSet;
@@ -19,13 +19,13 @@ public class VersionHandshakeServer extends FeatureExchange {
     }
 
     @Override
-    public boolean checkPacket(final @NotNull ResourceLocation id, final FriendlyByteBuf packetBuf) {
+    public boolean checkPacket(final @NotNull Identifier id, final FriendlyByteBuf packetBuf) {
         return id.equals(PacketType.REGISTER_VERSION.identifier)
             || super.checkPacket(id, packetBuf);
     }
 
     @Override
-    public void handle(final @NotNull ResourceLocation id, final FriendlyByteBuf packetBuf) {
+    public void handle(final @NotNull Identifier id, final FriendlyByteBuf packetBuf) {
         if (id.equals(PacketType.REGISTER_VERSION.identifier)) {
             String partnerVersion = packetBuf.readUtf();
             if (partnerVersion.equals("0.0.1")) {

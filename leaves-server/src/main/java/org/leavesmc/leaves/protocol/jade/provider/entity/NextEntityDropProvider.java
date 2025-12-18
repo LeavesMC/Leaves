@@ -1,7 +1,7 @@
 package org.leavesmc.leaves.protocol.jade.provider.entity;
 
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.ai.memory.MemoryModuleType;
 import net.minecraft.world.entity.animal.Chicken;
 import net.minecraft.world.entity.animal.armadillo.Armadillo;
@@ -14,7 +14,7 @@ import org.leavesmc.leaves.protocol.jade.provider.ServerDataProvider;
 public enum NextEntityDropProvider implements ServerDataProvider<EntityAccessor> {
     INSTANCE;
 
-    private static final ResourceLocation MC_NEXT_ENTITY_DROP = JadeProtocol.mc_id("next_entity_drop");
+    private static final Identifier MC_NEXT_ENTITY_DROP = JadeProtocol.mc_id("next_entity_drop");
 
     @Override
     public void appendServerData(CompoundTag tag, @NotNull EntityAccessor accessor) {
@@ -36,7 +36,7 @@ public enum NextEntityDropProvider implements ServerDataProvider<EntityAccessor>
     }
 
     @Override
-    public ResourceLocation getUid() {
+    public Identifier getUid() {
         return MC_NEXT_ENTITY_DROP;
     }
 }

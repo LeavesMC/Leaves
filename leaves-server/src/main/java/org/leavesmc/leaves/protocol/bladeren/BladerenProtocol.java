@@ -3,7 +3,7 @@ package org.leavesmc.leaves.protocol.bladeren;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
@@ -27,8 +27,8 @@ public class BladerenProtocol implements LeavesProtocol {
     private static final Map<String, BiConsumer<ServerPlayer, CompoundTag>> registeredFeatures = new HashMap<>();
 
     @Contract("_ -> new")
-    public static ResourceLocation id(String path) {
-        return ResourceLocation.tryBuild(PROTOCOL_ID, path);
+    public static Identifier id(String path) {
+        return Identifier.tryBuild(PROTOCOL_ID, path);
     }
 
     @ProtocolHandler.PayloadReceiver(payload = BladerenHelloPayload.class)
@@ -108,7 +108,7 @@ public class BladerenProtocol implements LeavesProtocol {
     public record BladerenFeatureModifyPayload(String name, CompoundTag nbt) implements LeavesCustomPayload {
 
         @ID
-        private static final ResourceLocation FEATURE_MODIFY_ID = id("feature_modify");
+        private static final Identifier FEATURE_MODIFY_ID = id("feature_modify");
 
         @Codec
         private static final StreamCodec<FriendlyByteBuf, BladerenFeatureModifyPayload> CODEC = StreamCodec.of(
@@ -123,7 +123,7 @@ public class BladerenProtocol implements LeavesProtocol {
     public record BladerenHelloPayload(String version, CompoundTag nbt) implements LeavesCustomPayload {
 
         @ID
-        private static final ResourceLocation HELLO_ID = id("hello");
+        private static final Identifier HELLO_ID = id("hello");
 
         @Codec
         private static final StreamCodec<FriendlyByteBuf, BladerenHelloPayload> CODEC = StreamCodec.of(

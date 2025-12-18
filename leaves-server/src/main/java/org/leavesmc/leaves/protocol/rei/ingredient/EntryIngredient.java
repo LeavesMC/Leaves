@@ -6,7 +6,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
@@ -19,7 +19,7 @@ import java.util.stream.Stream;
 
 public class EntryIngredient {
     private static final StreamCodec<RegistryFriendlyByteBuf, Holder<Item>> ITEM_STREAM_CODEC = ByteBufCodecs.holderRegistry(Registries.ITEM);
-    private static final ResourceLocation ITEM_ID = ResourceLocation.withDefaultNamespace("item");
+    private static final Identifier ITEM_ID = Identifier.withDefaultNamespace("item");
     public static final StreamCodec<RegistryFriendlyByteBuf, EntryIngredient> CODEC = new StreamCodec<>() {
         @NotNull
         @Override
@@ -31,7 +31,7 @@ public class EntryIngredient {
         public void encode(@NotNull RegistryFriendlyByteBuf buffer, @NotNull EntryIngredient value) {
             ByteBufCodecs.writeCount(buffer, value.size(), Integer.MAX_VALUE);
             value.stream().forEach(itemStack -> {
-                buffer.writeResourceLocation(ITEM_ID);
+                buffer.writeIdentifier(ITEM_ID);
                 if (itemStack.isEmpty()) {
                     buffer.writeVarInt(0);
                 } else {

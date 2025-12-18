@@ -12,7 +12,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.tags.TagKey;
 import net.minecraft.util.context.ContextMap;
@@ -56,7 +56,7 @@ import java.util.stream.Stream;
  */
 public abstract class Display {
 
-    protected ResourceLocation id;
+    protected Identifier id;
 
     protected List<EntryIngredient> inputs;
 
@@ -64,7 +64,7 @@ public abstract class Display {
 
     public Display(@NotNull List<EntryIngredient> inputs,
                    @NotNull List<EntryIngredient> outputs,
-                   @NotNull ResourceLocation id) {
+                   @NotNull Identifier id) {
         this.inputs = inputs;
         this.outputs = outputs;
         this.id = id;
@@ -81,7 +81,7 @@ public abstract class Display {
 
             @Override
             public void encode(@NotNull RegistryFriendlyByteBuf buffer, @NotNull Display display) {
-                new FriendlyByteBuf(buffer).writeResourceLocation(display.getSerializerId());
+                new FriendlyByteBuf(buffer).writeIdentifier(display.getSerializerId());
                 ((StreamCodec<RegistryFriendlyByteBuf, Display>) display.streamCodec()).encode(buffer, display);
             }
         };
@@ -108,7 +108,7 @@ public abstract class Display {
     @NotNull
     public static Collection<Display> ofTippedArrowRecipe(@NotNull RecipeHolder<TippedArrowRecipe> recipeHolder) {
         EntryIngredient arrowIngredient = EntryIngredient.of(Items.ARROW);
-        Set<ResourceLocation> registeredPotions = new HashSet<>();
+        Set<Identifier> registeredPotions = new HashSet<>();
         List<Display> displays = new ArrayList<>();
         MinecraftServer.getServer().registryAccess().lookup(Registries.POTION).stream()
             .flatMap(Registry::listElements)
@@ -288,15 +288,15 @@ public abstract class Display {
         return outputs;
     }
 
-    public ResourceLocation getDisplayLocation() {
+    public Identifier getDisplayLocation() {
         return id;
     }
 
-    public Optional<ResourceLocation> getOptionalLocation() {
+    public Optional<Identifier> getOptionalLocation() {
         return Optional.ofNullable(id);
     }
 
-    public abstract ResourceLocation getSerializerId();
+    public abstract Identifier getSerializerId();
 
     public abstract StreamCodec<RegistryFriendlyByteBuf, ? extends Display> streamCodec();
 }

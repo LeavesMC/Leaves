@@ -24,7 +24,7 @@ public class ServerLookAction extends AbstractBotAction<ServerLookAction> {
     private ServerPlayer target = null;
 
     public ServerLookAction() {
-        super("look", ServerLookAction::new);
+        super("look");
         this.addArgument("player", ArgumentTypes.player()).setOptional(true);
         this.fork(1);
         this.addArgument("location", ArgumentTypes.finePosition());

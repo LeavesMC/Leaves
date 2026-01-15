@@ -108,7 +108,7 @@ public class PcaSyncProtocol implements LeavesProtocol {
                 updateBlockEntity(player, blockEntity);
             }
 
-            Pair<Identifier, BlockPos> pair = new ImmutablePair<>(player.level().dimension().location(), pos);
+            Pair<Identifier, BlockPos> pair = new ImmutablePair<>(player.level().dimension().identifier(), pos);
             lock.lock();
             playerWatchBlockPos.put(player, pair);
             if (!blockPosWatchPlayerSet.containsKey(pair)) {
@@ -158,7 +158,7 @@ public class PcaSyncProtocol implements LeavesProtocol {
                 }
                 updateEntity(player, entity);
 
-                Pair<Identifier, Entity> pair = new ImmutablePair<>(entity.level().dimension().location(), entity);
+                Pair<Identifier, Entity> pair = new ImmutablePair<>(entity.level().dimension().identifier(), entity);
                 lock.lock();
                 playerWatchEntity.put(player, pair);
                 if (!entityWatchPlayerSet.containsKey(pair)) {
@@ -190,7 +190,7 @@ public class PcaSyncProtocol implements LeavesProtocol {
 
     public static void updateEntity(@NotNull ServerPlayer player, @NotNull Entity entity) {
         CompoundTag nbt = TagUtil.saveEntity(entity);
-        ProtocolUtils.sendPayloadPacket(player, new UpdateEntityPayload(entity.level().dimension().location(), entity.getId(), nbt));
+        ProtocolUtils.sendPayloadPacket(player, new UpdateEntityPayload(entity.level().dimension().identifier(), entity.getId(), nbt));
     }
 
     public static void updateBlockEntity(@NotNull ServerPlayer player, @NotNull BlockEntity blockEntity) {
@@ -200,7 +200,7 @@ public class PcaSyncProtocol implements LeavesProtocol {
             return;
         }
 
-        ProtocolUtils.sendPayloadPacket(player, new UpdateBlockEntityPayload(world.dimension().location(), blockEntity.getBlockPos(), blockEntity.saveWithoutMetadata(world.registryAccess())));
+        ProtocolUtils.sendPayloadPacket(player, new UpdateBlockEntityPayload(world.dimension().identifier(), blockEntity.getBlockPos(), blockEntity.saveWithoutMetadata(world.registryAccess())));
     }
 
     private static MutablePair<Identifier, Entity> getIdentifierEntityPair(Identifier Identifier, Entity entity) {
@@ -220,11 +220,11 @@ public class PcaSyncProtocol implements LeavesProtocol {
     }
 
     private static @Nullable Set<ServerPlayer> getWatchPlayerList(@NotNull Entity entity) {
-        return entityWatchPlayerSet.get(getIdentifierEntityPair(entity.level().dimension().location(), entity));
+        return entityWatchPlayerSet.get(getIdentifierEntityPair(entity.level().dimension().identifier(), entity));
     }
 
     private static @Nullable Set<ServerPlayer> getWatchPlayerList(@NotNull Level world, @NotNull BlockPos blockPos) {
-        return blockPosWatchPlayerSet.get(getIdentifierBlockPosPair(world.dimension().location(), blockPos));
+        return blockPosWatchPlayerSet.get(getIdentifierBlockPosPair(world.dimension().identifier(), blockPos));
     }
 
     public static boolean syncEntityToClient(@NotNull Entity entity) {

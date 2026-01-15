@@ -55,7 +55,7 @@ public class CraftBotManager implements BotManager {
     @SuppressWarnings("unchecked")
     @Override
     public <T extends BotAction<T>> T newAction(@NotNull Class<T> type) {
-        AbstractBotAction<?> action = Actions.getForClass(type);
+        Actions<?> action = Actions.getByClass(type);
         if (action == null) {
             throw new IllegalArgumentException("No action registered for type: " + type.getName());
         } else {

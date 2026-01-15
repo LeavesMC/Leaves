@@ -8,7 +8,7 @@ import org.leavesmc.leaves.entity.bot.actions.CraftSwimAction;
 public class ServerSwimAction extends AbstractStateBotAction<ServerSwimAction> {
 
     public ServerSwimAction() {
-        super("swim", ServerSwimAction::new);
+        super("swim");
     }
 
     @Override

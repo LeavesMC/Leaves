@@ -35,15 +35,15 @@ public class StartCommand extends LiteralNode {
         Actions.getAll().stream().map(this::actionNodeCreator).forEach(this::children);
     }
 
-    private boolean handleStartCommand(CommandContext context, @NotNull AbstractBotAction<?> action) throws CommandSyntaxException {
+    private boolean handleStartCommand(CommandContext context, @NotNull Actions<?> holder) throws CommandSyntaxException {
         ServerBot bot = getBot(context);
         CommandSender sender = context.getSender();
 
-        action.loadCommand(context);
+        AbstractBotAction<?> action = holder.createAndLoad(context);
         if (bot.addBotAction(action, sender)) {
             sender.sendMessage(join(spaces(),
                 text("Action", GRAY),
-                text(action.getName(), AQUA).hoverEvent(showText(text(action.getActionDataString()))),
+                text(holder.getName(), AQUA).hoverEvent(showText(text(action.getActionDataString()))),
                 text("has been issued to", GRAY),
                 asAdventure(bot.getDisplayName())
             ));
@@ -53,25 +53,25 @@ public class StartCommand extends LiteralNode {
     }
 
     @Contract(pure = true)
-    private @NotNull Supplier<LiteralNode> actionNodeCreator(AbstractBotAction<?> action) {
+    private @NotNull Supplier<LiteralNode> actionNodeCreator(Actions<?> action) {
         return () -> new ActionLiteralNode(action);
     }
 
     private class ActionLiteralNode extends LiteralNode {
-        private final AbstractBotAction<?> action;
+        private final Actions<?> holder;
 
-        private ActionLiteralNode(@NotNull AbstractBotAction<?> action) {
-            super(action.getName());
-            this.action = action;
+        private ActionLiteralNode(@NotNull Actions<?> holder) {
+            super(holder.getName());
+            this.holder = holder;
         }
 
         @Override
         protected ArgumentBuilder<CommandSourceStack, ?> compile() {
             ArgumentBuilder<CommandSourceStack, ?> builder = super.compile();
 
-            Map<Integer, List<Pair<String, WrappedArgument<?>>>> arguments = action.getArguments();
+            Map<Integer, List<Pair<String, WrappedArgument<?>>>> arguments = holder.create().getArguments();
             Command<CommandSourceStack> executor = context -> {
-                if (handleStartCommand(new CommandContext(context), action)) {
+                if (handleStartCommand(new CommandContext(context), holder)) {
                     return Command.SINGLE_SUCCESS;
                 } else {
                     return 0;

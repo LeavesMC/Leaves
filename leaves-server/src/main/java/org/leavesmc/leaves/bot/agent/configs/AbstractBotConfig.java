@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.function.Supplier;
 
 public abstract class AbstractBotConfig<T, E extends AbstractBotConfig<T, E>> {
+
     private final String name;
     private final WrappedArgument<T> argument;
     private final Supplier<E> creator;

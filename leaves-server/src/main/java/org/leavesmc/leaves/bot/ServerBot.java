@@ -75,6 +75,7 @@ import org.leavesmc.leaves.util.MathUtils;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -86,7 +87,7 @@ import static net.minecraft.server.MinecraftServer.getServer;
 public class ServerBot extends ServerPlayer {
 
     private final List<AbstractBotAction<?>> actions;
-    private final Map<String, AbstractBotConfig<?, ?>> configs;
+    private final Map<String, AbstractBotConfig<?, ?>> configs = new HashMap<>();
 
     public boolean resume = false;
     public BotCreateState createState;
@@ -109,10 +110,6 @@ public class ServerBot extends ServerPlayer {
 
         this.actions = new ArrayList<>();
         ImmutableMap.Builder<String, AbstractBotConfig<?, ?>> configBuilder = ImmutableMap.builder();
-        for (AbstractBotConfig<?, ?> config : Configs.getConfigs()) {
-            configBuilder.put(config.getName(), config.create().setBot(this));
-        }
-        this.configs = configBuilder.build();
 
         this.stats = new BotStatsCounter(server);
         this.recipeBook = new BotRecipeBook();
@@ -434,9 +431,9 @@ public class ServerBot extends ServerPlayer {
         if (nbt.list("actions", CompoundTag.CODEC).isPresent()) {
             ValueInput.TypedInputList<CompoundTag> actionNbt = nbt.list("actions", CompoundTag.CODEC).orElseThrow();
             actionNbt.forEach(actionTag -> {
-                AbstractBotAction<?> action = Actions.getForName(actionTag.getString("actionName").orElseThrow());
-                if (action != null) {
-                    AbstractBotAction<?> newAction = action.create();
+                Actions<?> holder = Actions.getByName(actionTag.getString("actionName").orElseThrow());
+                if (holder != null) {
+                    AbstractBotAction<?> newAction = holder.create();
                     newAction.load(actionTag);
                     this.actions.add(newAction);
                 }
@@ -446,10 +443,11 @@ public class ServerBot extends ServerPlayer {
         if (nbt.list("configs", CompoundTag.CODEC).isPresent()) {
             ValueInput.TypedInputList<CompoundTag> configNbt = nbt.list("configs", CompoundTag.CODEC).orElseThrow();
             for (CompoundTag configTag : configNbt) {
-                AbstractBotConfig<?, ?> config = Configs.getConfig(configTag.getString("configName").orElseThrow());
+                AbstractBotConfig<?, ?> config = Configs.getConfig(configTag.getString("configName").orElseThrow()).orElseThrow().create();
                 if (config != null) {
                     config.setBot(this);
                     config.load(configTag);
+                    this.configs.put(config.getName(), config);
                 }
             }
         }
@@ -681,7 +679,7 @@ public class ServerBot extends ServerPlayer {
     }
 
     @SuppressWarnings("unchecked")
-    public <T, E extends AbstractBotConfig<T, E>> AbstractBotConfig<T, E> getConfig(@NotNull AbstractBotConfig<T, E> config) {
+    public <T, E extends AbstractBotConfig<T, E>> AbstractBotConfig<T, E> getConfig(@NotNull Configs<E> config) {
         return (AbstractBotConfig<T, E>) Objects.requireNonNull(this.configs.get(config.getName()));
     }
 
@@ -689,7 +687,7 @@ public class ServerBot extends ServerPlayer {
         return configs.values();
     }
 
-    public <T, E extends AbstractBotConfig<T, E>> T getConfigValue(@NotNull AbstractBotConfig<T, E> config) {
+    public <T, E extends AbstractBotConfig<T, E>> T getConfigValue(@NotNull Configs<E> config) {
         return this.getConfig(config).getValue();
     }
 

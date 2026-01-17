@@ -1,5 +1,6 @@
 package org.leavesmc.leaves.bot;
 
+import com.google.common.collect.ImmutableMap;
 import com.mojang.authlib.GameProfile;
 import io.papermc.paper.adventure.PaperAdventure;
 import io.papermc.paper.event.entity.EntityKnockbackEvent;
@@ -86,7 +87,7 @@ import static net.minecraft.server.MinecraftServer.getServer;
 public class ServerBot extends ServerPlayer {
 
     private final List<AbstractBotAction<?>> actions;
-    private final Map<String, AbstractBotConfig<?>> configs = new HashMap<>();
+    private final Map<String, AbstractBotConfig<?>> configs;
 
     public boolean resume = false;
     public BotCreateState createState;
@@ -108,6 +109,12 @@ public class ServerBot extends ServerPlayer {
         this.gameMode = new ServerBotGameMode(this);
 
         this.actions = new ArrayList<>();
+
+        ImmutableMap.Builder<String, AbstractBotConfig<?>> configBuilder = ImmutableMap.builder();
+        for (Configs<?> config : Configs.getConfigs()) {
+            configBuilder.put(config.getName(), config.create(this));
+        }
+        this.configs = configBuilder.build();
 
         this.stats = new BotStatsCounter(server);
         this.recipeBook = new BotRecipeBook();
@@ -442,9 +449,7 @@ public class ServerBot extends ServerPlayer {
             for (CompoundTag configTag : configNbt) {
                 AbstractBotConfig<?> config = Configs.getConfig(configTag.getString("configName").orElseThrow()).orElseThrow().create();
                 if (config != null) {
-                    config.setBot(this);
-                    config.load(configTag);
-                    this.configs.put(config.getName(), config);
+                    this.configs.get(config.getName()).load(configTag);
                 }
             }
         }

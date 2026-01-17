@@ -2,6 +2,7 @@ package org.leavesmc.leaves.bot.agent;
 
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
+import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.bot.agent.configs.AbstractBotConfig;
 import org.leavesmc.leaves.bot.agent.configs.AlwaysSendDataConfig;
 import org.leavesmc.leaves.bot.agent.configs.LocatorBarConfig;
@@ -44,6 +45,13 @@ public class Configs<E extends AbstractBotConfig<?>> {
     @SuppressWarnings("unchecked")
     public E create() {
         return (E) configCreator.get();
+    }
+
+    @SuppressWarnings("unchecked")
+    public E create(ServerBot bot) {
+        E config = (E) configCreator.get();
+        config.setBot(bot);
+        return config;
     }
 
     @NotNull

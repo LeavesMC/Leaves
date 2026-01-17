@@ -87,7 +87,7 @@ import static net.minecraft.server.MinecraftServer.getServer;
 public class ServerBot extends ServerPlayer {
 
     private final List<AbstractBotAction<?>> actions;
-    private final Map<String, AbstractBotConfig<?, ?>> configs = new HashMap<>();
+    private final Map<String, AbstractBotConfig<?>> configs = new HashMap<>();
 
     public boolean resume = false;
     public BotCreateState createState;
@@ -109,7 +109,6 @@ public class ServerBot extends ServerPlayer {
         this.gameMode = new ServerBotGameMode(this);
 
         this.actions = new ArrayList<>();
-        ImmutableMap.Builder<String, AbstractBotConfig<?, ?>> configBuilder = ImmutableMap.builder();
 
         this.stats = new BotStatsCounter(server);
         this.recipeBook = new BotRecipeBook();
@@ -119,7 +118,6 @@ public class ServerBot extends ServerPlayer {
         this.notSleepTicks = 0;
         this.fauxSleeping = LeavesConfig.modify.fakeplayer.inGame.canSkipSleep;
         this.getBukkitEntity().setSimulationDistance(LeavesConfig.modify.fakeplayer.inGame.getSimulationDistance(this));
-        this.setClientLoaded(true);
     }
 
     @Override
@@ -394,7 +392,7 @@ public class ServerBot extends ServerPlayer {
 
         if (!this.configs.isEmpty()) {
             ValueOutput.TypedOutputList<CompoundTag> configNbt = nbt.list("configs", CompoundTag.CODEC);
-            for (AbstractBotConfig<?, ?> config : this.configs.values()) {
+            for (AbstractBotConfig<?> config : this.configs.values()) {
                 configNbt.add(config.save(new CompoundTag()));
             }
         }
@@ -443,7 +441,7 @@ public class ServerBot extends ServerPlayer {
         if (nbt.list("configs", CompoundTag.CODEC).isPresent()) {
             ValueInput.TypedInputList<CompoundTag> configNbt = nbt.list("configs", CompoundTag.CODEC).orElseThrow();
             for (CompoundTag configTag : configNbt) {
-                AbstractBotConfig<?, ?> config = Configs.getConfig(configTag.getString("configName").orElseThrow()).orElseThrow().create();
+                AbstractBotConfig<?> config = Configs.getConfig(configTag.getString("configName").orElseThrow()).orElseThrow().create();
                 if (config != null) {
                     config.setBot(this);
                     config.load(configTag);
@@ -499,7 +497,7 @@ public class ServerBot extends ServerPlayer {
 
     @Override
     public void die(@NotNull DamageSource damageSource) {
-        boolean flag = this.level().getGameRules().getBoolean(GameRules.RULE_SHOWDEATHMESSAGES);
+        boolean flag = this.level().getGameRules().get(GameRules.SHOW_DEATH_MESSAGES);
         Component defaultMessage = this.getCombatTracker().getDeathMessage();
 
         BotDeathEvent event = new BotDeathEvent(this.getBukkitEntity(), PaperAdventure.asAdventure(defaultMessage), flag);
@@ -679,15 +677,15 @@ public class ServerBot extends ServerPlayer {
     }
 
     @SuppressWarnings("unchecked")
-    public <T, E extends AbstractBotConfig<T, E>> AbstractBotConfig<T, E> getConfig(@NotNull Configs<E> config) {
-        return (AbstractBotConfig<T, E>) Objects.requireNonNull(this.configs.get(config.getName()));
+    public <T> AbstractBotConfig<T> getConfig(@NotNull Configs<? extends AbstractBotConfig<T>> config) {
+        return (AbstractBotConfig<T>) Objects.requireNonNull(this.configs.get(config.getName()));
     }
 
-    public Collection<AbstractBotConfig<?, ?>> getAllConfigs() {
+    public Collection<AbstractBotConfig<?>> getAllConfigs() {
         return configs.values();
     }
 
-    public <T, E extends AbstractBotConfig<T, E>> T getConfigValue(@NotNull Configs<E> config) {
+    public <T> T getConfigValue(@NotNull Configs<? extends AbstractBotConfig<T>> config) {
         return this.getConfig(config).getValue();
     }
 

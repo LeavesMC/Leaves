@@ -1,0 +1,201 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Thu, 14 Sep 2023 20:23:03 +0800
+Subject: [PATCH] Force Void Trade
+
+
+diff --git a/net/minecraft/world/entity/npc/villager/AbstractVillager.java b/net/minecraft/world/entity/npc/villager/AbstractVillager.java
+index e6b79e6877b31253c065864e38b1ed62be0b0efb..e1f1e6c9a1328e6910c7c3ca06e651dd93e43d3e 100644
+--- a/net/minecraft/world/entity/npc/villager/AbstractVillager.java
++++ b/net/minecraft/world/entity/npc/villager/AbstractVillager.java
+@@ -44,6 +44,7 @@ public abstract class AbstractVillager extends AgeableMob implements InventoryCa
+     private @Nullable Player tradingPlayer;
+     protected @Nullable MerchantOffers offers;
+     private final SimpleContainer inventory = new SimpleContainer(8, (org.bukkit.craftbukkit.entity.CraftAbstractVillager) this.getBukkitEntity()); // CraftBukkit - add argument
++    protected boolean voidTrade = false; // Leaves - force void trade
+ 
+     public AbstractVillager(EntityType<? extends AbstractVillager> type, Level level) {
+         super(type, level);
+@@ -144,7 +145,13 @@ public abstract class AbstractVillager extends AgeableMob implements InventoryCa
+     @Override
+     public void processTrade(MerchantOffer offer, io.papermc.paper.event.player.@Nullable PlayerPurchaseEvent event) { // The MerchantRecipe passed in here is the one set by the PlayerPurchaseEvent
+         if (event == null || event.willIncreaseTradeUses()) {
+-            offer.increaseUses();
++            // Leaves start - force void trade
++            if (voidTrade) {
++                offer.increaseVoidUses();
++            } else {
++                offer.increaseUses();
++            }
++            // Leaves end - force void trade
+         }
+         if (event == null || event.isRewardingExp()) {
+             this.rewardTradeXp(offer);
+@@ -156,7 +163,7 @@ public abstract class AbstractVillager extends AgeableMob implements InventoryCa
+     @Override
+     public void notifyTrade(MerchantOffer offer) {
+         // offer.increaseUses(); // Paper - Add PlayerTradeEvent and PlayerPurchaseEvent
+-        this.ambientSoundTime = -this.getAmbientSoundInterval();
++        if (!voidTrade) this.ambientSoundTime = -this.getAmbientSoundInterval(); // Leaves - force void trade
+         // this.rewardTradeXp(offer); // Paper - Add PlayerTradeEvent and PlayerPurchaseEvent
+         if (this.tradingPlayer instanceof ServerPlayer) {
+             CriteriaTriggers.TRADE.trigger((ServerPlayer)this.tradingPlayer, this, offer.getResult());
+@@ -173,7 +180,7 @@ public abstract class AbstractVillager extends AgeableMob implements InventoryCa
+     @Override
+     public void notifyTradeUpdated(ItemStack stack) {
+         if (!this.level().isClientSide() && this.ambientSoundTime > -this.getAmbientSoundInterval() + 20) {
+-            this.ambientSoundTime = -this.getAmbientSoundInterval();
++            if (!voidTrade) this.ambientSoundTime = -this.getAmbientSoundInterval(); // Leaves - force void trade
+             this.makeSound(this.getTradeUpdatedSound(!stack.isEmpty()));
+         }
+     }
+@@ -218,6 +225,12 @@ public abstract class AbstractVillager extends AgeableMob implements InventoryCa
+     }
+ 
+     protected void stopTrading() {
++        // Leaves start - force void trade
++        this.voidTrade = false;
++        if (this.offers != null) {
++            this.offers.forEach(MerchantOffer::resetVoidUses);
++        }
++        // Leaves end - force void trade
+         this.setTradingPlayer(null);
+     }
+ 
+@@ -296,4 +309,10 @@ public abstract class AbstractVillager extends AgeableMob implements InventoryCa
+     public boolean stillValid(Player player) {
+         return this.getTradingPlayer() == player && this.isAlive() && player.isWithinEntityInteractionRange(this, 4.0);
+     }
++
++    // Leaves start - force void trade
++    public void setVoidTrade() {
++        this.voidTrade = true;
++    }
++    // Leaves end - force void trade
+ }
+diff --git a/net/minecraft/world/entity/npc/villager/Villager.java b/net/minecraft/world/entity/npc/villager/Villager.java
+index 89844d7e804cc8a2110b694e448bc5993991bea7..681960e4453cbbe60203948b4acdebf33af7a71d 100644
+--- a/net/minecraft/world/entity/npc/villager/Villager.java
++++ b/net/minecraft/world/entity/npc/villager/Villager.java
+@@ -384,6 +384,7 @@ public class Villager extends AbstractVillager implements ReputationEventHandler
+     }
+ 
+     private void startTrading(Player player) {
++        this.voidTrade = false; // Leaves - force void trade
+         this.updateSpecialPrices(player);
+         this.setTradingPlayer(player);
+         this.openTradingScreen(player, this.getDisplayName(), this.getVillagerData().level());
+@@ -617,8 +618,12 @@ public class Villager extends AbstractVillager implements ReputationEventHandler
+     @Override
+     protected void rewardTradeXp(MerchantOffer offer) {
+         int i = 3 + this.random.nextInt(4);
+-        this.villagerXp = this.villagerXp + offer.getXp();
+-        this.lastTradedPlayer = this.getTradingPlayer();
++        // Leaves start - force void trade
++        if (!voidTrade) {
++            this.villagerXp += offer.getXp();
++            this.lastTradedPlayer = this.getTradingPlayer();
++        }
++        // Leaves end - force void trade
+         if (this.shouldIncreaseLevel()) {
+             this.updateMerchantTimer = 40;
+             this.increaseProfessionLevelOnUpdate = true;
+diff --git a/net/minecraft/world/entity/npc/wanderingtrader/WanderingTrader.java b/net/minecraft/world/entity/npc/wanderingtrader/WanderingTrader.java
+index 3eb6ee2ffecbdeb6057d81b7936b80e205db7cdc..8de44af1247797acdb9e9307ff094a72fb662e04 100644
+--- a/net/minecraft/world/entity/npc/wanderingtrader/WanderingTrader.java
++++ b/net/minecraft/world/entity/npc/wanderingtrader/WanderingTrader.java
+@@ -124,9 +124,10 @@ public class WanderingTrader extends AbstractVillager implements Consumable.Over
+                     return InteractionResult.CONSUME;
+                 }
+ 
+-                this.setTradingPlayer(player);
+-                this.openTradingScreen(player, this.getDisplayName(), 1);
+-            }
++                this.voidTrade = false; // Leaves - force void trade
++                    this.setTradingPlayer(player);
++                    this.openTradingScreen(player, this.getDisplayName(), 1);
++                }
+ 
+             return InteractionResult.SUCCESS;
+         } else {
+diff --git a/net/minecraft/world/inventory/MerchantMenu.java b/net/minecraft/world/inventory/MerchantMenu.java
+index ade7732b638b30ad0ae50605793cbf75754aad0e..8ca85b07ad3a9902359704bf7071146d99153959 100644
+--- a/net/minecraft/world/inventory/MerchantMenu.java
++++ b/net/minecraft/world/inventory/MerchantMenu.java
+@@ -25,7 +25,7 @@ public class MerchantMenu extends AbstractContainerMenu {
+     private static final int SELLSLOT2_X = 162;
+     private static final int BUYSLOT_X = 220;
+     private static final int ROW_Y = 37;
+-    private final Merchant trader;
++    public final Merchant trader; // Leaves - private -> public
+     private final MerchantContainer tradeContainer;
+     private int merchantLevel;
+     private boolean showProgressBar;
+diff --git a/net/minecraft/world/item/trading/MerchantOffer.java b/net/minecraft/world/item/trading/MerchantOffer.java
+index 6afeb92c2e00ca5b945b7c7de9257bd741d53c3d..f5b82f56a59dd150938e35dde0333e7ea91fd042 100644
+--- a/net/minecraft/world/item/trading/MerchantOffer.java
++++ b/net/minecraft/world/item/trading/MerchantOffer.java
+@@ -39,6 +39,7 @@ public class MerchantOffer {
+     public float priceMultiplier;
+     public int xp;
+     public boolean ignoreDiscounts; // Paper - Add ignore discounts API
++    public int voidTradeUses; // Leaves - force void trade
+ 
+     // CraftBukkit start
+     private @javax.annotation.Nullable org.bukkit.craftbukkit.inventory.CraftMerchantRecipe bukkitHandle;
+@@ -78,6 +79,7 @@ public class MerchantOffer {
+         this.priceMultiplier = priceMultiplier;
+         this.xp = xp;
+         this.ignoreDiscounts = ignoreDiscounts; // Paper
++        this.voidTradeUses = 0; // Leaves - force void trade
+     }
+ 
+     public MerchantOffer(ItemCost baseCostA, ItemStack result, int maxUses, int xp, float priceMultiplier) {
+@@ -167,6 +169,16 @@ public class MerchantOffer {
+         this.uses++;
+     }
+ 
++    // Leaves start - force void trade
++    public void increaseVoidUses() {
++        ++this.voidTradeUses;
++    }
++
++    public void resetVoidUses() {
++        this.voidTradeUses = 0;
++    }
++    // Leaves end - force void trade
++
+     public int getDemand() {
+         return this.demand;
+     }
+@@ -196,7 +208,7 @@ public class MerchantOffer {
+     }
+ 
+     public boolean isOutOfStock() {
+-        return this.uses >= this.maxUses;
++        return this.uses + this.voidTradeUses >= this.maxUses; // Leaves - force void trade
+     }
+ 
+     public void setToOutOfStock() {
+diff --git a/net/minecraft/world/level/block/EndGatewayBlock.java b/net/minecraft/world/level/block/EndGatewayBlock.java
+index 4b959091412defb5ae6ffe387f98ed1cc9a29e5f..0d9b286bcc25ad5376a7a22ae4323bd553d4da3d 100644
+--- a/net/minecraft/world/level/block/EndGatewayBlock.java
++++ b/net/minecraft/world/level/block/EndGatewayBlock.java
+@@ -107,6 +107,17 @@ public class EndGatewayBlock extends BaseEntityBlock implements Portal {
+     public @Nullable TeleportTransition getPortalDestination(ServerLevel level, Entity entity, BlockPos pos) {
+         if (level.getBlockEntity(pos) instanceof TheEndGatewayBlockEntity theEndGatewayBlockEntity) {
+             Vec3 portalPosition = theEndGatewayBlockEntity.getPortalPosition(level, pos);
++
++            // Leaves start - force void trade
++            if (org.leavesmc.leaves.LeavesConfig.modify.forceVoidTrade && portalPosition != null && entity instanceof net.minecraft.server.level.ServerPlayer player) {
++                if (player.containerMenu instanceof net.minecraft.world.inventory.MerchantMenu merchantMenu) {
++                    if (merchantMenu.trader instanceof net.minecraft.world.entity.npc.villager.AbstractVillager villager) {
++                        villager.setVoidTrade();
++                    }
++                }
++            }
++            // Leaves end - force void trade
++
+             if (portalPosition == null) {
+                 return null;
+             } else {

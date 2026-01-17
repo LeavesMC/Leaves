@@ -94,9 +94,9 @@ public abstract class Display {
         if (!displays.isEmpty()) {
             RecipeDisplay recipeDisplay = displays.getFirst();
             if (recipeDisplay instanceof ShapelessCraftingRecipeDisplay shapelessRecipeDisplay) {
-                displayList.add(new ShapelessDisplay(shapelessRecipeDisplay, recipeHolder.id().location()));
+                displayList.add(new ShapelessDisplay(shapelessRecipeDisplay, recipeHolder.id().identifier()));
             } else if (recipeDisplay instanceof ShapedCraftingRecipeDisplay shapelessRecipe) {
-                displayList.add(new ShapedDisplay(shapelessRecipe, recipeHolder.id().location()));
+                displayList.add(new ShapedDisplay(shapelessRecipe, recipeHolder.id().identifier()));
             }
         }
         return displayList;
@@ -118,7 +118,7 @@ public abstract class Display {
                 if (potion == null || potion.potion().isEmpty()) {
                     return;
                 }
-                if (potion.potion().get().unwrapKey().isPresent() && registeredPotions.add(potion.potion().get().unwrapKey().get().location())) {
+                if (potion.potion().get().unwrapKey().isPresent() && registeredPotions.add(potion.potion().get().unwrapKey().get().identifier())) {
                     List<EntryIngredient> input = new ArrayList<>();
                     for (int i = 0; i < 4; i++) {
                         input.add(arrowIngredient);
@@ -129,7 +129,7 @@ public abstract class Display {
                     }
                     ItemStack outputStack = new ItemStack(Items.TIPPED_ARROW, 8);
                     outputStack.set(DataComponents.POTION_CONTENTS, potion);
-                    displays.add(new CustomDisplay(input, List.of(EntryIngredient.of(outputStack)), recipeHolder.id().location()));
+                    displays.add(new CustomDisplay(input, List.of(EntryIngredient.of(outputStack)), recipeHolder.id().identifier()));
                 }
             });
         return displays;
@@ -150,7 +150,7 @@ public abstract class Display {
             outputs[i] = new ItemStack(Items.FIREWORK_ROCKET, 3);
             outputs[i].set(DataComponents.FIREWORKS, new Fireworks(i + 1, List.of()));
         }
-        return Collections.singleton(new ShapelessDisplay(List.of(inputs), List.of(EntryIngredient.of(outputs)), recipeHolder.id().location()));
+        return Collections.singleton(new ShapelessDisplay(List.of(inputs), List.of(EntryIngredient.of(outputs)), recipeHolder.id().identifier()));
     }
 
     /**
@@ -162,7 +162,7 @@ public abstract class Display {
             new ShapelessDisplay(
                 List.of(EntryIngredient.of(Items.FILLED_MAP), EntryIngredient.of(Items.MAP)),
                 List.of(EntryIngredient.of(new ItemStack(Items.FILLED_MAP, 2))),
-                recipeHolder.id().location())
+                recipeHolder.id().identifier())
         );
     }
 
@@ -179,7 +179,7 @@ public abstract class Display {
             ),
             List.of(ofSlotDisplay(recipeHolder.value().getResult())),
             SmithingDisplay.SmithingRecipeType.TRANSFORM,
-            recipeHolder.id().location()
+            recipeHolder.id().identifier()
         );
     }
 
@@ -203,7 +203,7 @@ public abstract class Display {
                 recipe.templateIngredient().map(EntryIngredient::ofIngredient).orElse(EntryIngredient.empty()),
                 baseIngredient,
                 EntryIngredient.ofItemHolder(additionStack)
-            ), List.of(baseIngredient), SmithingDisplay.SmithingRecipeType.TRIM, recipeHolder.id().location(), recipe.pattern()));
+            ), List.of(baseIngredient), SmithingDisplay.SmithingRecipeType.TRIM, recipeHolder.id().identifier(), recipe.pattern()));
 
         }
         return displays;

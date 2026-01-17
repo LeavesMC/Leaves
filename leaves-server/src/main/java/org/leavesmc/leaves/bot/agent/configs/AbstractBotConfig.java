@@ -17,34 +17,28 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.function.Supplier;
 
-public abstract class AbstractBotConfig<T, E extends AbstractBotConfig<T, E>> {
+public abstract class AbstractBotConfig<T> {
 
     private final String name;
     private final WrappedArgument<T> argument;
-    private final Supplier<E> creator;
 
     protected ServerBot bot;
 
-    public AbstractBotConfig(String name, ArgumentType<T> type, Supplier<E> creator) {
+    public AbstractBotConfig(String name, ArgumentType<T> type) {
         this.name = name;
         this.argument = new WrappedArgument<>(name, type);
         if (shouldApplySuggestions()) {
             this.argument.suggests(this::applySuggestions);
         }
-        this.creator = creator;
     }
 
     @SuppressWarnings("RedundantThrows")
     public void applySuggestions(final CommandContext context, final SuggestionsBuilder builder) throws CommandSyntaxException {
     }
 
-    public AbstractBotConfig<T, E> setBot(ServerBot bot) {
+    public AbstractBotConfig<T> setBot(ServerBot bot) {
         this.bot = bot;
         return this;
-    }
-
-    public E create() {
-        return creator.get();
     }
 
     public abstract T getValue();

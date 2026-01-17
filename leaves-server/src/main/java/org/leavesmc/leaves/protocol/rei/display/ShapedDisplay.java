@@ -41,7 +41,7 @@ public class ShapedDisplay extends CraftingDisplay {
         super(
             ofIngredient(recipeHolder.value()),
             List.of(EntryIngredient.of(recipeHolder.value().assemble(CraftingInput.EMPTY, CraftRegistry.getMinecraftRegistry()))),
-            recipeHolder.id().location()
+            recipeHolder.id().identifier()
         );
         this.width = recipeHolder.value().getWidth();
         this.height = recipeHolder.value().getHeight();

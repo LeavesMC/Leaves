@@ -4,7 +4,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.food.FoodData;
-import net.minecraft.world.level.GameRules;
+import net.minecraft.world.level.gamerules.GameRules;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesConfig;
@@ -87,7 +87,7 @@ public class AppleSkinProtocol implements LeavesProtocol {
                     }
 
                     case "natural_regeneration" -> {
-                        boolean regeneration = player.level().getGameRules().getBoolean(GameRules.RULE_NATURAL_REGENERATION);
+                        boolean regeneration = player.level().getGameRules().get(GameRules.NATURAL_HEALTH_REGENERATION);
                         Boolean previousRegeneration = previousNaturalRegeneration.get(player);
                         if (previousRegeneration == null || regeneration != previousRegeneration) {
                             ProtocolUtils.sendBytebufPacket(player, NATURAL_REGENERATION_KEY, buf -> buf.writeBoolean(regeneration));

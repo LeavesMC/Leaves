@@ -42,7 +42,7 @@ public abstract class CookingDisplay extends Display {
         this(
             List.of(EntryIngredient.ofIngredient(recipe.value().input())),
             List.of(EntryIngredient.of(recipe.value().assemble(new SingleRecipeInput(ItemStack.EMPTY), CraftRegistry.getMinecraftRegistry()))),
-            recipe.id().location(),
+            recipe.id().identifier(),
             recipe.value().experience(),
             recipe.value().cookingTime()
         );

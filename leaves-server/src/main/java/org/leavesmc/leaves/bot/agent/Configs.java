@@ -16,9 +16,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
 
-public class Configs<E extends AbstractBotConfig<?, E>> {
+public class Configs<E extends AbstractBotConfig<?>> {
 
-    private static final Map<String, Configs<? extends AbstractBotConfig<?, ?>>> configs = new HashMap<>();
+    private static final Map<String, Configs<? extends AbstractBotConfig<?>>> configs = new HashMap<>();
 
     public static final Configs<SkipSleepConfig> SKIP_SLEEP = register(SkipSleepConfig.class, SkipSleepConfig::new);
     public static final Configs<AlwaysSendDataConfig> ALWAYS_SEND_DATA = register(AlwaysSendDataConfig.class, AlwaysSendDataConfig::new);
@@ -27,11 +27,11 @@ public class Configs<E extends AbstractBotConfig<?, E>> {
     public static final Configs<TickTypeConfig> TICK_TYPE = register(TickTypeConfig.class, TickTypeConfig::new);
     public static final Configs<LocatorBarConfig> ENABLE_LOCATOR_BAR = register(LocatorBarConfig.class, LocatorBarConfig::new);
 
-    private final Class<? extends AbstractBotConfig<?, E>> configClass;
-    private final Supplier<? extends AbstractBotConfig<?, E>> configCreator;
+    private final Class<? extends AbstractBotConfig<?>> configClass;
+    private final Supplier<? extends AbstractBotConfig<?>> configCreator;
     private final String name;
 
-    private Configs(Class<? extends AbstractBotConfig<?, E>> configClass, Supplier<? extends AbstractBotConfig<?, E>> configCreator, String name) {
+    private Configs(Class<? extends AbstractBotConfig<?>> configClass, Supplier<? extends AbstractBotConfig<?>> configCreator, String name) {
         this.configClass = configClass;
         this.configCreator = configCreator;
         this.name = name;
@@ -54,7 +54,7 @@ public class Configs<E extends AbstractBotConfig<?, E>> {
     }
 
     @NotNull
-    public static <T, E extends AbstractBotConfig<T, E>> Optional<Configs<?>> getConfig(Class<? extends AbstractBotConfig<T, E>> configClass) {
+    public static <T> Optional<Configs<?>> getConfig(Class<? extends AbstractBotConfig<T>> configClass) {
         return configs.values().stream()
             .filter(config -> config.configClass.equals(configClass))
             .findFirst();
@@ -62,11 +62,11 @@ public class Configs<E extends AbstractBotConfig<?, E>> {
 
     @NotNull
     @Contract(pure = true)
-    public static Collection<Configs<?>> getConfigs() {
+    public static Collection<Configs<? extends AbstractBotConfig<?>>> getConfigs() {
         return configs.values();
     }
 
-    private static <T, E extends AbstractBotConfig<T, E>> @NotNull Configs<E> register(Class<? extends AbstractBotConfig<T, E>> configClass, Supplier<AbstractBotConfig<T, E>> configCreator) {
+    private static <T, E extends AbstractBotConfig<T>> @NotNull Configs<E> register(Class<? extends AbstractBotConfig<T>> configClass, Supplier<AbstractBotConfig<T>> configCreator) {
         String name = configCreator.get().getName();
         Configs<E> config = new Configs<>(configClass, configCreator, name);
         configs.put(name, config);

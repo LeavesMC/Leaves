@@ -47,7 +47,7 @@ public class ConfigCommand extends BotSubcommand {
         }
 
         @Contract(pure = true)
-        private @NotNull Supplier<LiteralNode> configNodeCreator(Configs<?> config) {
+        private @NotNull Supplier<LiteralNode> configNodeCreator(Configs<? extends AbstractBotConfig<?>> config) {
             return () -> new ConfigNode<>(config);
         }
 
@@ -59,13 +59,13 @@ public class ConfigCommand extends BotSubcommand {
         protected boolean execute(CommandContext context) {
             ServerBot bot = BotArgument.getBot(context);
             CommandSender sender = context.getSender();
-            Collection<AbstractBotConfig<?, ?>> botConfigs = bot.getAllConfigs();
+            Collection<AbstractBotConfig<?>> botConfigs = bot.getAllConfigs();
             sender.sendMessage(join(spaces(),
                 text("Bot", GRAY),
                 asAdventure(bot.getDisplayName()).append(text("'s", GRAY)),
                 text("configs:", GRAY)
             ));
-            for (AbstractBotConfig<?, ?> botConfig : botConfigs) {
+            for (AbstractBotConfig<?> botConfig : botConfigs) {
                 sender.sendMessage(join(spaces(),
                     botConfig.getNameComponent(),
                     text("=", GRAY),
@@ -76,11 +76,11 @@ public class ConfigCommand extends BotSubcommand {
         }
     }
 
-    @SuppressWarnings("unchecked")
     private static class ConfigNode<T> extends LiteralNode {
-        private final Configs<?> config;
+        private final Configs<? extends AbstractBotConfig<T>> config;
 
-        private ConfigNode(@NotNull Configs<?> config) {
+        @SuppressWarnings({"rawtypes", "unchecked"})
+        private ConfigNode(@NotNull Configs config) {
             super(config.getName());
             this.config = config;
         }
@@ -99,7 +99,7 @@ public class ConfigCommand extends BotSubcommand {
         @Override
         protected boolean execute(@NotNull CommandContext context) {
             ServerBot bot = BotArgument.getBot(context);
-            AbstractBotConfig<T, ?> botConfig = (AbstractBotConfig<T, ?>) bot.getConfig(config);
+            AbstractBotConfig<?> botConfig = bot.getConfig(config);
             context.getSender().sendMessage(join(spaces(),
                 text("Bot", GRAY),
                 asAdventure(bot.getDisplayName()).append(text("'s", GRAY)),
@@ -113,7 +113,7 @@ public class ConfigCommand extends BotSubcommand {
 
         private boolean executeSet(CommandContext context) throws CommandSyntaxException {
             ServerBot bot = BotArgument.getBot(context);
-            AbstractBotConfig<T, ?> botConfig = (AbstractBotConfig<T, ?>) bot.getConfig(config);
+            AbstractBotConfig<T> botConfig = bot.getConfig(config);
             try {
                 botConfig.setValue(botConfig.loadFromCommand(context));
             } catch (ClassCastException e) {

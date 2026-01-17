@@ -186,11 +186,11 @@ public record LitematicaSchematic(Map<String, SubRegion> subRegions, SchematicMe
                     continue;
                 }
                 T target;
-                Identifier Identifier = Identifier.tryParse(tag.getStringOr(tagName, ""));
-                if (Identifier == null) {
+                Identifier identifier = Identifier.tryParse(tag.getStringOr(tagName, ""));
+                if (identifier == null) {
                     continue;
                 }
-                Optional<Holder.Reference<T>> tReference = registry.get(Identifier);
+                Optional<Holder.Reference<T>> tReference = registry.get(identifier);
                 if (tReference.isEmpty()) {
                     continue;
                 }

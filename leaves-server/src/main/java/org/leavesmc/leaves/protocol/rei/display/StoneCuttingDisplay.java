@@ -39,7 +39,7 @@ public class StoneCuttingDisplay extends Display {
         this(
             List.of(EntryIngredient.ofIngredient(recipeHolder.value().input())),
             List.of(EntryIngredient.of(recipeHolder.value().assemble(new SingleRecipeInput(ItemStack.EMPTY), CraftRegistry.getMinecraftRegistry()))),
-            recipeHolder.id().location()
+            recipeHolder.id().identifier()
         );
     }
 

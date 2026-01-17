@@ -4,6 +4,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.entity.bot.actions.CraftUseItemOnAction;
@@ -21,7 +22,7 @@ public class ServerUseItemOnAction extends AbstractUseBotAction<ServerUseItemOnA
     }
 
     public static InteractionResult useItemOn(ServerBot bot, BlockHitResult hitResult, InteractionHand hand) {
-        if (hitResult == null) {
+        if (hitResult == null || hitResult.getType() == HitResult.Type.MISS) {
             return InteractionResult.FAIL;
         }
 

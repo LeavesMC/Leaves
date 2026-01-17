@@ -1,6 +1,5 @@
 package org.leavesmc.leaves.bot;
 
-import com.google.common.collect.ImmutableMap;
 import com.mojang.authlib.GameProfile;
 import io.papermc.paper.adventure.PaperAdventure;
 import io.papermc.paper.event.entity.EntityKnockbackEvent;

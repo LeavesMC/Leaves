@@ -15,7 +15,6 @@ import org.leavesmc.leaves.command.WrappedArgument;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.function.Supplier;
 
 public abstract class AbstractBotConfig<T> {
 

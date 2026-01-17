@@ -2,8 +2,8 @@ package org.leavesmc.leaves.protocol.jade.util;
 
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.boss.enderdragon.EnderDragonPart;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
+import net.minecraft.world.entity.boss.enderdragon.EnderDragonPart;
 import org.leavesmc.leaves.LeavesLogger;
 import org.leavesmc.leaves.protocol.jade.accessor.Accessor;
 import org.leavesmc.leaves.protocol.jade.provider.ServerExtensionProvider;

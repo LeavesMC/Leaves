@@ -1,0 +1,795 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Sun, 2 Feb 2025 15:28:11 +0800
+Subject: [PATCH] Leaves Fakeplayer
+
+
+diff --git a/net/minecraft/advancements/criterion/SimpleCriterionTrigger.java b/net/minecraft/advancements/criterion/SimpleCriterionTrigger.java
+index 368a9d33f93c2e85abe4cf10df5a85c09fb03dd6..2b78040daeb3b09c08494cbc1d4a9d36080895f9 100644
+--- a/net/minecraft/advancements/criterion/SimpleCriterionTrigger.java
++++ b/net/minecraft/advancements/criterion/SimpleCriterionTrigger.java
+@@ -39,6 +39,7 @@ public abstract class SimpleCriterionTrigger<T extends SimpleCriterionTrigger.Si
+     }
+ 
+     protected void trigger(ServerPlayer player, Predicate<T> testTrigger) {
++        if (player instanceof org.leavesmc.leaves.bot.ServerBot) return; // Leaves - bot skip
+         PlayerAdvancements advancements = player.getAdvancements();
+         Set<CriterionTrigger.Listener<T>> set = (Set) advancements.criterionData.get(this); // Paper - fix PlayerAdvancements leak
+         if (set != null && !set.isEmpty()) {
+diff --git a/net/minecraft/network/Connection.java b/net/minecraft/network/Connection.java
+index 19ec939529eb638bdc4d7fd9260f161fae118314..ab6255937577008689c25ba1474ecc2c961079da 100644
+--- a/net/minecraft/network/Connection.java
++++ b/net/minecraft/network/Connection.java
+@@ -74,7 +74,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+     public boolean preparing = true;
+     // Spigot end
+     private volatile @Nullable PacketListener disconnectListener;
+-    private volatile @Nullable PacketListener packetListener;
++    protected volatile @Nullable PacketListener packetListener; // Leaves - private -> protected
+     private @Nullable DisconnectionDetails disconnectionDetails;
+     private boolean encrypted;
+     private boolean disconnectionHandled;
+diff --git a/net/minecraft/server/MinecraftServer.java b/net/minecraft/server/MinecraftServer.java
+index d92655b7a84090ffdf4b50c9e7ca77447bb72ccf..3965e4ed4381ee4b21c7c93a0b7853d756be6ae8 100644
+--- a/net/minecraft/server/MinecraftServer.java
++++ b/net/minecraft/server/MinecraftServer.java
+@@ -382,6 +382,8 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+     }
+     // Paper end - improve tick loop
+ 
++    private org.leavesmc.leaves.bot.BotList botList; // Leaves - fakeplayer
++
+     public static <S extends MinecraftServer> S spin(Function<Thread, S> threadFunction) {
+         ca.spottedleaf.dataconverter.minecraft.datatypes.MCTypeRegistry.init(); // Paper - rewrite data converter system
+         AtomicReference<S> atomicReference = new AtomicReference<>();
+@@ -1014,6 +1016,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+ 
+         LOGGER.info("Stopping server");
+         Commands.COMMAND_SENDING_POOL.shutdownNow(); // Paper - Perf: Async command map building; Shutdown and don't bother finishing
++        this.getBotList().removeAll(); // Leaves - save or remove bot
+         // CraftBukkit start
+         if (this.server != null) {
+             this.server.spark.disable(); // Paper - spark
+@@ -1578,7 +1581,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+         int i = this.pauseWhenEmptySeconds() * 20;
+         this.removeDisabledPluginsBlockingSleep(); // Paper - API to allow/disallow tick sleeping
+         if (i > 0) {
+-            if (this.playerList.getPlayerCount() == 0 && !this.tickRateManager.isSprinting() && this.pluginsBlockingSleep.isEmpty()) { // Paper - API to allow/disallow tick sleeping
++            if (this.playerList.getPlayerCount() == 0 && this.botList.bots.isEmpty() && !this.tickRateManager.isSprinting() && this.pluginsBlockingSleep.isEmpty()) { // Paper - API to allow/disallow tick sleeping // Leaves - fakeplayer
+                 this.emptyTicks++;
+             } else {
+                 this.emptyTicks = 0;
+@@ -1632,6 +1635,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+             this.isSaving = true;
+             if (playerSaveInterval > 0) {
+                 this.playerList.saveAll(playerSaveInterval);
++                org.leavesmc.leaves.bot.BotList.INSTANCE.saveAllResumeBots(playerSaveInterval); // Leaves - resident fakeplayer
+             }
+             for (final ServerLevel level : this.getAllLevels()) {
+                 if (level.paperConfig().chunks.autoSaveInterval.value() > 0) {
+@@ -1875,6 +1879,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+ 
+     public void tickConnection() {
+         this.getConnection().tick();
++        this.botList.networkTick(); // Leaves - fakeplayer
+     }
+ 
+     private void synchronizeTime(ServerLevel level) {
+@@ -2988,6 +2993,16 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+         return this.debugSubscribers;
+     }
+ 
++    // Leaves start - fakeplayer
++    protected void setBotList(org.leavesmc.leaves.bot.BotList botList) {
++        this.botList = botList;
++    }
++
++    public org.leavesmc.leaves.bot.BotList getBotList() {
++        return botList;
++    }
++    // Leaves end - fakeplayer
++
+     public record ReloadableResources(CloseableResourceManager resourceManager, ReloadableServerResources managers) implements AutoCloseable {
+         @Override
+         public void close() {
+diff --git a/net/minecraft/server/PlayerAdvancements.java b/net/minecraft/server/PlayerAdvancements.java
+index 98004b77b7f40d315f41be82105df6d4b9000e33..cd968c6971d054d9b66a0eaea4753a51ebb75b02 100644
+--- a/net/minecraft/server/PlayerAdvancements.java
++++ b/net/minecraft/server/PlayerAdvancements.java
+@@ -166,6 +166,11 @@ public class PlayerAdvancements {
+     }
+ 
+     public boolean award(AdvancementHolder advancement, String criterionKey) {
++        // Leaves start - bot can't get advancement
++        if (player instanceof org.leavesmc.leaves.bot.ServerBot) {
++            return false;
++        }
++        // Leaves end - bot can't get advancement
+         boolean flag = false;
+         AdvancementProgress orStartProgress = this.getOrStartProgress(advancement);
+         boolean isDone = orStartProgress.isDone();
+diff --git a/net/minecraft/server/commands/BanIpCommands.java b/net/minecraft/server/commands/BanIpCommands.java
+index d92492bca62fb02fe7a9e4e220cb8651c4d1e16d..7d0752f9a6a90cf389a9cb5829ab02606266f204 100644
+--- a/net/minecraft/server/commands/BanIpCommands.java
++++ b/net/minecraft/server/commands/BanIpCommands.java
+@@ -44,6 +44,12 @@ public class BanIpCommands {
+             return banIp(source, username, reason);
+         } else {
+             ServerPlayer playerByName = source.getServer().getPlayerList().getPlayerByName(username);
++            // Leaves start - disable ban
++            if (playerByName instanceof org.leavesmc.leaves.bot.ServerBot) {
++                source.sendFailure(Component.literal("Permission denied"));
++                return 0;
++            }
++            // Leaves end - disable ban
+             if (playerByName != null) {
+                 return banIp(source, playerByName.getIpAddress(), reason);
+             } else {
+diff --git a/net/minecraft/server/commands/BanPlayerCommands.java b/net/minecraft/server/commands/BanPlayerCommands.java
+index 978ef2e996a78e907f959bfe99d47de832427011..a53c47a3bdbd540c694cb5f5221075d8cd836aa8 100644
+--- a/net/minecraft/server/commands/BanPlayerCommands.java
++++ b/net/minecraft/server/commands/BanPlayerCommands.java
+@@ -44,8 +44,15 @@ public class BanPlayerCommands {
+     private static int banPlayers(CommandSourceStack source, Collection<NameAndId> players, @Nullable Component reason) throws CommandSyntaxException {
+         UserBanList bans = source.getServer().getPlayerList().getBans();
+         int i = 0;
+-
++        boolean hasBot = false; // Leaves - disable kick
+         for (NameAndId nameAndId : players) {
++            // Leaves start - disable ban
++            if (nameAndId.isBot()) {
++                source.sendFailure(Component.literal("Permission denied"));
++                hasBot = true;
++                continue;
++            }
++            // Leaves end - disable ban
+             if (!bans.isBanned(nameAndId)) {
+                 UserBanListEntry userBanListEntry = new UserBanListEntry(
+                     nameAndId, null, source.getTextName(), null, reason == null ? null : reason.getString()
+@@ -63,7 +70,13 @@ public class BanPlayerCommands {
+         }
+ 
+         if (i == 0) {
+-            throw ERROR_ALREADY_BANNED.create();
++            // Leaves start - disable kick
++            if (hasBot) {
++                return i;
++            } else {
++                throw ERROR_ALREADY_BANNED.create();
++            }
++            // Leaves end - disable kick
+         } else {
+             return i;
+         }
+diff --git a/net/minecraft/server/commands/KickCommand.java b/net/minecraft/server/commands/KickCommand.java
+index 5f78d629bab84acb2fa43a9fcc1cec52b4e91ae3..1c6059bd23afdd555d2dc8c533a5b027957c7b3a 100644
+--- a/net/minecraft/server/commands/KickCommand.java
++++ b/net/minecraft/server/commands/KickCommand.java
+@@ -46,9 +46,17 @@ public class KickCommand {
+         if (!source.getServer().isPublished()) {
+             throw ERROR_SINGLEPLAYER.create();
+         } else {
++            boolean hasBot = false; // Leaves - disable kick
+             int i = 0;
+ 
+             for (ServerPlayer serverPlayer : players) {
++                // Leaves start - disable kick
++                if (serverPlayer instanceof org.leavesmc.leaves.bot.ServerBot) {
++                    source.sendFailure(Component.literal("Permission denied"));
++                    hasBot = true;
++                    continue;
++                }
++                // Leaves end - disable kick
+                 if (!source.getServer().isSingleplayerOwner(serverPlayer.nameAndId())) {
+                     serverPlayer.connection.disconnect(reason, org.bukkit.event.player.PlayerKickEvent.Cause.KICK_COMMAND); // Paper - kick event cause
+                     source.sendSuccess(() -> Component.translatable("commands.kick.success", serverPlayer.getDisplayName(), reason), true);
+@@ -57,7 +65,13 @@ public class KickCommand {
+             }
+ 
+             if (i == 0) {
+-                throw ERROR_KICKING_OWNER.create();
++                // Leaves start - disable kick
++                if (hasBot) {
++                    return i;
++                } else {
++                    throw ERROR_KICKING_OWNER.create();
++                }
++                // Leaves end - disable kick
+             } else {
+                 return i;
+             }
+diff --git a/net/minecraft/server/commands/OpCommand.java b/net/minecraft/server/commands/OpCommand.java
+index 07332a86e6e0441bafacb020f27ec36a277f1486..590891d70a71ab30ceae3a3cf1923745e7c20b26 100644
+--- a/net/minecraft/server/commands/OpCommand.java
++++ b/net/minecraft/server/commands/OpCommand.java
+@@ -43,6 +43,7 @@ public class OpCommand {
+         int i = 0;
+ 
+         for (NameAndId nameAndId : players) {
++            if (nameAndId.isBot()) continue; // Leaves - disable op
+             if (!playerList.isOp(nameAndId)) {
+                 playerList.op(nameAndId);
+                 i++;
+diff --git a/net/minecraft/server/dedicated/DedicatedServer.java b/net/minecraft/server/dedicated/DedicatedServer.java
+index 2e6af078b8713cccf4dd51df53ce580a26553ae1..6817fe059655ea93030aea69dfbe4fd6714fe1e4 100644
+--- a/net/minecraft/server/dedicated/DedicatedServer.java
++++ b/net/minecraft/server/dedicated/DedicatedServer.java
+@@ -252,6 +252,7 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
+         }
+ 
+         // Spigot start
++        this.setBotList(new org.leavesmc.leaves.bot.BotList(this)); // Leaves - fakeplayer
+         this.setPlayerList(new DedicatedPlayerList(this, this.registries(), this.playerDataStorage));
+         org.spigotmc.SpigotConfig.init((java.io.File) this.options.valueOf("spigot-settings"));
+         org.spigotmc.SpigotConfig.registerCommands();
+@@ -275,6 +276,7 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
+         com.destroystokyo.paper.VersionHistoryManager.INSTANCE.getClass(); // Paper - load version history now
+ 
+         org.leavesmc.leaves.LeavesConfig.init((java.io.File) options.valueOf("leaves-settings")); // Leaves - Server Config
++        this.getBotList().loadResumeBotInfo(); // Leaves - load resident bot info
+ 
+         com.destroystokyo.paper.Metrics.PaperMetrics.startMetrics(); // Paper - start metrics // Leaves - down
+ 
+diff --git a/net/minecraft/server/level/ChunkMap.java b/net/minecraft/server/level/ChunkMap.java
+index ab8893163ac85971a470e4a4d6fa76bd174e2bae..03aaf6d85f578f1a73dfe41d1d9fb49c7b16aa2f 100644
+--- a/net/minecraft/server/level/ChunkMap.java
++++ b/net/minecraft/server/level/ChunkMap.java
+@@ -1398,6 +1398,13 @@ public class ChunkMap extends SimpleRegionStorage implements ChunkHolder.PlayerP
+                     }
+                 } else {
+                     this.removePlayer(player);
++                    // Leaves start - render bot
++                    if (entity instanceof org.leavesmc.leaves.bot.ServerBot bot) {
++                        if (bot.needSendFakeData(player)) {
++                            bot.sendFakeData(player.connection, false);
++                        }
++                    }
++                    // Leaves end - render bot
+                 }
+             }
+         }
+diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
+index 9cb40d4f0ceabadb95f473e96029bd57a2b09204..1d5a815b87b2ec9d535658f9e5ad8febbfa9b19a 100644
+--- a/net/minecraft/server/level/ServerLevel.java
++++ b/net/minecraft/server/level/ServerLevel.java
+@@ -228,6 +228,7 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+     public boolean hasPhysicsEvent = true; // Paper - BlockPhysicsEvent
+     public boolean hasEntityMoveEvent; // Paper - Add EntityMoveEvent
+     private final alternate.current.wire.WireHandler wireHandler = new alternate.current.wire.WireHandler(this); // Paper - optimize redstone (Alternate Current)
++    final List<ServerPlayer> realPlayers; // Leaves - skip
+ 
+     @Override
+     public @Nullable LevelChunk getChunkIfLoaded(int x, int z) {
+@@ -709,6 +710,7 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+         this.chunkDataController = new ca.spottedleaf.moonrise.patches.chunk_system.io.datacontroller.ChunkDataController((ServerLevel)(Object)this, this.chunkTaskScheduler);
+         // Paper end - rewrite chunk system
+         this.getCraftServer().addWorld(this.getWorld()); // CraftBukkit
++        this.realPlayers = Lists.newArrayList(); // Leaves - skip
+     }
+ 
+     // Paper start
+@@ -2310,6 +2312,12 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+         return this.players;
+     }
+ 
++    // Leaves start - fakeplayer skip
++    public List<ServerPlayer> realPlayers() {
++        return this.realPlayers;
++    }
++    // Leaves end - fakeplayer skip
++
+     @Override
+     public void updatePOIOnBlockStateChange(BlockPos pos, BlockState oldState, BlockState newState) {
+         Optional<Holder<PoiType>> optional = PoiTypes.forState(oldState);
+@@ -2780,6 +2788,11 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+             // ServerLevel.this.getChunkSource().addEntity(entity); // Paper - ignore and warn about illegal addEntity calls instead of crashing server; moved down below valid=true
+             if (entity instanceof ServerPlayer serverPlayer) {
+                 ServerLevel.this.players.add(serverPlayer);
++                // Leaves start - skip
++                if (!(serverPlayer instanceof org.leavesmc.leaves.bot.ServerBot)) {
++                    ServerLevel.this.realPlayers.add(serverPlayer);
++                }
++                // Leaves end - skip
+                 if (serverPlayer.isReceivingWaypoints()) {
+                     ServerLevel.this.getWaypointManager().addPlayer(serverPlayer);
+                 }
+@@ -2858,6 +2871,11 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+             ServerLevel.this.getChunkSource().removeEntity(entity);
+             if (entity instanceof ServerPlayer serverPlayer) {
+                 ServerLevel.this.players.remove(serverPlayer);
++                // Leaves start - skip
++                if (!(serverPlayer instanceof org.leavesmc.leaves.bot.ServerBot)) {
++                    ServerLevel.this.realPlayers.remove(serverPlayer);
++                }
++                // Leaves end - skip
+                 ServerLevel.this.getWaypointManager().removePlayer(serverPlayer);
+                 ServerLevel.this.updateSleepingPlayerList();
+             }
+diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
+index 79c804245c7f41a5a7f062e1c5e01760adde7d84..8c38a1b97203661454c099746472206a7954b5bc 100644
+--- a/net/minecraft/server/level/ServerPlayer.java
++++ b/net/minecraft/server/level/ServerPlayer.java
+@@ -227,7 +227,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+     private static final boolean DEFAULT_SPAWN_EXTRA_PARTICLES_ON_FALL = false;
+     public ServerGamePacketListenerImpl connection;
+     private final MinecraftServer server;
+-    public final ServerPlayerGameMode gameMode;
++    public ServerPlayerGameMode gameMode; // Leaves - not final
+     private final PlayerAdvancements advancements;
+     private final ServerStatsCounter stats;
+     private float lastRecordedHealthAndAbsorption = Float.MIN_VALUE;
+@@ -247,7 +247,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+     private @Nullable Entity camera;
+     public boolean isChangingDimension;
+     public boolean seenCredits = false;
+-    private final ServerRecipeBook recipeBook;
++    protected ServerRecipeBook recipeBook; // Leaves - not final and private -> protected
+     private @Nullable Vec3 levitationStartPos;
+     private int levitationStartTime;
+     private boolean disconnected;
+@@ -1247,7 +1247,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+         this.connection.markClientUnloadedAfterDeath();
+     }
+ 
+-    private void tellNeutralMobsThatIDied() {
++    protected void tellNeutralMobsThatIDied() { // Leaves private -> protected
+         AABB aabb = new AABB(this.blockPosition()).inflate(32.0, 10.0, 32.0);
+         this.level()
+             .getEntitiesOfClass(Mob.class, aabb, EntitySelector.NO_SPECTATORS)
+@@ -1560,6 +1560,11 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+                 this.lastSentHealth = -1.0F;
+                 this.lastSentFood = -1;
+                 this.teleportSpectators(teleportTransition, serverLevel);
++                // Leaves start - bot support
++                if (org.leavesmc.leaves.LeavesConfig.modify.fakeplayer.enable) {
++                    this.server.getBotList().bots.forEach(bot -> bot.sendFakeDataIfNeed(this, true)); // Leaves - render bot
++                }
++                // Leaves end - bot support
+                 // CraftBukkit start
+                 org.bukkit.event.player.PlayerChangedWorldEvent changeEvent = new org.bukkit.event.player.PlayerChangedWorldEvent(this.getBukkitEntity(), serverLevel.getWorld());
+                 this.level().getCraftServer().getPluginManager().callEvent(changeEvent);
+diff --git a/net/minecraft/server/players/CachedUserNameToIdResolver.java b/net/minecraft/server/players/CachedUserNameToIdResolver.java
+index 6d3f496881492ac67465746984d6ef8302750305..da1344437875f38a77d85cc6f255ff855957efaa 100644
+--- a/net/minecraft/server/players/CachedUserNameToIdResolver.java
++++ b/net/minecraft/server/players/CachedUserNameToIdResolver.java
+@@ -122,6 +122,12 @@ public class CachedUserNameToIdResolver implements UserNameToIdResolver {
+ 
+     @Override
+     public Optional<NameAndId> get(String name) {
++        // Leaves start - fix bot
++        org.leavesmc.leaves.bot.ServerBot bot = org.leavesmc.leaves.bot.BotList.INSTANCE.getBotByName(name);
++        if (bot != null) {
++            return Optional.of(bot.nameAndId());
++        }
++        // Leaves end - fix bot
+         String string = name.toLowerCase(Locale.ROOT);
+         boolean stateLocked = true; try { this.stateLock.lock(); // Paper - Fix GameProfileCache concurrency
+         CachedUserNameToIdResolver.GameProfileInfo gameProfileInfo = this.profilesByName.get(string);
+diff --git a/net/minecraft/server/players/NameAndId.java b/net/minecraft/server/players/NameAndId.java
+index 05b4a75f6597e8613c91344d100bb7f005d169a7..9a5006362c12e972d031c48be4d30362d88d1c00 100644
+--- a/net/minecraft/server/players/NameAndId.java
++++ b/net/minecraft/server/players/NameAndId.java
+@@ -8,18 +8,22 @@ import java.util.UUID;
+ import net.minecraft.core.UUIDUtil;
+ import org.jspecify.annotations.Nullable;
+ 
+-public record NameAndId(UUID id, String name) {
++public record NameAndId(UUID id, String name, boolean isBot) { // Leaves - fakeplayer
+     public static final Codec<NameAndId> CODEC = RecordCodecBuilder.create(
+         instance -> instance.group(UUIDUtil.STRING_CODEC.fieldOf("id").forGetter(NameAndId::id), Codec.STRING.fieldOf("name").forGetter(NameAndId::name))
+             .apply(instance, NameAndId::new)
+     );
+ 
+     public NameAndId(GameProfile profile) {
+-        this(profile.id(), profile.name());
++        this(profile.id(), profile.name(), com.google.common.collect.Iterables.getFirst(profile.properties().get("is_bot"), "false").equals("true")); // Leaves - fakeplayer
+     }
+ 
+     public NameAndId(com.mojang.authlib.yggdrasil.response.NameAndId nameAndId) {
+-        this(nameAndId.id(), nameAndId.name());
++        this(nameAndId.id(), nameAndId.name(), false); // Leaves - fakeplayer
++    }
++
++    public NameAndId(UUID uuid, String name) {
++        this(uuid, name, false); // Leaves - fakeplayer
+     }
+ 
+     public static @Nullable NameAndId fromJson(JsonObject json) {
+@@ -33,7 +37,7 @@ public record NameAndId(UUID id, String name) {
+                 return null;
+             }
+ 
+-            return new NameAndId(uuid, json.get("name").getAsString());
++            return new NameAndId(uuid, json.get("name").getAsString(), false); // Leaves - fakeplayer
+         } else {
+             return null;
+         }
+@@ -46,7 +50,7 @@ public record NameAndId(UUID id, String name) {
+ 
+     public static NameAndId createOffline(String name) {
+         UUID uuid = UUIDUtil.createOfflinePlayerUUID(name);
+-        return new NameAndId(uuid, name);
++        return new NameAndId(uuid, name, false); // Leaves - fakeplayer
+     }
+ 
+     // Paper start - utility method for common conversion back to the game profile
+diff --git a/net/minecraft/server/players/PlayerList.java b/net/minecraft/server/players/PlayerList.java
+index c5dac6310dc82d4e5d9cc9df79f943bfb235c083..8baca1186179d49e1f8dc0e3acb39816bd61967d 100644
+--- a/net/minecraft/server/players/PlayerList.java
++++ b/net/minecraft/server/players/PlayerList.java
+@@ -246,6 +246,19 @@ public abstract class PlayerList {
+ 
+         org.leavesmc.leaves.protocol.core.LeavesProtocolManager.handlePlayerJoin(player);
+ 
++        // Leaves start - bot support
++        if (org.leavesmc.leaves.LeavesConfig.modify.fakeplayer.enable) {
++            org.leavesmc.leaves.bot.ServerBot bot = this.server.getBotList().getBotByName(player.getScoreboardName());
++            if (bot != null) {
++                this.server.getBotList().removeBot(bot, org.leavesmc.leaves.event.bot.BotRemoveEvent.RemoveReason.INTERNAL, player.getBukkitEntity(), false, false);
++            }
++            this.server.getBotList().bots.forEach(bot1 -> {
++                bot1.sendPlayerInfo(player);
++                bot1.sendFakeDataIfNeed(player, true);
++            }); // Leaves - render bot
++        }
++        // Leaves end - bot support
++
+         final net.kyori.adventure.text.Component jm = playerJoinEvent.joinMessage();
+ 
+         if (jm != null && !jm.equals(net.kyori.adventure.text.Component.empty())) { // Paper - Adventure
+@@ -706,6 +719,12 @@ public abstract class PlayerList {
+             respawnReason
+         ).callEvent();
+         // Paper end
++        // Leaves start - bot support
++        if (org.leavesmc.leaves.LeavesConfig.modify.fakeplayer.enable) {
++            this.server.getBotList().bots.forEach(bot -> bot.sendFakeDataIfNeed(serverPlayer, true)); // Leaves - render bot
++        }
++        // Leaves end - bot support
++
+ 
+         return serverPlayer;
+     }
+@@ -808,11 +827,16 @@ public abstract class PlayerList {
+     }
+ 
+     public String[] getPlayerNamesArray() {
+-        String[] strings = new String[this.players.size()];
++        String[] strings = new String[this.players.size() + this.server.getBotList().bots.size()]; // Leaves - fakeplayer support
+ 
+         for (int i = 0; i < this.players.size(); i++) {
+             strings[i] = this.players.get(i).getGameProfile().name();
+         }
++        // Leaves start - fakeplayer support
++        for (int i = this.players.size(); i < strings.length; ++i) {
++            strings[i] = this.server.getBotList().bots.get(i - this.players.size()).getGameProfile().getName();
++        }
++        // Leaves end - fakeplayer support
+ 
+         return strings;
+     }
+@@ -922,7 +946,14 @@ public abstract class PlayerList {
+     }
+ 
+     public @Nullable ServerPlayer getPlayerByName(String username) {
+-        return this.playersByName.get(username.toLowerCase(java.util.Locale.ROOT)); // Spigot
++        // Leaves start - fakeplayer support
++        username = username.toLowerCase(java.util.Locale.ROOT);
++        ServerPlayer player = this.playersByName.get(username);
++        if (player == null) {
++            player = this.server.getBotList().getBotByName(username);
++        }
++        return player; // Spigot
++        // Leaves end - fakeplayer support
+     }
+ 
+     public void broadcast(@Nullable Player except, double x, double y, double z, double radius, ResourceKey<Level> dimension, Packet<?> packet) {
+@@ -1234,7 +1265,13 @@ public abstract class PlayerList {
+     }
+ 
+     public @Nullable ServerPlayer getPlayer(UUID playerUUID) {
+-        return this.playersByUUID.get(playerUUID);
++        // Leaves start - fakeplayer support
++        ServerPlayer player = this.playersByUUID.get(playerUUID);
++        if (player == null) {
++            player = this.server.getBotList().getBot(playerUUID);
++        }
++        return player;
++        // Leaves start - fakeplayer support
+     }
+ 
+     public @Nullable ServerPlayer getPlayer(String name) {
+diff --git a/net/minecraft/server/waypoints/ServerWaypointManager.java b/net/minecraft/server/waypoints/ServerWaypointManager.java
+index 471e558a609c9e457720660b90fe57322b860461..ac09b59b9b49badcec0922e3013809f041cc2919 100644
+--- a/net/minecraft/server/waypoints/ServerWaypointManager.java
++++ b/net/minecraft/server/waypoints/ServerWaypointManager.java
+@@ -22,6 +22,11 @@ public class ServerWaypointManager implements WaypointManager<WaypointTransmitte
+ 
+     @Override
+     public void trackWaypoint(WaypointTransmitter waypoint) {
++        // Leaves start - fakeplayer
++        if (waypoint instanceof org.leavesmc.leaves.bot.ServerBot bot && !bot.getConfigValue(org.leavesmc.leaves.bot.agent.Configs.ENABLE_LOCATOR_BAR)) {
++            return;
++        }
++        // Leaves end - fakeplayer
+         this.waypoints.add(waypoint);
+ 
+         for (ServerPlayer serverPlayer : this.players) {
+@@ -53,6 +58,11 @@ public class ServerWaypointManager implements WaypointManager<WaypointTransmitte
+     }
+ 
+     public void addPlayer(ServerPlayer player) {
++        // Leaves start - fakeplayer
++        if (player instanceof org.leavesmc.leaves.bot.ServerBot) {
++            return;
++        }
++        // Leaves end - fakeplayer
+         this.players.add(player);
+ 
+         for (WaypointTransmitter waypointTransmitter : this.waypoints) {
+diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
+index bbf0100341dfd50cfe76bf4f47225e6b43dc17bd..47851ec2ee99aa7f42fa1baee0fab36dee3f6e7b 100644
+--- a/net/minecraft/world/entity/Entity.java
++++ b/net/minecraft/world/entity/Entity.java
+@@ -1200,7 +1200,7 @@ public abstract class Entity implements SyncedDataHolder, DebugValueSource, Name
+ 
+             BlockPos onPosLegacy = this.getOnPosLegacy();
+             BlockState blockState = this.level().getBlockState(onPosLegacy);
+-            if (this.isLocalInstanceAuthoritative()) {
++            if (this.isLocalInstanceAuthoritative() || this instanceof org.leavesmc.leaves.bot.ServerBot) {  // Leaves - ServerBot needs check fall damage
+                 this.checkFallDamage(vec3.y, this.onGround(), blockState, onPosLegacy);
+             }
+ 
+@@ -1525,7 +1525,7 @@ public abstract class Entity implements SyncedDataHolder, DebugValueSource, Name
+     }
+ 
+     // Paper start - optimise collisions
+-    private Vec3 collide(Vec3 movement) {
++    public Vec3 collide(Vec3 movement) { // Leaves - private -> public
+         final boolean xZero = movement.x == 0.0;
+         final boolean yZero = movement.y == 0.0;
+         final boolean zZero = movement.z == 0.0;
+diff --git a/net/minecraft/world/entity/LivingEntity.java b/net/minecraft/world/entity/LivingEntity.java
+index 6f49b5e5888a6296b929e465a5ef87dc49bd4516..8968ca0dffc42bd74c5159e5d602361dd016ef88 100644
+--- a/net/minecraft/world/entity/LivingEntity.java
++++ b/net/minecraft/world/entity/LivingEntity.java
+@@ -3222,7 +3222,7 @@ public abstract class LivingEntity extends Entity implements Attackable, Waypoin
+     private void travelRidden(Player player, Vec3 travelVector) {
+         Vec3 riddenInput = this.getRiddenInput(player, travelVector);
+         this.tickRidden(player, riddenInput);
+-        if (this.canSimulateMovement()) {
++        if (this.canSimulateMovement() || this.getControllingPassenger() instanceof org.leavesmc.leaves.bot.ServerBot) { // Leaves - Fakeplayer
+             this.setSpeed(this.getRiddenSpeed(player));
+             this.travel(riddenInput);
+         } else {
+@@ -4130,7 +4130,7 @@ public abstract class LivingEntity extends Entity implements Attackable, Waypoin
+         // Paper start - lag compensate eating
+         // we add 1 to the expected time to avoid lag compensating when we should not
+         final boolean shouldLagCompensate = this.useItem.has(DataComponents.FOOD) && this.eatStartTime != -1 && (System.nanoTime() - this.eatStartTime) > ((1L + this.totalEatTimeTicks) * 50L * (1000L * 1000L));
+-        if ((--this.useItemRemaining == 0 || shouldLagCompensate) && !this.level().isClientSide() && !usingItem.useOnRelease()) {
++        if ((--this.useItemRemaining == 0 || shouldLagCompensate) && !(this instanceof org.leavesmc.leaves.bot.ServerBot) && !this.level().isClientSide() && !usingItem.useOnRelease()) {
+             this.useItemRemaining = 0;
+             // Paper end - lag compensate eating
+             this.completeUsingItem();
+@@ -4315,6 +4315,23 @@ public abstract class LivingEntity extends Entity implements Attackable, Waypoin
+         this.stopUsingItem();
+     }
+ 
++    // Leaves start - Fakeplayer
++    public boolean releaseUsingItemWithResult() {
++        ItemStack itemInHand = this.getItemInHand(this.getUsedItemHand());
++        boolean result = false;
++        if (!this.useItem.isEmpty() && ItemStack.isSameItem(itemInHand, this.useItem)) {
++            this.useItem = itemInHand;
++            result = this.useItem.releaseUsingWithResult(this.level(), this, this.getUseItemRemainingTicks());
++            if (this.useItem.useOnRelease()) {
++                this.updatingUsingItem();
++            }
++        }
++
++        this.stopUsingItem();
++        return result;
++    }
++    // Leaves end - Fakeplayer
++
+     public void stopUsingItem() {
+         if (!this.level().isClientSide()) {
+             boolean isUsingItem = this.isUsingItem();
+diff --git a/net/minecraft/world/entity/player/Player.java b/net/minecraft/world/entity/player/Player.java
+index 7bf160cef8bd772d27d4a71f04d5d9861ef67984..5bd617cd5ad73c7c06f72f2c77fb0169deab8f41 100644
+--- a/net/minecraft/world/entity/player/Player.java
++++ b/net/minecraft/world/entity/player/Player.java
+@@ -168,7 +168,7 @@ public abstract class Player extends Avatar implements ContainerUser {
+     private int lastLevelUpTime;
+     public GameProfile gameProfile;
+     private boolean reducedDebugInfo;
+-    private ItemStack lastItemInMainHand = ItemStack.EMPTY;
++    protected ItemStack lastItemInMainHand = ItemStack.EMPTY;
+     private final ItemCooldowns cooldowns = this.createItemCooldowns();
+     private Optional<GlobalPos> lastDeathLocation = Optional.empty();
+     public @Nullable FishingHook fishing;
+@@ -309,6 +309,12 @@ public abstract class Player extends Avatar implements ContainerUser {
+         }
+     }
+ 
++    // Leaves start - fakeplayer
++    protected void livingEntityTick() {
++        super.tick();
++    }
++    // Leaves end - fakeplayer
++
+     @Override
+     protected float getMaxHeadRotationRelativeToBody() {
+         return this.isBlocking() ? 15.0F : super.getMaxHeadRotationRelativeToBody();
+@@ -534,7 +540,7 @@ public abstract class Player extends Avatar implements ContainerUser {
+     public void removeEntitiesOnShoulder() {
+     }
+ 
+-    private void touch(Entity entity) {
++    public void touch(Entity entity) { // Leaves - private -> public
+         entity.playerTouch(this);
+     }
+ 
+@@ -1211,7 +1217,7 @@ public abstract class Player extends Avatar implements ContainerUser {
+             // Paper end - Configurable sprint interruption on attack
+         }
+ 
+-        if (target instanceof ServerPlayer && target.hurtMarked) {
++        if ((target instanceof ServerPlayer && !(target instanceof org.leavesmc.leaves.bot.ServerBot)) && target.hurtMarked) { // Leaves - bot knockback
+             // CraftBukkit start - Add Velocity Event
+             boolean cancelled = false;
+             org.bukkit.entity.Player player = (org.bukkit.entity.Player) target.getBukkitEntity();
+diff --git a/net/minecraft/world/entity/projectile/FishingHook.java b/net/minecraft/world/entity/projectile/FishingHook.java
+index 4a7abf4ae0c1f4c22c1c77d5ce9e67418b274365..30e3c19adcdc55fa468257037ca49275c09de324 100644
+--- a/net/minecraft/world/entity/projectile/FishingHook.java
++++ b/net/minecraft/world/entity/projectile/FishingHook.java
+@@ -58,7 +58,7 @@ public class FishingHook extends Projectile {
+     public static final EntityDataAccessor<Integer> DATA_HOOKED_ENTITY = SynchedEntityData.defineId(FishingHook.class, EntityDataSerializers.INT);
+     private static final EntityDataAccessor<Boolean> DATA_BITING = SynchedEntityData.defineId(FishingHook.class, EntityDataSerializers.BOOLEAN);
+     private int life;
+-    private int nibble;
++    public int nibble; // Leaves - private -> public
+     public int timeUntilLured;
+     public int timeUntilHooked;
+     public float fishAngle;
+diff --git a/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java b/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java
+index 6b337848d91cc4f24655d053bc69b0cd22447dda..cc16a8a2fd05d472d777b7a5f812d900b49e57ed 100644
+--- a/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java
++++ b/net/minecraft/world/entity/vehicle/boat/AbstractBoat.java
+@@ -270,6 +270,11 @@ public abstract class AbstractBoat extends VehicleEntity implements Leashable {
+             }
+ 
+             this.move(MoverType.SELF, this.getDeltaMovement());
++        } else if (this.getControllingPassenger() instanceof org.leavesmc.leaves.bot.ServerBot) { // Leaves start - Fakeplayer
++            this.floatBoat();
++            this.controlBoat();
++            this.move(MoverType.SELF, this.getDeltaMovement());
++            // Leaves end - Fakeplayer
+         } else {
+             this.setDeltaMovement(Vec3.ZERO);
+         }
+@@ -378,6 +383,13 @@ public abstract class AbstractBoat extends VehicleEntity implements Leashable {
+         }
+     }
+ 
++    // Leaves start - Fakeplayer
++    @Override
++    public boolean canSimulateMovement() {
++        return super.canSimulateMovement() || this.getControllingPassenger() instanceof org.leavesmc.leaves.bot.ServerBot;
++    }
++    // Leaves end - Fakeplayer
++
+     protected @Nullable SoundEvent getPaddleSound() {
+         return switch (this.getStatus()) {
+             case IN_WATER, UNDER_WATER, UNDER_FLOWING_WATER -> SoundEvents.BOAT_PADDLE_WATER;
+diff --git a/net/minecraft/world/inventory/AbstractContainerMenu.java b/net/minecraft/world/inventory/AbstractContainerMenu.java
+index f51dbc45204c2727122aeb6b5002216e3200680d..b5837ee5e291ae23bd8613c4c1856c14dd9e152b 100644
+--- a/net/minecraft/world/inventory/AbstractContainerMenu.java
++++ b/net/minecraft/world/inventory/AbstractContainerMenu.java
+@@ -397,6 +397,7 @@ public abstract class AbstractContainerMenu {
+ 
+     private void doClick(int slotIndex, int button, ClickType clickType, Player player) {
+         Inventory inventory = player.getInventory();
++        if (!doClickCheck(slotIndex, button, clickType, player)) return; // Leaves - doClick check
+         if (clickType == ClickType.QUICK_CRAFT) {
+             int i = this.quickcraftStatus;
+             this.quickcraftStatus = getQuickcraftHeader(button);
+@@ -671,6 +672,22 @@ public abstract class AbstractContainerMenu {
+         }
+     }
+ 
++    // Leaves start - doClick check
++    private boolean doClickCheck(int slotIndex, int button, ClickType actionType, Player player) {
++        if (slotIndex < 0) {
++            return true;
++        }
++
++        Slot slot = getSlot(slotIndex);
++        ItemStack itemStack = slot.getItem();
++        net.minecraft.world.item.component.CustomData customData = itemStack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
++        if (customData != null && customData.contains("Leaves.Gui.Placeholder")) {
++            return !customData.copyTag().getBoolean("Leaves.Gui.Placeholder").orElse(false);
++        }
++        return true;
++    }
++    // Leaves end - doClick check
++
+     private boolean tryItemClickBehaviourOverride(Player player, ClickAction action, Slot slot, ItemStack clickedItem, ItemStack carriedItem) {
+         FeatureFlagSet featureFlagSet = player.level().enabledFeatures();
+         return carriedItem.isItemEnabled(featureFlagSet) && carriedItem.overrideStackedOnOther(slot, action, player)
+diff --git a/net/minecraft/world/item/ItemStack.java b/net/minecraft/world/item/ItemStack.java
+index ed06cffe8a5eba2ca4a34ade81f8185e21d7b651..3a719a98118c275422f4fc61b07d471dd503656f 100644
+--- a/net/minecraft/world/item/ItemStack.java
++++ b/net/minecraft/world/item/ItemStack.java
+@@ -448,7 +448,7 @@ public final class ItemStack implements DataComponentHolder {
+                     placeEvent = org.bukkit.craftbukkit.event.CraftEventFactory.callBlockPlaceEvent(serverLevel, player, hand, blocks.getFirst(), clickedPos);
+                 }
+ 
+-                if (placeEvent != null && (placeEvent.isCancelled() || !placeEvent.canBuild())) {
++                if (placeEvent != null && (placeEvent.isCancelled() || !placeEvent.canBuild()) && (!(player instanceof org.leavesmc.leaves.bot.ServerBot))) { // Leaves - Fakeplayer skip this check
+                     interactionResult = InteractionResult.FAIL; // cancel placement
+                     // PAIL: Remove this when MC-99075 fixed
+                     player.containerMenu.forceHeldSlot(hand);
+@@ -979,6 +979,20 @@ public final class ItemStack implements DataComponentHolder {
+         }
+     }
+ 
++    // Leaves start - Fakeplayer
++    public boolean releaseUsingWithResult(Level level, LivingEntity livingEntity, int timeLeft) {
++        ItemStack itemStack = this.copy();
++        if (this.getItem().releaseUsing(this, level, livingEntity, timeLeft)) {
++            ItemStack itemStack1 = this.applyAfterUseComponentSideEffects(livingEntity, itemStack);
++            if (itemStack1 != this) {
++                livingEntity.setItemInHand(livingEntity.getUsedItemHand(), itemStack1);
++            }
++            return true;
++        }
++        return false;
++    }
++    // Leaves end - Fakeplayer
++
+     public boolean useOnRelease() {
+         return this.getItem().useOnRelease(this);
+     }
+diff --git a/net/minecraft/world/level/block/piston/PistonMovingBlockEntity.java b/net/minecraft/world/level/block/piston/PistonMovingBlockEntity.java
+index bc42a6c678987a39b0a70a1a3e96eb90340ffea5..7223cd393c4ef9408ab22c2e4d16458c19f29423 100644
+--- a/net/minecraft/world/level/block/piston/PistonMovingBlockEntity.java
++++ b/net/minecraft/world/level/block/piston/PistonMovingBlockEntity.java
+@@ -135,7 +135,7 @@ public class PistonMovingBlockEntity extends BlockEntity {
+                                 break;
+                             }
+ 
+-                            if (!(entity instanceof ServerPlayer)) {
++                            if (!(entity instanceof ServerPlayer) || (entity instanceof org.leavesmc.leaves.bot.ServerBot)) { // Leaves - bot slime block
+                                 Vec3 deltaMovement = entity.getDeltaMovement();
+                                 double d1 = deltaMovement.x;
+                                 double d2 = deltaMovement.y;
+diff --git a/net/minecraft/world/level/levelgen/PhantomSpawner.java b/net/minecraft/world/level/levelgen/PhantomSpawner.java
+index 135e8cc1b423d5a2a96ede693a306534ea45686b..7ac57cdaa05e9ccf053a7060b42e91904bb9ad2b 100644
+--- a/net/minecraft/world/level/levelgen/PhantomSpawner.java
++++ b/net/minecraft/world/level/levelgen/PhantomSpawner.java
+@@ -48,6 +48,11 @@ public class PhantomSpawner implements CustomSpawner {
+                                         ServerStatsCounter stats = serverPlayer.getStats();
+                                         int i = Mth.clamp(stats.getValue(Stats.CUSTOM.get(Stats.TIME_SINCE_REST)), 1, Integer.MAX_VALUE);
+                                         int i1 = 24000;
++                                        // Leaves start - fakeplayer spawn
++                                        if (serverPlayer instanceof org.leavesmc.leaves.bot.ServerBot bot && bot.getConfigValue(org.leavesmc.leaves.bot.agent.Configs.SPAWN_PHANTOM)) {
++                                            i1 = Math.max(bot.notSleepTicks, 1);
++                                        }
++                                        // Leaves end - fakeplayer spawn
+                                         if (randomSource.nextInt(i) >= 72000) {
+                                             BlockPos blockPos1 = blockPos.above(20 + randomSource.nextInt(15))
+                                                 .east(-10 + randomSource.nextInt(21))
+diff --git a/net/minecraft/world/level/storage/LevelResource.java b/net/minecraft/world/level/storage/LevelResource.java
+index bef794c3f58c41d910aa0bcc63fbdeea7225fddf..a601da588e6973cc5b87d3e3eeba49b53f6d9a6d 100644
+--- a/net/minecraft/world/level/storage/LevelResource.java
++++ b/net/minecraft/world/level/storage/LevelResource.java
+@@ -15,7 +15,7 @@ public class LevelResource {
+     public static final LevelResource ROOT = new LevelResource(".");
+     private final String id;
+ 
+-    private LevelResource(String id) {
++    public LevelResource(String id) { // Leaves - private -> public
+         this.id = id;
+     }
+ 

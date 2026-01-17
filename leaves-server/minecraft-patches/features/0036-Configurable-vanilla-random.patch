@@ -1,0 +1,86 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Thu, 16 Feb 2023 17:25:01 +0800
+Subject: [PATCH] Configurable vanilla random
+
+
+diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
+index 47851ec2ee99aa7f42fa1baee0fab36dee3f6e7b..044d8a7175abe573ff08b4c6a0be3a0c19efd5a6 100644
+--- a/net/minecraft/world/entity/Entity.java
++++ b/net/minecraft/world/entity/Entity.java
+@@ -283,7 +283,7 @@ public abstract class Entity implements SyncedDataHolder, DebugValueSource, Name
+     public double yOld;
+     public double zOld;
+     public boolean noPhysics;
+-    public final RandomSource random = SHARED_RANDOM; // Paper - Share random for entities to make them more random
++    public final RandomSource random = org.leavesmc.leaves.LeavesConfig.modify.useVanillaRandom ? RandomSource.create() : SHARED_RANDOM; // Paper - Share random for entities to make them more random // Leaves - but mojang use it, optimize? no!
+     public int tickCount;
+     private int remainingFireTicks;
+     public boolean wasTouchingWater;
+diff --git a/net/minecraft/world/entity/animal/bee/Bee.java b/net/minecraft/world/entity/animal/bee/Bee.java
+index 0cbcf23b6edba2305dfbbc95abb06a90a6edd42b..46d72345de78053d0da689c7ae83d8cb1c2cdd4f 100644
+--- a/net/minecraft/world/entity/animal/bee/Bee.java
++++ b/net/minecraft/world/entity/animal/bee/Bee.java
+@@ -801,7 +801,7 @@ public class Bee extends Animal implements NeutralMob, FlyingAnimal {
+     @VisibleForDebug
+     public class BeeGoToHiveGoal extends Bee.BaseBeeGoal {
+         public static final int MAX_TRAVELLING_TICKS = 2400;
+-        int travellingTicks;
++        int travellingTicks; // TODO: int travellingTicks = org.leavesmc.leaves.LeavesConfig.modify.useVanillaRandom ? Bee.this.level().random.nextInt(10) : Bee.this.random.nextInt(10); // CraftBukkit - SPIGOT-7495: Give Bees another chance and let them use their own random, avoid concurrency issues // Leaves - why no vanilla
+         private static final int MAX_BLACKLISTED_TARGETS = 3;
+         final List<BlockPos> blacklistedTargets = Lists.newArrayList();
+         private @Nullable Path lastPath;
+@@ -916,7 +916,7 @@ public class Bee extends Animal implements NeutralMob, FlyingAnimal {
+ 
+     public class BeeGoToKnownFlowerGoal extends Bee.BaseBeeGoal {
+         private static final int MAX_TRAVELLING_TICKS = 2400;
+-        int travellingTicks;
++        int travellingTicks; // TODO: int travellingTicks = org.leavesmc.leaves.LeavesConfig.modify.useVanillaRandom ? Bee.this.level().random.nextInt(10) : Bee.this.random.nextInt(10); // CraftBukkit - SPIGOT-7495: Give Bees another chance and let them use their own random, avoid concurrency issues // Leaves - why no vanilla
+ 
+         BeeGoToKnownFlowerGoal() {
+             this.setFlags(EnumSet.of(Goal.Flag.MOVE));
+diff --git a/net/minecraft/world/entity/animal/squid/Squid.java b/net/minecraft/world/entity/animal/squid/Squid.java
+index 0e13879ce2802ff8ef0ee9b745a23396727c3e30..cd16be399d70ef5782806798a695a56beed29f2c 100644
+--- a/net/minecraft/world/entity/animal/squid/Squid.java
++++ b/net/minecraft/world/entity/animal/squid/Squid.java
+@@ -48,7 +48,7 @@ public class Squid extends AgeableWaterCreature {
+ 
+     public Squid(EntityType<? extends Squid> type, Level level) {
+         super(type, level);
+-        // this.random.setSeed(this.getId()); // Paper - Share random for entities to make them more random
++        if (org.leavesmc.leaves.LeavesConfig.modify.useVanillaRandom) this.random.setSeed(this.getId()); // Paper - Share random for entities to make them more random // Leaves - vanilla plz
+         this.tentacleSpeed = 1.0F / (this.random.nextFloat() + 1.0F) * 0.2F;
+     }
+ 
+diff --git a/net/minecraft/world/entity/item/ItemEntity.java b/net/minecraft/world/entity/item/ItemEntity.java
+index 6d522eac417e6d0e21626f412ba5e90d241f0406..41050491bde33981448b3da0290f8edfaee82c30 100644
+--- a/net/minecraft/world/entity/item/ItemEntity.java
++++ b/net/minecraft/world/entity/item/ItemEntity.java
+@@ -64,7 +64,13 @@ public class ItemEntity extends Entity implements TraceableEntity {
+         // Paper start - Don't use level random in entity constructors (to make them thread-safe)
+         this(EntityType.ITEM, level);
+         this.setPos(posX, posY, posZ);
+-        this.setDeltaMovement(this.random.nextDouble() * 0.2 - 0.1, 0.2, this.random.nextDouble() * 0.2 - 0.1);
++        // Leaves start - vanilla yes, safe no
++        if (org.leavesmc.leaves.LeavesConfig.modify.useVanillaRandom) {
++            this.setDeltaMovement(level.random.nextDouble() * 0.2 - 0.1, 0.2, level.random.nextDouble() * 0.2 - 0.1);
++        } else {
++            this.setDeltaMovement(this.random.nextDouble() * 0.2 - 0.1, 0.2, this.random.nextDouble() * 0.2 - 0.1);
++        }
++        // Leaves end - vanilla yes, safe no
+         this.setItem(stack);
+         // Paper end - Don't use level random in entity constructors
+     }
+diff --git a/net/minecraft/world/entity/item/PrimedTnt.java b/net/minecraft/world/entity/item/PrimedTnt.java
+index 9ceec84368cc24bc43b90a82150c9abf7db758e1..97d106e19095a501bf9e9176bfb6acc77f0a63d9 100644
+--- a/net/minecraft/world/entity/item/PrimedTnt.java
++++ b/net/minecraft/world/entity/item/PrimedTnt.java
+@@ -67,7 +67,7 @@ public class PrimedTnt extends Entity implements TraceableEntity {
+     public PrimedTnt(Level level, double x, double y, double z, @Nullable LivingEntity owner) {
+         this(EntityType.TNT, level);
+         this.setPos(x, y, z);
+-        double d = this.random.nextDouble() * (float) (Math.PI * 2); // Paper - Don't use level random in entity constructors
++        double d = (org.leavesmc.leaves.LeavesConfig.modify.useVanillaRandom ? level.random.nextDouble() : this.random.nextDouble()) * (float) (Math.PI * 2); // Paper - Don't use level random in entity constructors // Leaves - why?
+         this.setDeltaMovement(-Math.sin(d) * 0.02, 0.2F, -Math.cos(d) * 0.02);
+         this.setFuse(80);
+         this.xo = x;

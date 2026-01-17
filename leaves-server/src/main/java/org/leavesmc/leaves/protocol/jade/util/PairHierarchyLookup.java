@@ -5,7 +5,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import net.minecraft.core.IdMapper;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import org.apache.commons.lang3.tuple.Pair;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.LeavesLogger;
@@ -105,7 +105,7 @@ public class PairHierarchyLookup<T extends JadeProvider> implements IHierarchyLo
     }
 
     @Override
-    public void loadComplete(PriorityStore<ResourceLocation, JadeProvider> priorityStore) {
+    public void loadComplete(PriorityStore<Identifier, JadeProvider> priorityStore) {
         first.loadComplete(priorityStore);
         second.loadComplete(priorityStore);
         if (idMapped) {

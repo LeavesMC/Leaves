@@ -11,7 +11,7 @@ import static org.leavesmc.leaves.bot.agent.actions.ServerUseItemOnAction.useIte
 public class ServerUseItemOnOffhandAction extends AbstractUseBotAction<ServerUseItemOnOffhandAction> {
 
     public ServerUseItemOnOffhandAction() {
-        super("use_on_offhand", ServerUseItemOnOffhandAction::new);
+        super("use_on_offhand");
     }
 
     @Override

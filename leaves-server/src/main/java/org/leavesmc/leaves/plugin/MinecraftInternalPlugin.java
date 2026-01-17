@@ -12,7 +12,6 @@ import org.bukkit.generator.ChunkGenerator;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.PluginBase;
 import org.bukkit.plugin.PluginDescriptionFile;
-import org.bukkit.plugin.PluginLoader;
 import org.bukkit.plugin.PluginLogger;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -65,8 +64,9 @@ public class MinecraftInternalPlugin extends PluginBase {
         return enabled;
     }
 
+    @SuppressWarnings("removal")
     @Override
-    public @NotNull PluginLoader getPluginLoader() {
+    public @NotNull org.bukkit.plugin.PluginLoader getPluginLoader() {
         throw new UnsupportedOperationException("Not supported.");
     }
 

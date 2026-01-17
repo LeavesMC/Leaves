@@ -7,11 +7,11 @@ import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.command.CommandContext;
 
-public class LocatorBarConfig extends AbstractBotConfig<Boolean, LocatorBarConfig> {
+public class LocatorBarConfig extends AbstractBotConfig<Boolean> {
     private boolean value;
 
     public LocatorBarConfig() {
-        super("enable_locator_bar", BoolArgumentType.bool(), LocatorBarConfig::new);
+        super("enable_locator_bar", BoolArgumentType.bool());
         this.value = LeavesConfig.modify.fakeplayer.inGame.enableLocatorBar;
     }
 

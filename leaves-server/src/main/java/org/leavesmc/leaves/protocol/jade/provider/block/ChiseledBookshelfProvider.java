@@ -2,7 +2,7 @@ package org.leavesmc.leaves.protocol.jade.provider.block;
 
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.ChiseledBookShelfBlock;
 import net.minecraft.world.level.block.entity.ChiseledBookShelfBlockEntity;
@@ -18,7 +18,7 @@ import static net.minecraft.world.level.block.CampfireBlock.FACING;
 public enum ChiseledBookshelfProvider implements StreamServerDataProvider<BlockAccessor, ItemStack> {
     INSTANCE;
 
-    private static final ResourceLocation MC_CHISELED_BOOKSHELF = JadeProtocol.mc_id("shelf");
+    private static final Identifier MC_CHISELED_BOOKSHELF = JadeProtocol.mc_id("shelf");
 
     @Override
     public @Nullable ItemStack streamData(@NotNull BlockAccessor accessor) {
@@ -35,7 +35,7 @@ public enum ChiseledBookshelfProvider implements StreamServerDataProvider<BlockA
     }
 
     @Override
-    public ResourceLocation getUid() {
+    public Identifier getUid() {
         return MC_CHISELED_BOOKSHELF;
     }
 

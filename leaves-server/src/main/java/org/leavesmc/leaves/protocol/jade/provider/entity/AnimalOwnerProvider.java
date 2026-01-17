@@ -5,7 +5,7 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.ComponentSerialization;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.Services;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.players.NameAndId;
@@ -24,7 +24,7 @@ import java.util.UUID;
 public enum AnimalOwnerProvider implements StreamServerDataProvider<EntityAccessor, Component> {
     INSTANCE;
 
-    private static final ResourceLocation MC_ANIMAL_OWNER = JadeProtocol.mc_id("animal_owner");
+    private static final Identifier MC_ANIMAL_OWNER = JadeProtocol.mc_id("animal_owner");
 
     public static UUID getOwnerUUID(Entity entity) {
         if (entity instanceof OwnableEntity ownableEntity) {
@@ -67,7 +67,7 @@ public enum AnimalOwnerProvider implements StreamServerDataProvider<EntityAccess
     }
 
     @Override
-    public ResourceLocation getUid() {
+    public Identifier getUid() {
         return MC_ANIMAL_OWNER;
     }
 }

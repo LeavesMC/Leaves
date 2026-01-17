@@ -8,7 +8,7 @@ import org.leavesmc.leaves.event.bot.BotActionStopEvent;
 public class ServerSneakAction extends AbstractStateBotAction<ServerSneakAction> {
 
     public ServerSneakAction() {
-        super("sneak", ServerSneakAction::new);
+        super("sneak");
     }
 
     @Override

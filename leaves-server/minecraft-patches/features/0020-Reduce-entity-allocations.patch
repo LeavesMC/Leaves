@@ -1,0 +1,38 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Wed, 17 Aug 2022 10:48:18 +0800
+Subject: [PATCH] Reduce entity allocations
+
+This patch is Powered by Pufferfish(https://github.com/pufferfish-gg/Pufferfish)
+
+diff --git a/net/minecraft/world/entity/ai/attributes/AttributeMap.java b/net/minecraft/world/entity/ai/attributes/AttributeMap.java
+index 92b7f4cbd276dad49cba78514db3552af8cdd80c..d977c8d5fb2b04da8fb07abc40cb6b5d2b2b1a03 100644
+--- a/net/minecraft/world/entity/ai/attributes/AttributeMap.java
++++ b/net/minecraft/world/entity/ai/attributes/AttributeMap.java
+@@ -18,9 +18,11 @@ public class AttributeMap {
+     private final Set<AttributeInstance> attributesToSync = new ObjectOpenHashSet<>();
+     private final Set<AttributeInstance> attributesToUpdate = new ObjectOpenHashSet<>();
+     private final AttributeSupplier supplier;
++    private final java.util.function.Function<Holder<Attribute>, AttributeInstance> createInstance; // Leaves - reduce entity allocations
+ 
+     public AttributeMap(AttributeSupplier supplier) {
+         this.supplier = supplier;
++        this.createInstance = attribute -> this.supplier.createInstance(this::onAttributeModified, attribute);
+     }
+ 
+     private void onAttributeModified(AttributeInstance instance) {
+@@ -43,7 +45,13 @@ public class AttributeMap {
+     }
+ 
+     public @Nullable AttributeInstance getInstance(Holder<Attribute> attribute) {
+-        return this.attributes.computeIfAbsent(attribute, holder -> this.supplier.createInstance(this::onAttributeModified, (Holder<Attribute>)holder));
++        // Leaves start - cache lambda, as for some reason java allocates it anyways
++        if (org.leavesmc.leaves.LeavesConfig.performance.reduceEntityAllocations) {
++            return this.attributes.computeIfAbsent(attribute, this.createInstance);
++        } else {
++            return this.attributes.computeIfAbsent(attribute, holder -> this.supplier.createInstance(this::onAttributeModified, (Holder<Attribute>)holder));
++        }
++        // Leaves end - cache lambda, as for some reason java allocates it anyways
+     }
+ 
+     public boolean hasAttribute(Holder<Attribute> attribute) {

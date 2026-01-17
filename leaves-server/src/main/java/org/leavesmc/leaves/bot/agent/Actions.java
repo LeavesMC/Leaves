@@ -1,58 +1,87 @@
 package org.leavesmc.leaves.bot.agent;
 
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.bot.agent.actions.*;
+import org.leavesmc.leaves.command.CommandContext;
 import org.leavesmc.leaves.entity.bot.action.*;
 
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Supplier;
 
-public class Actions {
+public class Actions<T extends AbstractBotAction<T>> {
 
-    private static final Map<String, AbstractBotAction<?>> actionsByName = new HashMap<>();
-    private static final Map<Class<?>, AbstractBotAction<?>> actionsByClass = new HashMap<>();
+    private static final Map<String, Actions<? extends AbstractBotAction<?>>> actionsByName = new HashMap<>();
+    private static final Map<Class<? extends BotAction<?>>, Actions<? extends AbstractBotAction<?>>> actionsByClass = new HashMap<>();
 
     static {
-        register(new ServerAttackAction(), AttackAction.class);
-        register(new ServerBreakBlockAction(), BreakBlockAction.class);
-        register(new ServerDropAction(), DropAction.class);
-        register(new ServerJumpAction(), JumpAction.class);
-        register(new ServerSneakAction(), SneakAction.class);
-        register(new ServerUseItemAutoAction(), UseItemAutoAction.class);
-        register(new ServerUseItemAction(), UseItemAction.class);
-        register(new ServerUseItemOnAction(), UseItemOnAction.class);
-        register(new ServerUseItemToAction(), UseItemToAction.class);
-        register(new ServerUseItemOffhandAction(), UseItemOffhandAction.class);
-        register(new ServerUseItemOnOffhandAction(), UseItemOnOffhandAction.class);
-        register(new ServerUseItemToOffhandAction(), UseItemToOffhandAction.class);
-        register(new ServerLookAction(), LookAction.class);
-        register(new ServerFishAction(), FishAction.class);
-        register(new ServerSwimAction(), SwimAction.class);
-        register(new ServerRotationAction(), RotationAction.class);
-        register(new ServerMoveAction(), MoveAction.class);
-        register(new ServerMountAction(), MountAction.class);
-        register(new ServerSwapAction(), SwapAction.class);
+        register(AttackAction.class, ServerAttackAction::new);
+        register(BreakBlockAction.class, ServerBreakBlockAction::new);
+        register(DropAction.class, ServerDropAction::new);
+        register(JumpAction.class, ServerJumpAction::new);
+        register(SneakAction.class, ServerSneakAction::new);
+        register(UseItemAutoAction.class, ServerUseItemAutoAction::new);
+        register(UseItemAction.class, ServerUseItemAction::new);
+        register(UseItemOnAction.class, ServerUseItemOnAction::new);
+        register(UseItemToAction.class, ServerUseItemToAction::new);
+        register(UseItemOffhandAction.class, ServerUseItemOffhandAction::new);
+        register(UseItemOnOffhandAction.class, ServerUseItemOnOffhandAction::new);
+        register(UseItemToOffhandAction.class, ServerUseItemToOffhandAction::new);
+        register(LookAction.class, ServerLookAction::new);
+        register(FishAction.class, ServerFishAction::new);
+        register(SwimAction.class, ServerSwimAction::new);
+        register(RotationAction.class, ServerRotationAction::new);
+        register(MoveAction.class, ServerMoveAction::new);
+        register(MountAction.class, ServerMountAction::new);
+        register(SwapAction.class, ServerSwapAction::new);
     }
 
-    public static boolean register(@NotNull AbstractBotAction<?> action, Class<?> type) {
+    public static <T extends AbstractBotAction<T>> boolean register(Class<? extends BotAction<?>> apiType, @NotNull Supplier<T> creator) {
+        AbstractBotAction<T> action = creator.get();
         if (!actionsByName.containsKey(action.getName())) {
-            actionsByName.put(action.getName(), action);
-            actionsByClass.put(type, action);
+            Actions<?> actions = new Actions<>(creator.get().getName(), apiType, creator);
+            actionsByName.put(action.getName(), actions);
+            actionsByClass.put(apiType, actions);
             return true;
         }
         return false;
     }
 
-    public static boolean register(@NotNull AbstractBotAction<?> action) {
-        return register(action, action.getClass());
+    private final String name;
+    private final Class<?> apiType;
+    private final Supplier<T> creator;
+
+    private Actions(String name, Class<? extends BotAction<?>> apiType, Supplier<T> creator) {
+        this.name = name;
+        this.apiType = apiType;
+        this.creator = creator;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public Class<?> getType() {
+        return apiType;
+    }
+
+    public T create() {
+        return creator.get();
+    }
+
+    public T createAndLoad(CommandContext context) throws CommandSyntaxException {
+        T action = create();
+        action.loadCommand(context);
+        return creator.get();
     }
 
     public static boolean unregister(@NotNull String name) {
-        AbstractBotAction<?> action = actionsByName.remove(name);
+        Actions<?> action = actionsByName.remove(name);
         if (action != null) {
             actionsByClass.remove(action.getClass());
             return true;
@@ -62,7 +91,7 @@ public class Actions {
 
     @NotNull
     @Contract(pure = true)
-    public static Collection<AbstractBotAction<?>> getAll() {
+    public static Collection<Actions<? extends AbstractBotAction<?>>> getAll() {
         return actionsByName.values();
     }
 
@@ -72,12 +101,12 @@ public class Actions {
     }
 
     @Nullable
-    public static AbstractBotAction<?> getForName(String name) {
+    public static Actions<?> getByName(String name) {
         return actionsByName.get(name);
     }
 
     @Nullable
-    public static AbstractBotAction<?> getForClass(@NotNull Class<?> type) {
+    public static Actions<?> getByClass(@NotNull Class<?> type) {
         return actionsByClass.get(type);
     }
 }

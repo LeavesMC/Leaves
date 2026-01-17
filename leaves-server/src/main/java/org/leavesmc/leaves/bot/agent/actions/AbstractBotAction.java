@@ -21,14 +21,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 
 @SuppressWarnings("unchecked")
 public abstract class AbstractBotAction<E extends AbstractBotAction<E>> {
 
     private final String name;
     private final Map<Integer, List<Pair<String, WrappedArgument<?>>>> arguments;
-    private final Supplier<E> creator;
     private UUID uuid;
     private int currentFork = 0;
 
@@ -44,10 +42,9 @@ public abstract class AbstractBotAction<E extends AbstractBotAction<E>> {
     private Consumer<E> onSuccess;
     private Consumer<E> onStop;
 
-    public AbstractBotAction(String name, Supplier<E> creator) {
+    public AbstractBotAction(String name) {
         this.name = name;
         this.uuid = UUID.randomUUID();
-        this.creator = creator;
         this.arguments = new HashMap<>();
 
         this.cancel = false;
@@ -182,11 +179,6 @@ public abstract class AbstractBotAction<E extends AbstractBotAction<E>> {
 
     @SuppressWarnings("RedundantThrows")
     public void loadCommand(@NotNull CommandContext context) throws CommandSyntaxException {
-    }
-
-    @NotNull
-    public E create() {
-        return this.creator.get();
     }
 
     public String getName() {

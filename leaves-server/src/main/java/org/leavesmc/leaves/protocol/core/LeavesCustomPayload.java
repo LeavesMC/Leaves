@@ -1,7 +1,7 @@
 package org.leavesmc.leaves.protocol.core;
 
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import org.jetbrains.annotations.NotNull;
 
 import java.lang.annotation.ElementType;
@@ -11,7 +11,7 @@ import java.lang.annotation.Target;
 
 public interface LeavesCustomPayload extends CustomPacketPayload {
 
-    Type<? extends CustomPacketPayload> LEAVES_TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath("leaves", "custom_payload"));
+    Type<? extends CustomPacketPayload> LEAVES_TYPE = new Type<>(Identifier.fromNamespaceAndPath("leaves", "custom_payload"));
 
     @Override
     default @NotNull Type<? extends CustomPacketPayload> type() {

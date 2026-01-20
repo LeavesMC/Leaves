@@ -790,6 +790,9 @@ public final class LeavesConfig {
 
         @GlobalConfig("follow-tick-sequence-merge")
         public boolean followTickSequenceMerge = false;
+
+        @GlobalConfig("allow-inf-nan-motion-values")
+        public boolean allowInfNanMotionValues = true;
     }
 
     public static PerformanceConfig performance = new PerformanceConfig();

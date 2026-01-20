@@ -77,7 +77,7 @@ public class Actions<T extends AbstractBotAction<T>> {
     public T createAndLoad(CommandContext context) throws CommandSyntaxException {
         T action = create();
         action.loadCommand(context);
-        return creator.get();
+        return action;
     }
 
     public static boolean unregister(@NotNull String name) {

@@ -426,6 +426,9 @@ public final class LeavesConfig {
 
             @GlobalConfig("old-minecart-motion-behavior")
             public boolean oldMinecartMotionBehavior = false;
+
+            @GlobalConfig("allow-inf-nan-motion-values")
+            public boolean allowInfNanMotionValues = true;
         }
 
         public ElytraAeronauticsConfig elytraAeronautics = new ElytraAeronauticsConfig();
@@ -790,9 +793,6 @@ public final class LeavesConfig {
 
         @GlobalConfig("follow-tick-sequence-merge")
         public boolean followTickSequenceMerge = false;
-
-        @GlobalConfig("allow-inf-nan-motion-values")
-        public boolean allowInfNanMotionValues = true;
     }
 
     public static PerformanceConfig performance = new PerformanceConfig();

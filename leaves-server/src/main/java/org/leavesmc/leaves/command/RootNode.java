@@ -8,9 +8,24 @@ import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import static org.leavesmc.leaves.command.CommandUtils.registerPermissions;
 
 public abstract class RootNode extends LiteralNode {
+
+    private static final Map<String, LiteralArgumentBuilder<CommandSourceStack>> LEAVES_COMMANDS = new HashMap<>();
+
+    public static void reloadLeavesCommands() {
+        PaperCommands.INSTANCE.setValid();
+        for (Map.Entry<String, LiteralArgumentBuilder<CommandSourceStack>> entry : LEAVES_COMMANDS.entrySet()) {
+            PaperCommands.INSTANCE.getDispatcher().register(entry.getValue());
+        }
+        PaperCommands.INSTANCE.invalidate();
+        Bukkit.getOnlinePlayers().forEach(org.bukkit.entity.Player::updateCommands);
+    }
+
     private final String permissionBase;
 
     public RootNode(String name, String permissionBase) {
@@ -35,8 +50,10 @@ public abstract class RootNode extends LiteralNode {
 
     @SuppressWarnings("unchecked")
     public void register() {
+        LiteralArgumentBuilder<CommandSourceStack> builder = (LiteralArgumentBuilder<CommandSourceStack>) compile();
+        LEAVES_COMMANDS.put(name, builder);
         PaperCommands.INSTANCE.setValid();
-        PaperCommands.INSTANCE.getDispatcher().register((LiteralArgumentBuilder<CommandSourceStack>) compile());
+        PaperCommands.INSTANCE.getDispatcher().register(builder);
         PaperCommands.INSTANCE.invalidate();
         Bukkit.getOnlinePlayers().forEach(org.bukkit.entity.Player::updateCommands);
     }
@@ -45,6 +62,7 @@ public abstract class RootNode extends LiteralNode {
         PaperCommands.INSTANCE.setValid();
         PaperCommands.INSTANCE.getDispatcher().getRoot().removeCommand(name);
         PaperCommands.INSTANCE.invalidate();
+        LEAVES_COMMANDS.remove(name);
         Bukkit.getOnlinePlayers().forEach(org.bukkit.entity.Player::updateCommands);
     }
 }

@@ -8,7 +8,7 @@ import org.leavesmc.leaves.entity.bot.actions.CraftAttackAction;
 public class ServerAttackAction extends AbstractTimerBotAction<ServerAttackAction> {
 
     public ServerAttackAction() {
-        super("attack", ServerAttackAction::new);
+        super("attack");
     }
 
     @Override

@@ -6,11 +6,11 @@ import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.command.CommandContext;
 
-public class AlwaysSendDataConfig extends AbstractBotConfig<Boolean, AlwaysSendDataConfig> {
+public class AlwaysSendDataConfig extends AbstractBotConfig<Boolean> {
     private boolean value;
 
     public AlwaysSendDataConfig() {
-        super("always_send_data", BoolArgumentType.bool(), AlwaysSendDataConfig::new);
+        super("always_send_data", BoolArgumentType.bool());
         this.value = LeavesConfig.modify.fakeplayer.inGame.canSendDataAlways;
     }
 

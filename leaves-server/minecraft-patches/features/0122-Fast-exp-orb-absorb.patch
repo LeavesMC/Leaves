@@ -1,0 +1,31 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Lumine1909 <133463833+Lumine1909@users.noreply.github.com>
+Date: Sun, 1 Jun 2025 13:13:23 +0800
+Subject: [PATCH] Fast exp orb absorb
+
+
+diff --git a/net/minecraft/world/entity/ExperienceOrb.java b/net/minecraft/world/entity/ExperienceOrb.java
+index 29d904b02a2c7b3d25261ca26c7c0479b00999ef..ae716dffb9d282ee2c5df73dfb846ac20aea02e0 100644
+--- a/net/minecraft/world/entity/ExperienceOrb.java
++++ b/net/minecraft/world/entity/ExperienceOrb.java
+@@ -355,6 +355,20 @@ public class ExperienceOrb extends Entity {
+     public void playerTouch(Player entity) {
+         if (entity instanceof ServerPlayer serverPlayer) {
+             if (entity.takeXpDelay == 0 && new com.destroystokyo.paper.event.player.PlayerPickupExperienceEvent(serverPlayer.getBukkitEntity(), (org.bukkit.entity.ExperienceOrb) this.getBukkitEntity()).callEvent()) { // Paper - PlayerPickupExperienceEvent
++                if (org.leavesmc.leaves.LeavesConfig.modify.fastAbsorbPredicate.test(serverPlayer)) {
++                    entity.takeXpDelay = org.bukkit.craftbukkit.event.CraftEventFactory.callPlayerXpCooldownEvent(entity, 0, org.bukkit.event.player.PlayerExpCooldownChangeEvent.ChangeReason.PICKUP_ORB).getNewCooldown(); // CraftBukkit - entity.takeXpDelay = 2;
++                    while (this.count > 0) {
++                        entity.take(this, 1);
++                        int i = this.repairPlayerItems(serverPlayer, this.getValue());
++                        if (i > 0) {
++                            entity.giveExperiencePoints(org.bukkit.craftbukkit.event.CraftEventFactory.callPlayerExpChangeEvent(entity, this, i).getAmount()); // CraftBukkit - this.value -> event.getAmount() // Paper - supply experience orb object
++                        }
++                        this.count--;
++                    }
++                    this.discard(org.bukkit.event.entity.EntityRemoveEvent.Cause.PICKUP); // CraftBukkit - add Bukkit remove cause
++                    return;
++                }
++
+                 entity.takeXpDelay = org.bukkit.craftbukkit.event.CraftEventFactory.callPlayerXpCooldownEvent(entity, 2, org.bukkit.event.player.PlayerExpCooldownChangeEvent.ChangeReason.PICKUP_ORB).getNewCooldown(); // CraftBukkit - entity.takeXpDelay = 2;
+                 entity.take(this, 1);
+                 int i = this.repairPlayerItems(serverPlayer, this.getValue());

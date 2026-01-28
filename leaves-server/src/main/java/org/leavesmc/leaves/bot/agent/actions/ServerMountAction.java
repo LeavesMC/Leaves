@@ -13,7 +13,7 @@ import java.util.List;
 public class ServerMountAction extends AbstractBotAction<ServerMountAction> {
 
     public ServerMountAction() {
-        super("mount", ServerMountAction::new);
+        super("mount");
     }
 
     @Override

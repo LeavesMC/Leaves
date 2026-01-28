@@ -10,7 +10,7 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.network.protocol.common.custom.DiscardedPayload;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerCommonPacketListenerImpl;
@@ -32,11 +32,11 @@ public class ProtocolUtils {
         return protocol + "-leaves-" + ServerBuildInfo.buildInfo().asString(ServerBuildInfo.StringRepresentation.VERSION_SIMPLE);
     }
 
-    public static void sendEmptyPacket(ServerPlayer player, ResourceLocation id) {
+    public static void sendEmptyPacket(ServerPlayer player, Identifier id) {
         player.connection.send(new ClientboundCustomPayloadPacket(new DiscardedPayload(id, EMPTY)));
     }
 
-    public static void sendBytebufPacket(@NotNull ServerPlayer player, ResourceLocation id, Consumer<? super RegistryFriendlyByteBuf> consumer) {
+    public static void sendBytebufPacket(@NotNull ServerPlayer player, Identifier id, Consumer<? super RegistryFriendlyByteBuf> consumer) {
         RegistryFriendlyByteBuf buf = decorate(Unpooled.buffer());
         consumer.accept(buf);
         player.connection.send(new ClientboundCustomPayloadPacket(new DiscardedPayload(id, ByteBufUtil.getBytes(buf))));
@@ -46,11 +46,11 @@ public class ProtocolUtils {
         player.connection.send(new ClientboundCustomPayloadPacket(payload));
     }
 
-    public static void sendEmptyPacket(Context context, ResourceLocation id) {
+    public static void sendEmptyPacket(Context context, Identifier id) {
         context.connection().send(new ClientboundCustomPayloadPacket(new DiscardedPayload(id, EMPTY)));
     }
 
-    public static void sendBytebufPacket(@NotNull Context context, ResourceLocation id, Consumer<? super RegistryFriendlyByteBuf> consumer) {
+    public static void sendBytebufPacket(@NotNull Context context, Identifier id, Consumer<? super RegistryFriendlyByteBuf> consumer) {
         RegistryFriendlyByteBuf buf = decorate(Unpooled.buffer());
         consumer.accept(buf);
         context.connection().send(new ClientboundCustomPayloadPacket(new DiscardedPayload(id, ByteBufUtil.getBytes(buf))));

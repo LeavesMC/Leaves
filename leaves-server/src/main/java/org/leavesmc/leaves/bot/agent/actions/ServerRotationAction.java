@@ -18,7 +18,7 @@ public class ServerRotationAction extends AbstractBotAction<ServerRotationAction
     private static final DecimalFormat DF = new DecimalFormat("0.00");
 
     public ServerRotationAction() {
-        super("rotation", ServerRotationAction::new);
+        super("rotation");
         this.addArgument("yaw", FloatArgumentType.floatArg(-180, 180))
             .suggests((context, builder) -> {
                 CommandSender sender = context.getSender();

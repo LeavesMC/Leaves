@@ -9,7 +9,7 @@ import org.leavesmc.leaves.entity.bot.actions.CraftUseItemAction;
 public class ServerUseItemAction extends AbstractUseBotAction<ServerUseItemAction> {
 
     public ServerUseItemAction() {
-        super("use", ServerUseItemAction::new);
+        super("use");
     }
 
     @Override

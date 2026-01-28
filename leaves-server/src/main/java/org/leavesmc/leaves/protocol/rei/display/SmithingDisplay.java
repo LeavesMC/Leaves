@@ -6,7 +6,7 @@ import net.minecraft.core.Holder;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.ByIdMap;
 import net.minecraft.world.item.equipment.trim.TrimPattern;
 import org.jetbrains.annotations.NotNull;
@@ -24,12 +24,12 @@ public class SmithingDisplay extends Display {
         SmithingDisplay::getOutputEntries,
         ByteBufCodecs.optional(SmithingRecipeType.STREAM_CODEC),
         SmithingDisplay::getOptionalType,
-        ByteBufCodecs.optional(ResourceLocation.STREAM_CODEC),
+        ByteBufCodecs.optional(Identifier.STREAM_CODEC),
         SmithingDisplay::getOptionalLocation,
         SmithingDisplay::of
     );
 
-    private static final ResourceLocation SERIALIZER_ID = ResourceLocation.tryBuild("minecraft", "default/smithing");
+    private static final Identifier SERIALIZER_ID = Identifier.tryBuild("minecraft", "default/smithing");
 
     private final SmithingRecipeType type;
 
@@ -37,14 +37,14 @@ public class SmithingDisplay extends Display {
         @NotNull List<EntryIngredient> inputs,
         @NotNull List<EntryIngredient> outputs,
         @NotNull SmithingRecipeType type,
-        @NotNull ResourceLocation location
+        @NotNull Identifier location
     ) {
         super(inputs, outputs, location);
         this.type = type;
     }
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    private static SmithingDisplay of(List<EntryIngredient> inputs, List<EntryIngredient> outputs, Optional<SmithingRecipeType> type, Optional<ResourceLocation> location) {
+    private static SmithingDisplay of(List<EntryIngredient> inputs, List<EntryIngredient> outputs, Optional<SmithingRecipeType> type, Optional<Identifier> location) {
         throw new UnsupportedOperationException();
     }
 
@@ -53,7 +53,7 @@ public class SmithingDisplay extends Display {
     }
 
     @Override
-    public ResourceLocation getSerializerId() {
+    public Identifier getSerializerId() {
         return SERIALIZER_ID;
     }
 
@@ -80,14 +80,14 @@ public class SmithingDisplay extends Display {
             SmithingDisplay.Trimming::getOutputEntries,
             ByteBufCodecs.optional(SmithingRecipeType.STREAM_CODEC),
             SmithingDisplay.Trimming::getOptionalType,
-            ByteBufCodecs.optional(ResourceLocation.STREAM_CODEC),
+            ByteBufCodecs.optional(Identifier.STREAM_CODEC),
             SmithingDisplay.Trimming::getOptionalLocation,
             TrimPattern.STREAM_CODEC,
             SmithingDisplay.Trimming::pattern,
             SmithingDisplay.Trimming::of
         );
 
-        private static final ResourceLocation SERIALIZER_ID = ResourceLocation.tryBuild("minecraft", "default/smithing/trimming");
+        private static final Identifier SERIALIZER_ID = Identifier.tryBuild("minecraft", "default/smithing/trimming");
 
         private final Holder<TrimPattern> pattern;
 
@@ -95,7 +95,7 @@ public class SmithingDisplay extends Display {
             @NotNull List<EntryIngredient> inputs,
             @NotNull List<EntryIngredient> outputs,
             @NotNull SmithingRecipeType type,
-            @NotNull ResourceLocation location,
+            @NotNull Identifier location,
             @NotNull Holder<TrimPattern> pattern
         ) {
             super(inputs, outputs, type, location);
@@ -103,12 +103,12 @@ public class SmithingDisplay extends Display {
         }
 
         @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-        public static Trimming of(List<EntryIngredient> inputs, List<EntryIngredient> outputs, Optional<SmithingRecipeType> type, Optional<ResourceLocation> location, Holder<TrimPattern> pattern) {
+        public static Trimming of(List<EntryIngredient> inputs, List<EntryIngredient> outputs, Optional<SmithingRecipeType> type, Optional<Identifier> location, Holder<TrimPattern> pattern) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public ResourceLocation getSerializerId() {
+        public Identifier getSerializerId() {
             return SERIALIZER_ID;
         }
 

@@ -3,7 +3,7 @@ package org.leavesmc.leaves.protocol.jade.provider.entity;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.LivingEntity;
 import org.jetbrains.annotations.NotNull;
@@ -20,7 +20,7 @@ public enum StatusEffectsProvider implements StreamServerDataProvider<EntityAcce
 
     private static final StreamCodec<RegistryFriendlyByteBuf, List<MobEffectInstance>> STREAM_CODEC = ByteBufCodecs.<RegistryFriendlyByteBuf, MobEffectInstance>list()
         .apply(MobEffectInstance.STREAM_CODEC);
-    private static final ResourceLocation MC_POTION_EFFECTS = JadeProtocol.mc_id("potion_effects");
+    private static final Identifier MC_POTION_EFFECTS = JadeProtocol.mc_id("potion_effects");
 
     @Override
     @Nullable
@@ -39,7 +39,7 @@ public enum StatusEffectsProvider implements StreamServerDataProvider<EntityAcce
 
 
     @Override
-    public ResourceLocation getUid() {
+    public Identifier getUid() {
         return MC_POTION_EFFECTS;
     }
 }

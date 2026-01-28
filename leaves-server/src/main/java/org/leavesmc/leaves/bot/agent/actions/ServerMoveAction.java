@@ -13,7 +13,7 @@ public class ServerMoveAction extends AbstractStateBotAction<ServerMoveAction> {
     private MoveDirection direction = MoveDirection.FORWARD;
 
     public ServerMoveAction() {
-        super("move", ServerMoveAction::new);
+        super("move");
         this.addArgument("direction", EnumArgumentType.fromEnum(MoveDirection.class));
     }
 

@@ -3,7 +3,7 @@ package org.leavesmc.leaves.protocol.jade.util;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.Block;
 import org.apache.commons.lang3.tuple.Pair;
 import org.jetbrains.annotations.NotNull;
@@ -84,7 +84,7 @@ public class WrappedHierarchyLookup<T extends JadeProvider> extends HierarchyLoo
     }
 
     @Override
-    public void loadComplete(PriorityStore<ResourceLocation, JadeProvider> priorityStore) {
+    public void loadComplete(PriorityStore<Identifier, JadeProvider> priorityStore) {
         for (var override : overrides) {
             override.getLeft().loadComplete(priorityStore);
         }

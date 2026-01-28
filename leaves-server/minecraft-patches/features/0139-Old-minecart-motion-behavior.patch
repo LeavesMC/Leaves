@@ -1,0 +1,58 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MC_XiaoHei <xor7xiaohei@gmail.com>
+Date: Wed, 8 Oct 2025 18:07:47 +0800
+Subject: [PATCH] Old minecart motion behavior
+
+This patch is Powered by [CPCA](https://github.com/liuyuexiaoyu1/carpet_pc_additon)
+
+This patch is based on the following mixins:
+* "com/pigconnon/carpet_pc_addition/mixin/MinecartMotionFix/EntityMixin.java"
+* "com/pigconnon/carpet_pc_addition/mixin/MinecartMotionFix/NetherPortalBlockMixin.java"
+By: liuyuexiaoyu1
+As part of: CPCA (https://github.com/liuyuexiaoyu1/carpet_pc_additon)
+Licensed under: MIT (https://mit-license.org)
+
+diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
+index df0e1c54163391a76cbf88100d547b533b21b7a9..1f1c17bb8839aa3ab7c213aaf96b8598021996ca 100644
+--- a/net/minecraft/world/entity/Entity.java
++++ b/net/minecraft/world/entity/Entity.java
+@@ -4197,7 +4197,7 @@ public abstract class Entity implements SyncedDataHolder, DebugValueSource, Name
+                 teleportTransition.relatives().contains(Relative.Y) ? 0.0 : vec3.y(),
+                 teleportTransition.relatives().contains(Relative.Z) ? 0.0 : vec3.z()
+             );
+-        return teleportTransition.withPosition(vec31).withRotation(f, f1).transitionAsPassenger();
++        return org.leavesmc.leaves.LeavesConfig.modify.oldMC.oldMinecartMotionBehavior ? new TeleportTransition(teleportTransition.newLevel(), teleportTransition.position(), teleportTransition.deltaMovement(), 0, 0, teleportTransition.postTeleportTransition()) : teleportTransition.withPosition(vec31).withRotation(f, f1).transitionAsPassenger(); // Leaves - old minecart motion behavior
+     }
+ 
+     private void sendTeleportTransitionToRidingPlayers(TeleportTransition teleportTransition) {
+diff --git a/net/minecraft/world/level/block/NetherPortalBlock.java b/net/minecraft/world/level/block/NetherPortalBlock.java
+index 2688d5b86a77e1552e6322e7b80a0217a441afd4..d6c16096d7d975477db525640ee966ab8198d78f 100644
+--- a/net/minecraft/world/level/block/NetherPortalBlock.java
++++ b/net/minecraft/world/level/block/NetherPortalBlock.java
+@@ -256,14 +256,24 @@ public class NetherPortalBlock extends Block implements Portal {
+         double d = rectangle.axis1Size;
+         double d1 = rectangle.axis2Size;
+         EntityDimensions dimensions = entity.getDimensions(entity.getPose());
+-        int i = axis == axis1 ? 0 : 90;
++        // Leaves start - old minecart motion behavior
++        int i;
++        Vec3 vec3d3;
++        if (org.leavesmc.leaves.LeavesConfig.modify.oldMC.oldMinecartMotionBehavior) {
++            vec3d3 = axis == axis1 ? entity.getDeltaMovement() : new Vec3(entity.getDeltaMovement().z, entity.getDeltaMovement().y, -entity.getDeltaMovement().x);
++            i = 0;
++        } else {
++            vec3d3 = Vec3.ZERO;
++            i = axis == axis1 ? 0 : 90;
++        }
+         double d2 = dimensions.width() / 2.0 + (d - dimensions.width()) * offset.x();
+         double d3 = (d1 - dimensions.height()) * offset.y();
+         double d4 = 0.5 + offset.z();
+         boolean flag = axis1 == Direction.Axis.X;
+         Vec3 vec3 = new Vec3(blockPos.getX() + (flag ? d2 : d4), blockPos.getY() + d3, blockPos.getZ() + (flag ? d4 : d2));
+         Vec3 vec31 = PortalShape.findCollisionFreePosition(vec3, level, entity, dimensions);
+-        return new TeleportTransition(level, vec31, Vec3.ZERO, i, 0.0F, Relative.union(Relative.DELTA, Relative.ROTATION), postTeleportTransition, org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.NETHER_PORTAL); // CraftBukkit
++        return new TeleportTransition(level, vec31, vec3d3, i, 0.0F, Relative.union(Relative.DELTA, Relative.ROTATION), postTeleportTransition, org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.NETHER_PORTAL); // CraftBukkit
++        // Leaves end - old minecart motion behavior
+     }
+ 
+     @Override

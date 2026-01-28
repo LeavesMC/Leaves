@@ -2,7 +2,7 @@ package org.leavesmc.leaves.protocol.jade.provider.block;
 
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.JukeboxBlockEntity;
 import org.jetbrains.annotations.NotNull;
@@ -13,7 +13,7 @@ import org.leavesmc.leaves.protocol.jade.provider.StreamServerDataProvider;
 public enum JukeboxProvider implements StreamServerDataProvider<BlockAccessor, ItemStack> {
     INSTANCE;
 
-    private static final ResourceLocation MC_JUKEBOX = JadeProtocol.mc_id("jukebox");
+    private static final Identifier MC_JUKEBOX = JadeProtocol.mc_id("jukebox");
 
     @Override
     public @NotNull ItemStack streamData(BlockAccessor accessor) {
@@ -26,7 +26,7 @@ public enum JukeboxProvider implements StreamServerDataProvider<BlockAccessor, I
     }
 
     @Override
-    public ResourceLocation getUid() {
+    public Identifier getUid() {
         return MC_JUKEBOX;
     }
 }

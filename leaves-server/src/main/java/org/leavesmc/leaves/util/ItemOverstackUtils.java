@@ -16,7 +16,6 @@ import org.leavesmc.leaves.LeavesConfig;
 
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 
 public class ItemOverstackUtils {
 
@@ -63,13 +62,13 @@ public class ItemOverstackUtils {
         return false;
     }
 
-    public static int getItemStackMaxCountReal(ItemStack stack) {
-        CompoundTag nbt = Optional.ofNullable(stack.get(DataComponents.CUSTOM_DATA)).orElse(CustomData.EMPTY).copyTag();
+    public static int getRealItemStackMaxCount(ItemStack stack) {
+        CompoundTag nbt = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
         return nbt.getInt("Leaves.RealStackSize").orElse(stack.getMaxStackSize());
     }
 
     public static ItemStack encodeMaxStackSize(ItemStack itemStack) {
-        int realMaxStackSize = getItemStackMaxCountReal(itemStack);
+        int realMaxStackSize = getRealItemStackMaxCount(itemStack);
         int modifiedMaxStackSize = getNetworkMaxCount(itemStack);
         if (itemStack.getMaxStackSize() != modifiedMaxStackSize) {
             itemStack.set(DataComponents.MAX_STACK_SIZE, modifiedMaxStackSize);
@@ -81,7 +80,7 @@ public class ItemOverstackUtils {
     }
 
     public static ItemStack decodeMaxStackSize(ItemStack itemStack) {
-        int realMaxStackSize = getItemStackMaxCountReal(itemStack);
+        int realMaxStackSize = getRealItemStackMaxCount(itemStack);
         if (itemStack.getMaxStackSize() != realMaxStackSize) {
             itemStack.set(DataComponents.MAX_STACK_SIZE, realMaxStackSize);
             CompoundTag nbt = itemStack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();

@@ -98,7 +98,7 @@ public class ReportCommand extends LeavesSubcommand {
             for (final PluginProvider<?> entry : leavesPlugins.values()) {
                 pluginList.append(" ").append(entry.getMeta().getName()).append(",");
             }
-            pluginList.deleteCharAt(pluginList.length() - 1);
+            pluginList.deleteCharAt(pluginList.length() - 1).append("\n");
         }
 
         if (!paperPlugins.isEmpty()) {
@@ -106,7 +106,7 @@ public class ReportCommand extends LeavesSubcommand {
             for (final PluginProvider<?> entry : paperPlugins.values()) {
                 pluginList.append(" ").append(entry.getMeta().getName()).append(",");
             }
-            pluginList.deleteCharAt(pluginList.length() - 1);
+            pluginList.deleteCharAt(pluginList.length() - 1).append("\n");
         }
 
         if (!spigotPlugins.isEmpty()) {
@@ -114,7 +114,7 @@ public class ReportCommand extends LeavesSubcommand {
             for (final PluginProvider<?> entry : spigotPlugins.values()) {
                 pluginList.append(" ").append(entry.getMeta().getAPIVersion() == null ? "*" : "").append(entry.getMeta().getName()).append(",");
             }
-            pluginList.deleteCharAt(pluginList.length() - 1);
+            pluginList.deleteCharAt(pluginList.length() - 1).append("\n");
         }
 
         return pluginList.toString();

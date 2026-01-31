@@ -65,6 +65,7 @@ import org.leavesmc.leaves.bot.agent.actions.AbstractBotAction;
 import org.leavesmc.leaves.bot.agent.configs.AbstractBotConfig;
 import org.leavesmc.leaves.entity.bot.CraftBot;
 import org.leavesmc.leaves.event.bot.BotActionScheduleEvent;
+import org.leavesmc.leaves.event.bot.BotActionStopEvent;
 import org.leavesmc.leaves.event.bot.BotCreateEvent;
 import org.leavesmc.leaves.event.bot.BotDeathEvent;
 import org.leavesmc.leaves.event.bot.BotInventoryOpenEvent;
@@ -355,7 +356,7 @@ public class ServerBot extends ServerPlayer {
                 BotInventoryOpenEvent event = new BotInventoryOpenEvent(this.getBukkitEntity(), player1.getBukkitEntity());
                 getServer().server.getPluginManager().callEvent(event);
                 if (!event.isCancelled()) {
-                    player.openMenu(new SimpleMenuProvider((i, inventory, p) -> ChestMenu.sixRows(i, inventory, this.container), this.getDisplayName()));
+                    player.openMenu(new SimpleMenuProvider((i, inventory, p) -> new BotInventoryMenu(i, inventory, this.container), this.getDisplayName()));
                     return InteractionResult.SUCCESS;
                 }
             }
@@ -668,6 +669,12 @@ public class ServerBot extends ServerPlayer {
         action.init();
         this.actions.add(action);
         return true;
+    }
+
+    public void stopAllActions() {
+        for (AbstractBotAction<?> action : new java.util.ArrayList<>(this.actions)) {
+            action.stop(this, BotActionStopEvent.Reason.PLUGIN);
+        }
     }
 
     public List<AbstractBotAction<?>> getBotActions() {

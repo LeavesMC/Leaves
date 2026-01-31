@@ -1,0 +1,242 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Administrator <admin@example.com>
+Date: Sat, 31 Jan 2026 11:14:59 +0800
+Subject: [PATCH] Add large barrel feature
+
+
+diff --git a/net/minecraft/world/level/block/BarrelBlock.java b/net/minecraft/world/level/block/BarrelBlock.java
+index b224d3756120cd82d1381c55a95ad63c18c123b7..1ff5737d282367ba64514a00c8edad8618c217e4 100644
+--- a/net/minecraft/world/level/block/BarrelBlock.java
++++ b/net/minecraft/world/level/block/BarrelBlock.java
+@@ -24,11 +24,76 @@ import net.minecraft.world.level.block.state.properties.EnumProperty;
+ import net.minecraft.world.phys.BlockHitResult;
+ import org.jspecify.annotations.Nullable;
+ 
++import net.minecraft.world.CompoundContainer;
++import net.minecraft.world.Container;
++import net.minecraft.world.MenuProvider;
++import net.minecraft.world.entity.player.Inventory;
++import net.minecraft.world.inventory.ChestMenu;
++import net.minecraft.world.level.LevelAccessor;
++import net.minecraft.world.level.block.entity.BlockEntityType;
++import java.util.Optional;
++import net.minecraft.network.chat.Component;
++
+ public class BarrelBlock extends BaseEntityBlock {
+     public static final MapCodec<BarrelBlock> CODEC = simpleCodec(BarrelBlock::new);
+     public static final EnumProperty<Direction> FACING = BlockStateProperties.FACING;
+     public static final BooleanProperty OPEN = BlockStateProperties.OPEN;
+ 
++    private static final DoubleBlockCombiner.Combiner<BarrelBlockEntity, Optional<Container>> BARREL_COMBINER = new DoubleBlockCombiner.Combiner<BarrelBlockEntity, Optional<Container>>() {
++        @Override
++        public Optional<Container> acceptDouble(BarrelBlockEntity first, BarrelBlockEntity second) {
++            return Optional.of(new CompoundContainer(first, second));
++        }
++
++        @Override
++        public Optional<Container> acceptSingle(BarrelBlockEntity single) {
++            return Optional.of(single);
++        }
++
++        @Override
++        public Optional<Container> acceptNone() {
++            return Optional.empty();
++        }
++    };
++
++    private static final DoubleBlockCombiner.Combiner<BarrelBlockEntity, Optional<MenuProvider>> MENU_PROVIDER_COMBINER = new DoubleBlockCombiner.Combiner<BarrelBlockEntity, Optional<MenuProvider>>() {
++        @Override
++        public Optional<MenuProvider> acceptDouble(final BarrelBlockEntity first, final BarrelBlockEntity second) {
++            final Container container = new CompoundContainer(first, second);
++            return Optional.of(new MenuProvider() {
++                @Override
++                public AbstractContainerMenu createMenu(int containerId, Inventory playerInventory, Player player) {
++                    if (first.canOpen(player) && second.canOpen(player)) {
++                        first.unpackLootTable(playerInventory.player);
++                        second.unpackLootTable(playerInventory.player);
++                        return ChestMenu.sixRows(containerId, playerInventory, container);
++                    } else {
++                        return null;
++                    }
++                }
++
++                @Override
++                public Component getDisplayName() {
++                    if (first.hasCustomName()) {
++                        return first.getDisplayName();
++                    } else {
++                        return second.hasCustomName() ? second.getDisplayName() : Component.translatable("container.barrel");
++                    }
++                }
++            });
++        }
++
++        @Override
++        public Optional<MenuProvider> acceptSingle(BarrelBlockEntity single) {
++            return Optional.of(single);
++        }
++
++        @Override
++        public Optional<MenuProvider> acceptNone() {
++            return Optional.empty();
++        }
++    };
++
+     @Override
+     public MapCodec<BarrelBlock> codec() {
+         return CODEC;
+@@ -41,14 +106,58 @@ public class BarrelBlock extends BaseEntityBlock {
+ 
+     @Override
+     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hitResult) {
+-        if (level instanceof ServerLevel serverLevel && level.getBlockEntity(pos) instanceof BarrelBlockEntity barrelBlockEntity && player.openMenu(barrelBlockEntity).isPresent()) { // Paper - Fix InventoryOpenEvent cancellation
+-            player.awardStat(Stats.OPEN_BARREL);
+-            PiglinAi.angerNearbyPiglins(serverLevel, player, true);
++        if (level instanceof ServerLevel serverLevel) {
++            MenuProvider menuProvider = this.getMenuProvider(state, level, pos);
++            if (menuProvider != null && player.openMenu(menuProvider).isPresent()) { // Paper - Fix InventoryOpenEvent cancellation
++                player.awardStat(Stats.OPEN_BARREL);
++                PiglinAi.angerNearbyPiglins(serverLevel, player, true);
++            }
+         }
+ 
+         return InteractionResult.SUCCESS;
+     }
+ 
++    public DoubleBlockCombiner.NeighborCombineResult<? extends BarrelBlockEntity> combine(BlockState state, Level level, BlockPos pos, boolean override) {
++        if (!org.leavesmc.leaves.LeavesConfig.modifyConfig.largeBarrel) {
++            BlockEntity blockEntity = level.getBlockEntity(pos);
++            return blockEntity instanceof BarrelBlockEntity ? new DoubleBlockCombiner.NeighborCombineResult.Single<>((BarrelBlockEntity) blockEntity) : DoubleBlockCombiner.Combiner::acceptNone;
++        }
++
++        Direction facing = state.getValue(FACING);
++        BlockPos neighborPos = pos.relative(facing.getOpposite());
++        BlockState neighborState = level.getBlockState(neighborPos);
++
++        if (neighborState.is(this)) {
++            Direction neighborFacing = neighborState.getValue(FACING);
++            if (neighborFacing == facing.getOpposite()) {
++                BlockEntity blockEntity = level.getBlockEntity(pos);
++                BlockEntity neighborBlockEntity = level.getBlockEntity(neighborPos);
++
++                if (blockEntity instanceof BarrelBlockEntity && neighborBlockEntity instanceof BarrelBlockEntity) {
++                    if (isFirst(pos, neighborPos)) {
++                        return new DoubleBlockCombiner.NeighborCombineResult.Double<>((BarrelBlockEntity) blockEntity, (BarrelBlockEntity) neighborBlockEntity);
++                    } else {
++                        return new DoubleBlockCombiner.NeighborCombineResult.Double<>((BarrelBlockEntity) neighborBlockEntity, (BarrelBlockEntity) blockEntity);
++                    }
++                }
++            }
++        }
++
++        BlockEntity blockEntity = level.getBlockEntity(pos);
++        return blockEntity instanceof BarrelBlockEntity ? new DoubleBlockCombiner.NeighborCombineResult.Single<>((BarrelBlockEntity) blockEntity) : DoubleBlockCombiner.Combiner::acceptNone;
++    }
++
++    private static boolean isFirst(BlockPos pos, BlockPos neighborPos) {
++        if (pos.getY() != neighborPos.getY()) return pos.getY() < neighborPos.getY();
++        if (pos.getX() != neighborPos.getX()) return pos.getX() < neighborPos.getX();
++        return pos.getZ() < neighborPos.getZ();
++    }
++
++    @Override
++    public @Nullable MenuProvider getMenuProvider(BlockState state, Level level, BlockPos pos) {
++        return this.combine(state, level, pos, false).apply(MENU_PROVIDER_COMBINER).orElse(null);
++    }
++
+     // Leaves start - behaviour 1.21.1-
+     @Override
+     protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
+@@ -82,7 +191,11 @@ public class BarrelBlock extends BaseEntityBlock {
+ 
+     @Override
+     protected int getAnalogOutputSignal(BlockState state, Level level, BlockPos pos, Direction direction) {
+-        return AbstractContainerMenu.getRedstoneSignalFromBlockEntity(level.getBlockEntity(pos));
++        return AbstractContainerMenu.getRedstoneSignalFromContainer(this.getContainer(state, level, pos));
++    }
++
++    public @Nullable Container getContainer(BlockState state, Level level, BlockPos pos) {
++        return this.combine(state, level, pos, false).apply(BARREL_COMBINER).orElse(null);
+     }
+ 
+     @Override
+diff --git a/net/minecraft/world/level/block/entity/BarrelBlockEntity.java b/net/minecraft/world/level/block/entity/BarrelBlockEntity.java
+index 780474a3f7b7128ca571356e26d0ae32b848d7b0..f955d8742f36741aff8d21047d3c398eaa65d882 100644
+--- a/net/minecraft/world/level/block/entity/BarrelBlockEntity.java
++++ b/net/minecraft/world/level/block/entity/BarrelBlockEntity.java
+@@ -81,7 +81,7 @@ public class BarrelBlockEntity extends RandomizableContainerBlockEntity implemen
+         public boolean isOwnContainer(Player player) {
+             if (player.containerMenu instanceof ChestMenu) {
+                 Container container = ((ChestMenu)player.containerMenu).getContainer();
+-                return container == BarrelBlockEntity.this;
++                return container == BarrelBlockEntity.this || container instanceof CompoundContainer && ((CompoundContainer)container).contains(BarrelBlockEntity.this);
+             } else {
+                 return false;
+             }
+@@ -176,10 +176,40 @@ public class BarrelBlockEntity extends RandomizableContainerBlockEntity implemen
+     }
+ 
+     public void playSound(BlockState state, SoundEvent sound) {
+-        Vec3i unitVec3i = state.getValue(BarrelBlock.FACING).getUnitVec3i();
+-        double d = this.worldPosition.getX() + 0.5 + unitVec3i.getX() / 2.0;
+-        double d1 = this.worldPosition.getY() + 0.5 + unitVec3i.getY() / 2.0;
+-        double d2 = this.worldPosition.getZ() + 0.5 + unitVec3i.getZ() / 2.0;
++        double d = this.worldPosition.getX() + 0.5;
++        double d1 = this.worldPosition.getY() + 0.5;
++        double d2 = this.worldPosition.getZ() + 0.5;
++
++        if (org.leavesmc.leaves.LeavesConfig.modifyConfig.largeBarrel && state.getBlock() instanceof BarrelBlock barrelBlock) {
++            DoubleBlockCombiner.NeighborCombineResult<? extends BarrelBlockEntity> combineResult = barrelBlock.combine(state, this.level, this.worldPosition, true);
++            if (combineResult instanceof DoubleBlockCombiner.NeighborCombineResult.Double<? extends BarrelBlockEntity>) {
++                Direction facing = state.getValue(BarrelBlock.FACING);
++                BlockPos neighborPos = this.worldPosition.relative(facing.getOpposite());
++                
++                // Only play sound for the "first" one to avoid duplication
++                if (this.worldPosition.getY() > neighborPos.getY() || 
++                    (this.worldPosition.getY() == neighborPos.getY() && this.worldPosition.getX() > neighborPos.getX()) ||
++                    (this.worldPosition.getY() == neighborPos.getY() && this.worldPosition.getX() == neighborPos.getX() && this.worldPosition.getZ() > neighborPos.getZ())) {
++                    return;
++                }
++                
++                // Move sound to the center of the two barrels
++                d += (neighborPos.getX() - this.worldPosition.getX()) * 0.5;
++                d1 += (neighborPos.getY() - this.worldPosition.getY()) * 0.5;
++                d2 += (neighborPos.getZ() - this.worldPosition.getZ()) * 0.5;
++            } else {
++                Vec3i unitVec3i = state.getValue(BarrelBlock.FACING).getUnitVec3i();
++                d += unitVec3i.getX() / 2.0;
++                d1 += unitVec3i.getY() / 2.0;
++                d2 += unitVec3i.getZ() / 2.0;
++            }
++        } else {
++            Vec3i unitVec3i = state.getValue(BarrelBlock.FACING).getUnitVec3i();
++            d += unitVec3i.getX() / 2.0;
++            d1 += unitVec3i.getY() / 2.0;
++            d2 += unitVec3i.getZ() / 2.0;
++        }
++
+         this.level.playSound(null, d, d1, d2, sound, SoundSource.BLOCKS, 0.5F, this.level.random.nextFloat() * 0.1F + 0.9F);
+     }
+ 
+diff --git a/net/minecraft/world/level/block/entity/HopperBlockEntity.java b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
+index df720bc9cc9390cc51e57470dabf0333e18554a1..0446e5d1bbd0cf96c44efb46bf7ee0cb983489cd 100644
+--- a/net/minecraft/world/level/block/entity/HopperBlockEntity.java
++++ b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
+@@ -20,6 +20,8 @@ import net.minecraft.world.inventory.HopperMenu;
+ import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.level.Level;
+ import net.minecraft.world.level.block.Block;
++import net.minecraft.world.level.block.BarrelBlock;
++import net.minecraft.world.level.block.entity.BarrelBlockEntity;
+ import net.minecraft.world.level.block.ChestBlock;
+ import net.minecraft.world.level.block.HopperBlock;
+ import net.minecraft.world.level.block.state.BlockState;
+@@ -936,6 +938,8 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+         } else if (state.hasBlockEntity() && level.getBlockEntity(pos) instanceof Container container) {
+             if (container instanceof ChestBlockEntity && block instanceof ChestBlock) {
+                 container = ChestBlock.getContainer((ChestBlock)block, state, level, pos, true);
++            } else if (container instanceof BarrelBlockEntity && block instanceof BarrelBlock) { // Leaves - large barrel
++                container = ((BarrelBlock)block).getContainer(state, level, pos);
+             }
+ 
+             return container;

@@ -68,7 +68,7 @@ public class CraftBot extends CraftPlayer implements Bot {
 
     @Override
     public void stopAllActions() {
-        for (AbstractBotAction<?> action : this.getHandle().getBotActions()) {
+        for (AbstractBotAction<?> action : new java.util.ArrayList<>(this.getHandle().getBotActions())) {
             action.stop(this.getHandle(), BotActionStopEvent.Reason.PLUGIN);
         }
     }

@@ -124,6 +124,9 @@ public final class LeavesConfig {
     @GlobalConfigCategory("modify")
     public static class ModifyConfig {
 
+        @GlobalConfig("large-barrel")
+        public boolean largeBarrel = false;
+
         public FakeplayerConfig fakeplayer = new FakeplayerConfig();
 
         @GlobalConfigCategory("fakeplayer")
@@ -1020,7 +1023,7 @@ public final class LeavesConfig {
                 public static class LitematicsProtocolValidator extends BooleanConfigValidator {
                     @Override
                     public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
-                        PluginManager pluginManager = MinecraftServer.getServer().server.getPluginManager();
+                        PluginManager pluginManager = org.bukkit.Bukkit.getPluginManager();
                         if (value) {
                             if (pluginManager.getPermission("leaves.protocol.litematics") == null) {
                                 pluginManager.addPermission(new Permission("leaves.protocol.litematics", PermissionDefault.OP));

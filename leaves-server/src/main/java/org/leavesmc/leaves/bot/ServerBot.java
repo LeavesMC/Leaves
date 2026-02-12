@@ -57,6 +57,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.NonNull;
 import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.LeavesLogger;
 import org.leavesmc.leaves.bot.agent.Actions;
@@ -514,6 +515,11 @@ public class ServerBot extends ServerPlayer {
             return;
         }
 
+        ServerLevel serverLevel = this.level();
+        int exp = this.getExpReward(serverLevel, damageSource.getEntity());
+        this.expToDrop = exp;
+        this.expToReward = exp;
+
         this.gameEvent(GameEvent.ENTITY_DIE);
 
         net.kyori.adventure.text.Component deathMessage = event.deathMessage();
@@ -527,6 +533,10 @@ public class ServerBot extends ServerPlayer {
             this.tellNeutralMobsThatIDied();
         }
         getServer().getBotList().removeBot(this, BotRemoveEvent.RemoveReason.DEATH, null, false, false);
+    }
+
+    public void dropExperience(@NonNull ServerLevel level, @Nullable Entity entity) {
+        super.dropExperience(level, entity);
     }
 
     @Override

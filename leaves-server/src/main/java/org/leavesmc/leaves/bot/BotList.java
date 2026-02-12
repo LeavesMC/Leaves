@@ -17,6 +17,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.ProblemReporter;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.npc.AbstractVillager;
 import net.minecraft.world.entity.player.Player;
@@ -245,6 +246,8 @@ public class BotList {
                 this.manualSaveDataStorage.save(bot);
             }
         } else {
+            this.dropBotExperienceOnRemove(bot);
+
             bot.dropAll(true);
             botsNameByWorldUuid.getOrDefault(bot.level().uuid.toString(), new HashSet<>()).remove(bot.getBukkitEntity().getName());
         }
@@ -297,6 +300,19 @@ public class BotList {
             this.server.getPlayerList().broadcastSystemMessage(PaperAdventure.asVanilla(removeMessage), false);
         }
         return true;
+    }
+
+    private void dropBotExperienceOnRemove(@NotNull ServerBot bot) {
+        final ServerLevel serverLevel = bot.level();
+        final DamageSource lastDamageSource = bot.getLastDamageSource();
+        final Entity killer = lastDamageSource == null ? null : lastDamageSource.getEntity();
+        final int exp = bot.getExpReward(serverLevel, killer);
+
+        bot.expToDrop = exp;
+        bot.expToReward = exp;
+        if (exp > 0) {
+            bot.dropExperience(serverLevel, killer);
+        }
     }
 
     public void removeAllIn(String worldUuid) {

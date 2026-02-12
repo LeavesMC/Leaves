@@ -535,7 +535,8 @@ public class ServerBot extends ServerPlayer {
         getServer().getBotList().removeBot(this, BotRemoveEvent.RemoveReason.DEATH, null, false, false);
     }
 
-    public void dropExperience(@NonNull ServerLevel level, @Nullable Entity entity) {
+    @Override
+    protected void dropExperience(@NonNull ServerLevel level, @Nullable Entity entity) {
         super.dropExperience(level, entity);
     }
 

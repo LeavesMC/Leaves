@@ -247,7 +247,6 @@ public class BotList {
             }
         } else {
             this.dropBotExperienceOnRemove(bot);
-
             bot.dropAll(true);
             botsNameByWorldUuid.getOrDefault(bot.level().uuid.toString(), new HashSet<>()).remove(bot.getBukkitEntity().getName());
         }

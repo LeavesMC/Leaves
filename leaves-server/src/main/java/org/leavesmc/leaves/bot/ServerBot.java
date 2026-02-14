@@ -57,7 +57,6 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jspecify.annotations.NonNull;
 import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.LeavesLogger;
 import org.leavesmc.leaves.bot.agent.Actions;
@@ -535,9 +534,18 @@ public class ServerBot extends ServerPlayer {
         getServer().getBotList().removeBot(this, BotRemoveEvent.RemoveReason.DEATH, null, false, false);
     }
 
-    @Override
-    protected void dropExperience(@NonNull ServerLevel level, @Nullable Entity entity) {
-        super.dropExperience(level, entity);
+    protected void dropExperience() {
+        final ServerLevel serverLevel = this.level();
+        final DamageSource lastDamageSource = this.getLastDamageSource();
+        final Entity killer = lastDamageSource == null ? null : lastDamageSource.getEntity();
+
+        final int exp = this.getExpReward(serverLevel, killer);
+        this.expToDrop = exp;
+        this.expToReward = exp;
+
+        if (exp > 0) {
+            super.dropExperience(serverLevel, killer);
+        }
     }
 
     @Override

@@ -57,7 +57,6 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jspecify.annotations.NonNull;
 import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.LeavesLogger;
 import org.leavesmc.leaves.bot.agent.Actions;
@@ -531,7 +530,7 @@ public class ServerBot extends ServerPlayer {
     }
 
     @Override
-    protected int getBaseExperienceReward(@NonNull ServerLevel level) {
+    protected int getBaseExperienceReward(@NotNull ServerLevel level) {
         return this.isSpectator() ? 0 : Math.min(this.experienceLevel * 7, 100);
     }
 

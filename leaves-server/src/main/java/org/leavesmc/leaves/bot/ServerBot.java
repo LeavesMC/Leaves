@@ -514,11 +514,6 @@ public class ServerBot extends ServerPlayer {
             return;
         }
 
-        ServerLevel serverLevel = this.level();
-        int exp = this.getExpReward(serverLevel, damageSource.getEntity());
-        this.expToDrop = exp;
-        this.expToReward = exp;
-
         this.gameEvent(GameEvent.ENTITY_DIE);
 
         net.kyori.adventure.text.Component deathMessage = event.deathMessage();

@@ -9,7 +9,6 @@ import org.leavesmc.leaves.bot.BotCreateState;
 import org.leavesmc.leaves.bot.BotList;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.bot.agent.Actions;
-import org.leavesmc.leaves.bot.agent.actions.AbstractBotAction;
 import org.leavesmc.leaves.entity.bot.action.BotAction;
 import org.leavesmc.leaves.event.bot.BotCreateEvent;
 
@@ -55,7 +54,7 @@ public class CraftBotManager implements BotManager {
     @SuppressWarnings("unchecked")
     @Override
     public <T extends BotAction<T>> T newAction(@NotNull Class<T> type) {
-        AbstractBotAction<?> action = Actions.getForClass(type);
+        Actions<?> action = Actions.getByClass(type);
         if (action == null) {
             throw new IllegalArgumentException("No action registered for type: " + type.getName());
         } else {

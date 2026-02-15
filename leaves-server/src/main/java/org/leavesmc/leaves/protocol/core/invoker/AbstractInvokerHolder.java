@@ -60,7 +60,7 @@ public abstract class AbstractInvokerHolder<T> {
         try {
             return invoker.invoke(owner, args);
         } catch (InvocationTargetException e) {
-            throw new RuntimeException(e.getCause());
+            throw new RuntimeException(e.getTargetException());
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

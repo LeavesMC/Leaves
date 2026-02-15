@@ -6,8 +6,8 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -54,7 +54,7 @@ public class ReturnPortalManager {
         ListTag portalList = getPlayerPortalList(player);
         for (Tag entry : portalList) {
             CompoundTag portal = (CompoundTag) entry;
-            ResourceKey<Level> entryFromDim = ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(portal.getString(FROM_DIM).orElseThrow()));
+            ResourceKey<Level> entryFromDim = ResourceKey.create(Registries.DIMENSION, Identifier.parse(portal.getString(FROM_DIM).orElseThrow()));
             if (entryFromDim == fromDim) {
                 BlockPos portalTrigger = BlockPos.of(portal.getLong(FROM_POS).orElseThrow());
                 if (portalTrigger.distSqr(fromPos) <= MAX_PORTAL_DISTANCE_SQ) {
@@ -77,7 +77,7 @@ public class ReturnPortalManager {
 
         CompoundTag portalCompound = new CompoundTag();
         portalCompound.store(RETURN_PORTAL_UID, UUIDUtil.CODEC, UUID.randomUUID());
-        portalCompound.putString(FROM_DIM, String.valueOf(fromDim.location()));
+        portalCompound.putString(FROM_DIM, String.valueOf(fromDim.identifier()));
         portalCompound.putLong(FROM_POS, fromPos.asLong());
         portalCompound.putLong(TO_POS, toPos.asLong());
         portalList.add(portalCompound);

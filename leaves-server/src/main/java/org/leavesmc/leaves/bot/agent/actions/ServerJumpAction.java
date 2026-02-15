@@ -7,7 +7,7 @@ import org.leavesmc.leaves.entity.bot.actions.CraftJumpAction;
 public class ServerJumpAction extends AbstractTimerBotAction<ServerJumpAction> {
 
     public ServerJumpAction() {
-        super("jump", ServerJumpAction::new);
+        super("jump");
     }
 
     @Override

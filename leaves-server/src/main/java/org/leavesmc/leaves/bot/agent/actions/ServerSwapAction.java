@@ -9,7 +9,7 @@ import org.leavesmc.leaves.entity.bot.actions.CraftSwapAction;
 public class ServerSwapAction extends AbstractBotAction<ServerSwapAction> {
 
     public ServerSwapAction() {
-        super("swap", ServerSwapAction::new);
+        super("swap");
     }
 
     @Override

@@ -10,7 +10,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.LongArrayTag;
 import net.minecraft.nbt.Tag;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -186,11 +186,11 @@ public record LitematicaSchematic(Map<String, SubRegion> subRegions, SchematicMe
                     continue;
                 }
                 T target;
-                ResourceLocation resourceLocation = ResourceLocation.tryParse(tag.getStringOr(tagName, ""));
-                if (resourceLocation == null) {
+                Identifier identifier = Identifier.tryParse(tag.getStringOr(tagName, ""));
+                if (identifier == null) {
                     continue;
                 }
-                Optional<Holder.Reference<T>> tReference = registry.get(resourceLocation);
+                Optional<Holder.Reference<T>> tReference = registry.get(identifier);
                 if (tReference.isEmpty()) {
                     continue;
                 }

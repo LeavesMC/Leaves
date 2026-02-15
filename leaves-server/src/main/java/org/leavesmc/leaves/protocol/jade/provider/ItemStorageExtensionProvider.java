@@ -2,12 +2,12 @@ package org.leavesmc.leaves.protocol.jade.provider;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.Container;
 import net.minecraft.world.LockCode;
 import net.minecraft.world.RandomizableContainer;
 import net.minecraft.world.WorldlyContainerHolder;
-import net.minecraft.world.entity.animal.horse.AbstractHorse;
+import net.minecraft.world.entity.animal.equine.AbstractHorse;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.vehicle.ContainerEntity;
 import net.minecraft.world.inventory.PlayerEnderChestContainer;
@@ -35,7 +35,7 @@ public enum ItemStorageExtensionProvider implements ServerExtensionProvider<Item
 
     public static final Cache<Object, ItemCollector<?>> targetCache = CacheBuilder.newBuilder().weakKeys().expireAfterAccess(60, TimeUnit.SECONDS).build();
 
-    private static final ResourceLocation UNIVERSAL_ITEM_STORAGE = JadeProtocol.mc_id("item_storage.default");
+    private static final Identifier UNIVERSAL_ITEM_STORAGE = JadeProtocol.mc_id("item_storage.default");
 
     public static ItemCollector<?> createItemCollector(Accessor<?> request) {
         if (request.getTarget() instanceof AbstractHorse) {
@@ -134,7 +134,7 @@ public enum ItemStorageExtensionProvider implements ServerExtensionProvider<Item
     }
 
     @Override
-    public ResourceLocation getUid() {
+    public Identifier getUid() {
         return UNIVERSAL_ITEM_STORAGE;
     }
 

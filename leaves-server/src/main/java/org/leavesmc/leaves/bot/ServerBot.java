@@ -36,13 +36,13 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Input;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
-import net.minecraft.world.entity.vehicle.AbstractBoat;
+import net.minecraft.world.entity.vehicle.boat.AbstractBoat;
 import net.minecraft.world.inventory.ChestMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeHolder;
-import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.gameevent.GameEvent;
+import net.minecraft.world.level.gamerules.GameRules;
 import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
@@ -75,6 +75,7 @@ import org.leavesmc.leaves.util.MathUtils;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -86,7 +87,7 @@ import static net.minecraft.server.MinecraftServer.getServer;
 public class ServerBot extends ServerPlayer {
 
     private final List<AbstractBotAction<?>> actions;
-    private final Map<String, AbstractBotConfig<?, ?>> configs;
+    private final Map<String, AbstractBotConfig<?>> configs;
 
     public boolean resume = false;
     public BotCreateState createState;
@@ -108,9 +109,10 @@ public class ServerBot extends ServerPlayer {
         this.gameMode = new ServerBotGameMode(this);
 
         this.actions = new ArrayList<>();
-        ImmutableMap.Builder<String, AbstractBotConfig<?, ?>> configBuilder = ImmutableMap.builder();
-        for (AbstractBotConfig<?, ?> config : Configs.getConfigs()) {
-            configBuilder.put(config.getName(), config.create().setBot(this));
+
+        ImmutableMap.Builder<String, AbstractBotConfig<?>> configBuilder = ImmutableMap.builder();
+        for (Configs<?> config : Configs.getConfigs()) {
+            configBuilder.put(config.getName(), config.create(this));
         }
         this.configs = configBuilder.build();
 
@@ -122,7 +124,6 @@ public class ServerBot extends ServerPlayer {
         this.notSleepTicks = 0;
         this.fauxSleeping = LeavesConfig.modify.fakeplayer.inGame.canSkipSleep;
         this.getBukkitEntity().setSimulationDistance(LeavesConfig.modify.fakeplayer.inGame.getSimulationDistance(this));
-        this.setClientLoaded(true);
     }
 
     @Override
@@ -397,7 +398,7 @@ public class ServerBot extends ServerPlayer {
 
         if (!this.configs.isEmpty()) {
             ValueOutput.TypedOutputList<CompoundTag> configNbt = nbt.list("configs", CompoundTag.CODEC);
-            for (AbstractBotConfig<?, ?> config : this.configs.values()) {
+            for (AbstractBotConfig<?> config : this.configs.values()) {
                 configNbt.add(config.save(new CompoundTag()));
             }
         }
@@ -434,9 +435,9 @@ public class ServerBot extends ServerPlayer {
         if (nbt.list("actions", CompoundTag.CODEC).isPresent()) {
             ValueInput.TypedInputList<CompoundTag> actionNbt = nbt.list("actions", CompoundTag.CODEC).orElseThrow();
             actionNbt.forEach(actionTag -> {
-                AbstractBotAction<?> action = Actions.getForName(actionTag.getString("actionName").orElseThrow());
-                if (action != null) {
-                    AbstractBotAction<?> newAction = action.create();
+                Actions<?> holder = Actions.getByName(actionTag.getString("actionName").orElseThrow());
+                if (holder != null) {
+                    AbstractBotAction<?> newAction = holder.create();
                     newAction.load(actionTag);
                     this.actions.add(newAction);
                 }
@@ -446,10 +447,9 @@ public class ServerBot extends ServerPlayer {
         if (nbt.list("configs", CompoundTag.CODEC).isPresent()) {
             ValueInput.TypedInputList<CompoundTag> configNbt = nbt.list("configs", CompoundTag.CODEC).orElseThrow();
             for (CompoundTag configTag : configNbt) {
-                AbstractBotConfig<?, ?> config = Configs.getConfig(configTag.getString("configName").orElseThrow());
+                AbstractBotConfig<?> config = Configs.getConfig(configTag.getString("configName").orElseThrow()).orElseThrow().create();
                 if (config != null) {
-                    config.setBot(this);
-                    config.load(configTag);
+                    this.configs.get(config.getName()).load(configTag);
                 }
             }
         }
@@ -501,7 +501,7 @@ public class ServerBot extends ServerPlayer {
 
     @Override
     public void die(@NotNull DamageSource damageSource) {
-        boolean flag = this.level().getGameRules().getBoolean(GameRules.RULE_SHOWDEATHMESSAGES);
+        boolean flag = this.level().getGameRules().get(GameRules.SHOW_DEATH_MESSAGES);
         Component defaultMessage = this.getCombatTracker().getDeathMessage();
 
         BotDeathEvent event = new BotDeathEvent(this.getBukkitEntity(), PaperAdventure.asAdventure(defaultMessage), flag);
@@ -523,7 +523,7 @@ public class ServerBot extends ServerPlayer {
 
         // TODO: separate die and remove logic, call super.die here
         this.removeEntitiesOnShoulder();
-        if (this.level().getGameRules().getBoolean(GameRules.RULE_FORGIVE_DEAD_PLAYERS)) {
+        if (this.level().getGameRules().get(GameRules.FORGIVE_DEAD_PLAYERS)) {
             this.tellNeutralMobsThatIDied();
         }
         getServer().getBotList().removeBot(this, BotRemoveEvent.RemoveReason.DEATH, null, false, false);
@@ -700,15 +700,15 @@ public class ServerBot extends ServerPlayer {
     }
 
     @SuppressWarnings("unchecked")
-    public <T, E extends AbstractBotConfig<T, E>> AbstractBotConfig<T, E> getConfig(@NotNull AbstractBotConfig<T, E> config) {
-        return (AbstractBotConfig<T, E>) Objects.requireNonNull(this.configs.get(config.getName()));
+    public <T> AbstractBotConfig<T> getConfig(@NotNull Configs<? extends AbstractBotConfig<T>> config) {
+        return (AbstractBotConfig<T>) Objects.requireNonNull(this.configs.get(config.getName()));
     }
 
-    public Collection<AbstractBotConfig<?, ?>> getAllConfigs() {
+    public Collection<AbstractBotConfig<?>> getAllConfigs() {
         return configs.values();
     }
 
-    public <T, E extends AbstractBotConfig<T, E>> T getConfigValue(@NotNull AbstractBotConfig<T, E> config) {
+    public <T> T getConfigValue(@NotNull Configs<? extends AbstractBotConfig<T>> config) {
         return this.getConfig(config).getValue();
     }
 

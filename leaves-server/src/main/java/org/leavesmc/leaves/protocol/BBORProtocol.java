@@ -4,7 +4,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -33,19 +33,19 @@ public class BBORProtocol implements LeavesProtocol {
     public static final String PROTOCOL_ID = "bbor";
 
     // send
-    private static final ResourceLocation INITIALIZE_CLIENT = id("initialize");
-    private static final ResourceLocation ADD_BOUNDING_BOX = id("add_bounding_box_v2");
-    private static final ResourceLocation STRUCTURE_LIST_SYNC = id("structure_list_sync_v1");
+    private static final Identifier INITIALIZE_CLIENT = id("initialize");
+    private static final Identifier ADD_BOUNDING_BOX = id("add_bounding_box_v2");
+    private static final Identifier STRUCTURE_LIST_SYNC = id("structure_list_sync_v1");
     // call
     private static final Map<Integer, ServerPlayer> players = new ConcurrentHashMap<>();
     private static final Map<Integer, Set<BBoundingBox>> playerBoundingBoxesCache = new HashMap<>();
-    private static final Map<ResourceLocation, Map<BBoundingBox, Set<BBoundingBox>>> dimensionCache = new ConcurrentHashMap<>();
+    private static final Map<Identifier, Map<BBoundingBox, Set<BBoundingBox>>> dimensionCache = new ConcurrentHashMap<>();
 
     private static boolean initialized = false;
 
     @Contract("_ -> new")
-    public static ResourceLocation id(String path) {
-        return ResourceLocation.fromNamespaceAndPath(PROTOCOL_ID, path);
+    public static Identifier id(String path) {
+        return Identifier.fromNamespaceAndPath(PROTOCOL_ID, path);
     }
 
     @ProtocolHandler.Ticker
@@ -97,14 +97,14 @@ public class BBORProtocol implements LeavesProtocol {
         final Registry<Structure> structureFeatureRegistry = chunk.getLevel().registryAccess().lookupOrThrow(Registries.STRUCTURE);
         for (var es : chunk.getAllStarts().entrySet()) {
             final var optional = structureFeatureRegistry.getResourceKey(es.getKey());
-            optional.ifPresent(key -> structures.put(key.location().toString(), es.getValue()));
+            optional.ifPresent(key -> structures.put(key.identifier().toString(), es.getValue()));
         }
         if (!structures.isEmpty()) {
-            onStructuresLoaded(chunk.getLevel().dimension().location(), structures);
+            onStructuresLoaded(chunk.getLevel().dimension().identifier(), structures);
         }
     }
 
-    public static void onStructuresLoaded(@NotNull ResourceLocation dimensionID, @NotNull Map<String, StructureStart> structures) {
+    public static void onStructuresLoaded(@NotNull Identifier dimensionID, @NotNull Map<String, StructureStart> structures) {
         Map<BBoundingBox, Set<BBoundingBox>> cache = getOrCreateCache(dimensionID);
         for (var entry : structures.entrySet()) {
             StructureStart structureStart = entry.getValue();
@@ -136,7 +136,7 @@ public class BBORProtocol implements LeavesProtocol {
     private static void sendStructureList(@NotNull ServerPlayer player) {
         final Registry<Structure> structureRegistry = MinecraftServer.getServer().registryAccess().lookupOrThrow(Registries.STRUCTURE);
         final Set<String> structureIds = structureRegistry.entrySet().stream()
-            .map(e -> e.getKey().location().toString()).collect(Collectors.toSet());
+            .map(e -> e.getKey().identifier().toString()).collect(Collectors.toSet());
         ProtocolUtils.sendBytebufPacket(player, STRUCTURE_LIST_SYNC, buf -> {
             buf.writeVarInt(structureIds.size());
             structureIds.forEach(buf::writeUtf);
@@ -158,7 +158,7 @@ public class BBORProtocol implements LeavesProtocol {
 
                 Set<BBoundingBox> boundingBoxes = boundingBoxMap.get(key);
                 ProtocolUtils.sendBytebufPacket(player, ADD_BOUNDING_BOX, buf -> {
-                    buf.writeResourceLocation(entry.getKey());
+                    buf.writeIdentifier(entry.getKey());
                     key.serialize(buf);
                     if (boundingBoxes != null && boundingBoxes.size() > 1) {
                         for (BBoundingBox box : boundingBoxes) {
@@ -187,7 +187,7 @@ public class BBORProtocol implements LeavesProtocol {
         dimensionCache.clear();
     }
 
-    private static Map<BBoundingBox, Set<BBoundingBox>> getOrCreateCache(ResourceLocation dimensionId) {
+    private static Map<BBoundingBox, Set<BBoundingBox>> getOrCreateCache(Identifier dimensionId) {
         return dimensionCache.computeIfAbsent(dimensionId, dt -> new ConcurrentHashMap<>());
     }
 

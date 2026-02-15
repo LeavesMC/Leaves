@@ -426,6 +426,9 @@ public final class LeavesConfig {
 
             @GlobalConfig("old-minecart-motion-behavior")
             public boolean oldMinecartMotionBehavior = false;
+
+            @GlobalConfig("allow-inf-nan-motion-values")
+            public boolean allowInfNanMotionValues = true;
         }
 
         public ElytraAeronauticsConfig elytraAeronautics = new ElytraAeronauticsConfig();
@@ -1286,9 +1289,6 @@ public final class LeavesConfig {
 
         @GlobalConfig("vanilla-portal-handle")
         public boolean vanillaPortalHandle = true;
-
-        @GlobalConfig("vanilla-fluid-pushing")
-        public boolean vanillaFluidPushing = true;
 
         @GlobalConfig(value = "collision-behavior")
         public CollisionBehavior collisionBehavior = CollisionBehavior.BLOCK_SHAPE_VANILLA;

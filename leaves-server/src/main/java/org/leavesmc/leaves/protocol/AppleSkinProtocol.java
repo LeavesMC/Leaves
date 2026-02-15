@@ -1,10 +1,10 @@
 package org.leavesmc.leaves.protocol;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.food.FoodData;
-import net.minecraft.world.level.GameRules;
+import net.minecraft.world.level.gamerules.GameRules;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesConfig;
@@ -24,9 +24,9 @@ public class AppleSkinProtocol implements LeavesProtocol {
 
     public static final String PROTOCOL_ID = "appleskin";
 
-    private static final ResourceLocation SATURATION_KEY = id("saturation");
-    private static final ResourceLocation EXHAUSTION_KEY = id("exhaustion");
-    private static final ResourceLocation NATURAL_REGENERATION_KEY = id("natural_regeneration");
+    private static final Identifier SATURATION_KEY = id("saturation");
+    private static final Identifier EXHAUSTION_KEY = id("exhaustion");
+    private static final Identifier NATURAL_REGENERATION_KEY = id("natural_regeneration");
 
     private static final float MINIMUM_EXHAUSTION_CHANGE_THRESHOLD = 0.01F;
 
@@ -37,8 +37,8 @@ public class AppleSkinProtocol implements LeavesProtocol {
     private static final Map<UUID, Set<String>> subscribedChannels = new HashMap<>();
 
     @Contract("_ -> new")
-    public static ResourceLocation id(String path) {
-        return ResourceLocation.fromNamespaceAndPath(PROTOCOL_ID, path);
+    public static Identifier id(String path) {
+        return Identifier.fromNamespaceAndPath(PROTOCOL_ID, path);
     }
 
     @ProtocolHandler.PlayerJoin
@@ -53,7 +53,7 @@ public class AppleSkinProtocol implements LeavesProtocol {
     }
 
     @ProtocolHandler.MinecraftRegister(onlyNamespace = true)
-    public static void onPlayerSubscribed(@NotNull Context context, ResourceLocation id) {
+    public static void onPlayerSubscribed(@NotNull Context context, Identifier id) {
         subscribedChannels.computeIfAbsent(context.profile().id(), k -> new HashSet<>()).add(id.getPath());
     }
 
@@ -87,7 +87,7 @@ public class AppleSkinProtocol implements LeavesProtocol {
                     }
 
                     case "natural_regeneration" -> {
-                        boolean regeneration = player.level().getGameRules().getBoolean(GameRules.RULE_NATURAL_REGENERATION);
+                        boolean regeneration = player.level().getGameRules().get(GameRules.NATURAL_HEALTH_REGENERATION);
                         Boolean previousRegeneration = previousNaturalRegeneration.get(player);
                         if (previousRegeneration == null || regeneration != previousRegeneration) {
                             ProtocolUtils.sendBytebufPacket(player, NATURAL_REGENERATION_KEY, buf -> buf.writeBoolean(regeneration));

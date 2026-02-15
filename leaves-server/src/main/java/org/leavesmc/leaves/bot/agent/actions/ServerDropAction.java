@@ -7,7 +7,7 @@ import org.leavesmc.leaves.entity.bot.actions.CraftDropAction;
 public class ServerDropAction extends AbstractTimerBotAction<ServerDropAction> {
 
     public ServerDropAction() {
-        super("drop", ServerDropAction::new);
+        super("drop");
     }
 
     @Override

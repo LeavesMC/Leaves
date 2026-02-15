@@ -1,0 +1,68 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Tue, 1 Jul 2025 01:29:07 +0800
+Subject: [PATCH] Old Throwable Projectile tick order
+
+
+diff --git a/net/minecraft/world/entity/projectile/ThrowableProjectile.java b/net/minecraft/world/entity/projectile/ThrowableProjectile.java
+index dfda0560e364aa7777bc1aa76febc55f1c2dd5a0..57ad4b5ef32e773d08bb1c0f496365ad154a01ce 100644
+--- a/net/minecraft/world/entity/projectile/ThrowableProjectile.java
++++ b/net/minecraft/world/entity/projectile/ThrowableProjectile.java
+@@ -45,23 +45,43 @@ public abstract class ThrowableProjectile extends Projectile {
+     @Override
+     public void tick() {
+         this.handleFirstTickBubbleColumn();
+-        this.applyGravity();
+-        this.applyInertia();
+-        HitResult hitResultOnMoveVector = ProjectileUtil.getHitResultOnMoveVector(this, this::canHitEntity);
+-        Vec3 location;
+-        if (hitResultOnMoveVector.getType() != HitResult.Type.MISS) {
+-            location = hitResultOnMoveVector.getLocation();
++        // Leaves start - old-throwable-projectile-tick-order // TODO - ?
++        if (org.leavesmc.leaves.LeavesConfig.modify.oldMC.oldThrowableProjectileTickOrder) {
++            super.tick();
++            HitResult hitResultOnMoveVector = ProjectileUtil.getHitResultOnMoveVector(this, this::canHitEntity);
++            if (hitResultOnMoveVector.getType() != HitResult.Type.MISS) {
++                this.preHitTargetOrDeflectSelf(hitResultOnMoveVector); // CraftBukkit - projectile hit event
++            }
++
++            Vec3 vec3 = this.getDeltaMovement();
++            double d = this.getX() + vec3.x;
++            double e = this.getY() + vec3.y;
++            double f = this.getZ() + vec3.z;
++            this.updateRotation();
++            this.applyInertia();
++            this.applyGravity();
++            this.setPos(d, e, f);
++            this.applyEffectsFromBlocks();
+         } else {
+-            location = this.position().add(this.getDeltaMovement());
+-        }
++            this.applyGravity();
++            this.applyInertia();
++            HitResult hitResultOnMoveVector = ProjectileUtil.getHitResultOnMoveVector(this, this::canHitEntity);
++            Vec3 location;
++            if (hitResultOnMoveVector.getType() != HitResult.Type.MISS) {
++                location = hitResultOnMoveVector.getLocation();
++            } else {
++                location = this.position().add(this.getDeltaMovement());
++            }
+ 
+-        this.setPos(location);
+-        this.updateRotation();
+-        this.applyEffectsFromBlocks();
+-        super.tick();
+-        if (hitResultOnMoveVector.getType() != HitResult.Type.MISS && this.isAlive()) {
+-            this.preHitTargetOrDeflectSelf(hitResultOnMoveVector); // CraftBukkit - projectile hit event
++            this.setPos(location);
++            this.updateRotation();
++            this.applyEffectsFromBlocks();
++            super.tick();
++            if (hitResultOnMoveVector.getType() != HitResult.Type.MISS && this.isAlive()) {
++                this.preHitTargetOrDeflectSelf(hitResultOnMoveVector); // CraftBukkit - projectile hit event
++            }
+         }
++        // Leaves end - old-throwable-projectile-tick-order
+     }
+ 
+     private void applyInertia() {

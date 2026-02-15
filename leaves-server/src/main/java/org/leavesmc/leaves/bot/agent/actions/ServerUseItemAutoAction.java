@@ -20,7 +20,7 @@ import static org.leavesmc.leaves.bot.agent.actions.ServerUseItemToAction.useIte
 public class ServerUseItemAutoAction extends AbstractUseBotAction<ServerUseItemAutoAction> {
 
     public ServerUseItemAutoAction() {
-        super("use_auto", ServerUseItemAutoAction::new);
+        super("use_auto");
     }
 
     @Override

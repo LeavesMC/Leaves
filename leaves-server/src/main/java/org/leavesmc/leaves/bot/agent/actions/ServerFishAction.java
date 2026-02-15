@@ -12,7 +12,7 @@ import org.leavesmc.leaves.entity.bot.actions.CraftFishAction;
 public class ServerFishAction extends AbstractTimerBotAction<ServerFishAction> {
 
     public ServerFishAction() {
-        super("fish", ServerFishAction::new);
+        super("fish");
     }
 
     private static final int CATCH_ENTITY_DELAY = 20;

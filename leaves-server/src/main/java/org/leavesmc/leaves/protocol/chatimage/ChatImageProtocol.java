@@ -1,7 +1,7 @@
 package org.leavesmc.leaves.protocol.chatimage;
 
 import com.google.gson.Gson;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import org.jetbrains.annotations.Contract;
@@ -23,8 +23,8 @@ public class ChatImageProtocol implements LeavesProtocol {
     public static final Gson gson = new Gson();
 
     @Contract("_ -> new")
-    public static ResourceLocation id(String path) {
-        return ResourceLocation.fromNamespaceAndPath(PROTOCOL_ID, path);
+    public static Identifier id(String path) {
+        return Identifier.fromNamespaceAndPath(PROTOCOL_ID, path);
     }
 
     @ProtocolHandler.PayloadReceiver(payload = FileChannelPayload.class)

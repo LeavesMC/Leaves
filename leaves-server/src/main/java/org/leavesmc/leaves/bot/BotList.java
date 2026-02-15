@@ -18,9 +18,9 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.npc.AbstractVillager;
+import net.minecraft.world.entity.npc.villager.AbstractVillager;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.entity.projectile.ThrownEnderpearl;
+import net.minecraft.world.entity.projectile.throwableitemprojectile.ThrownEnderpearl;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.storage.ValueInput;
 import org.bukkit.Bukkit;
@@ -61,7 +61,7 @@ public class BotList {
     private final BotDataStorage resumeDataStorage;
 
     private final Map<UUID, ServerBot> botsByUUID = Maps.newHashMap();
-    private final Map<String, ServerBot> botsByName = Maps.newHashMap();
+    private final Map<String, ServerBot> botsByLowerName = Maps.newHashMap();
     private final Map<String, Set<String>> botsNameByWorldUuid = Maps.newHashMap();
     private final Map<String, Set<String>> legacyBotsNameByWorldUuid = Maps.newHashMap();
 
@@ -124,20 +124,24 @@ public class BotList {
         return this.loadNewBot(fullName, this.resumeDataStorage);
     }
 
-    public ServerBot loadNewBot(String fullName, BotDataStorage storage) {
-        if (botsByName.containsKey(fullName)) {
+    public ServerBot loadNewBot(String inputName, BotDataStorage storage) {
+        String lowerName = inputName.toLowerCase(Locale.ROOT);
+        if (botsByLowerName.containsKey(lowerName)) {
             return null;
         }
         try {
-            UUID uuid = BotUtil.getBotUUID(fullName);
-
-            BotLoadEvent event = new BotLoadEvent(fullName, uuid);
+            if (!storage.getSavedBotList().contains(lowerName)) {
+                return null;
+            }
+            String name = storage.getNameFromLower(lowerName);
+            UUID uuid = storage.getUUIDFromLower(lowerName);
+            BotLoadEvent event = new BotLoadEvent(name, uuid);
             this.server.server.getPluginManager().callEvent(event);
             if (event.isCancelled()) {
                 return null;
             }
 
-            ServerBot bot = new ServerBot(this.server, this.server.getLevel(Level.OVERWORLD), new GameProfile(uuid, fullName));
+            ServerBot bot = new ServerBot(this.server, this.server.getLevel(Level.OVERWORLD), new GameProfile(uuid, name));
             bot.connection = new ServerBotPacketListenerImpl(this.server, bot);
             Optional<ValueInput> optional;
             try (ProblemReporter.ScopedCollector scopedCollector = new ProblemReporter.ScopedCollector(bot.problemPath(), LOGGER)) {
@@ -165,7 +169,7 @@ public class BotList {
             ServerLevel world = this.server.getLevel(resourcekey);
             return this.placeNewBot(bot, world, bot.getLocation(), nbt);
         } catch (Exception e) {
-            LOGGER.error("Failed to load bot {}", fullName, e);
+            LOGGER.error("Failed to load bot {}", inputName, e);
             return null;
         }
     }
@@ -191,7 +195,7 @@ public class BotList {
         bot.connection.teleport(bot.getX(), bot.getY(), bot.getZ(), bot.getYRot(), bot.getXRot());
 
         this.bots.add(bot);
-        this.botsByName.put(bot.getScoreboardName().toLowerCase(Locale.ROOT), bot);
+        this.botsByLowerName.put(bot.getScoreboardName().toLowerCase(Locale.ROOT), bot);
         this.botsByUUID.put(bot.getUUID(), bot);
 
         bot.suppressTrackerForLogin = true;
@@ -277,7 +281,7 @@ public class BotList {
 
         bot.level().removePlayerImmediately(bot, Entity.RemovalReason.UNLOADED_WITH_PLAYER);
         this.bots.remove(bot);
-        this.botsByName.remove(bot.getScoreboardName().toLowerCase(Locale.ROOT));
+        this.botsByLowerName.remove(bot.getScoreboardName().toLowerCase(Locale.ROOT));
 
         UUID uuid = bot.getUUID();
         ServerBot bot1 = this.botsByUUID.get(uuid);
@@ -382,7 +386,7 @@ public class BotList {
 
     @Nullable
     public ServerBot getBotByName(@NotNull String name) {
-        return this.botsByName.get(name.toLowerCase(Locale.ROOT));
+        return this.botsByLowerName.get(name.toLowerCase(Locale.ROOT));
     }
 
     public CompoundTag getManualSavedBotList() {

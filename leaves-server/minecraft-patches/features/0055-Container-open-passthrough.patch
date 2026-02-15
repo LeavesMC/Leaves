@@ -1,0 +1,76 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Mon, 3 Feb 2025 21:31:03 +0800
+Subject: [PATCH] Container open passthrough
+
+
+diff --git a/net/minecraft/world/entity/decoration/ItemFrame.java b/net/minecraft/world/entity/decoration/ItemFrame.java
+index 462ad83bc08d6d6ae55ee852489439ff6e1dc845..b36ad5527c5b10f5903a9c6627b8877c015c9867 100644
+--- a/net/minecraft/world/entity/decoration/ItemFrame.java
++++ b/net/minecraft/world/entity/decoration/ItemFrame.java
+@@ -398,6 +398,16 @@ public class ItemFrame extends HangingEntity {
+         if (this.fixed) {
+             return InteractionResult.PASS;
+         } else if (!player.level().isClientSide()) {
++            // Leaves start - itemFrameContainerPassthrough
++            if (org.leavesmc.leaves.LeavesConfig.modify.containerPassthrough && !player.isShiftKeyDown() && (flag || !flag1)) {
++                BlockPos pos1 = this.pos.relative(this.getDirection().getOpposite());
++                if (level().getBlockEntity(pos1) instanceof net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity) {
++                    net.minecraft.world.phys.BlockHitResult hitResult = new net.minecraft.world.phys.BlockHitResult(Vec3.atCenterOf(pos1), this.getDirection(), pos1, false);
++                    net.minecraft.server.level.ServerPlayer serverPlayer = (net.minecraft.server.level.ServerPlayer) player;
++                    return serverPlayer.gameMode.useItemOn(serverPlayer, level(), itemInHand, hand, hitResult);
++                }
++            }
++            // Leaves end - itemFrameContainerPassthrough
+             if (!flag) {
+                 if (flag1 && !this.isRemoved()) {
+                     MapItemSavedData savedData = MapItem.getSavedData(itemInHand, this.level());
+diff --git a/net/minecraft/world/level/block/SignBlock.java b/net/minecraft/world/level/block/SignBlock.java
+index b36b9b48da940ad7b4014c90c05eb90f5198a5fb..c2fb2a862fdaaa47bf848ed537827c315ed53503 100644
+--- a/net/minecraft/world/level/block/SignBlock.java
++++ b/net/minecraft/world/level/block/SignBlock.java
+@@ -108,6 +108,18 @@ public abstract class SignBlock extends BaseEntityBlock implements SimpleWaterlo
+                     } else {
+                         return InteractionResult.TRY_WITH_EMPTY_HAND;
+                     }
++                    // Leaves start - signContainerPassthrough
++                } else if (org.leavesmc.leaves.LeavesConfig.modify.containerPassthrough) {
++                    BlockPos pos1 = pos.relative(hitResult.getDirection().getOpposite());
++                    if (this instanceof WallSignBlock || this instanceof WallHangingSignBlock) {
++                        pos1 = pos.relative(state.getValue(HorizontalDirectionalBlock.FACING).getOpposite());
++                    }
++                    if (level.getBlockEntity(pos1) instanceof net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity) {
++                        BlockState state1 = level.getBlockState(pos1);
++                        return state1.useItemOn(stack, level, player, hand, hitResult.withPosition(pos1));
++                    }
++                    return InteractionResult.PASS;
++                    // Leaves end - signContainerPassthrough
+                 } else {
+                     return InteractionResult.TRY_WITH_EMPTY_HAND;
+                 }
+@@ -130,6 +142,25 @@ public abstract class SignBlock extends BaseEntityBlock implements SimpleWaterlo
+                     return InteractionResult.SUCCESS_SERVER;
+                 } else if (flag) {
+                     return InteractionResult.SUCCESS_SERVER;
++                // Leaves start - signContainerPassthrough
++            } else if (org.leavesmc.leaves.LeavesConfig.modify.containerPassthrough) {
++                if (player.isShiftKeyDown()) {
++                    if (!this.otherPlayerIsEditingSign(player, signBlockEntity) && player.mayBuild() && this.hasEditableText(player, signBlockEntity, isFacingFrontText)) {
++                        this.openTextEdit(player, signBlockEntity, isFacingFrontText);
++                        return InteractionResult.SUCCESS;
++                    }
++                }
++
++                BlockPos pos1 = pos.relative(hitResult.getDirection().getOpposite());
++                if (this instanceof WallSignBlock || this instanceof WallHangingSignBlock) {
++                    pos1 = pos.relative(state.getValue(HorizontalDirectionalBlock.FACING).getOpposite());
++                }
++                if (level.getBlockEntity(pos1) instanceof net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity) {
++                    BlockState state1 = level.getBlockState(pos1);
++                    return state1.useWithoutItem(level, player, hitResult.withPosition(pos1));
++                }
++                return InteractionResult.PASS;
++                // Leaves end - signContainerPassthrough
+                 } else if (!this.otherPlayerIsEditingSign(player, signBlockEntity)
+                     && player.mayBuild()
+                     && this.hasEditableText(player, signBlockEntity, isFacingFrontText)) {

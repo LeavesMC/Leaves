@@ -3,7 +3,7 @@ package org.leavesmc.leaves.protocol.rei.display;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.CraftingInput;
 import net.minecraft.world.item.crafting.RecipeHolder;
@@ -25,7 +25,7 @@ public class ShapedDisplay extends CraftingDisplay {
         CraftingDisplay::getInputEntries,
         EntryIngredient.CODEC.apply(ByteBufCodecs.list()),
         CraftingDisplay::getOutputEntries,
-        ByteBufCodecs.optional(ResourceLocation.STREAM_CODEC),
+        ByteBufCodecs.optional(Identifier.STREAM_CODEC),
         CraftingDisplay::getOptionalLocation,
         ByteBufCodecs.INT,
         CraftingDisplay::getWidth,
@@ -33,7 +33,7 @@ public class ShapedDisplay extends CraftingDisplay {
         CraftingDisplay::getHeight,
         ShapedDisplay::of
     );
-    private static final ResourceLocation SERIALIZER_ID = ResourceLocation.tryBuild("minecraft", "default/crafting/shaped");
+    private static final Identifier SERIALIZER_ID = Identifier.tryBuild("minecraft", "default/crafting/shaped");
     private final int width;
     private final int height;
 
@@ -41,13 +41,13 @@ public class ShapedDisplay extends CraftingDisplay {
         super(
             ofIngredient(recipeHolder.value()),
             List.of(EntryIngredient.of(recipeHolder.value().assemble(CraftingInput.EMPTY, CraftRegistry.getMinecraftRegistry()))),
-            recipeHolder.id().location()
+            recipeHolder.id().identifier()
         );
         this.width = recipeHolder.value().getWidth();
         this.height = recipeHolder.value().getHeight();
     }
 
-    public ShapedDisplay(@NotNull ShapedCraftingRecipeDisplay recipeDisplay, ResourceLocation id) {
+    public ShapedDisplay(@NotNull ShapedCraftingRecipeDisplay recipeDisplay, Identifier id) {
         super(
             Display.ofSlotDisplays(recipeDisplay.ingredients()),
             List.of(ofSlotDisplay(recipeDisplay.result())),
@@ -58,7 +58,7 @@ public class ShapedDisplay extends CraftingDisplay {
     }
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    private static CraftingDisplay of(List<EntryIngredient> inputs, List<EntryIngredient> outputs, Optional<ResourceLocation> location, int width, int height) {
+    private static CraftingDisplay of(List<EntryIngredient> inputs, List<EntryIngredient> outputs, Optional<Identifier> location, int width, int height) {
         throw new UnsupportedOperationException();
     }
 
@@ -85,7 +85,7 @@ public class ShapedDisplay extends CraftingDisplay {
     }
 
     @Override
-    public ResourceLocation getSerializerId() {
+    public Identifier getSerializerId() {
         return SERIALIZER_ID;
     }
 

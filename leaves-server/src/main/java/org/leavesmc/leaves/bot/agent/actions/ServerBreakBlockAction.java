@@ -16,7 +16,7 @@ import org.leavesmc.leaves.entity.bot.actions.CraftBreakBlockAction;
 public class ServerBreakBlockAction extends AbstractTimerBotAction<ServerBreakBlockAction> {
 
     public ServerBreakBlockAction() {
-        super("break", ServerBreakBlockAction::new);
+        super("break");
     }
 
     private ItemStack lastItem = null;

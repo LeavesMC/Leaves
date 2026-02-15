@@ -40,10 +40,6 @@ public class AudienceHolder {
         };
     }
 
-    public void setName(String name) {
-        this.name = name;
-    }
-
     public void setPlayer(Player player) {
         this.player = player;
         this.audience = player;
@@ -55,5 +51,9 @@ public class AudienceHolder {
 
     public String getName() {
         return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 }

@@ -162,8 +162,8 @@ public interface PacketType {
         LOGIN_COMPRESSION("clientbound/login_compression"),
         LOGIN_DISCONNECT("clientbound/login_disconnect"),
         PONG_RESPONSE("clientbound/pong_response"),
-        STATUS_RESPONSE("clientbound/status_response")
-        ;
+        STATUS_RESPONSE("clientbound/status_response");
+
         private final String id;
 
         Clientbound(String id) {
@@ -255,8 +255,8 @@ public interface PacketType {
         KEY("serverbound/key"),
         LOGIN_ACKNOWLEDGED("serverbound/login_acknowledged"),
         PING_REQUEST("serverbound/ping_request"),
-        STATUS_REQUEST("serverbound/status_request")
-        ;
+        STATUS_REQUEST("serverbound/status_request");
+
         private final String id;
 
         Serverbound(String id) {

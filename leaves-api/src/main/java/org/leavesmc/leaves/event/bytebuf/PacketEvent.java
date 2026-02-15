@@ -6,7 +6,6 @@ import org.leavesmc.leaves.bytebuf.Bytebuf;
 import org.leavesmc.leaves.bytebuf.PacketAudience;
 import org.leavesmc.leaves.bytebuf.PacketType;
 
-@SuppressWarnings("deprecation")
 public abstract class PacketEvent extends Event implements Cancellable {
 
     private final PacketAudience audience;

@@ -7,7 +7,6 @@ import org.leavesmc.leaves.bytebuf.Bytebuf;
 import org.leavesmc.leaves.bytebuf.PacketAudience;
 import org.leavesmc.leaves.bytebuf.PacketType;
 
-@SuppressWarnings("deprecation")
 public class PacketInEvent extends PacketEvent implements Cancellable {
 
     private static final HandlerList HANDLER_LIST = new HandlerList();

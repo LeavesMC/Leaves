@@ -249,6 +249,7 @@ public class BotList {
                 this.manualSaveDataStorage.save(bot);
             }
         } else {
+            bot.dropExperience();
             bot.dropAll(true);
             botsNameByWorldUuid.getOrDefault(bot.level().uuid.toString(), new HashSet<>()).remove(bot.getBukkitEntity().getName());
         }

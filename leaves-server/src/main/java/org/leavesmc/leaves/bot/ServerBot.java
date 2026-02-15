@@ -530,6 +530,25 @@ public class ServerBot extends ServerPlayer {
     }
 
     @Override
+    protected int getBaseExperienceReward(@NotNull ServerLevel level) {
+        return this.isSpectator() ? 0 : Math.min(this.experienceLevel * 7, 100);
+    }
+
+    protected void dropExperience() {
+        final ServerLevel serverLevel = this.level();
+        final DamageSource lastDamageSource = this.getLastDamageSource();
+        final Entity killer = lastDamageSource == null ? null : lastDamageSource.getEntity();
+
+        final int exp = this.getExpReward(serverLevel, killer);
+        this.expToDrop = exp;
+        this.expToReward = exp;
+
+        if (exp > 0) {
+            super.dropExperience(serverLevel, killer);
+        }
+    }
+
+    @Override
     public boolean startRiding(@NotNull Entity vehicle, boolean force, boolean sendGameEvent) {
         if (super.startRiding(vehicle, force, sendGameEvent)) {
             if (vehicle.getControllingPassenger() == this) { // see net.minecraft.server.networkServerGamePacketListenerImpl#handleMoveVehicle

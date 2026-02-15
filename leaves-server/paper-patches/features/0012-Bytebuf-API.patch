@@ -5,51 +5,44 @@ Subject: [PATCH] Bytebuf API
 
 
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 1400b9cb20d478ad5a37bd286503bdf7e5e23fb6..d284d661277766ada80aa9830f43639235330349 100644
+index 1400b9cb20d478ad5a37bd286503bdf7e5e23fb6..44a9afdae5ddddd166d7366f33fb9dbd83d41156 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -307,6 +307,7 @@ public final class CraftServer implements Server {
-     private final ServerConfiguration serverConfig = new PaperServerConfiguration();
-     private final org.leavesmc.leaves.entity.bot.CraftBotManager botManager; // Leaves
-     private final org.leavesmc.leaves.entity.photographer.CraftPhotographerManager photographerManager = new org.leavesmc.leaves.entity.photographer.CraftPhotographerManager(); // Leaves
-+    private final org.leavesmc.leaves.bytebuf.internal.InternalBytebufHandler internalBytebufHandler = new org.leavesmc.leaves.bytebuf.internal.InternalBytebufHandler(); // Leaves
- 
-     // Paper start - Folia region threading API
-     private final io.papermc.paper.threadedregions.scheduler.FallbackRegionScheduler regionizedScheduler = new io.papermc.paper.threadedregions.scheduler.FallbackRegionScheduler();
-@@ -2984,4 +2985,15 @@ public final class CraftServer implements Server {
+@@ -2984,4 +2984,15 @@ public final class CraftServer implements Server {
          return photographerManager;
      }
      // Leaves end - replay mod api
 +
 +    // Leaves start - Bytebuf API
 +    @Override
-+    public org.leavesmc.leaves.bytebuf.BytebufManager getBytebufManager() {
-+        return internalBytebufHandler.getManager();
++    public org.leavesmc.leaves.bytebuf.BytebufAllocator getBytebufManager() {
++        return org.leavesmc.leaves.bytebuf.internal.InternalBytebufHandler.allocator();
 +    }
 +
 +    public org.leavesmc.leaves.bytebuf.internal.InternalBytebufHandler getBytebufHandler() {
-+        return internalBytebufHandler;
++        return org.leavesmc.leaves.bytebuf.internal.InternalBytebufHandler.INSTANCE;
 +    }
 +    // Leaves end - Bytebuf API
  }
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
-index da3832453d9525e900006c9387869bd9c1222bf5..97d4a52fef67d76d091c992c8f38560da10f1ec6 100644
+index da3832453d9525e900006c9387869bd9c1222bf5..c6865d1161b7058f2632e93e18bc4d5996cf1947 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
-@@ -3360,4 +3360,16 @@ public class CraftPlayer extends CraftHumanEntity implements Player, PluginMessa
+@@ -3360,4 +3360,17 @@ public class CraftPlayer extends CraftHumanEntity implements Player, PluginMessa
              entity.remove();
          }
      }
 +
 +    // Leaves start - Bytebuf API
++    @SuppressWarnings("deprecation")
 +    @Override
-+    public void sendPacket(org.leavesmc.leaves.bytebuf.packet.Packet packet) {
-+        this.server.getBytebufHandler().applyPacketToPlayer(this.getHandle(), packet);
++    public void send(org.leavesmc.leaves.bytebuf.PacketType packetType, org.leavesmc.leaves.bytebuf.Bytebuf bytebuf) {
++        org.leavesmc.leaves.bytebuf.internal.InternalBytebufHandler.sendPacket(this, packetType, bytebuf);
 +    }
 +
 +    @Override
-+    public void sendPacket(org.leavesmc.leaves.bytebuf.Bytebuf bytebuf, org.leavesmc.leaves.bytebuf.packet.PacketType type) {
-+        this.server.getBytebufHandler().applyPacketToPlayer(this.getHandle(), new org.leavesmc.leaves.bytebuf.packet.Packet(type, bytebuf));
++    public @org.jetbrains.annotations.NotNull Object getChannel() {
++        return getHandle().connection.connection.channel;
 +    }
 +    // Leaves end - Bytebuf API
  }

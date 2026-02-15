@@ -4,6 +4,7 @@ import com.google.gson.JsonElement;
 import com.mojang.datafixers.util.Pair;
 import com.mojang.serialization.JsonOps;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -18,21 +19,28 @@ import java.util.UUID;
 
 public class WrappedBytebuf implements Bytebuf {
 
-    private final FriendlyByteBuf buf;
-    private final RegistryFriendlyByteBuf registryBuf;
+    private final RegistryFriendlyByteBuf buf;
+
+    private ByteBuf snapshot = null;
 
     public WrappedBytebuf(ByteBuf buf) {
-        if (buf instanceof RegistryFriendlyByteBuf) {
-            this.buf = (FriendlyByteBuf) buf;
-            this.registryBuf = (RegistryFriendlyByteBuf) buf;
+        if (buf instanceof RegistryFriendlyByteBuf registryBuf) {
+            this.buf = registryBuf;
         } else {
-            this.buf = new FriendlyByteBuf(buf);
-            this.registryBuf = new RegistryFriendlyByteBuf(this.buf, MinecraftServer.getServer().registryAccess());
+            this.buf = new RegistryFriendlyByteBuf(buf, MinecraftServer.getServer().registryAccess());
         }
     }
 
     public RegistryFriendlyByteBuf getRegistryBuf() {
-        return registryBuf;
+        return buf;
+    }
+
+    public void takeSnapshot() {
+        snapshot = buf.copy();
+    }
+
+    public boolean checkDirty() {
+        return snapshot.equals(buf);
     }
 
     @Override
@@ -244,26 +252,26 @@ public class WrappedBytebuf implements Bytebuf {
     @Override
     public Bytebuf writeItemStack(ItemStack itemStack) {
         net.minecraft.world.item.ItemStack nmsItem = CraftItemStack.unwrap(itemStack);
-        net.minecraft.world.item.ItemStack.OPTIONAL_STREAM_CODEC.encode(this.registryBuf, nmsItem);
+        net.minecraft.world.item.ItemStack.OPTIONAL_STREAM_CODEC.encode(this.buf, nmsItem);
         return this;
     }
 
     @Override
     public ItemStack readItemStack() {
-        net.minecraft.world.item.ItemStack nmsItem = net.minecraft.world.item.ItemStack.OPTIONAL_STREAM_CODEC.decode(this.registryBuf);
+        net.minecraft.world.item.ItemStack nmsItem = net.minecraft.world.item.ItemStack.OPTIONAL_STREAM_CODEC.decode(this.buf);
         return nmsItem.asBukkitMirror();
     }
 
     @Override
     public Bytebuf writeItemStackList(List<ItemStack> itemStacks) {
         List<net.minecraft.world.item.ItemStack> nmsItemList = itemStacks.stream().map(CraftItemStack::unwrap).toList();
-        net.minecraft.world.item.ItemStack.OPTIONAL_LIST_STREAM_CODEC.encode(this.registryBuf, nmsItemList);
+        net.minecraft.world.item.ItemStack.OPTIONAL_LIST_STREAM_CODEC.encode(this.buf, nmsItemList);
         return this;
     }
 
     @Override
     public List<ItemStack> readItemStackList() {
-        List<net.minecraft.world.item.ItemStack> nmsItemList = net.minecraft.world.item.ItemStack.OPTIONAL_LIST_STREAM_CODEC.decode(this.registryBuf);
+        List<net.minecraft.world.item.ItemStack> nmsItemList = net.minecraft.world.item.ItemStack.OPTIONAL_LIST_STREAM_CODEC.decode(this.buf);
         return nmsItemList.stream().map(net.minecraft.world.item.ItemStack::asBukkitMirror).toList();
     }
 

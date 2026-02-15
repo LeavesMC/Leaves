@@ -1,4 +1,4 @@
-package org.leavesmc.leaves.bytebuf.packet;
+package org.leavesmc.leaves.bytebuf;
 
 @Deprecated
 public enum PacketType {

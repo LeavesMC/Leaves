@@ -10,25 +10,30 @@ public abstract class PacketEvent extends Event implements Cancellable {
 
     private final PacketAudience audience;
     private final PacketType type;
-    private final Bytebuf bytebuf;
+    private Bytebuf bytebuf;
 
     private boolean isCancelled = false;
 
     public PacketEvent(PacketAudience audience, PacketType type, Bytebuf bytebuf) {
+        super(true);
         this.audience = audience;
         this.type = type;
         this.bytebuf = bytebuf;
     }
 
-    public PacketType type() {
+    public PacketType getPacketType() {
         return type;
     }
 
-    public Bytebuf bytebuf() {
+    public Bytebuf getBytebuf() {
         return bytebuf;
     }
 
-    public PacketAudience audience() {
+    public void setBytebuf(Bytebuf bytebuf) {
+        this.bytebuf = bytebuf;
+    }
+
+    public PacketAudience getAudience() {
         return audience;
     }
 

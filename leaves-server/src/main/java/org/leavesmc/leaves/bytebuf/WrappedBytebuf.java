@@ -37,8 +37,8 @@ public class WrappedBytebuf implements Bytebuf {
         snapshot = buf.copy();
     }
 
-    public boolean checkDirty() {
-        return snapshot.equals(buf);
+    public boolean isDirty() {
+        return !buf.equals(snapshot);
     }
 
     @Override
@@ -47,6 +47,12 @@ public class WrappedBytebuf implements Bytebuf {
         byte[] data = new byte[length];
         buf.getBytes(buf.readerIndex(), data);
         return data;
+    }
+
+    @Override
+    public Bytebuf clear() {
+        buf.clear();
+        return this;
     }
 
     @Override
@@ -146,7 +152,7 @@ public class WrappedBytebuf implements Bytebuf {
 
     @Override
     public Bytebuf writeInt(int i) {
-        buf.writeShort(i);
+        buf.writeInt(i);
         return this;
     }
 

@@ -7,6 +7,7 @@ import io.netty.channel.ChannelPromise;
 import io.papermc.paper.network.ChannelInitializeListenerHolder;
 import net.kyori.adventure.key.Key;
 import net.minecraft.network.Connection;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.protocol.BundleDelimiterPacket;
 import net.minecraft.network.protocol.BundlePacket;
 import net.minecraft.network.protocol.login.ServerboundHelloPacket;
@@ -15,9 +16,11 @@ import net.minecraft.server.level.ServerPlayer;
 import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.bytebuf.Bytebuf;
 import org.leavesmc.leaves.bytebuf.PacketAudience;
+import org.leavesmc.leaves.bytebuf.PacketFlow;
 import org.leavesmc.leaves.bytebuf.PacketType;
 import org.leavesmc.leaves.bytebuf.SimpleBytebufAllocator;
 import org.leavesmc.leaves.bytebuf.WrappedBytebuf;
+import org.leavesmc.leaves.event.bytebuf.PacketEvent;
 import org.leavesmc.leaves.event.bytebuf.PacketInEvent;
 import org.leavesmc.leaves.event.bytebuf.PacketOutEvent;
 
@@ -31,11 +34,8 @@ public class InternalBytebufHandler {
     private static final UniversalCodec CODEC = new UniversalCodec();
 
     public static void init() {
-        ChannelInitializeListenerHolder.addListener(Key.key("leaves:bytebuf"), channel -> {
-            if (LeavesConfig.mics.leavesPacketEvent) {
-                channel.pipeline().addBefore("packet_handler", PacketHandler.handlerName, new PacketHandler(channel));
-            }
-        });
+        ChannelInitializeListenerHolder.addListener(Key.key("leaves:bytebuf"), channel ->
+            channel.pipeline().addBefore("packet_handler", PacketHandler.handlerName, new PacketHandler(channel)));
     }
 
     public static void updatePlayer(ServerPlayer player) {
@@ -47,42 +47,35 @@ public class InternalBytebufHandler {
         return ALLOCATOR;
     }
 
-    public static net.minecraft.network.protocol.Packet<?> callPacketInEvent(PacketAudience audience, net.minecraft.network.protocol.Packet<?> nmsPacket) {
-        if (PacketInEvent.getHandlerList().getRegisteredListeners().length == 0) {
+    public static net.minecraft.network.protocol.Packet<?> callPacketEvent(PacketAudience audience, net.minecraft.network.protocol.Packet<?> nmsPacket, PacketFlow bound) {
+        if ((bound == PacketFlow.CLIENTBOUND && PacketOutEvent.getHandlerList().getRegisteredListeners().length == 0) ||
+            (bound == PacketFlow.SERVERBOUND && PacketInEvent.getHandlerList().getRegisteredListeners().length == 0)) {
             return nmsPacket;
         }
         PacketType type = TYPE_MAP.get(nmsPacket.type());
         if (type == null) {
             return nmsPacket;
         }
-        WrappedBytebuf bytebuf = new WrappedBytebuf(CODEC.encode(nmsPacket));
+        boolean isConfigStage = audience.getPlayer() == null;
+        WrappedBytebuf bytebuf = new WrappedBytebuf(CODEC.encode(nmsPacket, isConfigStage));
         bytebuf.takeSnapshot();
-        if (!new PacketInEvent(audience, type, bytebuf).callEvent()) {
+        PacketEvent event = bound == PacketFlow.CLIENTBOUND ? new PacketOutEvent(audience, type, bytebuf) : new PacketInEvent(audience, type, bytebuf);
+        if (!event.callEvent()) {
             return null;
         }
-        return bytebuf.checkDirty() ? CODEC.decode(type, bytebuf.getRegistryBuf()) : nmsPacket;
-    }
-
-    public static net.minecraft.network.protocol.Packet<?> callPacketOutEvent(PacketAudience audience, net.minecraft.network.protocol.Packet<?> nmsPacket) {
-        if (PacketOutEvent.getHandlerList().getRegisteredListeners().length == 0) {
-            return nmsPacket;
+        WrappedBytebuf newBuf = (WrappedBytebuf) event.getBytebuf();
+        RegistryFriendlyByteBuf registryBuf = newBuf.getRegistryBuf();
+        // Maybe read in the listener? Reset reader index for decode.
+        if (newBuf == bytebuf) {
+            registryBuf.readerIndex(0);
         }
-        PacketType type = TYPE_MAP.get(nmsPacket.type());
-        if (type == null) {
-            return nmsPacket;
-        }
-        WrappedBytebuf bytebuf = new WrappedBytebuf(CODEC.encode(nmsPacket));
-        bytebuf.takeSnapshot();
-        if (!new PacketOutEvent(audience, type, bytebuf).callEvent()) {
-            return null;
-        }
-        return bytebuf.checkDirty() ? CODEC.decode(type, bytebuf.getRegistryBuf()) : nmsPacket;
+        return newBuf != bytebuf || bytebuf.isDirty() ? CODEC.decode(type, registryBuf, isConfigStage) : nmsPacket;
     }
 
     public static void sendPacket(PacketAudience audience, PacketType type, Bytebuf bytebuf) {
         Channel channel = (Channel) audience.getChannel();
         Connection connection = (Connection) channel.pipeline().get("packet_handler");
-        connection.send(CODEC.decode(type, ((WrappedBytebuf) bytebuf).getRegistryBuf()));
+        connection.send(CODEC.decode(type, ((WrappedBytebuf) bytebuf).getRegistryBuf(), audience.getPlayer() == null));
     }
 
     private static class PacketHandler extends ChannelDuplexHandler {
@@ -97,7 +90,7 @@ public class InternalBytebufHandler {
 
         @Override
         public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-            if (msg instanceof BundlePacket<?> || msg instanceof BundleDelimiterPacket<?>) {
+            if (!LeavesConfig.mics.leavesPacketEvent || msg instanceof BundlePacket<?> || msg instanceof BundleDelimiterPacket<?>) {
                 super.channelRead(ctx, msg);
                 return;
             }
@@ -106,7 +99,7 @@ public class InternalBytebufHandler {
             }
             if (msg instanceof net.minecraft.network.protocol.Packet<?> nmsPacket) {
                 try {
-                    msg = callPacketInEvent(audienceHolder.get(), nmsPacket);
+                    msg = callPacketEvent(audienceHolder.get(), nmsPacket, PacketFlow.SERVERBOUND);
                 } catch (Throwable t) {
                     MinecraftServer.LOGGER.error("Error on PacketInEvent.", t);
                 }
@@ -119,14 +112,14 @@ public class InternalBytebufHandler {
 
         @Override
         public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-            if (msg instanceof BundlePacket<?> || msg instanceof BundleDelimiterPacket<?>) {
+            if (!LeavesConfig.mics.leavesPacketEvent || msg instanceof BundlePacket<?> || msg instanceof BundleDelimiterPacket<?>) {
                 super.write(ctx, msg, promise);
                 return;
             }
 
             if (msg instanceof net.minecraft.network.protocol.Packet<?> nmsPacket) {
                 try {
-                    msg = callPacketOutEvent(audienceHolder.get(), nmsPacket);
+                    msg = callPacketEvent(audienceHolder.get(), nmsPacket, PacketFlow.CLIENTBOUND);
                 } catch (Throwable t) {
                     MinecraftServer.LOGGER.error("Error on PacketInEvent.", t);
                 }

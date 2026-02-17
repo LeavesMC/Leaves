@@ -4,11 +4,7 @@ public interface PacketType {
 
     String id();
 
-    Bound bound();
-
-    enum Bound {
-        SERVER, CLIENT
-    }
+    PacketFlow bound();
 
     enum Clientbound implements PacketType {
         CLEAR_DIALOG("clientbound/clear_dialog"),
@@ -176,8 +172,8 @@ public interface PacketType {
         }
 
         @Override
-        public Bound bound() {
-            return Bound.CLIENT;
+        public PacketFlow bound() {
+            return PacketFlow.CLIENTBOUND;
         }
     }
 
@@ -269,8 +265,8 @@ public interface PacketType {
         }
 
         @Override
-        public Bound bound() {
-            return Bound.CLIENT;
+        public PacketFlow bound() {
+            return PacketFlow.SERVERBOUND;
         }
     }
 }

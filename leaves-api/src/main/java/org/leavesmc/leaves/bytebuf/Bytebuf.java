@@ -23,6 +23,8 @@ public interface Bytebuf {
 
     byte[] toArray();
 
+    Bytebuf clear();
+
     Bytebuf skipBytes(int i);
 
     int readerIndex();

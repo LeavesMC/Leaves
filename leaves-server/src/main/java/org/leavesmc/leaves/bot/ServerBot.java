@@ -446,12 +446,8 @@ public class ServerBot extends ServerPlayer {
         if (nbt.list("configs", CompoundTag.CODEC).isPresent()) {
             ValueInput.TypedInputList<CompoundTag> configNbt = nbt.list("configs", CompoundTag.CODEC).orElseThrow();
             for (CompoundTag configTag : configNbt) {
-                AbstractBotConfig<?, ?> type = Configs.getConfig(configTag.getString("configName").orElseThrow());
-                if (type != null) {
-                    AbstractBotConfig<?, ?> config = type.create();
-                    config.setBot(this);
-                    config.load(configTag);
-                }
+                Configs.getConfig(configTag.getString("configName").orElseThrow())
+                    .ifPresent(config -> this.configs.get(config.getName()).load(configTag));
             }
         }
     }

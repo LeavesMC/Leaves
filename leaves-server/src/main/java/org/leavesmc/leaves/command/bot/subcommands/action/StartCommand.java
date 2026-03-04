@@ -35,10 +35,10 @@ public class StartCommand extends LiteralNode {
         Actions.getAll().stream().map(this::actionNodeCreator).forEach(this::children);
     }
 
-    private boolean handleStartCommand(CommandContext context, @NotNull AbstractBotAction<?> action) throws CommandSyntaxException {
+    private boolean handleStartCommand(CommandContext context, @NotNull AbstractBotAction<?> type) throws CommandSyntaxException {
         ServerBot bot = getBot(context);
         CommandSender sender = context.getSender();
-
+        AbstractBotAction<?> action = type.create();
         action.loadCommand(context);
         if (bot.addBotAction(action, sender)) {
             sender.sendMessage(join(spaces(),

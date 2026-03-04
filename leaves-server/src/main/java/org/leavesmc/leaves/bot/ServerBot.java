@@ -434,11 +434,11 @@ public class ServerBot extends ServerPlayer {
         if (nbt.list("actions", CompoundTag.CODEC).isPresent()) {
             ValueInput.TypedInputList<CompoundTag> actionNbt = nbt.list("actions", CompoundTag.CODEC).orElseThrow();
             actionNbt.forEach(actionTag -> {
-                AbstractBotAction<?> action = Actions.getForName(actionTag.getString("actionName").orElseThrow());
-                if (action != null) {
-                    AbstractBotAction<?> newAction = action.create();
-                    newAction.load(actionTag);
-                    this.actions.add(newAction);
+                AbstractBotAction<?> type = Actions.getForName(actionTag.getString("actionName").orElseThrow());
+                if (type != null) {
+                    AbstractBotAction<?> action = type.create();
+                    action.load(actionTag);
+                    this.actions.add(action);
                 }
             });
         }
@@ -448,8 +448,7 @@ public class ServerBot extends ServerPlayer {
             for (CompoundTag configTag : configNbt) {
                 AbstractBotConfig<?, ?> config = Configs.getConfig(configTag.getString("configName").orElseThrow());
                 if (config != null) {
-                    config.setBot(this);
-                    config.load(configTag);
+                    this.configs.get(config.getName()).load(configTag);
                 }
             }
         }

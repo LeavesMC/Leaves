@@ -1,7 +1,6 @@
 package org.leavesmc.leaves.bytebuf.internal;
 
-import com.google.common.collect.BiMap;
-import com.google.common.collect.ImmutableBiMap;
+import com.google.common.collect.ImmutableMap;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
@@ -20,20 +19,21 @@ import org.leavesmc.leaves.bytebuf.PacketType;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
+import java.util.Map;
 import java.util.function.Supplier;
 
 @SuppressWarnings({"rawtypes", "unchecked"})
 public class UniversalCodec {
 
-    static final BiMap<net.minecraft.network.protocol.PacketType<?>, PacketType> TYPE_MAP;
+    static final Map<net.minecraft.network.protocol.PacketType<?>, PacketType> TYPE_MAP;
     static final Supplier<RegistryFriendlyByteBuf> BUF_FACTORY = () -> new RegistryFriendlyByteBuf(Unpooled.buffer(), MinecraftServer.getServer().registryAccess());
-    private static final BiMap<PacketType, StreamCodec> CODEC_MAP;
-    private static final BiMap<String, PacketType> ID_MAP;
+    private static final Map<PacketType, StreamCodec> CODEC_MAP;
+    private static final Map<String, PacketType> ID_MAP;
 
     static {
-        ImmutableBiMap.Builder<String, PacketType> idBuilder = ImmutableBiMap.builder();
-        ImmutableBiMap.Builder<net.minecraft.network.protocol.PacketType<?>, PacketType> typeBuilder = ImmutableBiMap.builder();
-        ImmutableBiMap.Builder<PacketType, StreamCodec> codecBuilder = ImmutableBiMap.builder();
+        ImmutableMap.Builder<String, PacketType> idBuilder = ImmutableMap.builder();
+        ImmutableMap.Builder<net.minecraft.network.protocol.PacketType<?>, PacketType> typeBuilder = ImmutableMap.builder();
+        ImmutableMap.Builder<PacketType, StreamCodec> codecBuilder = ImmutableMap.builder();
         Class<?>[] classes = new Class<?>[]{
             CommonPacketTypes.class, ConfigurationPacketTypes.class,
             CookiePacketTypes.class, GamePacketTypes.class, HandshakePacketTypes.class,

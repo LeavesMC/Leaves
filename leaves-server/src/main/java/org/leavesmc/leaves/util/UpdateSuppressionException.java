@@ -122,4 +122,14 @@ public class UpdateSuppressionException extends RuntimeException {
         }
         return type.getSimpleName();
     }
+
+    @Override
+    public Throwable fillInStackTrace() {
+        return this;
+    }
+
+    @Override
+    public StackTraceElement[] getStackTrace() {
+        return this.throwable.getStackTrace(); // delegate to throwable as we don't have a stacktrace
+    }
 }

@@ -1,11 +1,11 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
-From: Haru Hyacinth <HyacinthHaru@foxmail.com>
+From: HyacinthHaru <HyacinthHaru@foxmail.com>
 Date: Fri, 20 Mar 2026 11:43:05 +0800
 Subject: [PATCH] Async keepalive
 
 
 diff --git a/net/minecraft/server/network/ServerCommonPacketListenerImpl.java b/net/minecraft/server/network/ServerCommonPacketListenerImpl.java
-index 20b9dfe68dfbcd5bb999ee4ec0500bdf6bc7fdd5..a6ef7839a10b9d2b56c6fdbded827a6d967fe7b4 100644
+index 20b9dfe68dfbcd5bb999ee4ec0500bdf6bc7fdd5..77c42c748d930c975134cf033633a92387de66a1 100644
 --- a/net/minecraft/server/network/ServerCommonPacketListenerImpl.java
 +++ b/net/minecraft/server/network/ServerCommonPacketListenerImpl.java
 @@ -29,6 +29,7 @@ import net.minecraft.server.players.NameAndId;
@@ -16,7 +16,15 @@ index 20b9dfe68dfbcd5bb999ee4ec0500bdf6bc7fdd5..a6ef7839a10b9d2b56c6fdbded827a6d
  
  public abstract class ServerCommonPacketListenerImpl implements ServerCommonPacketListener {
      private static final Logger LOGGER = LogUtils.getLogger();
-@@ -73,6 +74,7 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
+@@ -46,6 +47,7 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
+     private boolean closed = false;
+     private volatile int latency; // Paper - improve keepalives - make volatile
+     private final io.papermc.paper.util.KeepAlive keepAlive; // Paper - improve keepalives
++    private volatile long leaves$lastKeepAliveResponse = System.nanoTime(); // Leaves - async keepalive
+     private volatile boolean suspendFlushingOnServerThread = false;
+     // CraftBukkit start
+     public final org.bukkit.craftbukkit.CraftServer cserver;
+@@ -73,6 +75,7 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
          this.keepAlive = cookie.keepAlive();
          // Paper end
          this.profile = cookie.gameProfile(); // Leaves - protocol core
@@ -24,7 +32,7 @@ index 20b9dfe68dfbcd5bb999ee4ec0500bdf6bc7fdd5..a6ef7839a10b9d2b56c6fdbded827a6d
      }
  
      // Paper start - configuration phase API
-@@ -90,6 +92,7 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
+@@ -90,6 +93,7 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
  
      @Override
      public void onDisconnect(DisconnectionDetails details) {
@@ -32,7 +40,7 @@ index 20b9dfe68dfbcd5bb999ee4ec0500bdf6bc7fdd5..a6ef7839a10b9d2b56c6fdbded827a6d
          if (this.isSingleplayerOwner()) {
              LOGGER.info("Stopping singleplayer server as player logged out");
              this.server.halt(false);
-@@ -104,6 +107,11 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
+@@ -104,6 +108,11 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
  
      @Override
      public void handleKeepAlive(ServerboundKeepAlivePacket packet) {
@@ -44,42 +52,35 @@ index 20b9dfe68dfbcd5bb999ee4ec0500bdf6bc7fdd5..a6ef7839a10b9d2b56c6fdbded827a6d
          // Paper start - improve keepalives
          long now = System.nanoTime();
          io.papermc.paper.util.KeepAlive.PendingKeepAlive pending = this.keepAlive.pendingKeepAlives.peek();
-@@ -141,6 +149,34 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
+@@ -141,6 +150,27 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
          // Paper end - improve keepalives
      }
  
 +    private void handleAsyncKeepAlive(ServerboundKeepAlivePacket packet) {
 +        long now = System.nanoTime();
-+        io.papermc.paper.util.KeepAlive.PendingKeepAlive matched = null;
-+
-+        for (io.papermc.paper.util.KeepAlive.PendingKeepAlive pending : this.keepAlive.pendingKeepAlives) {
++        long timeoutNanos = java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(org.leavesmc.leaves.LeavesConfig.mics.asyncKeepalive.getTimeoutMillis());
++        for (java.util.Iterator<io.papermc.paper.util.KeepAlive.PendingKeepAlive> itr = this.keepAlive.pendingKeepAlives.iterator(); itr.hasNext();) {
++            io.papermc.paper.util.KeepAlive.PendingKeepAlive pending = itr.next();
 +            if (pending.challengeId() == packet.getId()) {
-+                matched = pending;
-+                break;
++                itr.remove();
++                if ((now - pending.txTimeNS()) > timeoutNanos) {
++                    return;
++                }
++
++                io.papermc.paper.util.KeepAlive.KeepAliveResponse response = new io.papermc.paper.util.KeepAlive.KeepAliveResponse(pending.txTimeNS(), now);
++                this.keepAlive.pingCalculator1m.update(response);
++                this.keepAlive.pingCalculator5s.update(response);
++                this.latency = this.keepAlive.pingCalculator5s.getAvgLatencyMS();
++                this.leaves$lastKeepAliveResponse = now;
++                return;
 +            }
 +        }
-+
-+        if (matched == null) {
-+            return;
-+        }
-+
-+        io.papermc.paper.util.KeepAlive.PendingKeepAlive pending;
-+        while ((pending = this.keepAlive.pendingKeepAlives.poll()) != null) {
-+            if (pending == matched) {
-+                break;
-+            }
-+        }
-+
-+        io.papermc.paper.util.KeepAlive.KeepAliveResponse response = new io.papermc.paper.util.KeepAlive.KeepAliveResponse(matched.txTimeNS(), now);
-+        this.keepAlive.pingCalculator1m.update(response);
-+        this.keepAlive.pingCalculator5s.update(response);
-+        this.latency = this.keepAlive.pingCalculator5s.getAvgLatencyMS();
 +    }
 +
      @Override
      public void handlePong(ServerboundPongPacket packet) {
      }
-@@ -278,6 +314,11 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
+@@ -278,6 +308,11 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
      protected void keepConnectionAlive() {
          Profiler.get().push("keepAlive");
          long millis = Util.getMillis();
@@ -91,7 +92,7 @@ index 20b9dfe68dfbcd5bb999ee4ec0500bdf6bc7fdd5..a6ef7839a10b9d2b56c6fdbded827a6d
          // Paper start - improve keepalives
          if (this.checkIfClosed(millis) && !this.processedDisconnect) {
              long currTime = System.nanoTime();
-@@ -301,6 +342,26 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
+@@ -301,6 +336,30 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
          Profiler.get().pop();
      }
  
@@ -99,6 +100,8 @@ index 20b9dfe68dfbcd5bb999ee4ec0500bdf6bc7fdd5..a6ef7839a10b9d2b56c6fdbded827a6d
 +        if (this.closed || this.processedDisconnect || !this.connection.isConnected()) {
 +            return;
 +        }
++
++        long timeoutNanos = java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(org.leavesmc.leaves.LeavesConfig.mics.asyncKeepalive.getTimeoutMillis());
 +
 +        if ((currentTimeNs - this.keepAlive.lastKeepAliveTx) >= java.util.concurrent.TimeUnit.SECONDS.toNanos(1L)) {
 +            this.keepAlive.lastKeepAliveTx = currentTimeNs;
@@ -108,8 +111,10 @@ index 20b9dfe68dfbcd5bb999ee4ec0500bdf6bc7fdd5..a6ef7839a10b9d2b56c6fdbded827a6d
 +            this.send(new ClientboundKeepAlivePacket(pending.challengeId()));
 +        }
 +
-+        io.papermc.paper.util.KeepAlive.PendingKeepAlive oldest = this.keepAlive.pendingKeepAlives.peek();
-+        if (oldest != null && (currentTimeNs - oldest.txTimeNS()) > java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(org.leavesmc.leaves.LeavesConfig.mics.asyncKeepalive.getTimeoutMillis())) {
++        while (this.keepAlive.pendingKeepAlives.pollIf((pending) -> (currentTimeNs - pending.txTimeNS()) > timeoutNanos) != null) {
++        }
++
++        if ((currentTimeNs - this.leaves$lastKeepAliveResponse) > timeoutNanos) {
 +            LOGGER.info("{} was kicked due to keepalive timeout!", this.playerProfile().name());
 +            this.disconnectAsync(TIMEOUT_DISCONNECTION_MESSAGE, io.papermc.paper.connection.DisconnectionReason.TIMEOUT);
 +        }

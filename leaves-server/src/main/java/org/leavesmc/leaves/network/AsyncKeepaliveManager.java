@@ -60,7 +60,6 @@ public final class AsyncKeepaliveManager {
                     ACTIVE_LISTENERS.remove(listener.connection, listener);
                 }
             } catch (Throwable throwable) {
-                ACTIVE_LISTENERS.remove(listener.connection, listener);
                 LOGGER.log(Level.SEVERE, "Failed to run async keepalive for " + listener.getOwner().name(), throwable);
             }
         }

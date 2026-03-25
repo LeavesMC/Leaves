@@ -1,7 +1,5 @@
 package org.leavesmc.leaves.util;
 
-import io.papermc.paper.datacomponent.DataComponentTypes;
-import io.papermc.paper.datacomponent.item.ItemEnchantments;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -10,7 +8,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.component.ItemContainerContents;
 import net.minecraft.world.level.block.ShulkerBoxBlock;
-import org.bukkit.enchantments.Enchantment;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesConfig;
 
@@ -20,8 +17,7 @@ import java.util.Objects;
 public class ItemOverstackUtils {
 
     private static final List<ItemUtil> overstackUtils = List.of(
-        new ShulkerBox(),
-        new CurseEnchantedBook()
+        new ShulkerBox()
     );
 
     public static int getItemStackMaxCount(ItemStack stack) {
@@ -174,37 +170,6 @@ public class ItemOverstackUtils {
                 return LeavesConfig.modify.shulkerBox.stackableShulkerBoxes;
             }
             return -1;
-        }
-    }
-
-    public static class CurseEnchantedBook implements ItemUtil {
-        public static boolean isCursedEnchantedBook(ItemStack stack) {
-            ItemEnchantments enchantments = stack.getBukkitStack().getData(DataComponentTypes.STORED_ENCHANTMENTS);
-            if (enchantments == null || enchantments.enchantments().size() != 1) {
-                return false;
-            }
-            return enchantments.enchantments().containsKey(Enchantment.BINDING_CURSE) ||
-                enchantments.enchantments().containsKey(Enchantment.VANISHING_CURSE);
-        }
-
-        @Override
-        public boolean isEnabled() {
-            return LeavesConfig.modify.oldMC.allowGrindstoneOverstacking;
-        }
-
-        @Override
-        public boolean tryStackItems(ItemEntity self, ItemEntity other) {
-            return false;
-        }
-
-        @Override
-        public int getMaxServerStackCount(ItemStack stack) {
-            return -1;
-        }
-
-        @Override
-        public int getMaxClientStackCount(ItemStack stack) {
-            return isCursedEnchantedBook(stack) ? 2 : -1;
         }
     }
 }

@@ -337,9 +337,6 @@ public final class LeavesConfig {
                 }
             }
 
-            @GlobalConfig("allow-grindstone-overstacking")
-            public boolean allowGrindstoneOverstacking = false;
-
             @GlobalConfig("allow-entity-portal-with-passenger")
             public boolean allowEntityPortalWithPassenger = true;
 

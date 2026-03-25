@@ -20,7 +20,7 @@ index 20b9dfe68dfbcd5bb999ee4ec0500bdf6bc7fdd5..77c42c748d930c975134cf033633a923
      private boolean closed = false;
      private volatile int latency; // Paper - improve keepalives - make volatile
      private final io.papermc.paper.util.KeepAlive keepAlive; // Paper - improve keepalives
-+    private volatile long leavesLastKeepAliveResponse; // Leaves - async keepalive
++    private volatile long lastKeepAliveResponse; // Leaves - async keepalive
      private volatile boolean suspendFlushingOnServerThread = false;
      // CraftBukkit start
      public final org.bukkit.craftbukkit.CraftServer cserver;
@@ -74,7 +74,7 @@ index 20b9dfe68dfbcd5bb999ee4ec0500bdf6bc7fdd5..77c42c748d930c975134cf033633a923
 +                this.keepAlive.pingCalculator1m.update(response);
 +                this.keepAlive.pingCalculator5s.update(response);
 +                this.latency = this.keepAlive.pingCalculator5s.getAvgLatencyMS();
-+                this.leavesLastKeepAliveResponse = now;
++                this.lastKeepAliveResponse = now;
 +                return;
 +            }
 +        }
@@ -98,12 +98,12 @@ index 20b9dfe68dfbcd5bb999ee4ec0500bdf6bc7fdd5..77c42c748d930c975134cf033633a923
          // Paper start - improve keepalives
          if (this.checkIfClosed(millis) && !this.processedDisconnect) {
              long currTime = System.nanoTime();
-@@ -301,6 +336,35 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
+@@ -301,6 +336,33 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
          Profiler.get().pop();
      }
  
 +    // Leaves start - async keepalive
-+    public void leavesKeepConnectionAliveAsync(long currentTimeNs, long currentTimeMs) {
++    public void keepConnectionAliveAsync(long currentTimeNs, long currentTimeMs) {
 +        if (this.closed || this.processedDisconnect || !this.connection.isConnected()) {
 +            return;
 +        }
@@ -111,8 +111,8 @@ index 20b9dfe68dfbcd5bb999ee4ec0500bdf6bc7fdd5..77c42c748d930c975134cf033633a923
 +        long timeoutNanos = java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(org.leavesmc.leaves.LeavesConfig.mics.asyncKeepalive.getTimeoutMillis());
 +        if ((currentTimeNs - this.keepAlive.lastKeepAliveTx) >= java.util.concurrent.TimeUnit.SECONDS.toNanos(1L)) {
 +            this.keepAlive.lastKeepAliveTx = currentTimeNs;
-+            if (this.leavesLastKeepAliveResponse == 0L) {
-+                this.leavesLastKeepAliveResponse = currentTimeNs;
++            if (this.lastKeepAliveResponse == 0L) {
++                this.lastKeepAliveResponse = currentTimeNs;
 +            }
 +
 +            io.papermc.paper.util.KeepAlive.PendingKeepAlive pending = new io.papermc.paper.util.KeepAlive.PendingKeepAlive(currentTimeNs, currentTimeMs);
@@ -122,7 +122,7 @@ index 20b9dfe68dfbcd5bb999ee4ec0500bdf6bc7fdd5..77c42c748d930c975134cf033633a923
 +        while (this.keepAlive.pendingKeepAlives.pollIf((pending) -> (currentTimeNs - pending.txTimeNS()) > timeoutNanos) != null) {
 +        }
 +
-+        if (this.leavesLastKeepAliveResponse != 0L && (currentTimeNs - this.leavesLastKeepAliveResponse) > timeoutNanos) {
++        if (this.lastKeepAliveResponse != 0L && (currentTimeNs - this.lastKeepAliveResponse) > timeoutNanos) {
 +            LOGGER.info("{} was kicked due to keepalive timeout!", this.playerProfile().name());
 +            this.disconnectAsync(TIMEOUT_DISCONNECTION_MESSAGE, io.papermc.paper.connection.DisconnectionReason.TIMEOUT);
 +        }

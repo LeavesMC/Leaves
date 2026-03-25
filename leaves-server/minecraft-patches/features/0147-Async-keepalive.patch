@@ -20,7 +20,7 @@ index 20b9dfe68dfbcd5bb999ee4ec0500bdf6bc7fdd5..77c42c748d930c975134cf033633a923
      private boolean closed = false;
      private volatile int latency; // Paper - improve keepalives - make volatile
      private final io.papermc.paper.util.KeepAlive keepAlive; // Paper - improve keepalives
-+    private volatile long leaves$lastKeepAliveResponse = System.nanoTime(); // Leaves - async keepalive
++    private volatile long leaves$lastKeepAliveResponse; // Leaves - async keepalive
      private volatile boolean suspendFlushingOnServerThread = false;
      // CraftBukkit start
      public final org.bukkit.craftbukkit.CraftServer cserver;
@@ -105,6 +105,9 @@ index 20b9dfe68dfbcd5bb999ee4ec0500bdf6bc7fdd5..77c42c748d930c975134cf033633a923
 +
 +        if ((currentTimeNs - this.keepAlive.lastKeepAliveTx) >= java.util.concurrent.TimeUnit.SECONDS.toNanos(1L)) {
 +            this.keepAlive.lastKeepAliveTx = currentTimeNs;
++            if (this.leaves$lastKeepAliveResponse == 0L) {
++                this.leaves$lastKeepAliveResponse = currentTimeNs;
++            }
 +
 +            io.papermc.paper.util.KeepAlive.PendingKeepAlive pending = new io.papermc.paper.util.KeepAlive.PendingKeepAlive(currentTimeNs, currentTimeMs);
 +            this.keepAlive.pendingKeepAlives.add(pending);
@@ -114,7 +117,7 @@ index 20b9dfe68dfbcd5bb999ee4ec0500bdf6bc7fdd5..77c42c748d930c975134cf033633a923
 +        while (this.keepAlive.pendingKeepAlives.pollIf((pending) -> (currentTimeNs - pending.txTimeNS()) > timeoutNanos) != null) {
 +        }
 +
-+        if ((currentTimeNs - this.leaves$lastKeepAliveResponse) > timeoutNanos) {
++        if (this.leaves$lastKeepAliveResponse != 0L && (currentTimeNs - this.leaves$lastKeepAliveResponse) > timeoutNanos) {
 +            LOGGER.info("{} was kicked due to keepalive timeout!", this.playerProfile().name());
 +            this.disconnectAsync(TIMEOUT_DISCONNECTION_MESSAGE, io.papermc.paper.connection.DisconnectionReason.TIMEOUT);
 +        }

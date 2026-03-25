@@ -10,22 +10,24 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 
 public final class AsyncKeepaliveManager {
 
     private static final LeavesLogger LOGGER = LeavesLogger.LOGGER;
     private static final Map<Connection, ServerCommonPacketListenerImpl> ACTIVE_LISTENERS = new ConcurrentHashMap<>();
-    private static final AtomicBoolean STARTED = new AtomicBoolean(false);
-    private static final ThreadFactory THREAD_FACTORY = runnable -> {
+    private static final ScheduledExecutorService EXECUTOR = Executors.newSingleThreadScheduledExecutor(runnable -> {
         Thread thread = new Thread(runnable, "Leaves Async Keepalive");
         thread.setDaemon(true);
         return thread;
-    };
-    private static final ScheduledExecutorService EXECUTOR = Executors.newSingleThreadScheduledExecutor(THREAD_FACTORY);
+    });
+
+    static {
+        if (LeavesConfig.mics.asyncKeepalive.enable) {
+            EXECUTOR.scheduleAtFixedRate(AsyncKeepaliveManager::tickAll, 1L, 1L, TimeUnit.SECONDS);
+        }
+    }
 
     private AsyncKeepaliveManager() {
     }
@@ -36,16 +38,9 @@ public final class AsyncKeepaliveManager {
         }
 
         ACTIVE_LISTENERS.put(listener.connection, listener);
-        if (STARTED.compareAndSet(false, true)) {
-            EXECUTOR.scheduleAtFixedRate(AsyncKeepaliveManager::tickAll, 1L, 1L, TimeUnit.SECONDS);
-        }
     }
 
     public static void unregister(ServerCommonPacketListenerImpl listener) {
-        if (!LeavesConfig.mics.asyncKeepalive.enable) {
-            return;
-        }
-
         ACTIVE_LISTENERS.remove(listener.connection, listener);
     }
 
@@ -60,7 +55,8 @@ public final class AsyncKeepaliveManager {
                     ACTIVE_LISTENERS.remove(listener.connection, listener);
                 }
             } catch (Throwable throwable) {
-                LOGGER.log(Level.SEVERE, "Failed to run async keepalive for " + listener.getOwner().name(), throwable);
+                ACTIVE_LISTENERS.remove(listener.connection, listener);
+                LOGGER.log(Level.SEVERE, "Failed to run async keepalive for connection " + listener.connection.getRemoteAddress(), throwable);
             }
         }
     }

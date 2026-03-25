@@ -1,5 +1,6 @@
 package org.leavesmc.leaves.util;
 
+import com.google.common.collect.Iterables;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -114,15 +115,15 @@ public class ItemOverstackUtils {
     }
 
     private static class ShulkerBox implements ItemUtil {
-        public static boolean shulkerBoxCheck(@NotNull ItemStack stack1, @NotNull ItemStack stack2) {
+        public static boolean checkItems(@NotNull ItemStack stack1, @NotNull ItemStack stack2) {
             if (LeavesConfig.modify.shulkerBox.sameNbtStackable) {
                 return Objects.equals(stack1.getComponents(), stack2.getComponents());
             }
-            return shulkerBoxNoItem(stack1) && shulkerBoxNoItem(stack2) && Objects.equals(stack1.getComponents(), stack2.getComponents());
+            return isEmpty(stack1) && isEmpty(stack2) && Objects.equals(stack1.getComponents(), stack2.getComponents());
         }
 
-        public static boolean shulkerBoxNoItem(@NotNull ItemStack stack) {
-            return stack.getComponents().getOrDefault(DataComponents.CONTAINER, ItemContainerContents.EMPTY).stream().findAny().isEmpty();
+        public static boolean isEmpty(@NotNull ItemStack stack) {
+            return Iterables.isEmpty(stack.getComponents().getOrDefault(DataComponents.CONTAINER, ItemContainerContents.EMPTY).nonEmptyItems());
         }
 
         @Override
@@ -139,7 +140,7 @@ public class ItemOverstackUtils {
 
             ItemStack otherStack = other.getItem();
             if (selfStack.getItem() == otherStack.getItem()
-                && shulkerBoxCheck(selfStack, otherStack)
+                && checkItems(selfStack, otherStack)
                 && selfStack.getCount() != org.leavesmc.leaves.LeavesConfig.modify.shulkerBox.stackableShulkerBoxes) {
                 int amount = Math.min(otherStack.getCount(), org.leavesmc.leaves.LeavesConfig.modify.shulkerBox.stackableShulkerBoxes - selfStack.getCount());
 
@@ -163,7 +164,7 @@ public class ItemOverstackUtils {
         @Override
         public int getMaxServerStackCount(ItemStack stack) {
             if (stack.getItem() instanceof BlockItem bi &&
-                bi.getBlock() instanceof ShulkerBoxBlock && (LeavesConfig.modify.shulkerBox.sameNbtStackable || shulkerBoxNoItem(stack))) {
+                bi.getBlock() instanceof ShulkerBoxBlock && (LeavesConfig.modify.shulkerBox.sameNbtStackable || isEmpty(stack))) {
                 return LeavesConfig.modify.shulkerBox.stackableShulkerBoxes;
             }
             return -1;

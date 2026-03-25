@@ -510,35 +510,21 @@ public final class LeavesConfig {
 
                 @Override
                 public Integer loadConvert(Object value) throws IllegalArgumentException {
-                    switch (value) {
-                        case String stringValue -> {
-                            if (stringValue.equals("true")) {
-                                return 2;
-                            } else if (!MathUtils.isNumeric(stringValue)) {
-                                return 1;
-                            } else {
-                                return Integer.parseInt(stringValue);
-                            }
-                        }
-                        case Integer integerValue -> {
-                            return integerValue;
-                        }
-                        case Boolean boolValue -> {
-                            return boolValue ? 2 : 1;
-                        }
+                    return switch (value) {
+                        case String stringValue -> stringValue.equals("true") ? 2
+                            : !MathUtils.isNumeric(stringValue) ? 1
+                            : Integer.parseInt(stringValue);
+                        case Integer integerValue -> integerValue;
+                        case Boolean boolValue -> boolValue ? 2 : 1;
                         case null, default -> throw new IllegalArgumentException("stackable-shulker-boxes need string or integer or boolean");
-                    }
+                    };
                 }
 
                 @Override
                 public Object saveConvert(Integer value) {
-                    if (value == 1) {
-                        return false;
-                    } else if (value == 2) {
-                        return true;
-                    } else {
-                        return value;
-                    }
+                    return value == 1 ? false
+                        : value == 2 ? true
+                        : value;
                 }
 
                 @Override
@@ -548,8 +534,8 @@ public final class LeavesConfig {
 
                 @Override
                 public void verify(Integer old, Integer value) throws IllegalArgumentException {
-                    if (value < 1 || value > 64) {
-                        throw new IllegalArgumentException("stackable-shulker-boxes need >= 1 and <= 64");
+                    if (value < 1 || value > 99) {
+                        throw new IllegalArgumentException("stackable-shulker-boxes need >= 1 and <= 99");
                     }
                 }
 

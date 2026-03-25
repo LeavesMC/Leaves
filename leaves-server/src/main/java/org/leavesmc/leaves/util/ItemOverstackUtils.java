@@ -92,9 +92,6 @@ public class ItemOverstackUtils {
 
     public static float getItemStackSignalStrength(int maxStackSize, ItemStack itemStack) {
         float result = (float) itemStack.getCount() / Math.min(maxStackSize, itemStack.getMaxStackSize());
-        if (LeavesConfig.modify.oldMC.allowGrindstoneOverstacking && CurseEnchantedBook.isCursedEnchantedBook(itemStack)) {
-            return result;
-        }
         return Math.clamp(result, 0f, 1f);
     }
 

@@ -40,25 +40,26 @@ index 20b9dfe68dfbcd5bb999ee4ec0500bdf6bc7fdd5..77c42c748d930c975134cf033633a923
          if (this.isSingleplayerOwner()) {
              LOGGER.info("Stopping singleplayer server as player logged out");
              this.server.halt(false);
-@@ -104,6 +108,12 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
+@@ -104,6 +108,13 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
  
      @Override
      public void handleKeepAlive(ServerboundKeepAlivePacket packet) {
-+        // Leaves - 异步模式下由独立线程维护发送与超时，这里只处理响应。
++        // Leaves start - async keepalive
 +        if (org.leavesmc.leaves.LeavesConfig.mics.asyncKeepalive.enable) {
 +            this.handleAsyncKeepAlive(packet);
 +            return;
 +        }
++        // Leaves end - async keepalive
 +
          // Paper start - improve keepalives
          long now = System.nanoTime();
          io.papermc.paper.util.KeepAlive.PendingKeepAlive pending = this.keepAlive.pendingKeepAlives.peek();
-@@ -141,6 +150,28 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
+@@ -141,6 +150,29 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
          // Paper end - improve keepalives
      }
  
++    // Leaves start - async keepalive
 +    private void handleAsyncKeepAlive(ServerboundKeepAlivePacket packet) {
-+        // Leaves - 允许在超时窗口内接受非队首响应，减少弱网乱序导致的误踢。
 +        long now = System.nanoTime();
 +        long timeoutNanos = java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(org.leavesmc.leaves.LeavesConfig.mics.asyncKeepalive.getTimeoutMillis());
 +        for (java.util.Iterator<io.papermc.paper.util.KeepAlive.PendingKeepAlive> itr = this.keepAlive.pendingKeepAlives.iterator(); itr.hasNext();) {
@@ -78,20 +79,22 @@ index 20b9dfe68dfbcd5bb999ee4ec0500bdf6bc7fdd5..77c42c748d930c975134cf033633a923
 +            }
 +        }
 +    }
++    // Leaves end - async keepalive
 +
      @Override
      public void handlePong(ServerboundPongPacket packet) {
      }
-@@ -278,6 +308,12 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
+@@ -278,6 +308,13 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
      protected void keepConnectionAlive() {
          Profiler.get().push("keepAlive");
          long millis = Util.getMillis();
-+        // Leaves - 异步模式下主线程只保留 closed 检查，其余逻辑交给异步线程。
++        // Leaves start - async keepalive
 +        if (org.leavesmc.leaves.LeavesConfig.mics.asyncKeepalive.enable) {
 +            this.checkIfClosed(millis);
 +            Profiler.get().pop();
 +            return;
 +        }
++        // Leaves end - async keepalive
          // Paper start - improve keepalives
          if (this.checkIfClosed(millis) && !this.processedDisconnect) {
              long currTime = System.nanoTime();
@@ -99,14 +102,13 @@ index 20b9dfe68dfbcd5bb999ee4ec0500bdf6bc7fdd5..77c42c748d930c975134cf033633a923
          Profiler.get().pop();
      }
  
++    // Leaves start - async keepalive
 +    public void leavesKeepConnectionAliveAsync(long currentTimeNs, long currentTimeMs) {
 +        if (this.closed || this.processedDisconnect || !this.connection.isConnected()) {
 +            return;
 +        }
 +
 +        long timeoutNanos = java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(org.leavesmc.leaves.LeavesConfig.mics.asyncKeepalive.getTimeoutMillis());
-+
-+        // Leaves - 首次真正发出 keepalive 时才开始计时，避免连接建立时提前扣掉超时窗口。
 +        if ((currentTimeNs - this.keepAlive.lastKeepAliveTx) >= java.util.concurrent.TimeUnit.SECONDS.toNanos(1L)) {
 +            this.keepAlive.lastKeepAliveTx = currentTimeNs;
 +            if (this.leavesLastKeepAliveResponse == 0L) {
@@ -117,8 +119,6 @@ index 20b9dfe68dfbcd5bb999ee4ec0500bdf6bc7fdd5..77c42c748d930c975134cf033633a923
 +            this.keepAlive.pendingKeepAlives.add(pending);
 +            this.send(new ClientboundKeepAlivePacket(pending.challengeId()));
 +        }
-+
-+        // Leaves - 清理超时 pending，并按最近一次有效响应判断是否需要断开连接。
 +        while (this.keepAlive.pendingKeepAlives.pollIf((pending) -> (currentTimeNs - pending.txTimeNS()) > timeoutNanos) != null) {
 +        }
 +
@@ -127,6 +127,7 @@ index 20b9dfe68dfbcd5bb999ee4ec0500bdf6bc7fdd5..77c42c748d930c975134cf033633a923
 +            this.disconnectAsync(TIMEOUT_DISCONNECTION_MESSAGE, io.papermc.paper.connection.DisconnectionReason.TIMEOUT);
 +        }
 +    }
++    // Leaves end - async keepalive
 +
      private boolean checkIfClosed(long time) {
          if (this.closed) {

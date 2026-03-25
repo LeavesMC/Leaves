@@ -50,7 +50,7 @@ public final class AsyncKeepaliveManager {
 
         for (ServerCommonPacketListenerImpl listener : ACTIVE_LISTENERS.values()) {
             try {
-                listener.leaves$keepConnectionAliveAsync(currentTimeNs, currentTimeMs);
+                listener.leavesKeepConnectionAliveAsync(currentTimeNs, currentTimeMs);
                 if (!listener.connection.isConnected() || listener.processedDisconnect) {
                     ACTIVE_LISTENERS.remove(listener.connection, listener);
                 }

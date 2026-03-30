@@ -8,14 +8,6 @@ diff --git a/net/minecraft/server/network/ServerCommonPacketListenerImpl.java b/
 index 20b9dfe68dfbcd5bb999ee4ec0500bdf6bc7fdd5..77c42c748d930c975134cf033633a92387de66a1 100644
 --- a/net/minecraft/server/network/ServerCommonPacketListenerImpl.java
 +++ b/net/minecraft/server/network/ServerCommonPacketListenerImpl.java
-@@ -29,6 +29,7 @@ import net.minecraft.server.players.NameAndId;
- import net.minecraft.util.VisibleForDebug;
- import net.minecraft.util.profiling.Profiler;
- import org.slf4j.Logger;
-+import org.leavesmc.leaves.network.AsyncKeepaliveManager;
- 
- public abstract class ServerCommonPacketListenerImpl implements ServerCommonPacketListener {
-     private static final Logger LOGGER = LogUtils.getLogger();
 @@ -46,6 +47,7 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
      private boolean closed = false;
      private volatile int latency; // Paper - improve keepalives - make volatile
@@ -24,11 +16,12 @@ index 20b9dfe68dfbcd5bb999ee4ec0500bdf6bc7fdd5..77c42c748d930c975134cf033633a923
      private volatile boolean suspendFlushingOnServerThread = false;
      // CraftBukkit start
      public final org.bukkit.craftbukkit.CraftServer cserver;
-@@ -73,6 +75,7 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
+@@ -73,6 +75,8 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
          this.keepAlive = cookie.keepAlive();
          // Paper end
          this.profile = cookie.gameProfile(); // Leaves - protocol core
-+        AsyncKeepaliveManager.register(this); // Leaves - async keepalive
++        this.lastKeepAliveResponse = this.keepAlive.lastKeepAliveTx; // Leaves - async keepalive
++        org.leavesmc.leaves.network.AsyncKeepaliveManager.register(this); // Leaves - async keepalive
      }
  
      // Paper start - configuration phase API
@@ -36,7 +29,7 @@ index 20b9dfe68dfbcd5bb999ee4ec0500bdf6bc7fdd5..77c42c748d930c975134cf033633a923
  
      @Override
      public void onDisconnect(DisconnectionDetails details) {
-+        AsyncKeepaliveManager.unregister(this); // Leaves - async keepalive
++        org.leavesmc.leaves.network.AsyncKeepaliveManager.unregister(this); // Leaves - async keepalive
          if (this.isSingleplayerOwner()) {
              LOGGER.info("Stopping singleplayer server as player logged out");
              this.server.halt(false);
@@ -98,7 +91,7 @@ index 20b9dfe68dfbcd5bb999ee4ec0500bdf6bc7fdd5..77c42c748d930c975134cf033633a923
          // Paper start - improve keepalives
          if (this.checkIfClosed(millis) && !this.processedDisconnect) {
              long currTime = System.nanoTime();
-@@ -301,6 +336,33 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
+@@ -301,6 +336,29 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
          Profiler.get().pop();
      }
  
@@ -111,10 +104,6 @@ index 20b9dfe68dfbcd5bb999ee4ec0500bdf6bc7fdd5..77c42c748d930c975134cf033633a923
 +        long timeoutNanos = java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(org.leavesmc.leaves.LeavesConfig.mics.asyncKeepalive.getTimeoutMillis());
 +        if ((currentTimeNs - this.keepAlive.lastKeepAliveTx) >= java.util.concurrent.TimeUnit.SECONDS.toNanos(1L)) {
 +            this.keepAlive.lastKeepAliveTx = currentTimeNs;
-+            if (this.lastKeepAliveResponse == 0L) {
-+                this.lastKeepAliveResponse = currentTimeNs;
-+            }
-+
 +            io.papermc.paper.util.KeepAlive.PendingKeepAlive pending = new io.papermc.paper.util.KeepAlive.PendingKeepAlive(currentTimeNs, currentTimeMs);
 +            this.keepAlive.pendingKeepAlives.add(pending);
 +            this.send(new ClientboundKeepAlivePacket(pending.challengeId()));
@@ -122,7 +111,7 @@ index 20b9dfe68dfbcd5bb999ee4ec0500bdf6bc7fdd5..77c42c748d930c975134cf033633a923
 +        while (this.keepAlive.pendingKeepAlives.pollIf((pending) -> (currentTimeNs - pending.txTimeNS()) > timeoutNanos) != null) {
 +        }
 +
-+        if (this.lastKeepAliveResponse != 0L && (currentTimeNs - this.lastKeepAliveResponse) > timeoutNanos) {
++        if ((currentTimeNs - this.lastKeepAliveResponse) > timeoutNanos) {
 +            LOGGER.info("{} was kicked due to keepalive timeout!", this.playerProfile().name());
 +            this.disconnectAsync(TIMEOUT_DISCONNECTION_MESSAGE, io.papermc.paper.connection.DisconnectionReason.TIMEOUT);
 +        }

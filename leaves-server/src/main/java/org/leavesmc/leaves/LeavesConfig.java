@@ -1089,6 +1089,31 @@ public final class LeavesConfig {
     @GlobalConfigCategory("misc")
     public static class MiscConfig {
 
+        public AsyncKeepaliveConfig asyncKeepalive = new AsyncKeepaliveConfig();
+
+        @GlobalConfigCategory("async-keepalive")
+        public static class AsyncKeepaliveConfig {
+
+            @GlobalConfig(value = "enable", lock = true)
+            public boolean enable = false;
+
+            @GlobalConfig(value = "timeout-seconds", lock = true, validator = TimeoutSecondsValidator.class)
+            public int timeoutSeconds = 20;
+
+            public long getTimeoutMillis() {
+                return this.timeoutSeconds * 1000L;
+            }
+
+            private static class TimeoutSecondsValidator extends IntConfigValidator {
+                @Override
+                public void verify(Integer old, Integer value) throws IllegalArgumentException {
+                    if (value <= 0) {
+                        throw new IllegalArgumentException("timeout-seconds need > 0");
+                    }
+                }
+            }
+        }
+
         public AutoUpdateConfig autoUpdate = new AutoUpdateConfig();
 
         @GlobalConfigCategory("auto-update")

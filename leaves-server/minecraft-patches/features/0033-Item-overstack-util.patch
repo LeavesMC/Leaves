@@ -145,6 +145,27 @@ index e82bb8f2d2b0e771dc371fd7e709116e1f5f204f..6d522eac417e6d0e21626f412ba5e90d
          ItemStack item = this.getItem();
          ItemStack item1 = itemEntity.getItem();
          if (Objects.equals(this.target, itemEntity.target) && areMergable(item, item1)) {
+diff --git a/net/minecraft/world/entity/npc/InventoryCarrier.java b/net/minecraft/world/entity/npc/InventoryCarrier.java
+index 585644a1339b477cb38fec7e06848e1a45c1516b..fe4a0184b2e5861aafc1aff0ee1a3ee5eb00c577 100644
+--- a/net/minecraft/world/entity/npc/InventoryCarrier.java
++++ b/net/minecraft/world/entity/npc/InventoryCarrier.java
+@@ -31,7 +31,16 @@ public interface InventoryCarrier {
+ 
+             mob.onItemPickup(itemEntity);
+             int count = item.getCount();
++            // Leaves start - item over-stack util
++            int restoreCount = 0;
++            if (org.leavesmc.leaves.util.ItemOverstackUtils.isStackable(item)) {
++                int vanillaMax = item.getMaxStackSize();
++                restoreCount = Math.min(0, count - vanillaMax);
++                item.setCount(count - restoreCount);
++            }
+             ItemStack itemStack = inventory.addItem(item);
++            itemStack.setCount(itemStack.getCount() + restoreCount);
++            // Leaves end - item over-stack util
+             mob.take(itemEntity, count - itemStack.getCount());
+             if (itemStack.isEmpty()) {
+                 itemEntity.discard(org.bukkit.event.entity.EntityRemoveEvent.Cause.PICKUP); // CraftBukkit - add Bukkit remove cause
 diff --git a/net/minecraft/world/entity/player/Inventory.java b/net/minecraft/world/entity/player/Inventory.java
 index 41e59f3739945ca7f6ab710c993b5c0f15fcd529..b849b04f227b43d036f4f6b3ae7accfafc389d9f 100644
 --- a/net/minecraft/world/entity/player/Inventory.java
@@ -444,7 +465,7 @@ index edf3bc4adc9b1700b73f06ea940f17cd55b16860..b1be97f37398240ce564aba6c7003192
      }
  
 diff --git a/net/minecraft/world/level/block/entity/HopperBlockEntity.java b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
-index cb6a11673d19266925c87b0254a7f66d8e4fb7ca..9b0d26b7a8c0656848cfa659065abae6fc2fdab4 100644
+index cb6a11673d19266925c87b0254a7f66d8e4fb7ca..2a760c9d5df233c29d37d427b8ade566ce5567e1 100644
 --- a/net/minecraft/world/level/block/entity/HopperBlockEntity.java
 +++ b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
 @@ -114,7 +114,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
@@ -456,7 +477,25 @@ index cb6a11673d19266925c87b0254a7f66d8e4fb7ca..9b0d26b7a8c0656848cfa659065abae6
      }
  
      @Override
-@@ -693,9 +693,9 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+@@ -645,7 +645,17 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+         // CraftBukkit end
+         } // Paper - Perf: Optimize Hoppers
+         ItemStack itemStack = item.getItem().copy();
++        // Leaves start - item over-stack util
++        int restoreCount = 0;
++        if (org.leavesmc.leaves.util.ItemOverstackUtils.isStackable(item.getItem())) {
++            // We need the hopper suck in the item with the vanilla max stack size each time
++            int vanillaMax = itemStack.getMaxStackSize();
++            restoreCount = Math.min(0, itemStack.getCount() - vanillaMax);
++            itemStack.setCount(itemStack.getCount() - restoreCount);
++        }
+         ItemStack itemStack1 = addItem(null, container, itemStack, null);
++        itemStack1.setCount(itemStack1.getCount() + restoreCount);
++        // Leaves end - item over-stack util
+         if (itemStack1.isEmpty()) {
+             flag = true;
+             item.setItem(ItemStack.EMPTY);
+@@ -693,9 +703,9 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
              if (item.isEmpty()) {
                  // Spigot start - SPIGOT-6693, SimpleContainer#setItem
                  ItemStack leftover = ItemStack.EMPTY; // Paper - Make hoppers respect inventory max stack size

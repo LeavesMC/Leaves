@@ -21,6 +21,15 @@ public class ItemOverstackUtils {
         new ShulkerBox()
     );
 
+    public static boolean isOverstackable(ItemStack stack) {
+        for (ItemUtil util : overstackUtils) {
+            if (util.isEnabled() && util.getMaxServerStackCount(stack) != -1) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static int getItemStackMaxCount(ItemStack stack) {
         int size;
         for (ItemUtil util : overstackUtils) {

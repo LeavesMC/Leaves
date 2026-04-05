@@ -124,6 +124,7 @@ public class LinearRegionFile implements IRegionFile {
     private int bucketSize = 4;
     private final int compressionLevel;
     private final LinearVersion linearVersion;
+    private byte fileActualVersion;
 
     private volatile boolean closed = false;
 
@@ -166,19 +167,23 @@ public class LinearRegionFile implements IRegionFile {
 
             long superBlock = buffer.getLong();
             if (superBlock != SUPERBLOCK) {
-                throw new RuntimeException("Invalid superblock: " + superBlock + " file " + this.regionFile);
+                LOGGER.error("Invalid superblock {} in region file {}", superBlock, this.regionFile);
+                return;
             }
 
             byte version = buffer.get();
+            this.fileActualVersion = version;
             if (version == 1 || version == 2) {
                 parseLinearV1(buffer);
             } else if (version == 3) {
                 parseLinearV2(buffer);
             } else {
-                throw new RuntimeException("Invalid version: " + version + " file " + this.regionFile);
+                LOGGER.error("Invalid version {} in region file {}", version, this.regionFile);
+                return;
             }
         } catch (IOException e) {
-            throw new RuntimeException("Failed to open region file " + this.regionFile, e);
+            LOGGER.error("Failed to open region file {}", this.regionFile, e);
+            return;
         } finally {
             writeLock.unlock();
         }
@@ -194,7 +199,7 @@ public class LinearRegionFile implements IRegionFile {
         int dataCount = buffer.getInt();
         long fileLength = this.regionFile.toFile().length();
         if (fileLength != HEADER_SIZE + dataCount + FOOTER_SIZE) {
-            throw new IOException("Invalid file length: " + this.regionFile + " " + fileLength + " " + (HEADER_SIZE + dataCount + FOOTER_SIZE));
+            LOGGER.warn("Invalid file length for V1 region file {}", this.regionFile);
         }
 
         buffer.position(buffer.position() + 8); // Skip data hash (Long): Unused.
@@ -235,7 +240,8 @@ public class LinearRegionFile implements IRegionFile {
         buffer.getLong(); // Skip newestTimestamp (Long)
         gridSize = buffer.get();
         if (gridSize != 1 && gridSize != 2 && gridSize != 4 && gridSize != 8 && gridSize != 16 && gridSize != 32) {
-            throw new RuntimeException("Invalid grid size: " + gridSize + " file " + this.regionFile);
+            LOGGER.warn("Invalid gridSize {} in old region file {}, using default 8", gridSize, this.regionFile);
+            gridSize = 8;
         }
         bucketSize = 32 / gridSize;
 
@@ -271,14 +277,15 @@ public class LinearRegionFile implements IRegionFile {
                 buffer.get(bucketBuffers[i]);
                 long rawHash = LongHashFunction.xx().hashBytes(bucketBuffers[i]);
                 if (rawHash != bucketHashes[i]) {
-                    throw new IOException("Region file hash incorrect " + this.regionFile);
+                    LOGGER.error("Region file hash check failed for {}", this.regionFile);
+                    break;
                 }
             }
         }
 
         long footerSuperBlock = buffer.getLong();
         if (footerSuperBlock != SUPERBLOCK) {
-            throw new IOException("Footer superblock invalid " + this.regionFile);
+            LOGGER.error("Footer superblock invalid for {}", this.regionFile);
         }
     }
 
@@ -573,7 +580,7 @@ public class LinearRegionFile implements IRegionFile {
                         }
                     }
                 } catch (IOException ex) {
-                    throw new RuntimeException("Region file corrupted: " + regionFile + " bucket: " + idx);
+                    LOGGER.error("Failed to load bucket {} in region file {}", idx, this.regionFile, ex);
                     // TODO: Make sure the server crashes instead of corrupting the world
                 }
                 bucketBuffers[idx] = null;
@@ -728,9 +735,9 @@ public class LinearRegionFile implements IRegionFile {
                 return;
             }
             // 刷盘
-            if (linearVersion == LinearVersion.V1) {
+            if (fileActualVersion == 1 || fileActualVersion == 2) {
                 flushLinearV1();
-            } else if (linearVersion == LinearVersion.V2) {
+            } else if (fileActualVersion == 3) {
                 flushLinearV2();
             }
             dirty.set(false);

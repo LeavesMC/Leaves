@@ -13,8 +13,7 @@ subprojects {
 
     extensions.configure<JavaPluginExtension> {
         toolchain {
-            languageVersion = JavaLanguageVersion.of(21)
-            vendor = JvmVendorSpec.ADOPTIUM
+            languageVersion = JavaLanguageVersion.of(25)
         }
     }
 
@@ -32,9 +31,10 @@ subprojects {
     }
     tasks.withType<JavaCompile> {
         options.encoding = Charsets.UTF_8.name()
-        options.release = 21
+        options.release = 25
         options.isFork = true
         options.forkOptions.memoryMaximumSize = "6g"
+        options.compilerArgs.addAll(listOf("-Xlint:-deprecation", "-Xlint:-removal"))
     }
     tasks.withType<Javadoc> {
         options.encoding = Charsets.UTF_8.name()

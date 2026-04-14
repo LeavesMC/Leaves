@@ -2,7 +2,7 @@ package org.leavesmc.leaves.protocol.jade.provider.block;
 
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.LecternBlockEntity;
 import org.jetbrains.annotations.NotNull;
@@ -13,7 +13,7 @@ import org.leavesmc.leaves.protocol.jade.provider.StreamServerDataProvider;
 public enum LecternProvider implements StreamServerDataProvider<BlockAccessor, ItemStack> {
     INSTANCE;
 
-    private static final ResourceLocation MC_LECTERN = JadeProtocol.mc_id("lectern");
+    private static final Identifier MC_LECTERN = JadeProtocol.mc_id("lectern");
 
     @Override
     public @NotNull ItemStack streamData(@NotNull BlockAccessor accessor) {
@@ -27,7 +27,7 @@ public enum LecternProvider implements StreamServerDataProvider<BlockAccessor, I
 
 
     @Override
-    public ResourceLocation getUid() {
+    public Identifier getUid() {
         return MC_LECTERN;
     }
 }

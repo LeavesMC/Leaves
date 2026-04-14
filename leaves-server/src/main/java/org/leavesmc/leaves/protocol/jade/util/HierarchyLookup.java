@@ -10,7 +10,7 @@ import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import net.minecraft.core.IdMapper;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.LeavesLogger;
 import org.leavesmc.leaves.protocol.jade.JadeProtocol;
@@ -108,12 +108,12 @@ public class HierarchyLookup<T extends JadeProvider> implements IHierarchyLookup
     }
 
     @Override
-    public void loadComplete(PriorityStore<ResourceLocation, JadeProvider> priorityStore) {
+    public void loadComplete(PriorityStore<Identifier, JadeProvider> priorityStore) {
         objects.asMap().forEach((clazz, list) -> {
             if (list.size() < 2) {
                 return;
             }
-            Set<ResourceLocation> set = Sets.newHashSetWithExpectedSize(list.size());
+            Set<Identifier> set = Sets.newHashSetWithExpectedSize(list.size());
             for (T provider : list) {
                 if (set.contains(provider.getUid())) {
                     throw new IllegalStateException("Duplicate UID: %s for %s".formatted(provider.getUid(), list.stream()

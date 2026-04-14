@@ -11,13 +11,13 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
-import net.minecraft.world.level.GameRules;
+import net.minecraft.world.level.gamerules.GameRules;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.protocol.core.LeavesCustomPayload;
@@ -304,7 +304,7 @@ public class ServuxHudDataProtocol implements LeavesProtocol {
     public record HudDataPayload(HudDataPayloadType packetType, CompoundTag nbt, FriendlyByteBuf buffer) implements LeavesCustomPayload {
 
         @ID
-        public static final ResourceLocation CHANNEL = ServuxProtocol.id("hud_metadata");
+        public static final Identifier CHANNEL = ServuxProtocol.id("hud_metadata");
 
         @Codec
         public static final StreamCodec<FriendlyByteBuf, HudDataPayload> CODEC = StreamCodec.of(

@@ -1,6 +1,6 @@
 package org.leavesmc.leaves.network;
 
-import net.minecraft.Util;
+import net.minecraft.util.Util;
 import net.minecraft.network.Connection;
 import net.minecraft.server.network.ServerCommonPacketListenerImpl;
 import org.leavesmc.leaves.LeavesConfig;

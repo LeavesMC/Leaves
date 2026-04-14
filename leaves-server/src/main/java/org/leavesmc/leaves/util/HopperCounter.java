@@ -14,7 +14,7 @@ import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.context.ContextMap;
 import net.minecraft.world.item.BlockItem;
@@ -244,7 +244,7 @@ public class HopperCounter {
             return direct;
         }
 
-        ResourceLocation id = registryAccess.lookupOrThrow(Registries.ITEM).getKey(item);
+        Identifier id = registryAccess.lookupOrThrow(Registries.ITEM).getKey(item);
         if (id == null) {
             return null;
         }
@@ -262,13 +262,13 @@ public class HopperCounter {
     }
 
     @NotNull
-    public static List<Recipe<?>> getRecipesForOutput(@NotNull RecipeManager recipeManager, ResourceLocation id, Level level) {
+    public static List<Recipe<?>> getRecipesForOutput(@NotNull RecipeManager recipeManager, Identifier id, Level level) {
         List<Recipe<?>> results = new ArrayList<>();
         ContextMap context = SlotDisplayContext.fromLevel(level);
         recipeManager.getRecipes().forEach(recipe -> {
             for (RecipeDisplay recipeDisplay : recipe.value().display()) {
                 recipeDisplay.result().resolveForStacks(context).forEach(stack -> {
-                    if (BuiltInRegistries.ITEM.wrapAsHolder(stack.getItem()).unwrapKey().map(ResourceKey::location).orElseThrow(IllegalStateException::new).equals(id)) {
+                    if (BuiltInRegistries.ITEM.wrapAsHolder(stack.getItem()).unwrapKey().map(ResourceKey::identifier).orElseThrow(IllegalStateException::new).equals(id)) {
                         results.add(recipe.value());
                     }
                 });
@@ -289,7 +289,7 @@ public class HopperCounter {
         Block block = null;
         final Registry<Item> itemRegistry = registryAccess.lookupOrThrow(Registries.ITEM);
         final Registry<Block> blockRegistry = registryAccess.lookupOrThrow(Registries.BLOCK);
-        ResourceLocation id = itemRegistry.getKey(item);
+        Identifier id = itemRegistry.getKey(item);
         if (item instanceof BlockItem blockItem) {
             block = blockItem.getBlock();
         } else if (blockRegistry.getOptional(id).isPresent()) {

@@ -1,0 +1,161 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Sun, 2 Jul 2023 09:25:00 +0800
+Subject: [PATCH] Elytra aeronautics no chunk load
+
+
+diff --git a/net/minecraft/server/level/ChunkMap.java b/net/minecraft/server/level/ChunkMap.java
+index 01cbebd70223389c6d952be23e5d739579b96ead..18808f2bf537930802b171920c73413b42d9c5d7 100644
+--- a/net/minecraft/server/level/ChunkMap.java
++++ b/net/minecraft/server/level/ChunkMap.java
+@@ -891,7 +891,8 @@ public class ChunkMap extends SimpleRegionStorage implements ChunkHolder.PlayerP
+     }
+ 
+     private boolean skipPlayer(final ServerPlayer player) {
+-        return player.isSpectator() && !this.level.getGameRules().get(GameRules.SPECTATORS_GENERATE_CHUNKS);
++        return (player.isSpectator() && !this.level.getGameRules().get(GameRules.SPECTATORS_GENERATE_CHUNKS))
++            || (org.leavesmc.leaves.LeavesConfig.modify.elytraAeronautics.enableNoChunkLoad && player.elytraAeronauticsNoChunk); // Leaves - Elytra aeronautics
+     }
+ 
+     void updatePlayerStatus(final ServerPlayer player, final boolean added) {
+@@ -925,6 +926,7 @@ public class ChunkMap extends SimpleRegionStorage implements ChunkHolder.PlayerP
+     }
+ 
+     public void move(final ServerPlayer player) {
++        if (player.elytraAeronauticsNoChunk) return; // Leaves - no chunk
+         // Paper - optimise entity tracker
+ 
+         SectionPos oldSection = player.getLastSectionPos();
+diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
+index 70a47ecb6ca87db408a042b6c5d155f5c16b6605..a95c686e74fa1ed6fcb2a595922ce8488448e093 100644
+--- a/net/minecraft/server/level/ServerLevel.java
++++ b/net/minecraft/server/level/ServerLevel.java
+@@ -886,6 +886,10 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet
+                     }
+                 );
+             profiler.popPush("blockEntities");
++            if (org.leavesmc.leaves.LeavesConfig.modify.elytraAeronautics.enableNoChunkLoad) {
++                org.leavesmc.leaves.util.ElytraAeronauticsHelper.tick(this);
++            }
++            // Leaves end - elytra aeronautics
+             this.tickBlockEntities();
+             profiler.pop();
+         }
+diff --git a/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index 8fbf1f4fe72ddde8ccd059589905d1bd400e3dd7..404b88d30778d07745368b14e739e91fb4a95cda 100644
+--- a/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -610,7 +610,7 @@ public class ServerGamePacketListenerImpl
+                 speed *= 2f; // TODO: Get the speed of the vehicle instead of the player
+ 
+                 // Paper start - Prevent moving into unloaded chunks
+-                if (this.player.level().paperConfig().chunks.preventMovingIntoUnloadedChunks && (
++                if (this.player.level().paperConfig().chunks.preventMovingIntoUnloadedChunks && !player.elytraAeronauticsNoChunk && ( // Leaves - no chunk load
+                     !level.areChunksLoadedForMove(this.player.getBoundingBox().expandTowards(new Vec3(targetX, targetY, targetZ).subtract(this.player.position()))) ||
+                         !level.areChunksLoadedForMove(vehicle.getBoundingBox().expandTowards(new Vec3(targetX, targetY, targetZ).subtract(vehicle.position())))
+                 )) {
+@@ -1662,6 +1662,7 @@ public class ServerGamePacketListenerImpl
+                                         allowMovement = !this.hasNewCollision(level, this.player, oldAABB, newBox);
+                                     } // else: no collision at all detected, why do we care?
+                                 }
++                                allowMovement = allowMovement || player.elytraAeronauticsNoChunk; // Leaves - Elytra aeronautics
+                                 // Paper end - optimise out extra getCubes
+                                 if (!allowMovement) {
+                                     io.papermc.paper.event.player.PlayerFailMoveEvent event = fireFailMove(io.papermc.paper.event.player.PlayerFailMoveEvent.FailReason.CLIPPED_INTO_BLOCK,
+diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
+index 9cd46a8619e575a865f4d00ce71d249c9b028b2f..d54a056d0df512de3f97e3f36f567e624329eba8 100644
+--- a/net/minecraft/world/entity/Entity.java
++++ b/net/minecraft/world/entity/Entity.java
+@@ -1159,7 +1159,13 @@ public abstract class Entity
+                     return;
+                 }
+             }
+-
++            // Leaves start - elytra aeronautics
++            if (org.leavesmc.leaves.LeavesConfig.modify.elytraAeronautics.enableNoChunkLoad && this instanceof Player player) {
++                if (moverType == MoverType.PLAYER && player.isFallFlying()) {
++                    org.leavesmc.leaves.util.ElytraAeronauticsHelper.flightBehaviour(player, delta);
++                }
++            }
++            // Leaves end - elytra aeronautics
+             ProfilerFiller profiler = Profiler.get();
+             profiler.push("move");
+             if (this.stuckSpeedMultiplier.lengthSqr() > 1.0E-7) {
+@@ -2219,6 +2225,7 @@ public abstract class Entity
+         this.yo = y;
+         this.zo = cz;
+         this.setPos(cx, y, cz);
++        if (this instanceof Player player && player.elytraAeronauticsNoChunk) return; // Leaves - elytra aeronautics
+         if (this.valid) this.level.getChunk((int) Math.floor(this.getX()) >> 4, (int) Math.floor(this.getZ()) >> 4); // CraftBukkit
+     }
+ 
+diff --git a/net/minecraft/world/entity/LivingEntity.java b/net/minecraft/world/entity/LivingEntity.java
+index b87576911f99c04f473e29265ede981502bbba8f..2de9c51d669575f50a20067a8b9ccfa68f66eb73 100644
+--- a/net/minecraft/world/entity/LivingEntity.java
++++ b/net/minecraft/world/entity/LivingEntity.java
+@@ -3476,6 +3476,11 @@ public abstract class LivingEntity extends Entity implements Attackable, Waypoin
+             this.fallFlyTicks++;
+         } else {
+             this.fallFlyTicks = 0;
++            // Leaves start - Elytra aeronautics
++            if (this instanceof ServerPlayer player) {
++                org.leavesmc.leaves.util.ElytraAeronauticsHelper.handleCruiseDeactivate(player);
++            }
++            // Leaves end - Elytra aeronautics
+         }
+ 
+         if (this.isSleeping()) {
+diff --git a/net/minecraft/world/entity/player/Player.java b/net/minecraft/world/entity/player/Player.java
+index d9c0bc84fa7f43af3c6187cf6ba543e4416cbe7d..87913244e95d039db92e1b8dd61fcab1a30d664c 100644
+--- a/net/minecraft/world/entity/player/Player.java
++++ b/net/minecraft/world/entity/player/Player.java
+@@ -174,6 +174,7 @@ public abstract class Player extends Avatar implements ContainerUser {
+     public float hurtDir;
+     public boolean affectsSpawning = true; // Paper - Affects Spawning API
+     public net.kyori.adventure.util.TriState flyingFallDamage = net.kyori.adventure.util.TriState.NOT_SET; // Paper - flying fall damage
++    public boolean elytraAeronauticsNoChunk = false; // Leaves - Elytra aeronautics
+ 
+     // CraftBukkit start
+     public boolean fauxSleeping;
+diff --git a/net/minecraft/world/entity/projectile/FireworkRocketEntity.java b/net/minecraft/world/entity/projectile/FireworkRocketEntity.java
+index c9f7e68abccbc6b894a66b675952c973e22af8e6..f37836d81a0bfffb0d6ff83d3686739691fd7fb0 100644
+--- a/net/minecraft/world/entity/projectile/FireworkRocketEntity.java
++++ b/net/minecraft/world/entity/projectile/FireworkRocketEntity.java
+@@ -324,7 +324,7 @@ public class FireworkRocketEntity extends Projectile implements ItemSupplier {
+         this.spawningEntity = input.read("SpawningEntity", net.minecraft.core.UUIDUtil.CODEC).orElse(null); // Paper
+     }
+ 
+-    private List<FireworkExplosion> getExplosions() {
++    public List<FireworkExplosion> getExplosions() { // Leaves private -> public
+         ItemStack sourceItemStack = this.entityData.get(DATA_ID_FIREWORKS_ITEM);
+         Fireworks fireworks = sourceItemStack.get(DataComponents.FIREWORKS);
+         return fireworks != null ? fireworks.explosions() : List.of();
+diff --git a/net/minecraft/world/item/FireworkRocketItem.java b/net/minecraft/world/item/FireworkRocketItem.java
+index c17607cb1fd5403f17a64b4218571e669b840a2e..42528adf14f4742b6ff6f2293ed37e9a29358857 100644
+--- a/net/minecraft/world/item/FireworkRocketItem.java
++++ b/net/minecraft/world/item/FireworkRocketItem.java
+@@ -65,6 +65,24 @@ public class FireworkRocketItem extends Item implements ProjectileItem {
+         if (player.isFallFlying()) {
+             ItemStack itemStack = player.getItemInHand(hand);
+             if (level instanceof ServerLevel serverLevel) {
++                // Leaves start - Elytra aeronautics
++                if (player instanceof net.minecraft.server.level.ServerPlayer sp && sp.elytraAeronauticsNoChunk) {
++                    final FireworkRocketEntity firework = new FireworkRocketEntity(level, itemStack, player);
++                    firework.spawningEntity = player.getUUID();
++                    com.destroystokyo.paper.event.player.PlayerElytraBoostEvent event = new com.destroystokyo.paper.event.player.PlayerElytraBoostEvent((org.bukkit.entity.Player) player.getBukkitEntity(), org.bukkit.craftbukkit.inventory.CraftItemStack.asCraftMirror(itemStack), (org.bukkit.entity.Firework) firework.getBukkitEntity(), org.bukkit.craftbukkit.CraftEquipmentSlot.getHand(hand));
++                    if (event.callEvent() && org.leavesmc.leaves.util.ElytraAeronauticsHelper.proxySpawnAndTick(firework)) {
++                        player.awardStat(Stats.ITEM_USED.get(this));
++                        if (event.shouldConsume() && !player.hasInfiniteMaterials()) {
++                            itemStack.shrink(1);
++                        } else {
++                            player.containerMenu.sendAllDataToRemote();
++                        }
++                    } else {
++                        player.containerMenu.sendAllDataToRemote();
++                    }
++                    return InteractionResult.SUCCESS;
++                }
++                // Leaves end - Elytra aeronautics
+                 // Paper start - PlayerElytraBoostEvent
+                 final Projectile.Delayed<FireworkRocketEntity> delayed = Projectile.spawnProjectileDelayed(new FireworkRocketEntity(level, itemStack, player), serverLevel, itemStack, f -> f.spawningEntity = player.getUUID()); // Paper - firework api - assign spawning entity uuid
+                 com.destroystokyo.paper.event.player.PlayerElytraBoostEvent event = new com.destroystokyo.paper.event.player.PlayerElytraBoostEvent((org.bukkit.entity.Player) player.getBukkitEntity(), org.bukkit.craftbukkit.inventory.CraftItemStack.asCraftMirror(itemStack), (org.bukkit.entity.Firework) delayed.projectile().getBukkitEntity(), org.bukkit.craftbukkit.CraftEquipmentSlot.getHand(hand));

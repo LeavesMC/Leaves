@@ -1,11 +1,13 @@
 # Leaves 升级至 Paper 26.1.2 — 进度与移交文档
 
-> **更新时间**：2026-04-15
+> **更新时间**：2026-04-15（第二轮 session 结束）
 > **当前分支**：`upgrade-26.1` (HyacinthHaru/Leaves + HyacinthHaru/leavesweight)
 > **当前状态**：
 > - 阶段 1、2 完成
-> - 阶段 3 部分完成：38/173 patch 自动 rebased（22%），90 个 Leaves 自有 Java 文件的"类重命名/包迁移"修复完成
-> - CI：`applyAllPatches` 已经绿；`createMojmapLeavesclipJar` 仍红（差 134 个未 rebase 的 minecraft-patches）
+> - 阶段 3 达到 **50% 里程碑**：87/173 patch 已 rebase，2 个 obsolete（Paper 26.1 已吸收），1 个 deferred（依赖未 rebase 的前置 patch）
+> - 90 个 Leaves 自有 Java 文件的"类重命名/包迁移"第一轮修复完成
+> - CI：`applyAllPatches` 持续绿；`createMojmapLeavesclipJar` 仍红（剩 83 个 patch + `Leaves-Plugin` 重写未完成）
+> - 详见 [`SESSION_REPORT_2026-04-15.md`](./SESSION_REPORT_2026-04-15.md)
 
 ---
 
@@ -50,13 +52,13 @@
 
 #### 3.1 成果统计
 
-| 类别 | 源数 | 已 rebase | 跳过（待办） | 完成率 |
-|---|---|---|---|---|
-| `leaves-api/paper-patches/features/` | 9 | 9 | 0 | 100% |
-| `leaves-server/paper-patches/features/` | 16 | 15 | 1 (Leaves Plugin) | 94% |
-| `leaves-server/minecraft-patches/features/` | 147 | 13 | 134 | 9% |
-| `leaves-server/paper-patches/files/` | 1 | 1 | 0 | 100% |
-| **总计** | **173** | **38** | **135** | **22%** |
+| 类别 | 源数 | 已 rebase | 跳过（待办） | dropped（upstream已吸收） | 完成率 |
+|---|---|---|---|---|---|
+| `leaves-api/paper-patches/features/` | 9 | 9 | 0 | 0 | 100% |
+| `leaves-server/paper-patches/features/` | 16 | 15 | 1 (Leaves Plugin) | 0 | 94% |
+| `leaves-server/minecraft-patches/features/` | 147 | 62 | 83 | 2 | 42% |
+| `leaves-server/paper-patches/files/` | 1 | 1 | 0 | 0 | 100% |
+| **总计** | **173** | **87** | **84** | **2** | **50%** |
 
 `./gradlew applyAllPatches` 在当前 patch 集合下 **完整通过**，没有冲突。
 

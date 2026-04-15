@@ -1,0 +1,90 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: HyacinthHaru <HyacinthHaru@users.noreply.github.com>
+Date: Wed, 15 Apr 2026 20:00:50 +0800
+Subject: [PATCH 4/7] Return nether portal fix
+
+
+diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
+index f4a4896061884ef6e86f3d7589f4c6b6ad84dc5f..4b51abd51759a1a4b30e3c454c30beac18fdf001 100644
+--- a/net/minecraft/server/level/ServerPlayer.java
++++ b/net/minecraft/server/level/ServerPlayer.java
+@@ -1608,6 +1608,19 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+                 org.bukkit.event.player.PlayerChangedWorldEvent changeEvent = new org.bukkit.event.player.PlayerChangedWorldEvent(this.getBukkitEntity(), oldLevel.getWorld());
+                 this.level().getCraftServer().getPluginManager().callEvent(changeEvent);
+                 // CraftBukkit end
++                // Leaves start - nether portal fix
++                if (org.leavesmc.leaves.LeavesConfig.modify.netherPortalFix) {
++                    final net.minecraft.resources.ResourceKey<Level> fromDim = oldLevel.dimension();
++                    final net.minecraft.resources.ResourceKey<Level> toDim = this.level().dimension();
++                    if ((fromDim == Level.OVERWORLD && toDim == Level.NETHER) || (fromDim == Level.NETHER && toDim == Level.OVERWORLD)) {
++                        BlockPos fromPortal = org.leavesmc.leaves.util.ReturnPortalManager.findPortalAt(this, fromDim, this.lastPos);
++                        BlockPos toPos = this.blockPosition();
++                        if (fromPortal != null) {
++                            org.leavesmc.leaves.util.ReturnPortalManager.storeReturnPortal(this, toDim, toPos, fromPortal);
++                        }
++                    }
++                }
++                // Leaves end - nether portal fix
+                 // Paper start - Reset shield blocking on dimension change
+                 if (this.isBlocking()) {
+                     this.stopUsingItem();
+diff --git a/net/minecraft/server/players/PlayerList.java b/net/minecraft/server/players/PlayerList.java
+index 517f0f715c010135e19942c71906532bd55ba083..69d63e431218d06b99df720aeb328af763780d03 100644
+--- a/net/minecraft/server/players/PlayerList.java
++++ b/net/minecraft/server/players/PlayerList.java
+@@ -699,6 +699,18 @@ public abstract class PlayerList {
+         // It's possible for respawn to be in a diff dimension
+         if (fromLevel != level) {
+             new org.bukkit.event.player.PlayerChangedWorldEvent(player.getBukkitEntity(), fromLevel.getWorld()).callEvent();
++            // Leaves start - nether portal fix
++            if (org.leavesmc.leaves.LeavesConfig.modify.netherPortalFix) {
++                final net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> fromDim = fromLevel.dimension();
++                final net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> toDim = level.dimension();
++                if ((fromDim == net.minecraft.world.level.Level.OVERWORLD && toDim == net.minecraft.world.level.Level.NETHER) || (fromDim == net.minecraft.world.level.Level.NETHER && toDim == net.minecraft.world.level.Level.OVERWORLD)) {
++                    net.minecraft.core.BlockPos fromPortal = org.leavesmc.leaves.util.ReturnPortalManager.findPortalAt(player, fromDim, player.lastPos);
++                    if (fromPortal != null) {
++                        org.leavesmc.leaves.util.ReturnPortalManager.storeReturnPortal(player, toDim, player.blockPosition(), fromPortal);
++                    }
++                }
++            }
++            // Leaves end - nether portal fix
+             player.triggerDimensionChangeTriggers(level);
+         }
+ 
+diff --git a/net/minecraft/world/entity/LivingEntity.java b/net/minecraft/world/entity/LivingEntity.java
+index 051c51397f87b052b2eb3ee32d753449b8583bcb..df38eb2678a77682b24afd0fd363104ff6fb822a 100644
+--- a/net/minecraft/world/entity/LivingEntity.java
++++ b/net/minecraft/world/entity/LivingEntity.java
+@@ -261,7 +261,7 @@ public abstract class LivingEntity extends Entity implements Attackable, Waypoin
+     public int useItemRemaining;
+     protected int fallFlyTicks;
+     private long lastKineticHitFeedbackTime = -2147483648L;
+-    private BlockPos lastPos;
++    public BlockPos lastPos; // Leaves - private -> public
+     private Optional<BlockPos> lastClimbablePos = Optional.empty();
+     private @Nullable DamageSource lastDamageSource;
+     private long lastDamageStamp;
+diff --git a/net/minecraft/world/level/block/NetherPortalBlock.java b/net/minecraft/world/level/block/NetherPortalBlock.java
+index 55436fbbd43f8f5359dedebd56684c3ce5119563..f91f31abfc699aab883bf5fc68ba81566453637a 100644
+--- a/net/minecraft/world/level/block/NetherPortalBlock.java
++++ b/net/minecraft/world/level/block/NetherPortalBlock.java
+@@ -188,7 +188,18 @@ public class NetherPortalBlock extends Block implements Portal {
+         final WorldBorder worldBorder
+         , org.bukkit.craftbukkit.event.PortalEventResult result // CraftBukkit
+     ) {
+-        Optional<BlockPos> exitPortalPos = newLevel.getPortalForcer().findClosestPortalPosition(approximateExitPos, worldBorder, result.searchRadius()); // CraftBukkit
++        // Leaves start - fix return portal
++        Optional<BlockPos> exitPortalPos = Optional.empty();
++        if (org.leavesmc.leaves.LeavesConfig.modify.netherPortalFix && entity instanceof net.minecraft.server.level.ServerPlayer player) {
++            org.leavesmc.leaves.util.ReturnPortalManager.ReturnPortal portal = org.leavesmc.leaves.util.ReturnPortalManager.findReturnPortal(player, entity.level().dimension(), entity.blockPosition());
++            if (portal != null && newLevel.getBlockState(portal.pos()).is(Blocks.NETHER_PORTAL)) {
++                exitPortalPos = Optional.of(portal.pos());
++            }
++        }
++        if (exitPortalPos.isEmpty()) {
++            exitPortalPos = newLevel.getPortalForcer().findClosestPortalPosition(approximateExitPos, worldBorder, result.searchRadius()); // CraftBukkit
++        }
++        // Leaves end - fix return portal
+         BlockUtil.FoundRectangle exitPortal;
+         TeleportTransition.PostTeleportTransition post;
+         if (exitPortalPos.isPresent()) {

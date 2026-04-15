@@ -1,0 +1,43 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Thu, 20 Jul 2023 17:23:33 +0800
+Subject: [PATCH 1/5] Avoid Class#isAssignableFrom call in
+ ClassInstanceMultiMap
+
+This patch is Powered by Gale(https://github.com/GaleMC/Gale)
+
+diff --git a/net/minecraft/util/ClassInstanceMultiMap.java b/net/minecraft/util/ClassInstanceMultiMap.java
+index 76d7538142cb07a1d5e108bead75cf972d558fdc..c388cffef18cbe0e87735972ff9a188636dbbb41 100644
+--- a/net/minecraft/util/ClassInstanceMultiMap.java
++++ b/net/minecraft/util/ClassInstanceMultiMap.java
+@@ -55,13 +55,24 @@ public class ClassInstanceMultiMap<T> extends AbstractCollection<T> {
+     }
+ 
+     public <S> Collection<S> find(final Class<S> index) {
+-        if (!this.baseClass.isAssignableFrom(index)) {
+-            throw new IllegalArgumentException("Don't know how to search for " + index);
+-        } else {
+-            List<? extends T> instances = this.byClass
+-                .computeIfAbsent(index, k -> this.allInstances.stream().filter(k::isInstance).collect(Util.toMutableList()));
+-            return (Collection<S>)Collections.unmodifiableCollection(instances);
++        // Leaves start - avoid Class#isAssignableFrom call in ClassInstanceMultiMap
++        Collection<T> collection = this.byClass.get(index);
++        if (collection == null) {
++            collection = this.createAllOfType(index);
+         }
++        return (Collection<S>) Collections.unmodifiableCollection(collection);
++    }
++
++    private <S> Collection<T> createAllOfType(final Class<S> type) {
++        List<T> list = new java.util.ArrayList<>(1);
++        for (T allElement : this.allInstances) {
++            if (type.isInstance(allElement)) {
++                list.add(allElement);
++            }
++        }
++        this.byClass.put(type, list);
++        return list;
++        // Leaves end - avoid Class#isAssignableFrom call in ClassInstanceMultiMap
+     }
+ 
+     @Override

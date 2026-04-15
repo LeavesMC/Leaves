@@ -1,0 +1,79 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: HyacinthHaru <HyacinthHaru@users.noreply.github.com>
+Date: Wed, 15 Apr 2026 19:37:07 +0800
+Subject: [PATCH 3/7] Old ender dragon part can use end portal
+
+
+diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
+index 7e555311acdff7a11c474cea4c86fcb9b9493d99..8cf7c481c2dcc840adca8da4ce0cebcf7b691735 100644
+--- a/net/minecraft/world/entity/Entity.java
++++ b/net/minecraft/world/entity/Entity.java
+@@ -204,7 +204,7 @@ public abstract class Entity
+     // Paper end - Share random for entities to make them more random
+     public org.bukkit.event.entity.CreatureSpawnEvent.@Nullable SpawnReason spawnReason; // Paper - Entity#getEntitySpawnReason
+ 
+-    private volatile org.bukkit.craftbukkit.entity.@Nullable CraftEntity bukkitEntity; // Paper - Folia schedulers - volatile
++    public volatile org.bukkit.craftbukkit.entity.@Nullable CraftEntity bukkitEntity; // Paper - Folia schedulers - volatile // Leaves - private -> public
+ 
+     public org.bukkit.craftbukkit.entity.CraftEntity getBukkitEntity() {
+         if (this.bukkitEntity == null) {
+@@ -4054,7 +4054,7 @@ public abstract class Entity
+ 
+     public @Nullable Entity teleport(TeleportTransition transition) { // Paper - remove param final
+         // Paper start - Fix item duplication and teleport issues
+-        if ((!this.isAlive() || !this.valid) && (transition.newLevel() != this.level)) {
++        if (!(org.leavesmc.leaves.LeavesConfig.modify.oldMC.enderDragonPartCanUseEndPortal && this instanceof net.minecraft.world.entity.boss.EnderDragonPart)) if ((!this.isAlive() || !this.valid) && (transition.newLevel() != this.level)) { // Leaves - endDragonPartCanUseEndPortal
+             LOGGER.warn("Illegal Entity Teleport {} to {}:{}", this, transition.newLevel(), transition.position(), new Throwable());
+             return null;
+         }
+@@ -4170,7 +4170,7 @@ public abstract class Entity
+             newEntity.restoreFrom(this);
+             this.removeAfterChangingDimensions();
+             newEntity.teleportSetPosition(PositionMoveRotation.of(this), PositionMoveRotation.of(transition), transition.relatives());
+-            if (this.inWorld) newLevel.addDuringTeleport(newEntity); // CraftBukkit - Don't spawn the new entity if the current entity isn't spawned
++            if (this.inWorld || (this instanceof net.minecraft.world.entity.boss.EnderDragonPart && org.leavesmc.leaves.LeavesConfig.modify.oldMC.enderDragonPartCanUseEndPortal)) newLevel.addDuringTeleport(newEntity); // CraftBukkit - Don't spawn the new entity if the current entity isn't spawned // Leaves - ender dragon part can use end portal
+ 
+             for (Entity newPassenger : newPassengers) {
+                 newPassenger.startRiding(newEntity, true, false);
+@@ -4284,6 +4284,7 @@ public abstract class Entity
+     }
+ 
+     public boolean canTeleport(final Level from, final Level to) {
++        if (org.leavesmc.leaves.LeavesConfig.modify.oldMC.enderDragonPartCanUseEndPortal && this instanceof net.minecraft.world.entity.boss.EnderDragonPart) return true; // Leaves - enderDragonPartCanUseEndPortal
+         if (!org.leavesmc.leaves.LeavesConfig.modify.oldMC.allowEntityPortalWithPassenger && (this.isPassenger() || this.isVehicle())) return false; // Leaves - allowEntityPortalWithPassenger
+         if (!this.isAlive() || !this.valid) return false; // Paper - Fix item duplication and teleport issues
+         if (from.dimension() == Level.END && to.dimension() == Level.OVERWORLD) {
+diff --git a/net/minecraft/world/entity/Mob.java b/net/minecraft/world/entity/Mob.java
+index 47048ff1b2d73235bf806389a65ebfc16b11c23d..d07ce96b2803f611006c8735651d15b3ff117141 100644
+--- a/net/minecraft/world/entity/Mob.java
++++ b/net/minecraft/world/entity/Mob.java
+@@ -403,6 +403,16 @@ public abstract class Mob extends LivingEntity implements Targeting, EquipmentUs
+         if (!this.level().isClientSide() && this.tickCount % 5 == 0) {
+             this.updateControlFlags();
+         }
++        // Leaves start - ender dragon part can use end portal
++        if (!org.leavesmc.leaves.LeavesConfig.modify.oldMC.enderDragonPartCanUseEndPortal) return;
++        if (!(this instanceof net.minecraft.world.entity.boss.enderdragon.EnderDragon dragon)) return;
++        for (net.minecraft.world.entity.boss.EnderDragonPart part : dragon.getSubEntities()) {
++            PortalProcessor portalManager = part.portalProcess;
++            if (portalManager == null) continue;
++            if (!(portalManager.portal instanceof net.minecraft.world.level.block.EndPortalBlock)) continue;
++            part.handlePortal();
++        }
++        // Leaves end - ender dragon part can use end portal
+     }
+ 
+     protected void updateControlFlags() {
+diff --git a/net/minecraft/world/entity/PortalProcessor.java b/net/minecraft/world/entity/PortalProcessor.java
+index 7ec15f3d3a770e1e9e2fbac29dd38e947bb07091..60ed93e7b834e7bce21e4d8d826d9fba99aff952 100644
+--- a/net/minecraft/world/entity/PortalProcessor.java
++++ b/net/minecraft/world/entity/PortalProcessor.java
+@@ -7,7 +7,7 @@ import net.minecraft.world.level.portal.TeleportTransition;
+ import org.jspecify.annotations.Nullable;
+ 
+ public class PortalProcessor {
+-    private final Portal portal;
++    public final Portal portal; // Leaves - private -> public
+     private BlockPos entryPosition;
+     private int portalTime;
+     private boolean insidePortalThisTick;

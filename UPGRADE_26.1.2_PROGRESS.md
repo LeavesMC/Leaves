@@ -1,12 +1,13 @@
 # Leaves 升级至 Paper 26.1.2 — 进度与移交文档
 
-> **更新时间**：2026-04-15（第二轮 session 结束）
+> **更新时间**：2026-04-15（batch 20 完成）
 > **当前分支**：`upgrade-26.1` (HyacinthHaru/Leaves + HyacinthHaru/leavesweight)
 > **当前状态**：
 > - 阶段 1、2 完成
-> - 阶段 3 达到 **50% 里程碑**：87/173 patch 已 rebase，2 个 obsolete（Paper 26.1 已吸收），1 个 deferred（依赖未 rebase 的前置 patch）
+> - 阶段 3 达到 **84% 里程碑**：146/173 patch 已 rebase（含 batch 20 的 0096 grindstone overstacking + 恢复的 0035 end-void-rings），5 个 obsolete，1 个 deferred
+> - **Hopper 三件套** + grindstone overstacking 全部啃完
 > - 90 个 Leaves 自有 Java 文件的"类重命名/包迁移"第一轮修复完成
-> - CI：`applyAllPatches` 持续绿；`createMojmapLeavesclipJar` 仍红（剩 83 个 patch + `Leaves-Plugin` 重写未完成）
+> - CI：`applyAllPatches` 持续绿；`compileJava` 100 errors（与 batch 19 持平，0120 未引入新错误）
 > - 详见 [`SESSION_REPORT_2026-04-15.md`](./SESSION_REPORT_2026-04-15.md)
 
 ---
@@ -56,11 +57,33 @@
 |---|---|---|---|---|---|
 | `leaves-api/paper-patches/features/` | 9 | 9 | 0 | 0 | 100% |
 | `leaves-server/paper-patches/features/` | 16 | 15 | 1 (Leaves Plugin) | 0 | 94% |
-| `leaves-server/minecraft-patches/features/` | 147 | 62 | 83 | 2 | 42% |
+| `leaves-server/minecraft-patches/features/` | 147 | 121 | 21 | 5 | 82% |
 | `leaves-server/paper-patches/files/` | 1 | 1 | 0 | 0 | 100% |
-| **总计** | **173** | **87** | **84** | **2** | **50%** |
+| **总计** | **173** | **146** | **22** | **5** | **84%** |
 
 `./gradlew applyAllPatches` 在当前 patch 集合下 **完整通过**，没有冲突。
+
+---
+
+## 🗑️ Obsoleted patches（被 Paper 上游吸收 / 过时）
+
+这些 patch **不在 `features/` 也不在 `features-todo/`**，已从仓库彻底删除。对应的 Leaves 配置字段**暂时保留在 `LeavesConfig.java`**（为了兼容老的 `leaves.yml`），将在正式提交 PR 给 `LeavesMC/Leaves` 主分支前统一清理。
+
+遇到新的 obsoleted patch 时，请按同样方式在此表追加一行。
+
+| 原 patch | 废弃原因 | 残留 config 字段 | 处理时机 |
+|---|---|---|---|
+| ~~`Modify-end-void-rings-generation`~~ (batch 4，**batch 20 已恢复**) | ~~Paper 26.1 已修复~~ — 实际上 Paper 只是把 `(long)` cast 放在 `ca.spottedleaf.moonrise.common.PlatformHooks.get().configFixMC159283()` 开关下，配置默认关闭时 Leaves 的 vanilla overflow 行为仍生效。batch 20 重写 patch 复用 moonrise 三元运算符，加入 `!LeavesConfig.fix.vanillaEndVoidRings &&` 守卫 | `LeavesConfig.fix.vanillaEndVoidRings`（保留并仍生效） | — |
+| `Fix-Paper-config-preventMovingIntoUnloadedChunks` (batch 8) | Leaves 作者 Lumine1909 将此修复贡献给了 Paper，26.1 已内置相同的 `flags` 逻辑 | 无 config 字段（纯 bug fix） | — |
+| `Only-check-for-spooky-season-once-an-hour` (batch 11) | Paper 26.1 把 `isHalloween()` 移到 `net.minecraft.util.SpecialDates` 并把 15 天窗口简化为单天 (`MonthDay.of(10, 31)`) 检查，原 hot-path 优化不再必要 | `LeavesConfig.performance.checkSpookySeasonOnceAnHour`（LeavesConfig.java:821） | 提交 PR 前清理；如想对 `SpecialDates.dayNow()` 做缓存，新开 patch |
+| `Cache-climbing-check-for-activation` (batch 15) | Paper 26.1 在 `ActivationRange` 里改用 `living.blockPosition().equals(living.getLastClimbablePos().orElse(null))` 做 O(1) 快速路径，效果等价且更快；Leaves 的 `onClimableCached()` 优化不再必要 | `LeavesConfig.performance.cacheClimbCheck`（LeavesConfig.java:830） | 提交 PR 前清理 |
+| `Vanilla-Fluid-Pushing` (batch 17) | Paper 26.1 用新的 `EntityFluidInteraction` 类（`fluidInteraction.update()` / `applyCurrentTo()`）完全重写了流体推送逻辑，旧 `updateFluidHeightAndDoFluidPushing` hook 点不存在。如需保留 vanilla 模式需按新 API 重写 | `LeavesConfig.fix.vanillaFluidPushing`（LeavesConfig.java:1316） | 提交 PR 前清理；或基于 `EntityFluidInteraction` 新开 patch |
+| `TEMP-Merge-Paper-11831` (batch 17) | Paper 26.1 已吸收该 PR 的大部分改动：`GiveCommand` 的 `displayName` 缓存、`Entity.dropItem`/`LivingEntity.drop` 的 `stack.setCount(0)` 复制逻辑都已合入；剩余 `AbstractContainerMenu` 的 SPIGOT-8010 break-loop 上下文已重构 | 无（纯 temp-merge patch） | — |
+
+**处理策略**：
+- **现在**：保留所有相关 config 字段（避免用户 `leaves.yml` 报 "unknown key"），仅在本表记录
+- **PR 前**：根据上游 maintainer 反馈统一处理：删字段、加 `@Deprecated`、或基于 26.1 新 API 重写成新 patch
+- **未来遇到类似情况**：**不 drop 到 features-todo/**（容易遗忘），直接删除 patch 文件并在本表追加一行
 
 #### 3.2 13 个已 rebase 的 minecraft-patches
 

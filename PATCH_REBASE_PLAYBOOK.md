@@ -10,7 +10,7 @@
 
 ## 一、当前进度快照
 
-截至 2026-04-15（commit `05b18a2`）：
+截至 2026-04-15（batch 20 完成）：
 
 | 模块 | 总数 | 已 rebase | 未完成 | 完成率 |
 |---|---|---|---|---|
@@ -18,12 +18,12 @@
 | `leaves-server/paper-patches/files/` | 1 | 1 | 0 | **100%** ✓ |
 | `leaves-server/paper-patches/features/` | 16 | 15 | 1 | 94% |
 | `leaves-server/minecraft-patches/files/` | 0 | 0 | 0 | — |
-| `leaves-server/minecraft-patches/features/` | 147 | 15 | 132 | 10% |
+| `leaves-server/minecraft-patches/features/` | 147 | 121 | 21 | 82% |
 | 自有 Java 源码的类名迁移 | ~396 | 90 改动完成 | 新错误随 patch rebase 浮现 | ~85% 第一轮 |
-| **总计 patch** | **173** | **40** | **133** | **23%** |
+| **总计 patch** | **173** | **146** | **22** | **84%** |
 
 `./gradlew applyAllPatches` 当前完整通过。
-`./gradlew :leaves-server:compileJava` 仍报 101 个错误（全部来自未 rebase 的 patch 提供的方法/字段）。
+`./gradlew :leaves-server:compileJava` 报 100 个错误（与 batch 19 持平，0120 grindstone overstacking 未引入新错误）。
 
 ---
 
@@ -220,6 +220,29 @@ rebase patch 时最常踩的坑，按影响范围排序：
 
 - `org.lz4:lz4-java:1.8.0` 冲突 mache 自带的 `at.yawk.lz4:lz4-java:1.10.1`。→ 已从 `leaves-server/build.gradle.kts.patch` 移除。
 
+### 5.6 遇到 obsolete patch 时的处理流程
+
+有时候一个 patch 到 Paper 26.1 下已经"没必要了"，有两种典型情况：
+- **a. Paper 自己修了同一个 bug**（如 `Fix-Paper-config-preventMovingIntoUnloadedChunks`，Leaves 作者贡献回了上游）
+- **b. Paper 重构/删除了相关代码路径**（如 `Only-check-for-spooky-season-once-an-hour`，Paper 把 `isHalloween` 移到 `SpecialDates` 并简化了逻辑，原 hot-path 优化不再适用）
+
+判断方法：在当前 apply 失败时，先读 patch 原意图（commit message、代码上下文），然后用 `grep` 在 `leaves-server/src/minecraft/java/` 里找对应 Paper 26.1 的实现，看是否已经包含了等价修复。
+
+**处理步骤**：
+
+1. **直接删除 patch 文件**（不要放进 `features-todo/`，那里表示"待 rebase"，obsolete 不属于这类；放进 todo 容易让后人以为需要做但其实不需要）
+
+2. **在 [`UPGRADE_26.1.2_PROGRESS.md`](./UPGRADE_26.1.2_PROGRESS.md) 的「🗑️ Obsoleted patches」表格追加一行**：
+   - 原 patch 名和批次
+   - 废弃原因（引用 Paper 26.1 的具体文件/行号作证据）
+   - 残留 config 字段的路径和行号（如果有）
+
+3. **保留残留的 LeavesConfig 字段**（避免用户升级后的 `leaves.yml` 报 "unknown key"）。**不要**加 `@Deprecated`、不要删字段。这些 dead config 在最终 PR 给 `LeavesMC/Leaves` 主分支前由上游 maintainer 决定是清理还是重写。
+
+4. **commit message 说明**：写清是"dropped (obsoleted by upstream)"，不是"rebased"。
+
+5. **如果你怀疑 Leaves 想保留的语义在 Paper 新实现下还是有价值**（比如 `checkSpookySeasonOnceAnHour` 的缓存思路对 `SpecialDates.dayNow()` 还是有用）：别直接重写到旧 patch 里——把它作为**新 patch 候选**记在 `UPGRADE_26.1.2_PROGRESS.md` 的 "未来可以新开 patch 的点子"（目前还没这一节，可以按需新开）。
+
 ---
 
 ## 六、"硬骨头" 清单
@@ -289,9 +312,12 @@ rebase patch 时最常踩的坑，按影响范围排序：
 ## 九、协作约定
 
 - **推送身份**：HyacinthHaru（`122684177+HyacinthHaru@users.noreply.github.com`），通过 `gh` 的 HTTPS token 推送（不用 SSH）
-- **macOS 用户注意**：确保 `git config --global core.excludesfile ~/.gitignore_global`，里面至少有 `.DS_Store`，否则 paperweight 内部 git 会把 macOS Finder 垃圾带进 patch
+- **不要在 commit message 里加 `Co-Authored-By: Claude ...`**：Leaves 是 HyacinthHaru 的 fork，commit log 上保持单一作者更清爽。如果不小心加了，需要在 push 前用 `git filter-branch` 或 `git rebase -i` 清掉再 force-push
+- **macOS 用户注意**：确保 `git config --global core.excludesfile ~/.gitignore_global`，里面至少有 `.DS_Store`，否则 paperweight 内部 git 会把 macOS Finder 垃圾带进 patch；并且需要清理 `runLeavesSetup` 缓存里 tracked 的 .DS_Store（`cd leaves-server/.gradle/caches/paperweight/taskCache/runLeavesSetup && git rm $(git ls-files | grep DS_Store) && git commit -m "remove DS_Store"`），否则每次 3-way merge 都会被它阻塞
 - **每次 push 前清理**：`find paper-server leaves-server -name ".DS_Store" -delete; find paper-server leaves-server -name "* [0-9].java" -delete`
+- **batch 20 教训**：误把 `0038-CCE-update-suppression.patch` / 重复的 `0039-Movable-Budding-Amethyst.patch` 留在 `features/`（untracked，git ls-files 看不出），但 `applyAllPatches` 仍会按文件名顺序读取，导致缺失前置依赖时整条链断裂。**新增 patch 前务必先 `git ls-files leaves-server/minecraft-patches/features/` 看一下与 `ls` 输出的差集**
+- **Paper upstream 漂移**：上游 Paper main 持续推进，已有 patch 的 `index <SHA>..<SHA>` 行可能因为底层文件被改而无法 3-way merge（典型如 batch 20 遇到的 0035 `DensityFunctions`，Paper 把 end-island 生成代码用 `ca.spottedleaf.moonrise.common.PlatformHooks.configFixMC159283()` 重写）。处理：手动改写 patch 内容以对齐新上下文（参考 `0035-Modify-end-void-rings-generation.patch`），保留 Leaves 配置开关意图
 
 ---
 
-_最后更新：2026-04-15，commit `05b18a2`_
+_最后更新：2026-04-16，batch 20 (0096 Allow-grindstone-overstacking)_

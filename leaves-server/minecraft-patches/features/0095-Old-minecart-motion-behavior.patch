@@ -1,0 +1,51 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: HyacinthHaru <HyacinthHaru@users.noreply.github.com>
+Date: Wed, 15 Apr 2026 15:05:13 +0800
+Subject: [PATCH 03/10] Old minecart motion behavior
+
+
+diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
+index 8f93252c3c5fd9a77c7c3ac97d814f87ada4f773..da7f08092805c08b5a35ea06ed489090529c1428 100644
+--- a/net/minecraft/world/entity/Entity.java
++++ b/net/minecraft/world/entity/Entity.java
+@@ -4191,7 +4191,7 @@ public abstract class Entity
+                 transition.relatives().contains(Relative.Y) ? 0.0 : passengerOffset.y(),
+                 transition.relatives().contains(Relative.Z) ? 0.0 : passengerOffset.z()
+             );
+-        return transition.withPosition(passengerPos).withRotation(passengerYRot, passengerXRot).transitionAsPassenger();
++        return org.leavesmc.leaves.LeavesConfig.modify.oldMC.oldMinecartMotionBehavior ? new TeleportTransition(transition.newLevel(), transition.position(), transition.deltaMovement(), 0, 0, transition.postTeleportTransition()) : transition.withPosition(passengerPos).withRotation(passengerYRot, passengerXRot).transitionAsPassenger(); // Leaves - old minecart motion behavior
+     }
+ 
+     private void sendTeleportTransitionToRidingPlayers(final TeleportTransition transition) {
+diff --git a/net/minecraft/world/level/block/NetherPortalBlock.java b/net/minecraft/world/level/block/NetherPortalBlock.java
+index b66aa14aea47e3b10c3e28cf25a64be550a8f5e0..55436fbbd43f8f5359dedebd56684c3ce5119563 100644
+--- a/net/minecraft/world/level/block/NetherPortalBlock.java
++++ b/net/minecraft/world/level/block/NetherPortalBlock.java
+@@ -261,7 +261,17 @@ public class NetherPortalBlock extends Block implements Portal {
+         double width = foundRectangle.axis1Size;
+         double height = foundRectangle.axis2Size;
+         EntityDimensions dimensions = entity.getDimensions(entity.getPose());
+-        int outputRotation = portalAxis == axis ? 0 : 90;
++        // Leaves start - old minecart motion behavior
++        int outputRotation;
++        Vec3 outputDelta;
++        if (org.leavesmc.leaves.LeavesConfig.modify.oldMC.oldMinecartMotionBehavior) {
++            outputDelta = portalAxis == axis ? entity.getDeltaMovement() : new Vec3(entity.getDeltaMovement().z, entity.getDeltaMovement().y, -entity.getDeltaMovement().x);
++            outputRotation = 0;
++        } else {
++            outputDelta = Vec3.ZERO;
++            outputRotation = portalAxis == axis ? 0 : 90;
++        }
++        // Leaves end - old minecart motion behavior
+         double offsetRight = dimensions.width() / 2.0 + (width - dimensions.width()) * offset.x();
+         double offsetUp = (height - dimensions.height()) * offset.y();
+         double offsetForward = 0.5 + offset.z();
+@@ -273,7 +283,7 @@ public class NetherPortalBlock extends Block implements Portal {
+         );
+         Vec3 collisionFreePos = PortalShape.findCollisionFreePosition(targetPos, newLevel, entity, dimensions);
+         return new TeleportTransition(
+-            newLevel, collisionFreePos, Vec3.ZERO, outputRotation, 0.0F, Relative.union(Relative.DELTA, Relative.ROTATION), postTeleportTransition, org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.NETHER_PORTAL // CraftBukkit
++            newLevel, collisionFreePos, outputDelta, outputRotation, 0.0F, Relative.union(Relative.DELTA, Relative.ROTATION), postTeleportTransition, org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.NETHER_PORTAL // CraftBukkit // Leaves - old minecart motion behavior
+         );
+     }
+ 

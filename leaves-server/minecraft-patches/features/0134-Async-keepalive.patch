@@ -1,11 +1,11 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
-From: HyacinthHaru <HyacinthHaru@foxmail.com>
-Date: Fri, 20 Mar 2026 11:43:05 +0800
-Subject: [PATCH] Async keepalive
+From: Leaves <leaves@leaves>
+Date: Thu, 16 Apr 2026 13:00:23 +0800
+Subject: [PATCH 1/2] Async keepalive
 
 
 diff --git a/net/minecraft/server/network/ServerCommonPacketListenerImpl.java b/net/minecraft/server/network/ServerCommonPacketListenerImpl.java
-index 20b9dfe68dfbcd5bb999ee4ec0500bdf6bc7fdd5..3e8b7a6ecc79eac256e1a377e46827764a38b14a 100644
+index 61e3220cfaebe10f7b0b697e48ace64aedaf4d50..926b20784a685d028672bebc9bea3bdcf8c73b0f 100644
 --- a/net/minecraft/server/network/ServerCommonPacketListenerImpl.java
 +++ b/net/minecraft/server/network/ServerCommonPacketListenerImpl.java
 @@ -46,6 +46,7 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
@@ -28,7 +28,7 @@ index 20b9dfe68dfbcd5bb999ee4ec0500bdf6bc7fdd5..3e8b7a6ecc79eac256e1a377e4682776
 @@ -90,6 +93,7 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
  
      @Override
-     public void onDisconnect(DisconnectionDetails details) {
+     public void onDisconnect(final DisconnectionDetails details) {
 +        org.leavesmc.leaves.network.AsyncKeepaliveManager.unregister(this); // Leaves - async keepalive
          if (this.isSingleplayerOwner()) {
              LOGGER.info("Stopping singleplayer server as player logged out");
@@ -36,7 +36,7 @@ index 20b9dfe68dfbcd5bb999ee4ec0500bdf6bc7fdd5..3e8b7a6ecc79eac256e1a377e4682776
 @@ -104,6 +108,13 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
  
      @Override
-     public void handleKeepAlive(ServerboundKeepAlivePacket packet) {
+     public void handleKeepAlive(final ServerboundKeepAlivePacket packet) {
 +        // Leaves start - async keepalive
 +        if (org.leavesmc.leaves.LeavesConfig.mics.asyncKeepalive.enable) {
 +            this.handleAsyncKeepAlive(packet);
@@ -74,21 +74,21 @@ index 20b9dfe68dfbcd5bb999ee4ec0500bdf6bc7fdd5..3e8b7a6ecc79eac256e1a377e4682776
 +    // Leaves end - async keepalive
 +
      @Override
-     public void handlePong(ServerboundPongPacket packet) {
+     public void handlePong(final ServerboundPongPacket serverboundPongPacket) {
      }
 @@ -278,6 +311,13 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
      protected void keepConnectionAlive() {
          Profiler.get().push("keepAlive");
-         long millis = Util.getMillis();
+         long now = Util.getMillis();
 +        // Leaves start - async keepalive
 +        if (org.leavesmc.leaves.LeavesConfig.mics.asyncKeepalive.enable) {
-+            this.checkIfClosed(millis);
++            this.checkIfClosed(now);
 +            Profiler.get().pop();
 +            return;
 +        }
 +        // Leaves end - async keepalive
          // Paper start - improve keepalives
-         if (this.checkIfClosed(millis) && !this.processedDisconnect) {
+         if (this.checkIfClosed(now) && !this.processedDisconnect) {
              long currTime = System.nanoTime();
 @@ -301,6 +341,29 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
          Profiler.get().pop();
@@ -117,6 +117,6 @@ index 20b9dfe68dfbcd5bb999ee4ec0500bdf6bc7fdd5..3e8b7a6ecc79eac256e1a377e4682776
 +    }
 +    // Leaves end - async keepalive
 +
-     private boolean checkIfClosed(long time) {
+     private boolean checkIfClosed(final long now) {
          if (this.closed) {
-             if (time - this.closedListenerTime >= 15000L) {
+             if (now - this.closedListenerTime >= 15000L) {

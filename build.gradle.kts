@@ -34,7 +34,7 @@ subprojects {
         options.release = 25
         options.isFork = true
         options.forkOptions.memoryMaximumSize = "6g"
-        options.compilerArgs.addAll(listOf("-Xlint:-deprecation", "-Xlint:-removal"))
+        options.compilerArgs.addAll(listOf("-Xlint:-deprecation", "-Xlint:-removal", "-Xmaxerrs", "500"))
     }
     tasks.withType<Javadoc> {
         options.encoding = Charsets.UTF_8.name()

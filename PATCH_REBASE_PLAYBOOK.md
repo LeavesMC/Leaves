@@ -18,9 +18,9 @@
 | `leaves-server/paper-patches/files/` | 1 | 1 | 0 | **100%** ✓ |
 | `leaves-server/paper-patches/features/` | 16 | 15 | 1 | 94% |
 | `leaves-server/minecraft-patches/files/` | 0 | 0 | 0 | — |
-| `leaves-server/minecraft-patches/features/` | 147 | 121 | 21 | 82% |
+| `leaves-server/minecraft-patches/features/` | 147 | 122 | 20 | 83% |
 | 自有 Java 源码的类名迁移 | ~396 | 90 改动完成 | 新错误随 patch rebase 浮现 | ~85% 第一轮 |
-| **总计 patch** | **173** | **146** | **22** | **84%** |
+| **总计 patch** | **173** | **147** | **21** | **85%** |
 
 `./gradlew applyAllPatches` 当前完整通过。
 `./gradlew :leaves-server:compileJava` 报 100 个错误（与 batch 19 持平，0120 grindstone overstacking 未引入新错误）。

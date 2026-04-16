@@ -1,30 +1,11 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
-From: MC_XiaoHei <xor7xiaohei@gmail.com>
-Date: Tue, 9 Nov 2077 00:00:00 +0800
+From: Leaves <leaves@leaves>
+Date: Thu, 16 Apr 2026 15:50:03 +0800
 Subject: [PATCH] Lithium Equipment Tracking
 
-Origin patch author: HaHaWTH <102713261+HaHaWTH@users.noreply.github.com>
-Origin patch link: https://github.com/Winds-Studio/Leaf/blob/ver/1.21.8/leaf-server/minecraft-patches/features/0268-Lithium-equipment-tracking.patch
-
-Should have special treatment to ArmorStand, since Paper introduced the configurable
-ArmorStand no-tick, and still gives it ability to update equipment changes.
-Thus added a bypass condition in LivingEntity#collectEquipmentChanges, always send
-ArmorStand equipment changes even if the ArmorStand is no-tick
-
-This patch is based on the following mixins:
-* "net/caffeinemc/mods/lithium/mixin/util/item_component_and_count_tracking/PatchedDataComponentMapMixin.java"
-* "net/caffeinemc/mods/lithium/mixin/util/item_component_and_count_tracking/ItemStackMixin.java"
-* "net/caffeinemc/mods/lithium/mixin/entity/equipment_tracking/enchantment_ticking/LivingEntityMixin.java"
-* "net/caffeinemc/mods/lithium/mixin/entity/equipment_tracking/equipment_changes/LivingEntityMixin.java"
-* "net/caffeinemc/mods/lithium/mixin/entity/equipment_tracking/EntityEquipmentMixin.java"
-* "net/caffeinemc/mods/lithium/common/util/change_tracking/ChangePublisher.java"
-* "net/caffeinemc/mods/lithium/common/util/change_tracking/ChangeSubscriber.java"
-By: 2No2Name <2No2Name@web.de>
-As part of: Lithium (https://github.com/CaffeineMC/lithium)
-Licensed under: LGPL-3.0 (https://www.gnu.org/licenses/lgpl-3.0.html)
 
 diff --git a/net/minecraft/world/entity/EntityEquipment.java b/net/minecraft/world/entity/EntityEquipment.java
-index 1e00a7bd89d885cabb4b9ca3c86fbd8cd93cebf5..08e3d257ffdc5dfa996b1e16e477b4e0f8660c54 100644
+index 20041325ae77f16a5b77f5de7255788b52ebb3a5..1456dbc98de65da1d854a3d3c224e4dad2de0f38 100644
 --- a/net/minecraft/world/entity/EntityEquipment.java
 +++ b/net/minecraft/world/entity/EntityEquipment.java
 @@ -7,7 +7,7 @@ import java.util.Objects;
@@ -33,11 +14,11 @@ index 1e00a7bd89d885cabb4b9ca3c86fbd8cd93cebf5..08e3d257ffdc5dfa996b1e16e477b4e0
  
 -public class EntityEquipment {
 +public class EntityEquipment implements org.leavesmc.leaves.lithium.common.util.change_tracking.ChangeSubscriber.CountChangeSubscriber<ItemStack> { // Leaves - Lithium - equipment tracking
-     public static final Codec<EntityEquipment> CODEC = Codec.unboundedMap(EquipmentSlot.CODEC, ItemStack.CODEC).xmap(map -> {
-         EnumMap<EquipmentSlot, ItemStack> map1 = new EnumMap<>(EquipmentSlot.class);
-         map1.putAll((Map<? extends EquipmentSlot, ? extends ItemStack>)map);
+     public static final Codec<EntityEquipment> CODEC = Codec.unboundedMap(EquipmentSlot.CODEC, ItemStack.CODEC).xmap(items -> {
+         EnumMap<EquipmentSlot, ItemStack> map = new EnumMap<>(EquipmentSlot.class);
+         map.putAll((Map<? extends EquipmentSlot, ? extends ItemStack>)items);
 @@ -18,6 +18,11 @@ public class EntityEquipment {
-         return map;
+         return items;
      });
      private final EnumMap<EquipmentSlot, ItemStack> items;
 +    // Leaves start - Lithium - equipment tracking
@@ -46,27 +27,27 @@ index 1e00a7bd89d885cabb4b9ca3c86fbd8cd93cebf5..08e3d257ffdc5dfa996b1e16e477b4e0
 +    boolean hasUnsentEquipmentChanges = true;
 +    // Leaves end - Lithium - equipment tracking
  
-     private EntityEquipment(EnumMap<EquipmentSlot, ItemStack> items) {
+     private EntityEquipment(final EnumMap<EquipmentSlot, ItemStack> items) {
          this.items = items;
 @@ -28,7 +33,13 @@ public class EntityEquipment {
      }
  
-     public ItemStack set(EquipmentSlot slot, ItemStack stack) {
--        return Objects.requireNonNullElse(this.items.put(slot, stack), ItemStack.EMPTY);
+     public ItemStack set(final EquipmentSlot slot, final ItemStack itemStack) {
+-        return Objects.requireNonNullElse(this.items.put(slot, itemStack), ItemStack.EMPTY);
 +        // Leaves start - Lithium - equipment tracking
-+        ItemStack oldStack = Objects.requireNonNullElse(this.items.put(slot, stack), ItemStack.EMPTY);
++        ItemStack oldStack = Objects.requireNonNullElse(this.items.put(slot, itemStack), ItemStack.EMPTY);
 +        if (org.leavesmc.leaves.LeavesConfig.performance.equipmentTracking) {
-+            this.onEquipmentReplaced(oldStack, stack);
++            this.onEquipmentReplaced(oldStack, itemStack);
 +        }
 +        return oldStack;
 +        // Leaves end - Lithium - equipment tracking
      }
  
-     public ItemStack get(EquipmentSlot slot) {
+     public ItemStack get(final EquipmentSlot slot) {
 @@ -55,8 +66,23 @@ public class EntityEquipment {
      }
  
-     public void setAll(EntityEquipment equipment) {
+     public void setAll(final EntityEquipment equipment) {
 +        if (org.leavesmc.leaves.LeavesConfig.performance.equipmentTracking) this.onClear(); // Leaves - Lithium - equipment tracking
          this.items.clear();
          this.items.putAll(equipment.items);
@@ -86,11 +67,11 @@ index 1e00a7bd89d885cabb4b9ca3c86fbd8cd93cebf5..08e3d257ffdc5dfa996b1e16e477b4e0
 +        // Leaves end - Lithium - equipment tracking
      }
  
-     public void dropAll(LivingEntity entity) {
+     public void dropAll(final LivingEntity dropper) {
 @@ -69,6 +95,7 @@ public class EntityEquipment {
  
      public void clear() {
-         this.items.replaceAll((equipmentSlot, itemStack) -> ItemStack.EMPTY);
+         this.items.replaceAll((s, v) -> ItemStack.EMPTY);
 +        if (org.leavesmc.leaves.LeavesConfig.performance.equipmentTracking) this.onClear(); // Leaves - Lithium - equipment tracking
      }
  
@@ -195,10 +176,10 @@ index 1e00a7bd89d885cabb4b9ca3c86fbd8cd93cebf5..08e3d257ffdc5dfa996b1e16e477b4e0
 +    // Leaves end - Lithium - equipment tracking
  }
 diff --git a/net/minecraft/world/entity/LivingEntity.java b/net/minecraft/world/entity/LivingEntity.java
-index b0db5cec1293109b32fd6bb40b350d81ea0afc7a..c275942cb57f2e5fe1e1cc8bee92abef4343297b 100644
+index af8419ca97ef9f4df349e48590f38cb1104530b6..95a68c4c3cfe2f4922c54872d38a9a11f14ed8bc 100644
 --- a/net/minecraft/world/entity/LivingEntity.java
 +++ b/net/minecraft/world/entity/LivingEntity.java
-@@ -432,9 +432,17 @@ public abstract class LivingEntity extends Entity implements Attackable, Waypoin
+@@ -426,9 +426,17 @@ public abstract class LivingEntity extends Entity implements Attackable, Waypoin
              this.getSleepingPos().ifPresent(this::setPosToBed);
          }
  
@@ -217,19 +198,19 @@ index b0db5cec1293109b32fd6bb40b350d81ea0afc7a..c275942cb57f2e5fe1e1cc8bee92abef
 +        // Leaves end - Lithium - equipment tracking
  
          super.baseTick();
-         ProfilerFiller profilerFiller = Profiler.get();
-@@ -3388,6 +3396,7 @@ public abstract class LivingEntity extends Entity implements Attackable, Waypoin
+         ProfilerFiller profiler = Profiler.get();
+@@ -3570,6 +3578,7 @@ public abstract class LivingEntity extends Entity implements Attackable, Waypoin
      public void detectEquipmentUpdates() {
-         Map<EquipmentSlot, ItemStack> map = this.collectEquipmentChanges();
-         if (map != null) {
+         Map<EquipmentSlot, ItemStack> changedItems = this.collectEquipmentChanges();
+         if (changedItems != null) {
 +            if (org.leavesmc.leaves.LeavesConfig.performance.equipmentTracking && !(this instanceof net.minecraft.world.entity.player.Player)) this.equipment.lithium$onEquipmentChangesSent(); // Leaves - Lithium - equipment tracking
-             this.handleHandSwap(map);
-             if (!map.isEmpty()) {
-                 this.handleEquipmentChanges(map);
-@@ -3397,6 +3406,14 @@ public abstract class LivingEntity extends Entity implements Attackable, Waypoin
+             this.handleHandSwap(changedItems);
+             if (!changedItems.isEmpty()) {
+                 this.handleEquipmentChanges(changedItems);
+@@ -3578,6 +3587,14 @@ public abstract class LivingEntity extends Entity implements Attackable, Waypoin
+     }
  
-     @Nullable
-     private Map<EquipmentSlot, ItemStack> collectEquipmentChanges() {
+     private @Nullable Map<EquipmentSlot, ItemStack> collectEquipmentChanges() {
 +        // Leaves start - Lithium - equipment tracking
 +        if (org.leavesmc.leaves.LeavesConfig.performance.equipmentTracking) {
 +            final boolean isArmorStandUpdateNoTick = this instanceof net.minecraft.world.entity.decoration.ArmorStand stand && !stand.canTick && stand.noTickEquipmentDirty;
@@ -238,14 +219,14 @@ index b0db5cec1293109b32fd6bb40b350d81ea0afc7a..c275942cb57f2e5fe1e1cc8bee92abef
 +            }
 +        }
 +        // Leaves end - Lithium - equipment tracking
-         Map<EquipmentSlot, ItemStack> map = null;
+         Map<EquipmentSlot, ItemStack> changedItems = null;
          // Paper start - EntityEquipmentChangedEvent
          record EquipmentChangeImpl(org.bukkit.inventory.ItemStack oldItem, org.bukkit.inventory.ItemStack newItem) implements io.papermc.paper.event.entity.EntityEquipmentChangedEvent.EquipmentChange {
 diff --git a/net/minecraft/world/entity/decoration/ArmorStand.java b/net/minecraft/world/entity/decoration/ArmorStand.java
-index 9420ca7e32ae71ce9cecf8afd808ae6e9f8f4258..de89f78978ee5ae67049eb83fda3d56ef8371781 100644
+index 3dd6f93bf623a1e3f7429d57ca175585ab7fbc04..dff39051c1dc8f80ea162cc30a6bc1440c3f30c5 100644
 --- a/net/minecraft/world/entity/decoration/ArmorStand.java
 +++ b/net/minecraft/world/entity/decoration/ArmorStand.java
-@@ -90,7 +90,7 @@ public class ArmorStand extends LivingEntity {
+@@ -92,7 +92,7 @@ public class ArmorStand extends LivingEntity {
      // Paper start - Allow ArmorStands not to tick
      public boolean canTick = true;
      public boolean canTickSetByAPI = false;
@@ -253,8 +234,8 @@ index 9420ca7e32ae71ce9cecf8afd808ae6e9f8f4258..de89f78978ee5ae67049eb83fda3d56e
 +    public boolean noTickEquipmentDirty = false; // Leaves - private -> public
      // Paper end - Allow ArmorStands not to tick
  
-     public ArmorStand(EntityType<? extends ArmorStand> type, Level level) {
-@@ -531,8 +531,9 @@ public class ArmorStand extends LivingEntity {
+     public ArmorStand(final EntityType<? extends ArmorStand> type, final Level level) {
+@@ -532,8 +532,9 @@ public class ArmorStand extends LivingEntity {
      public void tick() {
          if (!this.canTick) {
              if (this.noTickEquipmentDirty) {

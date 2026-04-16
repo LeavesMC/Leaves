@@ -1,0 +1,83 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Leaves <leaves@leaves>
+Date: Thu, 16 Apr 2026 13:12:31 +0800
+Subject: [PATCH] Fix PCA addListener and REI display() API mismatch
+
+
+diff --git a/net/minecraft/world/entity/animal/equine/AbstractHorse.java b/net/minecraft/world/entity/animal/equine/AbstractHorse.java
+index 91de48bed8abccfcb9c06520cb84ff7757e1222c..872c9e562437152c72b7709cc840bbdb7346340d 100644
+--- a/net/minecraft/world/entity/animal/equine/AbstractHorse.java
++++ b/net/minecraft/world/entity/animal/equine/AbstractHorse.java
+@@ -301,13 +301,16 @@ public abstract class AbstractHorse extends Animal implements PlayerRideableJump
+ 
+     public void createInventory() {
+         SimpleContainer old = this.inventory;
+-        this.inventory = new SimpleContainer(this.getInventorySize(), (org.bukkit.entity.AbstractHorse) this.getBukkitEntity()); // CraftBukkit
+         // Leaves start - pca
+-        this.inventory.addListener(inv -> {
+-            if (org.leavesmc.leaves.LeavesConfig.protocol.pca.enable) {
+-                org.leavesmc.leaves.protocol.PcaSyncProtocol.syncEntityToClient(this);
++        this.inventory = new SimpleContainer(this.getInventorySize(), (org.bukkit.entity.AbstractHorse) this.getBukkitEntity()) { // CraftBukkit
++            @Override
++            public void setChanged() {
++                super.setChanged();
++                if (org.leavesmc.leaves.LeavesConfig.protocol.pca.enable) {
++                    org.leavesmc.leaves.protocol.PcaSyncProtocol.syncEntityToClient(AbstractHorse.this);
++                }
+             }
+-        });
++        };
+         // Leaves end - pca
+         if (old != null) {
+             int max = Math.min(old.getContainerSize(), this.inventory.getContainerSize());
+diff --git a/net/minecraft/world/entity/npc/villager/AbstractVillager.java b/net/minecraft/world/entity/npc/villager/AbstractVillager.java
+index da561f421244eafd53ccc62784c130f9d056f958..72fb77b40caec7131c9e30ab483524214289adea 100644
+--- a/net/minecraft/world/entity/npc/villager/AbstractVillager.java
++++ b/net/minecraft/world/entity/npc/villager/AbstractVillager.java
+@@ -56,22 +56,23 @@ public abstract class AbstractVillager extends AgeableMob implements Npc, Mercha
+     private static final EntityDataAccessor<Integer> DATA_UNHAPPY_COUNTER = SynchedEntityData.defineId(AbstractVillager.class, EntityDataSerializers.INT);
+     private @Nullable Player tradingPlayer;
+     protected @Nullable MerchantOffers offers;
+-    private final SimpleContainer inventory = new SimpleContainer(8, (org.bukkit.craftbukkit.entity.CraftAbstractVillager) this.getBukkitEntity()); // CraftBukkit - add argument
++    // Leaves start - pca
++    private final SimpleContainer inventory = new SimpleContainer(8, (org.bukkit.craftbukkit.entity.CraftAbstractVillager) this.getBukkitEntity()) { // CraftBukkit - add argument
++        @Override
++        public void setChanged() {
++            super.setChanged();
++            if (!AbstractVillager.this.level().isClientSide() && org.leavesmc.leaves.LeavesConfig.protocol.pca.enable) {
++                org.leavesmc.leaves.protocol.PcaSyncProtocol.syncEntityToClient(AbstractVillager.this);
++            }
++        }
++    };
++    // Leaves end - pca
+     protected boolean voidTrade = false; // Leaves - force void trade
+ 
+     public AbstractVillager(final EntityType<? extends AbstractVillager> type, final Level level) {
+         super(type, level);
+         this.setPathfindingMalus(PathType.FIRE_IN_NEIGHBOR, 16.0F);
+         this.setPathfindingMalus(PathType.FIRE, -1.0F);
+-        // Leaves start - pca
+-        if (!this.level().isClientSide()) {
+-            this.inventory.addListener(inventory -> {
+-                if (org.leavesmc.leaves.LeavesConfig.protocol.pca.enable) {
+-                    org.leavesmc.leaves.protocol.PcaSyncProtocol.syncEntityToClient(this);
+-                }
+-            });
+-        }
+-        // Leaves end - pca
+     }
+ 
+     @Override
+diff --git a/net/minecraft/world/item/crafting/SmithingTransformRecipe.java b/net/minecraft/world/item/crafting/SmithingTransformRecipe.java
+index 432bfa6991919a2803846838a1dfe3415ae668c2..89983e7da244434a5346b23b49c748349cd79e34 100644
+--- a/net/minecraft/world/item/crafting/SmithingTransformRecipe.java
++++ b/net/minecraft/world/item/crafting/SmithingTransformRecipe.java
+@@ -117,7 +117,7 @@ public class SmithingTransformRecipe extends SimpleSmithingRecipe {
+ 
+     // Leaves start - REI
+     public SlotDisplay getResult() {
+-        return this.result.display();
++        return new SlotDisplay.ItemStackSlotDisplay(this.result);
+     }
+     // Leaves end - REI
+ 

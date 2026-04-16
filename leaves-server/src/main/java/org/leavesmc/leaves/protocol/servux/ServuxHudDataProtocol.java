@@ -122,7 +122,7 @@ public class ServuxHudDataProtocol implements LeavesProtocol {
             if (dr.result().isPresent()) {
                 CompoundTag entry = new CompoundTag();
                 entry.putString("id_reg", recipeEntry.id().registry().toString());
-                entry.putString("id_value", recipeEntry.id().location().toString());
+                entry.putString("id_value", recipeEntry.id().identifier().toString());
                 entry.put("recipe", dr.result().get());
                 list.add(entry);
             }
@@ -134,7 +134,7 @@ public class ServuxHudDataProtocol implements LeavesProtocol {
 
     public static void refreshWeatherData(ServerPlayer player) {
         ServerLevel level = MinecraftServer.getServer().overworld();
-        if (!level.getGameRules().getBoolean(GameRules.RULE_WEATHER_CYCLE)) {
+        if (!level.getGameRules().get(GameRules.ADVANCE_WEATHER)) { // Leaves - Paper 26.1: RULE_WEATHER_CYCLE -> ADVANCE_WEATHER, getBoolean -> get
             return;
         }
 
@@ -142,22 +142,23 @@ public class ServuxHudDataProtocol implements LeavesProtocol {
         nbt.putString("id", HudDataPayload.CHANNEL.toString());
         nbt.putString("servux", ServuxProtocol.SERVUX_STRING);
 
-        if (level.serverLevelData.isRaining() && level.serverLevelData.getRainTime() > -1) {
-            nbt.putInt("SetRaining", level.serverLevelData.getRainTime());
+        final net.minecraft.world.level.saveddata.WeatherData weatherData = level.getWeatherData(); // Leaves - Paper 26.1: weather state moved to WeatherData
+        if (weatherData.isRaining() && weatherData.getRainTime() > -1) { // Leaves - Paper 26.1: weather state moved to WeatherData
+            nbt.putInt("SetRaining", weatherData.getRainTime()); // Leaves - Paper 26.1: weather state moved to WeatherData
             nbt.putBoolean("isRaining", true);
         } else {
             nbt.putBoolean("isRaining", false);
         }
 
-        if (level.serverLevelData.isThundering() && level.serverLevelData.getThunderTime() > -1) {
-            nbt.putInt("SetThundering", level.serverLevelData.getThunderTime());
+        if (weatherData.isThundering() && weatherData.getThunderTime() > -1) { // Leaves - Paper 26.1: weather state moved to WeatherData
+            nbt.putInt("SetThundering", weatherData.getThunderTime()); // Leaves - Paper 26.1: weather state moved to WeatherData
             nbt.putBoolean("isThundering", true);
         } else {
             nbt.putBoolean("isThundering", false);
         }
 
-        if (level.serverLevelData.getClearWeatherTime() > -1) {
-            nbt.putInt("SetClear", level.serverLevelData.getClearWeatherTime());
+        if (weatherData.getClearWeatherTime() > -1) { // Leaves - Paper 26.1: weather state moved to WeatherData
+            nbt.putInt("SetClear", weatherData.getClearWeatherTime()); // Leaves - Paper 26.1: weather state moved to WeatherData
         }
 
         sendPacket(player, new HudDataPayload(HudDataPayloadType.PACKET_S2C_WEATHER_TICK, nbt));

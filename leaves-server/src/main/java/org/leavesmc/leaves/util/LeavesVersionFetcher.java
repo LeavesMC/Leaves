@@ -63,7 +63,7 @@ public class LeavesVersionFetcher extends PaperVersionFetcher {
             final Optional<String> gitBranch = build.gitBranch();
             final Optional<String> gitCommit = build.gitCommit();
             if (gitBranch.isPresent() && gitCommit.isPresent()) {
-                distance = fetchDistanceFromGitHub(repo, gitBranch.get(), gitCommit.get());
+                distance = fetchDistanceFromGitHub(gitBranch.get(), gitCommit.get()); // Leaves - Paper 26.1: repo param removed
             }
         }
 

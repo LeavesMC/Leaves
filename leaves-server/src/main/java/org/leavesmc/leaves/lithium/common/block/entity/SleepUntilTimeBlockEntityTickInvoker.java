@@ -47,7 +47,8 @@ public record SleepUntilTimeBlockEntityTickInvoker(BlockEntity sleepingBlockEnti
 
     @Override
     public String getType() {
+        // Leaves - Paper 26.1: BlockEntityType.getKey() removed, use registry directly
         //noinspection ConstantConditions
-        return BlockEntityType.getKey(this.sleepingBlockEntity.getType()).toString();
+        return net.minecraft.core.registries.BuiltInRegistries.BLOCK_ENTITY_TYPE.getKey(this.sleepingBlockEntity.getType()).toString();
     }
 }

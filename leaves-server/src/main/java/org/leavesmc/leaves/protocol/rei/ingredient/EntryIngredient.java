@@ -36,7 +36,7 @@ public class EntryIngredient {
                     buffer.writeVarInt(0);
                 } else {
                     buffer.writeVarInt(itemStack.getCount());
-                    ITEM_STREAM_CODEC.encode(buffer, itemStack.getItemHolder());
+                    ITEM_STREAM_CODEC.encode(buffer, itemStack.typeHolder()); // Leaves - Paper 26.1: ItemStack.getItemHolder() -> typeHolder()
                     DataComponentPatch.STREAM_CODEC.encode(buffer, itemStack.components.asPatch());
                 }
             });

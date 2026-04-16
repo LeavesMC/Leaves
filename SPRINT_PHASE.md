@@ -1,9 +1,10 @@
 # Leaves 26.1.2 升级 — Sprint Phase（冲刺阶段）
 
-> **更新时间**：2026-04-16（batch 30 完成，所有 patch 已 rebase，阶段 3 完成 🎉）
+> **更新时间**：2026-04-17（batch 31 完成，阶段 4 **compileJava 错误归零** 🎉🎉🎉）
 > **文档角色**：这是当前状态的**唯一权威来源（single source of truth）**。
 > 需要历史脉络看 [`UPGRADE_26.1.2_PROGRESS.md`](./UPGRADE_26.1.2_PROGRESS.md)，
-> 需要操作细节看 [`PATCH_REBASE_PLAYBOOK.md`](./PATCH_REBASE_PLAYBOOK.md)。
+> 需要操作细节看 [`PATCH_REBASE_PLAYBOOK.md`](./PATCH_REBASE_PLAYBOOK.md)，
+> 需要了解**当前迁移的不完美之处和技术债**看 [`LIMITATIONS.md`](./LIMITATIONS.md)。
 
 ---
 
@@ -12,13 +13,13 @@
 | 指标 | 值 |
 |---|---|
 | 当前分支 | `upgrade-26.1`（HyacinthHaru/Leaves） |
-| 上次 push commit | `a8aefc4`（docs: Sprint Phase 更新） |
-| 最近一次 patch commit | TBD（batch 30: 0013 Leaves-Plugin） |
+| 上次 push commit | `3482b3f`（batch 30: 0013 Leaves-Plugin） |
+| 最近一次 patch commit | TBD（batch 31: 阶段 4 编译清零） |
 | `./gradlew applyAllPatches` | ✅ 通过 |
-| `./gradlew :leaves-server:compileJava` | ❌ **180 个 error**（详见四、五节，已比 batch 29 减少 4 个） |
+| `./gradlew :leaves-server:compileJava` | ✅ **BUILD SUCCESSFUL（0 errors）** |
 | 已 rebase 的 patch 总数 | **170 / 173（98%）** |
 | 剩余 minecraft patches | **0 个** ✅ |
-| 剩余 paper patch | **0 个** ✅（0013 Leaves-Plugin 已完成，比预估的 4-8 小时大大提前） |
+| 剩余 paper patch | **0 个** ✅ |
 | 已知的 patch 目录瑕疵 | 见 §七 |
 
 ### 1.1 三个根目录的 patch 目录状态
@@ -66,29 +67,41 @@
 
 ---
 
-## 四、当前 180 个编译错误分布
+## 四、编译错误已清零 ✅
 
-只来自 `./gradlew :leaves-server:compileJava`（核心源码编译）。batch 29 的 184 → batch 30 的 180（-4，是 `plugin/provider/` 4 个错误随 0016-Leaves-Plugin 完成而消失）。
+`./gradlew :leaves-server:compileJava` → **BUILD SUCCESSFUL（0 errors）**
 
-从此所有错误都属于"Leaves 自有源码 API 迁移"类，不再依赖任何未 rebase 的 patch。
+batch 29 184 → batch 30 180 → batch 31 **0**。batch 31 一次扫了 180 个 Leaves 自有源码 API 迁移错误，见 §六 batch 31 摘要。
 
-| 分类 | 错误数 | 来源 patch | 何时消除 |
-|---|---|---|---|
-| `org.leavesmc.leaves.protocol.servux/` | ~42 | 多为 API 重命名（`ResourceLocation` → `Identifier` 等） | 第二轮 Leaves 自有源码修复 |
-| `org.leavesmc.leaves.lithium/` | ~25 | 依赖 lithium 内部 API 适配 | 第二轮源码修复（大部分是 API 迁移类） |
-| `org.leavesmc.leaves.protocol.jade/` | ~18 | API 重命名 | 第二轮源码修复 |
-| `org.leavesmc.leaves.protocol.rei/` | ~20 | API 重命名（含 `SmithingRecipe` 新 API） | 第二轮源码修复 |
-| `org.leavesmc.leaves.region.linear/` | ~26 | 已部分解锁（0139 More-Region-Format 提供 `IRegionFile`）；剩余为 `ChunkPos.x/z` 变 private + `RegionFile` 内部 API 迁移 | 第二轮源码修复 |
-| `org.leavesmc.leaves.protocol/` (PCA, BBOR, AppleSkin 等) | ~11 | API 重命名 | 第二轮源码修复 |
-| `paper-server/.../craftbukkit/` | ~12 | bukkit 侧 API 迁移 | 第二轮源码修复 |
-| `org.leavesmc.leaves.replay/` | ~2 | Recorder API + CraftPhotographer 缺失方法 | 第二轮源码修复 |
-| `LeavesMinecraftSessionService.java` | 1 | `YggdrasilMinecraftSessionService.client` 变 private | 第二轮源码修复 |
-| `ListCommand.java` | 1 | `ResourceKey<Level>.identifier()` 重命名漏网 | 第二轮源码修复 |
-| 其他零散 | ~22 | 逐个修复 | 第二轮源码修复 |
+### 4.1 batch 31 清零了哪些错误
 
-### 4.1 进入阶段 4
+~30 个源文件被改，修复模式统计：
 
-所有 patch 已 rebase，接下来 180 个错误都是"Leaves 自有源码 API 迁移"类（`ResourceLocation` → `Identifier`、`SmithingRecipe` 新签名、`ChunkPos.x/z` 变 private 等）。需要在 `leaves-server/src/main/java/org/leavesmc/leaves/` 和 `paper-server/src/main/java/` 里人工扫一轮。
+| 模式 | 修复量 | 例子 |
+|---|---|---|
+| `ResourceKey.location()` → `.identifier()` | ~15 处 | BBOR、PCA、Servux、REI 各处 dimension().location() |
+| `ChunkPos.x/z` 字段私有 → 记录访问器 `x()`/`z()` | ~40 处 | LinearRegionFile (26)、ServuxStructuresProtocol (18)、SchematicPlacingUtils (10) |
+| `new ChunkPos(long)` → `ChunkPos.unpack(long)` | 多处 | Servux |
+| GameRule 常量 `RULE_*` 前缀去除 + `getBoolean` → `get` | 4 处 | ServerBot (`SHOW_DEATH_MESSAGES`、`FORGIVE_DEAD_PLAYERS`)、AppleSkin (`NATURAL_HEALTH_REGENERATION`)、ServuxHud (`ADVANCE_WEATHER`) |
+| `ItemStack.getItemHolder()` → `.typeHolder()` | 2 处 | ItemRecipeFinder、EntryIngredient |
+| `BlockState.getBlockHolder()` → `.typeHolder()` | 1 处 | FertilizableCoral |
+| `Level.random` protected → `.getRandom()` | 4 处 | FertilizableCoral、HopperBlockEntity (minecraft patch 0142) |
+| 包路径迁移：`boss.EnderDragonPart`→`boss.enderdragon.EnderDragonPart`、`critereon`→`criterion`、`horse`→`equine` | 3 处 | jade 的 CommonUtil/LootTable/ItemStorage |
+| Entity.interact 签名加 Vec3 | 3 处 | ServerBot、ServerUseItemToAction |
+| DyeItem.getDyeColor 移除 → DataComponents.DYE | 1 处 | HopperCounter |
+| ServerStatsCounter File→Path | 1 处 | BotStatsCounter |
+| recipe.assemble 不再接受 RegistryAccess | 4 处 | CookingDisplay、ShapedDisplay、ShapelessDisplay、StoneCuttingDisplay |
+| SetTimePacket(long,long,bool) → (gameTime, Map<Holder<WorldClock>, ClockNetworkState>) | 1 处 | Recorder |
+| Finder 重复文件 `* [0-9].java` | 32 处 | paper-server tracked 内 |
+| 其他零散（MinecraftClient、ItemContainerContents.stream、repo 参数、setClientLoaded、BlockEntityType.getKey 等） | ~15 处 | util/*、profile/*、bot/* |
+| 0142 patch 本身的 latent 错误 | 8 处 | `litTimeRemaining`、Blocks FQN、@Nullable 位置、world.getRandom() |
+| **总计** | **≈ 180** | — |
+
+### 4.2 尚未验证
+
+- `./gradlew createMojmapLeavesclipJar` 未跑（下一步）
+- Runtime 启动未测试（阶段 5）
+- Finder 重复文件问题仍存在（每次 applyAllPatches 都会复现 28 个 tracked 的 `* 2.java` / `* 3.java`）。当前 workaround 是每次 compile 前 `find ... -delete`。根源是 paper-server 内部 git 的 Build-changes commit 带了这些污染文件。需要在某个后续 batch 里清理这个 commit 里的污染，以彻底消除
 
 ---
 
@@ -102,11 +115,13 @@
     ↓
 阶段 3 完成：所有 Leaves patch 已 rebase ✅
 
-[batch 31+] 第二轮 Leaves 自有源码修复（~180 个编译错误）
+[batch 31]  180 个 API 迁移错误一次扫清  ✅ 完成（~30 文件；ResourceKey.location→identifier、ChunkPos.x/z→x()/z()、GameRule/getBoolean→get、Entity.interact +Vec3、assemble 去 RegistryAccess、PROVIDES_TRIM_MATERIAL 去 wrapper、WeatherData 新位置 等）
     ↓
-阶段 4：compileJava 错误数归零
+阶段 4：compileJava 错误数归零 ✅
+
+[batch 32]  ./gradlew createMojmapLeavesclipJar  🎯 下一个目标（检查最终 jar 产物）
     ↓
-阶段 5：./gradlew createMojmapLeavesclipJar 成功 → runtime 启动测试
+阶段 5：runtime 启动测试 → mod 客户端对接
 ```
 
 ---
@@ -137,6 +152,7 @@
 | 28 | 04-16 | 0143 | Replay-Mod-API（537 行，13 文件）。`realPlayers` CopyOnWriteArrayList、`placeNewPhotographer`/`removePhotographer`。修正 GameRules API（`getBoolean`→`get`、`RULE_*`→新常量名）、FeatureHooks view/sim distance |
 | 29 | 04-16 | 0144 | Old-Block-remove-behaviour（808 行，33 文件）。30+ 种方块 `onRemove` 恢复 1.21.1- 移除行为。BlockBehaviour/BlockStateBase 基方法；LevelChunk 条件分支；BlockEntityType 配置旁路。容器类 `dropContentsOnDestroy`，红石类信号更新，Piston/Observer/TripWire 各自特殊逻辑 |
 | 30 | 04-16 | paper 0016 | **Leaves-Plugin**（280→260 行，8 Paper 文件）。**阶段 3 完成**。实际远比预估简单：9 hunk 中 8 个 3-way merge 通过，仅 `PluginRemapper.java` hunk 整块删除（文件已从 26.1 删除）。`PluginInitializerManager` 需手工合并 `add-plugin-dir`（26.1 新增）与 `leavesPluginNames` 声明。作者 `MC_XiaoHei` 保留 |
+| 31 | 04-17 | — (源码修复) | **阶段 4 完成，编译错误归零**。batch 29→30 的 184→180 之后，一次 batch 把 180 错误扫到 0。策略：主线程处理零散小目标，3 个并行 Agent 分别处理 (1) `.location()`→`.identifier()` 跨协议文件、(2) `LinearRegionFile` ChunkPos 访问器、(3) 0142 patch 的 latent 错误。~30 个源文件修改。见 §四 修复模式表 |
 
 ---
 
@@ -157,6 +173,8 @@
 | 残留 obsoleted config 字段 | `LeavesConfig.java` 还保留 `vanillaEndVoidRings`、`checkSpookySeasonOnceAnHour`、`cacheClimbCheck`、`vanillaFluidPushing` 等 | 保留；等 Leaves maintainer 决定统一清理或重写成新 patch |
 | 0142/0143/0144 保留原 Leaves patch 里的笔误/不规范（rebase 忠实复刻） | 0143 有 `// Leaves stop - replay mod api` typo（L511）、`new CopyOnWriteArrayList()` 缺泛型；0142 `Level.lithium$getLoadedExistingBlockEntity` 缺 `@Nullable` 注解；`PatchedDataComponentMap.ensureMapOwnership` 每次都 notify（忽略 `copyOnWrite`） | 不阻塞。合并回上游时可以顺手清理 |
 | 0143 `placeNewPhotographer` 语义可疑点 | photographer 会被加到 `playersByName`/`playersByUUID` 可能覆盖同名 real player；且会踢掉同名 bot | 原 Leaves 1.21.10 设计，rebase 未改。运行时验证阶段（阶段 5）需要观察 |
+| REI tipped-arrow / map-cloning filler displays 功能缺失 | batch 31 的 REIServerProtocol 改动里，`FireworkRocketRecipe` 和 `CustomRecipe` 的 display filler 分支被移除（Paper 26.1 删除了 `TippedArrowRecipe`、`MapCloningRecipe` 特殊 recipe 类）。目前客户端看不到箭/地图的合成展示 | 阶段 5 后，基于新 recipe 系统重写成"一次性 per-server"的填充逻辑（见 REIServerProtocol 里的 TODO 注释） |
+| Finder 重复文件每次 applyAllPatches 都会复现 | paper-server 内部 git 的 "Build changes" commit track 了 28 个 `* 2.java`/`* 3.java`（macOS Finder 产生）。每次 `rm -rf paper-server && applyAllPatches` 会把它们带回来 | 每次 compile 前跑 `find paper-server leaves-server -name "* [0-9].java" -delete`；或者在某个后续 batch 重建 `0001-Build-changes.patch` 去掉这些污染 |
 
 ---
 
@@ -165,14 +183,19 @@
 ```bash
 cd /Users/haru/Desktop/LeavesMC/Leaves
 git status                                    # 应该干净，在 upgrade-26.1
-git log --oneline -5                          # 确认最新 commit 是 batch 30
+git log --oneline -5                          # 确认最新 commit 是 batch 31
 ./gradlew applyAllPatches --no-daemon         # 应该 BUILD SUCCESSFUL
+find paper-server leaves-server -name "* [0-9].java" -delete  # Finder 垃圾清理（每次 compile 前）
 ./gradlew :leaves-server:compileJava \
     --no-daemon --console=plain 2>&1 | \
-    grep -c "error:"                          # 应该看到 180（阶段 4 起点）
+    grep -c "error:"                          # 应该是 0 ✅
 ```
 
-如果上面都 OK，所有 patch 已完成，下一步是**阶段 4**：集中修复 Leaves 自有源码 180 个编译错误（第二轮 API 迁移）。建议按 §四 表格分块修，每块 1 个 commit。
+如果以上都 OK，下一步是**阶段 5 准备**：
+1. 跑 `./gradlew createMojmapLeavesclipJar` 看最终 jar 产物是否能打出来
+2. 如果 jar 打包过程有问题（link-time 缺符号等），定位修复
+3. jar 出来后跑一次 `./gradlew runLeavesclip` 或 `java -jar` 启动看是否崩溃
+4. 对接真实 mod 客户端做 [`PROTOCOL_MOD_AUDIT.md` §四](./PROTOCOL_MOD_AUDIT.md) 验证清单
 
 如果数字对不上，**先**去读 [`PATCH_REBASE_PLAYBOOK.md` § 九](./PATCH_REBASE_PLAYBOOK.md) 的协作约定（DS_Store 污染、git add -A 禁用、每次 push 前清理脚本），再去查 `git log` 对比我们最后一个 commit。
 

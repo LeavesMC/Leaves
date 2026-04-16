@@ -11,6 +11,7 @@ import net.kyori.adventure.text.format.TextDecoration;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
@@ -282,8 +283,12 @@ public class HopperCounter {
         if (DEFAULTS.containsKey(item)) {
             return TextColor.color(appropriateColor(DEFAULTS.get(item).defaultMapColor().col));
         }
-        if (item instanceof DyeItem dye) {
-            return TextColor.color(appropriateColor(dye.getDyeColor().getMapColor().col));
+        if (item instanceof DyeItem) {
+            // Leaves - Paper 26.1: DyeItem#getDyeColor() removed, color now lives in DataComponents.DYE
+            DyeColor dyeColor = item.components().get(DataComponents.DYE);
+            if (dyeColor != null) {
+                return TextColor.color(appropriateColor(dyeColor.getMapColor().col));
+            }
         }
 
         Block block = null;

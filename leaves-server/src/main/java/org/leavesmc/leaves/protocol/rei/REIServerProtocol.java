@@ -138,9 +138,8 @@ public class REIServerProtocol implements LeavesProtocol {
                 case ShapedRecipe ignored -> builder.add(new ShapedDisplay((RecipeHolder) holder));
                 case ShapelessRecipe ignored -> builder.add(new ShapelessDisplay((RecipeHolder) holder));
                 case TransmuteRecipe ignored -> builder.addAll(Display.ofTransmuteRecipe((RecipeHolder) holder));
-                case CustomRecipe ignored1 -> builder.addAll(Display.ofTippedArrowRecipe((RecipeHolder) holder));
-                case FireworkRocketRecipe ignored -> builder.addAll(Display.ofFireworkRocketRecipe((RecipeHolder) holder));
-                case CustomRecipe ignored2 -> builder.addAll(Display.ofMapCloningRecipe((RecipeHolder) holder));
+                case FireworkRocketRecipe ignored -> builder.addAll(Display.ofFireworkRocketRecipe((RecipeHolder) holder)); // Leaves - Paper 26.1: reorder before CustomRecipe to avoid dominance
+                // Leaves - Paper 26.1: TippedArrowRecipe / MapCloningRecipe no longer distinct classes; emit fillers once after the loop
                 // ignore ArmorDyeRecipe, BannerDuplicateRecipe, BookCloningRecipe, ShieldDecorationRecipe
                 default -> {
                 }
@@ -193,7 +192,7 @@ public class REIServerProtocol implements LeavesProtocol {
             }
         } else if (channel.equals("ci_msg")) {
             // cheat rei-client into using "delete_item" packet
-            if (MinecraftServer.getServer().getProfilePermissions(player.nameAndId()) < 1) {
+            if (!MinecraftServer.getServer().getProfilePermissions(player.nameAndId()).level().isEqualOrHigherThan(net.minecraft.server.permissions.PermissionLevel.MODERATORS)) { // Leaves - Paper 26.1: getProfilePermissions returns LevelBasedPermissionSet
                 player.getBukkitEntity().sendOpLevel((byte) 1);
             }
         }
@@ -233,7 +232,7 @@ public class REIServerProtocol implements LeavesProtocol {
                 });
                 */
             } else {
-                player.displayClientMessage(Component.translatable("text.rei.failed_cheat_items"), false);
+                player.sendSystemMessage(Component.translatable("text.rei.failed_cheat_items"), false); // Leaves - Paper 26.1: displayClientMessage removed, use sendSystemMessage
             }
         };
         inboundTransform(player, CREATE_ITEMS_PACKET, buf, consumer);
@@ -292,7 +291,7 @@ public class REIServerProtocol implements LeavesProtocol {
                 });
                 */
             } else {
-                player.displayClientMessage(Component.translatable("text.rei.failed_cheat_items"), false);
+                player.sendSystemMessage(Component.translatable("text.rei.failed_cheat_items"), false); // Leaves - Paper 26.1: displayClientMessage removed, use sendSystemMessage
             }
         };
         inboundTransform(player, CREATE_ITEMS_HOTBAR_PACKET, buf, consumer);
@@ -366,7 +365,7 @@ public class REIServerProtocol implements LeavesProtocol {
         if (player.getBukkitEntity().hasPermission(CHEAT_PERMISSION)) {
             return true;
         }
-        player.displayClientMessage(Component.translatable("text.rei.no_permission_cheat").withStyle(ChatFormatting.RED), false);
+        player.sendSystemMessage(Component.translatable("text.rei.no_permission_cheat").withStyle(ChatFormatting.RED), false); // Leaves - Paper 26.1: displayClientMessage removed, use sendSystemMessage
         return false;
     }
 

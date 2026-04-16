@@ -97,10 +97,10 @@ public class BBORProtocol implements LeavesProtocol {
         final Registry<Structure> structureFeatureRegistry = chunk.getLevel().registryAccess().lookupOrThrow(Registries.STRUCTURE);
         for (var es : chunk.getAllStarts().entrySet()) {
             final var optional = structureFeatureRegistry.getResourceKey(es.getKey());
-            optional.ifPresent(key -> structures.put(key.location().toString(), es.getValue()));
+            optional.ifPresent(key -> structures.put(key.identifier().toString(), es.getValue()));
         }
         if (!structures.isEmpty()) {
-            onStructuresLoaded(chunk.getLevel().dimension().location(), structures);
+            onStructuresLoaded(chunk.getLevel().dimension().identifier(), structures);
         }
     }
 
@@ -136,7 +136,7 @@ public class BBORProtocol implements LeavesProtocol {
     private static void sendStructureList(@NotNull ServerPlayer player) {
         final Registry<Structure> structureRegistry = MinecraftServer.getServer().registryAccess().lookupOrThrow(Registries.STRUCTURE);
         final Set<String> structureIds = structureRegistry.entrySet().stream()
-            .map(e -> e.getKey().location().toString()).collect(Collectors.toSet());
+            .map(e -> e.getKey().identifier().toString()).collect(Collectors.toSet());
         ProtocolUtils.sendBytebufPacket(player, STRUCTURE_LIST_SYNC, buf -> {
             buf.writeVarInt(structureIds.size());
             structureIds.forEach(buf::writeUtf);

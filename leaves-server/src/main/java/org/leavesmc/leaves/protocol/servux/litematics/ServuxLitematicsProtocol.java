@@ -170,7 +170,7 @@ public class ServuxLitematicsProtocol implements LeavesProtocol {
         }
 
         ServerLevel world = player.level();
-        ChunkAccess chunk = world.getChunk(chunkPos.x, chunkPos.z, ChunkStatus.FULL, false);
+        ChunkAccess chunk = world.getChunk(chunkPos.x(), chunkPos.z(), ChunkStatus.FULL, false); // Leaves - Paper 26.1: ChunkPos record accessors
 
         if (chunk == null) {
             return;
@@ -215,8 +215,8 @@ public class ServuxLitematicsProtocol implements LeavesProtocol {
             output.putString("Task", "BulkEntityReply");
             output.put("TileEntities", tileList);
             output.put("Entities", entityList);
-            output.putInt("chunkX", chunkPos.x);
-            output.putInt("chunkZ", chunkPos.z);
+            output.putInt("chunkX", chunkPos.x()); // Leaves - Paper 26.1: ChunkPos record accessors
+            output.putInt("chunkZ", chunkPos.z()); // Leaves - Paper 26.1: ChunkPos record accessors
             ServuxProtocol.LOGGER.debug("process bulk entity used: {}ms", System.currentTimeMillis() - timeStart);
 
             ServuxLitematicaPayload send = new ServuxLitematicaPayload(ServuxLitematicaPayloadType.PACKET_S2C_NBT_RESPONSE_START);

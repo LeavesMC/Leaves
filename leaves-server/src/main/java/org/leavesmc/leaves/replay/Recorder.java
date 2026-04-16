@@ -202,7 +202,15 @@ public class Recorder extends Connection {
         }
 
         if (recorderOption.forceDayTime != -1 && packet instanceof ClientboundSetTimePacket packet1) {
-            packet = new ClientboundSetTimePacket(packet1.dayTime(), recorderOption.forceDayTime, false);
+            // Leaves - Paper 26.1: SetTimePacket is now (gameTime, Map<Holder<WorldClock>, ClockNetworkState>).
+            // Replace each world clock with a frozen state at forceDayTime.
+            packet = new ClientboundSetTimePacket(
+                packet1.gameTime(),
+                net.minecraft.util.Util.mapValues(
+                    packet1.clockUpdates(),
+                    state -> new net.minecraft.world.clock.ClockNetworkState(recorderOption.forceDayTime, 0.0F, 0.0F)
+                )
+            );
         }
 
         if (recorderOption.forceWeather != null && packet instanceof ClientboundGameEventPacket packet1) {

@@ -1,9 +1,14 @@
 # Leaves Protocol Mod 兼容性审计
 
-> **审计时间**：2026-04-16
+> **审计时间**：2026-04-16（batch 24 完成时）
 > **基线**：Leaves 1.21.10（升级前）
 > **目标**：Paper/Mojang 26.1.2
 > **方法**：通过 `gh api` 检查上游 mod 仓库的最新分支/版本，与 Leaves 源码中的 `PROTOCOL_VERSION` / namespace / channel 对比
+>
+> **文档角色**：**一次性审计报告**。作为阶段 3 中期（batch 24）的静态兼容性检查，结论是"无需返工"。
+> 上游 mod 主版本若有更新（如 Jade 2.0 发布），需要重跑审计。
+>
+> 配套：[`SPRINT_PHASE.md`](./SPRINT_PHASE.md) / [`UPGRADE_26.1.2_PROGRESS.md`](./UPGRADE_26.1.2_PROGRESS.md) / [`PATCH_REBASE_PLAYBOOK.md`](./PATCH_REBASE_PLAYBOOK.md)
 
 ---
 

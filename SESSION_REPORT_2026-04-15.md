@@ -1,6 +1,14 @@
 # Session Report — 2026-04-15
 
-> 按 [`PATCH_REBASE_PLAYBOOK.md`](./PATCH_REBASE_PLAYBOOK.md) 节奏推进的第一个记录型 session，最终跨越多个 batch 达到 **50% 里程碑**。
+> **⚠️ 历史快照**：本文档仅记录 **batch 1-10** 的工作（50% 里程碑时的状态），**不反映当前进度**。
+>
+> 当前状态见 [`SPRINT_PHASE.md`](./SPRINT_PHASE.md)（截至 batch 26，进度 96%）。
+> 完整历史脉络见 [`UPGRADE_26.1.2_PROGRESS.md`](./UPGRADE_26.1.2_PROGRESS.md)。
+> 操作细节见 [`PATCH_REBASE_PLAYBOOK.md`](./PATCH_REBASE_PLAYBOOK.md)。
+>
+> ---
+>
+> 按 Playbook 节奏推进的第一个记录型 session，最终跨越多个 batch 达到 **50% 里程碑**。
 
 ## 本次工作总览
 

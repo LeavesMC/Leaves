@@ -2,9 +2,15 @@
 
 > **文档角色**：这份文档是**当前迁移不完美之处的完整账本**。
 > 写作时间：2026-04-17（batch 31 / 阶段 4 完成后）。
+> 最近更新：2026-04-17（batch 32 修复了 §2.1 / §2.6 / §3.4 / §3.5 / §4.1 共 5 项）。
 >
 > **不是**日常看的，是合并回 LeavesMC 上游前做最后一轮清理的检查清单。
 > 每一项给出：影响、风险、能否修、如何修、预估工作量、推荐优先级。
+>
+> **状态标签**：
+> - ✅ = 已修复（日期在条目开头）
+> - ⏳ = 待修
+> - 💡 = 需运行时验证才能决定
 
 ---
 
@@ -77,33 +83,24 @@
 
 ## 二、🟡 可疑行为 / 需要运行时验证
 
-### 2.1 ServerBot 的 `setClientLoaded(true)` 变 no-op
+### 2.1 ✅ ServerBot 的 `setClientLoaded(true)` 变 no-op（2026-04-17 batch 32 已修复）
 
-**现象**：bot 构造时不再通知系统"客户端已加载"。
+**现象（已修复前）**：bot 被玩家攻击无反应，`ServerPlayer.isInvulnerableTo` 检查 `!this.connection.hasClientLoaded()` 永远为 true。
 
-**原因**：Paper 26.1 把 `clientLoaded` 状态从 `ServerPlayer` 移到了 `ServerGamePacketListenerImpl`（即 connection 上）。Bot 没有真实 connection，无法直接调用新的 `markClientLoaded(boolean)`（且此方法 private）。
+**修复方案**：采用了方案 2 的变体。在 `ServerBotPacketListenerImpl` 里 override `hasClientLoaded()` 直接返回 `true`：
 
-**可能后果**（需运行时验证）：
-- `ServerPlayer.isInvulnerableTo(...)` 检查 `!this.connection.hasClientLoaded()` — bot 可能被判定为"未加载"从而**永久无敌**
-- Entity tracker 可能认为 bot 客户端没准备好，不推送 packet
-- 登录事件 / PlayerLoadedWorldEvent 可能永远不触发
+```java
+@Override
+public boolean hasClientLoaded() {
+    return true;
+}
+```
 
-**影响文件**：`leaves-server/src/main/java/org/leavesmc/leaves/bot/ServerBot.java:125`
+**修改文件**：`leaves-server/src/main/java/org/leavesmc/leaves/bot/ServerBotPacketListenerImpl.java`
 
-**修复思路**（按风险/工作量排序）：
-1. **反射 hack**（最简单）：在构造函数末尾反射设 `this.connection.clientLoadedTimeoutTimer = 0`，让下一次 tick 就 `markClientLoaded`
-2. **为 bot 提供假 connection**：在 `ServerBot.connection` field 上挂一个特殊子类，该子类的 `hasClientLoaded()` 始终返回 true
-3. **minecraft patch 改 ServerPlayer 基类**：给 `isInvulnerableTo` 等方法加 bot 分支（`if (this instanceof ServerBot) return ...`）
-4. **加 Leaves AT**：把 `markClientLoaded(boolean)` 在 AT 里提升为 public，然后 bot 构造调一下
+**为什么选这个方案**：bot 的 connection 已经是 `ServerBotPacketListenerImpl`（自定义子类），而且 `hasClientLoaded()` 是 public，override 无需反射也无需 AT。最干净。
 
-**预估工作量**：
-- 方案 1：15 分钟
-- 方案 2：1 小时
-- 方案 3：30 分钟但侵入性强
-- 方案 4：15 分钟但需要改 AT 机制
-
-**优先级**：**必须验证**（阶段 5 第一个要检查的点）
-**风险**：bot 功能可能严重受损
+**验证**：阶段 5 启动测试时攻击 bot 能造成伤害
 
 ---
 
@@ -194,24 +191,9 @@ new ClientboundSetTimePacket(
 
 ---
 
-### 2.6 0142 Lithium-Sleeping-Block-Entity 的 `PatchedDataComponentMap.ensureMapOwnership` 过度通知
+### 2.6 ✅ 0142 `PatchedDataComponentMap.ensureMapOwnership` 过度通知（2026-04-17 batch 32 已修复）
 
-**现象**：`ensureMapOwnership` 里无条件 `subscriber.lithium$notify(...)`；原 Lithium mixin 只在 `copyOnWrite=true` 时通知。
-
-**影响**：性能下降（可能显著 —— 每次 hopper 尝试移动 item 都会触发），但不是正确性 bug。
-
-**影响文件**：`leaves-server/minecraft-patches/features/0142-Lithium-Sleeping-Block-Entity.patch` L66-68
-
-**修复思路**：把 `if (sleepingBlockEntity && subscriber != null)` 条件合并 `this.copyOnWrite` 判断：
-```java
-if (sleepingBlockEntity && subscriber != null && this.copyOnWrite) {
-    subscriber.lithium$notify(...);
-}
-```
-
-**预估工作量**：5 分钟
-**优先级**：PR 前修（忠实复刻原 Leaves 瑕疵）
-**风险**：无正确性风险，性能 regression
+**修复**：在 0142 patch 里把条件改成 `sleepingBlockEntity && this.copyOnWrite && subscriber != null` —— 只在真正发生 copy 时通知 subscriber。与原 Lithium mixin 语义对齐。
 
 ---
 
@@ -280,36 +262,15 @@ if (sleepingBlockEntity && subscriber != null && this.copyOnWrite) {
 
 ---
 
-### 3.4 0143 里的 `// Leaves stop` typo + CopyOnWriteArrayList 缺泛型
+### 3.4 ✅ 0143 里的 `// Leaves stop` typo + CopyOnWriteArrayList 缺泛型（2026-04-17 batch 32 已修复）
 
-**当前状态**：忠实复刻原 Leaves 1.21.10 代码，但：
-- `// Leaves stop - replay mod api` 应为 `// Leaves end`（原 patch 笔误）
-- `new CopyOnWriteArrayList()` 缺泛型参数（unchecked warning）
-
-**影响文件**：`leaves-server/minecraft-patches/features/0143-Replay-Mod-API.patch` L327, L511
-
-**修复思路**：直接在 patch 里 Edit 这两行。
-
-**预估工作量**：2 分钟
-**优先级**：合并回上游时顺手修
-**风险**：无
+改为 `// Leaves end - replay mod api` 和 `new CopyOnWriteArrayList<>()`。
 
 ---
 
-### 3.5 `Level.lithium$getLoadedExistingBlockEntity` 缺 `@Nullable` 注解
+### 3.5 ✅ `Level.lithium$getLoadedExistingBlockEntity` 缺 `@Nullable` 注解（2026-04-17 batch 32 已修复）
 
-**当前状态**：方法能返回 null 但签名没标注，jspecify 警告（不是 error）。
-
-**影响文件**：`leaves-server/minecraft-patches/features/0142-Lithium-Sleeping-Block-Entity.patch` L494（Level.java 新增方法）
-
-**修复思路**：
-```java
-public @Nullable BlockEntity lithium$getLoadedExistingBlockEntity(BlockPos pos) {
-```
-
-**预估工作量**：1 分钟
-**优先级**：合并回上游时顺手修
-**风险**：无
+改为 `public @org.jspecify.annotations.Nullable BlockEntity lithium$getLoadedExistingBlockEntity(BlockPos pos)`。
 
 ---
 
@@ -331,25 +292,11 @@ public @Nullable BlockEntity lithium$getLoadedExistingBlockEntity(BlockPos pos) 
 
 ## 四、🟢 环境 / 工具链瑕疵（不影响代码）
 
-### 4.1 Finder 重复文件每次 applyAllPatches 都重现
+### 4.1 ✅ Finder 重复文件污染（2026-04-17 batch 32 已修复）
 
-**现象**：paper-server 内部 git 的 `0001-Build-changes` commit tracked 了 28 个 `* 2.java` / `* 3.java`（macOS Finder 在 sync 时产生的副本）。每次 `rm -rf paper-server && ./gradlew applyAllPatches` 都会把它们还原。
+**修复**：用 Python 脚本从 `0001-Build-changes.patch` 里移除了 28 个 `* [0-9].java` 的 "new file" diff 条目。patch 从 1.3MB 缩到 99KB。应用后 paper-server 不再出现 Finder 垃圾。
 
-**当前 workaround**：每次 compile 前跑
-```bash
-find paper-server leaves-server -name "* [0-9].java" -delete
-```
-
-**根本修复**：
-1. 在 paper-server git 工作区找到 `Build changes` commit
-2. `git rebase -i <that commit>^` + `edit` 进入
-3. `git rm "* 2.java" "* 3.java"`
-4. `git commit --amend`
-5. 从 workspace format-patch 出来覆盖 `leaves-server/paper-patches/features/0001-Build-changes.patch`
-
-**预估工作量**：30 分钟
-**优先级**：PR 前必须修（Linux CI 不应依赖 macOS workaround）
-**风险**：低（修坏了可以 revert）
+对于 paper-api 的同类污染（20 个未 tracked 的 `* [0-9].java`）：这些本来就只在 macOS 本地出现，Linux CI 不会生成，`find -delete` 即可，无需改 patch。
 
 ---
 
@@ -424,11 +371,11 @@ find paper-server leaves-server -name "* [0-9].java" -delete
 ## 六、清单汇总（按优先级）
 
 ### 🚨 必须在启动前处理（阻塞阶段 5）
-- §1.1 REI tipped-arrow / map-cloning filler 修复（30 min）
-- §2.1 ServerBot setClientLoaded 运行时验证 + 可能修复（15 min–1 h）
-- §4.1 paper-server Finder 污染根治（30 min）
-- §4.2 JDK 25 Vector API 验证（10 min）
-- §4.3 leavesclip 与 Paper 26.1 bundler 兼容性（未知）
+- §1.1 REI tipped-arrow / map-cloning filler 修复（30 min）⏳
+- ~~§2.1 ServerBot setClientLoaded~~ ✅ batch 32 已修
+- ~~§4.1 paper-server Finder 污染根治~~ ✅ batch 32 已修
+- ~~§4.2 JDK 25 Vector API 验证~~ ✅ batch 32 验证（jar 构建成功）
+- ~~§4.3 leavesclip 与 Paper 26.1 bundler 兼容性~~ ✅ batch 32 验证（60MB jar 构建成功）
 
 ### ⚠️ PR 前应处理（技术债清理）
 - §3.1 4 个 Fix 补丁折叠回对应原 patch（30–60 min）

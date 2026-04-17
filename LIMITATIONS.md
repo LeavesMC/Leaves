@@ -2,7 +2,7 @@
 
 > **文档角色**：这份文档是**当前迁移不完美之处的完整账本**。
 > 写作时间：2026-04-17（batch 31 / 阶段 4 完成后）。
-> 最近更新：2026-04-17（batch 35 清理 §1.2 Servux 注释 + §3.3 obsolete 字段加 `@Deprecated`；§3.1 squash 实验失败，记录为权衡）。
+> 最近更新：2026-04-17（batch 36 根据外部 bug audit 修复 3 项 HIGH：§2.2 BotStatsCounter parse override、§2.5 photographer 移除殃及、§3.7 BuddingAmethyst `@Override` 恢复）。
 >
 > **不是**日常看的，是合并回 LeavesMC 上游前做最后一轮清理的检查清单。
 > 每一项给出：影响、风险、能否修、如何修、预估工作量、推荐优先级。
@@ -98,25 +98,21 @@ public boolean hasClientLoaded() {
 
 ---
 
-### 2.2 BotStatsCounter 的 `parseLocal` override 被完全删除
+### 2.2 ✅ BotStatsCounter 的 `parseLocal` override 被完全删除（2026-04-17 batch 36 已修复）
 
-**现象**：bot 的统计计数器不再 override `parseLocal` 方法。
+**现象（修复前）**：bot 的统计计数器不再 override `parseLocal` 方法（Paper 26.1 把 `parseLocal(DataFixer, String)` 整个删了）。
 
-**原因**：Paper 26.1 `ServerStatsCounter` 已经没有 `parseLocal(DataFixer, String)` 方法。旧代码里的空 override 本意是"避免从磁盘加载 bot 统计"，因为 bot 的 UNKOWN_FILE 是假路径。
+**修复方案**：在 `BotStatsCounter.java` 补一个对新方法的空 override：
 
-**可能后果**：
-- 26.1 的新 `parse(DataFixer, JsonElement)` 方法（如果有默认实现）可能尝试读 UNKOWN_FILE 路径
-- 或者 bot 根本不会触发加载流程（因为 Path 不存在）
+```java
+@Override
+public void parse(@NotNull DataFixer fixerUpper, @NotNull JsonElement element) {
+}
+```
 
-**影响文件**：`leaves-server/src/main/java/org/leavesmc/leaves/bot/BotStatsCounter.java:28`
+这样就算未来 CWD 里意外出现 `BOT_STATS_REMOVE_THIS` 文件，父类构造器也不会把真实磁盘内容读进 bot 的 stats。属于防御性 override，与原先 `save()` / `setValue()` / `getValue()` 的 stub 策略一致。
 
-**修复思路**：
-1. 启动时观察日志是否有 `Failed to parse stats file: BOT_STATS_REMOVE_THIS` 之类的异常
-2. 如果有，override `parse(DataFixer, JsonElement)` 为空实现
-
-**预估工作量**：5-10 分钟（一旦验证出现异常）
-**优先级**：运行时验证后再决定
-**风险**：可能产生每个 bot 登入时一条 WARN 日志，功能应不受影响
+**修改文件**：`leaves-server/src/main/java/org/leavesmc/leaves/bot/BotStatsCounter.java:32-34`
 
 ---
 
@@ -169,19 +165,27 @@ new ClientboundSetTimePacket(
 
 ---
 
-### 2.5 0143 Replay-Mod-API patch 的 photographer 可能覆盖 real player
+### 2.5 ⚠️ 0143 Replay-Mod-API patch 的 photographer 可能覆盖 real player（2026-04-17 batch 36 修复了"移除殃及"子问题）
 
-**现象**：`placeNewPhotographer` 把 photographer 加到 `this.playersByName`/`this.playersByUUID`。如果 photographer 名字和某个 real player 相同，会覆盖后者。
+**现象**：`placeNewPhotographer` 把 photographer 加到 `this.playersByName`/`this.playersByUUID`。如果 photographer 名字和某个 real player 相同，会覆盖后者。更严重的是，`removePhotographer` 原本**无条件**按名字删除条目——若同名真实玩家之前的映射已被 photographer 覆盖，photographer 退场时会把真实玩家的名字条目一并清掉，导致此后 `server.getPlayerByName("xxx")` 返回 null 直到真人重登。
 
-**原因**：这是原 Leaves 1.21.10 的设计，rebase 未改。Photographer 名字通常来自录制用户，本身就已经在线 —— 该"覆盖"可能导致 `server.getPlayerByName("xxx")` 返回 photographer 而不是真人。
+**batch 36 修复**：在 `removePhotographer` 里把名字删除加上与 UUID 分支对齐的 `==` 守卫：
 
-**影响文件**：`leaves-server/src/main/java/org/leavesmc/leaves/replay/ServerPhotographer.java` 链路（以及 `PlayerList.placeNewPhotographer`）
+```java
+final String nameKey = entityplayer.getScoreboardName().toLowerCase(java.util.Locale.ROOT);
+if (this.playersByName.get(nameKey) == entityplayer) {
+    this.playersByName.remove(nameKey);
+}
+```
 
-**修复思路**：可能需要为 photographer 引入独立的 name/UUID 映射（例如加 `_recorder` 后缀），或者干脆不加入 `playersByName`/`playersByUUID`。
+这修复了"殃及真实玩家"的严重子问题。**但"photographer 在位期间仍覆盖真实玩家名字查找"是 Leaves 原 1.21.10 设计**，未改——需要 photographer 上线时给真实玩家让出位置，或为 photographer 启用独立名字空间。
 
-**预估工作量**：1-2 小时
-**优先级**：中等（Leaves upstream 原设计，不算我们的问题，但已知可疑）
-**风险**：录制期间别的插件按名字查玩家会返回错误对象
+**修改文件**：`leaves-server/minecraft-patches/features/0144-Replay-Mod-API.patch`（对应 `PlayerList.removePhotographer`）
+
+**剩余工作**（中期）：重新设计 photographer 是否该出现在 `playersByName`（可能让其完全不参与名字查找）。
+
+**预估剩余工作量**：1-2 小时
+**优先级**：中（生产环境里"photographer 与真实玩家同名"概率低，但录制自己的用户会遇到）
 
 ---
 
@@ -255,6 +259,18 @@ batch 34 做 Paper upstream 升级时 `git format-patch` 重新导出整个 patc
 ### 3.5 ✅ `Level.lithium$getLoadedExistingBlockEntity` 缺 `@Nullable` 注解（2026-04-17 batch 32 已修复）
 
 改为 `public @org.jspecify.annotations.Nullable BlockEntity lithium$getLoadedExistingBlockEntity(BlockPos pos)`。
+
+---
+
+### 3.7 ✅ `BuddingAmethystBlock.getResetPushReaction()` 丢失 `@Override`（2026-04-17 batch 36 已修复）
+
+**现象（修复前）**：0123 Fix-latent-compile-errors patch 的一个 hunk 把 `BuddingAmethystBlock.getResetPushReaction()` 上的 `@Override` 删掉了。代码仍能编译运行（0124 Leaves-Utils 在 `Block` 基类加了同名方法，签名一致），但丢失了"覆盖不匹配"的编译期契约检查。
+
+**batch 36 修复**：删除 0123 patch 里针对 `BuddingAmethystBlock` 的 hunk，恢复 0039 原 patch 里的 `@Override` 注解。`applyAllPatches` + `compileJava` 双绿。
+
+**为什么这个 hunk 原本存在**：rebase 过程中一度有 "method does not override anything" 的 javac 错误（推测在某一中间态基类方法签名暂时不匹配）；重新排序 patch 或修复基类后，删除 `@Override` 成为"看起来能跑"的权宜之计。现在所有 patch 排序稳定，基类方法签名一致，`@Override` 可以安全恢复。
+
+**修改文件**：`leaves-server/minecraft-patches/features/0123-Fix-latent-compile-errors-in-rebased-patches.patch`（删除最后一个 hunk）
 
 ---
 
@@ -342,15 +358,16 @@ batch 32 修复了 `0001-Build-changes.patch` 里的 28 个 Finder 污染条目 
 ### ⚠️ PR 前应处理（技术债清理）
 - ~~§3.1 4 个 Fix 补丁折叠回对应原 patch~~ ⚠️ batch 35 实验失败，决定保留独立形态（见 §3.1）
 - ~~§3.3 Obsoleted config 字段决策~~ ✅ batch 35 加 `@Deprecated(forRemoval, since="26.1.2")`
+- ~~§3.7 BuddingAmethyst `@Override` 恢复~~ ✅ batch 36 删除 0123 相关 hunk
 - §3.6 `PaperPluginMeta.authors` 修改作为 PR 提上游（1–2 h）
 - §2.4 LeavesMinecraftSessionService 额外认证验证（5 min，可能无需改动）
-- Leaves 自有代码 4 处 `world.getName()` → `world.getKey()`（5 min，soft deprecation；语义上仍正确，仅 IDE 警告）
+- Leaves 自有代码 **2** 处 `world.getName()` → `world.getKey()`（5 min，soft deprecation；语义上仍正确，仅 IDE 警告）。准确位置：`ListCommand.java:69`、`LeavesServerConfigProvider.java:99`
 
 ### 🔍 运行时验证后决定
 - §1.2 Servux spawnChunkRadius（5-15 min，注释已清理）
-- §2.2 BotStatsCounter 可能日志噪音（5–10 min）
+- ~~§2.2 BotStatsCounter~~ ✅ batch 36 补 `parse(DataFixer, JsonElement)` 空 override
 - §2.3 Recorder forceDayTime 时间显示（30 min–2 h）
-- §2.5 Photographer 覆盖 real player（1–2 h）
+- §2.5 Photographer 覆盖 real player 的"仍在位期间"部分（1–2 h，"移除殃及"子问题 batch 36 已修）
 - §5.2 协议 mod 运行时对接（2–4 h）
 - §5.3 Linux 验证（CI 已过，本地 Linux 运行时测试 1 h）
 

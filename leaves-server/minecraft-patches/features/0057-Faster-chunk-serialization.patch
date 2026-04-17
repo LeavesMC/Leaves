@@ -3,16 +3,13 @@ From: violetc <58360096+s-yh-china@users.noreply.github.com>
 Date: Tue, 18 Jul 2023 13:14:15 +0800
 Subject: [PATCH] Faster chunk serialization
 
-This patch is Powered by Gale(https://github.com/GaleMC/Gale)
+This patch is Powered by Leaf(https://github.com/Winds-Studio/Leaf)
 License: GPL-3.0 (https://www.gnu.org/licenses/gpl-3.0.html)
 
-This patch is based on the following mixins and classes:
-* "net/caffeinemc/mods/lithium/common/world/chunk/CompactingPackedIntegerArray.java"
-* "net/caffeinemc/mods/lithium/common/world/chunk/LithiumHashPalette.java"
-* "net/caffeinemc/mods/lithium/mixin/chunk/serialization/SimpleBitStorageMixin.java"
-* "net/caffeinemc/mods/lithium/mixin/chunk/serialization/PalettedContainerMixin.java"
-By: Angeline <jellysquid3@users.noreply.github.com>
-As part of: Lithium (https://github.com/CaffeineMC/lithium-fabric)
+This patch is based on the following mixins:
+* "net/caffeinemc/mods/lithium/mixin/chunk/palette/StrategyMixin.java"
+By: 2No2Name <2No2Name@web.de>
+As part of: Lithium (https://github.com/CaffeineMC/lithium)
 Licensed under: LGPL-3.0 (https://www.gnu.org/licenses/lgpl-3.0.html)
 
 diff --git a/net/minecraft/util/BitStorage.java b/net/minecraft/util/BitStorage.java
@@ -24,7 +21,7 @@ index 02502d50f0255f5bbcc0ecb965abb48cc1a112da..45f61e66b1c24af63e3840fc54c3564f
      }
      // Paper end - block counting
 +
-+    <T> void compact(net.minecraft.world.level.chunk.Palette<T> srcPalette, net.minecraft.world.level.chunk.Palette<T> dstPalette, short[] out, net.minecraft.world.level.chunk.PalettedContainer<T> resizeHandler); // Leaves - Gale - Lithium - faster chunk serialization
++    <T> void compact(net.minecraft.world.level.chunk.Palette<T> srcPalette, net.minecraft.world.level.chunk.Palette<T> dstPalette, short[] out, net.minecraft.world.level.chunk.PalettedContainer<T> resizeHandler); // Leaves - Leaf - Lithium - faster chunk serialization
  }
 diff --git a/net/minecraft/util/SimpleBitStorage.java b/net/minecraft/util/SimpleBitStorage.java
 index 08af7687cdbf395116c2ae0c40befa518b796846..636209a3d4e2e22d9c2929d564d760550a40060b 100644
@@ -35,7 +32,7 @@ index 08af7687cdbf395116c2ae0c40befa518b796846..636209a3d4e2e22d9c2929d564d76055
          }
      }
 +
-+    // Leaves start - Gale - Lithium - faster chunk serialization
++    // Leaves start - Leaf - Lithium - faster chunk serialization
 +    @Override
 +    public <T> void compact(net.minecraft.world.level.chunk.Palette<T> srcPalette, net.minecraft.world.level.chunk.Palette<T> dstPalette, short[] out, net.minecraft.world.level.chunk.PalettedContainer<T> resizeHandler) {
 +        if (this.size >= Short.MAX_VALUE) {
@@ -73,7 +70,7 @@ index 08af7687cdbf395116c2ae0c40befa518b796846..636209a3d4e2e22d9c2929d564d76055
 +            }
 +        }
 +    }
-+    // Leaves end - Gale - Lithium - faster chunk serialization
++    // Leaves end - Leaf - Lithium - faster chunk serialization
 +
  }
 diff --git a/net/minecraft/util/ZeroBitStorage.java b/net/minecraft/util/ZeroBitStorage.java
@@ -85,8 +82,45 @@ index 09fd99c9cbd23b5f3c899bfb00c9b89651948ed8..bdbeff9c93b6775cf9d4a2db878dada7
      }
      // Paper end - block counting
 +
-+    @Override public <T> void compact(net.minecraft.world.level.chunk.Palette<T> srcPalette, net.minecraft.world.level.chunk.Palette<T> dstPalette, short[] out, net.minecraft.world.level.chunk.PalettedContainer<T> resizeHandler) {}  // Leaves - Gale - Lithium - faster chunk serialization
++    @Override public <T> void compact(net.minecraft.world.level.chunk.Palette<T> srcPalette, net.minecraft.world.level.chunk.Palette<T> dstPalette, short[] out, net.minecraft.world.level.chunk.PalettedContainer<T> resizeHandler) {}  // Leaves - Leaf - Lithium - faster chunk serialization
  }
+diff --git a/net/minecraft/world/level/chunk/HashMapPalette.java b/net/minecraft/world/level/chunk/HashMapPalette.java
+index 5b9346b25aa01db9f3c36e243f46846b87a6eb75..7d5f02c89eac8927c2c3e459bfd88014560776a4 100644
+--- a/net/minecraft/world/level/chunk/HashMapPalette.java
++++ b/net/minecraft/world/level/chunk/HashMapPalette.java
+@@ -14,8 +14,8 @@ public class HashMapPalette<T> implements Palette<T>, ca.spottedleaf.moonrise.pa
+ 
+     // Paper start - optimise palette reads
+     @Override
+-    public final T[] moonrise$getRawPalette(final ca.spottedleaf.moonrise.patches.fast_palette.FastPaletteData<T> container) {
+-        return ((ca.spottedleaf.moonrise.patches.fast_palette.FastPalette<T>)this.values).moonrise$getRawPalette(container);
++    public T[] moonrise$getRawPalette(final ca.spottedleaf.moonrise.patches.fast_palette.FastPaletteData<T> container) { // Leaves - Leaf - Lithium - faster hash palette - public final -> public
++        return ((ca.spottedleaf.moonrise.patches.fast_palette.FastPalette<T>) this.values).moonrise$getRawPalette(container);
+     }
+     // Paper end - optimise palette reads
+ 
+@@ -28,6 +28,14 @@ public class HashMapPalette<T> implements Palette<T>, ca.spottedleaf.moonrise.pa
+         this(bits, CrudeIncrementalIntIdentityHashBiMap.create((1 << bits) + 1)); // Paper - Perf: Avoid unnecessary resize operation in CrudeIncrementalIntIdentityHashBiMap
+     }
+ 
++    // Leaves start - Leaf - Lithium - faster hash palette
++    protected HashMapPalette(int bits, boolean dummy) {
++        this.bits = bits;
++        //noinspection DataFlowIssue
++        this.values = dummy ? null : CrudeIncrementalIntIdentityHashBiMap.create((1 << bits) + 1);
++    }
++    // Leaves end - Leaf - Lithium - faster hash palette
++
+     private HashMapPalette(int bits, CrudeIncrementalIntIdentityHashBiMap<T> values) {
+         this.bits = bits;
+         this.values = values;
+@@ -123,4 +131,4 @@ public class HashMapPalette<T> implements Palette<T>, ca.spottedleaf.moonrise.pa
+     public Palette<T> copy() {
+         return new HashMapPalette<>(this.bits, this.values.copy());
+     }
+-}
++}
+\ No newline at end of file
 diff --git a/net/minecraft/world/level/chunk/PalettedContainer.java b/net/minecraft/world/level/chunk/PalettedContainer.java
 index 7c8f8772a6fba04dbafdb5dbf8098b6ebce6d6f2..06c0ea63c4911bf7610506efd02ed3a67c7bf847 100644
 --- a/net/minecraft/world/level/chunk/PalettedContainer.java
@@ -96,7 +130,7 @@ index 7c8f8772a6fba04dbafdb5dbf8098b6ebce6d6f2..06c0ea63c4911bf7610506efd02ed3a6
  
  public class PalettedContainer<T> implements PaletteResize<T>, PalettedContainerRO<T> {
 +
-+    // Leaves start - Gale - Lithium - faster chunk serialization
++    // Leaves start - Leaf - Lithium - faster chunk serialization
 +    private static final ThreadLocal<short[]> CACHED_ARRAY_4096 = ThreadLocal.withInitial(() -> new short[4096]);
 +    private static final ThreadLocal<short[]> CACHED_ARRAY_64 = ThreadLocal.withInitial(() -> new short[64]);
 +    private Optional<LongStream> asOptional(long[] data) {
@@ -109,7 +143,7 @@ index 7c8f8772a6fba04dbafdb5dbf8098b6ebce6d6f2..06c0ea63c4911bf7610506efd02ed3a6
 +            default -> new short[size];
 +        };
 +    }
-+    // Leaves end - Gale - Lithium - faster chunk serialization
++    // Leaves end - Leaf - Lithium - faster chunk serialization
 +
      private static final int MIN_PALETTE_BITS = 0;
      public volatile PalettedContainer.Data<T> data; // Paper - optimise collisions - public
@@ -118,7 +152,7 @@ index 7c8f8772a6fba04dbafdb5dbf8098b6ebce6d6f2..06c0ea63c4911bf7610506efd02ed3a6
      public synchronized PalettedContainerRO.PackedData<T> pack(Strategy<T> strategy) { // Paper - synchronize
          this.acquire();
  
-+        // Leaves start - Gale - Lithium - faster chunk serialization
++        // Leaves start - Leaf - Lithium - faster chunk serialization
 +        if (org.leavesmc.leaves.LeavesConfig.performance.fasterChunkSerialization) {
 +            Optional<LongStream> data = Optional.empty();
 +            List<T> elements = null;
@@ -167,7 +201,7 @@ index 7c8f8772a6fba04dbafdb5dbf8098b6ebce6d6f2..06c0ea63c4911bf7610506efd02ed3a6
 +
 +            return new PalettedContainerRO.PackedData<>(elements, data);
 +        }
-+        // Leaves end - Gale - Lithium - faster chunk serialization
++        // Leaves end - Leaf - Lithium - faster chunk serialization
          PalettedContainerRO.PackedData var14;
          try {
              BitStorage bitStorage = this.data.storage;
@@ -181,7 +215,7 @@ index 7c8f8772a6fba04dbafdb5dbf8098b6ebce6d6f2..06c0ea63c4911bf7610506efd02ed3a6
 -            Int2IntOpenHashMap map = new Int2IntOpenHashMap();
 -            this.data.storage.getAll(id -> map.addTo(id, 1));
 -            map.int2IntEntrySet().forEach(idEntry -> countConsumer.accept(this.data.palette.valueFor(idEntry.getIntKey()), idEntry.getIntValue()));
-+        // Leaves start - Gale - Lithium - faster chunk serialization
++        // Leaves start - Leaf - Lithium - faster chunk serialization
 +        if (!org.leavesmc.leaves.LeavesConfig.performance.fasterChunkSerialization) {
 +            if (this.data.palette.getSize() == 1) {
 +                countConsumer.accept(this.data.palette.valueFor(0), this.data.storage.getSize());
@@ -217,7 +251,7 @@ index 7c8f8772a6fba04dbafdb5dbf8098b6ebce6d6f2..06c0ea63c4911bf7610506efd02ed3a6
 +                countConsumer.accept(obj, counts[i]);
 +            }
          }
-+        // Leaves end - Gale - Lithium - faster chunk serialization
++        // Leaves end - Leaf - Lithium - faster chunk serialization
      }
  
      @FunctionalInterface

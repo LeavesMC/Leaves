@@ -1,7 +1,9 @@
-// Gale - Lithium - faster chunk serialization
+// Leaves - Leaf - Lithium - faster hash palette
 
 package org.leavesmc.leaves.lithium.common.world.chunk;
 
+import ca.spottedleaf.moonrise.patches.fast_palette.FastPalette;
+import ca.spottedleaf.moonrise.patches.fast_palette.FastPaletteData;
 import it.unimi.dsi.fastutil.HashCommon;
 import it.unimi.dsi.fastutil.objects.Reference2IntOpenHashMap;
 import net.minecraft.CrashReport;
@@ -10,10 +12,11 @@ import net.minecraft.ReportedException;
 import net.minecraft.core.IdMap;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.VarInt;
+import net.minecraft.world.level.chunk.HashMapPalette;
 import net.minecraft.world.level.chunk.MissingPaletteEntryException;
 import net.minecraft.world.level.chunk.Palette;
 import net.minecraft.world.level.chunk.PaletteResize;
-import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NullMarked;
 
 import java.util.Arrays;
 import java.util.List;
@@ -25,14 +28,18 @@ import static it.unimi.dsi.fastutil.Hash.FAST_LOAD_FACTOR;
  * Generally provides better performance over the vanilla {@link net.minecraft.world.level.chunk.HashMapPalette} when calling
  * {@link LithiumHashPalette#idFor(Object, PaletteResize)} through using a faster backing map and reducing pointer chasing.
  */
-public class LithiumHashPalette<T> implements Palette<T> {
+@NullMarked
+public final class LithiumHashPalette<T> extends HashMapPalette<T> implements Palette<T>, FastPalette<T> {
     private static final int ABSENT_VALUE = -1;
+
     private final int indexBits;
+
     private final Reference2IntOpenHashMap<T> table;
     private T[] entries;
     private int size = 0;
 
     private LithiumHashPalette(int indexBits, T[] entries, Reference2IntOpenHashMap<T> table, int size) {
+        super(size, true);
         this.indexBits = indexBits;
         this.entries = entries;
         this.table = table;
@@ -49,6 +56,7 @@ public class LithiumHashPalette<T> implements Palette<T> {
 
     @SuppressWarnings("unchecked")
     public LithiumHashPalette(int bits) {
+        super(bits, true);
         this.indexBits = bits;
 
         int capacity = 1 << bits;
@@ -58,19 +66,26 @@ public class LithiumHashPalette<T> implements Palette<T> {
         this.table.defaultReturnValue(ABSENT_VALUE);
     }
 
+    // Leaves start - Leaf - Sync moonrise changes
     @Override
-    public int idFor(@NotNull T obj, @NotNull PaletteResize<T> resizeHandler) {
+    public T[] moonrise$getRawPalette(final FastPaletteData<T> container) {
+        return this.entries;
+    }
+    // Leaves end - Leaf - Sync moonrise changes
+
+    @Override
+    public int idFor(T obj, PaletteResize<T> paletteResize) {
         int id = this.table.getInt(obj);
 
         if (id == ABSENT_VALUE) {
-            id = this.computeEntry(obj, resizeHandler);
+            id = this.computeEntry(obj, paletteResize);
         }
 
         return id;
     }
 
     @Override
-    public boolean maybeHas(@NotNull Predicate<T> predicate) {
+    public boolean maybeHas(Predicate<T> predicate) {
         for (int i = 0; i < this.size; ++i) {
             if (predicate.test(this.entries[i])) {
                 return true;
@@ -80,14 +95,14 @@ public class LithiumHashPalette<T> implements Palette<T> {
         return false;
     }
 
-    private int computeEntry(T obj, PaletteResize<T> resizeHandler) {
+    private int computeEntry(T obj, PaletteResize<T> paletteResize) {
         int id = this.addEntry(obj);
 
         if (id >= 1 << this.indexBits) {
-            if (resizeHandler == null) {
+            if (paletteResize == null) {
                 throw new IllegalStateException("Cannot grow");
             } else {
-                id = resizeHandler.onResize(this.indexBits + 1, obj);
+                id = paletteResize.onResize(this.indexBits + 1, obj);
             }
         }
 
@@ -114,7 +129,7 @@ public class LithiumHashPalette<T> implements Palette<T> {
     }
 
     @Override
-    public @NotNull T valueFor(int id) {
+    public T valueFor(int id) {
         T[] entries = this.entries;
 
         T entry = null;
@@ -143,7 +158,7 @@ public class LithiumHashPalette<T> implements Palette<T> {
     }
 
     @Override
-    public void read(FriendlyByteBuf buf, @NotNull IdMap<T> idMap) {
+    public void read(FriendlyByteBuf buf, IdMap<T> idMap) {
         this.clear();
 
         int entryCount = buf.readVarInt();
@@ -154,7 +169,7 @@ public class LithiumHashPalette<T> implements Palette<T> {
     }
 
     @Override
-    public void write(FriendlyByteBuf buf, @NotNull IdMap<T> idMap) {
+    public void write(FriendlyByteBuf buf, IdMap<T> idMap) {
         int size = this.size;
         buf.writeVarInt(size);
 
@@ -164,7 +179,7 @@ public class LithiumHashPalette<T> implements Palette<T> {
     }
 
     @Override
-    public int getSerializedSize(@NotNull IdMap<T> idMap) {
+    public int getSerializedSize(IdMap<T> idMap) {
         int size = VarInt.getByteSize(this.size);
 
         for (int i = 0; i < this.size; ++i) {
@@ -180,7 +195,7 @@ public class LithiumHashPalette<T> implements Palette<T> {
     }
 
     @Override
-    public @NotNull Palette<T> copy() {
+    public Palette<T> copy() {
         return new LithiumHashPalette<>(this.indexBits, this.entries.clone(), this.table.clone(), this.size);
     }
 
@@ -194,6 +209,14 @@ public class LithiumHashPalette<T> implements Palette<T> {
         T[] copy = Arrays.copyOf(this.entries, this.size);
         return Arrays.asList(copy);
     }
+
+    // Leaves start - Leaf - override getEntries
+    @Override
+    public List<T> getEntries() {
+        T[] copy = Arrays.copyOf(this.entries, this.size);
+        return Arrays.asList(copy);
+    }
+    // Leaves end - Leaf - override getEntries
 
     public static <A> Palette<A> create(int bits, List<A> list) {
         return new LithiumHashPalette<>(bits, list);

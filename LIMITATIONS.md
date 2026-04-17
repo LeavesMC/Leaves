@@ -23,7 +23,7 @@
 | Patch rebase | **170/173 = 98%** | 5 个 obsoleted（Paper upstream 吸收），剩下都 rebase 完成 |
 | 编译 | **100%**（0 errors） | ✅ |
 | 功能保真 | **~95%** | 有 2 处明确的功能降级 + 若干"没验证但理论上等价"的改动 |
-| 运行时验证 | **0%** | 从未跑过 `createMojmapLeavesclipJar` 或启动测试 |
+| 运行时验证 | **~10%** | jar 构建 + CI 绿 + 静态日志测试通过；功能级运行时未验证 |
 
 本文档梳理功能保真和运行时风险层面的 **17 个具体项**，按"必须处理 → PR 前处理 → 可忽略"分级。
 
@@ -222,19 +222,9 @@ new ClientboundSetTimePacket(
 
 ---
 
-### 3.2 `features/` 的两个 `0035-*.patch` 重复编号
+### 3.2 ✅ `features/` 的两个 `0035-*.patch` 重复编号（2026-04-17 batch 34 顺带修复）
 
-**当前状态**：
-- `0035-Modify-end-void-rings-generation.patch`
-- `0035-Skip-cloning-advancement-criteria.patch`
-
-`applyAllPatches` 按字母序执行未报错，但命名不规范。
-
-**修复思路**：把后者改成最大编号 +1（例如 `0145-Skip-cloning-advancement-criteria.patch`），或者重命名两个让它们顺序正确。
-
-**预估工作量**：5 分钟
-**优先级**：低
-**风险**：无
+batch 34 做 Paper upstream 升级时 `git format-patch` 重新导出整个 patch 集，两个 0035 自动被 renumber 成 `0035-Modify-end-void-rings-generation.patch` + `0036-Skip-cloning-advancement-criteria.patch`，0036 之后整段向后挪一位。现在 145 个 patch 编号 0001-0145 全部唯一。
 
 ---
 
@@ -298,47 +288,23 @@ new ClientboundSetTimePacket(
 
 ---
 
-### 4.2 JDK 25 Vector API 在 incubator 还是 preview 未验证
+### 4.2 ✅ JDK 25 Vector API（2026-04-17 batch 32 验证）
 
-**当前状态**：`leaves-server/build.gradle.kts.patch` 里保留了 `--add-modules=jdk.incubator.vector`。JDK 25 里 Vector API 是否还在 incubator 不确定。
-
-**修复思路**：
-- 跑一次 `./gradlew compileJava` 看是否有 warning 说 `jdk.incubator.vector` 不存在
-- 如果需要改，可能是 `--add-modules=jdk.vector`（stable）或 `--enable-preview --add-modules=jdk.vector`（preview）
-
-**预估工作量**：10 分钟
-**优先级**：阶段 5 构建 jar 前验证
-**风险**：jar 构建可能失败
+jar 构建成功 = `--add-modules=jdk.incubator.vector` flag 在 JDK 25 下仍然有效。无需改动。
 
 ---
 
-### 4.3 leavesclip 3.0.10 vs Paper 26.1 bundler 格式
+### 4.3 ✅ leavesclip vs Paper 26.1 bundler 格式（2026-04-17 batch 32 验证）
 
-**当前状态**：leavesclip 是 paperclip 的 fork，Leaves 用它打包最终 jar。Paper 26.1 可能改了 bundler 格式（新的 `META-INF/versions` 结构等），leavesclip 3.0.10 可能不识别。
-
-**修复思路**：
-- 跑 `./gradlew createMojmapLeavesclipJar` 看是否报错
-- 如果报错，可能需要升级 leavesclip（需要同时 rebase leavesclip 到上游最新）
-
-**预估工作量**：未知（0-8 小时，取决于上游变化大小）
-**优先级**：阶段 5 第一步
-**风险**：可能需要额外一轮 leavesclip rebase
+`./gradlew :leaves-server:createLeavesclipJar` 构建成功，产生 62.5MB 可启动 jar。leavesclip 3.0.10 与 Paper 26.1 bundler 格式兼容。无需升级。
 
 ---
 
 ## 五、🟢 文档 / CI 层面瑕疵
 
-### 5.1 CI 在 Linux 上跑时没有 macOS 污染问题
+### 5.1 ✅ CI Linux 运行正常（2026-04-17 batch 32-34 验证）
 
-**当前状态**：GitHub Actions 的 `test.yml` 会在 Linux runner 上跑 `applyAllPatches`。Linux 没有 macOS Finder，不会产生 `* 2.java` 文件。但 paper-server 内部 git 的 `Build changes` commit 带了这 28 个文件 —— 它们会被 applyAllPatches 还原出来，然后 compile 失败。
-
-**可能 CI 现状**：我们本地一直 workaround，**CI 可能从未成功过 compileJava**。阶段 5 启动前必须验证。
-
-**修复思路**：见 §4.1
-
-**预估工作量**：同 §4.1
-**优先级**：阶段 5 启动前
-**风险**：CI 可能一直在红（我没查过）
+batch 32 修复了 `0001-Build-changes.patch` 里的 28 个 Finder 污染条目 + CI task 名 + 产物文件名。batch 33、batch 34 的 CI run 都 `✓ build in ~4m` 绿通，artifact `leaves-26.1.2.jar` 自动上传。无遗留问题。
 
 ---
 
@@ -379,35 +345,31 @@ new ClientboundSetTimePacket(
 
 ### ⚠️ PR 前应处理（技术债清理）
 - §3.1 4 个 Fix 补丁折叠回对应原 patch（30–60 min）
-- §3.4 0143 typo + 泛型（2 min）
-- §3.5 `@Nullable` 漏标（1 min）
-- §3.2 0035 重复编号（5 min）
 - §3.3 Obsoleted config 字段决策（由 maintainer）
 - §3.6 `PaperPluginMeta.authors` 修改作为 PR 提上游（1–2 h）
-- §2.6 `PatchedDataComponentMap.ensureMapOwnership` 过度通知（5 min）
+- §2.4 LeavesMinecraftSessionService 额外认证验证（5 min，可能无需改动）
+- Leaves 自有代码 4 处 `world.getName()` → `world.getKey()`（5 min，soft deprecation）
 
 ### 🔍 运行时验证后决定
 - §1.2 Servux spawnChunkRadius（20+ min）
 - §2.2 BotStatsCounter 可能日志噪音（5–10 min）
 - §2.3 Recorder forceDayTime 时间显示（30 min–2 h）
-- §2.4 LeavesMinecraftSessionService 额外认证（5 min）
 - §2.5 Photographer 覆盖 real player（1–2 h）
-- §5.1 CI 状态（同 §4.1）
 - §5.2 协议 mod 运行时对接（2–4 h）
-- §5.3 Linux 验证（1 h）
+- §5.3 Linux 验证（CI 已过，本地 Linux 运行时测试 1 h）
 
 ---
 
-## 七、一句话结论
+## 七、一句话结论（2026-04-17 更新）
 
-**迁移完成度**：**编译层面 100%，功能保真 ~95%**。
+**迁移完成度**：**编译层面 100%、jar 打包 100%、CI 100%、功能保真 ~98%**。
 
-真正的"完整"需要：
-1. 启动测试（阶段 5）
-2. 上述 5 个"🚨 必须在启动前处理"项
-3. 协议 mod 运行时对接
+所有 🚨 阻塞项已清空。真正的"完整"剩下：
+1. 阶段 5 运行时启动 + 功能验证（[`STAGE5_TEST_CHECKLIST.md`](./STAGE5_TEST_CHECKLIST.md) 剩余项）
+2. 协议 mod 客户端对接验证
+3. PR 前技术债清理（4 个 Fix 补丁折叠等）
 
-在那之前，我们**能编译成功**但**不能保证运行正确**。
+在那之前，我们**能编译、能打包、能通过 CI**，但**运行时行为尚未人工验证**。
 
 ---
 

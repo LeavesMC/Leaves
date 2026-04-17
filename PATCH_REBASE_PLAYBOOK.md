@@ -1,19 +1,21 @@
 # Leaves 升级到 Paper 26.1.2 — Patch Rebase Playbook
 
-> **文档角色**：**操作手册 + 协作约定**。读完这份，应该知道「怎么做一个 patch 的 rebase、怎么避开历史踩过的坑、push 前怎么清理」。
+> **文档角色**：**操作手册 + 协作约定**。读完这份，应该知道「怎么做一个 patch 的 rebase、怎么避开历史踩过的坑、push 前怎么清理、怎么跟进 Paper upstream 新版本」。
 >
 > **不追踪即时进度**（那属于 [`SPRINT_PHASE.md`](./SPRINT_PHASE.md)）。本文档只在工作流/约定发生变化时更新。
 >
 > 配套：
 > - [`SPRINT_PHASE.md`](./SPRINT_PHASE.md) — 当前状态
+> - [`LIMITATIONS.md`](./LIMITATIONS.md) — 局限性与技术债
 > - [`UPGRADE_26.1.2_PROGRESS.md`](./UPGRADE_26.1.2_PROGRESS.md) — 历史脉络 + obsoleted 账本
+> - [`STAGE5_TEST_CHECKLIST.md`](./STAGE5_TEST_CHECKLIST.md) — 运行时测试 checklist
 > - [`UPGRADE_TO_26.1.2.md`](./UPGRADE_TO_26.1.2.md) — 升级前上游调研
 
 ---
 
-## 一、当前阶段（2026-04-16）
+## 一、当前阶段（2026-04-17）
 
-**阶段 3 收尾**：96% 完成，剩 3 个 minecraft patch + 1 个 paper patch。
+**阶段 3/4 完成，阶段 5 准备就绪**。171/171 patch 已 rebase，compileJava=0 errors，jar 可构建，CI 绿，剩运行时 mod 客户端对接测试。
 
 详细数字见 [`SPRINT_PHASE.md` §一](./SPRINT_PHASE.md)。后续阶段概览见 [`UPGRADE_26.1.2_PROGRESS.md` §二](./UPGRADE_26.1.2_PROGRESS.md)。
 
@@ -266,19 +268,19 @@ Patch rebase batch NN: <patch 名或主题> (XX→YY, A%→B%)
 | 里程碑 | 标志 | 状态 |
 |---|---|---|
 | M1 | `applyAllPatches` 绿 | ✅ 已达成（batch 10） |
-| M2 | `compileJava` 错误数 < 50 | 🎯 下一目标（做完 0136+0072+0102 后 ~30 错误可能会消失） |
-| M3 | `compileJava` = 0 errors | 🎯 阶段 4 完成 |
-| M4 | `createMojmapLeavesclipJar` 成功 | 🎯 jar 产物可用 |
-| M5 | runtime 启动成功 | 🎯 服务端能起来 |
+| M2 | `compileJava` 错误数 < 50 | ✅ 已达成（batch 31 直接到 0） |
+| M3 | `compileJava` = 0 errors | ✅ 已达成（batch 31） |
+| M4 | `createLeavesclipJar` 成功（task 在 Paper 26.1 改名，原 `createMojmapLeavesclipJar`）| ✅ 已达成（batch 32 起） |
+| M5 | runtime 启动成功 | 🎯 阶段 5 人工验证待开始 |
 | M6 | 功能测试通过 | 🎯 可发布 |
 
 ---
 
-## 七、推进节奏建议
+## 七、推进节奏建议（历史参考）
 
 **原则**：每 1-2 个 patch 一次 commit + push；每个 session 聚焦一个 size 档次；每次 push 前跑 `compileJava` 作为进度指标。
 
-**当前阶段**（剩 3 个大 patch）：
+**阶段 3 时的节奏**（剩 3 个大 patch 时）：
 - 单独一个 batch 做 0136（2480 行），谨慎处理
 - 单独一个 batch 做 0072（537 行）
 - 单独一个 batch 做 0102（808 行）
@@ -290,25 +292,97 @@ Patch rebase batch NN: <patch 名或主题> (XX→YY, A%→B%)
 
 ---
 
-## 八、"硬骨头" 清单（历史）
+## 八、"硬骨头" 清单（历史回顾）
 
-以下 patch 标记为"单个工作量 > 1 小时"。截至 batch 26，前 6 项都已完成；只剩最后两项（0136、0013）。
+以下 patch 当时被标记为"单个工作量 > 1 小时"。**全部已完成**：
 
-| patch | 状态 | 备注 |
+| patch | batch | 实际情况 |
 |---|---|---|
-| `Leaves-Utils` (原 0003 → 现 0123) | ✅ batch 22 完成 | Entity NBT 扩展、大量 `@Nullable` → `@NotNull` 注解 |
-| `Leaves-Protocol-Core` (原 0004 → 现 0121) | ✅ batch 21 完成 | 自定义 `CustomPacketPayload` 基类 + 注册中心 |
-| `Leaves-Fakeplayer` (原 0007 → 现 0137) | ✅ batch 24 完成 | 26 文件，`ServerBot`、`BotList`、`interactAt` |
-| 6 个 protocol patches（BBOR/PCA/Alt-block/Jade/Xaero/REI） | ✅ batch 22 完成 | 都依赖 Protocol-Core |
-| `Async-keepalive` | ✅ batch 23 完成 | 网络层最新 |
-| `Replay-Mod-API` (0072) | ⏳ 剩余 | 537 行 |
-| **`Lithium-Sleeping-Block-Entity` (0136)** | ⏳ **下一个** | **2480 行，最大单 patch** |
-| `Old-Block-remove-behaviour` (0102) | ⏳ 剩余 | 808 行 |
-| `Leaves-Plugin` (paper-patches 0013) | ⏳ 剩余 | **Paper 插件系统已重构，需完全重写** |
+| `Leaves-Utils` (原 0003 → 现 0124) | 22 | Entity NBT 扩展、大量 `@Nullable` → `@NotNull` 注解 |
+| `Leaves-Protocol-Core` (原 0004 → 现 0122) | 21 | 自定义 `CustomPacketPayload` 基类 + 注册中心 |
+| `Leaves-Fakeplayer` (原 0007 → 现 0138) | 24 | 26 文件，`ServerBot`、`BotList`、`interactAt` |
+| 6 个 protocol patches（BBOR/PCA/Alt-block/Jade/Xaero/REI） | 22 | 都依赖 Protocol-Core |
+| `Async-keepalive` | 23 | 网络层最新 |
+| `Replay-Mod-API` (0072 → 0144) | 28 | 537 行；修正 GameRules API、FeatureHooks view/sim distance |
+| `Lithium-Sleeping-Block-Entity` (0136 → 0143) | 27 | 2480 行，29 文件，最大单 patch。全部 hunk 手工应用 |
+| `Old-Block-remove-behaviour` (0102 → 0145) | 29 | 808 行，33 文件。30+ 种方块的 `onRemove` |
+| `Leaves-Plugin` (paper-patches 0013 → 0016) | 30 | 实际比预估简单很多。PluginRemapper hunk 整块删除（Paper 26.1 已删），其它 7 文件 3-way merge |
+
+注：patch 编号括号内是"原 → 现"——batch 34 升级 Paper upstream 时重导出，原来的 0036+ 全部 +1 编号。
 
 ---
 
-## 九、协作约定
+## 九、Paper upstream 升级流程（batch 34 经验）
+
+跟进 PaperMC/Paper 新 commit 时的标准操作：
+
+### 9.1 评估阶段（不动代码）
+
+1. 获取新 commit 列表：`git log --oneline <old-pin>..<new-pin>`
+2. 看每个 commit 的改动范围：`git show --stat <commit>`
+3. 重点看上游改动的 `paper-server/patches/**` 和 API 源文件 — 这些会影响 Leaves 的 patch apply
+4. 评估冲突可能性（查 Leaves 自有代码是否 touch 了同一区域）
+
+### 9.2 升级操作
+
+```bash
+# 1. 改 pin
+sed -i '' "s/paperRef=<old>/paperRef=<new>/" gradle.properties
+
+# 2. 强制重 fetch Paper upstream（paperweight 不会自动检测 commit 变化）
+rm -rf leaves-server/.gradle/caches/paperweight/upstreams/paper
+rm -rf paper-server leaves-server/src/minecraft paper-api
+
+# 3. 重跑 apply
+./gradlew applyAllPatches --no-daemon
+```
+
+### 9.3 冲突处理
+
+paperweight 的 am 在上游改动影响 Leaves patch context 时会报 `git am` 失败。常见形式：
+
+- `CONFLICT (modify/delete): X deleted in <Leaves patch> and modified in HEAD`
+  → 如果 Leaves 要删除该文件，用 `git rm X` 确认删除意图，然后 `git am --continue`
+- `error: Failed to merge in the changes` on blob hash mismatch
+  → 需要去 paperweight 内部 git 工作区手动修改上下文。看 `git am --show-current-patch=diff` 对比当前文件状态
+
+### 9.4 导出更新后的 patch 集
+
+**关键**：paperweight 不会自动把 conflict 后的 manual fix 保存回 Leaves 的 `features/*.patch`。你必须：
+
+```bash
+# 进入 paperweight 内部 git（对 api/mc/server 各跑一次）
+cd leaves-api  # 或 leaves-server/src/minecraft/java 或 paper-server
+
+# 导出所有 Leaves 层的 commit 到临时目录
+git format-patch -N --no-signature --zero-commit --full-index --no-stat -o /tmp/new-patches/
+# N = Leaves 层 commit 数（不含 Paper 上游部分）
+
+# 归一化 subject（重要：paperweight 默认用 [PATCH]）
+sed -i '' 's/^Subject: \[PATCH [0-9]*\/[0-9]*\]/Subject: [PATCH]/' /tmp/new-patches/*.patch
+
+# 覆盖 features/
+rm <project>/features/*.patch
+cp /tmp/new-patches/*.patch <project>/features/
+```
+
+### 9.5 验证
+
+```bash
+rm -rf paper-server leaves-server/src/minecraft paper-api
+./gradlew applyAllPatches          # 期望 BUILD SUCCESSFUL
+./gradlew :leaves-server:createLeavesclipJar  # 期望产出 ~60MB jar
+```
+
+### 9.6 注意事项
+
+- **"discourage world name use"这类上游 API 转向**不一定直接破坏 Leaves 代码 — 只要是 `@ApiStatus.Obsolete` 而不是删除，继续用老 API 仍能编译
+- **重导出会自动修复"重复编号"之类的 patch 整理瑕疵**（如 batch 34 顺带清掉了原"两个 0035"问题）
+- **从不同 CI 运行结果看**：gradle task 名可能随 upstream 改（例如 batch 32 发现 `createMojmapLeavesclipJar` → `createLeavesclipJar`）。每次 Paper 大升级后确认 `gradlew tasks --all` 相应任务还在
+
+---
+
+## 十、协作约定
 
 - **推送身份**：HyacinthHaru（`122684177+HyacinthHaru@users.noreply.github.com`），通过 `gh` 的 HTTPS token 推送（不用 SSH）
 - **不要在 commit message 里加 `Co-Authored-By: Claude ...`**：Leaves 是 HyacinthHaru 的 fork，commit log 上保持单一作者更清爽。如果不小心加了，需要在 push 前用 `git filter-branch` 或 `git rebase -i` 清掉再 force-push
@@ -334,33 +408,39 @@ Patch rebase batch NN: <patch 名或主题> (XX→YY, A%→B%)
 
 ---
 
-## 十、目录结构导航
+## 十一、目录结构导航
 
 ```
 /Users/haru/Desktop/LeavesMC/Leaves/
-├── SPRINT_PHASE.md                         ← 当前状态
+├── SPRINT_PHASE.md                         ← 当前状态（single source of truth）
+├── LIMITATIONS.md                          ← 局限性与技术债账本
 ├── UPGRADE_26.1.2_PROGRESS.md              ← 历史 + 背景
 ├── PATCH_REBASE_PLAYBOOK.md                ← 本文档：操作手册
+├── STAGE5_TEST_CHECKLIST.md                ← 运行时测试 checklist
+├── REI_RECIPE_MIGRATION.md                 ← REI recipe 迁移深度调研（batch 33 产物）
 ├── PROTOCOL_MOD_AUDIT.md                   ← 协议 mod 审计
 ├── SESSION_REPORT_2026-04-15.md            ← batch 1-10 历史
 ├── build.gradle.kts                        ← JDK 25, -Xmaxerrs 500
 ├── leaves-server/
 │   ├── build.gradle.kts.patch              ← 含 -Xmaxerrs 500
+│   ├── build/libs/                         ← jar 产物（leavesclip 62.5M / bundler 101M / server 29M）
 │   ├── src/minecraft/java/                 ← applyAllPatches 产物（5256 vanilla 源 + Leaves 修改）
 │   │   └── (paperweight 内部 git 工作区，手动 am 在这)
 │   ├── minecraft-patches/
-│   │   ├── features/                       ← 141 个已 rebase（+1 重复 0035）
-│   │   └── features-todo/                  ← 3 个待做
+│   │   ├── features/                       ← 145 个 patch（0001-0145 唯一编号）
+│   │   └── features-todo/                  ← 空
 │   └── paper-patches/
-│       ├── features/                       ← 15 个已 rebase
-│       ├── features-todo/                  ← 1 个待做（0013 Leaves-Plugin）
+│       ├── features/                       ← 16 个 patch
+│       ├── features-todo/                  ← 空
 │       └── files/src/                      ← 1 个单文件 patch
-├── leaves-api/paper-patches/features/      ← 9 个全部完成
+├── leaves-api/paper-patches/features/      ← 9 个 patch
+├── paper-server/                           ← applyAllPatches 产物（paperweight 内部 git）
+├── paper-api/                              ← applyAllPatches 产物（paperweight 内部 git）
 └── .gradle/.../paperweight/taskCache/runLeavesSetup/
-                                            ← paperweight 缓存（DS_Store 污染源）
+                                            ← paperweight 缓存
 ```
 
 ---
 
-_本文档最后更新：2026-04-16，配合 batch 26 完成后的收尾阶段。_
+_本文档最后更新：2026-04-17，batch 34 完成后的阶段 5 准备期。更新新增了 §九 Paper upstream 升级流程（基于 batch 34 实战经验）。_
 _更新节奏：只在工作流/约定变化时改；patch 数字变化去 `SPRINT_PHASE.md`。_

@@ -1,0 +1,537 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Haru Hyacinth <haru@MacBook-Air.local>
+Date: Thu, 16 Apr 2026 21:29:32 +0800
+Subject: [PATCH] Replay Mod API
+
+
+diff --git a/net/minecraft/commands/CommandSourceStack.java b/net/minecraft/commands/CommandSourceStack.java
+index 527ad5bc90aebf7344b5a7741c792d701794f335..44535e8e0345f31acb8d0471cc44a1b0eb209212 100644
+--- a/net/minecraft/commands/CommandSourceStack.java
++++ b/net/minecraft/commands/CommandSourceStack.java
+@@ -562,7 +562,7 @@ public class CommandSourceStack implements SharedSuggestionProvider, ExecutionCo
+ 
+     @Override
+     public Collection<String> getOnlinePlayerNames() {
+-        return this.entity instanceof ServerPlayer sourcePlayer && !sourcePlayer.getBukkitEntity().hasPermission("paper.bypass-visibility.tab-completion") ? this.getServer().getPlayerList().getPlayers().stream().filter(serverPlayer -> sourcePlayer.getBukkitEntity().canSee(serverPlayer.getBukkitEntity())).map(serverPlayer -> serverPlayer.getGameProfile().name()).toList() : Lists.newArrayList(this.server.getPlayerNames()); // Paper - Make CommandSourceStack respect hidden players
++        return this.entity instanceof ServerPlayer sourcePlayer && !(sourcePlayer instanceof org.leavesmc.leaves.replay.ServerPhotographer) && !sourcePlayer.getBukkitEntity().hasPermission("paper.bypass-visibility.tab-completion") ? this.getServer().getPlayerList().getPlayers().stream().filter(serverPlayer -> sourcePlayer.getBukkitEntity().canSee(serverPlayer.getBukkitEntity())).map(serverPlayer -> serverPlayer.getGameProfile().name()).toList() : Lists.newArrayList(this.server.getPlayerNames()); // Paper - Make CommandSourceStack respect hidden players // Leaves - only real player
+     }
+ 
+     @Override
+diff --git a/net/minecraft/commands/arguments/selector/EntitySelector.java b/net/minecraft/commands/arguments/selector/EntitySelector.java
+index 7e3912b8b29e40eb3347f1451b0fd3ebee2af4f1..0834e402e6af7028e08851378e15390ec6314380 100644
+--- a/net/minecraft/commands/arguments/selector/EntitySelector.java
++++ b/net/minecraft/commands/arguments/selector/EntitySelector.java
+@@ -142,11 +142,12 @@ public class EntitySelector {
+             return this.findPlayers(sender);
+         } else if (this.playerName != null) {
+             ServerPlayer result = sender.getServer().getPlayerList().getPlayerByName(this.playerName);
++            result = result instanceof org.leavesmc.leaves.replay.ServerPhotographer ? null : result; // Leaves - skip photographer
+             return result == null ? List.of() : List.of(result);
+         } else if (this.entityUUID != null) {
+             for (ServerLevel level : sender.getServer().getAllLevels()) {
+                 Entity entity = level.getEntity(this.entityUUID);
+-                if (entity != null) {
++                if (entity != null && !(entity instanceof org.leavesmc.leaves.replay.ServerPhotographer)) {
+                     if (entity.getType().isEnabled(sender.enabledFeatures())) {
+                         return List.of(entity);
+                     }
+@@ -160,7 +161,7 @@ public class EntitySelector {
+             AABB absoluteAabb = this.getAbsoluteAabb(pos);
+             if (this.currentEntity) {
+                 Predicate<Entity> predicate = this.getPredicate(pos, absoluteAabb, null);
+-                return sender.getEntity() != null && predicate.test(sender.getEntity()) ? List.of(sender.getEntity()) : List.of();
++                return sender.getEntity() != null && !(sender.getEntity() instanceof org.leavesmc.leaves.replay.ServerPhotographer) && predicate.test(sender.getEntity()) ? List.of(sender.getEntity()) : List.of(); // Leaves - skip photographer
+             } else {
+                 Predicate<Entity> predicate = this.getPredicate(pos, absoluteAabb, sender.enabledFeatures());
+                 List<Entity> result = new ObjectArrayList<>();
+@@ -171,6 +172,7 @@ public class EntitySelector {
+                         this.addEntities(result, levelx, absoluteAabb, predicate);
+                     }
+                 }
++                result.removeIf(entity -> entity instanceof org.leavesmc.leaves.replay.ServerPhotographer); // Leaves - skip photographer
+ 
+                 return this.sortAndLimit(pos, result);
+             }
+@@ -206,9 +208,11 @@ public class EntitySelector {
+         this.checkPermissions(sender);
+         if (this.playerName != null) {
+             ServerPlayer result = sender.getServer().getPlayerList().getPlayerByName(this.playerName);
++            result = result instanceof org.leavesmc.leaves.replay.ServerPhotographer ? null : result; // Leaves - skip photographer
+             return result == null ? List.of() : List.of(result);
+         } else if (this.entityUUID != null) {
+             ServerPlayer result = sender.getServer().getPlayerList().getPlayer(this.entityUUID);
++            result = result instanceof org.leavesmc.leaves.replay.ServerPhotographer ? null : result; // Leaves - skip photographer
+             return result == null ? List.of() : List.of(result);
+         } else {
+             Vec3 pos = this.position.apply(sender.getPosition());
+@@ -220,11 +224,11 @@ public class EntitySelector {
+                 int limit = this.getResultLimit();
+                 List<ServerPlayer> result;
+                 if (this.isWorldLimited()) {
+-                    result = sender.getLevel().getPlayers(predicate, limit);
++                    result = sender.getLevel().getPlayers((player -> !(player instanceof org.leavesmc.leaves.replay.ServerPhotographer) && predicate.test(player)), limit); // Leaves - skip photographer
+                 } else {
+                     result = new ObjectArrayList<>();
+ 
+-                    for (ServerPlayer player : sender.getServer().getPlayerList().getPlayers()) {
++                    for (ServerPlayer player : sender.getServer().getPlayerList().realPlayers) { // Leaves - only real players
+                         if (predicate.test(player)) {
+                             result.add(player);
+                             if (result.size() >= limit) {
+diff --git a/net/minecraft/server/MinecraftServer.java b/net/minecraft/server/MinecraftServer.java
+index 9f8622459d5b12e15f8c98d6b3175d8c839049fa..039def9994b45220c3c2b73ab682a62d610ac97e 100644
+--- a/net/minecraft/server/MinecraftServer.java
++++ b/net/minecraft/server/MinecraftServer.java
+@@ -1769,7 +1769,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+     }
+ 
+     private ServerStatus.Players buildPlayerStatus() {
+-        List<ServerPlayer> players = this.playerList.getPlayers();
++        List<ServerPlayer> players = this.playerList.realPlayers; // Leaves - only real player
+         int maxPlayers = this.getMaxPlayers();
+         if (this.hidesOnlinePlayers()) {
+             return new ServerStatus.Players(maxPlayers, players.size(), List.of());
+@@ -1975,7 +1975,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+ 
+     @Override
+     public int getPlayerCount() {
+-        return this.playerList.getPlayerCount();
++        return this.playerList.realPlayers.size(); // Leaves - only real player
+     }
+ 
+     public String[] getPlayerNames() {
+@@ -2187,7 +2187,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+         } else {
+             int count = 0;
+ 
+-            for (ServerPlayer player : this.getPlayerList().getPlayers()) {
++            for (ServerPlayer player : this.getPlayerList().realPlayers) { // Leaves - only real player
+                 // Paper start - Expand PlayerGameModeChangeEvent
+                 org.bukkit.event.player.PlayerGameModeChangeEvent event = player.setGameMode(gameType, org.bukkit.event.player.PlayerGameModeChangeEvent.Cause.DEFAULT_GAMEMODE, null);
+                 if (event == null || event.isCancelled()) {
+@@ -2352,7 +2352,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+                 if (Thread.currentThread() != this.serverThread) return; // Paper
+                 // Paper start - we don't need to save everything, just advancements
+                 // this.getPlayerList().saveAll();
+-                for (final ServerPlayer player : this.getPlayerList().getPlayers()) {
++                for (final ServerPlayer player : this.getPlayerList().realPlayers) { // Leaves - only real players
+                     player.getAdvancements().save();
+                 }
+                 // Paper end - we don't need to save everything, just advancements
+@@ -2488,7 +2488,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+             PlayerList playerList = this.getPlayerList();
+             UserWhiteList whiteList = playerList.getWhiteList();
+ 
+-            for (ServerPlayer player : Lists.newArrayList(playerList.getPlayers())) {
++            for (ServerPlayer player : Lists.newArrayList(playerList.realPlayers)) { // Leaves - only real player
+                 if (!whiteList.isWhiteListed(player.nameAndId()) && !this.getPlayerList().isOp(player.nameAndId())) { // Paper - Fix kicking ops when whitelist is reloaded (MC-171420)
+                     player.connection.disconnect(net.kyori.adventure.text.Component.text(org.spigotmc.SpigotConfig.whitelistMessage), org.bukkit.event.player.PlayerKickEvent.Cause.WHITELIST); // Paper - use configurable message & kick event cause
+                 }
+diff --git a/net/minecraft/server/PlayerAdvancements.java b/net/minecraft/server/PlayerAdvancements.java
+index 2320b796887ac38150d70c4470841ad841f42a2e..5050167a3b5f68ea74e8e10e8ccd0871d1f5631b 100644
+--- a/net/minecraft/server/PlayerAdvancements.java
++++ b/net/minecraft/server/PlayerAdvancements.java
+@@ -169,7 +169,7 @@ public class PlayerAdvancements {
+ 
+     public boolean award(final AdvancementHolder holder, final String criterion) {
+         // Leaves start - bot can't get advancement
+-        if (player instanceof org.leavesmc.leaves.bot.ServerBot) {
++        if (player instanceof org.leavesmc.leaves.bot.ServerBot || player instanceof org.leavesmc.leaves.replay.ServerPhotographer) { // Leaves - and photographer
+             return false;
+         }
+         // Leaves end - bot can't get advancement
+diff --git a/net/minecraft/server/ServerScoreboard.java b/net/minecraft/server/ServerScoreboard.java
+index 4e400a24c0a5968223c7cd4874bd4d1e04e9fa2b..288618f2e604d0d10d0519b24408dc99d7f3a5bc 100644
+--- a/net/minecraft/server/ServerScoreboard.java
++++ b/net/minecraft/server/ServerScoreboard.java
+@@ -247,7 +247,7 @@ public class ServerScoreboard extends Scoreboard {
+     public void startTrackingObjective(final Objective objective) {
+         List<Packet<?>> packets = this.getStartTrackingPackets(objective);
+ 
+-        for (ServerPlayer player : this.server.getPlayerList().getPlayers()) {
++        for (ServerPlayer player : this.server.getPlayerList().realPlayers) { // Leaves - only real players
+             if (player.getBukkitEntity().getScoreboard().getHandle() != this) continue; // CraftBukkit - Only players on this board
+             for (Packet<?> packet : packets) {
+                 player.connection.send(packet);
+@@ -273,7 +273,7 @@ public class ServerScoreboard extends Scoreboard {
+     public void stopTrackingObjective(final Objective objective) {
+         List<Packet<?>> packets = this.getStopTrackingPackets(objective);
+ 
+-        for (ServerPlayer player : this.server.getPlayerList().getPlayers()) {
++        for (ServerPlayer player : this.server.getPlayerList().realPlayers) { // Leaves - only real players
+             if (player.getBukkitEntity().getScoreboard().getHandle() != this) continue; // CraftBukkit - Only players on this board
+             for (Packet<?> packet : packets) {
+                 player.connection.send(packet);
+diff --git a/net/minecraft/server/commands/ListPlayersCommand.java b/net/minecraft/server/commands/ListPlayersCommand.java
+index b850c908a594f839ce124c6bd01762d31cc3aa1e..b2240fd3f5ace03168fd679932675a72c09e81d7 100644
+--- a/net/minecraft/server/commands/ListPlayersCommand.java
++++ b/net/minecraft/server/commands/ListPlayersCommand.java
+@@ -33,7 +33,7 @@ public class ListPlayersCommand {
+     private static int format(final CommandSourceStack source, final Function<ServerPlayer, Component> formatter) {
+         PlayerList playerList = source.getServer().getPlayerList();
+         // CraftBukkit start
+-        List<ServerPlayer> playersTemp = playerList.getPlayers();
++        List<ServerPlayer> playersTemp = playerList.realPlayers;
+         if (source.getBukkitSender() instanceof org.bukkit.entity.Player) {
+             org.bukkit.entity.Player sender = (org.bukkit.entity.Player) source.getBukkitSender();
+             playersTemp = playersTemp.stream().filter((ep) -> sender.canSee(ep.getBukkitEntity())).collect(java.util.stream.Collectors.toList());
+diff --git a/net/minecraft/server/commands/OpCommand.java b/net/minecraft/server/commands/OpCommand.java
+index 20cbc0e65fea3fc2d0033259c2f35e158ea81926..6bcd09b8d39333bd5f2c0d7c0a9a91bb52f9314d 100644
+--- a/net/minecraft/server/commands/OpCommand.java
++++ b/net/minecraft/server/commands/OpCommand.java
+@@ -25,7 +25,8 @@ public class OpCommand {
+                             (c, p) -> {
+                                 PlayerList list = c.getSource().getServer().getPlayerList();
+                                 return SharedSuggestionProvider.suggest(
+-                                    list.getPlayers().stream().filter(player -> !list.isOp(player.nameAndId())).map(pl -> pl.getGameProfile().name()), p
++                                    list.realPlayers // Leaves - only real player
++                                        .stream().filter(player -> !list.isOp(player.nameAndId())).map(pl -> pl.getGameProfile().name()), p
+                                 );
+                             }
+                         )
+diff --git a/net/minecraft/server/commands/ParticleCommand.java b/net/minecraft/server/commands/ParticleCommand.java
+index a14f82a1587e175030d4cd806726456831008dea..563d897a70f402d556cabd3e02131aaf22ff8d1e 100644
+--- a/net/minecraft/server/commands/ParticleCommand.java
++++ b/net/minecraft/server/commands/ParticleCommand.java
+@@ -36,7 +36,7 @@ public class ParticleCommand {
+                                 0.0F,
+                                 0,
+                                 false,
+-                                c.getSource().getServer().getPlayerList().getPlayers()
++                                c.getSource().getServer().getPlayerList().realPlayers // Leaves - only real player
+                             )
+                         )
+                         .then(
+@@ -50,7 +50,7 @@ public class ParticleCommand {
+                                         0.0F,
+                                         0,
+                                         false,
+-                                        c.getSource().getServer().getPlayerList().getPlayers()
++                                        c.getSource().getServer().getPlayerList().realPlayers // Leaves - only real player
+                                     )
+                                 )
+                                 .then(
+@@ -68,7 +68,7 @@ public class ParticleCommand {
+                                                                 FloatArgumentType.getFloat(c, "speed"),
+                                                                 IntegerArgumentType.getInteger(c, "count"),
+                                                                 false,
+-                                                                c.getSource().getServer().getPlayerList().getPlayers()
++                                                                c.getSource().getServer().getPlayerList().realPlayers // Leaves - only real player
+                                                             )
+                                                         )
+                                                         .then(
+@@ -82,7 +82,7 @@ public class ParticleCommand {
+                                                                         FloatArgumentType.getFloat(c, "speed"),
+                                                                         IntegerArgumentType.getInteger(c, "count"),
+                                                                         true,
+-                                                                        c.getSource().getServer().getPlayerList().getPlayers()
++                                                                        c.getSource().getServer().getPlayerList().realPlayers // Leaves - only real player
+                                                                     )
+                                                                 )
+                                                                 .then(
+@@ -112,7 +112,7 @@ public class ParticleCommand {
+                                                                         FloatArgumentType.getFloat(c, "speed"),
+                                                                         IntegerArgumentType.getInteger(c, "count"),
+                                                                         false,
+-                                                                        c.getSource().getServer().getPlayerList().getPlayers()
++                                                                        c.getSource().getServer().getPlayerList().realPlayers // Leaves - only real player
+                                                                     )
+                                                                 )
+                                                                 .then(
+diff --git a/net/minecraft/server/commands/TeamMsgCommand.java b/net/minecraft/server/commands/TeamMsgCommand.java
+index d04fd8ab5f8e3c1697af5448c320838a822dbf1f..f46abe413e9b30f219fa1f7fc485de4c8859be90 100644
+--- a/net/minecraft/server/commands/TeamMsgCommand.java
++++ b/net/minecraft/server/commands/TeamMsgCommand.java
+@@ -40,7 +40,7 @@ public class TeamMsgCommand {
+                                 } else {
+                                     List<ServerPlayer> receivers = source.getServer()
+                                         .getPlayerList()
+-                                        .getPlayers()
++                                        .realPlayers // Leaves - only real players
+                                         .stream()
+                                         .filter(receiver -> receiver == entity || receiver.getTeam() == team)
+                                         .toList();
+diff --git a/net/minecraft/server/commands/WhitelistCommand.java b/net/minecraft/server/commands/WhitelistCommand.java
+index 907d1304503a80c6d0fd064bf1aaf4e081e9f85b..e0c1ee55888261bca42bbadec8812da2a36dded8 100644
+--- a/net/minecraft/server/commands/WhitelistCommand.java
++++ b/net/minecraft/server/commands/WhitelistCommand.java
+@@ -44,7 +44,7 @@ public class WhitelistCommand {
+                                     (c, p) -> {
+                                         PlayerList list = c.getSource().getServer().getPlayerList();
+                                         return SharedSuggestionProvider.suggest(
+-                                            list.getPlayers()
++                                            list.realPlayers // Leaves - only real player
+                                                 .stream()
+                                                 .map(Player::nameAndId)
+                                                 .filter(nameAndId -> !list.getWhiteList().isWhiteListed(nameAndId))
+diff --git a/net/minecraft/server/gui/PlayerListComponent.java b/net/minecraft/server/gui/PlayerListComponent.java
+index 37c9f983ae89c497f44a1b7967d741abf909e0a0..d7fb2505f2a86ca0d81f144624ef2e1a4b4bddbb 100644
+--- a/net/minecraft/server/gui/PlayerListComponent.java
++++ b/net/minecraft/server/gui/PlayerListComponent.java
+@@ -17,8 +17,8 @@ public class PlayerListComponent extends JList<String> {
+         if (this.tickCount++ % 20 == 0) {
+             Vector<String> players = new Vector<>();
+ 
+-            for (int i = 0; i < this.server.getPlayerList().getPlayers().size(); i++) {
+-                players.add(this.server.getPlayerList().getPlayers().get(i).getGameProfile().name());
++            for (int i = 0; i < this.server.getPlayerList().realPlayers.size(); i++) { // Leaves - only real players
++                players.add(this.server.getPlayerList().realPlayers.get(i).getGameProfile().name()); // Leaves - only real players
+             }
+ 
+             this.setListData(players);
+diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
+index 3609ff59deb78f056b4c7ee7e72884d656f3724f..40df22c2d8cd82ac94c79b892817f9a5dc38878e 100644
+--- a/net/minecraft/server/level/ServerLevel.java
++++ b/net/minecraft/server/level/ServerLevel.java
+@@ -2893,7 +2893,7 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet
+             if (entity instanceof ServerPlayer player) {
+                 ServerLevel.this.players.add(player);
+                 // Leaves start - skip
+-                if (!(player instanceof org.leavesmc.leaves.bot.ServerBot)) {
++                if (!(player instanceof org.leavesmc.leaves.bot.ServerBot) && !(player instanceof org.leavesmc.leaves.replay.ServerPhotographer)) { // and photographer
+                     ServerLevel.this.realPlayers.add(player);
+                 }
+                 // Leaves end - skip
+@@ -2976,7 +2976,7 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet
+             if (entity instanceof ServerPlayer player) {
+                 ServerLevel.this.players.remove(player);
+                 // Leaves start - skip
+-                if (!(player instanceof org.leavesmc.leaves.bot.ServerBot)) {
++                if (!(player instanceof org.leavesmc.leaves.bot.ServerBot) && !(player instanceof org.leavesmc.leaves.replay.ServerPhotographer)) { // and photographer
+                     ServerLevel.this.realPlayers.remove(player);
+                 }
+                 // Leaves end - skip
+diff --git a/net/minecraft/server/players/PlayerList.java b/net/minecraft/server/players/PlayerList.java
+index 8b83f4aa5712290cbf19291c0bc2740518016180..5ba155b0b2945fd966a2f0294b74513547441a76 100644
+--- a/net/minecraft/server/players/PlayerList.java
++++ b/net/minecraft/server/players/PlayerList.java
+@@ -130,6 +130,7 @@ public abstract class PlayerList {
+     private int simulationDistance;
+     private boolean allowCommandsForAllPlayers;
+     private int sendAllPlayerInfoIn;
++    public final List<ServerPlayer> realPlayers = new java.util.concurrent.CopyOnWriteArrayList<>(); // Leaves - replay api
+ 
+     // CraftBukkit start
+     private org.bukkit.craftbukkit.CraftServer cserver;
+@@ -156,6 +157,124 @@ public abstract class PlayerList {
+ 
+     abstract public void loadAndSaveFiles(); // Paper - fix converting txt to json file; moved from DedicatedPlayerList constructor
+ 
++    // Leaves start - replay mod api
++    public void placeNewPhotographer(Connection connection, org.leavesmc.leaves.replay.ServerPhotographer player, ServerLevel worldserver) {
++        player.isRealPlayer = true; // Paper
++        player.loginTime = System.currentTimeMillis(); // Paper
++
++        ServerLevel worldserver1 = worldserver;
++
++        player.setServerLevel(worldserver1);
++        player.spawnIn(worldserver1);
++        player.gameMode.setLevel(player.level());
++
++        LevelData worlddata = worldserver1.getLevelData();
++
++        ServerGamePacketListenerImpl playerconnection = new ServerGamePacketListenerImpl(this.server, connection, player, CommonListenerCookie.createInitial(player.gameProfile, false));
++        GameRules gamerules = worldserver1.getGameRules();
++        boolean flag = gamerules.get(GameRules.IMMEDIATE_RESPAWN);
++        boolean flag1 = gamerules.get(GameRules.REDUCED_DEBUG_INFO);
++        boolean flag2 = gamerules.get(GameRules.LIMITED_CRAFTING);
++
++        playerconnection.send(new ClientboundLoginPacket(player.getId(), worlddata.isHardcore(), this.server.levelKeys(), this.getMaxPlayers(), io.papermc.paper.FeatureHooks.getViewDistance(worldserver1), io.papermc.paper.FeatureHooks.getSimulationDistance(worldserver1), flag1, !flag, flag2, player.createCommonSpawnInfo(worldserver1), this.server.enforceSecureProfile()));
++        player.getBukkitEntity().sendSupportedChannels(); // CraftBukkit
++        playerconnection.send(new ClientboundChangeDifficultyPacket(worlddata.getDifficulty(), worlddata.isDifficultyLocked()));
++        playerconnection.send(new ClientboundPlayerAbilitiesPacket(player.getAbilities()));
++        playerconnection.send(new ClientboundSetHeldSlotPacket(player.getInventory().getSelectedSlot()));
++        RecipeManager craftingmanager = this.server.getRecipeManager();
++        playerconnection.send(new ClientboundUpdateRecipesPacket(craftingmanager.getSynchronizedItemProperties(), craftingmanager.getSynchronizedStonecutterRecipes()));
++
++        this.sendPlayerPermissionLevel(player);
++        player.getStats().markAllDirty();
++        player.getRecipeBook().sendInitialRecipeBook(player);
++        this.updateEntireScoreboard(worldserver1.getScoreboard(), player);
++        this.server.invalidateStatus();
++
++        playerconnection.teleport(player.getX(), player.getY(), player.getZ(), player.getYRot(), player.getXRot());
++        ServerStatus serverping = this.server.getStatus();
++
++        if (serverping != null) {
++            player.sendServerStatus(serverping);
++        }
++
++        this.players.add(player);
++        this.playersByName.put(player.getScoreboardName().toLowerCase(java.util.Locale.ROOT), player); // Spigot
++        this.playersByUUID.put(player.getUUID(), player);
++
++        player.suppressTrackerForLogin = true;
++        worldserver1.addNewPlayer(player);
++        this.server.getCustomBossEvents().onPlayerConnect(player);
++        org.bukkit.craftbukkit.entity.CraftPlayer bukkitPlayer = player.getBukkitEntity();
++
++        player.containerMenu.transferTo(player.containerMenu, bukkitPlayer);
++        if (!player.connection.isAcceptingMessages()) {
++            return;
++        }
++
++        // org.leavesmc.leaves.protocol.core.LeavesProtocolManager.handlePlayerJoin(player); // Leaves - protocol
++
++        // Leaves start - bot support
++        if (org.leavesmc.leaves.LeavesConfig.modify.fakeplayer.enable) {
++            org.leavesmc.leaves.bot.ServerBot bot = this.server.getBotList().getBotByName(player.getScoreboardName());
++            if (bot != null) {
++                this.server.getBotList().removeBot(bot, org.leavesmc.leaves.event.bot.BotRemoveEvent.RemoveReason.INTERNAL, player.getBukkitEntity(), false, false);
++            }
++            this.server.getBotList().bots.forEach(bot1 -> {
++                bot1.sendPlayerInfo(player);
++                bot1.sendFakeDataIfNeed(player, true);
++            }); // Leaves - render bot
++        }
++        // Leaves end - bot support
++
++        final List<ServerPlayer> onlinePlayers = Lists.newArrayListWithExpectedSize(this.players.size() - 1);
++        for (int i = 0; i < this.players.size(); ++i) {
++            ServerPlayer entityplayer1 = this.players.get(i);
++
++            if (entityplayer1 == player || !bukkitPlayer.canSee(entityplayer1.getBukkitEntity())) {
++                continue;
++            }
++
++            // Leaves start - skip photographer
++            if (entityplayer1 instanceof org.leavesmc.leaves.replay.ServerPhotographer) {
++                continue;
++            }
++            // Leaves end - skip photographer
++
++            onlinePlayers.add(entityplayer1);
++        }
++        if (!onlinePlayers.isEmpty()) {
++            player.connection.send(ClientboundPlayerInfoUpdatePacket.createPlayerInitializing(onlinePlayers, player));
++        }
++
++        player.sentListPacket = true;
++        player.suppressTrackerForLogin = false;
++        ((ServerLevel)player.level()).getChunkSource().chunkMap.addEntity(player);
++
++        this.sendLevelInfo(player, worldserver1);
++
++        if (player.level() == worldserver1 && !worldserver1.players().contains(player)) {
++            worldserver1.addNewPlayer(player);
++            this.server.getCustomBossEvents().onPlayerConnect(player);
++        }
++
++        worldserver1 = player.level();
++        java.util.Iterator<net.minecraft.world.effect.MobEffectInstance> iterator = player.getActiveEffects().iterator();
++        while (iterator.hasNext()) {
++            MobEffectInstance mobeffect = iterator.next();
++            playerconnection.send(new ClientboundUpdateMobEffectPacket(player.getId(), mobeffect, false));
++        }
++
++        if (player.isDeadOrDying()) {
++            net.minecraft.core.Holder<net.minecraft.world.level.biome.Biome> plains = worldserver1.registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.BIOME)
++                    .getOrThrow(net.minecraft.world.level.biome.Biomes.PLAINS);
++            player.connection.send(new net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket(
++                    new net.minecraft.world.level.chunk.EmptyLevelChunk(worldserver1, player.chunkPosition(), plains),
++                    worldserver1.getLightEngine(), null, null, false)
++            );
++        }
++    }
++    // Leaves end - replay mod api
++
+     public void placeNewPlayer(final Connection connection, final ServerPlayer player, final CommonListenerCookie cookie) {
+         player.isRealPlayer = true; // Paper
+         player.loginTime = System.currentTimeMillis(); // Paper - Replace OfflinePlayer#getLastPlayed
+@@ -230,6 +349,7 @@ public abstract class PlayerList {
+ 
+         // player.connection.send(ClientboundPlayerInfoUpdatePacket.createPlayerInitializing(this.players)); // CraftBukkit - replaced with loop below
+         this.players.add(player);
++        this.realPlayers.add(player); // Leaves - replay api
+         this.playersByName.put(player.getScoreboardName().toLowerCase(java.util.Locale.ROOT), player); // Spigot
+         this.playersByUUID.put(player.getUUID(), player);
+         // this.broadcastAll(ClientboundPlayerInfoUpdatePacket.createPlayerInitializing(List.of(player))); // CraftBukkit - replaced with loop below
+@@ -439,6 +559,7 @@ public abstract class PlayerList {
+     }
+ 
+     protected void save(final ServerPlayer player) {
++        if (player instanceof org.leavesmc.leaves.replay.ServerPhotographer) return; // Leaves - skip photographer
+         if (!player.getBukkitEntity().isPersistent()) return; // CraftBukkit
+         player.lastSave = MinecraftServer.currentTick; // Paper - Incremental chunk and player saving
+         this.playerIo.save(player);
+@@ -453,6 +574,43 @@ public abstract class PlayerList {
+         }
+     }
+ 
++    // Leaves start - replay mod api
++    public void removePhotographer(org.leavesmc.leaves.replay.ServerPhotographer entityplayer) {
++        ServerLevel worldserver = entityplayer.level();
++
++        entityplayer.awardStat(Stats.LEAVE_GAME);
++
++        if (entityplayer.containerMenu != entityplayer.inventoryMenu) {
++            entityplayer.closeContainer(org.bukkit.event.inventory.InventoryCloseEvent.Reason.DISCONNECT);
++        }
++
++        if (server.isSameThread()) entityplayer.doTick();
++
++        if (this.collideRuleTeamName != null) {
++            final net.minecraft.world.scores.Scoreboard scoreBoard = this.server.getLevel(Level.OVERWORLD).getScoreboard();
++            final PlayerTeam team = scoreBoard.getPlayersTeam(this.collideRuleTeamName);
++            if (entityplayer.getTeam() == team && team != null) {
++                scoreBoard.removePlayerFromTeam(entityplayer.getScoreboardName(), team);
++            }
++        }
++
++        worldserver.removePlayerImmediately(entityplayer, Entity.RemovalReason.UNLOADED_WITH_PLAYER);
++        entityplayer.retireScheduler();
++        entityplayer.getAdvancements().stopListening();
++        this.players.remove(entityplayer);
++        this.playersByName.remove(entityplayer.getScoreboardName().toLowerCase(java.util.Locale.ROOT));
++        this.server.getCustomBossEvents().onPlayerDisconnect(entityplayer);
++        UUID uuid = entityplayer.getUUID();
++        ServerPlayer entityplayer1 = this.playersByUUID.get(uuid);
++
++        if (entityplayer1 == entityplayer) {
++            this.playersByUUID.remove(uuid);
++        }
++
++        this.cserver.getScoreboardManager().removePlayer(entityplayer.getBukkitEntity());
++    }
++    // Leaves end - replay mod api
++
+     public net.kyori.adventure.text.@Nullable Component remove(final ServerPlayer player) { // CraftBukkit - return string // Paper - return Component
+         // Paper start - Fix kick event leave message not being sent
+         return this.remove(player, net.kyori.adventure.text.Component.translatable("multiplayer.player.left", net.kyori.adventure.text.format.NamedTextColor.YELLOW, io.papermc.paper.configuration.GlobalConfiguration.get().messages.useDisplayNameInQuitMessage ? player.getBukkitEntity().displayName() : io.papermc.paper.adventure.PaperAdventure.asAdventure(player.getDisplayName())));
+@@ -526,6 +684,7 @@ public abstract class PlayerList {
+         player.retireScheduler(); // Paper - Folia schedulers
+         player.getAdvancements().stopListening();
+         this.players.remove(player);
++        this.realPlayers.remove(player); // Leaves - replay api
+         this.playersByName.remove(player.getScoreboardName().toLowerCase(java.util.Locale.ROOT)); // Spigot
+         this.server.getCustomBossEvents().onPlayerDisconnect(player);
+         UUID uuid = player.getUUID();
+@@ -847,14 +1006,14 @@ public abstract class PlayerList {
+     }
+ 
+     public String[] getPlayerNamesArray() {
+-        String[] names = new String[this.players.size() + this.server.getBotList().bots.size()]; // Leaves - fakeplayer support
++        String[] names = new String[this.realPlayers.size() + this.server.getBotList().bots.size()]; // Leaves - fakeplayer support, and skip photographer
+ 
+-        for (int i = 0; i < this.players.size(); i++) {
+-            names[i] = this.players.get(i).getGameProfile().name();
++        for (int i = 0; i < this.realPlayers.size(); i++) { // Leaves - only real players
++            names[i] = this.realPlayers.get(i).getGameProfile().name(); // Leaves - only real players
+         }
+         // Leaves start - fakeplayer support
+-        for (int i = this.players.size(); i < names.length; ++i) {
+-            names[i] = this.server.getBotList().bots.get(i - this.players.size()).gameProfile.name();
++        for (int i = this.realPlayers.size(); i < names.length; ++i) { // Leaves - only real players
++            names[i] = this.server.getBotList().bots.get(i - this.realPlayers.size()).gameProfile.name(); // Leaves - only real players
+         }
+         // Leaves end - fakeplayer support
+ 
+@@ -921,7 +1080,7 @@ public abstract class PlayerList {
+ 
+     // Paper start - whitelist verify event / login event
+     public LoginResult canBypassFullServerLogin(final NameAndId nameAndId, final LoginResult currentResult) {
+-        final boolean shouldKick = this.players.size() >= this.getMaxPlayers() && !this.canBypassPlayerLimit(nameAndId);
++        final boolean shouldKick = this.realPlayers.size() >= this.getMaxPlayers() && !this.canBypassPlayerLimit(nameAndId); // Leaves - only real player
+         final io.papermc.paper.event.player.PlayerServerFullCheckEvent fullCheckEvent = new io.papermc.paper.event.player.PlayerServerFullCheckEvent(
+             new com.destroystokyo.paper.profile.CraftPlayerProfile(nameAndId),
+             io.papermc.paper.adventure.PaperAdventure.asAdventure(currentResult.message),

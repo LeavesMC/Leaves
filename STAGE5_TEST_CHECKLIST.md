@@ -2,7 +2,7 @@
 
 > **用途**：本地启动一个 Leaves 服务器，逐项对照功能，把"能编译"推进到"能运行"。
 >
-> **前置**：`./gradlew :leaves-server:createLeavesclipJar` 已成功，产物是 **`leaves-server/build/libs/leaves-leavesclip-26.1.2-R0.1-SNAPSHOT.jar`**（60 MB，launcher；推荐用这个）。
+> **前置**：`./gradlew :leaves-server:createLeavesclipJar` 已成功，产物是 **`leaves-server/build/libs/leaves-leavesclip-26.1.2-R0.1-SNAPSHOT.jar`**（62.5 MB，launcher；推荐用这个）。
 >
 > 另外还有：
 > - `leaves-bundler-26.1.2-R0.1-SNAPSHOT.jar`（101 MB，bundler jar，含全部依赖）
@@ -31,11 +31,17 @@
 
 ---
 
-## 静态测试结果（2026-04-17，对照 `~/Desktop/LeavesMC/TestServer/`）
+## 静态测试结果（2026-04-17 更新到 batch 34）
 
 **已静态通过的项**：A.1、A.2、A.3、A.4、A.5、B.1（不含配置兼容性）、C.1、C.5（bot 移除）、J 的 Plugin 系统初始化
-**已确认失败**：**C.2（bot 无敌）** — 对应 [LIMITATIONS.md §2.1](./LIMITATIONS.md)，需要修代码
-**其余项**需要用户实际操作验证（如点击 UI、部署 mod 客户端）
+
+**已修复的问题**（静态测试时发现，此后已修）：
+- **C.2（bot 无敌）** — 2026-04-17 batch 32 已修（`ServerBotPacketListenerImpl.hasClientLoaded()` 始终返回 true）
+- **E.3（REI 箭/地图合成缺失）** — 2026-04-17 batch 33 已修（`ImbueRecipe` + `TransmuteRecipe` id 匹配）
+- **CI task 名错误 `createMojmapLeavesclipJar`** — batch 32 改成 `createLeavesclipJar`
+- **Finder 污染导致 Linux CI 失败** — batch 32 从 `0001-Build-changes.patch` 去掉 28 个 `* [0-9].java`
+
+**其余项**需要用户实际启动服务器 + 部署 mod 客户端验证。**新 jar（batch 34 后 62.5MB）已在 TestServer 目录**，可以直接测。
 
 ---
 
@@ -98,40 +104,11 @@
 - [x] 创建日志完整：`[org.leavesmc.leaves.bot.BotList] test[Local] logged in with entity id 385 at ([world]7.62, 72.0, 102.32)`（latest.log:48）— 说明 BotList 注册、entity spawn 都正常
 - [~] bot 有身体、朝向、位置 — 坐标合法
 
-### C.2 🔴✗ bot 可受伤（**FAILED — 用户实测确认 bot 无敌**）
-- [✗] **bot 左键攻击无反应 / 无法杀死** — 这正是 [LIMITATIONS.md §2.1](./LIMITATIONS.md) 预判的 `setClientLoaded` no-op 导致 `isInvulnerableTo` 始终返回 true 的症状。**必须修复**，见下方"修复方案"。
+### C.2 🔴✅ bot 可受伤（batch 32 已修，需运行时验证）
+- [~] **修复方案**：在 `ServerBotPacketListenerImpl` 里 override `hasClientLoaded()` 直接返回 `true`（bot 的 connection 是自定义子类，method 是 public 可直接 override；避免反射和 AT）
+- [ ] **运行时验证**：用新 jar 启动 TestServer，左键攻击 bot 应当掉血并最终死亡
 
-### 🚨 C.2 修复方案（静态测试已定位）
-
-`ServerPlayer.isInvulnerableTo` 在 26.1 里检查：
-```java
-return super.isInvulnerableTo(level, source)
-    || this.isChangingDimension() && !source.is(DamageTypes.ENDER_PEARL)
-    || !this.connection.hasClientLoaded();   // ← 这个条件 true 时 bot 无敌
-```
-
-`connection.hasClientLoaded()` 在 `ServerGamePacketListenerImpl` 里：
-```java
-return !this.waitingForRespawn && this.clientLoadedTimeoutTimer <= 0;
-```
-
-bot 的假 `connection`（或继承的真实 connection）默认 `clientLoadedTimeoutTimer > 0` 且从不递减（因为 bot 没 client 发 loaded packet），所以永远 `hasClientLoaded() = false`。
-
-**修复选项（按推荐度排序）**：
-
-1. **【最优】在 ServerBot 构造末尾反射设 timer = 0**：
-   ```java
-   try {
-       var field = ServerGamePacketListenerImpl.class.getDeclaredField("clientLoadedTimeoutTimer");
-       field.setAccessible(true);
-       field.setInt(this.connection, 0);
-   } catch (Exception ignored) {}
-   ```
-   改 `leaves-server/src/main/java/.../bot/ServerBot.java` 构造函数（替代之前删掉的 `setClientLoaded(true)`）。1 个文件，5 分钟。
-
-2. **【更干净】加 Leaves AT 把 `markClientLoaded` 提为 public**：需要改 `leaves-server/paper-patches/` 下的 AT 文件或建新 AT。20 分钟。
-
-3. **【最侵入】minecraft patch 改 ServerPlayer.isInvulnerableTo 对 ServerBot 跳过检查**：改 0137 Fakeplayer patch。侵入性高但代码最干净。30-60 分钟。
+**背景**：原本 `ServerPlayer.isInvulnerableTo` 检查 `!this.connection.hasClientLoaded()`，bot 的 `ServerBotPacketListenerImpl.tick()` 是 no-op，`clientLoadedTimeoutTimer` 永不递减 → `hasClientLoaded()` 永返回 false → bot 永久无敌。修复见 commit `f598aa0`。
 
 ### C.3 🔴 bot 会被命令影响
 - [ ] `/kill testbot` 立即杀死 bot — 未执行
@@ -180,9 +157,9 @@ bot 的假 `connection`（或继承的真实 connection）默认 `clientLoadedTi
 
 ---
 
-## 阶段 E：🔴 REI 协议（20 分钟，已知降级）
+## 阶段 E：🟢 REI 协议（20 分钟）
 
-**原因**：batch 31 删除了 `TippedArrowRecipe` / `MapCloningRecipe` 的 switch 分支（[LIMITATIONS.md §1.1](./LIMITATIONS.md)）。
+batch 33 已修复之前的"箭/地图合成缺失"降级（见 [`REI_RECIPE_MIGRATION.md`](./REI_RECIPE_MIGRATION.md)）。
 
 ### E.1 🟢 客户端加载
 - [ ] MC 客户端装 REI mod，连接服务器
@@ -194,10 +171,10 @@ bot 的假 `connection`（或继承的真实 connection）默认 `clientLoadedTi
 - [ ] 搜 "diamond_pickaxe" → 能看到镐的合成
 - [ ] 点击 recipe → 能传送到合成台
 
-### E.3 🔴 已知降级（tipped arrow / map clone）
-- [ ] 搜 "tipped_arrow" 或 "arrow of ..." → **预期看不到合成展示**（已知降级）
-- [ ] 搜 "map" → **预期看不到地图复制展示**
-- [ ] 如果这两项是阻塞级需求，按 [LIMITATIONS.md §1.1](./LIMITATIONS.md) 修
+### E.3 ✅ 箭/地图合成（batch 33 已修，需运行时验证）
+- [ ] 搜 "tipped_arrow" 或 "arrow of poison"/"arrow of regeneration" 等 → 应该看到每种药水对应的合成（8 arrow + 1 lingering potion → 8 tipped arrow）
+- [ ] 搜 "filled_map" → 应该看到"filled_map + empty map → 2 filled_map"
+- [ ] 如果**还是**看不到，说明 batch 33 的修复没生效，需要 debug switch case 分支是否触发（`ImbueRecipe` / `TransmuteRecipe` + id 匹配）
 
 ---
 
@@ -407,28 +384,31 @@ bot 的假 `connection`（或继承的真实 connection）默认 `clientLoadedTi
 - G.3（数据保留）✅ 玩家 .dat 多轮 join/leave 无损坏
 - J.0（plugin 系统）✅ PluginInitializerManager 初始化正常
 
-### ✗ 确认失败（1 项，阻塞级）
-- **C.2 bot 无敌** 🚨 — 精确对应 LIMITATIONS §2.1 的 `setClientLoaded` 预警。修复方案已在对应章节给出 3 个选项。
+### ✅ 已修复的失败项（batch 32-33，静态测试时发现、之后修复）
+- **C.2 bot 无敌** — batch 32 `ServerBotPacketListenerImpl.hasClientLoaded()` override 返回 true
+- **E.3 REI 合成缺失** — batch 33 `ImbueRecipe` + `TransmuteRecipe` id 匹配
+- **Finder 污染 / CI task 改名** — batch 32 修复
 
-### ⚠️ 静态测试无法覆盖（需人工）
+### ⚠️ 静态测试无法覆盖（需人工运行时验证）
 - A.4 实际挖/放方块（只能证明玩家能连）
 - B.2 各 fix patch 的游戏内行为
-- D Replay 功能
-- E.3 REI 箭/地图合成缺失（需客户端）
+- C.2/C.3/C.4 bot 实际受伤、被命令影响、长时间稳定
+- D Replay 功能（尤其 D.2 `forceDayTime` 时间戳语义）
+- E.2/E.3 REI 合成显示（必须在客户端验证 batch 33 修复生效）
 - F 所有 10 个协议 mod 对接
 - H Lithium 优化效果（`sleeping-block-entity: false` 未激活）
 - I oldBlockRemoveBehaviour（默认 false，未激活）
 - J.1-J.3 Plugin 分类显示
 - K 长时间稳定性
-- L CI / Linux
+- L CI / Linux（CI 已验证绿）
 
 ---
 
 ## 下一步建议
 
-1. **先修 C.2（bot 无敌）**：5-30 分钟，用推荐的方案 1（反射设 timer）
-2. **修完后重启 TestServer 再测 bot**：攻击 bot 能掉血 → Go，进入后续测试
-3. **然后按需测试 D/E/F/J**
+1. **用新 jar 启动 TestServer**（路径见 §前置；batch 34 jar 已在目录）
+2. **按顺序打勾**：A 基础 → B 配置 → C bot 受伤验证 → D/E/F 各功能 → K 长稳
+3. **遇到问题**参考 §失败时该做什么 的对照表定位
 
 ---
 

@@ -1,6 +1,6 @@
 # Leaves 升级至 Paper 26.1.2 — 进度与移交文档
 
-> **更新时间**：2026-04-16（batch 29 完成）
+> **更新时间**：2026-04-17（batch 34 完成，阶段 5 准备就绪）
 > **文档角色**：**历史脉络 + 背景知识**。当前状态以 [`SPRINT_PHASE.md`](./SPRINT_PHASE.md) 为准。
 >
 > 配套文档：
@@ -20,7 +20,8 @@
 ## 一、升级目标
 
 - **起点**：Leaves 1.21.10（Paper commit `af06383`），JDK 21，Spigot/reobf 映射体系
-- **终点**：Leaves 26.1.2-R0.1-SNAPSHOT（基于 Paper commit `8987f91c`，channel=ALPHA），JDK 25，Mojang 去混淆单 jar
+- **终点**：Leaves 26.1.2-R0.1-SNAPSHOT（基于 Paper commit `02ec8e958`，channel=ALPHA），JDK 25，Mojang 去混淆单 jar
+  - 起点 pin 为 `8987f91c`（build #5），batch 34 跟进到 `02ec8e958`（build #7+，upstream HEAD）
 
 ---
 
@@ -45,7 +46,7 @@
 
 | 文件 | 改动 |
 |---|---|
-| `gradle.properties` | mcVersion 26.1.2, paperRef `8987f91c`, channel=ALPHA, version 26.1.2-R0.1-SNAPSHOT |
+| `gradle.properties` | mcVersion 26.1.2, apiVersion 26.1.2, paperRef（起点 `8987f91c`，batch 34 升级到 `02ec8e958`），channel=ALPHA, version 26.1.2-R0.1-SNAPSHOT |
 | `build.gradle.kts` | JDK 21 → 25，添加 `-Xlint:-deprecation -Xlint:-removal`，`-Xmaxerrs 500`（从默认 100 提升） |
 | `settings.gradle.kts` | 添加 `mavenLocal()` 以使用本地 leavesweight 2.1.0-SNAPSHOT |
 | `leaves-server/build.gradle.kts.patch` | 基于 Paper 26.1.2 重写：删除 spigot/reobf/fill，保留 leavesclip/linear/configurate-gson，移除冲突的 `org.lz4:lz4-java`（由 mache 的 `at.yawk.lz4:lz4-java` 提供）；`Xmaxerrs=500` |
@@ -54,34 +55,40 @@
 
 验证：`./gradlew applyPaperApiPatches applyPaperSingleFilePatches applyPaperServerFilePatches` 全部成功。
 
-### 🟡 阶段 3：Patch rebase（98% 完成，minecraft patch 全部完成）
+### ✅ 阶段 3：Patch rebase（完成，batch 30）
 
-截至 batch 29：
+截至 batch 34（Paper upstream 升级后重导）：
 
-| 类别 | 源数 | 已 rebase | 跳过（待办） | dropped（upstream 已吸收） | 完成率 |
+| 类别 | 源数 | 已 rebase | 跳过 | dropped（upstream 已吸收） | 完成率 |
 |---|---|---|---|---|---|
 | `leaves-api/paper-patches/features/` | 9 | 9 | 0 | 0 | **100%** ✓ |
 | `leaves-server/paper-patches/files/` | 1 | 1 | 0 | 0 | **100%** ✓ |
-| `leaves-server/paper-patches/features/` | 16 | 15 | 1 (Leaves Plugin) | 0 | 94% |
-| `leaves-server/minecraft-patches/features/` | 147 | 144（+1 重复编号） | 0 | 5 | **100%** ✓ |
-| **总计** | **173** | **169** | **1** | **5** | **98%** |
+| `leaves-server/paper-patches/features/` | 16 | 16 | 0 | 0 | **100%** ✓ |
+| `leaves-server/minecraft-patches/features/` | 147 | 145（0001–0145 编号唯一） | 0 | 5 | **100%** ✓ |
+| **总计** | **173** | **171** | **0** | **5** | **100%** ✓ |
 
-`./gradlew applyAllPatches` ✅ 通过。
-`./gradlew :leaves-server:compileJava` 185 errors（全部来自 Leaves 自有源码 API 迁移，非 patch 引入）。
+`./gradlew applyAllPatches` ✅ 通过（本地 + GitHub Actions CI 双绿）。
 
-**batch 27**（0142 Lithium-Sleeping-Block-Entity）：29 个 minecraft 文件，2480 行原始 patch，1634 行插入。全部 hunk 手动应用。
-**batch 28**（0143 Replay-Mod-API）：13 个 minecraft 文件，537 行原始 patch，196 行插入。提供 `realPlayers` + `placeNewPhotographer`/`removePhotographer`。
-**batch 29**（0144 Old-Block-remove-behaviour）：33 个 minecraft 文件，808 行原始 patch，416 行插入。30+ 种方块添加 `onRemove` 恢复 1.21.1- 移除行为。
+**阶段 3 关键 batch 摘要**：
+- **batch 27**（0142/0143 Lithium-Sleeping-Block-Entity）：29 个 minecraft 文件，2480 行原始 patch，1634 行插入。全部 hunk 手动应用。
+- **batch 28**（0143/0144 Replay-Mod-API）：13 个 minecraft 文件，537 行原始 patch，196 行插入。提供 `realPlayers` + `placeNewPhotographer`/`removePhotographer`。
+- **batch 29**（0144/0145 Old-Block-remove-behaviour）：33 个 minecraft 文件，808 行原始 patch，416 行插入。30+ 种方块添加 `onRemove` 恢复 1.21.1- 移除行为。
+- **batch 30**（paper 0016 Leaves-Plugin）：8 Paper 文件 3-way merge，仅删除 `PluginRemapper.java` hunk（Paper 26.1 已移除该类）。**阶段 3 完结**。
 
-剩余工作详见 [`SPRINT_PHASE.md`](./SPRINT_PHASE.md)。
+> 批次号的斜杠表示 batch 34 升级 Paper upstream 时重导致的编号偏移（原 0142 → 0143 等）。
 
-### ⏳ 阶段 4：编译错误清零（未开始）
+### ✅ 阶段 4：编译错误清零（完成，batch 31）
 
-计划：所有 minecraft patch 已完成，集中扫 ~185 个 API 迁移类错误。
+一次 batch 把 180 个 "Leaves 自有源码 API 迁移" 错误扫到 0。`./gradlew :leaves-server:compileJava` BUILD SUCCESSFUL，经过 batch 32/33/34 多次重编仍绿。
 
-### ⏳ 阶段 5：运行时测试（未开始）
+### 🟢 阶段 5：jar 构建 & 运行时准备（进行中）
 
-`./gradlew createMojmapLeavesclipJar` → 启动 → 对接真实 mod 客户端（详见 [`PROTOCOL_MOD_AUDIT.md` §四](./PROTOCOL_MOD_AUDIT.md) 验证清单）。
+- ✅ `./gradlew :leaves-server:createLeavesclipJar` 成功（leavesclip 62.5MB、bundler 101MB、server 29MB）
+- ✅ GitHub Actions `Leaves Test CI` 绿，artifact `leaves-26.1.2.jar` 自动上传
+- ✅ Bot 无敌已修（[`LIMITATIONS.md`](./LIMITATIONS.md) §2.1）
+- ✅ REI filler displays 已修（[`REI_RECIPE_MIGRATION.md`](./REI_RECIPE_MIGRATION.md)）
+- ✅ Paper upstream 跟进到 HEAD（batch 34）
+- 🟡 **待做**：本地 TestServer 启动 + mod 客户端对接测试（见 [`STAGE5_TEST_CHECKLIST.md`](./STAGE5_TEST_CHECKLIST.md)）
 
 ---
 
@@ -110,12 +117,14 @@
 
 这些不是 Leaves 原有 patch，而是 rebase 过程中**为了解决编译错误新开**的补丁。合并回上游时应该折叠进对应的原 patch。
 
-| Patch | 折叠目标 | 作用 |
+注：batch 34 升级 Paper upstream 时重导出所有 patch，编号从原来的 `0122/0136/0138/0140` 整体 +1 到 `0122/0137/0139/0141`（因原"重复 0035"自动修复让后续 patch 向后挪一位）。
+
+| Patch（batch 34 后编号）| 折叠目标 | 作用 |
 |---|---|---|
 | `0122-Fix-latent-compile-errors-in-rebased-patches.patch` | 分散到各原 patch | 一次性清理 15+ 个 Paper 26.1 API 改名（如 `EnderDragonPart` 包迁移、`GameRules.RAIDS`、`level.random` → `level.getRandom()` 等） |
-| `0136-Fix-PCA-addListener-and-REI-display-API-mismatch.patch` | `0129-PCA-sync-protocol`、`0133-Support-REI-protocol` | `SimpleContainer.addListener()` 已删，改用匿名子类 `setChanged()` override；`ItemStackTemplate.display()` 已删，改用 `new SlotDisplay.ItemStackSlotDisplay` |
-| `0138-Fix-Fakeplayer-getGameProfile-API.patch` | `0137-Leaves-Fakeplayer` | `Player.getGameProfile()` 方法在 26.1 不存在，改用 `gameProfile.name()` 公共字段 |
-| `0140-Fix-Nullable-annotation-on-IRegionFile.patch` | `0139-More-Region-Format-Support` | jspecify 要求 `@Nullable` 标在最内层类型前（`Type.@Nullable InnerType` 形式） |
+| `0137-Fix-PCA-addListener-and-REI-display-API-mismatch.patch` | `0130-PCA-sync-protocol`、`0134-Support-REI-protocol` | `SimpleContainer.addListener()` 已删，改用匿名子类 `setChanged()` override；`ItemStackTemplate.display()` 已删，改用 `new SlotDisplay.ItemStackSlotDisplay` |
+| `0139-Fix-Fakeplayer-getGameProfile-API.patch` | `0138-Leaves-Fakeplayer` | `Player.getGameProfile()` 方法在 26.1 不存在，改用 `gameProfile.name()` 公共字段 |
+| `0141-Fix-Nullable-annotation-on-IRegionFile.patch` | `0140-More-Region-Format-Support` | jspecify 要求 `@Nullable` 标在最内层类型前（`Type.@Nullable InnerType` 形式） |
 
 ---
 
@@ -233,7 +242,7 @@ mache 26.1.2+build.1 引入 `at.yawk.lz4:lz4-java:1.10.1`，与 Leaves 原 `org.
 
 ### 6.3 继续的推荐路径
 
-当前阶段：阶段 3 收尾（3 个 minecraft patch + 1 paper patch）→ 阶段 4（编译清零）→ 阶段 5（runtime）。
+当前阶段：阶段 3/4 已完成，阶段 5 进行中（jar 已构建、CI 绿、bot/REI/upstream 修复完成，剩运行时 mod 对接测试）。
 
 每一步的顺序和优先级见 [`SPRINT_PHASE.md` §五](./SPRINT_PHASE.md) 的路径图。
 
@@ -252,15 +261,18 @@ mache 26.1.2+build.1 引入 `at.yawk.lz4:lz4-java:1.10.1`，与 Leaves 原 `org.
 |---|---|
 | `SPRINT_PHASE.md` | **当前状态**：权威的、实时的状态快照（single source of truth） |
 | `UPGRADE_26.1.2_PROGRESS.md` | **本文档**：历史脉络 + 背景知识 + obsoleted 账本 |
-| `PATCH_REBASE_PLAYBOOK.md` | **操作手册**：每个 patch 的标准工作流、Paper 26.1 适配速查表、协作约定 |
+| `PATCH_REBASE_PLAYBOOK.md` | **操作手册**：每个 patch 的标准工作流、Paper 26.1 适配速查表、Paper upstream 升级流程、协作约定 |
+| `LIMITATIONS.md` | 当前迁移的不完美之处清单（已修/未修账本）|
+| `STAGE5_TEST_CHECKLIST.md` | 阶段 5 运行时测试 checklist（12 个阶段 A-L） |
+| `REI_RECIPE_MIGRATION.md` | REI 协议在 Paper 26.1 下 tipped_arrow/map_cloning recipe 迁移的深度调研（batch 33 产物） |
 | `PROTOCOL_MOD_AUDIT.md` | 上游 protocol mod 兼容性审计（batch 24 完成，结论：无需返工） |
 | `SESSION_REPORT_2026-04-15.md` | batch 1-10 详细 session 记录（历史快照） |
 | `UPGRADE_TO_26.1.2.md` | 升级前的上游调研（起点研究） |
-| `leaves-server/minecraft-patches/features/` | 141 个已 rebase 的 minecraft patch |
-| `leaves-server/minecraft-patches/features-todo/` | 3 个待 rebase |
-| `leaves-server/paper-patches/features/` | 15 个已 rebase |
-| `leaves-server/paper-patches/features-todo/` | 1 个（Leaves Plugin，需重写） |
-| `leaves-api/paper-patches/features/` | 9 个 api patch，全部通过 |
+| `leaves-server/minecraft-patches/features/` | 145 个 minecraft patch（编号 0001-0145 唯一） |
+| `leaves-server/minecraft-patches/features-todo/` | 空（0 个待办） |
+| `leaves-server/paper-patches/features/` | 16 个 paper-server patch |
+| `leaves-server/paper-patches/features-todo/` | 空（0 个待办） |
+| `leaves-api/paper-patches/features/` | 9 个 paper-api patch |
 
 ---
 
@@ -269,8 +281,8 @@ mache 26.1.2+build.1 引入 `at.yawk.lz4:lz4-java:1.10.1`，与 Leaves 原 `org.
 | 仓库 | 分支 | 最新 commit |
 |---|---|---|
 | [HyacinthHaru/leavesweight](https://github.com/HyacinthHaru/leavesweight) | `upgrade-26.1` | `bd023b6` |
-| [HyacinthHaru/Leaves](https://github.com/HyacinthHaru/Leaves) | `upgrade-26.1` | `a8aefc4`（docs）/ `482c3a2`（code） |
-| [PaperMC/Paper](https://github.com/PaperMC/Paper) | `main` (pinned to `8987f91c`) | upstream |
+| [HyacinthHaru/Leaves](https://github.com/HyacinthHaru/Leaves) | `upgrade-26.1` | `556a6bd`（batch 34） |
+| [PaperMC/Paper](https://github.com/PaperMC/Paper) | `main` (pinned to `02ec8e958`) | upstream（batch 34 跟进到 HEAD）|
 | [PaperMC/paperweight](https://github.com/PaperMC/paperweight) | `main` | upstream (leavesweight rebase target) |
 
 ---

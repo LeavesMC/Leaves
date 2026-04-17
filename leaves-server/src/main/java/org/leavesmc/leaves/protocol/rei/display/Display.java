@@ -24,7 +24,7 @@ import net.minecraft.world.item.component.Fireworks;
 import net.minecraft.world.item.component.ProvidesTrimMaterial;
 import net.minecraft.world.item.crafting.FireworkRocketRecipe;
 import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.item.crafting.CustomRecipe;
+// Leaves - Paper 26.1: CustomRecipe import no longer needed — tipped_arrow is now ImbueRecipe, map_cloning is TransmuteRecipe
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.SmithingTransformRecipe;
 import net.minecraft.world.item.crafting.SmithingTrimRecipe;
@@ -105,7 +105,7 @@ public abstract class Display {
      * see me.shedaniel.rei.plugin.client.categories.crafting.filler.TippedArrowRecipeFiller#apply
      */
     @NotNull
-    public static Collection<Display> ofTippedArrowRecipe(@NotNull RecipeHolder<CustomRecipe> recipeHolder) {
+    public static Collection<Display> ofTippedArrowRecipe(@NotNull RecipeHolder<?> recipeHolder) { // Leaves - Paper 26.1: tipped_arrow is now ImbueRecipe, not CustomRecipe
         EntryIngredient arrowIngredient = EntryIngredient.of(Items.ARROW);
         Set<Identifier> registeredPotions = new HashSet<>();
         List<Display> displays = new ArrayList<>();
@@ -156,7 +156,7 @@ public abstract class Display {
      * see me.shedaniel.rei.plugin.client.categories.crafting.filler.MapCloningRecipeFiller#apply
      */
     @NotNull
-    public static Collection<Display> ofMapCloningRecipe(@NotNull RecipeHolder<CustomRecipe> recipeHolder) {
+    public static Collection<Display> ofMapCloningRecipe(@NotNull RecipeHolder<?> recipeHolder) { // Leaves - Paper 26.1: map_cloning is now TransmuteRecipe, not CustomRecipe
         return Collections.singleton(
             new ShapelessDisplay(
                 List.of(EntryIngredient.of(Items.FILLED_MAP), EntryIngredient.of(Items.MAP)),

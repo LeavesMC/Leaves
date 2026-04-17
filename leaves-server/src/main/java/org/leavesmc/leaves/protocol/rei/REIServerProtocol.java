@@ -137,10 +137,18 @@ public class REIServerProtocol implements LeavesProtocol {
             switch (holder.value()) {
                 case ShapedRecipe ignored -> builder.add(new ShapedDisplay((RecipeHolder) holder));
                 case ShapelessRecipe ignored -> builder.add(new ShapelessDisplay((RecipeHolder) holder));
+                // Leaves start - Paper 26.1: map_cloning is a TransmuteRecipe but the client expects a
+                // shapeless-style display (filled map + empty map → 2 filled maps). Match by identifier
+                // before the generic TransmuteRecipe case to route correctly.
+                case TransmuteRecipe ignored when "minecraft:map_cloning".equals(holder.id().identifier().toString()) ->
+                    builder.addAll(Display.ofMapCloningRecipe((RecipeHolder) holder));
+                // Leaves end
                 case TransmuteRecipe ignored -> builder.addAll(Display.ofTransmuteRecipe((RecipeHolder) holder));
-                case FireworkRocketRecipe ignored -> builder.addAll(Display.ofFireworkRocketRecipe((RecipeHolder) holder)); // Leaves - Paper 26.1: reorder before CustomRecipe to avoid dominance
-                // Leaves - Paper 26.1: TippedArrowRecipe / MapCloningRecipe no longer distinct classes; emit fillers once after the loop
-                // ignore ArmorDyeRecipe, BannerDuplicateRecipe, BookCloningRecipe, ShieldDecorationRecipe
+                case FireworkRocketRecipe ignored -> builder.addAll(Display.ofFireworkRocketRecipe((RecipeHolder) holder));
+                // Leaves - Paper 26.1: tipped_arrow is now an ImbueRecipe (replaced the removed TippedArrowRecipe class).
+                // ImbueRecipe is currently only used for tipped_arrow so a plain type match is safe.
+                case ImbueRecipe ignored -> builder.addAll(Display.ofTippedArrowRecipe((RecipeHolder) holder));
+                // ignore ArmorDyeRecipe, BannerDuplicateRecipe, BookCloningRecipe, ShieldDecorationRecipe, RepairItemRecipe
                 default -> {
                 }
             }

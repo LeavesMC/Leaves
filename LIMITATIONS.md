@@ -31,29 +31,27 @@
 
 ## 一、🔴 功能性降级（确定存在，需修复）
 
-### 1.1 REI 客户端看不到"箭/地图"合成展示
+### 1.1 ✅ REI 客户端"箭/地图"合成展示（2026-04-17 batch 33 已修复）
 
-**现象**：REI (Roughly Enough Items) 插件列出 crafting recipe 时，不会再有 tipped arrow（各种箭）和 map cloning（地图复制）的合成预览。
+**修复方案**：定位到真正根因——Paper 26.1 里这两个 recipe 换了底层实现：
+- `tipped_arrow` 现在是 `ImbueRecipe`（extends `NormalCraftingRecipe`，serializer 注册为 `crafting_imbue`）
+- `map_cloning` 现在是 `TransmuteRecipe`（复用 generic transmute 机制，在 `map_cloning` group 下注册）
 
-**原因**：Paper 26.1 删除了 `TippedArrowRecipe` 和 `MapCloningRecipe` 两个特殊类 —— 它们现在都是普通 `CustomRecipe` instance，只能通过 recipe 的 `Identifier`（如 `minecraft:tipped_arrow`）区分。Agent 在 batch 31 里直接删掉了这两个 `case`（为了避免 switch case dominance 错误），但替代的"emit fillers once after the loop" **只留了注释 TODO、没实现**。
+这两个类 **都不是 CustomRecipe**，所以 batch 31 的 "CustomRecipe" case 分支压根就不可能匹配到它们。
 
-**影响文件**：`leaves-server/src/main/java/org/leavesmc/leaves/protocol/rei/REIServerProtocol.java:142`
+修改：
+1. 在 `REIServerProtocol.reloadRecipe()` 的 switch 里加两个新 case
+   - `case TransmuteRecipe ignored when "minecraft:map_cloning".equals(holder.id().identifier().toString())`
+     —— 放在 generic `case TransmuteRecipe` 之前，优先走"filled map + empty map → 2 filled maps"的 ShapelessDisplay
+   - `case ImbueRecipe ignored` —— ImbueRecipe 目前只用于 tipped_arrow，按类型匹配即可。委托给 `Display.ofTippedArrowRecipe` 遍历所有 potion 生成逐个 display
+2. `Display.ofTippedArrowRecipe` / `Display.ofMapCloningRecipe` 的形参类型从 `RecipeHolder<CustomRecipe>` 放宽为 `RecipeHolder<?>`（方法内只用到了 `recipeHolder.id().identifier()`，类型参数无实质作用）
+3. 删掉 `Display.java` 不再需要的 `import net.minecraft.world.item.crafting.CustomRecipe`
 
-**修复思路**：
-1. `Display.ofTippedArrowRecipe` / `Display.ofMapCloningRecipe` 本身仍然存在且签名兼容（接收 `RecipeHolder<CustomRecipe>`）
-2. 在 `recipeMap.byType(RecipeType.CRAFTING).forEach(...)` 循环**后**，单独遍历一次：
-   ```java
-   recipeMap.byType(RecipeType.CRAFTING).forEach(holder -> {
-       if (holder.value() instanceof CustomRecipe && holder.id().identifier().toString().equals("minecraft:tipped_arrow")) {
-           builder.addAll(Display.ofTippedArrowRecipe((RecipeHolder) holder));
-       }
-   });
-   ```
-3. 或者查 recipe registry key 做精确匹配（更稳健）
+**改动文件**：
+- `leaves-server/src/main/java/org/leavesmc/leaves/protocol/rei/REIServerProtocol.java`
+- `leaves-server/src/main/java/org/leavesmc/leaves/protocol/rei/display/Display.java`
 
-**预估工作量**：30 分钟（含测试）
-**优先级**：**合并 PR 前必须修**
-**风险**：客户端 REI 插件用户体验下降，但服务器功能正常
+**验证**：阶段 5 运行时测试 —— 客户端 REI 界面搜索 "tipped_arrow" 和 "map" 能看到合成预览。
 
 ---
 
@@ -371,11 +369,13 @@ new ClientboundSetTimePacket(
 ## 六、清单汇总（按优先级）
 
 ### 🚨 必须在启动前处理（阻塞阶段 5）
-- §1.1 REI tipped-arrow / map-cloning filler 修复（30 min）⏳
+- ~~§1.1 REI tipped-arrow / map-cloning filler~~ ✅ batch 33 已修
 - ~~§2.1 ServerBot setClientLoaded~~ ✅ batch 32 已修
 - ~~§4.1 paper-server Finder 污染根治~~ ✅ batch 32 已修
 - ~~§4.2 JDK 25 Vector API 验证~~ ✅ batch 32 验证（jar 构建成功）
 - ~~§4.3 leavesclip 与 Paper 26.1 bundler 兼容性~~ ✅ batch 32 验证（60MB jar 构建成功）
+
+**所有阻塞级项目已清空 ✅**
 
 ### ⚠️ PR 前应处理（技术债清理）
 - §3.1 4 个 Fix 补丁折叠回对应原 patch（30–60 min）

@@ -817,6 +817,12 @@ public final class LeavesConfig {
         @GlobalConfig("enable-suffocation-optimization")
         public boolean enableSuffocationOptimization = true;
 
+        /**
+         * @deprecated Paper 26.1 moved {@code isHalloween()} to {@link net.minecraft.util.SpecialDates}
+         * with a single-day check; the hot-path caching this setting enabled is no longer relevant.
+         * Kept for backward-compat with old {@code leaves.yml} files. Will be removed before upstream PR.
+         */
+        @Deprecated(forRemoval = true, since = "26.1.2")
         @GlobalConfig("check-spooky-season-once-an-hour")
         public boolean checkSpookySeasonOnceAnHour = true;
 
@@ -826,6 +832,12 @@ public final class LeavesConfig {
         @GlobalConfig("reduce-entity-allocations")
         public boolean reduceEntityAllocations = true;
 
+        /**
+         * @deprecated Paper 26.1 {@code ActivationRange} now uses
+         * {@code living.blockPosition().equals(living.getLastClimbablePos().orElse(null))} as an O(1) fast path
+         * — already as efficient as Leaves' previous cache. Field retained for old {@code leaves.yml} compatibility.
+         */
+        @Deprecated(forRemoval = true, since = "26.1.2")
         @GlobalConfig("cache-climb-check")
         public boolean cacheClimbCheck = true;
 
@@ -1312,6 +1324,14 @@ public final class LeavesConfig {
         @GlobalConfig("vanilla-portal-handle")
         public boolean vanillaPortalHandle = true;
 
+        /**
+         * @deprecated Paper 26.1 rewrote fluid push logic via {@code EntityFluidInteraction}
+         * ({@code fluidInteraction.update()} / {@code applyCurrentTo()}). The old
+         * {@code updateFluidHeightAndDoFluidPushing} hook point this flag gated is gone.
+         * Field retained for {@code leaves.yml} compatibility; a new patch based on 26.1 API
+         * may re-implement this feature later.
+         */
+        @Deprecated(forRemoval = true, since = "26.1.2")
         @GlobalConfig("vanilla-fluid-pushing")
         public boolean vanillaFluidPushing = true;
 

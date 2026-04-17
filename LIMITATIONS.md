@@ -2,7 +2,7 @@
 
 > **文档角色**：这份文档是**当前迁移不完美之处的完整账本**。
 > 写作时间：2026-04-17（batch 31 / 阶段 4 完成后）。
-> 最近更新：2026-04-17（batch 32 修复了 §2.1 / §2.6 / §3.4 / §3.5 / §4.1 共 5 项）。
+> 最近更新：2026-04-17（batch 35 清理 §1.2 Servux 注释 + §3.3 obsolete 字段加 `@Deprecated`；§3.1 squash 实验失败，记录为权衡）。
 >
 > **不是**日常看的，是合并回 LeavesMC 上游前做最后一轮清理的检查清单。
 > 每一项给出：影响、风险、能否修、如何修、预估工作量、推荐优先级。
@@ -55,27 +55,23 @@
 
 ---
 
-### 1.2 ServuxHudDataProtocol 的 `spawnChunkRadius` 已被注释掉
+### 1.2 ⏳ ServuxHudDataProtocol 的 `spawnChunkRadius` 已被注释掉（2026-04-17 batch 35 注释已清理）
 
 **现象**：Servux HUD 协议里"服务器 spawn chunk 半径"字段不再发送给客户端。
 
-**原因**：1.21.9 删除了 `GameRules.RULE_SPAWN_CHUNK_RADIUS`。代码里有预先的 TODO：
+**原因**：1.21.9 删除了 `GameRules.RULE_SPAWN_CHUNK_RADIUS`。
 
-```java
-// metadata.putInt("spawnChunkRadius", level.getGameRules().getInt(GameRules.RULE_SPAWN_CHUNK_RADIUS));
-// TODO: 1.21.9 removed spawn chunk, should we keep this?
-```
+**当前状态**：batch 35 把 batch 之前留下的 `TODO: 1.21.9 removed spawn chunk` 注释整理成明确的说明，标注"等待运行时验证客户端 mod 行为"。代码本身不变（字段仍然不发送）。
 
 **影响文件**：`leaves-server/src/main/java/org/leavesmc/leaves/protocol/servux/ServuxHudDataProtocol.java:105,173`
 
-**修复思路**：
-- 选项 A：如果客户端 Servux mod 不再读这个字段，直接删除相关注释 + 协议版本号保持不变
-- 选项 B：如果客户端还读，查 1.21.9+ 上游 servux mod 怎么处理，对齐实现
-- 这个 TODO 不是我们引入的，是 Leaves upstream 已有
+**剩余决策**（需阶段 5 运行时验证后决定）：
+- 选项 A：MiniHUD/Servux 客户端 mod 已不读这个字段 → 直接删除 putInt 调用即可
+- 选项 B：客户端还读 → 改用 `level.getServer().getServerSpawnRadius()` 之类的 26.1 等价 API
 
-**预估工作量**：20 分钟（查上游 servux mod 行为）+ 可能 15 分钟改动
-**优先级**：中（协议兼容性，非阻塞启动）
-**风险**：MiniHUD 等客户端可能看不到 spawn chunk 信息
+**预估工作量**：5 分钟（A）/ 15 分钟（B）
+**优先级**：低（协议兼容性，客户端通常宽容缺失字段）
+**风险**：MiniHUD 等客户端可能看不到 spawn chunk 半径信息
 
 ---
 
@@ -197,28 +193,27 @@ new ClientboundSetTimePacket(
 
 ## 三、🟡 Rebase 遗留的技术债（不影响功能，但 PR 前应清理）
 
-### 3.1 4 个"Fix-" 补丁应折叠进对应原 patch
+### 3.1 ⚠️ 4 个"Fix-" 补丁折叠尝试失败，决定保留独立形态（2026-04-17 batch 35）
 
-**当前状态**：rebase 过程中新加了 4 个"补丁的补丁"：
+**当前状态**：rebase 过程中新加了 4 个"补丁的补丁"，由 batch 35 尝试 squash 失败：
 
-| Fix patch | 折叠目标 |
-|---|---|
-| `0122-Fix-latent-compile-errors-in-rebased-patches` | 分散到各原 minecraft patch |
-| `0136-Fix-PCA-addListener-and-REI-display-API-mismatch` | `0129-PCA-sync-protocol` + `0133-Support-REI-protocol` |
-| `0138-Fix-Fakeplayer-getGameProfile-API` | `0137-Leaves-Fakeplayer` |
-| `0140-Fix-Nullable-annotation-on-IRegionFile` | `0139-More-Region-Format-Support` |
+| Fix patch | 折叠目标 | batch 35 结果 |
+|---|---|---|
+| `0122-Fix-latent-compile-errors-in-rebased-patches` | 分散到各原 minecraft patch | 未尝试（拆分成本高） |
+| `0136-Fix-PCA-addListener-and-REI-display-API-mismatch` | `0129-PCA-sync-protocol` + `0133-Support-REI-protocol` | 未尝试（跨 2 个目标 commit） |
+| `0138-Fix-Fakeplayer-getGameProfile-API` | `0137-Leaves-Fakeplayer` | 试做（squash 成功）→ 撤回 |
+| `0140-Fix-Nullable-annotation-on-IRegionFile` | `0139-More-Region-Format-Support` | 试做（squash 成功）→ 撤回 |
 
-**为什么保留**：rebase 过程中保留独立便于回溯 / debug。
+**batch 35 实验结果**：在 paperweight workspace 里 `git rebase -i 2d26c07` + `GIT_SEQUENCE_EDITOR` sed 把两个 fixup commit 合并进目标 commit，然后 `git format-patch --zero-commit --full-index` 重新导出 143 个 patch。但**重新 `applyAllPatches` 失败**：因为 squash 改变了 patch 的 blob hash，且后续所有 patch 的 `index <hash>..<hash>` 行都重新计算，3-way merge 在 0054 等多个 patch 失败级联。
 
-**修复思路**：
-1. 进入 `leaves-server/src/minecraft/java` 的 paperweight git 工作区
-2. `git rebase -i` 把 Fix commit `squash` 或 `fixup` 到目标 commit
-3. `git format-patch` 导出新补丁集
-4. 删除独立 Fix patch
+**结论**：squash 操作虽然 commit 历史看起来"更干净"，但破坏了与 Paper upstream 的 blob-hash 连续性，导致 patch 无法 clean apply。**接受现状，保留 4 个 Fix patch 独立**。
 
-**预估工作量**：30-60 分钟
-**优先级**：合并回 LeavesMC 上游前必须做
-**风险**：低（纯组织问题）
+**替代方案**（向 LeavesMC 上游 PR 时）：
+- A. 由 maintainer 在 review 阶段决定是否需要 squash。如果决定 squash，那就把所有受影响的 patch 重新解决冲突（30-60 min 手动工作）
+- B. 直接 PR 145 个 patch 的当前形态，把 4 个 Fix patch 当作"修复历史 commit"接受
+
+**优先级**：低（不影响功能，纯历史美观度）
+**风险**：上游 reviewer 可能要求 squash，届时按方案 A 处理
 
 ---
 
@@ -228,25 +223,26 @@ batch 34 做 Paper upstream 升级时 `git format-patch` 重新导出整个 patc
 
 ---
 
-### 3.3 保留但失效的 LeavesConfig 字段
+### 3.3 ✅ 保留但失效的 LeavesConfig 字段（2026-04-17 batch 35 加 `@Deprecated`）
 
 **当前状态**：`LeavesConfig.java` 保留这些 obsolete 字段以兼容老 `leaves.yml`：
 
 | 字段 | 状态 |
 |---|---|
 | `LeavesConfig.fix.vanillaEndVoidRings` | **仍生效**（batch 20 恢复） |
-| `LeavesConfig.performance.checkSpookySeasonOnceAnHour` | 失效（Paper 26.1 已简化 `isHalloween`） |
-| `LeavesConfig.performance.cacheClimbCheck` | 失效（Paper 26.1 用 O(1) 快速路径） |
-| `LeavesConfig.fix.vanillaFluidPushing` | 失效（Paper 26.1 重写了流体推送） |
+| `LeavesConfig.performance.checkSpookySeasonOnceAnHour` | ⚠️ `@Deprecated(forRemoval = true, since = "26.1.2")` —— Paper 26.1 已简化 `isHalloween` |
+| `LeavesConfig.performance.cacheClimbCheck` | ⚠️ `@Deprecated(forRemoval = true, since = "26.1.2")` —— Paper 26.1 用 O(1) 快速路径 |
+| `LeavesConfig.fix.vanillaFluidPushing` | ⚠️ `@Deprecated(forRemoval = true, since = "26.1.2")` —— Paper 26.1 重写了流体推送 |
 
-**修复思路**：由 Leaves 上游 maintainer 决定：
-- A. 加 `@Deprecated` 注释但保留（向后兼容）
-- B. 完全删除（下个大版本）
-- C. 针对 `vanillaFluidPushing` 基于新 `EntityFluidInteraction` 重写为新 patch
+**batch 35 选择方案 A**：加 `@Deprecated(forRemoval = true, since = "26.1.2")` 注释，每个字段附带 Javadoc 解释失效原因。这样：
+- 老 `leaves.yml` 仍可加载，不会报错
+- IDE 在使用方会显示删除线警告
+- 下一个大版本（27.0+）可以彻底删除
 
-**预估工作量**：10 分钟（A/B）；1-2 小时（C）
-**优先级**：PR 前由 maintainer 决策
-**风险**：如果删除，用户升级时 `leaves.yml` 里残留配置会"静默忽略"
+**剩余工作**（不阻塞 PR）：
+- C. `vanillaFluidPushing` 如果用户强烈需要，可基于新 `EntityFluidInteraction` API 重写为新 patch（1-2 h）
+
+**改动文件**：`leaves-server/src/main/java/org/leavesmc/leaves/LeavesConfig.java:451,830,1316`
 
 ---
 
@@ -344,14 +340,14 @@ batch 32 修复了 `0001-Build-changes.patch` 里的 28 个 Finder 污染条目 
 **所有阻塞级项目已清空 ✅**
 
 ### ⚠️ PR 前应处理（技术债清理）
-- §3.1 4 个 Fix 补丁折叠回对应原 patch（30–60 min）
-- §3.3 Obsoleted config 字段决策（由 maintainer）
+- ~~§3.1 4 个 Fix 补丁折叠回对应原 patch~~ ⚠️ batch 35 实验失败，决定保留独立形态（见 §3.1）
+- ~~§3.3 Obsoleted config 字段决策~~ ✅ batch 35 加 `@Deprecated(forRemoval, since="26.1.2")`
 - §3.6 `PaperPluginMeta.authors` 修改作为 PR 提上游（1–2 h）
 - §2.4 LeavesMinecraftSessionService 额外认证验证（5 min，可能无需改动）
-- Leaves 自有代码 4 处 `world.getName()` → `world.getKey()`（5 min，soft deprecation）
+- Leaves 自有代码 4 处 `world.getName()` → `world.getKey()`（5 min，soft deprecation；语义上仍正确，仅 IDE 警告）
 
 ### 🔍 运行时验证后决定
-- §1.2 Servux spawnChunkRadius（20+ min）
+- §1.2 Servux spawnChunkRadius（5-15 min，注释已清理）
 - §2.2 BotStatsCounter 可能日志噪音（5–10 min）
 - §2.3 Recorder forceDayTime 时间显示（30 min–2 h）
 - §2.5 Photographer 覆盖 real player（1–2 h）

@@ -1,6 +1,6 @@
 # Leaves 升级至 Paper 26.1.2 — 进度与移交文档
 
-> **更新时间**：2026-04-17（batch 34 完成，阶段 5 准备就绪）
+> **更新时间**：2026-04-17（batch 35 完成：技术债清理 + 文档同步）
 > **文档角色**：**历史脉络 + 背景知识**。当前状态以 [`SPRINT_PHASE.md`](./SPRINT_PHASE.md) 为准。
 >
 > 配套文档：
@@ -108,8 +108,8 @@
 | `TEMP-Merge-Paper-11831` | batch 17 | Paper 26.1 已吸收该 PR 的大部分改动：`GiveCommand` 的 `displayName` 缓存、`Entity.dropItem`/`LivingEntity.drop` 的 `stack.setCount(0)` 复制逻辑都已合入 | 无（纯 temp-merge patch） |
 
 **处理策略**：
-- **现在**：保留所有相关 config 字段（避免用户 `leaves.yml` 报 "unknown key"），仅在本表记录
-- **PR 前**：根据上游 maintainer 反馈统一处理：删字段、加 `@Deprecated`、或基于 26.1 新 API 重写成新 patch
+- **现在**：保留相关 config 字段，对 3 个失效字段加 `@Deprecated(forRemoval = true, since = "26.1.2")`（batch 35）。`vanillaEndVoidRings` 仍生效，未标 deprecated
+- **PR 前**：由 maintainer 决定是否真的删除（下个大版本 27.0+），或针对 `vanillaFluidPushing` 基于 `EntityFluidInteraction` 重写为新 patch
 
 ---
 
@@ -281,7 +281,7 @@ mache 26.1.2+build.1 引入 `at.yawk.lz4:lz4-java:1.10.1`，与 Leaves 原 `org.
 | 仓库 | 分支 | 最新 commit |
 |---|---|---|
 | [HyacinthHaru/leavesweight](https://github.com/HyacinthHaru/leavesweight) | `upgrade-26.1` | `bd023b6` |
-| [HyacinthHaru/Leaves](https://github.com/HyacinthHaru/Leaves) | `upgrade-26.1` | `556a6bd`（batch 34） |
+| [HyacinthHaru/Leaves](https://github.com/HyacinthHaru/Leaves) | `upgrade-26.1` | `7965d60`（batch 35） |
 | [PaperMC/Paper](https://github.com/PaperMC/Paper) | `main` (pinned to `02ec8e958`) | upstream（batch 34 跟进到 HEAD）|
 | [PaperMC/paperweight](https://github.com/PaperMC/paperweight) | `main` | upstream (leavesweight rebase target) |
 

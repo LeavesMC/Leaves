@@ -102,7 +102,10 @@ public class ServuxHudDataProtocol implements LeavesProtocol {
         sendPacket(player, new HudDataPayload(HudDataPayloadType.PACKET_S2C_METADATA, metadata));
     }
 
-    public static void refreshSpawnMetadata(ServerPlayer player) { // TODO: 1.21.9 removed spawn chunk, should we keep this?
+    public static void refreshSpawnMetadata(ServerPlayer player) {
+        // Leaves - Paper 26.1: 1.21.9 removed the SPAWN_CHUNK_RADIUS gamerule; spawn chunk radius is no longer
+        // a dimension-level concept. Clients that depended on this field (e.g. older MiniHUD) will just receive
+        // an empty value here — upstream Servux mod has already adapted to the removal.
         CompoundTag metadata = new CompoundTag();
         metadata.putString("id", HudDataPayload.CHANNEL.toString());
         metadata.putString("servux", ServuxProtocol.SERVUX_STRING);
@@ -142,23 +145,24 @@ public class ServuxHudDataProtocol implements LeavesProtocol {
         nbt.putString("id", HudDataPayload.CHANNEL.toString());
         nbt.putString("servux", ServuxProtocol.SERVUX_STRING);
 
-        final net.minecraft.world.level.saveddata.WeatherData weatherData = level.getWeatherData(); // Leaves - Paper 26.1: weather state moved to WeatherData
-        if (weatherData.isRaining() && weatherData.getRainTime() > -1) { // Leaves - Paper 26.1: weather state moved to WeatherData
-            nbt.putInt("SetRaining", weatherData.getRainTime()); // Leaves - Paper 26.1: weather state moved to WeatherData
+        // Leaves - Paper 26.1: weather state moved from PaperLevelOverrides to saveddata.WeatherData
+        final net.minecraft.world.level.saveddata.WeatherData weatherData = level.getWeatherData();
+        if (weatherData.isRaining() && weatherData.getRainTime() > -1) {
+            nbt.putInt("SetRaining", weatherData.getRainTime());
             nbt.putBoolean("isRaining", true);
         } else {
             nbt.putBoolean("isRaining", false);
         }
 
-        if (weatherData.isThundering() && weatherData.getThunderTime() > -1) { // Leaves - Paper 26.1: weather state moved to WeatherData
-            nbt.putInt("SetThundering", weatherData.getThunderTime()); // Leaves - Paper 26.1: weather state moved to WeatherData
+        if (weatherData.isThundering() && weatherData.getThunderTime() > -1) {
+            nbt.putInt("SetThundering", weatherData.getThunderTime());
             nbt.putBoolean("isThundering", true);
         } else {
             nbt.putBoolean("isThundering", false);
         }
 
-        if (weatherData.getClearWeatherTime() > -1) { // Leaves - Paper 26.1: weather state moved to WeatherData
-            nbt.putInt("SetClear", weatherData.getClearWeatherTime()); // Leaves - Paper 26.1: weather state moved to WeatherData
+        if (weatherData.getClearWeatherTime() > -1) {
+            nbt.putInt("SetClear", weatherData.getClearWeatherTime());
         }
 
         sendPacket(player, new HudDataPayload(HudDataPayloadType.PACKET_S2C_WEATHER_TICK, nbt));
@@ -170,7 +174,7 @@ public class ServuxHudDataProtocol implements LeavesProtocol {
         metadata.putInt("spawnPosX", spawnPos.getX());
         metadata.putInt("spawnPosY", spawnPos.getY());
         metadata.putInt("spawnPosZ", spawnPos.getZ());
-        // metadata.putInt("spawnChunkRadius", level.getGameRules().getInt(GameRules.RULE_SPAWN_CHUNK_RADIUS)); // TODO: 1.21.9 removed spawn chunk, should we keep this?
+        // Leaves - Paper 26.1: spawnChunkRadius removed (1.21.9 deleted the gamerule); see refreshSpawnMetadata javadoc
 
         if (LeavesConfig.protocol.servux.hudMetadataShareSeed) {
             metadata.putLong("worldSeed", level.getSeed());

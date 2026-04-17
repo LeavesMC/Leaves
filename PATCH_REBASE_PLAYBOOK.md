@@ -408,7 +408,89 @@ rm -rf paper-server leaves-server/src/minecraft paper-api
 
 ---
 
-## 十一、目录结构导航
+## 十一、分支工作流（upgrade-26.1 ⇄ master，2026-04-17 确立）
+
+### 11.1 两条分支的职责
+
+| 分支 | 职责 | 内容 |
+|---|---|---|
+| `upgrade-26.1` | **开发/测试分支**，所有迭代都发生在这里 | 完整升级（code + patches + build 配置）**+ 所有开发文档** |
+| `master` | **对外发布分支**，HyacinthHaru/Leaves fork 的默认分支 | 完整升级，**不含开发文档/临时文件** |
+
+### 11.2 哪些文件只应存在于 `upgrade-26.1`？
+
+以下 9 个 .md 文件是"迁移本身的账本 / 调试日志 / 临时调研"，对使用者没有参考价值：
+
+- `UPGRADE_26.1.2_PROGRESS.md` — 历史 + 阶段进度
+- `SPRINT_PHASE.md` — 当前状态快照
+- `PATCH_REBASE_PLAYBOOK.md` — 本文档（操作手册）
+- `LIMITATIONS.md` — 局限性/技术债账本
+- `STAGE5_TEST_CHECKLIST.md` — 运行时测试 checklist
+- `REI_RECIPE_MIGRATION.md` — REI 迁移调研
+- `PROTOCOL_MOD_AUDIT.md` — 协议 mod 审计
+- `SESSION_REPORT_2026-04-15.md` — 早期 session 记录
+- `BUG_AUDIT_2026-04-17.md` — 外部 bug audit 结果
+
+`master` 只保留 `README.md` / `README_cn.md` / `LICENSE.md` 等项目元文档。
+
+### 11.3 推送节奏
+
+**日常微调/排错**：continuing 在 `upgrade-26.1` 上迭代，commit 节奏按 batch 来。docs 随 code 一起演进。
+
+**积累到一定程度后**（feature 稳定、CI 连续绿、足够可发布）：
+
+```bash
+# 1. 确保 upgrade-26.1 是最新的
+git checkout upgrade-26.1
+git pull
+
+# 2. 创建发布候选分支
+git checkout -b release/26.1.2-public
+
+# 3. 删掉 9 个开发文档
+git rm BUG_AUDIT_*.md LIMITATIONS.md PATCH_REBASE_PLAYBOOK.md \
+       PROTOCOL_MOD_AUDIT.md REI_RECIPE_MIGRATION.md \
+       SESSION_REPORT_*.md SPRINT_PHASE.md \
+       STAGE5_TEST_CHECKLIST.md UPGRADE_26.1.2_PROGRESS.md
+
+# 4. 单独 commit（不要和其它改动混在一起）
+git commit -m "Strip dev-only documentation for public release"
+
+# 5. 快进 master 到这个候选
+git checkout master
+git merge --ff-only release/26.1.2-public
+
+# 6. 推送
+git push origin master
+
+# 7. 清理 release 分支（可选）
+git branch -d release/26.1.2-public
+
+# 8. 继续在 upgrade-26.1 迭代
+git checkout upgrade-26.1
+```
+
+**关键点**：
+- 永远不在 master 上直接改代码。所有改动都在 upgrade-26.1 上 commit，通过上面的流程合并过去。
+- master 的每次合并都会把 upgrade-26.1 的完整 commit 历史（含文档演进）带过去——但**文档文件本身**会被那个"Strip dev-only documentation"的 commit 从 tree 里移除。这意味着 git log 看得到文档历史，但 `ls` 看不到文件。
+- 如果合并后又要继续开发，继续在 upgrade-26.1 上。docs 仍然在 upgrade-26.1 上鲜活更新。
+
+### 11.4 何时该发布一次？
+
+触发发布的信号：
+- 阶段 5 运行时测试完成
+- 连续 N 个 batch 没有 HIGH/MEDIUM bug
+- Paper upstream 升级跟进完毕
+- 外部有人想拿 jar 来用
+
+不触发发布的信号：
+- 单独修 bug（留在 upgrade-26.1，等累积）
+- 文档更新
+- 技术债清理
+
+---
+
+## 十二、目录结构导航
 
 ```
 /Users/haru/Desktop/LeavesMC/Leaves/

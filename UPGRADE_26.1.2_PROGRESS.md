@@ -1,6 +1,6 @@
 # Leaves 升级至 Paper 26.1.2 — 进度与移交文档
 
-> **更新时间**：2026-04-17（batch 36 完成：外部 bug audit 响应——3 项 HIGH 修复）
+> **更新时间**：2026-04-17（batch 36 完成 + 首次 master 同步；分支工作流见 [`PATCH_REBASE_PLAYBOOK.md` §十一](./PATCH_REBASE_PLAYBOOK.md)）
 > **文档角色**：**历史脉络 + 背景知识**。当前状态以 [`SPRINT_PHASE.md`](./SPRINT_PHASE.md) 为准。
 >
 > 配套文档：
@@ -281,7 +281,7 @@ mache 26.1.2+build.1 引入 `at.yawk.lz4:lz4-java:1.10.1`，与 Leaves 原 `org.
 | 仓库 | 分支 | 最新 commit |
 |---|---|---|
 | [HyacinthHaru/leavesweight](https://github.com/HyacinthHaru/leavesweight) | `upgrade-26.1` | `bd023b6` |
-| [HyacinthHaru/Leaves](https://github.com/HyacinthHaru/Leaves) | `upgrade-26.1` | `725f5a3`（batch 36） |
+| [HyacinthHaru/Leaves](https://github.com/HyacinthHaru/Leaves) | `upgrade-26.1` (开发) + `master` (发布) | upgrade-26.1: 最新 iter / master: `ca8cbf1`（基于 batch 36，dev docs 已剥离） |
 | [PaperMC/Paper](https://github.com/PaperMC/Paper) | `main` (pinned to `02ec8e958`) | upstream（batch 34 跟进到 HEAD）|
 | [PaperMC/paperweight](https://github.com/PaperMC/paperweight) | `main` | upstream (leavesweight rebase target) |
 

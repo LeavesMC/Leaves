@@ -1,6 +1,6 @@
 # Leaves 26.1.2 升级 — Sprint Phase（冲刺阶段）
 
-> **更新时间**：2026-04-17（batch 36 完成：外部 bug audit 响应——3 项 HIGH 修复）
+> **更新时间**：2026-04-17（batch 36 完成 + 首次同步到 `master`：分支工作流见 [`PATCH_REBASE_PLAYBOOK.md` §十一](./PATCH_REBASE_PLAYBOOK.md)）
 > **文档角色**：这是当前状态的**唯一权威来源（single source of truth）**。
 > 需要历史脉络看 [`UPGRADE_26.1.2_PROGRESS.md`](./UPGRADE_26.1.2_PROGRESS.md)，
 > 需要操作细节看 [`PATCH_REBASE_PLAYBOOK.md`](./PATCH_REBASE_PLAYBOOK.md)，
@@ -12,9 +12,9 @@
 
 | 指标 | 值 |
 |---|---|
-| 当前分支 | `upgrade-26.1`（HyacinthHaru/Leaves） |
+| 当前分支 | `upgrade-26.1`（HyacinthHaru/Leaves，开发/测试） + `master`（发布分支，不含开发文档） |
 | Paper pin | `02ec8e9585c44d0ccbdf28495890308e25c045cb`（batch 34 升级到 upstream HEAD，从起点 `8987f91c` 新 3 commit） |
-| 最新 push commit | **`725f5a3`**（batch 36: 外部 bug audit 响应——3 项 HIGH 修复） |
+| 最新 push commit | `upgrade-26.1`: 本次迭代 / `master`: `ca8cbf1`（Strip dev-only documentation，基于 batch 36） |
 | `./gradlew applyAllPatches` | ✅ 通过（本地 + CI 双绿） |
 | `./gradlew :leaves-server:createLeavesclipJar` | ✅ `leaves-leavesclip-26.1.2-R0.1-SNAPSHOT.jar` 62.5 MB |
 | `./gradlew :leaves-server:compileJava` | ✅ **BUILD SUCCESSFUL（0 errors）** |

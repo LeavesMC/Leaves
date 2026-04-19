@@ -1,6 +1,6 @@
 # Leaves 升级至 Paper 26.1.2 — 进度与移交文档
 
-> **更新时间**：2026-04-17（batch 36 完成 + 首次 master 同步；分支工作流见 [`PATCH_REBASE_PLAYBOOK.md` §十一](./PATCH_REBASE_PLAYBOOK.md)）
+> **更新时间**：2026-04-19（batch 37：Paper upstream `02ec8e958` → `0c79f00b`，跟进 5 commit 零冲突）
 > **文档角色**：**历史脉络 + 背景知识**。当前状态以 [`SPRINT_PHASE.md`](./SPRINT_PHASE.md) 为准。
 >
 > 配套文档：
@@ -20,8 +20,8 @@
 ## 一、升级目标
 
 - **起点**：Leaves 1.21.10（Paper commit `af06383`），JDK 21，Spigot/reobf 映射体系
-- **终点**：Leaves 26.1.2-R0.1-SNAPSHOT（基于 Paper commit `02ec8e958`，channel=ALPHA），JDK 25，Mojang 去混淆单 jar
-  - 起点 pin 为 `8987f91c`（build #5），batch 34 跟进到 `02ec8e958`（build #7+，upstream HEAD）
+- **终点**：Leaves 26.1.2-R0.1-SNAPSHOT（基于 Paper commit `0c79f00b`，channel=ALPHA），JDK 25，Mojang 去混淆单 jar
+  - 起点 pin 为 `8987f91c`（build #5），batch 34 跟到 `02ec8e958`，batch 37 跟到 `0c79f00b`（upstream HEAD）
 
 ---
 
@@ -281,8 +281,8 @@ mache 26.1.2+build.1 引入 `at.yawk.lz4:lz4-java:1.10.1`，与 Leaves 原 `org.
 | 仓库 | 分支 | 最新 commit |
 |---|---|---|
 | [HyacinthHaru/leavesweight](https://github.com/HyacinthHaru/leavesweight) | `upgrade-26.1` | `bd023b6` |
-| [HyacinthHaru/Leaves](https://github.com/HyacinthHaru/Leaves) | `upgrade-26.1` (开发) + `master` (发布) | upgrade-26.1: 最新 iter / master: `ca8cbf1`（基于 batch 36，dev docs 已剥离） |
-| [PaperMC/Paper](https://github.com/PaperMC/Paper) | `main` (pinned to `02ec8e958`) | upstream（batch 34 跟进到 HEAD）|
+| [HyacinthHaru/Leaves](https://github.com/HyacinthHaru/Leaves) | `upgrade-26.1` (开发) + `master` (发布) | upgrade-26.1: batch 37（Paper upstream 升级）/ master: `ca8cbf1`（batch 36，尚未同步新 batch） |
+| [PaperMC/Paper](https://github.com/PaperMC/Paper) | `main` (pinned to `0c79f00b`) | upstream（batch 37 跟进到 HEAD）|
 | [PaperMC/paperweight](https://github.com/PaperMC/paperweight) | `main` | upstream (leavesweight rebase target) |
 
 ---

@@ -456,15 +456,20 @@ git rm BUG_AUDIT_*.md LIMITATIONS.md PATCH_REBASE_PLAYBOOK.md \
 # 4. 单独 commit（不要和其它改动混在一起）
 git commit -m "Strip dev-only documentation for public release"
 
-# 5. 快进 master 到这个候选
+# 5. 合并 master
 git checkout master
-git merge --ff-only release/26.1.2-public
+
+# 首次同步时 master 是 upgrade-26.1 的祖先，可以 fast-forward：
+#   git merge --ff-only release/26.1.2-public
+# 后续每次同步 master 都已有自己的 "strip" commit（不在 upgrade-26.1 历史里），
+# ff-merge 会失败 `Not possible to fast-forward`。改用非 ff merge：
+git merge --no-ff release/26.1.2-public -m "Sync upgrade-26.1 (batch NN) into master, strip dev docs"
 
 # 6. 推送
 git push origin master
 
-# 7. 清理 release 分支（可选）
-git branch -d release/26.1.2-public
+# 7. 清理 release 分支
+git branch -D release/26.1.2-public
 
 # 8. 继续在 upgrade-26.1 迭代
 git checkout upgrade-26.1
@@ -474,6 +479,7 @@ git checkout upgrade-26.1
 - 永远不在 master 上直接改代码。所有改动都在 upgrade-26.1 上 commit，通过上面的流程合并过去。
 - master 的每次合并都会把 upgrade-26.1 的完整 commit 历史（含文档演进）带过去——但**文档文件本身**会被那个"Strip dev-only documentation"的 commit 从 tree 里移除。这意味着 git log 看得到文档历史，但 `ls` 看不到文件。
 - 如果合并后又要继续开发，继续在 upgrade-26.1 上。docs 仍然在 upgrade-26.1 上鲜活更新。
+- **Batch 37/38 实战教训**：只有第一次同步可以 ff-merge；第二次起必须用 `--no-ff`，因为 master 和 upgrade-26.1 从此各有一个 "strip" 旁支，无法线性合并。三方 merge 的两侧都删除同样 9 个文件，git 干净处理。
 
 ### 11.4 何时该发布一次？
 

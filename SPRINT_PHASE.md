@@ -1,6 +1,6 @@
 # Leaves 26.1.2 升级 — Sprint Phase（冲刺阶段）
 
-> **更新时间**：2026-04-19（batch 37 完成：Paper upstream `02ec8e958` → `0c79f00b`，跟进 5 个 commit，零改动）
+> **更新时间**：2026-04-20（batch 38：Paper upstream `0c79f00b` → `66d3bbed`，跟进 5 个 commit，零代码改动）
 > **文档角色**：这是当前状态的**唯一权威来源（single source of truth）**。
 > 需要历史脉络看 [`UPGRADE_26.1.2_PROGRESS.md`](./UPGRADE_26.1.2_PROGRESS.md)，
 > 需要操作细节看 [`PATCH_REBASE_PLAYBOOK.md`](./PATCH_REBASE_PLAYBOOK.md)，
@@ -13,8 +13,8 @@
 | 指标 | 值 |
 |---|---|
 | 当前分支 | `upgrade-26.1`（HyacinthHaru/Leaves，开发/测试） + `master`（发布分支，不含开发文档） |
-| Paper pin | `0c79f00b00aa69ff10bd99907cf67ff80403cd35`（batch 37 升级到 upstream HEAD，新 5 commit：GameRule API 等） |
-| 最新 push commit | `upgrade-26.1`: batch 37（待 commit）/ `master`: `ca8cbf1`（batch 36 dev-docs-stripped，未同步新 batch） |
+| Paper pin | `66d3bbed3878387649d4b9f72e78780e33b2d85d`（batch 38 升级到 upstream HEAD，新 5 commit：blockstate validation / compression-format 删除 / skip inactive AI / FrostedIce BlockFadeEvent） |
+| 最新 push commit | `upgrade-26.1`: `7c760ad`（batch 38 0004 patch rebase）/ `master`: `d8b5f75`（batch 37+38 已同步） |
 | `./gradlew applyAllPatches` | ✅ 通过（本地 + CI 双绿） |
 | `./gradlew :leaves-server:createLeavesclipJar` | ✅ `leaves-leavesclip-26.1.2-R0.1-SNAPSHOT.jar` 62.5 MB |
 | `./gradlew :leaves-server:compileJava` | ✅ **BUILD SUCCESSFUL（0 errors）** |

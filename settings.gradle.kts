@@ -1,6 +1,5 @@
 pluginManagement {
     repositories {
-        mavenLocal() // Leaves - local leavesweight snapshot for Paper 26.1 upgrade
         gradlePluginPortal()
         maven("https://repo.leavesmc.org/snapshots/")
         maven("https://repo.papermc.io/repository/maven-public/")

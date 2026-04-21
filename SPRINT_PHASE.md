@@ -1,6 +1,6 @@
 # Leaves 26.1.2 升级 — Sprint Phase（冲刺阶段）
 
-> **更新时间**：2026-04-20（batch 38：Paper upstream `0c79f00b` → `66d3bbed`，跟进 5 个 commit，零代码改动）
+> **更新时间**：2026-04-21（batch 39：Paper upstream `66d3bbed` → `6bac3c95`，跟进 3 个 commit，预测零冲突）
 > **文档角色**：这是当前状态的**唯一权威来源（single source of truth）**。
 > 需要历史脉络看 [`UPGRADE_26.1.2_PROGRESS.md`](./UPGRADE_26.1.2_PROGRESS.md)，
 > 需要操作细节看 [`PATCH_REBASE_PLAYBOOK.md`](./PATCH_REBASE_PLAYBOOK.md)，
@@ -13,8 +13,8 @@
 | 指标 | 值 |
 |---|---|
 | 当前分支 | `upgrade-26.1`（HyacinthHaru/Leaves，开发/测试） + `master`（发布分支，不含开发文档） |
-| Paper pin | `66d3bbed3878387649d4b9f72e78780e33b2d85d`（batch 38 升级到 upstream HEAD，新 5 commit：blockstate validation / compression-format 删除 / skip inactive AI / FrostedIce BlockFadeEvent） |
-| 最新 push commit | `upgrade-26.1`: `7c760ad`（batch 38 0004 patch rebase）/ `master`: `d8b5f75`（batch 37+38 已同步） |
+| Paper pin | `6bac3c95bf36bb1e8a309ff1b5062a8b2b7de07f`（batch 39 升级到 upstream HEAD，新 3 commit：EntityScheduler#scheduleOrExecute / beehive worldgen NPE 守卫 / chest open-close callback delay） |
+| 最新 push commit | `upgrade-26.1`: `b5454d6`（batch 39 upstream bump）/ `master`: `9e80045`（batch 39 已同步） |
 | `./gradlew applyAllPatches` | ✅ 通过（本地 + CI 双绿） |
 | `./gradlew :leaves-server:createLeavesclipJar` | ✅ `leaves-leavesclip-26.1.2-R0.1-SNAPSHOT.jar` 62.5 MB |
 | `./gradlew :leaves-server:compileJava` | ✅ **BUILD SUCCESSFUL（0 errors）** |

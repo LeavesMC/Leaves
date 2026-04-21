@@ -5,43 +5,51 @@ Subject: [PATCH] Sound update suppression
 
 
 diff --git a/net/minecraft/world/entity/animal/equine/AbstractHorse.java b/net/minecraft/world/entity/animal/equine/AbstractHorse.java
-index b1d309a66abb9dc8ac69e4195e4987de576d6c98..91de48bed8abccfcb9c06520cb84ff7757e1222c 100644
+index b1d309a66abb9dc8ac69e4195e4987de576d6c98..0000000000000000000000000000000000000000 100644
 --- a/net/minecraft/world/entity/animal/equine/AbstractHorse.java
 +++ b/net/minecraft/world/entity/animal/equine/AbstractHorse.java
-@@ -302,6 +302,13 @@ public abstract class AbstractHorse extends Animal implements PlayerRideableJump
+@@ -302,6 +302,16 @@ public abstract class AbstractHorse extends Animal implements PlayerRideableJump
      public void createInventory() {
          SimpleContainer old = this.inventory;
-         this.inventory = new SimpleContainer(this.getInventorySize(), (org.bukkit.entity.AbstractHorse) this.getBukkitEntity()); // CraftBukkit
+-        this.inventory = new SimpleContainer(this.getInventorySize(), (org.bukkit.entity.AbstractHorse) this.getBukkitEntity()); // CraftBukkit
 +        // Leaves start - pca
-+        this.inventory.addListener(inv -> {
-+            if (org.leavesmc.leaves.LeavesConfig.protocol.pca.enable) {
-+                org.leavesmc.leaves.protocol.PcaSyncProtocol.syncEntityToClient(this);
++        this.inventory = new SimpleContainer(this.getInventorySize(), (org.bukkit.entity.AbstractHorse) this.getBukkitEntity()) { // CraftBukkit
++            @Override
++            public void setChanged() {
++                super.setChanged();
++                if (org.leavesmc.leaves.LeavesConfig.protocol.pca.enable) {
++                    org.leavesmc.leaves.protocol.PcaSyncProtocol.syncEntityToClient(AbstractHorse.this);
++                }
 +            }
-+        });
++        };
 +        // Leaves end - pca
          if (old != null) {
              int max = Math.min(old.getContainerSize(), this.inventory.getContainerSize());
  
 diff --git a/net/minecraft/world/entity/npc/villager/AbstractVillager.java b/net/minecraft/world/entity/npc/villager/AbstractVillager.java
-index e846948eced1a5a370e35f8ee5427be67f03a6ed..da561f421244eafd53ccc62784c130f9d056f958 100644
+index e846948eced1a5a370e35f8ee5427be67f03a6ed..0000000000000000000000000000000000000000 100644
 --- a/net/minecraft/world/entity/npc/villager/AbstractVillager.java
 +++ b/net/minecraft/world/entity/npc/villager/AbstractVillager.java
-@@ -63,6 +63,15 @@ public abstract class AbstractVillager extends AgeableMob implements Npc, Mercha
-         super(type, level);
-         this.setPathfindingMalus(PathType.FIRE_IN_NEIGHBOR, 16.0F);
-         this.setPathfindingMalus(PathType.FIRE, -1.0F);
-+        // Leaves start - pca
-+        if (!this.level().isClientSide()) {
-+            this.inventory.addListener(inventory -> {
-+                if (org.leavesmc.leaves.LeavesConfig.protocol.pca.enable) {
-+                    org.leavesmc.leaves.protocol.PcaSyncProtocol.syncEntityToClient(this);
-+                }
-+            });
+@@ -56,8 +56,18 @@ public abstract class AbstractVillager extends AgeableMob implements Npc, Mercha
+     private static final EntityDataAccessor<Integer> DATA_UNHAPPY_COUNTER = SynchedEntityData.defineId(AbstractVillager.class, EntityDataSerializers.INT);
+     private @Nullable Player tradingPlayer;
+     protected @Nullable MerchantOffers offers;
+-    private final SimpleContainer inventory = new SimpleContainer(8, (org.bukkit.craftbukkit.entity.CraftAbstractVillager) this.getBukkitEntity()); // CraftBukkit - add argument
++    // Leaves start - pca
++    private final SimpleContainer inventory = new SimpleContainer(8, (org.bukkit.craftbukkit.entity.CraftAbstractVillager) this.getBukkitEntity()) { // CraftBukkit - add argument
++        @Override
++        public void setChanged() {
++            super.setChanged();
++            if (!AbstractVillager.this.level().isClientSide() && org.leavesmc.leaves.LeavesConfig.protocol.pca.enable) {
++                org.leavesmc.leaves.protocol.PcaSyncProtocol.syncEntityToClient(AbstractVillager.this);
++            }
 +        }
-+        // Leaves end - pca
-     }
++    };
++    // Leaves end - pca
+     protected boolean voidTrade = false; // Leaves - force void trade
  
-     @Override
+     public AbstractVillager(final EntityType<? extends AbstractVillager> type, final Level level) {
+         super(type, level);
 diff --git a/net/minecraft/world/entity/vehicle/minecart/AbstractMinecartContainer.java b/net/minecraft/world/entity/vehicle/minecart/AbstractMinecartContainer.java
 index e5265cda843fe245d572b63c71c5dd14d87539d2..1bbe9563121eefe3e6ee461759e0c7002cc4fa87 100644
 --- a/net/minecraft/world/entity/vehicle/minecart/AbstractMinecartContainer.java

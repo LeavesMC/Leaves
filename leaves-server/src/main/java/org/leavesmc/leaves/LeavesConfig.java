@@ -823,8 +823,17 @@ public final class LeavesConfig {
          * Kept for backward-compat with old {@code leaves.yml} files. Will be removed before upstream PR.
          */
         @Deprecated(forRemoval = true, since = "26.1.2")
-        @GlobalConfig("check-spooky-season-once-an-hour")
+        @GlobalConfig(value = "check-spooky-season-once-an-hour", validator = ObsoletedCheckSpookySeason.class)
         public boolean checkSpookySeasonOnceAnHour = true;
+
+        public static class ObsoletedCheckSpookySeason extends BooleanConfigValidator {
+            @Override
+            public void runAfterLoader(Boolean value, boolean reload) {
+                if (!reload) {
+                    LeavesLogger.LOGGER.warning("performance.check-spooky-season-once-an-hour has no effect on Paper 26.1+ (isHalloween was simplified upstream). Remove it from leaves.yml.");
+                }
+            }
+        }
 
         @GlobalConfig("inactive-goal-selector-disable")
         public boolean throttleInactiveGoalSelectorTick = false;
@@ -838,8 +847,17 @@ public final class LeavesConfig {
          * — already as efficient as Leaves' previous cache. Field retained for old {@code leaves.yml} compatibility.
          */
         @Deprecated(forRemoval = true, since = "26.1.2")
-        @GlobalConfig("cache-climb-check")
+        @GlobalConfig(value = "cache-climb-check", validator = ObsoletedCacheClimbCheck.class)
         public boolean cacheClimbCheck = true;
+
+        public static class ObsoletedCacheClimbCheck extends BooleanConfigValidator {
+            @Override
+            public void runAfterLoader(Boolean value, boolean reload) {
+                if (!reload) {
+                    LeavesLogger.LOGGER.warning("performance.cache-climb-check has no effect on Paper 26.1+ (ActivationRange has an O(1) fast path upstream). Remove it from leaves.yml.");
+                }
+            }
+        }
 
         @GlobalConfig("reduce-chuck-load-and-lookup")
         public boolean reduceChuckLoadAndLookup = true;
@@ -1332,8 +1350,17 @@ public final class LeavesConfig {
          * may re-implement this feature later.
          */
         @Deprecated(forRemoval = true, since = "26.1.2")
-        @GlobalConfig("vanilla-fluid-pushing")
+        @GlobalConfig(value = "vanilla-fluid-pushing", validator = ObsoletedVanillaFluidPushing.class)
         public boolean vanillaFluidPushing = true;
+
+        public static class ObsoletedVanillaFluidPushing extends BooleanConfigValidator {
+            @Override
+            public void runAfterLoader(Boolean value, boolean reload) {
+                if (!reload) {
+                    LeavesLogger.LOGGER.warning("fix.vanilla-fluid-pushing has no effect on Paper 26.1+ (upstream rewrote fluid pushing via EntityFluidInteraction). Remove it from leaves.yml.");
+                }
+            }
+        }
 
         @GlobalConfig(value = "collision-behavior")
         public CollisionBehavior collisionBehavior = CollisionBehavior.BLOCK_SHAPE_VANILLA;

@@ -11,13 +11,13 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
-import net.minecraft.world.level.GameRules;
+import net.minecraft.world.level.gamerules.GameRules;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.protocol.core.LeavesCustomPayload;
@@ -102,7 +102,10 @@ public class ServuxHudDataProtocol implements LeavesProtocol {
         sendPacket(player, new HudDataPayload(HudDataPayloadType.PACKET_S2C_METADATA, metadata));
     }
 
-    public static void refreshSpawnMetadata(ServerPlayer player) { // TODO: 1.21.9 removed spawn chunk, should we keep this?
+    public static void refreshSpawnMetadata(ServerPlayer player) {
+        // Leaves - Paper 26.1: 1.21.9 removed the SPAWN_CHUNK_RADIUS gamerule; spawn chunk radius is no longer
+        // a dimension-level concept. Clients that depended on this field (e.g. older MiniHUD) will just receive
+        // an empty value here — upstream Servux mod has already adapted to the removal.
         CompoundTag metadata = new CompoundTag();
         metadata.putString("id", HudDataPayload.CHANNEL.toString());
         metadata.putString("servux", ServuxProtocol.SERVUX_STRING);
@@ -122,7 +125,7 @@ public class ServuxHudDataProtocol implements LeavesProtocol {
             if (dr.result().isPresent()) {
                 CompoundTag entry = new CompoundTag();
                 entry.putString("id_reg", recipeEntry.id().registry().toString());
-                entry.putString("id_value", recipeEntry.id().location().toString());
+                entry.putString("id_value", recipeEntry.id().identifier().toString());
                 entry.put("recipe", dr.result().get());
                 list.add(entry);
             }
@@ -134,7 +137,7 @@ public class ServuxHudDataProtocol implements LeavesProtocol {
 
     public static void refreshWeatherData(ServerPlayer player) {
         ServerLevel level = MinecraftServer.getServer().overworld();
-        if (!level.getGameRules().getBoolean(GameRules.RULE_WEATHER_CYCLE)) {
+        if (!level.getGameRules().get(GameRules.ADVANCE_WEATHER)) { // Leaves - Paper 26.1: RULE_WEATHER_CYCLE -> ADVANCE_WEATHER, getBoolean -> get
             return;
         }
 
@@ -142,22 +145,24 @@ public class ServuxHudDataProtocol implements LeavesProtocol {
         nbt.putString("id", HudDataPayload.CHANNEL.toString());
         nbt.putString("servux", ServuxProtocol.SERVUX_STRING);
 
-        if (level.serverLevelData.isRaining() && level.serverLevelData.getRainTime() > -1) {
-            nbt.putInt("SetRaining", level.serverLevelData.getRainTime());
+        // Leaves - Paper 26.1: weather state moved from PaperLevelOverrides to saveddata.WeatherData
+        final net.minecraft.world.level.saveddata.WeatherData weatherData = level.getWeatherData();
+        if (weatherData.isRaining() && weatherData.getRainTime() > -1) {
+            nbt.putInt("SetRaining", weatherData.getRainTime());
             nbt.putBoolean("isRaining", true);
         } else {
             nbt.putBoolean("isRaining", false);
         }
 
-        if (level.serverLevelData.isThundering() && level.serverLevelData.getThunderTime() > -1) {
-            nbt.putInt("SetThundering", level.serverLevelData.getThunderTime());
+        if (weatherData.isThundering() && weatherData.getThunderTime() > -1) {
+            nbt.putInt("SetThundering", weatherData.getThunderTime());
             nbt.putBoolean("isThundering", true);
         } else {
             nbt.putBoolean("isThundering", false);
         }
 
-        if (level.serverLevelData.getClearWeatherTime() > -1) {
-            nbt.putInt("SetClear", level.serverLevelData.getClearWeatherTime());
+        if (weatherData.getClearWeatherTime() > -1) {
+            nbt.putInt("SetClear", weatherData.getClearWeatherTime());
         }
 
         sendPacket(player, new HudDataPayload(HudDataPayloadType.PACKET_S2C_WEATHER_TICK, nbt));
@@ -169,7 +174,7 @@ public class ServuxHudDataProtocol implements LeavesProtocol {
         metadata.putInt("spawnPosX", spawnPos.getX());
         metadata.putInt("spawnPosY", spawnPos.getY());
         metadata.putInt("spawnPosZ", spawnPos.getZ());
-        // metadata.putInt("spawnChunkRadius", level.getGameRules().getInt(GameRules.RULE_SPAWN_CHUNK_RADIUS)); // TODO: 1.21.9 removed spawn chunk, should we keep this?
+        // Leaves - Paper 26.1: spawnChunkRadius removed (1.21.9 deleted the gamerule); see refreshSpawnMetadata javadoc
 
         if (LeavesConfig.protocol.servux.hudMetadataShareSeed) {
             metadata.putLong("worldSeed", level.getSeed());
@@ -304,7 +309,7 @@ public class ServuxHudDataProtocol implements LeavesProtocol {
     public record HudDataPayload(HudDataPayloadType packetType, CompoundTag nbt, FriendlyByteBuf buffer) implements LeavesCustomPayload {
 
         @ID
-        public static final ResourceLocation CHANNEL = ServuxProtocol.id("hud_metadata");
+        public static final Identifier CHANNEL = ServuxProtocol.id("hud_metadata");
 
         @Codec
         public static final StreamCodec<FriendlyByteBuf, HudDataPayload> CODEC = StreamCodec.of(

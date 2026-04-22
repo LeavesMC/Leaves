@@ -143,7 +143,7 @@ public abstract class DataLogger<T extends Tag> {
                 }
 
                 try {
-                    nbt.put(world.dimension().location().toString(), MobCapData.CODEC.encodeStart(world.registryAccess().createSerializationContext(NbtOps.INSTANCE), mobCapData).getPartialOrThrow());
+                    nbt.put(world.dimension().identifier().toString(), MobCapData.CODEC.encodeStart(world.registryAccess().createSerializationContext(NbtOps.INSTANCE), mobCapData).getPartialOrThrow());
                 } catch (Exception ignored) {
                 }
             }

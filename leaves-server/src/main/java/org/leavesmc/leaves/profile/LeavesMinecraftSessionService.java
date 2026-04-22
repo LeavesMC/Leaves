@@ -6,6 +6,7 @@ import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.HttpAuthenticationService;
 import com.mojang.authlib.exceptions.AuthenticationUnavailableException;
 import com.mojang.authlib.exceptions.MinecraftClientException;
+import com.mojang.authlib.minecraft.client.MinecraftClient; // Leaves - Paper 26.1: YggdrasilMinecraftSessionService#client is now private, use our own MinecraftClient
 import com.mojang.authlib.yggdrasil.ProfileActionType;
 import com.mojang.authlib.yggdrasil.ProfileResult;
 import com.mojang.authlib.yggdrasil.ServicesKeySet;
@@ -32,8 +33,11 @@ import java.util.stream.Collectors;
 
 public class LeavesMinecraftSessionService extends PaperMinecraftSessionService {
 
+    private final MinecraftClient leavesClient; // Leaves - mirror of YggdrasilMinecraftSessionService#client (now private)
+
     protected LeavesMinecraftSessionService(ServicesKeySet keySet, Proxy authenticationService, Environment environment) {
         super(keySet, authenticationService, environment);
+        this.leavesClient = MinecraftClient.unauthenticated(authenticationService);
     }
 
     private static List<URL> extraYggdrasilList = List.of();
@@ -73,7 +77,7 @@ public class LeavesMinecraftSessionService extends PaperMinecraftSessionService 
             for (URL checkUrl : extraYggdrasilList) {
                 URL url = HttpAuthenticationService.concatenateURL(checkUrl, HttpAuthenticationService.buildQuery(arguments));
                 try {
-                    final HasJoinedMinecraftServerResponse response = client.get(url, HasJoinedMinecraftServerResponse.class);
+                    final HasJoinedMinecraftServerResponse response = this.leavesClient.get(url, HasJoinedMinecraftServerResponse.class); // Leaves - use own client
                     if (response != null && response.id() != null) {
                         if (LeavesConfig.mics.yggdrasil.loginProtect && cache != null) {
                             if (!response.id().equals(cache.id())) {

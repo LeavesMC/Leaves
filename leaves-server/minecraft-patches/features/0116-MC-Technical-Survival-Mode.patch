@@ -1,0 +1,106 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Thu, 19 Jan 2023 23:38:50 +0800
+Subject: [PATCH] MC Technical Survival Mode
+
+
+diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
+index b53e12c60ac80cf5f3b1df58ea757e39735dd6c6..4207be7a0421d800300c15278ff31e69f8a2f3d1 100644
+--- a/net/minecraft/server/level/ServerPlayer.java
++++ b/net/minecraft/server/level/ServerPlayer.java
+@@ -1817,7 +1817,7 @@ public class ServerPlayer extends Player implements ca.spottedleaf.moonrise.patc
+     public boolean isInvulnerableTo(final ServerLevel level, final DamageSource source) {
+         // Paper start - disable player cramming
+         return (super.isInvulnerableTo(level, source) || this.isChangingDimension() && !source.is(DamageTypes.ENDER_PEARL) || !this.connection.hasClientLoaded())
+-            || (!this.level().paperConfig().collisions.allowPlayerCrammingDamage && source.is(DamageTypes.CRAMMING));
++            || (!org.leavesmc.leaves.LeavesConfig.modify.mcTechnicalMode && !this.level().paperConfig().collisions.allowPlayerCrammingDamage && source.is(DamageTypes.CRAMMING)); // Leaves - mc technical survival mode
+         // Paper end - disable player cramming
+     }
+ 
+diff --git a/net/minecraft/world/entity/ai/behavior/AcquirePoi.java b/net/minecraft/world/entity/ai/behavior/AcquirePoi.java
+index a8f2b22436ff0f4bff06b2c5cf01375da755cfde..aac5f36407268f2a72fabbdcbcdce78633fa9fb8 100644
+--- a/net/minecraft/world/entity/ai/behavior/AcquirePoi.java
++++ b/net/minecraft/world/entity/ai/behavior/AcquirePoi.java
+@@ -74,7 +74,7 @@ public class AcquirePoi {
+                                 return false;
+                             } else {
+                                 nextScheduledStart.setValue(timestamp + 20L + random.nextInt(20));
+-                                if (level.paperConfig().entities.behavior.stuckEntityPoiRetryDelay.enabled() && body.getNavigation().isStuck()) nextScheduledStart.add(level.paperConfig().entities.behavior.stuckEntityPoiRetryDelay.intValue()); // Paper - Next stuck check delay config
++                                if (!org.leavesmc.leaves.LeavesConfig.modify.mcTechnicalMode && level.paperConfig().entities.behavior.stuckEntityPoiRetryDelay.enabled() && body.getNavigation().isStuck()) nextScheduledStart.add(level.paperConfig().entities.behavior.stuckEntityPoiRetryDelay.intValue()); // Paper - Next stuck check delay config // Leaves - mc technical survival mode
+                                 PoiManager poiManager = level.getPoiManager();
+                                 batchCache.long2ObjectEntrySet().removeIf(entry -> !entry.getValue().isStillValid(timestamp));
+                                 Predicate<BlockPos> cacheTest = pos -> {
+diff --git a/net/minecraft/world/entity/boss/enderdragon/EndCrystal.java b/net/minecraft/world/entity/boss/enderdragon/EndCrystal.java
+index b45208810c5e1623fc8d0f77a2b42d448fc8912b..f15b617b7ffd326f08801f73b404167d7722e738 100644
+--- a/net/minecraft/world/entity/boss/enderdragon/EndCrystal.java
++++ b/net/minecraft/world/entity/boss/enderdragon/EndCrystal.java
+@@ -65,7 +65,7 @@ public class EndCrystal extends Entity {
+         }
+ 
+         // Paper start - Fix invulnerable end crystals
+-        if (this.level().paperConfig().unsupportedSettings.fixInvulnerableEndCrystalExploit && this.generatedByDragonFight && this.isInvulnerable()) {
++        if (!org.leavesmc.leaves.LeavesConfig.modify.mcTechnicalMode && this.level().paperConfig().unsupportedSettings.fixInvulnerableEndCrystalExploit && this.generatedByDragonFight && this.isInvulnerable()) { // Leaves - mc technical survival mode
+             if (!java.util.Objects.equals(((ServerLevel) this.level()).uuid, this.originWorld)
+                 || ((ServerLevel) this.level()).getDragonFight() == null
+                 || ((ServerLevel) this.level()).getDragonFight().respawnStage == null
+diff --git a/net/minecraft/world/entity/item/PrimedTnt.java b/net/minecraft/world/entity/item/PrimedTnt.java
+index 6b2dbe20b893e7812e89f92644960a1d1bc1614f..4f539b127f2b33710fffe51b8bf93ac9116c5134 100644
+--- a/net/minecraft/world/entity/item/PrimedTnt.java
++++ b/net/minecraft/world/entity/item/PrimedTnt.java
+@@ -101,7 +101,7 @@ public class PrimedTnt extends Entity implements TraceableEntity {
+ 
+     @Override
+     public void tick() {
+-        if (this.level().spigotConfig.maxTntTicksPerTick > 0 && ++this.level().spigotConfig.currentPrimedTnt > this.level().spigotConfig.maxTntTicksPerTick) { return; } // Spigot
++        if (this.level().spigotConfig.maxTntTicksPerTick > 0 && ++this.level().spigotConfig.currentPrimedTnt > (org.leavesmc.leaves.LeavesConfig.modify.mcTechnicalMode ? 2000 : this.level().spigotConfig.maxTntTicksPerTick)) { return; } // Spigot // Leaves - mc technical survival mode
+         this.handlePortal();
+         this.applyGravity();
+         this.move(MoverType.SELF, this.getDeltaMovement());
+diff --git a/net/minecraft/world/level/NaturalSpawner.java b/net/minecraft/world/level/NaturalSpawner.java
+index 427573fc142c107d3fcc2be9000316221039ba4c..185c6c4f438dfe7336c5631302ba96e54432cff3 100644
+--- a/net/minecraft/world/level/NaturalSpawner.java
++++ b/net/minecraft/world/level/NaturalSpawner.java
+@@ -90,7 +90,7 @@ public final class NaturalSpawner {
+                 MobCategory category = entity.getType().getCategory();
+                 if (category != MobCategory.MISC) {
+                     // Paper start - Only count natural spawns
+-                    if (!entity.level().paperConfig().entities.spawning.countAllMobsForSpawning &&
++                    if (!org.leavesmc.leaves.LeavesConfig.modify.mcTechnicalMode && !entity.level().paperConfig().entities.spawning.countAllMobsForSpawning && // Leaves - mc technical survival mode
+                         !(entity.spawnReason == org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.NATURAL ||
+                             entity.spawnReason == org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.CHUNK_GEN)) {
+                         continue;
+diff --git a/net/minecraft/world/level/block/entity/BeehiveBlockEntity.java b/net/minecraft/world/level/block/entity/BeehiveBlockEntity.java
+index 2e0b384ec38fc0d8bd07bd6b2f866a1f0fc36ac4..44b627198ab0e14ee2765890b92a5dcfd0d6d732 100644
+--- a/net/minecraft/world/level/block/entity/BeehiveBlockEntity.java
++++ b/net/minecraft/world/level/block/entity/BeehiveBlockEntity.java
+@@ -331,7 +331,7 @@ public class BeehiveBlockEntity extends BlockEntity {
+                     iterator.remove();
+                 }
+                 // Paper start - Fix bees aging inside; use exitTickCounter to keep actual bee life
+-                else if (level.paperConfig().entities.behavior.cooldownFailedBeehiveReleases) {
++                else if (!org.leavesmc.leaves.LeavesConfig.modify.mcTechnicalMode && level.paperConfig().entities.behavior.cooldownFailedBeehiveReleases) { // Leaves - mc technical survival mode
+                     data.exitTickCounter = data.occupant.minTicksInHive / 2;
+                 }
+                 // Paper end - Fix bees aging inside; use exitTickCounter to keep actual bee life
+diff --git a/net/minecraft/world/level/block/entity/HopperBlockEntity.java b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
+index f7bed1e588e0eedb4cb92a60a47518079bd46761..7e77dd398f124a18b39ac6fa82f520d371705142 100644
+--- a/net/minecraft/world/level/block/entity/HopperBlockEntity.java
++++ b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
+@@ -261,7 +261,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+                 origItemStack.setCount(originalItemCount);
+             }
+         }
+-        if (foundItem && level.paperConfig().hopper.cooldownWhenFull) { // Inventory was full - cooldown
++        if (foundItem && level.paperConfig().hopper.cooldownWhenFull && !org.leavesmc.leaves.LeavesConfig.modify.mcTechnicalMode) { // Inventory was full - cooldown // Leaves - mc technical survival mode
+             hopper.setCooldown(level.spigotConfig.hopperTransfer);
+         }
+         return false;
+@@ -302,7 +302,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+         }
+         origItemStack.setCount(originalItemCount);
+ 
+-        if (level.paperConfig().hopper.cooldownWhenFull) {
++        if (level.paperConfig().hopper.cooldownWhenFull && !org.leavesmc.leaves.LeavesConfig.modify.mcTechnicalMode) { // Leaves - mc technical survival mode
+             applyCooldown(hopper);
+         }
+ 

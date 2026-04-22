@@ -1,0 +1,44 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Sun, 14 Aug 2022 00:00:51 +0800
+Subject: [PATCH] Dont send useless entity packets
+
+
+diff --git a/net/minecraft/server/level/ServerEntity.java b/net/minecraft/server/level/ServerEntity.java
+index aa45b00f39a816860d9f8a7e90103b73c0b3b613..987d35ae6beb5001c61c27e88cb5e43b73947e74 100644
+--- a/net/minecraft/server/level/ServerEntity.java
++++ b/net/minecraft/server/level/ServerEntity.java
+@@ -194,6 +194,11 @@ public class ServerEntity {
+                     sentPosition = true;
+                     sentRotation = true;
+                 }
++                // Leaves start - dont send useless entity packets
++                if (packet != null && org.leavesmc.leaves.LeavesConfig.performance.dontSendUselessEntityPackets && this.isUselessPacket(packet)) {
++                    packet = null;
++                }
++                // Leaves end - dont send useless entity packets
+ 
+                 if (this.entity.needsSync || this.trackDelta || this.entity instanceof LivingEntity && ((LivingEntity)this.entity).isFallFlying()) {
+                     Vec3 movement = this.entity.getDeltaMovement();
+@@ -300,6 +305,21 @@ public class ServerEntity {
+         this.positionCodec.setBase(this.entity.position());
+     }
+ 
++    // Leaves start - dont send useless entity packets
++    private boolean isUselessPacket(final Packet<?> possibleUselessPacket) {
++        if (possibleUselessPacket instanceof ClientboundMoveEntityPacket packet) {
++            if (possibleUselessPacket instanceof ClientboundMoveEntityPacket.Pos) {
++                return packet.getXa() == 0 && packet.getYa() == 0 && packet.getZa() == 0;
++            } else if (possibleUselessPacket instanceof ClientboundMoveEntityPacket.PosRot) {
++                return packet.getXa() == 0 && packet.getYa() == 0 && packet.getZa() == 0 && packet.getYRot() == 0 && packet.getXRot() == 0;
++            } else if (possibleUselessPacket instanceof ClientboundMoveEntityPacket.Rot) {
++                return packet.getYRot() == 0 && packet.getXRot() == 0;
++            }
++        }
++        return false;
++    }
++    // Leaves end - dont send useless entity packets
++
+     public void removePairing(final ServerPlayer player) {
+         this.entity.stopSeenByPlayer(player);
+         player.connection.send(new ClientboundRemoveEntitiesPacket(this.entity.getId()));

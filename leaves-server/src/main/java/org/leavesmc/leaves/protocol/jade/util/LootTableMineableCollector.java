@@ -1,7 +1,7 @@
 package org.leavesmc.leaves.protocol.jade.util;
 
 import com.google.common.collect.Lists;
-import net.minecraft.advancements.critereon.ItemPredicate;
+import net.minecraft.advancements.criterion.ItemPredicate; // Leaves - Paper 26.1: critereon -> criterion package rename
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderGetter;
 import net.minecraft.core.registries.BuiltInRegistries;

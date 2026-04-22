@@ -64,7 +64,7 @@ public class ListCommand extends BotSubcommand {
             .map(PaperAdventure::asAdventure)
             .reduce((a, b) -> a.append(text(", ", GRAY)).append(b))
             .get();
-        String worldLocation = ((CraftWorld) world).getHandle().dimension().location().toString();
+        String worldLocation = ((CraftWorld) world).getHandle().dimension().identifier().toString(); // Leaves - Paper 26.1: ResourceKey.location() -> identifier()
         return join(noSeparators(),
             text(world.getName(), AQUA).hoverEvent(showText(text(worldLocation))),
             text(" (" + botsInLevel.size() + ")\n", GRAY),

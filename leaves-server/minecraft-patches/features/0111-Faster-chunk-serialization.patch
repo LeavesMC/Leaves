@@ -1,0 +1,185 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Tue, 18 Jul 2023 13:14:15 +0800
+Subject: [PATCH] Faster chunk serialization
+
+
+diff --git a/net/minecraft/util/BitStorage.java b/net/minecraft/util/BitStorage.java
+index 48f6671ecabfd5a8c9f8151ccb59f9ea9dc201ac..fe3f45494a946136fdec333841925acd257a272f 100644
+--- a/net/minecraft/util/BitStorage.java
++++ b/net/minecraft/util/BitStorage.java
+@@ -38,4 +38,6 @@ public interface BitStorage extends ca.spottedleaf.moonrise.patches.block_counti
+         return ret;
+     }
+     // Paper end - block counting
++
++    <T> void compact(net.minecraft.world.level.chunk.Palette<T> srcPalette, net.minecraft.world.level.chunk.Palette<T> dstPalette, short[] out, net.minecraft.world.level.chunk.PalettedContainer<T> resizeHandler); // Leaves - Gale - Lithium - faster chunk serialization
+ }
+diff --git a/net/minecraft/util/SimpleBitStorage.java b/net/minecraft/util/SimpleBitStorage.java
+index 5e0e33cdbd590e5aee8044f49a562434c230a426..45dd5d856cb4a65655d474240f034c658d5c59f9 100644
+--- a/net/minecraft/util/SimpleBitStorage.java
++++ b/net/minecraft/util/SimpleBitStorage.java
+@@ -465,4 +465,35 @@ public class SimpleBitStorage implements BitStorage {
+             super(message);
+         }
+     }
++
++    // Leaves start - Gale - Lithium - faster chunk serialization
++    @Override
++    public <T> void compact(net.minecraft.world.level.chunk.Palette<T> srcPalette, net.minecraft.world.level.chunk.Palette<T> dstPalette, short[] out, net.minecraft.world.level.chunk.PalettedContainer<T> resizeHandler) {
++        if (this.size >= Short.MAX_VALUE) {
++            throw new IllegalStateException("Array too large");
++        }
++        if (this.size != out.length) {
++            throw new IllegalStateException("Array size mismatch");
++        }
++        short[] mappings = new short[(int) (this.mask + 1)];
++        int idx = 0;
++        for (long word : this.data) {
++            long bits = word;
++            for (int elementIdx = 0; elementIdx < this.valuesPerLong; ++elementIdx) {
++                int value = (int) (bits & this.mask);
++                int remappedId = mappings[value];
++                if (remappedId == 0) {
++                    remappedId = dstPalette.idFor(srcPalette.valueFor(value), resizeHandler) + 1;
++                    mappings[value] = (short) remappedId;
++                }
++                out[idx] = (short) (remappedId - 1);
++                bits >>= this.bits;
++                ++idx;
++                if (idx >= this.size) {
++                    return;
++                }
++            }
++        }
++    }
++    // Leaves end - Gale - Lithium - faster chunk serialization
+ }
+diff --git a/net/minecraft/util/ZeroBitStorage.java b/net/minecraft/util/ZeroBitStorage.java
+index eb2fa32cff6824c14f865c8731df7d082122f62b..12ab6017718bedad931cca04c0b1bfbc99dc78e8 100644
+--- a/net/minecraft/util/ZeroBitStorage.java
++++ b/net/minecraft/util/ZeroBitStorage.java
+@@ -80,4 +80,6 @@ public class ZeroBitStorage implements BitStorage {
+         return ret;
+     }
+     // Paper end - block counting
++
++    @Override public <T> void compact(net.minecraft.world.level.chunk.Palette<T> srcPalette, net.minecraft.world.level.chunk.Palette<T> dstPalette, short[] out, net.minecraft.world.level.chunk.PalettedContainer<T> resizeHandler) {} // Leaves - Gale - Lithium - faster chunk serialization
+ }
+diff --git a/net/minecraft/world/level/chunk/PalettedContainer.java b/net/minecraft/world/level/chunk/PalettedContainer.java
+index 09111c50cb34b643b7717f107a6f5bf6953bf0b2..c986309aaa54f1a92dc1d9f3e03c9f7627b00e49 100644
+--- a/net/minecraft/world/level/chunk/PalettedContainer.java
++++ b/net/minecraft/world/level/chunk/PalettedContainer.java
+@@ -23,6 +23,22 @@ import net.minecraft.util.ZeroBitStorage;
+ import org.jspecify.annotations.Nullable;
+ 
+ public class PalettedContainer<T> implements PaletteResize<T>, PalettedContainerRO<T> {
++
++    // Leaves start - Gale - Lithium - faster chunk serialization
++    private static final ThreadLocal<short[]> CACHED_ARRAY_4096 = ThreadLocal.withInitial(() -> new short[4096]);
++    private static final ThreadLocal<short[]> CACHED_ARRAY_64 = ThreadLocal.withInitial(() -> new short[64]);
++    private Optional<LongStream> asOptional(final long[] data) {
++        return Optional.of(Arrays.stream(data));
++    }
++    private short[] getOrCreate(final int size) {
++        return switch (size) {
++            case 64 -> CACHED_ARRAY_64.get();
++            case 4096 -> CACHED_ARRAY_4096.get();
++            default -> new short[size];
++        };
++    }
++    // Leaves end - Gale - Lithium - faster chunk serialization
++
+     private static final int MIN_PALETTE_BITS = 0;
+     public volatile PalettedContainer.Data<T> data; // Paper - optimise collisions - public
+     private final Strategy<T> strategy;
+@@ -351,6 +367,45 @@ public class PalettedContainer<T> implements PaletteResize<T>, PalettedContainer
+     public synchronized PalettedContainerRO.PackedData<T> pack(final Strategy<T> strategy) { // Paper - synchronize
+         this.acquire();
+ 
++        // Leaves start - Gale - Lithium - faster chunk serialization
++        if (org.leavesmc.leaves.LeavesConfig.performance.fasterChunkSerialization) {
++            Optional<LongStream> fsData = Optional.empty();
++            List<T> fsElements = null;
++            try {
++                org.leavesmc.leaves.lithium.common.world.chunk.LithiumHashPalette<T> hashPalette = null;
++                final Palette<T> palette = this.data.palette();
++                final BitStorage storage = this.data.storage();
++                if (storage instanceof ZeroBitStorage || palette.getSize() == 1) {
++                    fsElements = List.of(palette.valueFor(0));
++                } else if (palette instanceof org.leavesmc.leaves.lithium.common.world.chunk.LithiumHashPalette<T> lithiumHashPalette) {
++                    hashPalette = lithiumHashPalette;
++                }
++
++                if (fsElements == null) {
++                    org.leavesmc.leaves.lithium.common.world.chunk.LithiumHashPalette<T> compactedPalette = new org.leavesmc.leaves.lithium.common.world.chunk.LithiumHashPalette<>(storage.getBits());
++                    short[] array = this.getOrCreate(strategy.entryCount());
++                    storage.compact(this.data.palette(), compactedPalette, array, this);
++                    if (hashPalette != null && hashPalette.getSize() == compactedPalette.getSize() && storage.getBits() == strategy.getConfigurationForPaletteSize(hashPalette.getSize()).bitsInStorage()) {
++                        fsData = this.asOptional(storage.getRaw().clone());
++                        fsElements = hashPalette.getElements();
++                    } else {
++                        int bits = strategy.getConfigurationForPaletteSize(compactedPalette.getSize()).bitsInStorage();
++                        if (bits != 0) {
++                            SimpleBitStorage copy = new SimpleBitStorage(bits, array.length);
++                            for (int i = 0; i < array.length; ++i) {
++                                copy.set(i, array[i]);
++                            }
++                            fsData = this.asOptional(copy.getRaw());
++                        }
++                        fsElements = compactedPalette.getElements();
++                    }
++                }
++            } finally {
++                this.release();
++            }
++            return new PalettedContainerRO.PackedData<>(fsElements, fsData);
++        }
++        // Leaves end - Gale - Lithium - faster chunk serialization
+         PalettedContainerRO.PackedData var14;
+         try {
+             BitStorage currentStorage = this.data.storage;
+@@ -423,13 +478,37 @@ public class PalettedContainer<T> implements PaletteResize<T>, PalettedContainer
+ 
+     @Override
+     public void count(final PalettedContainer.CountConsumer<T> output) {
+-        if (this.data.palette.getSize() == 1) {
+-            output.accept(this.data.palette.valueFor(0), this.data.storage.getSize());
+-        } else {
+-            Int2IntOpenHashMap counts = new Int2IntOpenHashMap();
+-            this.data.storage.getAll(state -> counts.addTo(state, 1));
+-            counts.int2IntEntrySet().forEach(entry -> output.accept(this.data.palette.valueFor(entry.getIntKey()), entry.getIntValue()));
++        // Leaves start - Gale - Lithium - faster chunk serialization
++        if (!org.leavesmc.leaves.LeavesConfig.performance.fasterChunkSerialization) {
++            if (this.data.palette.getSize() == 1) {
++                output.accept(this.data.palette.valueFor(0), this.data.storage.getSize());
++            } else {
++                Int2IntOpenHashMap counts = new Int2IntOpenHashMap();
++                this.data.storage.getAll(state -> counts.addTo(state, 1));
++                counts.int2IntEntrySet().forEach(entry -> output.accept(this.data.palette.valueFor(entry.getIntKey()), entry.getIntValue()));
++            }
++            return;
++        }
++        int len = this.data.palette().getSize();
++        if (len > 4096) {
++            if (this.data.palette.getSize() == 1) {
++                output.accept(this.data.palette.valueFor(0), this.data.storage.getSize());
++            } else {
++                Int2IntOpenHashMap counts = new Int2IntOpenHashMap();
++                this.data.storage.getAll(state -> counts.addTo(state, 1));
++                counts.int2IntEntrySet().forEach(entry -> output.accept(this.data.palette.valueFor(entry.getIntKey()), entry.getIntValue()));
++            }
++            return;
++        }
++        short[] counts = new short[len];
++        this.data.storage().getAll(i -> counts[i]++);
++        for (int i = 0; i < counts.length; i++) {
++            T obj = this.data.palette().valueFor(i);
++            if (obj != null) {
++                output.accept(obj, counts[i]);
++            }
+         }
++        // Leaves end - Gale - Lithium - faster chunk serialization
+     }
+ 
+     @FunctionalInterface

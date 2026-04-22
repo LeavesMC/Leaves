@@ -4,7 +4,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.netty.buffer.Unpooled;
 import net.minecraft.ChatFormatting;
-import net.minecraft.Util;
+import net.minecraft.util.Util;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -14,7 +14,7 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
@@ -64,17 +64,17 @@ public class REIServerProtocol implements LeavesProtocol {
 
     public static final String PROTOCOL_ID = "roughlyenoughitems";
     public static final String CHEAT_PERMISSION = "leaves.protocol.rei.cheat";
-    public static final ResourceLocation DELETE_ITEMS_PACKET = ResourceLocation.fromNamespaceAndPath("roughlyenoughitems", "delete_item");
-    public static final ResourceLocation CREATE_ITEMS_PACKET = ResourceLocation.fromNamespaceAndPath("roughlyenoughitems", "create_item");
-    public static final ResourceLocation CREATE_ITEMS_HOTBAR_PACKET = ResourceLocation.fromNamespaceAndPath("roughlyenoughitems", "create_item_hotbar");
-    public static final ResourceLocation CREATE_ITEMS_GRAB_PACKET = ResourceLocation.fromNamespaceAndPath("roughlyenoughitems", "create_item_grab");
-    public static final ResourceLocation CREATE_ITEMS_MESSAGE_PACKET = ResourceLocation.fromNamespaceAndPath("roughlyenoughitems", "ci_msg");
-    public static final ResourceLocation MOVE_ITEMS_NEW_PACKET = ResourceLocation.fromNamespaceAndPath("roughlyenoughitems", "move_items_new");
-    public static final ResourceLocation NOT_ENOUGH_ITEMS_PACKET = ResourceLocation.fromNamespaceAndPath("roughlyenoughitems", "og_not_enough"); // this pack is under to-do at rei-client, so we don't handle it
-    public static final ResourceLocation SYNC_DISPLAYS_PACKET = ResourceLocation.fromNamespaceAndPath("roughlyenoughitems", "sync_displays");
+    public static final Identifier DELETE_ITEMS_PACKET = Identifier.fromNamespaceAndPath("roughlyenoughitems", "delete_item");
+    public static final Identifier CREATE_ITEMS_PACKET = Identifier.fromNamespaceAndPath("roughlyenoughitems", "create_item");
+    public static final Identifier CREATE_ITEMS_HOTBAR_PACKET = Identifier.fromNamespaceAndPath("roughlyenoughitems", "create_item_hotbar");
+    public static final Identifier CREATE_ITEMS_GRAB_PACKET = Identifier.fromNamespaceAndPath("roughlyenoughitems", "create_item_grab");
+    public static final Identifier CREATE_ITEMS_MESSAGE_PACKET = Identifier.fromNamespaceAndPath("roughlyenoughitems", "ci_msg");
+    public static final Identifier MOVE_ITEMS_NEW_PACKET = Identifier.fromNamespaceAndPath("roughlyenoughitems", "move_items_new");
+    public static final Identifier NOT_ENOUGH_ITEMS_PACKET = Identifier.fromNamespaceAndPath("roughlyenoughitems", "og_not_enough"); // this pack is under to-do at rei-client, so we don't handle it
+    public static final Identifier SYNC_DISPLAYS_PACKET = Identifier.fromNamespaceAndPath("roughlyenoughitems", "sync_displays");
 
-    public static final Map<ResourceLocation, PacketTransformer> TRANSFORMERS = Util.make(() -> {
-        ImmutableMap.Builder<ResourceLocation, PacketTransformer> builder = ImmutableMap.builder();
+    public static final Map<Identifier, PacketTransformer> TRANSFORMERS = Util.make(() -> {
+        ImmutableMap.Builder<Identifier, PacketTransformer> builder = ImmutableMap.builder();
         builder.put(SYNC_DISPLAYS_PACKET, new PacketTransformer());
         builder.put(DELETE_ITEMS_PACKET, new PacketTransformer());
         builder.put(CREATE_ITEMS_PACKET, new PacketTransformer());
@@ -99,8 +99,8 @@ public class REIServerProtocol implements LeavesProtocol {
     }
 
     @Contract("_ -> new")
-    public static ResourceLocation id(String path) {
-        return ResourceLocation.tryBuild(PROTOCOL_ID, path);
+    public static Identifier id(String path) {
+        return Identifier.tryBuild(PROTOCOL_ID, path);
     }
 
     public static void onConfigModify(boolean enabled) {
@@ -137,11 +137,18 @@ public class REIServerProtocol implements LeavesProtocol {
             switch (holder.value()) {
                 case ShapedRecipe ignored -> builder.add(new ShapedDisplay((RecipeHolder) holder));
                 case ShapelessRecipe ignored -> builder.add(new ShapelessDisplay((RecipeHolder) holder));
+                // Leaves start - Paper 26.1: map_cloning is a TransmuteRecipe but the client expects a
+                // shapeless-style display (filled map + empty map → 2 filled maps). Match by identifier
+                // before the generic TransmuteRecipe case to route correctly.
+                case TransmuteRecipe ignored when "minecraft:map_cloning".equals(holder.id().identifier().toString()) ->
+                    builder.addAll(Display.ofMapCloningRecipe((RecipeHolder) holder));
+                // Leaves end
                 case TransmuteRecipe ignored -> builder.addAll(Display.ofTransmuteRecipe((RecipeHolder) holder));
-                case TippedArrowRecipe ignored -> builder.addAll(Display.ofTippedArrowRecipe((RecipeHolder) holder));
                 case FireworkRocketRecipe ignored -> builder.addAll(Display.ofFireworkRocketRecipe((RecipeHolder) holder));
-                case MapCloningRecipe ignored -> builder.addAll(Display.ofMapCloningRecipe((RecipeHolder) holder));
-                // ignore ArmorDyeRecipe, BannerDuplicateRecipe, BookCloningRecipe, ShieldDecorationRecipe
+                // Leaves - Paper 26.1: tipped_arrow is now an ImbueRecipe (replaced the removed TippedArrowRecipe class).
+                // ImbueRecipe is currently only used for tipped_arrow so a plain type match is safe.
+                case ImbueRecipe ignored -> builder.addAll(Display.ofTippedArrowRecipe((RecipeHolder) holder));
+                // ignore ArmorDyeRecipe, BannerDuplicateRecipe, BookCloningRecipe, ShieldDecorationRecipe, RepairItemRecipe
                 default -> {
                 }
             }
@@ -184,7 +191,7 @@ public class REIServerProtocol implements LeavesProtocol {
     }
 
     @ProtocolHandler.MinecraftRegister(onlyNamespace = true, stage = ProtocolHandler.Stage.GAME)
-    public static void onPlayerSubscribed(@NotNull ServerPlayer player, ResourceLocation location) {
+    public static void onPlayerSubscribed(@NotNull ServerPlayer player, Identifier location) {
         enabledPlayers.add(player);
         String channel = location.getPath();
         if (channel.equals("sync_displays")) {
@@ -193,7 +200,7 @@ public class REIServerProtocol implements LeavesProtocol {
             }
         } else if (channel.equals("ci_msg")) {
             // cheat rei-client into using "delete_item" packet
-            if (MinecraftServer.getServer().getProfilePermissions(player.nameAndId()) < 1) {
+            if (!MinecraftServer.getServer().getProfilePermissions(player.nameAndId()).level().isEqualOrHigherThan(net.minecraft.server.permissions.PermissionLevel.MODERATORS)) { // Leaves - Paper 26.1: getProfilePermissions returns LevelBasedPermissionSet
                 player.getBukkitEntity().sendOpLevel((byte) 1);
             }
         }
@@ -219,7 +226,7 @@ public class REIServerProtocol implements LeavesProtocol {
         if (!hasCheatPermission(player)) {
             return;
         }
-        BiConsumer<ResourceLocation, RegistryFriendlyByteBuf> consumer = (ignored, c2sWholeBuf) -> {
+        BiConsumer<Identifier, RegistryFriendlyByteBuf> consumer = (ignored, c2sWholeBuf) -> {
             FriendlyByteBuf tmpBuf = new FriendlyByteBuf(Unpooled.buffer()).writeBytes(c2sWholeBuf.readByteArray());
             ItemStack itemStack = tmpBuf.readLenientJsonWithCodec(ItemStack.OPTIONAL_CODEC);
             if (player.getInventory().add(itemStack.copy())) {
@@ -233,7 +240,7 @@ public class REIServerProtocol implements LeavesProtocol {
                 });
                 */
             } else {
-                player.displayClientMessage(Component.translatable("text.rei.failed_cheat_items"), false);
+                player.sendSystemMessage(Component.translatable("text.rei.failed_cheat_items"), false); // Leaves - Paper 26.1: displayClientMessage removed, use sendSystemMessage
             }
         };
         inboundTransform(player, CREATE_ITEMS_PACKET, buf, consumer);
@@ -244,7 +251,7 @@ public class REIServerProtocol implements LeavesProtocol {
         if (!hasCheatPermission(player)) {
             return;
         }
-        BiConsumer<ResourceLocation, RegistryFriendlyByteBuf> consumer = (ignored, c2sWholeBuf) -> {
+        BiConsumer<Identifier, RegistryFriendlyByteBuf> consumer = (ignored, c2sWholeBuf) -> {
             FriendlyByteBuf tmpBuf = new FriendlyByteBuf(Unpooled.buffer()).writeBytes(c2sWholeBuf.readByteArray());
             ItemStack itemStack = tmpBuf.readLenientJsonWithCodec(ItemStack.OPTIONAL_CODEC);
             ItemStack stack = itemStack.copy();
@@ -274,7 +281,7 @@ public class REIServerProtocol implements LeavesProtocol {
         if (!hasCheatPermission(player)) {
             return;
         }
-        BiConsumer<ResourceLocation, RegistryFriendlyByteBuf> consumer = (ignored, c2sWholeBuf) -> {
+        BiConsumer<Identifier, RegistryFriendlyByteBuf> consumer = (ignored, c2sWholeBuf) -> {
             FriendlyByteBuf tmpBuf = new FriendlyByteBuf(Unpooled.buffer()).writeBytes(c2sWholeBuf.readByteArray());
             ItemStack stack = tmpBuf.readLenientJsonWithCodec(ItemStack.OPTIONAL_CODEC);
             int hotbarSlotId = tmpBuf.readVarInt();
@@ -292,7 +299,7 @@ public class REIServerProtocol implements LeavesProtocol {
                 });
                 */
             } else {
-                player.displayClientMessage(Component.translatable("text.rei.failed_cheat_items"), false);
+                player.sendSystemMessage(Component.translatable("text.rei.failed_cheat_items"), false); // Leaves - Paper 26.1: displayClientMessage removed, use sendSystemMessage
             }
         };
         inboundTransform(player, CREATE_ITEMS_HOTBAR_PACKET, buf, consumer);
@@ -300,10 +307,10 @@ public class REIServerProtocol implements LeavesProtocol {
 
     @ProtocolHandler.BytebufReceiver(key = "move_items_new")
     public static void handleMoveItem(ServerPlayer player, RegistryFriendlyByteBuf buf) {
-        BiConsumer<ResourceLocation, RegistryFriendlyByteBuf> consumer = (ignored, c2sWholeBuf) -> {
+        BiConsumer<Identifier, RegistryFriendlyByteBuf> consumer = (ignored, c2sWholeBuf) -> {
             FriendlyByteBuf tmpBuf = new FriendlyByteBuf(Unpooled.buffer()).writeBytes(c2sWholeBuf.readByteArray());
             AbstractContainerMenu container = player.containerMenu;
-            tmpBuf.readResourceLocation();
+            tmpBuf.readIdentifier();
             try {
                 boolean shift = tmpBuf.readBoolean();
                 try {
@@ -344,7 +351,7 @@ public class REIServerProtocol implements LeavesProtocol {
         inboundTransform(player, MOVE_ITEMS_NEW_PACKET, buf, consumer);
     }
 
-    private static void inboundTransform(ServerPlayer player, ResourceLocation id, RegistryFriendlyByteBuf buf, BiConsumer<ResourceLocation, RegistryFriendlyByteBuf> consumer) {
+    private static void inboundTransform(ServerPlayer player, Identifier id, RegistryFriendlyByteBuf buf, BiConsumer<Identifier, RegistryFriendlyByteBuf> consumer) {
         PacketTransformer transformer = TRANSFORMERS.get(id);
         if (transformer != null) {
             transformer.inbound(id, buf, player, consumer);
@@ -353,7 +360,7 @@ public class REIServerProtocol implements LeavesProtocol {
         }
     }
 
-    private static void outboundTransform(RegistryFriendlyByteBuf buf, BiConsumer<ResourceLocation, RegistryFriendlyByteBuf> consumer) {
+    private static void outboundTransform(RegistryFriendlyByteBuf buf, BiConsumer<Identifier, RegistryFriendlyByteBuf> consumer) {
         PacketTransformer transformer = TRANSFORMERS.get(SYNC_DISPLAYS_PACKET);
         if (transformer != null) {
             transformer.outbound(SYNC_DISPLAYS_PACKET, buf, consumer);
@@ -366,7 +373,7 @@ public class REIServerProtocol implements LeavesProtocol {
         if (player.getBukkitEntity().hasPermission(CHEAT_PERMISSION)) {
             return true;
         }
-        player.displayClientMessage(Component.translatable("text.rei.no_permission_cheat").withStyle(ChatFormatting.RED), false);
+        player.sendSystemMessage(Component.translatable("text.rei.no_permission_cheat").withStyle(ChatFormatting.RED), false); // Leaves - Paper 26.1: displayClientMessage removed, use sendSystemMessage
         return false;
     }
 

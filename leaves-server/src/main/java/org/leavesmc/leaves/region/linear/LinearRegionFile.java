@@ -264,8 +264,8 @@ public class LinearRegionFile implements IRegionFile {
 
     public synchronized boolean hasChunk(ChunkPos pos) {
         openRegionFile();
-        openBucket(pos.x, pos.z);
-        return this.bufferUncompressedSize[getChunkIndex(pos.x, pos.z)] > 0;
+        openBucket(pos.x(), pos.z()); // Leaves - Paper 26.1: ChunkPos.x/z private, use accessor
+        return this.bufferUncompressedSize[getChunkIndex(pos.x(), pos.z())] > 0; // Leaves - Paper 26.1: ChunkPos.x/z private, use accessor
     }
 
     public synchronized void flush() throws IOException {
@@ -507,7 +507,7 @@ public class LinearRegionFile implements IRegionFile {
 
     public synchronized void write(ChunkPos pos, ByteBuffer buffer) {
         openRegionFile();
-        openBucket(pos.x, pos.z);
+        openBucket(pos.x(), pos.z()); // Leaves - Paper 26.1: ChunkPos.x/z private, use accessor
         try {
             byte[] b = toByteArray(new ByteArrayInputStream(buffer.array()));
             int uncompressedSize = b.length;
@@ -522,10 +522,10 @@ public class LinearRegionFile implements IRegionFile {
                 b = new byte[compressedLength];
                 System.arraycopy(compressed, 0, b, 0, compressedLength);
 
-                int index = getChunkIndex(pos.x, pos.z);
+                int index = getChunkIndex(pos.x(), pos.z()); // Leaves - Paper 26.1: ChunkPos.x/z private, use accessor
                 this.buffer[index] = b;
                 this.chunkTimestamps[index] = getTimestamp();
-                this.bufferUncompressedSize[getChunkIndex(pos.x, pos.z)] = uncompressedSize;
+                this.bufferUncompressedSize[getChunkIndex(pos.x(), pos.z())] = uncompressedSize; // Leaves - Paper 26.1: ChunkPos.x/z private, use accessor
             }
         } catch (IOException e) {
             LOGGER.error("Chunk write IOException {} {}", e, this.regionFile);
@@ -535,7 +535,7 @@ public class LinearRegionFile implements IRegionFile {
 
     public DataOutputStream getChunkDataOutputStream(ChunkPos pos) {
         openRegionFile();
-        openBucket(pos.x, pos.z);
+        openBucket(pos.x(), pos.z()); // Leaves - Paper 26.1: ChunkPos.x/z private, use accessor
         return new DataOutputStream(new BufferedOutputStream(new LinearRegionFile.ChunkBuffer(pos)));
     }
 
@@ -575,11 +575,11 @@ public class LinearRegionFile implements IRegionFile {
     @Nullable
     public synchronized DataInputStream getChunkDataInputStream(ChunkPos pos) {
         openRegionFile();
-        openBucket(pos.x, pos.z);
+        openBucket(pos.x(), pos.z()); // Leaves - Paper 26.1: ChunkPos.x/z private, use accessor
 
-        if (this.bufferUncompressedSize[getChunkIndex(pos.x, pos.z)] != 0) {
-            byte[] content = new byte[bufferUncompressedSize[getChunkIndex(pos.x, pos.z)]];
-            this.decompressor.decompress(this.buffer[getChunkIndex(pos.x, pos.z)], 0, content, 0, bufferUncompressedSize[getChunkIndex(pos.x, pos.z)]);
+        if (this.bufferUncompressedSize[getChunkIndex(pos.x(), pos.z())] != 0) { // Leaves - Paper 26.1: ChunkPos.x/z private, use accessor
+            byte[] content = new byte[bufferUncompressedSize[getChunkIndex(pos.x(), pos.z())]]; // Leaves - Paper 26.1: ChunkPos.x/z private, use accessor
+            this.decompressor.decompress(this.buffer[getChunkIndex(pos.x(), pos.z())], 0, content, 0, bufferUncompressedSize[getChunkIndex(pos.x(), pos.z())]); // Leaves - Paper 26.1: ChunkPos.x/z private, use accessor
             return new DataInputStream(new ByteArrayInputStream(content));
         }
         return null;
@@ -587,8 +587,8 @@ public class LinearRegionFile implements IRegionFile {
 
     public synchronized void clear(ChunkPos pos) {
         openRegionFile();
-        openBucket(pos.x, pos.z);
-        int i = getChunkIndex(pos.x, pos.z);
+        openBucket(pos.x(), pos.z()); // Leaves - Paper 26.1: ChunkPos.x/z private, use accessor
+        int i = getChunkIndex(pos.x(), pos.z()); // Leaves - Paper 26.1: ChunkPos.x/z private, use accessor
         this.buffer[i] = null;
         this.bufferUncompressedSize[i] = 0;
         this.chunkTimestamps[i] = 0;

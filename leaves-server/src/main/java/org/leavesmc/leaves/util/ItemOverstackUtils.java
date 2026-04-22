@@ -130,7 +130,8 @@ public class ItemOverstackUtils {
         }
 
         public static boolean shulkerBoxNoItem(@NotNull ItemStack stack) {
-            return stack.getComponents().getOrDefault(DataComponents.CONTAINER, ItemContainerContents.EMPTY).stream().findAny().isEmpty();
+            // Leaves - Paper 26.1: ItemContainerContents#stream() removed, use nonEmptyItemCopyStream()
+            return stack.getComponents().getOrDefault(DataComponents.CONTAINER, ItemContainerContents.EMPTY).nonEmptyItemCopyStream().findAny().isEmpty();
         }
 
         @Override

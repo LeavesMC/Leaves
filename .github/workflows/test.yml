@@ -12,10 +12,10 @@ jobs:
     steps:
       - name: Get repository
         uses: actions/checkout@v4
-      - name: Get JDK 21
+      - name: Get JDK 25
         uses: actions/setup-java@v4
         with:
-          java-version: "21"
+          java-version: "25"
           distribution: "zulu"
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -26,18 +26,23 @@ jobs:
         run: |
           git config --global user.email "ci-test@leavesmc.org"
           git config --global user.name "LeavesMC Test CI"
+          git config --global core.excludesfile "$HOME/.gitignore_global"
+          printf '.DS_Store\n._*\n' > "$HOME/.gitignore_global"
       - name: Apply Patches
         run: ./gradlew applyAllPatches
       - name: Create Leavesclip Jar
-        run: ./gradlew createMojmapLeavesclipJar
+        # Leaves - Paper 26.1: task renamed from createMojmapLeavesclipJar
+        # (server is now fully Mojang-mapped, so "Mojmap" qualifier is implicit)
+        run: ./gradlew createLeavesclipJar
       - name: Move Jar
         run: |
           prop() {
             awk -F= -v key="$1" '$1 == key { val = $2; sub(/[[:space:]]*#.*$/, "", val); gsub(/^[[:space:]]+|[[:space:]]+$/, "", val); print val }' gradle.properties
           }
-          
+
           jarName="leaves-$(prop mcVersion).jar"
-          mv leaves-server/build/libs/leaves-leavesclip-"$(prop version)"-mojmap.jar "$jarName"
+          # Leaves - Paper 26.1: jar filename no longer has -mojmap suffix
+          mv leaves-server/build/libs/leaves-leavesclip-"$(prop version)".jar "$jarName"
           echo "jar=$jarName" >> "$GITHUB_ENV"
       - name: Upload Artifact
         uses: actions/upload-artifact@v4

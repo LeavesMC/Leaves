@@ -1,6 +1,6 @@
 package org.leavesmc.leaves.protocol.bladeren;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import org.jetbrains.annotations.Contract;
@@ -19,12 +19,12 @@ import java.util.OptionalDouble;
 public class MsptSyncProtocol implements LeavesProtocol {
 
     public static final String PROTOCOL_ID = "bladeren";
-    private static final ResourceLocation MSPT_SYNC = id("mspt_sync");
+    private static final Identifier MSPT_SYNC = id("mspt_sync");
     private static final List<ServerPlayer> players = new ArrayList<>();
 
     @Contract("_ -> new")
-    public static ResourceLocation id(String path) {
-        return ResourceLocation.tryBuild(PROTOCOL_ID, path);
+    public static Identifier id(String path) {
+        return Identifier.tryBuild(PROTOCOL_ID, path);
     }
 
     @ProtocolHandler.Init

@@ -11,7 +11,7 @@ import net.minecraft.world.entity.Display;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.decoration.ItemFrame;
-import net.minecraft.world.entity.decoration.Painting;
+import net.minecraft.world.entity.decoration.painting.Painting; // Leaves - Paper 26.1: Painting moved to painting subpackage
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -45,7 +45,7 @@ public class SchematicPlacingUtils {
         boolean notifyNeighbors
     ) {
         LitematicaSchematic schematic = schematicPlacement.getSchematic();
-        Set<String> regionsTouchingChunk = schematicPlacement.getRegionsTouchingChunk(chunkPos.x, chunkPos.z);
+        Set<String> regionsTouchingChunk = schematicPlacement.getRegionsTouchingChunk(chunkPos.x(), chunkPos.z()); // Leaves - Paper 26.1: ChunkPos record accessors
         BlockPos origin = schematicPlacement.getOrigin();
 
         for (String regionName : regionsTouchingChunk) {
@@ -93,7 +93,7 @@ public class SchematicPlacingUtils {
         @Nullable Map<BlockPos, ScheduledTick<Fluid>> scheduledFluidTicks,
         ReplaceBehavior replace, boolean notifyNeighbors
     ) {
-        IntBoundingBox bounds = schematicPlacement.getBoxWithinChunkForRegion(regionName, chunkPos.x, chunkPos.z);
+        IntBoundingBox bounds = schematicPlacement.getBoxWithinChunkForRegion(regionName, chunkPos.x(), chunkPos.z()); // Leaves - Paper 26.1: ChunkPos record accessors
         Vec3i regionSize = schematicPlacement.getSchematic().getSubRegion(regionName).size();
 
         if (bounds == null || container == null || blockEntityMap == null || regionSize == null) {
@@ -303,10 +303,10 @@ public class SchematicPlacingUtils {
         final int offX = regionPosRelTransformed.getX() + origin.getX();
         final int offY = regionPosRelTransformed.getY() + origin.getY();
         final int offZ = regionPosRelTransformed.getZ() + origin.getZ();
-        final double minX = (chunkPos.x << 4);
-        final double minZ = (chunkPos.z << 4);
-        final double maxX = (chunkPos.x << 4) + 16;
-        final double maxZ = (chunkPos.z << 4) + 16;
+        final double minX = (chunkPos.x() << 4); // Leaves - Paper 26.1: ChunkPos record accessors
+        final double minZ = (chunkPos.z() << 4); // Leaves - Paper 26.1: ChunkPos record accessors
+        final double maxX = (chunkPos.x() << 4) + 16; // Leaves - Paper 26.1: ChunkPos record accessors
+        final double maxZ = (chunkPos.z() << 4) + 16; // Leaves - Paper 26.1: ChunkPos record accessors
 
         final Rotation rotationCombined = schematicPlacement.getRotation().getRotated(placement.rotation());
         final Mirror mirrorMain = schematicPlacement.getMirror();

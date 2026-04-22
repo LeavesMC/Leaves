@@ -817,8 +817,23 @@ public final class LeavesConfig {
         @GlobalConfig("enable-suffocation-optimization")
         public boolean enableSuffocationOptimization = true;
 
-        @GlobalConfig("check-spooky-season-once-an-hour")
+        /**
+         * @deprecated Paper 26.1 moved {@code isHalloween()} to {@link net.minecraft.util.SpecialDates}
+         * with a single-day check; the hot-path caching this setting enabled is no longer relevant.
+         * Kept for backward-compat with old {@code leaves.yml} files. Will be removed before upstream PR.
+         */
+        @Deprecated(forRemoval = true, since = "26.1.2")
+        @GlobalConfig(value = "check-spooky-season-once-an-hour", validator = ObsoletedCheckSpookySeason.class)
         public boolean checkSpookySeasonOnceAnHour = true;
+
+        public static class ObsoletedCheckSpookySeason extends BooleanConfigValidator {
+            @Override
+            public void runAfterLoader(Boolean value, boolean reload) {
+                if (!reload) {
+                    LeavesLogger.LOGGER.warning("performance.check-spooky-season-once-an-hour has no effect on Paper 26.1+ (isHalloween was simplified upstream). Remove it from leaves.yml.");
+                }
+            }
+        }
 
         @GlobalConfig("inactive-goal-selector-disable")
         public boolean throttleInactiveGoalSelectorTick = false;
@@ -826,8 +841,23 @@ public final class LeavesConfig {
         @GlobalConfig("reduce-entity-allocations")
         public boolean reduceEntityAllocations = true;
 
-        @GlobalConfig("cache-climb-check")
+        /**
+         * @deprecated Paper 26.1 {@code ActivationRange} now uses
+         * {@code living.blockPosition().equals(living.getLastClimbablePos().orElse(null))} as an O(1) fast path
+         * — already as efficient as Leaves' previous cache. Field retained for old {@code leaves.yml} compatibility.
+         */
+        @Deprecated(forRemoval = true, since = "26.1.2")
+        @GlobalConfig(value = "cache-climb-check", validator = ObsoletedCacheClimbCheck.class)
         public boolean cacheClimbCheck = true;
+
+        public static class ObsoletedCacheClimbCheck extends BooleanConfigValidator {
+            @Override
+            public void runAfterLoader(Boolean value, boolean reload) {
+                if (!reload) {
+                    LeavesLogger.LOGGER.warning("performance.cache-climb-check has no effect on Paper 26.1+ (ActivationRange has an O(1) fast path upstream). Remove it from leaves.yml.");
+                }
+            }
+        }
 
         @GlobalConfig("reduce-chuck-load-and-lookup")
         public boolean reduceChuckLoadAndLookup = true;
@@ -1312,8 +1342,25 @@ public final class LeavesConfig {
         @GlobalConfig("vanilla-portal-handle")
         public boolean vanillaPortalHandle = true;
 
-        @GlobalConfig("vanilla-fluid-pushing")
+        /**
+         * @deprecated Paper 26.1 rewrote fluid push logic via {@code EntityFluidInteraction}
+         * ({@code fluidInteraction.update()} / {@code applyCurrentTo()}). The old
+         * {@code updateFluidHeightAndDoFluidPushing} hook point this flag gated is gone.
+         * Field retained for {@code leaves.yml} compatibility; a new patch based on 26.1 API
+         * may re-implement this feature later.
+         */
+        @Deprecated(forRemoval = true, since = "26.1.2")
+        @GlobalConfig(value = "vanilla-fluid-pushing", validator = ObsoletedVanillaFluidPushing.class)
         public boolean vanillaFluidPushing = true;
+
+        public static class ObsoletedVanillaFluidPushing extends BooleanConfigValidator {
+            @Override
+            public void runAfterLoader(Boolean value, boolean reload) {
+                if (!reload) {
+                    LeavesLogger.LOGGER.warning("fix.vanilla-fluid-pushing has no effect on Paper 26.1+ (upstream rewrote fluid pushing via EntityFluidInteraction). Remove it from leaves.yml.");
+                }
+            }
+        }
 
         @GlobalConfig(value = "collision-behavior")
         public CollisionBehavior collisionBehavior = CollisionBehavior.BLOCK_SHAPE_VANILLA;

@@ -1,0 +1,104 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Tue, 27 Jun 2023 13:22:34 +0800
+Subject: [PATCH] Optimized dragon respawn
+
+
+diff --git a/net/minecraft/world/level/block/state/pattern/BlockPattern.java b/net/minecraft/world/level/block/state/pattern/BlockPattern.java
+index ed5a5fb38bfe8fb9216c7eab00b833485c4bbade..fc45703525901d700c98b5ad0c6eb10b65e775d8 100644
+--- a/net/minecraft/world/level/block/state/pattern/BlockPattern.java
++++ b/net/minecraft/world/level/block/state/pattern/BlockPattern.java
+@@ -57,7 +57,7 @@ public class BlockPattern {
+         return this.matches(origin, forwards, up, cache);
+     }
+ 
+-    private BlockPattern.@Nullable BlockPatternMatch matches(
++    public BlockPattern.@Nullable BlockPatternMatch matches( // Leaves - private -> public
+         final BlockPos origin, final Direction forwards, final Direction up, final LoadingCache<BlockPos, BlockInWorld> cache
+     ) {
+         for (int x = 0; x < this.width; x++) {
+diff --git a/net/minecraft/world/level/dimension/end/EnderDragonFight.java b/net/minecraft/world/level/dimension/end/EnderDragonFight.java
+index fcb532263732232dbc225fa8dbf070cf41096191..15471dfd78ff35a8bd48b37ab2810404ef374cd0 100644
+--- a/net/minecraft/world/level/dimension/end/EnderDragonFight.java
++++ b/net/minecraft/world/level/dimension/end/EnderDragonFight.java
+@@ -311,7 +311,68 @@ public class EnderDragonFight extends SavedData {
+         return false;
+     }
+ 
++    // Leaves start - optimizedDragonRespawn
++    private int cachePortalChunkIteratorX = -8;
++    private int cachePortalChunkIteratorZ = -8;
++    private int cachePortalOriginIteratorY = -1;
++    // Leaves end - optimizedDragonRespawn
++
+     public BlockPattern.@Nullable BlockPatternMatch findExitPortal() {
++        if (org.leavesmc.leaves.LeavesConfig.performance.optimizedDragonRespawn) {
++            for (int x = cachePortalChunkIteratorX; x <= 8; ++x) {
++                for (int z = cachePortalChunkIteratorZ; z <= 8; ++z) {
++                    LevelChunk chunk = this.level.getChunk(x, z);
++                    for (BlockEntity blockEntity : chunk.getBlockEntities().values()) {
++                        if (blockEntity instanceof net.minecraft.world.level.block.entity.TheEndGatewayBlockEntity) {
++                            continue;
++                        }
++                        if (blockEntity instanceof TheEndPortalBlockEntity) {
++                            BlockPattern.BlockPatternMatch match = this.exitPortalPattern.find(this.level, blockEntity.getBlockPos());
++                            if (match != null) {
++                                BlockPos posInWorld = match.getBlock(3, 3, 3).getPos();
++                                if (this.exitPortalLocation == null) {
++                                    this.exitPortalLocation = posInWorld;
++                                    this.setDirty();
++                                }
++                                cachePortalChunkIteratorX = x;
++                                cachePortalChunkIteratorZ = z;
++                                return match;
++                            }
++                        }
++                    }
++                }
++            }
++
++            if (this.needsStateScanning || this.exitPortalLocation == null) {
++                BlockPos endPodiumLocation = EndPodiumFeature.getLocation(this.origin);
++                int startY;
++                if (cachePortalOriginIteratorY != -1) {
++                    startY = cachePortalOriginIteratorY;
++                } else {
++                    startY = this.level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING, endPodiumLocation).getY();
++                }
++                boolean notFirstSearch = false;
++                for (int y = startY; y >= this.level.getMinY(); --y) {
++                    BlockPattern.BlockPatternMatch match;
++                    if (notFirstSearch) {
++                        match = org.leavesmc.leaves.util.BlockPatternHelper.partialSearchAround(this.exitPortalPattern, this.level, new BlockPos(endPodiumLocation.getX(), y, endPodiumLocation.getZ()));
++                    } else {
++                        match = this.exitPortalPattern.find(this.level, new BlockPos(endPodiumLocation.getX(), y, endPodiumLocation.getZ()));
++                    }
++                    if (match != null) {
++                        if (this.exitPortalLocation == null) {
++                            this.exitPortalLocation = match.getBlock(3, 3, 3).getPos();
++                            this.setDirty();
++                        }
++                        cachePortalOriginIteratorY = y;
++                        return match;
++                    }
++                    notFirstSearch = true;
++                }
++            }
++            return null;
++        }
++        // Leaves end - optimizedDragonRespawn
+         ChunkPos chunkOrigin = ChunkPos.containing(this.origin);
+ 
+         for (int x = -8 + chunkOrigin.x(); x <= 8 + chunkOrigin.x(); x++) {
+@@ -612,6 +673,11 @@ public class EnderDragonFight extends SavedData {
+     }
+ 
+     public boolean respawnDragon(final List<EndCrystal> crystals) { // CraftBukkit - return boolean
++        // Leaves start - optimizedDragonRespawn - reset iterator cache
++        cachePortalChunkIteratorX = -8;
++        cachePortalChunkIteratorZ = -8;
++        cachePortalOriginIteratorY = -1;
++        // Leaves end - optimizedDragonRespawn
+         if (this.dragonKilled && this.respawnStage == null) {
+             for (BlockPattern.BlockPatternMatch portal = this.findExitPortal(); portal != null; portal = this.findExitPortal()) {
+                 for (int x = 0; x < this.exitPortalPattern.getWidth(); x++) {

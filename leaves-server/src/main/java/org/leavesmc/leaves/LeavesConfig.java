@@ -803,9 +803,6 @@ public final class LeavesConfig {
         @GlobalConfig("enable-suffocation-optimization")
         public boolean enableSuffocationOptimization = true;
 
-        @GlobalConfig("check-spooky-season-once-an-hour")
-        public boolean checkSpookySeasonOnceAnHour = true;
-
         @GlobalConfig("inactive-goal-selector-disable")
         public boolean throttleInactiveGoalSelectorTick = false;
 
@@ -1304,9 +1301,6 @@ public final class LeavesConfig {
         public enum CollisionBehavior {
             VANILLA, BLOCK_SHAPE_VANILLA, PAPER
         }
-
-        @GlobalConfig("vanilla-end-void-rings")
-        public boolean vanillaEndVoidRings = false;
 
         @GlobalConfig("stacked-container-destroyed-drop")
         public boolean stackedContainerDestroyedDrop = true;

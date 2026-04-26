@@ -7,6 +7,7 @@ import net.minecraft.world.item.FishingRodItem;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
+import org.leavesmc.leaves.entity.bot.actions.CraftBotAction;
 import org.leavesmc.leaves.entity.bot.actions.CraftFishAction;
 
 public class ServerFishAction extends AbstractTimerBotAction<ServerFishAction> {
@@ -74,7 +75,7 @@ public class ServerFishAction extends AbstractTimerBotAction<ServerFishAction> {
     }
 
     @Override
-    public Object asCraft() {
+    public CraftBotAction<?, ServerFishAction> asCraft() {
         return new CraftFishAction(this);
     }
 }

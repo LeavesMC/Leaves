@@ -3,6 +3,7 @@ package org.leavesmc.leaves.bot.agent.actions;
 import net.minecraft.world.InteractionHand;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
+import org.leavesmc.leaves.entity.bot.actions.CraftBotAction;
 import org.leavesmc.leaves.entity.bot.actions.CraftUseItemOffhandAction;
 
 import static org.leavesmc.leaves.bot.agent.actions.ServerUseItemAction.useItem;
@@ -19,7 +20,7 @@ public class ServerUseItemOffhandAction extends AbstractUseBotAction<ServerUseIt
     }
 
     @Override
-    public Object asCraft() {
+    public CraftBotAction<?, ServerUseItemOffhandAction> asCraft() {
         return new CraftUseItemOffhandAction(this);
     }
 }

@@ -2,6 +2,7 @@ package org.leavesmc.leaves.bot.agent.actions;
 
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
+import org.leavesmc.leaves.entity.bot.actions.CraftBotAction;
 import org.leavesmc.leaves.entity.bot.actions.CraftDropAction;
 
 public class ServerDropAction extends AbstractTimerBotAction<ServerDropAction> {
@@ -17,7 +18,7 @@ public class ServerDropAction extends AbstractTimerBotAction<ServerDropAction> {
     }
 
     @Override
-    public Object asCraft() {
+    public CraftBotAction<?, ServerDropAction> asCraft() {
         return new CraftDropAction(this);
     }
 }

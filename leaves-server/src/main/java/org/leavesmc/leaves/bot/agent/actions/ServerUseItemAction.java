@@ -4,6 +4,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
+import org.leavesmc.leaves.entity.bot.actions.CraftBotAction;
 import org.leavesmc.leaves.entity.bot.actions.CraftUseItemAction;
 
 public class ServerUseItemAction extends AbstractUseBotAction<ServerUseItemAction> {
@@ -27,7 +28,7 @@ public class ServerUseItemAction extends AbstractUseBotAction<ServerUseItemActio
     }
 
     @Override
-    public Object asCraft() {
+    public CraftBotAction<?, ServerUseItemAction> asCraft() {
         return new CraftUseItemAction(this);
     }
 }

@@ -11,6 +11,7 @@ import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.bot.agent.ExtraData;
 import org.leavesmc.leaves.command.CommandContext;
 import org.leavesmc.leaves.command.WrappedArgument;
+import org.leavesmc.leaves.entity.bot.actions.CraftBotAction;
 import org.leavesmc.leaves.event.bot.BotActionExecuteEvent;
 import org.leavesmc.leaves.event.bot.BotActionStopEvent;
 import org.leavesmc.leaves.util.UpdateSuppressionException;
@@ -55,7 +56,7 @@ public abstract class AbstractBotAction<E extends AbstractBotAction<E>> {
 
     public abstract boolean doTick(@NotNull ServerBot bot);
 
-    public abstract Object asCraft();
+    public abstract CraftBotAction<?, E> asCraft();
 
     public String getActionDataString() {
         return getActionDataString(new ExtraData(new ArrayList<>()));

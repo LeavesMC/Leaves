@@ -11,6 +11,7 @@ import org.bukkit.block.Block;
 import org.bukkit.craftbukkit.block.CraftBlock;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
+import org.leavesmc.leaves.entity.bot.actions.CraftBotAction;
 import org.leavesmc.leaves.entity.bot.actions.CraftBreakBlockAction;
 
 public class ServerBreakBlockAction extends AbstractTimerBotAction<ServerBreakBlockAction> {
@@ -102,7 +103,7 @@ public class ServerBreakBlockAction extends AbstractTimerBotAction<ServerBreakBl
     }
 
     @Override
-    public Object asCraft() {
+    public CraftBotAction<?, ServerBreakBlockAction> asCraft() {
         return new CraftBreakBlockAction(this);
     }
 }

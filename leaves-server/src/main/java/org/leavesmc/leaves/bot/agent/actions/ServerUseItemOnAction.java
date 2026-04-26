@@ -7,6 +7,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
+import org.leavesmc.leaves.entity.bot.actions.CraftBotAction;
 import org.leavesmc.leaves.entity.bot.actions.CraftUseItemOnAction;
 
 public class ServerUseItemOnAction extends AbstractUseBotAction<ServerUseItemOnAction> {
@@ -41,7 +42,7 @@ public class ServerUseItemOnAction extends AbstractUseBotAction<ServerUseItemOnA
     }
 
     @Override
-    public Object asCraft() {
+    public CraftBotAction<?, ServerUseItemOnAction> asCraft() {
         return new CraftUseItemOnAction(this);
     }
 }

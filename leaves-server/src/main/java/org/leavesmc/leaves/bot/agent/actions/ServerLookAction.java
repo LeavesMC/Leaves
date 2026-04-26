@@ -14,6 +14,7 @@ import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.command.CommandContext;
+import org.leavesmc.leaves.entity.bot.actions.CraftBotAction;
 import org.leavesmc.leaves.entity.bot.actions.CraftLookAction;
 
 public class ServerLookAction extends AbstractBotAction<ServerLookAction> {
@@ -102,7 +103,7 @@ public class ServerLookAction extends AbstractBotAction<ServerLookAction> {
     }
 
     @Override
-    public Object asCraft() {
+    public CraftBotAction<?, ServerLookAction> asCraft() {
         return new CraftLookAction(this);
     }
 }

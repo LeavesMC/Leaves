@@ -1253,6 +1253,15 @@ public final class LeavesConfig {
             @GlobalConfig(value = "flush-delay-ms", lock = true)
             public int flushDelayMs = 100;
 
+            @GlobalConfig(value = "region-unload-idle-ms", lock = true)
+            public int regionUnloadIdleMs = 600000;
+
+            @GlobalConfig(value = "region-unload-check-interval-ms", lock = true)
+            public int regionUnloadCheckIntervalMs = 30000;
+
+            @GlobalConfig(value = "max-flush-per-run", lock = true)
+            public int maxFlushPerRun = 256;
+
             @GlobalConfig(value = "use-virtual-thread", lock = true)
             public boolean useVirtualThread = true;
 

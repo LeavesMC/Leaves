@@ -29,8 +29,19 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.LockSupport;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 // LinearRegionFile_implementation_version_0_5byXymb
 // Just gonna use this string to inform other forks about updates ;-)
@@ -38,26 +49,74 @@ public class LinearRegionFile implements IRegionFile {
 
     public static final int MAX_CHUNK_SIZE = 500 * 1024 * 1024;
 
-    private static final Object saveLock = new Object();
     private static final long SUPERBLOCK = 0xc3ff13183cca9d9aL;
     private static final Logger LOGGER = LogUtils.getLogger();
 
     private static final byte V1_VERSION = 2;
     private static final byte VERSION = 3;
 
+    private static final Queue<Runnable> FLUSH_TASKS = new ConcurrentLinkedQueue<>();
+
+    // 追踪所有加载的LinearRegionFile实例
+    private static final ConcurrentMap<Path, LinearRegionFile> REGION_INSTANCES = new ConcurrentHashMap<>();
+
+    private static final ScheduledExecutorService GLOBAL_FLUSH_SCHEDULER = Executors.newSingleThreadScheduledExecutor(runnable -> {
+        final Thread thread = new Thread(runnable, "Linear-Global-Flush-Scheduler");
+        thread.setPriority(Thread.NORM_PRIORITY - 3);
+        thread.setDaemon(true);
+        return thread;
+    });
+
+    private static final ExecutorService GLOBAL_FLUSH_POOL = LeavesConfig.region.linear.useVirtualThread
+        ? Executors.newVirtualThreadPerTaskExecutor()
+        : Executors.newScheduledThreadPool(Math.max(1, LeavesConfig.region.linear.getLinearFlushThreads()), runnable -> {
+        final Thread thread = new Thread(runnable, "Linear-Global-Flush-Worker");
+        thread.setPriority(Thread.NORM_PRIORITY - 3);
+        thread.setDaemon(true);
+        return thread;
+    });
+
+    private long lastRegionAccessTime;
+    private static final ScheduledExecutorService REGION_UNLOAD_SCHEDULER = Executors.newSingleThreadScheduledExecutor(r -> {
+        Thread t = new Thread(r, "Linear-Region-Unloader");
+        t.setDaemon(true);
+        return t;
+    });
+
+
+    static {
+        final int delay = LeavesConfig.region.linear.flushDelayMs;
+        GLOBAL_FLUSH_SCHEDULER.scheduleAtFixedRate(() -> {
+            int limit = LeavesConfig.region.linear.maxFlushPerRun;
+            Runnable task;
+            while (limit-- > 0 && (task = FLUSH_TASKS.poll()) != null) {
+                GLOBAL_FLUSH_POOL.execute(task);
+            }
+        }, delay, delay, TimeUnit.MILLISECONDS);
+
+        final int checkInterval = LeavesConfig.region.linear.regionUnloadCheckIntervalMs;
+        final long idleThresholdMs = TimeUnit.SECONDS.toMillis(LeavesConfig.region.linear.regionUnloadIdleMs);
+        REGION_UNLOAD_SCHEDULER.scheduleAtFixedRate(() -> {
+            final long now = System.currentTimeMillis();
+            // 异步卸载，不阻塞调度线程
+            REGION_INSTANCES.values().forEach(region -> {
+                if (now - region.lastRegionAccessTime > idleThresholdMs) {
+                    GLOBAL_FLUSH_POOL.execute(region::unloadIdleBuffers);
+                }
+            });
+        }, checkInterval, checkInterval, TimeUnit.MILLISECONDS);
+    }
+
     private byte[][] bucketBuffers;
     private final byte[][] buffer = new byte[1024][];
     private final int[] bufferUncompressedSize = new int[1024];
 
     private final long[] chunkTimestamps = new long[1024];
-    private final Object markedToSaveLock = new Object();
 
-    private final LZ4Compressor compressor;
-    private final LZ4FastDecompressor decompressor;
+    private static final LZ4Compressor compressor = LZ4Factory.fastestInstance().fastCompressor();
+    private static final LZ4FastDecompressor decompressor = LZ4Factory.fastestInstance().fastDecompressor();
 
-    public boolean regionFileOpen = false;
-    private boolean markedToSave = false;
-    private boolean close = false;
+    public volatile boolean regionFileOpen = false;
 
     public Path regionFile;
 
@@ -65,81 +124,68 @@ public class LinearRegionFile implements IRegionFile {
     private int bucketSize = 4;
     private final int compressionLevel;
     private final LinearVersion linearVersion;
-    private final Thread bindThread;
+    private byte fileActualVersion;
 
-    private static int activeSaveThreads = 0;
+    private volatile boolean closed = false;
+
+    private final AtomicBoolean dirty = new AtomicBoolean(false);
+    private final AtomicBoolean queued = new AtomicBoolean(false);
+    private final AtomicBoolean flushing = new AtomicBoolean(false);
+
+    private final Runnable flushTask = this::tryFlush;
+
+    private final ReadWriteLock rwLock = new ReentrantReadWriteLock();
+    private final Lock readLock = rwLock.readLock();
+    private final Lock writeLock = rwLock.writeLock();
 
     public LinearRegionFile(Path path, LinearVersion linearVersion, int compressionLevel) {
-        Runnable flushCheck = () -> {
-            while (!close) {
-                synchronized (saveLock) {
-                    if (markedToSave && activeSaveThreads < LeavesConfig.region.linear.getLinearFlushThreads()) {
-                        activeSaveThreads++;
-                        Runnable flushOperation = () -> {
-                            try {
-                                flush();
-                            } catch (IOException ex) {
-                                LOGGER.error("Region file {} flush failed", this.regionFile.toAbsolutePath(), ex);
-                            } finally {
-                                synchronized (saveLock) {
-                                    activeSaveThreads--;
-                                }
-                            }
-                        };
-
-                        Thread saveThread = LeavesConfig.region.linear.useVirtualThread ? Thread.ofVirtual().name("Linear IO - " + LinearRegionFile.this.hashCode()).unstarted(flushOperation) : Thread.ofPlatform().name("Linear IO - " + LinearRegionFile.this.hashCode()).unstarted(flushOperation);
-                        saveThread.setPriority(Thread.NORM_PRIORITY - 3);
-                        saveThread.start();
-                    }
-                }
-                LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(LeavesConfig.region.linear.flushDelayMs));
-            }
-        };
-        this.bindThread = LeavesConfig.region.linear.useVirtualThread ? Thread.ofVirtual().unstarted(flushCheck) : Thread.ofPlatform().unstarted(flushCheck);
-        this.bindThread.setName("Linear IO Schedule - " + this.hashCode());
         this.compressionLevel = compressionLevel;
         this.regionFile = path;
         this.linearVersion = linearVersion;
-
-        this.compressor = LZ4Factory.fastestInstance().fastCompressor();
-        this.decompressor = LZ4Factory.fastestInstance().fastDecompressor();
+        REGION_INSTANCES.put(path, this);
     }
 
-    private synchronized void openRegionFile() {
+    private void openRegionFile() {
+        this.lastRegionAccessTime = System.currentTimeMillis();
         if (regionFileOpen) {
             return;
-        } else {
-            regionFileOpen = true;
         }
-
-        File regionFile = new File(this.regionFile.toString());
-
-        if (!regionFile.canRead()) {
-            this.bindThread.start();
-            return;
-        }
-
+        writeLock.lock();
         try {
+            if (regionFileOpen) {
+                return;
+            }
+            regionFileOpen = true;
+
+            File regionFile = new File(this.regionFile.toString());
+            if (!regionFile.canRead()) {
+                return;
+            }
+
             byte[] fileContent = Files.readAllBytes(this.regionFile);
             ByteBuffer buffer = ByteBuffer.wrap(fileContent);
 
             long superBlock = buffer.getLong();
             if (superBlock != SUPERBLOCK) {
-                throw new RuntimeException("Invalid superblock: " + superBlock + " file " + this.regionFile);
+                LOGGER.error("Invalid superblock {} in region file {}", superBlock, this.regionFile);
+                return;
             }
 
             byte version = buffer.get();
+            this.fileActualVersion = version;
             if (version == 1 || version == 2) {
                 parseLinearV1(buffer);
             } else if (version == 3) {
                 parseLinearV2(buffer);
             } else {
-                throw new RuntimeException("Invalid version: " + version + " file " + this.regionFile);
+                LOGGER.error("Invalid version {} in region file {}", version, this.regionFile);
+                return;
             }
-
-            this.bindThread.start();
         } catch (IOException e) {
-            throw new RuntimeException("Failed to open region file " + this.regionFile, e);
+            LOGGER.error("Failed to open region file {}", this.regionFile, e);
+            return;
+        } finally {
+            writeLock.unlock();
         }
     }
 
@@ -153,7 +199,7 @@ public class LinearRegionFile implements IRegionFile {
         int dataCount = buffer.getInt();
         long fileLength = this.regionFile.toFile().length();
         if (fileLength != HEADER_SIZE + dataCount + FOOTER_SIZE) {
-            throw new IOException("Invalid file length: " + this.regionFile + " " + fileLength + " " + (HEADER_SIZE + dataCount + FOOTER_SIZE));
+            LOGGER.warn("Invalid file length for V1 region file {}", this.regionFile);
         }
 
         buffer.position(buffer.position() + 8); // Skip data hash (Long): Unused.
@@ -194,7 +240,8 @@ public class LinearRegionFile implements IRegionFile {
         buffer.getLong(); // Skip newestTimestamp (Long)
         gridSize = buffer.get();
         if (gridSize != 1 && gridSize != 2 && gridSize != 4 && gridSize != 8 && gridSize != 16 && gridSize != 32) {
-            throw new RuntimeException("Invalid grid size: " + gridSize + " file " + this.regionFile);
+            LOGGER.warn("Invalid gridSize {} in old region file {}, using default 8", gridSize, this.regionFile);
+            gridSize = 8;
         }
         bucketSize = 32 / gridSize;
 
@@ -230,58 +277,90 @@ public class LinearRegionFile implements IRegionFile {
                 buffer.get(bucketBuffers[i]);
                 long rawHash = LongHashFunction.xx().hashBytes(bucketBuffers[i]);
                 if (rawHash != bucketHashes[i]) {
-                    throw new IOException("Region file hash incorrect " + this.regionFile);
+                    LOGGER.error("Region file hash check failed for {}", this.regionFile);
+                    break;
                 }
             }
         }
 
         long footerSuperBlock = buffer.getLong();
         if (footerSuperBlock != SUPERBLOCK) {
-            throw new IOException("Footer superblock invalid " + this.regionFile);
+            LOGGER.error("Footer superblock invalid for {}", this.regionFile);
         }
     }
 
-    private synchronized void markToSave() {
-        synchronized (markedToSaveLock) {
-            markedToSave = true;
+    private void markToSave() {
+        if (closed) {
+            return;
+        }
+        dirty.set(true);
+        if (queued.compareAndSet(false, true)) {
+            FLUSH_TASKS.offer(flushTask);
         }
     }
 
-    private synchronized boolean isMarkedToSave() {
-        synchronized (markedToSaveLock) {
-            if (markedToSave) {
-                markedToSave = false;
-                return true;
-            }
-            return false;
-        }
-    }
-
-    public synchronized boolean doesChunkExist(ChunkPos pos) {
-        openRegionFile();
-        return hasChunk(pos);
-    }
-
-    public synchronized boolean hasChunk(ChunkPos pos) {
-        openRegionFile();
-        openBucket(pos.x, pos.z);
-        return this.bufferUncompressedSize[getChunkIndex(pos.x, pos.z)] > 0;
-    }
-
-    public synchronized void flush() throws IOException {
-        if (!isMarkedToSave()) {
+    private void tryFlush() {
+        if (closed || !flushing.compareAndSet(false, true)) {
+            queued.set(false);
             return;
         }
 
-        openRegionFile();
-        if (linearVersion == LinearVersion.V1) {
-            flushLinearV1();
-        } else if (linearVersion == LinearVersion.V2) {
-            flushLinearV2();
+        boolean shouldFlush = dirty.compareAndSet(true, false);
+        queued.set(false);
+
+        if (!shouldFlush) {
+            flushing.set(false);
+            return;
+        }
+        try {
+            flush();
+        } catch (Exception e) {
+            LOGGER.error("Region file {} flush failed", this.regionFile.toAbsolutePath(), e);
+            dirty.set(true);
+            if (queued.compareAndSet(false, true)) {
+                FLUSH_TASKS.offer(flushTask);
+            }
+        } finally {
+            flushing.set(false);
         }
     }
 
-    private synchronized void flushLinearV1() throws IOException {
+    public boolean doesChunkExist(ChunkPos pos) {
+        return hasChunk(pos);
+    }
+
+    public boolean hasChunk(ChunkPos pos) {
+        this.lastRegionAccessTime = System.currentTimeMillis();
+        if (!regionFileOpen) {
+            openRegionFile();
+        }
+        readLock.lock();
+        try {
+            openBucket(pos.x, pos.z);
+            return this.bufferUncompressedSize[getChunkIndex(pos.x, pos.z)] > 0;
+        } finally {
+            readLock.unlock();
+        }
+    }
+
+    public void flush() throws IOException {
+        writeLock.lock();
+        try {
+            if (closed) {
+                return;
+            }
+            openRegionFile();
+            if (linearVersion == LinearVersion.V1) {
+                flushLinearV1();
+            } else if (linearVersion == LinearVersion.V2) {
+                flushLinearV2();
+            }
+        } finally {
+            writeLock.unlock();
+        }
+    }
+
+    private void flushLinearV1() throws IOException {
         long timestamp = getTimestamp();
         short chunkCount = 0;
 
@@ -339,7 +418,7 @@ public class LinearRegionFile implements IRegionFile {
         Files.move(tempFile.toPath(), this.regionFile, StandardCopyOption.REPLACE_EXISTING);
     }
 
-    private synchronized void flushLinearV2() throws IOException {
+    private void flushLinearV2() throws IOException {
         long timestamp = getTimestamp();
 
         File tempFile = new File(regionFile.toString() + ".tmp");
@@ -458,85 +537,102 @@ public class LinearRegionFile implements IRegionFile {
     }
 
     private void openBucket(int chunkX, int chunkZ) {
-        chunkX = Math.floorMod(chunkX, 32);
-        chunkZ = Math.floorMod(chunkZ, 32);
-        int idx = chunkToBucketIdx(chunkX, chunkZ);
+        readLock.lock();
+        try {
+            this.lastRegionAccessTime = System.currentTimeMillis();
+            chunkX = Math.floorMod(chunkX, 32);
+            chunkZ = Math.floorMod(chunkZ, 32);
+            int idx = chunkToBucketIdx(chunkX, chunkZ);
 
-        if (bucketBuffers == null) {
-            return;
-        }
-        if (bucketBuffers[idx] != null) {
-            try {
-                ByteArrayInputStream bucketByteStream = new ByteArrayInputStream(bucketBuffers[idx]);
-                ZstdInputStream zstdStream = new ZstdInputStream(bucketByteStream);
-                ByteBuffer bucketBuffer = ByteBuffer.wrap(zstdStream.readAllBytes());
+            if (bucketBuffers == null) {
+                return;
+            }
+            if (bucketBuffers[idx] != null) {
+                try {
+                    ByteArrayInputStream bucketByteStream = new ByteArrayInputStream(bucketBuffers[idx]);
+                    ZstdInputStream zstdStream = new ZstdInputStream(bucketByteStream);
+                    ByteBuffer bucketBuffer = ByteBuffer.wrap(zstdStream.readAllBytes());
 
-                int bx = chunkX / bucketSize, bz = chunkZ / bucketSize;
+                    int bx = chunkX / bucketSize, bz = chunkZ / bucketSize;
 
-                for (int cx = 0; cx < 32 / gridSize; cx++) {
-                    for (int cz = 0; cz < 32 / gridSize; cz++) {
-                        int chunkIndex = (bx * (32 / gridSize) + cx) + (bz * (32 / gridSize) + cz) * 32;
+                    for (int cx = 0; cx < 32 / gridSize; cx++) {
+                        for (int cz = 0; cz < 32 / gridSize; cz++) {
+                            int chunkIndex = (bx * (32 / gridSize) + cx) + (bz * (32 / gridSize) + cz) * 32;
 
-                        int chunkSize = bucketBuffer.getInt();
-                        long timestamp = bucketBuffer.getLong();
-                        this.chunkTimestamps[chunkIndex] = timestamp;
+                            int chunkSize = bucketBuffer.getInt();
+                            long timestamp = bucketBuffer.getLong();
+                            this.chunkTimestamps[chunkIndex] = timestamp;
 
-                        if (chunkSize > 0) {
-                            byte[] chunkData = new byte[chunkSize - 8];
-                            bucketBuffer.get(chunkData);
+                            if (chunkSize > 0) {
+                                byte[] chunkData = new byte[chunkSize - 8];
+                                bucketBuffer.get(chunkData);
 
-                            int maxCompressedLength = this.compressor.maxCompressedLength(chunkData.length);
-                            byte[] compressed = new byte[maxCompressedLength];
-                            int compressedLength = this.compressor.compress(chunkData, 0, chunkData.length, compressed, 0, maxCompressedLength);
-                            byte[] finalCompressed = new byte[compressedLength];
-                            System.arraycopy(compressed, 0, finalCompressed, 0, compressedLength);
+                                int maxCompressedLength = this.compressor.maxCompressedLength(chunkData.length);
+                                byte[] compressed = new byte[maxCompressedLength];
+                                int compressedLength = this.compressor.compress(chunkData, 0, chunkData.length, compressed, 0, maxCompressedLength);
+                                byte[] finalCompressed = new byte[compressedLength];
+                                System.arraycopy(compressed, 0, finalCompressed, 0, compressedLength);
 
-                            // TODO: Optimization - return the requested chunk immediately to save on one LZ4 decompression
-                            this.buffer[chunkIndex] = finalCompressed;
-                            this.bufferUncompressedSize[chunkIndex] = chunkData.length;
+                                // TODO: Optimization - return the requested chunk immediately to save on one LZ4 decompression
+                                this.buffer[chunkIndex] = finalCompressed;
+                                this.bufferUncompressedSize[chunkIndex] = chunkData.length;
+                            }
                         }
                     }
+                } catch (IOException ex) {
+                    LOGGER.error("Failed to load bucket {} in region file {}", idx, this.regionFile, ex);
+                    // TODO: Make sure the server crashes instead of corrupting the world
                 }
-            } catch (IOException ex) {
-                throw new RuntimeException("Region file corrupted: " + regionFile + " bucket: " + idx);
-                // TODO: Make sure the server crashes instead of corrupting the world
+                bucketBuffers[idx] = null;
             }
-            bucketBuffers[idx] = null;
+        }finally {
+            readLock.unlock();
         }
     }
 
-    public synchronized void write(ChunkPos pos, ByteBuffer buffer) {
-        openRegionFile();
-        openBucket(pos.x, pos.z);
+    public void write(ChunkPos pos, ByteBuffer buffer) {
+        writeLock.lock();
         try {
-            byte[] b = toByteArray(new ByteArrayInputStream(buffer.array()));
-            int uncompressedSize = b.length;
+            this.lastRegionAccessTime = System.currentTimeMillis();
+            openRegionFile();
+            openBucket(pos.x, pos.z);
+            try {
+                byte[] b = toByteArray(new ByteArrayInputStream(buffer.array()));
+                int uncompressedSize = b.length;
 
-            if (uncompressedSize > MAX_CHUNK_SIZE) {
-                LOGGER.error("Chunk dupe attempt {}", this.regionFile);
-                clear(pos);
-            } else {
-                int maxCompressedLength = this.compressor.maxCompressedLength(b.length);
-                byte[] compressed = new byte[maxCompressedLength];
-                int compressedLength = this.compressor.compress(b, 0, b.length, compressed, 0, maxCompressedLength);
-                b = new byte[compressedLength];
-                System.arraycopy(compressed, 0, b, 0, compressedLength);
+                if (uncompressedSize > MAX_CHUNK_SIZE) {
+                    LOGGER.error("Chunk dupe attempt {}", this.regionFile);
+                    clear(pos);
+                } else {
+                    int maxCompressedLength = this.compressor.maxCompressedLength(b.length);
+                    byte[] compressed = new byte[maxCompressedLength];
+                    int compressedLength = this.compressor.compress(b, 0, b.length, compressed, 0, maxCompressedLength);
+                    b = new byte[compressedLength];
+                    System.arraycopy(compressed, 0, b, 0, compressedLength);
 
-                int index = getChunkIndex(pos.x, pos.z);
-                this.buffer[index] = b;
-                this.chunkTimestamps[index] = getTimestamp();
-                this.bufferUncompressedSize[getChunkIndex(pos.x, pos.z)] = uncompressedSize;
+                    int index = getChunkIndex(pos.x, pos.z);
+                    this.buffer[index] = b;
+                    this.chunkTimestamps[index] = getTimestamp();
+                    this.bufferUncompressedSize[getChunkIndex(pos.x, pos.z)] = uncompressedSize;
+                }
+            } catch (IOException e) {
+                LOGGER.error("Chunk write IOException {} {}", e, this.regionFile);
             }
-        } catch (IOException e) {
-            LOGGER.error("Chunk write IOException {} {}", e, this.regionFile);
+            markToSave();
+        } finally {
+            writeLock.unlock();
         }
-        markToSave();
     }
 
     public DataOutputStream getChunkDataOutputStream(ChunkPos pos) {
-        openRegionFile();
-        openBucket(pos.x, pos.z);
-        return new DataOutputStream(new BufferedOutputStream(new LinearRegionFile.ChunkBuffer(pos)));
+        writeLock.lock();
+        try {
+            openRegionFile();
+            openBucket(pos.x, pos.z);
+            return new DataOutputStream(new BufferedOutputStream(new LinearRegionFile.ChunkBuffer(pos)));
+        } finally {
+            writeLock.unlock();
+        }
     }
 
     @Override
@@ -573,37 +669,95 @@ public class LinearRegionFile implements IRegionFile {
     }
 
     @Nullable
-    public synchronized DataInputStream getChunkDataInputStream(ChunkPos pos) {
-        openRegionFile();
-        openBucket(pos.x, pos.z);
-
-        if (this.bufferUncompressedSize[getChunkIndex(pos.x, pos.z)] != 0) {
-            byte[] content = new byte[bufferUncompressedSize[getChunkIndex(pos.x, pos.z)]];
-            this.decompressor.decompress(this.buffer[getChunkIndex(pos.x, pos.z)], 0, content, 0, bufferUncompressedSize[getChunkIndex(pos.x, pos.z)]);
-            return new DataInputStream(new ByteArrayInputStream(content));
+    public DataInputStream getChunkDataInputStream(ChunkPos pos) {
+        this.lastRegionAccessTime = System.currentTimeMillis();
+        if (!regionFileOpen) {
+            openRegionFile();
         }
-        return null;
-    }
-
-    public synchronized void clear(ChunkPos pos) {
-        openRegionFile();
-        openBucket(pos.x, pos.z);
-        int i = getChunkIndex(pos.x, pos.z);
-        this.buffer[i] = null;
-        this.bufferUncompressedSize[i] = 0;
-        this.chunkTimestamps[i] = 0;
-        markToSave();
-    }
-
-    public synchronized void close() throws IOException {
-        openRegionFile();
-        close = true;
+        readLock.lock();
         try {
-            flush();
-        } catch (IOException e) {
-            throw new IOException("Region flush IOException " + e + " " + this.regionFile);
+            openBucket(pos.x, pos.z);
+
+            if (this.bufferUncompressedSize[getChunkIndex(pos.x, pos.z)] != 0) {
+                byte[] content = new byte[bufferUncompressedSize[getChunkIndex(pos.x, pos.z)]];
+                this.decompressor.decompress(this.buffer[getChunkIndex(pos.x, pos.z)], 0, content, 0, bufferUncompressedSize[getChunkIndex(pos.x, pos.z)]);
+                return new DataInputStream(new ByteArrayInputStream(content));
+            }
+            return null;
+        } finally {
+            readLock.unlock();
         }
     }
+
+    public void clear(ChunkPos pos) {
+        writeLock.lock();
+        try {
+            this.lastRegionAccessTime = System.currentTimeMillis();
+            openRegionFile();
+            openBucket(pos.x, pos.z);
+            int i = getChunkIndex(pos.x, pos.z);
+            this.buffer[i] = null;
+            this.bufferUncompressedSize[i] = 0;
+            this.chunkTimestamps[i] = 0;
+            markToSave();
+        } finally {
+            writeLock.unlock();
+        }
+    }
+
+    @Override
+    public void close() throws IOException {
+        writeLock.lock();
+        try {
+            if (closed) {
+                return;
+            }
+            // 刷盘后关闭
+            flush();
+            closed = true;
+            // 清空缓存
+            Arrays.fill(buffer, null);
+            Arrays.fill(bufferUncompressedSize, 0);
+            Arrays.fill(chunkTimestamps, 0);
+            this.bucketBuffers = null;
+            this.regionFileOpen = false;
+            // 移除实例
+            REGION_INSTANCES.remove(this.regionFile);
+        } finally {
+            writeLock.unlock();
+        }
+    }
+
+    public void unloadIdleBuffers() {
+        writeLock.lock();
+        try {
+            if (closed || !regionFileOpen) {
+                return;
+            }
+            // 刷盘
+            if (fileActualVersion == 1 || fileActualVersion == 2) {
+                flushLinearV1();
+            } else if (fileActualVersion == 3) {
+                flushLinearV2();
+            }
+            dirty.set(false);
+
+            // 清空缓存
+            Arrays.fill(buffer, null);
+            Arrays.fill(bufferUncompressedSize, 0);
+            Arrays.fill(chunkTimestamps, 0);
+            this.bucketBuffers = null;
+
+            this.regionFileOpen = false;
+
+            this.lastRegionAccessTime = System.currentTimeMillis();
+        } catch (IOException e) {
+            LOGGER.error("Failed to unload idle region cache: {}", this.regionFile, e);
+        } finally {
+            writeLock.unlock();
+        }
+    }
+
 
     private static int getChunkIndex(int x, int z) {
         return (x & 31) + ((z & 31) << 5);

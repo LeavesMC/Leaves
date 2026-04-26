@@ -94,7 +94,7 @@ public class BotDataStorage {
 
     private Optional<CompoundTag> load(String name, String uuid) {
         File file = new File(this.botDir, uuid + ".dat");
-        if (file.exists() && file.isFile()) {
+        if (!file.exists() || !file.isFile()) {
             LOGGER.warn("Failed to load bot {}, the file {} DOES NOT EXIST!", name, file);
             return Optional.empty();
         }

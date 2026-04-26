@@ -101,7 +101,7 @@ public class BotDataStorage {
                 if (!file.delete()) {
                     throw new IOException("Failed to delete fakeplayer data");
                 }
-                this.savedBotList.remove(name);
+                this.savedBotList.remove(name.toLowerCase(Locale.ROOT));
                 this.saveBotList();
                 return optional;
             } catch (Exception exception) {

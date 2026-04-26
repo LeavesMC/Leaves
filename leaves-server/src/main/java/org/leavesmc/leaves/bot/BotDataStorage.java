@@ -94,21 +94,21 @@ public class BotDataStorage {
 
     private Optional<CompoundTag> load(String name, String uuid) {
         File file = new File(this.botDir, uuid + ".dat");
-
         if (file.exists() && file.isFile()) {
-            try {
-                Optional<CompoundTag> optional = Optional.of(NbtIo.readCompressed(file.toPath(), NbtAccounter.unlimitedHeap()));
-                if (!file.delete()) {
-                    throw new IOException("Failed to delete fakeplayer data");
-                }
-                this.savedBotList.remove(name.toLowerCase(Locale.ROOT));
-                this.saveBotList();
-                return optional;
-            } catch (Exception exception) {
-                BotDataStorage.LOGGER.warn("Failed to load fakeplayer data for {}", name);
-            }
+            LOGGER.warn("Failed to load bot {}, the file {} DOES NOT EXIST!", name, file);
+            return Optional.empty();
         }
-
+        try {
+            Optional<CompoundTag> optional = Optional.of(NbtIo.readCompressed(file.toPath(), NbtAccounter.unlimitedHeap()));
+            if (!file.delete()) {
+                throw new IOException("Failed to delete fakeplayer data");
+            }
+            this.savedBotList.remove(name.toLowerCase(Locale.ROOT));
+            this.saveBotList();
+            return optional;
+        } catch (Exception exception) {
+            BotDataStorage.LOGGER.warn("Failed to load fakeplayer data for {}", name);
+        }
         return Optional.empty();
     }
 

@@ -87,8 +87,9 @@ public class BotDataStorage {
         });
     }
 
-    public void removeSavedData(@NotNull ServerBot bot) {
-        this.load(bot.nameAndId().name(), bot.nameAndId().id().toString());
+    public void removeSavedData(String name) {
+        this.savedBotList.remove(name.toLowerCase(Locale.ROOT));
+        this.saveBotList();
     }
 
     private Optional<CompoundTag> load(String name, String uuid) {
@@ -102,8 +103,7 @@ public class BotDataStorage {
             if (!file.delete()) {
                 throw new IOException("Failed to delete fakeplayer data");
             }
-            this.savedBotList.remove(name.toLowerCase(Locale.ROOT));
-            this.saveBotList();
+            this.removeSavedData(name);
             return optional;
         } catch (Exception exception) {
             BotDataStorage.LOGGER.warn("Failed to load fakeplayer data for {}", name);

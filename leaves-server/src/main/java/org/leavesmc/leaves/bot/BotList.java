@@ -242,7 +242,7 @@ public class BotList {
 
         bot.disconnect();
 
-        this.resumeDataStorage.removeSavedData(bot);
+        this.resumeDataStorage.removeSavedData(bot.nameAndId().name());
         if (event.shouldSave()) {
             if (resume) {
                 this.resumeDataStorage.save(bot);

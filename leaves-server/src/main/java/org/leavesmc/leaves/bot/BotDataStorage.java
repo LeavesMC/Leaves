@@ -51,7 +51,6 @@ public class BotDataStorage {
     }
 
     public void save(Player player) {
-        boolean flag = true;
         try {
             CompoundTag nbt = TagUtil.saveEntityWithoutId(player);
             File file = new File(this.botDir, player.getStringUUID() + ".dat");
@@ -67,10 +66,10 @@ public class BotDataStorage {
             NbtIo.writeCompressed(nbt, file.toPath());
         } catch (Exception exception) {
             BotDataStorage.LOGGER.warn("Failed to save fakeplayer data for {}", player.getScoreboardName(), exception);
-            flag = false;
+            return;
         }
 
-        if (flag && player instanceof ServerBot bot) {
+        if (player instanceof ServerBot bot) {
             CompoundTag nbt = new CompoundTag();
             nbt.putString("name", bot.createState.fullName());
             nbt.store("uuid", UUIDUtil.CODEC, bot.getUUID());

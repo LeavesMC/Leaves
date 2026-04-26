@@ -10,6 +10,7 @@ import io.papermc.paper.util.MCUtil;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.Style;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket;
 import net.minecraft.resources.ResourceKey;
@@ -325,7 +326,9 @@ public class BotList {
             return;
         }
         CompoundTag savedBotList = this.getResumeBotList().copy();
-        for (String fullName : savedBotList.keySet()) {
+        for (Map.Entry<String, Tag> entry : savedBotList.entrySet()) {
+            String lowerName = entry.getKey();
+            String fullName = ((CompoundTag) entry.getValue()).getStringOr("name", lowerName);
             UUID levelUuid = BotUtil.getBotLevel(fullName, this.resumeDataStorage);
             if (levelUuid == null) {
                 LOGGER.warn("Bot {} has no world UUID, skipping loading.", fullName);
@@ -341,6 +344,7 @@ public class BotList {
     private void loadLegacyResumeBotInfo() {
         CompoundTag savedBotList = this.getManualSavedBotList().copy();
         for (String fullName : savedBotList.keySet()) {
+            // Legacy format saved fullName as the key
             CompoundTag nbt = savedBotList.getCompound(fullName).orElseThrow();
             if (!nbt.getBoolean("resume").orElse(false)) {
                 continue;

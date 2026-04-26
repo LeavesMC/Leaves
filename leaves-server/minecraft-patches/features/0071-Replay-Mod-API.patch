@@ -302,7 +302,7 @@ index b06e7dd6f1ce735d4ea9b4c3f75c004adc296487..499714800b2160cf163fc7a37e287f65
                  }
                  // Leaves end - skip
 diff --git a/net/minecraft/server/players/PlayerList.java b/net/minecraft/server/players/PlayerList.java
-index fce0114134eb1ffee558f6ce072e793eafbd6779..7b5b9d0a5a99108ba5853891918565a22aaa8efd 100644
+index fce0114134eb1ffee558f6ce072e793eafbd6779..dc27a7b11c72ff0d184580edf4ac1376fda86f7c 100644
 --- a/net/minecraft/server/players/PlayerList.java
 +++ b/net/minecraft/server/players/PlayerList.java
 @@ -130,6 +130,7 @@ public abstract class PlayerList {
@@ -313,7 +313,7 @@ index fce0114134eb1ffee558f6ce072e793eafbd6779..7b5b9d0a5a99108ba5853891918565a2
  
      // CraftBukkit start
      private org.bukkit.craftbukkit.CraftServer cserver;
-@@ -153,6 +154,124 @@ public abstract class PlayerList {
+@@ -153,6 +154,128 @@ public abstract class PlayerList {
  
      abstract public void loadAndSaveFiles(); // Paper - fix converting txt to json file; moved from DedicatedPlayerList constructor
  
@@ -332,9 +332,9 @@ index fce0114134eb1ffee558f6ce072e793eafbd6779..7b5b9d0a5a99108ba5853891918565a2
 +
 +        ServerGamePacketListenerImpl playerconnection = new ServerGamePacketListenerImpl(this.server, connection, player, CommonListenerCookie.createInitial(player.gameProfile, false));
 +        GameRules gamerules = worldserver1.getGameRules();
-+        boolean flag = gamerules.get(net.minecraft.world.level.gamerules.GameRules.IMMEDIATE_RESPAWN);
-+        boolean flag1 = gamerules.get(net.minecraft.world.level.gamerules.GameRules.REDUCED_DEBUG_INFO);
-+        boolean flag2 = gamerules.get(net.minecraft.world.level.gamerules.GameRules.LIMITED_CRAFTING);
++        boolean flag = gamerules.get(GameRules.IMMEDIATE_RESPAWN);
++        boolean flag1 = gamerules.get(GameRules.REDUCED_DEBUG_INFO);
++        boolean flag2 = gamerules.get(GameRules.LIMITED_CRAFTING);
 +
 +        playerconnection.send(new ClientboundLoginPacket(player.getId(), worlddata.isHardcore(), this.server.levelKeys(), this.getMaxPlayers(), worldserver1.getWorld().getSendViewDistance(), worldserver1.getWorld().getSimulationDistance(), flag1, !flag, flag2, player.createCommonSpawnInfo(worldserver1), this.server.enforceSecureProfile())); // Paper - replace old player chunk management
 +        player.getBukkitEntity().sendSupportedChannels(); // CraftBukkit
@@ -355,6 +355,10 @@ index fce0114134eb1ffee558f6ce072e793eafbd6779..7b5b9d0a5a99108ba5853891918565a2
 +
 +        if (serverping != null) {
 +            player.sendServerStatus(serverping);
++        }
++
++        if (playersByName.containsKey(player.getScoreboardName()) || playersByUUID.containsKey(player.getUUID())) {
++            throw new IllegalStateException("There is a player with the same name as the photographer " + player.getScoreboardName() + " !");
 +        }
 +
 +        this.players.add(player);
@@ -438,7 +442,7 @@ index fce0114134eb1ffee558f6ce072e793eafbd6779..7b5b9d0a5a99108ba5853891918565a2
      public void placeNewPlayer(Connection connection, ServerPlayer player, CommonListenerCookie cookie) {
          player.isRealPlayer = true; // Paper
          player.loginTime = System.currentTimeMillis(); // Paper - Replace OfflinePlayer#getLastPlayed
-@@ -221,6 +340,7 @@ public abstract class PlayerList {
+@@ -221,6 +344,7 @@ public abstract class PlayerList {
  
          // player.connection.send(ClientboundPlayerInfoUpdatePacket.createPlayerInitializing(this.players)); // CraftBukkit - replaced with loop below
          this.players.add(player);
@@ -446,7 +450,7 @@ index fce0114134eb1ffee558f6ce072e793eafbd6779..7b5b9d0a5a99108ba5853891918565a2
          this.playersByName.put(player.getScoreboardName().toLowerCase(java.util.Locale.ROOT), player); // Spigot
          this.playersByUUID.put(player.getUUID(), player);
          // this.broadcastAll(ClientboundPlayerInfoUpdatePacket.createPlayerInitializing(List.of(player))); // CraftBukkit - replaced with loop below
-@@ -426,6 +546,7 @@ public abstract class PlayerList {
+@@ -426,6 +550,7 @@ public abstract class PlayerList {
      }
  
      protected void save(ServerPlayer player) {
@@ -454,7 +458,7 @@ index fce0114134eb1ffee558f6ce072e793eafbd6779..7b5b9d0a5a99108ba5853891918565a2
          if (!player.getBukkitEntity().isPersistent()) return; // CraftBukkit
          player.lastSave = MinecraftServer.currentTick; // Paper - Incremental chunk and player saving
          this.playerIo.save(player);
-@@ -440,6 +561,43 @@ public abstract class PlayerList {
+@@ -440,6 +565,43 @@ public abstract class PlayerList {
          }
      }
  
@@ -498,7 +502,7 @@ index fce0114134eb1ffee558f6ce072e793eafbd6779..7b5b9d0a5a99108ba5853891918565a2
      public net.kyori.adventure.text.@Nullable Component remove(ServerPlayer player) { // CraftBukkit - return string // Paper - return Component
          // Paper start - Fix kick event leave message not being sent
          return this.remove(player, net.kyori.adventure.text.Component.translatable("multiplayer.player.left", net.kyori.adventure.text.format.NamedTextColor.YELLOW, io.papermc.paper.configuration.GlobalConfiguration.get().messages.useDisplayNameInQuitMessage ? player.getBukkitEntity().displayName() : io.papermc.paper.adventure.PaperAdventure.asAdventure(player.getDisplayName())));
-@@ -513,6 +671,7 @@ public abstract class PlayerList {
+@@ -513,6 +675,7 @@ public abstract class PlayerList {
          player.retireScheduler(); // Paper - Folia schedulers
          player.getAdvancements().stopListening();
          this.players.remove(player);
@@ -506,7 +510,7 @@ index fce0114134eb1ffee558f6ce072e793eafbd6779..7b5b9d0a5a99108ba5853891918565a2
          this.playersByName.remove(player.getScoreboardName().toLowerCase(java.util.Locale.ROOT)); // Spigot
          this.server.getCustomBossEvents().onPlayerDisconnect(player);
          UUID uuid = player.getUUID();
-@@ -841,14 +1000,14 @@ public abstract class PlayerList {
+@@ -841,14 +1004,14 @@ public abstract class PlayerList {
      }
  
      public String[] getPlayerNamesArray() {
@@ -526,7 +530,7 @@ index fce0114134eb1ffee558f6ce072e793eafbd6779..7b5b9d0a5a99108ba5853891918565a2
          }
          // Leaves end - fakeplayer support
  
-@@ -915,7 +1074,7 @@ public abstract class PlayerList {
+@@ -915,7 +1078,7 @@ public abstract class PlayerList {
  
      // Paper start - whitelist verify event / login event
      public LoginResult canBypassFullServerLogin(final NameAndId nameAndId, final LoginResult currentResult) {

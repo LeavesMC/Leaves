@@ -74,7 +74,7 @@ public class Actions<T extends AbstractBotAction<T>> {
         return creator.get();
     }
 
-    public T createAndLoad(CommandContext context) throws CommandSyntaxException {
+    public T createByCommand(CommandContext context) throws CommandSyntaxException {
         T action = create();
         action.loadCommand(context);
         return action;

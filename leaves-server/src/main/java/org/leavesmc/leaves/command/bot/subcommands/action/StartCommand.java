@@ -39,7 +39,7 @@ public class StartCommand extends LiteralNode {
         ServerBot bot = getBot(context);
         CommandSender sender = context.getSender();
 
-        AbstractBotAction<?> action = holder.createAndLoad(context);
+        AbstractBotAction<?> action = holder.createByCommand(context);
         if (bot.addBotAction(action, sender)) {
             sender.sendMessage(join(spaces(),
                 text("Action", GRAY),

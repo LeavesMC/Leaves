@@ -32,7 +32,7 @@ public class LocatorBarConfig extends AbstractBotConfig<Boolean> {
     }
 
     @Override
-    public Boolean loadFromCommand(@NotNull CommandContext context) {
+    public Boolean parseFromCommand(@NotNull CommandContext context) {
         return context.getBoolean(getName());
     }
 

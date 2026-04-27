@@ -44,7 +44,7 @@ public abstract class AbstractBotConfig<T> {
 
     public abstract void setValue(T value) throws CommandSyntaxException;
 
-    public abstract T loadFromCommand(@NotNull CommandContext context) throws CommandSyntaxException;
+    public abstract T parseFromCommand(@NotNull CommandContext context) throws CommandSyntaxException;
 
     public String getName() {
         return name;

@@ -35,7 +35,7 @@ public class SimulationDistanceConfig extends AbstractBotConfig<Integer> {
     }
 
     @Override
-    public Integer loadFromCommand(@NotNull CommandContext context) {
+    public Integer parseFromCommand(@NotNull CommandContext context) {
         return context.getInteger(getName());
     }
 

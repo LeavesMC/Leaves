@@ -18,7 +18,7 @@ public class TickTypeConfig extends AbstractBotConfig<ServerBot.TickType> {
     }
 
     @Override
-    public ServerBot.TickType loadFromCommand(@NotNull CommandContext context) {
+    public ServerBot.TickType parseFromCommand(@NotNull CommandContext context) {
         return context.getArgument("tick_type", ServerBot.TickType.class);
     }
 

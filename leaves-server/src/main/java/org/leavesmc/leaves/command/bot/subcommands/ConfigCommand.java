@@ -115,7 +115,7 @@ public class ConfigCommand extends BotSubcommand {
             ServerBot bot = BotArgument.getBot(context);
             AbstractBotConfig<T> botConfig = bot.getConfig(config);
             try {
-                botConfig.setValue(botConfig.loadFromCommand(context));
+                botConfig.setValue(botConfig.parseFromCommand(context));
             } catch (ClassCastException e) {
                 throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownArgument().create();
             }

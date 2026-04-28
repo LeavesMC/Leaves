@@ -124,13 +124,13 @@ public class StopCommand extends LiteralNode {
             if (canceled.isEmpty()) {
                 sender.sendMessage(join(spaces(),
                     asAdventure(bot.getDisplayName()).append(text("'s", GRAY)),
-                    text("'s action list cleared", GRAY)
+                    text("action list cleared", GRAY)
                 ));
             } else {
                 sender.sendMessage(join(spaces(),
                     text("Tried to clear", GRAY),
                     asAdventure(bot.getDisplayName()).append(text("'s", GRAY)),
-                    text("'s action list, but following actions' stop was canceled by plugin:", GRAY)
+                    text("action list, but following actions' stop was canceled by plugin:", GRAY)
                 ));
                 for (AbstractBotAction<?> action : canceled) {
                     context.getSender().sendMessage(

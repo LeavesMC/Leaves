@@ -3,7 +3,7 @@ package org.leavesmc.leaves.protocol.rei.display;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.SingleRecipeInput;
@@ -24,14 +24,14 @@ public class StoneCuttingDisplay extends Display {
         StoneCuttingDisplay::getInputEntries,
         EntryIngredient.CODEC.apply(ByteBufCodecs.list()),
         StoneCuttingDisplay::getOutputEntries,
-        ByteBufCodecs.optional(ResourceLocation.STREAM_CODEC),
+        ByteBufCodecs.optional(Identifier.STREAM_CODEC),
         StoneCuttingDisplay::getOptionalLocation,
         StoneCuttingDisplay::of
     );
 
-    private static final ResourceLocation SERIALIZER_ID = ResourceLocation.tryBuild("minecraft", "default/stone_cutting");
+    private static final Identifier SERIALIZER_ID = Identifier.tryBuild("minecraft", "default/stone_cutting");
 
-    public StoneCuttingDisplay(@NotNull List<EntryIngredient> inputs, @NotNull List<EntryIngredient> outputs, @NotNull ResourceLocation id) {
+    public StoneCuttingDisplay(@NotNull List<EntryIngredient> inputs, @NotNull List<EntryIngredient> outputs, @NotNull Identifier id) {
         super(inputs, outputs, id);
     }
 
@@ -39,17 +39,17 @@ public class StoneCuttingDisplay extends Display {
         this(
             List.of(EntryIngredient.ofIngredient(recipeHolder.value().input())),
             List.of(EntryIngredient.of(recipeHolder.value().assemble(new SingleRecipeInput(ItemStack.EMPTY), CraftRegistry.getMinecraftRegistry()))),
-            recipeHolder.id().location()
+            recipeHolder.id().identifier()
         );
     }
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    private static StoneCuttingDisplay of(@NotNull List<EntryIngredient> inputs, @NotNull List<EntryIngredient> outputs, @NotNull Optional<ResourceLocation> id) {
+    private static StoneCuttingDisplay of(@NotNull List<EntryIngredient> inputs, @NotNull List<EntryIngredient> outputs, @NotNull Optional<Identifier> id) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public ResourceLocation getSerializerId() {
+    public Identifier getSerializerId() {
         return SERIALIZER_ID;
     }
 

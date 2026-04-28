@@ -11,6 +11,7 @@ import org.leavesmc.leaves.bot.ServerBot;
 import org.leavesmc.leaves.bot.agent.ExtraData;
 import org.leavesmc.leaves.command.CommandContext;
 import org.leavesmc.leaves.command.WrappedArgument;
+import org.leavesmc.leaves.entity.bot.actions.CraftBotAction;
 import org.leavesmc.leaves.event.bot.BotActionExecuteEvent;
 import org.leavesmc.leaves.event.bot.BotActionStopEvent;
 import org.leavesmc.leaves.util.UpdateSuppressionException;
@@ -21,14 +22,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 
 @SuppressWarnings("unchecked")
 public abstract class AbstractBotAction<E extends AbstractBotAction<E>> {
 
     private final String name;
     private final Map<Integer, List<Pair<String, WrappedArgument<?>>>> arguments;
-    private final Supplier<E> creator;
     private UUID uuid;
     private int currentFork = 0;
 
@@ -44,10 +43,9 @@ public abstract class AbstractBotAction<E extends AbstractBotAction<E>> {
     private Consumer<E> onSuccess;
     private Consumer<E> onStop;
 
-    public AbstractBotAction(String name, Supplier<E> creator) {
+    public AbstractBotAction(String name) {
         this.name = name;
         this.uuid = UUID.randomUUID();
-        this.creator = creator;
         this.arguments = new HashMap<>();
 
         this.cancel = false;
@@ -58,7 +56,7 @@ public abstract class AbstractBotAction<E extends AbstractBotAction<E>> {
 
     public abstract boolean doTick(@NotNull ServerBot bot);
 
-    public abstract Object asCraft();
+    public abstract CraftBotAction<?, E> asCraft();
 
     public String getActionDataString() {
         return getActionDataString(new ExtraData(new ArrayList<>()));
@@ -182,11 +180,6 @@ public abstract class AbstractBotAction<E extends AbstractBotAction<E>> {
 
     @SuppressWarnings("RedundantThrows")
     public void loadCommand(@NotNull CommandContext context) throws CommandSyntaxException {
-    }
-
-    @NotNull
-    public E create() {
-        return this.creator.get();
     }
 
     public String getName() {

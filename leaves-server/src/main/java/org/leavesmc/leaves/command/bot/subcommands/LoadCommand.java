@@ -6,6 +6,7 @@ import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.minecraft.nbt.CompoundTag;
 import org.bukkit.command.CommandSender;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesConfig;
@@ -15,6 +16,7 @@ import org.leavesmc.leaves.command.ArgumentNode;
 import org.leavesmc.leaves.command.CommandContext;
 import org.leavesmc.leaves.command.bot.BotSubcommand;
 
+import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
@@ -46,7 +48,7 @@ public class LoadCommand extends BotSubcommand {
             String botName = context.getArgument(BotNameArgument.class);
             BotList botList = BotList.INSTANCE;
             CommandSender sender = context.getSender();
-            if (!botList.getManualSavedBotList().contains(botName)) {
+            if (!botList.getManualSavedBotList().contains(botName.toLowerCase(Locale.ROOT))) {
                 throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownArgument().create();
             }
             if (botList.getBotByName(botName) != null) {
@@ -66,13 +68,14 @@ public class LoadCommand extends BotSubcommand {
         @Override
         protected CompletableFuture<Suggestions> getSuggestions(CommandContext context, @NotNull SuggestionsBuilder builder) {
             BotList botList = BotList.INSTANCE;
-            Set<String> bots = botList.getManualSavedBotList().keySet();
+            CompoundTag list = botList.getManualSavedBotList();
+            Set<String> bots = list.keySet();
             if (bots.isEmpty()) {
                 return builder
                     .suggest("<NO SAVED BOT EXISTS>", net.minecraft.network.chat.Component.literal("There are no bots saved before, save one first."))
                     .buildFuture();
             }
-            bots.forEach(builder::suggest);
+            bots.forEach(key -> builder.suggest(list.getCompoundOrEmpty(key).getString("name").orElseThrow()));
             return builder.buildFuture();
         }
     }

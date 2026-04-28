@@ -3,7 +3,7 @@ package org.leavesmc.leaves.protocol.jade.provider.block;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.entity.TrialSpawnerBlockEntity;
 import net.minecraft.world.level.block.entity.trialspawner.TrialSpawnerStateData;
@@ -16,7 +16,7 @@ import org.leavesmc.leaves.protocol.jade.provider.StreamServerDataProvider;
 public enum MobSpawnerCooldownProvider implements StreamServerDataProvider<BlockAccessor, Integer> {
     INSTANCE;
 
-    private static final ResourceLocation MC_MOB_SPAWNER_COOLDOWN = JadeProtocol.mc_id("mob_spawner.cooldown");
+    private static final Identifier MC_MOB_SPAWNER_COOLDOWN = JadeProtocol.mc_id("mob_spawner.cooldown");
 
     @Override
     public @Nullable Integer streamData(@NotNull BlockAccessor accessor) {
@@ -36,7 +36,7 @@ public enum MobSpawnerCooldownProvider implements StreamServerDataProvider<Block
 
 
     @Override
-    public ResourceLocation getUid() {
+    public Identifier getUid() {
         return MC_MOB_SPAWNER_COOLDOWN;
     }
 }

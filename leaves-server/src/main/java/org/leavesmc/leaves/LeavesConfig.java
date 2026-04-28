@@ -337,9 +337,6 @@ public final class LeavesConfig {
                 }
             }
 
-            @GlobalConfig("allow-grindstone-overstacking")
-            public boolean allowGrindstoneOverstacking = false;
-
             @GlobalConfig("allow-entity-portal-with-passenger")
             public boolean allowEntityPortalWithPassenger = true;
 
@@ -426,6 +423,9 @@ public final class LeavesConfig {
 
             @GlobalConfig("old-minecart-motion-behavior")
             public boolean oldMinecartMotionBehavior = false;
+
+            @GlobalConfig("allow-inf-nan-motion-values")
+            public boolean allowInfNanMotionValues = true;
         }
 
         public ElytraAeronauticsConfig elytraAeronautics = new ElytraAeronauticsConfig();
@@ -510,35 +510,21 @@ public final class LeavesConfig {
 
                 @Override
                 public Integer loadConvert(Object value) throws IllegalArgumentException {
-                    switch (value) {
-                        case String stringValue -> {
-                            if (stringValue.equals("true")) {
-                                return 2;
-                            } else if (!MathUtils.isNumeric(stringValue)) {
-                                return 1;
-                            } else {
-                                return Integer.parseInt(stringValue);
-                            }
-                        }
-                        case Integer integerValue -> {
-                            return integerValue;
-                        }
-                        case Boolean boolValue -> {
-                            return boolValue ? 2 : 1;
-                        }
+                    return switch (value) {
+                        case String stringValue -> stringValue.equals("true") ? 2
+                            : !MathUtils.isNumeric(stringValue) ? 1
+                            : Integer.parseInt(stringValue);
+                        case Integer integerValue -> integerValue;
+                        case Boolean boolValue -> boolValue ? 2 : 1;
                         case null, default -> throw new IllegalArgumentException("stackable-shulker-boxes need string or integer or boolean");
-                    }
+                    };
                 }
 
                 @Override
                 public Object saveConvert(Integer value) {
-                    if (value == 1) {
-                        return false;
-                    } else if (value == 2) {
-                        return true;
-                    } else {
-                        return value;
-                    }
+                    return value == 1 ? false
+                        : value == 2 ? true
+                        : value;
                 }
 
                 @Override
@@ -548,8 +534,8 @@ public final class LeavesConfig {
 
                 @Override
                 public void verify(Integer old, Integer value) throws IllegalArgumentException {
-                    if (value < 1 || value > 64) {
-                        throw new IllegalArgumentException("stackable-shulker-boxes need >= 1 and <= 64");
+                    if (value < 1 || value > 99) {
+                        throw new IllegalArgumentException("stackable-shulker-boxes need >= 1 and <= 99");
                     }
                 }
 
@@ -816,9 +802,6 @@ public final class LeavesConfig {
 
         @GlobalConfig("enable-suffocation-optimization")
         public boolean enableSuffocationOptimization = true;
-
-        @GlobalConfig("check-spooky-season-once-an-hour")
-        public boolean checkSpookySeasonOnceAnHour = true;
 
         @GlobalConfig("inactive-goal-selector-disable")
         public boolean throttleInactiveGoalSelectorTick = false;
@@ -1228,9 +1211,6 @@ public final class LeavesConfig {
 
         @GlobalConfig("leaves-packet-event")
         public boolean leavesPacketEvent = false;
-
-        @GlobalConfig("chat-command-max-length")
-        public int chatCommandMaxLength = 32767;
     }
 
     public static RegionConfig region = new RegionConfig();
@@ -1321,18 +1301,23 @@ public final class LeavesConfig {
         @GlobalConfig("vanilla-portal-handle")
         public boolean vanillaPortalHandle = true;
 
-        @GlobalConfig("vanilla-fluid-pushing")
-        public boolean vanillaFluidPushing = true;
-
-        @GlobalConfig(value = "collision-behavior")
-        public CollisionBehavior collisionBehavior = CollisionBehavior.BLOCK_SHAPE_VANILLA;
+        @GlobalConfig(value = "collision-behavior", validator = CollisionBehaviorValidator.class)
+        public CollisionBehavior collisionBehavior = CollisionBehavior.PAPER;
 
         public enum CollisionBehavior {
-            VANILLA, BLOCK_SHAPE_VANILLA, PAPER
+            VANILLA, PAPER
         }
 
-        @GlobalConfig("vanilla-end-void-rings")
-        public boolean vanillaEndVoidRings = false;
+        private static class CollisionBehaviorValidator extends EnumConfigValidator<CollisionBehavior> {
+            @Override
+            public CollisionBehavior stringConvert(@NotNull String value) throws IllegalArgumentException {
+                if (value.equalsIgnoreCase("BLOCK_SHAPE_VANILLA")) {
+                    LeavesLogger.LOGGER.warning("Paper has updated the collision behavior to BLOCK_SHAPE_VANILLA mode, converting this to PAPER...");
+                    value = "PAPER";
+                }
+                return super.stringConvert(value);
+            }
+        }
 
         @GlobalConfig("stacked-container-destroyed-drop")
         public boolean stackedContainerDestroyedDrop = true;

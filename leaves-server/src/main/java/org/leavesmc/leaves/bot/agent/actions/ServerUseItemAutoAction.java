@@ -11,6 +11,7 @@ import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.leavesmc.leaves.bot.ServerBot;
+import org.leavesmc.leaves.entity.bot.actions.CraftBotAction;
 import org.leavesmc.leaves.entity.bot.actions.CraftUseItemAutoAction;
 
 import static org.leavesmc.leaves.bot.agent.actions.ServerUseItemAction.useItem;
@@ -20,7 +21,7 @@ import static org.leavesmc.leaves.bot.agent.actions.ServerUseItemToAction.useIte
 public class ServerUseItemAutoAction extends AbstractUseBotAction<ServerUseItemAutoAction> {
 
     public ServerUseItemAutoAction() {
-        super("use_auto", ServerUseItemAutoAction::new);
+        super("use_auto");
     }
 
     @Override
@@ -80,7 +81,7 @@ public class ServerUseItemAutoAction extends AbstractUseBotAction<ServerUseItemA
     }
 
     @Override
-    public Object asCraft() {
+    public CraftBotAction<?, ServerUseItemAutoAction> asCraft() {
         return new CraftUseItemAutoAction(this);
     }
 }

@@ -3,12 +3,13 @@ package org.leavesmc.leaves.bot.agent.actions;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
+import org.leavesmc.leaves.entity.bot.actions.CraftBotAction;
 import org.leavesmc.leaves.entity.bot.actions.CraftSwimAction;
 
 public class ServerSwimAction extends AbstractStateBotAction<ServerSwimAction> {
 
     public ServerSwimAction() {
-        super("swim", ServerSwimAction::new);
+        super("swim");
     }
 
     @Override
@@ -20,7 +21,7 @@ public class ServerSwimAction extends AbstractStateBotAction<ServerSwimAction> {
     }
 
     @Override
-    public Object asCraft() {
+    public CraftBotAction<?, ServerSwimAction> asCraft() {
         return new CraftSwimAction(this);
     }
 }

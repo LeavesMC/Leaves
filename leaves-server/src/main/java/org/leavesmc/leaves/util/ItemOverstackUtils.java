@@ -1,7 +1,6 @@
 package org.leavesmc.leaves.util;
 
-import io.papermc.paper.datacomponent.DataComponentTypes;
-import io.papermc.paper.datacomponent.item.ItemEnchantments;
+import com.google.common.collect.Iterables;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -10,19 +9,16 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.component.ItemContainerContents;
 import net.minecraft.world.level.block.ShulkerBoxBlock;
-import org.bukkit.enchantments.Enchantment;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.LeavesConfig;
 
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 
 public class ItemOverstackUtils {
 
     private static final List<ItemUtil> overstackUtils = List.of(
-        new ShulkerBox(),
-        new CurseEnchantedBook()
+        new ShulkerBox()
     );
 
     public static int getItemStackMaxCount(ItemStack stack) {
@@ -63,13 +59,13 @@ public class ItemOverstackUtils {
         return false;
     }
 
-    public static int getItemStackMaxCountReal(ItemStack stack) {
-        CompoundTag nbt = Optional.ofNullable(stack.get(DataComponents.CUSTOM_DATA)).orElse(CustomData.EMPTY).copyTag();
+    public static int getRealItemStackMaxCount(ItemStack stack) {
+        CompoundTag nbt = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
         return nbt.getInt("Leaves.RealStackSize").orElse(stack.getMaxStackSize());
     }
 
     public static ItemStack encodeMaxStackSize(ItemStack itemStack) {
-        int realMaxStackSize = getItemStackMaxCountReal(itemStack);
+        int realMaxStackSize = getRealItemStackMaxCount(itemStack);
         int modifiedMaxStackSize = getNetworkMaxCount(itemStack);
         if (itemStack.getMaxStackSize() != modifiedMaxStackSize) {
             itemStack.set(DataComponents.MAX_STACK_SIZE, modifiedMaxStackSize);
@@ -81,7 +77,7 @@ public class ItemOverstackUtils {
     }
 
     public static ItemStack decodeMaxStackSize(ItemStack itemStack) {
-        int realMaxStackSize = getItemStackMaxCountReal(itemStack);
+        int realMaxStackSize = getRealItemStackMaxCount(itemStack);
         if (itemStack.getMaxStackSize() != realMaxStackSize) {
             itemStack.set(DataComponents.MAX_STACK_SIZE, realMaxStackSize);
             CompoundTag nbt = itemStack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
@@ -97,9 +93,6 @@ public class ItemOverstackUtils {
 
     public static float getItemStackSignalStrength(int maxStackSize, ItemStack itemStack) {
         float result = (float) itemStack.getCount() / Math.min(maxStackSize, itemStack.getMaxStackSize());
-        if (LeavesConfig.modify.oldMC.allowGrindstoneOverstacking && CurseEnchantedBook.isCursedEnchantedBook(itemStack)) {
-            return result;
-        }
         return Math.clamp(result, 0f, 1f);
     }
 
@@ -122,15 +115,15 @@ public class ItemOverstackUtils {
     }
 
     private static class ShulkerBox implements ItemUtil {
-        public static boolean shulkerBoxCheck(@NotNull ItemStack stack1, @NotNull ItemStack stack2) {
+        public static boolean checkItems(@NotNull ItemStack stack1, @NotNull ItemStack stack2) {
             if (LeavesConfig.modify.shulkerBox.sameNbtStackable) {
                 return Objects.equals(stack1.getComponents(), stack2.getComponents());
             }
-            return shulkerBoxNoItem(stack1) && shulkerBoxNoItem(stack2) && Objects.equals(stack1.getComponents(), stack2.getComponents());
+            return isEmpty(stack1) && isEmpty(stack2) && Objects.equals(stack1.getComponents(), stack2.getComponents());
         }
 
-        public static boolean shulkerBoxNoItem(@NotNull ItemStack stack) {
-            return stack.getComponents().getOrDefault(DataComponents.CONTAINER, ItemContainerContents.EMPTY).stream().findAny().isEmpty();
+        public static boolean isEmpty(@NotNull ItemStack stack) {
+            return Iterables.isEmpty(stack.getComponents().getOrDefault(DataComponents.CONTAINER, ItemContainerContents.EMPTY).nonEmptyItems());
         }
 
         @Override
@@ -147,7 +140,7 @@ public class ItemOverstackUtils {
 
             ItemStack otherStack = other.getItem();
             if (selfStack.getItem() == otherStack.getItem()
-                && shulkerBoxCheck(selfStack, otherStack)
+                && checkItems(selfStack, otherStack)
                 && selfStack.getCount() != org.leavesmc.leaves.LeavesConfig.modify.shulkerBox.stackableShulkerBoxes) {
                 int amount = Math.min(otherStack.getCount(), org.leavesmc.leaves.LeavesConfig.modify.shulkerBox.stackableShulkerBoxes - selfStack.getCount());
 
@@ -171,41 +164,10 @@ public class ItemOverstackUtils {
         @Override
         public int getMaxServerStackCount(ItemStack stack) {
             if (stack.getItem() instanceof BlockItem bi &&
-                bi.getBlock() instanceof ShulkerBoxBlock && (LeavesConfig.modify.shulkerBox.sameNbtStackable || shulkerBoxNoItem(stack))) {
+                bi.getBlock() instanceof ShulkerBoxBlock && (LeavesConfig.modify.shulkerBox.sameNbtStackable || isEmpty(stack))) {
                 return LeavesConfig.modify.shulkerBox.stackableShulkerBoxes;
             }
             return -1;
-        }
-    }
-
-    public static class CurseEnchantedBook implements ItemUtil {
-        public static boolean isCursedEnchantedBook(ItemStack stack) {
-            ItemEnchantments enchantments = stack.getBukkitStack().getData(DataComponentTypes.STORED_ENCHANTMENTS);
-            if (enchantments == null || enchantments.enchantments().size() != 1) {
-                return false;
-            }
-            return enchantments.enchantments().containsKey(Enchantment.BINDING_CURSE) ||
-                enchantments.enchantments().containsKey(Enchantment.VANISHING_CURSE);
-        }
-
-        @Override
-        public boolean isEnabled() {
-            return LeavesConfig.modify.oldMC.allowGrindstoneOverstacking;
-        }
-
-        @Override
-        public boolean tryStackItems(ItemEntity self, ItemEntity other) {
-            return false;
-        }
-
-        @Override
-        public int getMaxServerStackCount(ItemStack stack) {
-            return -1;
-        }
-
-        @Override
-        public int getMaxClientStackCount(ItemStack stack) {
-            return isCursedEnchantedBook(stack) ? 2 : -1;
         }
     }
 }

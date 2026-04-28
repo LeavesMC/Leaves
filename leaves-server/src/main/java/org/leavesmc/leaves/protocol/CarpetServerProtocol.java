@@ -4,7 +4,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
@@ -16,8 +16,10 @@ import org.leavesmc.leaves.protocol.core.ProtocolHandler;
 import org.leavesmc.leaves.protocol.core.ProtocolUtils;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 @LeavesProtocol.Register(namespace = "carpet")
 public class CarpetServerProtocol implements LeavesProtocol {
@@ -28,9 +30,11 @@ public class CarpetServerProtocol implements LeavesProtocol {
     private static final String HI = "69";
     private static final String HELLO = "420";
 
+    private static final Set<ServerPlayer> activePlayers = new HashSet<>();
+
     @Contract("_ -> new")
-    public static ResourceLocation id(String path) {
-        return ResourceLocation.fromNamespaceAndPath(PROTOCOL_ID, path);
+    public static Identifier id(String path) {
+        return Identifier.fromNamespaceAndPath(PROTOCOL_ID, path);
     }
 
     @ProtocolHandler.PlayerJoin
@@ -40,14 +44,25 @@ public class CarpetServerProtocol implements LeavesProtocol {
         ProtocolUtils.sendPayloadPacket(player, new CarpetPayload(data));
     }
 
+    @ProtocolHandler.PlayerLeave
+    public static void onPlayerLeave(ServerPlayer player) {
+        activePlayers.remove(player);
+    }
+
     @ProtocolHandler.PayloadReceiver(payload = CarpetPayload.class)
     private static void handleHello(@NotNull ServerPlayer player, @NotNull CarpetServerProtocol.CarpetPayload payload) {
-        if (payload.nbt.contains(HELLO)) {
-            LeavesLogger.LOGGER.info("Player " + player.getScoreboardName() + " joined with carpet " + payload.nbt.getString(HELLO).orElse("Unknown"));
-            CompoundTag data = new CompoundTag();
-            CarpetRules.write(data);
-            ProtocolUtils.sendPayloadPacket(player, new CarpetPayload(data));
+        if (!payload.nbt.contains(HELLO)) {
+            return;
         }
+        LeavesLogger.LOGGER.info("Player " + player.getScoreboardName() + " joined with carpet " + payload.nbt.getString(HELLO).orElse("Unknown"));
+        sendServerData(player);
+        activePlayers.add(player);
+    }
+
+    private static void sendServerData(ServerPlayer player) {
+        CompoundTag data = new CompoundTag();
+        CarpetRules.write(data);
+        ProtocolUtils.sendPayloadPacket(player, new CarpetPayload(data));
     }
 
     @Override
@@ -67,7 +82,10 @@ public class CarpetServerProtocol implements LeavesProtocol {
         }
 
         public static void register(CarpetRule rule) {
-            rules.put(rule.name, rule);
+            if (!rules.containsKey(rule.name) || !rules.get(rule.name).equals(rule)) {
+                rules.put(rule.name, rule);
+                activePlayers.forEach(CarpetServerProtocol::sendServerData);
+            }
         }
     }
 
@@ -102,7 +120,7 @@ public class CarpetServerProtocol implements LeavesProtocol {
 
     public record CarpetPayload(CompoundTag nbt) implements LeavesCustomPayload {
         @ID
-        private static final ResourceLocation HELLO_ID = CarpetServerProtocol.id("hello");
+        private static final Identifier HELLO_ID = CarpetServerProtocol.id("hello");
 
         @Codec
         private static final StreamCodec<FriendlyByteBuf, CarpetPayload> CODEC = StreamCodec.composite(

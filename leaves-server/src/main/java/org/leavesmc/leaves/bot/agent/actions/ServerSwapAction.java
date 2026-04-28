@@ -4,12 +4,13 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.bot.ServerBot;
+import org.leavesmc.leaves.entity.bot.actions.CraftBotAction;
 import org.leavesmc.leaves.entity.bot.actions.CraftSwapAction;
 
 public class ServerSwapAction extends AbstractBotAction<ServerSwapAction> {
 
     public ServerSwapAction() {
-        super("swap", ServerSwapAction::new);
+        super("swap");
     }
 
     @Override
@@ -22,7 +23,7 @@ public class ServerSwapAction extends AbstractBotAction<ServerSwapAction> {
     }
 
     @Override
-    public Object asCraft() {
+    public CraftBotAction<?, ServerSwapAction> asCraft() {
         return new CraftSwapAction(this);
     }
 }

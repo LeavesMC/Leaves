@@ -53,7 +53,7 @@ public class CraftBot extends CraftPlayer implements Bot {
 
     @Override
     public BotAction<?> getAction(int index) {
-        return (BotAction<?>) this.getHandle().getBotActions().get(index).asCraft();
+        return this.getHandle().getBotActions().get(index).asCraft();
     }
 
     @Override

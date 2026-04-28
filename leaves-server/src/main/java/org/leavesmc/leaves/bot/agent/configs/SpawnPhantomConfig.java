@@ -7,11 +7,11 @@ import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.bot.agent.ExtraData;
 import org.leavesmc.leaves.command.CommandContext;
 
-public class SpawnPhantomConfig extends AbstractBotConfig<Boolean, SpawnPhantomConfig> {
+public class SpawnPhantomConfig extends AbstractBotConfig<Boolean> {
     private boolean value;
 
     public SpawnPhantomConfig() {
-        super("spawn_phantom", BoolArgumentType.bool(), SpawnPhantomConfig::new);
+        super("spawn_phantom", BoolArgumentType.bool());
         this.value = LeavesConfig.modify.fakeplayer.inGame.canSpawnPhantom;
     }
 
@@ -32,7 +32,7 @@ public class SpawnPhantomConfig extends AbstractBotConfig<Boolean, SpawnPhantomC
     }
 
     @Override
-    public Boolean loadFromCommand(@NotNull CommandContext context) {
+    public Boolean parseFromCommand(@NotNull CommandContext context) {
         return context.getBoolean(getName());
     }
 

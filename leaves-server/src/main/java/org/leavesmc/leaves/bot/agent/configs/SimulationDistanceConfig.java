@@ -9,10 +9,10 @@ import org.leavesmc.leaves.command.CommandContext;
 
 import static net.minecraft.network.chat.Component.literal;
 
-public class SimulationDistanceConfig extends AbstractBotConfig<Integer, SimulationDistanceConfig> {
+public class SimulationDistanceConfig extends AbstractBotConfig<Integer> {
 
     public SimulationDistanceConfig() {
-        super("simulation_distance", IntegerArgumentType.integer(2, 32), SimulationDistanceConfig::new);
+        super("simulation_distance", IntegerArgumentType.integer(2, 32));
     }
 
     @Override
@@ -35,7 +35,7 @@ public class SimulationDistanceConfig extends AbstractBotConfig<Integer, Simulat
     }
 
     @Override
-    public Integer loadFromCommand(@NotNull CommandContext context) {
+    public Integer parseFromCommand(@NotNull CommandContext context) {
         return context.getInteger(getName());
     }
 

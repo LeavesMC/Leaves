@@ -9,16 +9,16 @@ import org.leavesmc.leaves.command.arguments.EnumArgumentType;
 
 import java.util.Locale;
 
-public class TickTypeConfig extends AbstractBotConfig<ServerBot.TickType, TickTypeConfig> {
+public class TickTypeConfig extends AbstractBotConfig<ServerBot.TickType> {
     private ServerBot.TickType value;
 
     public TickTypeConfig() {
-        super("tick_type", EnumArgumentType.fromEnum(ServerBot.TickType.class), TickTypeConfig::new);
+        super("tick_type", EnumArgumentType.fromEnum(ServerBot.TickType.class));
         this.value = LeavesConfig.modify.fakeplayer.inGame.tickType;
     }
 
     @Override
-    public ServerBot.TickType loadFromCommand(@NotNull CommandContext context) {
+    public ServerBot.TickType parseFromCommand(@NotNull CommandContext context) {
         return context.getArgument("tick_type", ServerBot.TickType.class);
     }
 

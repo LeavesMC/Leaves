@@ -34,6 +34,11 @@ public class ServerBotPacketListenerImpl extends ServerGamePacketListenerImpl {
     public void tick() {
     }
 
+    @Override
+    public boolean hasClientLoaded() {
+        return true; // Don't kick me out!
+    }
+
     public static class BotConnection extends Connection {
 
         private static final BotConnection INSTANCE = new BotConnection();

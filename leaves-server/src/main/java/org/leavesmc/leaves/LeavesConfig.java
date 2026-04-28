@@ -1301,11 +1301,22 @@ public final class LeavesConfig {
         @GlobalConfig("vanilla-portal-handle")
         public boolean vanillaPortalHandle = true;
 
-        @GlobalConfig(value = "collision-behavior")
-        public CollisionBehavior collisionBehavior = CollisionBehavior.BLOCK_SHAPE_VANILLA;
+        @GlobalConfig(value = "collision-behavior", validator = CollisionBehaviorValidator.class)
+        public CollisionBehavior collisionBehavior = CollisionBehavior.PAPER;
 
         public enum CollisionBehavior {
-            VANILLA, BLOCK_SHAPE_VANILLA, PAPER
+            VANILLA, PAPER
+        }
+
+        private static class CollisionBehaviorValidator extends EnumConfigValidator<CollisionBehavior> {
+            @Override
+            public CollisionBehavior stringConvert(@NotNull String value) throws IllegalArgumentException {
+                if (value.equalsIgnoreCase("BLOCK_SHAPE_VANILLA")) {
+                    LeavesLogger.LOGGER.warning("Paper has updated the collision behavior to BLOCK_SHAPE_VANILLA mode, converting this to PAPER...");
+                    value = "PAPER";
+                }
+                return super.stringConvert(value);
+            }
         }
 
         @GlobalConfig("stacked-container-destroyed-drop")

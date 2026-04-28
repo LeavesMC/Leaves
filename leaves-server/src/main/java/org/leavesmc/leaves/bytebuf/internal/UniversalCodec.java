@@ -76,9 +76,6 @@ public class UniversalCodec {
         CODEC_MAP = codecBuilder.build();
     }
 
-    UniversalCodec() {
-    }
-
     public RegistryFriendlyByteBuf encode(Packet<?> packet, boolean isConfigStage) {
         RegistryFriendlyByteBuf buf = BUF_FACTORY.get();
         if (packet instanceof ClientboundCustomPayloadPacket payloadPacket) {

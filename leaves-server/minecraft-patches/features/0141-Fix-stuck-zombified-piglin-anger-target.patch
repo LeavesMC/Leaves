@@ -3,25 +3,31 @@ From: HyacinthHaru <122684177+HyacinthHaru@users.noreply.github.com>
 Date: Tue, 28 Apr 2026 18:50:00 +0800
 Subject: [PATCH] Fix stuck zombified piglin anger target
 
-Cleans up the leftover persistentAngerTarget when target has been
-cleared but still resolves to a non-player Mob.
+Cleans up the running anger timer whenever neither target nor
+persistentAngerTarget points to a living valid player.
 
 
 diff --git a/net/minecraft/world/entity/NeutralMob.java b/net/minecraft/world/entity/NeutralMob.java
-index c2201fde32aaf8cc02b71bc90aee40ef98438066..e7ba7556326f9af7230392b31c7fc5f781419237 100644
+index c2201fde32aaf8cc02b71bc90aee40ef98438066..30d4e45baa188b7e7e1cf5eb9a76c17b950487e4 100644
 --- a/net/minecraft/world/entity/NeutralMob.java
 +++ b/net/minecraft/world/entity/NeutralMob.java
-@@ -80,6 +80,16 @@ public interface NeutralMob {
+@@ -80,6 +80,22 @@ public interface NeutralMob {
              if (persistentAngerTarget != null && !this.isAngry() && (target == null || !isValidPlayerTarget(target) || !updateAnger)) {
                  this.stopBeingAngry();
              }
 +
 +            // Leaves start - fix stuck zombified piglin anger target
-+            if (org.leavesmc.leaves.LeavesConfig.modify.oldMC.fixStuckZombifiedPiglinAngerTarget
-+                    && target == null && persistentAngerTarget != null) {
-+                LivingEntity resolved = EntityReference.getLivingEntity(persistentAngerTarget, level);
-+                if (resolved == null || !isValidPlayerTarget(resolved)) {
-+                    this.stopBeingAngry();
++            if (org.leavesmc.leaves.LeavesConfig.modify.oldMC.fixStuckZombifiedPiglinAngerTarget && this.isAngry()) {
++                boolean hasValidTargetPlayer = target != null && target.isAlive() && isValidPlayerTarget(target);
++                if (!hasValidTargetPlayer) {
++                    boolean hasValidPersistentPlayer = false;
++                    if (persistentAngerTarget != null) {
++                        LivingEntity resolved = EntityReference.getLivingEntity(persistentAngerTarget, level);
++                        hasValidPersistentPlayer = resolved != null && resolved.isAlive() && isValidPlayerTarget(resolved);
++                    }
++                    if (!hasValidPersistentPlayer) {
++                        this.stopBeingAngry();
++                    }
 +                }
 +            }
 +            // Leaves end - fix stuck zombified piglin anger target

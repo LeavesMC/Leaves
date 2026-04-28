@@ -179,11 +179,9 @@ public class LinearRegionFile implements IRegionFile {
                 parseLinearV2(buffer);
             } else {
                 LOGGER.error("Invalid version {} in region file {}", version, this.regionFile);
-                return;
             }
         } catch (IOException e) {
             LOGGER.error("Failed to open region file {}", this.regionFile, e);
-            return;
         } finally {
             writeLock.unlock();
         }
@@ -223,9 +221,9 @@ public class LinearRegionFile implements IRegionFile {
                 byte[] chunkData = new byte[size];
                 decompressedBuffer.get(chunkData);
 
-                int maxCompressedLength = this.compressor.maxCompressedLength(size);
+                int maxCompressedLength = compressor.maxCompressedLength(size);
                 byte[] compressed = new byte[maxCompressedLength];
-                int compressedLength = this.compressor.compress(chunkData, 0, size, compressed, 0, maxCompressedLength);
+                int compressedLength = compressor.compress(chunkData, 0, size, compressed, 0, maxCompressedLength);
                 byte[] finalCompressed = new byte[compressedLength];
                 System.arraycopy(compressed, 0, finalCompressed, 0, compressedLength);
 
@@ -382,7 +380,7 @@ public class LinearRegionFile implements IRegionFile {
                 if (this.bufferUncompressedSize[i] != 0) {
                     chunkCount += 1;
                     byte[] content = new byte[bufferUncompressedSize[i]];
-                    this.decompressor.decompress(buffer[i], 0, content, 0, bufferUncompressedSize[i]);
+                    decompressor.decompress(buffer[i], 0, content, 0, bufferUncompressedSize[i]);
 
                     byteBuffers.add(content);
                 } else {
@@ -475,7 +473,7 @@ public class LinearRegionFile implements IRegionFile {
                         if (this.bufferUncompressedSize[chunkIndex] > 0) {
                             hasData = true;
                             byte[] chunkData = new byte[this.bufferUncompressedSize[chunkIndex]];
-                            this.decompressor.decompress(this.buffer[chunkIndex], 0, chunkData, 0, this.bufferUncompressedSize[chunkIndex]);
+                            decompressor.decompress(this.buffer[chunkIndex], 0, chunkData, 0, this.bufferUncompressedSize[chunkIndex]);
                             bucketDataStream.writeInt(chunkData.length + 8);
                             bucketDataStream.writeLong(this.chunkTimestamps[chunkIndex]);
                             bucketDataStream.write(chunkData);
@@ -567,9 +565,9 @@ public class LinearRegionFile implements IRegionFile {
                                 byte[] chunkData = new byte[chunkSize - 8];
                                 bucketBuffer.get(chunkData);
 
-                                int maxCompressedLength = this.compressor.maxCompressedLength(chunkData.length);
+                                int maxCompressedLength = compressor.maxCompressedLength(chunkData.length);
                                 byte[] compressed = new byte[maxCompressedLength];
-                                int compressedLength = this.compressor.compress(chunkData, 0, chunkData.length, compressed, 0, maxCompressedLength);
+                                int compressedLength = compressor.compress(chunkData, 0, chunkData.length, compressed, 0, maxCompressedLength);
                                 byte[] finalCompressed = new byte[compressedLength];
                                 System.arraycopy(compressed, 0, finalCompressed, 0, compressedLength);
 
@@ -585,7 +583,7 @@ public class LinearRegionFile implements IRegionFile {
                 }
                 bucketBuffers[idx] = null;
             }
-        }finally {
+        } finally {
             readLock.unlock();
         }
     }
@@ -604,9 +602,9 @@ public class LinearRegionFile implements IRegionFile {
                     LOGGER.error("Chunk dupe attempt {}", this.regionFile);
                     clear(pos);
                 } else {
-                    int maxCompressedLength = this.compressor.maxCompressedLength(b.length);
+                    int maxCompressedLength = compressor.maxCompressedLength(b.length);
                     byte[] compressed = new byte[maxCompressedLength];
-                    int compressedLength = this.compressor.compress(b, 0, b.length, compressed, 0, maxCompressedLength);
+                    int compressedLength = compressor.compress(b, 0, b.length, compressed, 0, maxCompressedLength);
                     b = new byte[compressedLength];
                     System.arraycopy(compressed, 0, b, 0, compressedLength);
 
@@ -680,7 +678,7 @@ public class LinearRegionFile implements IRegionFile {
 
             if (this.bufferUncompressedSize[getChunkIndex(pos.x, pos.z)] != 0) {
                 byte[] content = new byte[bufferUncompressedSize[getChunkIndex(pos.x, pos.z)]];
-                this.decompressor.decompress(this.buffer[getChunkIndex(pos.x, pos.z)], 0, content, 0, bufferUncompressedSize[getChunkIndex(pos.x, pos.z)]);
+                decompressor.decompress(this.buffer[getChunkIndex(pos.x, pos.z)], 0, content, 0, bufferUncompressedSize[getChunkIndex(pos.x, pos.z)]);
                 return new DataInputStream(new ByteArrayInputStream(content));
             }
             return null;

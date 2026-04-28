@@ -186,7 +186,7 @@ public class JadeProtocol implements LeavesProtocol {
                 try {
                     provider.appendServerData(tag, accessor);
                 } catch (Exception e) {
-                    LeavesLogger.LOGGER.warning("Error while saving data for entity " + entity);
+                    LeavesLogger.SLF4JLogger.warn("Error while saving data for entity {}", entity);
                 }
             }
             tag.putInt("EntityId", entity.getId());
@@ -230,7 +230,7 @@ public class JadeProtocol implements LeavesProtocol {
                 try {
                     provider.appendServerData(tag, accessor);
                 } catch (Exception e) {
-                    LeavesLogger.LOGGER.warning("Error while saving data for block " + accessor.getBlockState());
+                    LeavesLogger.SLF4JLogger.warn("Error while saving data for block {}", accessor.getBlockState());
                 }
             }
             NbtUtils.writeBlockPosToTag(pos, tag);
@@ -256,7 +256,7 @@ public class JadeProtocol implements LeavesProtocol {
             ));
         } catch (Throwable ignore) {
             shearableBlocks = List.of();
-            LeavesLogger.LOGGER.severe("Failed to collect shearable blocks");
+            LeavesLogger.SLF4JLogger.error("Failed to collect shearable blocks");
         }
     }
 

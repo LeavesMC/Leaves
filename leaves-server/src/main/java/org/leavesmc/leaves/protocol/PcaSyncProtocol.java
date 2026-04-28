@@ -153,7 +153,7 @@ public class PcaSyncProtocol implements LeavesProtocol {
                         }
                         case EVERYONE -> {
                         }
-                        case null -> LeavesLogger.LOGGER.warning("pcaSyncPlayerEntity wtf???");
+                        case null -> LeavesLogger.SLF4JLogger.warn("pcaSyncPlayerEntity wtf???");
                     }
                 }
                 updateEntity(player, entity);

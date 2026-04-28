@@ -29,7 +29,7 @@ public class BotDataStorage {
     private final File botDir;
     private final File botListFile;
 
-    private CompoundTag savedBotList;
+    private final CompoundTag savedBotList;
 
     public BotDataStorage(LevelStorageSource.@NotNull LevelStorageAccess session, String dataDir, String listFileName) {
         this.botDir = session.getLevelPath(new LevelResource(dataDir)).toFile();

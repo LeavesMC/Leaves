@@ -78,13 +78,13 @@ public final class LeavesConfig {
                     throw new IOException("Can't create file");
                 }
             } catch (final Exception ex) {
-                LeavesLogger.LOGGER.severe("Failure to create leaves config", ex);
+                LeavesLogger.SLF4JLogger.error("Failure to create leaves config", ex);
             }
         } else {
             try {
                 config.load(file);
             } catch (final Exception ex) {
-                LeavesLogger.LOGGER.severe("Failure to load leaves config", ex);
+                LeavesLogger.SLF4JLogger.error("Failure to load leaves config", ex);
                 throw new RuntimeException(ex);
             }
         }
@@ -104,7 +104,7 @@ public final class LeavesConfig {
         try {
             config.load(LeavesConfig.configFile);
         } catch (final Exception ex) {
-            LeavesLogger.LOGGER.severe("Failure to reload leaves config", ex);
+            LeavesLogger.SLF4JLogger.error("Failure to reload leaves config", ex);
             throw new RuntimeException(ex);
         }
 
@@ -115,7 +115,7 @@ public final class LeavesConfig {
         try {
             config.save(LeavesConfig.configFile);
         } catch (final Exception ex) {
-            LeavesLogger.LOGGER.severe("Unable to save leaves config", ex);
+            LeavesLogger.SLF4JLogger.error("Unable to save leaves config", ex);
         }
     }
 
@@ -860,6 +860,9 @@ public final class LeavesConfig {
     @GlobalConfigCategory("protocol")
     public static class ProtocolConfig {
 
+        @GlobalConfig("strict-mode")
+        public boolean strictMode = false;
+
         public BladerenConfig bladeren = new BladerenConfig();
 
         @GlobalConfigCategory("bladeren")
@@ -1110,7 +1113,7 @@ public final class LeavesConfig {
                     if (!reload) {
                         LeavesUpdateHelper.init();
                         if (value) {
-                            LeavesLogger.LOGGER.warning("Auto-Update is not completely safe. Enabling it may cause data security problems!");
+                            LeavesLogger.SLF4JLogger.warn("Auto-Update is not completely safe. Enabling it may cause data security problems!");
                         }
                     }
                 }
@@ -1146,7 +1149,7 @@ public final class LeavesConfig {
                 @Override
                 public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
                     if (value) {
-                        LeavesLogger.LOGGER.warning("extra-yggdrasil-service is an unofficial support. Enabling it may cause data security problems!");
+                        LeavesLogger.SLF4JLogger.warn("extra-yggdrasil-service is an unofficial support. Enabling it may cause data security problems!");
                         GlobalConfiguration.get().unsupportedSettings.performUsernameValidation = true; // always check username
                     }
                 }
@@ -1312,7 +1315,7 @@ public final class LeavesConfig {
             @Override
             public CollisionBehavior stringConvert(@NotNull String value) throws IllegalArgumentException {
                 if (value.equalsIgnoreCase("BLOCK_SHAPE_VANILLA")) {
-                    LeavesLogger.LOGGER.warning("Paper has updated the collision behavior to BLOCK_SHAPE_VANILLA mode, converting this to PAPER...");
+                    LeavesLogger.SLF4JLogger.warn("Paper has updated the collision behavior to BLOCK_SHAPE_VANILLA mode, converting this to PAPER...");
                     value = "PAPER";
                 }
                 return super.stringConvert(value);

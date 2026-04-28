@@ -43,17 +43,17 @@ public class PacketTransformer {
                 int partsNum = buf.readInt();
                 data = new PartData(id, partsNum);
                 if (cache.put(key, data) != null) {
-                    LeavesLogger.LOGGER.warning("Received invalid START packet for SplitPacketTransformer with packet id " + id);
+                    LeavesLogger.SLF4JLogger.warn("Received invalid START packet for SplitPacketTransformer with packet id {}", id);
                 }
                 buf.retain();
                 data.parts.add(buf);
             }
             case PART -> {
                 if ((data = cache.get(key)) == null) {
-                    LeavesLogger.LOGGER.warning("Received invalid PART packet for SplitPacketTransformer with packet id " + id);
+                    LeavesLogger.SLF4JLogger.warn("Received invalid PART packet for SplitPacketTransformer with packet id {}", id);
                     buf.release();
                 } else if (!data.id.equals(id)) {
-                    LeavesLogger.LOGGER.warning("Received invalid PART packet for SplitPacketTransformer with packet id " + id + ", id in cache is {}" + data.id);
+                    LeavesLogger.SLF4JLogger.warn("Received invalid PART packet for SplitPacketTransformer with packet id {}, id in cache is {}", id, data.id);
                     buf.release();
                     for (RegistryFriendlyByteBuf part : data.parts) {
                         if (part != buf) {
@@ -68,10 +68,10 @@ public class PacketTransformer {
             }
             case END -> {
                 if ((data = cache.get(key)) == null) {
-                    LeavesLogger.LOGGER.warning("Received invalid END packet for SplitPacketTransformer with packet id {}" + id);
+                    LeavesLogger.SLF4JLogger.warn("Received invalid END packet for SplitPacketTransformer with packet id {}", id);
                     buf.release();
                 } else if (!data.id.equals(id)) {
-                    LeavesLogger.LOGGER.warning("Received invalid END packet for SplitPacketTransformer with packet id " + id + ", id in cache is {}" + data.id);
+                    LeavesLogger.SLF4JLogger.warn("Received invalid END packet for SplitPacketTransformer with packet id {}, id in cache is{}", id, data.id);
                     buf.release();
                     for (RegistryFriendlyByteBuf part : data.parts) {
                         if (part != buf) {
@@ -87,7 +87,7 @@ public class PacketTransformer {
                     return;
                 }
                 if (data.parts.size() != data.partsNum) {
-                    LeavesLogger.LOGGER.warning("Received invalid END packet for SplitPacketTransformer with packet id " + id + " with size " + data.parts + ", parts expected is {}" + data.partsNum);
+                    LeavesLogger.SLF4JLogger.warn("Received invalid END packet for SplitPacketTransformer with packet id {} with size {}, parts expected is {}", id, data.parts, data.partsNum);
                     for (RegistryFriendlyByteBuf part : data.parts) {
                         if (part != buf) {
                             part.release();

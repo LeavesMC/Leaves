@@ -36,7 +36,7 @@ public class BladerenProtocol implements LeavesProtocol {
         String clientVersion = payload.version;
         CompoundTag tag = payload.nbt;
 
-        LeavesLogger.LOGGER.info("Player " + player.getScoreboardName() + " joined with bladeren " + clientVersion);
+        LeavesLogger.SLF4JLogger.info("Player {} joined with bladeren {}", player.getScoreboardName(), clientVersion);
 
         if (tag != null) {
             CompoundTag featureNbt = tag.getCompound("Features").orElseThrow();

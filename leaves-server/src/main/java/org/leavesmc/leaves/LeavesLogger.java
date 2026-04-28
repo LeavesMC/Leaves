@@ -1,12 +1,15 @@
 package org.leavesmc.leaves;
 
 import org.bukkit.Bukkit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.logging.Level;
-import java.util.logging.Logger;
 
-public class LeavesLogger extends Logger {
+public class LeavesLogger extends java.util.logging.Logger {
+
     public static final LeavesLogger LOGGER = new LeavesLogger();
+    public static final Logger SLF4JLogger = LoggerFactory.getLogger(LOGGER.getName());
 
     private LeavesLogger() {
         super("Leaves", null);

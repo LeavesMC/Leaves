@@ -69,7 +69,7 @@ public class ServerPhotographer extends ServerPlayer {
         photographer.setInvisible(true);
         photographers.add(photographer);
 
-        LeavesLogger.LOGGER.info("Photographer " + state.id + " created");
+        LeavesLogger.SLF4JLogger.info("Photographer {} created", state.id);
 
         // TODO record distance
 
@@ -135,7 +135,7 @@ public class ServerPhotographer extends ServerPlayer {
         this.recorder.stop();
         getServer().getPlayerList().removePhotographer(this);
 
-        LeavesLogger.LOGGER.info("Photographer " + createState.id + " removed");
+        LeavesLogger.SLF4JLogger.info("Photographer {} removed", createState.id);
 
         if (!recorder.isSaved()) {
             CompletableFuture<Void> future = recorder.saveRecording(saveFile, save);
@@ -222,7 +222,7 @@ public class ServerPhotographer extends ServerPlayer {
             try {
                 return createPhotographer(this);
             } catch (IOException e) {
-                e.printStackTrace();
+                LeavesLogger.SLF4JLogger.error(e.toString());
             }
             return null;
         }

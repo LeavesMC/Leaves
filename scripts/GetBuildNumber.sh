@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 prop() {
-  grep "${1}" gradle.properties | cut -d'=' -f2 | sed 's/\r//'
+  grep "^[[:space:]]*${1}[[:space:]]*=" gradle.properties | grep -v "^[[:space:]]*#" | cut -d'=' -f2 | sed 's/\r//'
 }
 
 latest_build=$(curl -s -L "https://api.leavesmc.org/v2/projects/leaves/versions/$(prop mcVersion)/latestGroupBuildId")

@@ -3,7 +3,7 @@ sha256() {
 }
 
 prop() {
-  grep "${1}" gradle.properties | cut -d'=' -f2 | sed 's/\r//'
+  grep "^[[:space:]]*${1}[[:space:]]*=" gradle.properties | grep -v "^[[:space:]]*#" | cut -d'=' -f2 | sed 's/\r//'
 }
 
 # shellcheck disable=SC2154

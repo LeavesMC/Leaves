@@ -355,6 +355,9 @@ public final class LeavesConfig {
             @GlobalConfig("old-zombie-piglin-drop")
             public boolean oldZombiePiglinDrop = false;
 
+            @GlobalConfig("fix-stuck-zombified-piglin-anger-target")
+            public boolean fixStuckZombifiedPiglinAngerTarget = false;
+
             @TransferConfig(value = "modify.minecraft-old.revert-raid-changes", transformer = RaidConfigTransformer.class)
             @GlobalConfig("old-raid-behavior")
             public boolean oldRaidBehavior = false;

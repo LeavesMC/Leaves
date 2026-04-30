@@ -596,6 +596,9 @@ public final class LeavesConfig {
         @GlobalConfig("fix-update-suppression-crash")
         public boolean updateSuppressionCrashFix = true;
 
+        @GlobalConfig("fix-stuck-zombified-piglin-anger-target")
+        public boolean fixStuckZombifiedPiglinAngerTarget = false;
+
         @GlobalConfig(value = "bedrock-break-list", lock = true)
         public boolean bedrockBreakList = false;
 

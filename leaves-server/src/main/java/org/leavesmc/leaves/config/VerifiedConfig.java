@@ -70,7 +70,7 @@ public record VerifiedConfig(ConfigValidator<? super Object> validator, boolean 
         try {
             validator = createValidator(config.validator(), field);
         } catch (Exception e) {
-            LeavesLogger.LOGGER.error("Failure to load leaves config{}", path, e);
+            LeavesLogger.LOGGER.error("Failure to load leaves config {}", path, e);
             throw new RuntimeException();
         }
 

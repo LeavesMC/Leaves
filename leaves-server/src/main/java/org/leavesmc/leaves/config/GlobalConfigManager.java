@@ -83,7 +83,7 @@ public class GlobalConfigManager {
             }
             traverseToNodeOrCreate(categoryPath.substring(CONFIG_START.length()));
         } catch (Exception e) {
-            LeavesLogger.LOGGER.error("Failure to load leaves config{}", upstreamPath, e);
+            LeavesLogger.LOGGER.error("Failure to load leaves config {}", upstreamPath, e);
         }
     }
 

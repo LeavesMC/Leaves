@@ -72,6 +72,6 @@ public abstract class AbstractInvokerHolder<T> {
         if (LeavesConfig.protocol.strictMode) {
             throw (T) t;
         }
-        LeavesLogger.SLF4JLogger.error("Exception on invoking protocol ", t);
+        LeavesLogger.LOGGER.error("Exception on invoking protocol ", t);
     }
 }

@@ -118,7 +118,7 @@ public class ServuxStructuresProtocol implements LeavesProtocol {
         if (!players.containsKey(player.getId())) {
             players.put(player.getId(), player);
         } else {
-            LeavesLogger.SLF4JLogger.warn(player.getScoreboardName() + " re-register servux:structures");
+            LeavesLogger.LOGGER.warn(player.getScoreboardName() + " re-register servux:structures");
         }
 
         MinecraftServer server = getServer();

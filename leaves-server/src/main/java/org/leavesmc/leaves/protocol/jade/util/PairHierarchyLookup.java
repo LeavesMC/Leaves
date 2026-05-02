@@ -47,7 +47,7 @@ public class PairHierarchyLookup<T extends JadeProvider> implements IHierarchyLo
                 return ImmutableList.sortedCopyOf(COMPARATOR, Iterables.concat(firstList, secondList));
             });
         } catch (ExecutionException e) {
-            LeavesLogger.SLF4JLogger.error(e.toString());
+            LeavesLogger.LOGGER.error(e.toString());
         }
         return List.of();
     }

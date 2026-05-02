@@ -110,7 +110,7 @@ public class CommunicationManager implements LeavesProtocol {
             try {
                 upload = new UploadExchange(placement, toUpload, source);
             } catch (final FileNotFoundException e) {
-                LeavesLogger.SLF4JLogger.error(e.toString());
+                LeavesLogger.LOGGER.error(e.toString());
                 return;
             }
             startExchange(upload);
@@ -138,7 +138,7 @@ public class CommunicationManager implements LeavesProtocol {
                 try {
                     download(placement, source);
                 } catch (final Exception e) {
-                    LeavesLogger.SLF4JLogger.error(e.toString());
+                    LeavesLogger.LOGGER.error(e.toString());
                 }
                 return;
             }
@@ -171,7 +171,7 @@ public class CommunicationManager implements LeavesProtocol {
             final UUID placementId = packetBuf.readUUID();
             final ModifyExchangeServer modifier = new ModifyExchangeServer(placementId, source);
             if (modifier.getPlacement() == null) {
-                LeavesLogger.SLF4JLogger.warn("Could not find placement for modify request {}", placementId);
+                LeavesLogger.LOGGER.warn("Could not find placement for modify request {}", placementId);
                 return;
             }
             startExchange(modifier);

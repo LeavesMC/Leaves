@@ -68,7 +68,7 @@ public class UpdateSuppressionException extends RuntimeException {
 
     public void consume() {
         submitEvent();
-        LeavesLogger.SLF4JLogger.info(getMessage());
+        LeavesLogger.LOGGER.info(getMessage());
     }
 
     private void submitEvent() {

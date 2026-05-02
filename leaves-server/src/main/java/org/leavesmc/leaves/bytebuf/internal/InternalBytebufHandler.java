@@ -53,7 +53,7 @@ public class InternalBytebufHandler {
             }
             handler.audienceHolder.setPlayer(player.getBukkitEntity());
         } catch (Exception e) {
-            LeavesLogger.SLF4JLogger.warn("Failed to inject player for bytebuf API", e);
+            LeavesLogger.LOGGER.warn("Failed to inject player for bytebuf API", e);
         }
     }
 

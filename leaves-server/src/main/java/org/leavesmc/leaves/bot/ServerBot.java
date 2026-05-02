@@ -448,7 +448,7 @@ public class ServerBot extends ServerPlayer {
             for (CompoundTag configTag : configNbt) {
                 String key = configTag.getString("configName").orElseThrow();
                 if (!this.configs.containsKey(key)) {
-                    LeavesLogger.SLF4JLogger.warn("Trying to load a unknown config \"{}\", discard.", key);
+                    LeavesLogger.LOGGER.warn("Trying to load a unknown config \"{}\", discard.", key);
                     continue;
                 }
                 this.configs.get(key).load(configTag);
@@ -474,7 +474,7 @@ public class ServerBot extends ServerPlayer {
         ChunkMap.TrackedEntity entityTracker = this.level().getChunkSource().chunkMap.entityMap.get(this.getId());
 
         if (entityTracker == null) {
-            LeavesLogger.SLF4JLogger.warn("Fakeplayer cant get entity tracker for {}", this.getId());
+            LeavesLogger.LOGGER.warn("Fakeplayer cant get entity tracker for {}", this.getId());
             return;
         }
 

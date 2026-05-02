@@ -54,7 +54,7 @@ public class CarpetServerProtocol implements LeavesProtocol {
         if (!payload.nbt.contains(HELLO)) {
             return;
         }
-        LeavesLogger.SLF4JLogger.info("Player {} joined with carpet {}", player.getScoreboardName(), payload.nbt.getString(HELLO).orElse("Unknown"));
+        LeavesLogger.LOGGER.info("Player {} joined with carpet {}", player.getScoreboardName(), payload.nbt.getString(HELLO).orElse("Unknown"));
         sendServerData(player);
         activePlayers.add(player);
     }

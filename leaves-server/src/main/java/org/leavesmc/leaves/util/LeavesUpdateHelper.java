@@ -51,7 +51,7 @@ public class LeavesUpdateHelper {
         File workingDirFile = new File(autoUpdateDir);
         if (!workingDirFile.exists()) {
             if (!workingDirFile.mkdir()) {
-                LeavesLogger.LOGGER.warning("Failed to create working directory: " + autoUpdateDir);
+                LeavesLogger.LOGGER.warn("Failed to create working directory: {}", autoUpdateDir);
             }
         }
 
@@ -62,14 +62,14 @@ public class LeavesUpdateHelper {
                     throw new IOException();
                 }
             } catch (IOException e) {
-                LeavesLogger.SLF4JLogger.error("Failed to create core path file: {}", corePathFileName, e);
+                LeavesLogger.LOGGER.error("Failed to create core path file: {}", corePathFileName, e);
             }
         }
 
         File leavesUpdateDir = new File(autoUpdateDir + File.separator + "leaves");
         if (!leavesUpdateDir.exists()) {
             if (!leavesUpdateDir.mkdir()) {
-                LeavesLogger.SLF4JLogger.warn("Failed to create leaves update directory: {}", leavesUpdateDir);
+                LeavesLogger.LOGGER.warn("Failed to create leaves update directory: {}", leavesUpdateDir);
             }
         }
 
@@ -86,7 +86,7 @@ public class LeavesUpdateHelper {
                     }
                     autoUpdateExecutor.scheduleAtFixedRate(LeavesUpdateHelper::tryUpdateLeaves, task.toMillis(), dailyTaskPeriod, TimeUnit.MILLISECONDS);
                 } catch (Exception ignored) {
-                    LeavesLogger.SLF4JLogger.warn("Illegal auto-update time ignored: {}", time);
+                    LeavesLogger.LOGGER.warn("Illegal auto-update time ignored: {}", time);
                 }
             }
         }
@@ -107,23 +107,23 @@ public class LeavesUpdateHelper {
     private static void downloadLeaves() {
         ServerBuildInfo version = ServerBuildInfo.buildInfo();
         if (version.gitCommit().isEmpty() || version.buildNumber().isEmpty()) {
-            LeavesLogger.SLF4JLogger.info("IDE, custom build? Can not update!");
+            LeavesLogger.LOGGER.info("IDE, custom build? Can not update!");
             updateTaskStarted = false;
             return;
         }
 
-        LeavesLogger.SLF4JLogger.info("Now gitHash: {}", version.gitCommit().get());
-        LeavesLogger.SLF4JLogger.info("Trying to get latest build info.");
+        LeavesLogger.LOGGER.info("Now gitHash: {}", version.gitCommit().get());
+        LeavesLogger.LOGGER.info("Trying to get latest build info.");
         LeavesBuildInfo buildInfo = getLatestBuildInfo(version.minecraftVersionId(), version.gitCommit().get());
 
         if (buildInfo != LeavesBuildInfo.ERROR) {
             if (!buildInfo.needUpdate) {
-                LeavesLogger.SLF4JLogger.warn("You are running the latest version, stopping update.");
+                LeavesLogger.LOGGER.warn("You are running the latest version, stopping update.");
                 updateTaskStarted = false;
                 return;
             }
 
-            LeavesLogger.SLF4JLogger.info("Got build info, trying to download {}", buildInfo.fileName);
+            LeavesLogger.LOGGER.info("Got build info, trying to download {}", buildInfo.fileName);
             try {
                 Path outFile = Path.of(autoUpdateDir, "leaves", buildInfo.fileName + ".cache");
                 Files.deleteIfExists(outFile);
@@ -135,16 +135,16 @@ public class LeavesUpdateHelper {
                     final FileChannel fileChannel = FileChannel.open(outFile, CREATE, WRITE, TRUNCATE_EXISTING)
                 ) {
                     fileChannel.transferFrom(source, 0, Long.MAX_VALUE);
-                    LeavesLogger.SLF4JLogger.info("Download {} completed.", buildInfo.fileName);
+                    LeavesLogger.LOGGER.info("Download {} completed.", buildInfo.fileName);
                 } catch (final IOException e) {
-                    LeavesLogger.SLF4JLogger.warn("Download {} failed.", buildInfo.fileName, e);
+                    LeavesLogger.LOGGER.warn("Download {} failed.", buildInfo.fileName, e);
                     Files.deleteIfExists(outFile);
                     updateTaskStarted = false;
                     return;
                 }
 
                 if (!isFileValid(outFile, buildInfo.sha256)) {
-                    LeavesLogger.SLF4JLogger.warn("Hash check failed for downloaded file {}", buildInfo.fileName);
+                    LeavesLogger.LOGGER.warn("Hash check failed for downloaded file {}", buildInfo.fileName);
                     Files.deleteIfExists(outFile);
                     updateTaskStarted = false;
                     return;
@@ -157,17 +157,17 @@ public class LeavesUpdateHelper {
                 try (BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(corePathFileName))) {
                     bufferedWriter.write(autoUpdateDir + File.separator + "leaves" + File.separator + buildInfo.fileName);
                 } catch (IOException e) {
-                    LeavesLogger.SLF4JLogger.warn("Fail to download leaves core", e);
+                    LeavesLogger.LOGGER.warn("Fail to download leaves core", e);
                     updateTaskStarted = false;
                     return;
                 }
 
-                LeavesLogger.SLF4JLogger.info("Leaves update completed, please restart your server.");
+                LeavesLogger.LOGGER.info("Leaves update completed, please restart your server.");
             } catch (Exception e) {
-                LeavesLogger.SLF4JLogger.error("Leaves update failed", e);
+                LeavesLogger.LOGGER.error("Leaves update failed", e);
             }
         } else {
-            LeavesLogger.SLF4JLogger.warn("Stopping update.");
+            LeavesLogger.LOGGER.warn("Stopping update.");
         }
         updateTaskStarted = false;
     }
@@ -183,7 +183,7 @@ public class LeavesUpdateHelper {
 
             return toHexString(md5.digest()).equals(hash);
         } catch (Exception e) {
-            LeavesLogger.SLF4JLogger.warn("Fail to validate file {}", file, e);
+            LeavesLogger.LOGGER.warn("Fail to validate file {}", file, e);
         }
         return false;
     }
@@ -210,7 +210,7 @@ public class LeavesUpdateHelper {
                 JsonObject obj = new Gson().fromJson(reader, JsonObject.class);
                 String channel = obj.get("channel").getAsString();
                 if ("experimental".equals(channel) && !LeavesConfig.mics.autoUpdate.allowExperimental) {
-                    LeavesLogger.SLF4JLogger.warn("Experimental version is not allowed to update for default, if you really want to update, please set misc.auto-update.allow-experimental to true in leaves.yml");
+                    LeavesLogger.LOGGER.warn("Experimental version is not allowed to update for default, if you really want to update, please set misc.auto-update.allow-experimental to true in leaves.yml");
                     return LeavesBuildInfo.ERROR;
                 }
                 int build = obj.get("build").getAsInt();
@@ -230,11 +230,11 @@ public class LeavesUpdateHelper {
                 String url = "https://api.leavesmc.org/v2/projects/leaves/versions/" + mcVersion + "/builds/" + build + "/downloads/";
                 return new LeavesBuildInfo(build, fileName, sha256, needUpdate, url);
             } catch (JsonSyntaxException | NumberFormatException e) {
-                LeavesLogger.SLF4JLogger.warn("Fail to get latest build info", e);
+                LeavesLogger.LOGGER.warn("Fail to get latest build info", e);
                 return LeavesBuildInfo.ERROR;
             }
         } catch (IOException | URISyntaxException e) {
-            LeavesLogger.SLF4JLogger.warn("Fail to get latest build info", e);
+            LeavesLogger.LOGGER.warn("Fail to get latest build info", e);
             return LeavesBuildInfo.ERROR;
         }
     }

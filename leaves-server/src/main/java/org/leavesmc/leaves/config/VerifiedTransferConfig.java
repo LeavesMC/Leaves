@@ -23,11 +23,11 @@ public record VerifiedTransferConfig(ConfigTransformer<? super Object, ? super O
                     field.set(upstreamField, savedValue);
                     LeavesConfig.config.set(path, null);
                 } catch (IllegalAccessException | IllegalArgumentException e) {
-                    LeavesLogger.LOGGER.warning("Failure to load leaves config" + path, e);
+                    LeavesLogger.LOGGER.warn("Failure to load leaves config{}", path, e);
                 } catch (ConfigTransformer.StopTransformException ignored) {
                 }
             } else {
-                LeavesLogger.LOGGER.warning("Failed to convert saved value for " + path + ", reset to default");
+                LeavesLogger.LOGGER.warn("Failed to convert saved value for {}, reset to default", path);
             }
         }
     }
@@ -40,7 +40,7 @@ public record VerifiedTransferConfig(ConfigTransformer<? super Object, ? super O
         try {
             transformer = createTransformer(config.transformer(), field);
         } catch (Exception e) {
-            LeavesLogger.LOGGER.warning("Failure to load leaves config transformer for " + path, e);
+            LeavesLogger.LOGGER.warn("Failure to load leaves config transformer for {}", path, e);
         }
 
         return new VerifiedTransferConfig(transformer, field, upstreamField, path);

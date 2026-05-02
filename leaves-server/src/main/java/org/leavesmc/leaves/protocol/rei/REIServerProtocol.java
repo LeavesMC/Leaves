@@ -329,17 +329,17 @@ public class REIServerProtocol implements LeavesProtocol {
                             player.sendSystemMessage(Component.translatable(e.getMessage()).withStyle(ChatFormatting.RED));
                         } catch (Exception e) {
                             player.sendSystemMessage(Component.translatable("error.rei.internal.error", e.getMessage()).withStyle(ChatFormatting.RED));
-                            LeavesLogger.SLF4JLogger.error("Failed to move items for player {}", player.getScoreboardName(), e);
+                            LeavesLogger.LOGGER.error("Failed to move items for player {}", player.getScoreboardName(), e);
                         }
                     });
                 } catch (IllegalStateException e) {
                     player.sendSystemMessage(Component.translatable(e.getMessage()).withStyle(ChatFormatting.RED));
                 } catch (Exception e) {
                     player.sendSystemMessage(Component.translatable("error.rei.internal.error", e.getMessage()).withStyle(ChatFormatting.RED));
-                    LeavesLogger.SLF4JLogger.error("Failed to move items for player {}", player.getScoreboardName(), e);
+                    LeavesLogger.LOGGER.error("Failed to move items for player {}", player.getScoreboardName(), e);
                 }
             } catch (Exception e) {
-                LeavesLogger.SLF4JLogger.error("Failed to move items for player {}", player.getScoreboardName(), e);
+                LeavesLogger.LOGGER.error("Failed to move items for player {}", player.getScoreboardName(), e);
             }
         };
         inboundTransform(player, MOVE_ITEMS_NEW_PACKET, buf, consumer);

@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit;
 
 public final class AsyncKeepaliveManager {
 
-    private static final Logger LOGGER = LeavesLogger.SLF4JLogger;
+    private static final Logger LOGGER = LeavesLogger.LOGGER;
     private static final Map<Connection, ServerCommonPacketListenerImpl> ACTIVE_LISTENERS = new ConcurrentHashMap<>();
     private static final ScheduledExecutorService EXECUTOR = Executors.newSingleThreadScheduledExecutor(runnable -> {
         Thread thread = new Thread(runnable, "Leaves Async Keepalive");

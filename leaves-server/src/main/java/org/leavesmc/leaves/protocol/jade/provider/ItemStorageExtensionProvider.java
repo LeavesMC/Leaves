@@ -126,7 +126,7 @@ public enum ItemStorageExtensionProvider implements ServerExtensionProvider<Item
         try {
             itemCollector = targetCache.get(target, () -> createItemCollector(request));
         } catch (ExecutionException e) {
-            LeavesLogger.SLF4JLogger.error("Failed to get item collector for {}", target);
+            LeavesLogger.LOGGER.error("Failed to get item collector for {}", target);
             return null;
         }
 

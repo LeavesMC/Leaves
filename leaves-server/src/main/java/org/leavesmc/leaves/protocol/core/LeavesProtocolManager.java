@@ -38,7 +38,7 @@ import java.util.jar.JarFile;
 
 public class LeavesProtocolManager {
 
-    private static final Logger LOGGER = LeavesLogger.SLF4JLogger;
+    private static final Logger LOGGER = LeavesLogger.LOGGER;
 
     private static final Map<Class<? extends LeavesCustomPayload>, PayloadReceiverInvokerHolder> PAYLOAD_RECEIVERS = new HashMap<>();
     private static final Map<Class<? extends LeavesCustomPayload>, Identifier> IDS = new HashMap<>();

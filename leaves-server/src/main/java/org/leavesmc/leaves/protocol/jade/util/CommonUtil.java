@@ -45,7 +45,7 @@ public class CommonUtil {
             try {
                 groups = provider.getGroups(accessor);
             } catch (Exception e) {
-                LeavesLogger.SLF4JLogger.error(e.toString());
+                LeavesLogger.LOGGER.error(e.toString());
                 continue;
             }
             if (groups != null) {

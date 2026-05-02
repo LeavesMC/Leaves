@@ -57,7 +57,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Recorder extends Connection {
 
-    public static final Logger LOGGER = LeavesLogger.SLF4JLogger;
+    public static final Logger LOGGER = LeavesLogger.LOGGER;
     public final ExecutorService saveService = Executors.newSingleThreadExecutor();
 
     private final ReplayFile replayFile;

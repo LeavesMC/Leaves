@@ -37,7 +37,7 @@ public record DisplaySyncPayload(
                     } catch (Exception e) {
                         tmpBuf.release();
                         buf.writeBoolean(false);
-                        LeavesLogger.SLF4JLogger.warn("Failed to encode display: {}", display, e);
+                        LeavesLogger.LOGGER.warn("Failed to encode display: {}", display, e);
                         return;
                     }
                     buf.writeBoolean(true);

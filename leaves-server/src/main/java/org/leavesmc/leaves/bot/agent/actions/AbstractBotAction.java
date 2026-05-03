@@ -124,7 +124,7 @@ public abstract class AbstractBotAction<E extends AbstractBotAction<E>> {
                 e.providePlayer(bot);
                 e.consume();
             } catch (Exception e) {
-                LeavesLogger.LOGGER.severe("An error occurred while executing bot " + bot.displayName + ", action " + this.name, e);
+                LeavesLogger.LOGGER.error("An error occurred while executing bot {}, action {}", bot.displayName, this.name, e);
             }
 
             if (result) {

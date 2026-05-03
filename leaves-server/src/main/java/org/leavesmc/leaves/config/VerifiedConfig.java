@@ -39,7 +39,7 @@ public record VerifiedConfig(ConfigValidator<? super Object> validator, boolean 
         try {
             return field.get(upstreamField);
         } catch (IllegalAccessException e) {
-            LeavesLogger.LOGGER.severe("Failure to get " + path + " value", e);
+            LeavesLogger.LOGGER.error("Failure to get {} value", path, e);
             return "<VALUE ERROR>";
         }
     }
@@ -56,7 +56,7 @@ public record VerifiedConfig(ConfigValidator<? super Object> validator, boolean 
                 }
             }
         } catch (IllegalArgumentException e) {
-            LeavesLogger.LOGGER.severe("Failure to get " + path + " value", e);
+            LeavesLogger.LOGGER.error("Failure to get {} value", path, e);
         }
         return value.toString();
     }
@@ -70,7 +70,7 @@ public record VerifiedConfig(ConfigValidator<? super Object> validator, boolean 
         try {
             validator = createValidator(config.validator(), field);
         } catch (Exception e) {
-            LeavesLogger.LOGGER.severe("Failure to load leaves config" + path, e);
+            LeavesLogger.LOGGER.error("Failure to load leaves config {}", path, e);
             throw new RuntimeException();
         }
 

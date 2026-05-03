@@ -119,7 +119,7 @@ public class LitematicaEasyPlaceProtocol {
                 }
             }
         } catch (Exception e) {
-            LeavesLogger.LOGGER.warning("Exception trying to apply placement protocol value", e);
+            LeavesLogger.LOGGER.warn("Exception trying to apply placement protocol value", e);
         }
 
         if (state.getBlock() instanceof RepeaterBlock repeaterBlock) {

@@ -13,6 +13,7 @@ import org.leavesmc.leaves.protocol.core.invoker.InitInvokerHolder;
 import org.leavesmc.leaves.protocol.core.invoker.MinecraftRegisterInvokerHolder;
 import org.leavesmc.leaves.protocol.core.invoker.PayloadReceiverInvokerHolder;
 import org.leavesmc.leaves.protocol.core.invoker.PlayerInvokerHolder;
+import org.slf4j.Logger;
 
 import java.io.File;
 import java.io.IOException;
@@ -37,7 +38,7 @@ import java.util.jar.JarFile;
 
 public class LeavesProtocolManager {
 
-    private static final LeavesLogger LOGGER = LeavesLogger.LOGGER;
+    private static final Logger LOGGER = LeavesLogger.LOGGER;
 
     private static final Map<Class<? extends LeavesCustomPayload>, PayloadReceiverInvokerHolder> PAYLOAD_RECEIVERS = new HashMap<>();
     private static final Map<Class<? extends LeavesCustomPayload>, Identifier> IDS = new HashMap<>();
@@ -94,7 +95,7 @@ public class LeavesProtocolManager {
                 constructor.setAccessible(true);
                 protocol = (LeavesProtocol) constructor.newInstance();
             } catch (Throwable throwable) {
-                LOGGER.severe("Failed to load class " + clazz.getName() + ". " + throwable);
+                LOGGER.error("Failed to load class {}. {}", clazz.getName(), throwable);
                 return;
             }
 
@@ -110,7 +111,7 @@ public class LeavesProtocolManager {
                     try {
                         holder.invoke();
                     } catch (RuntimeException exception) {
-                        LOGGER.severe("Failed to invoke init method " + method.getName() + " in " + clazz.getName() + ", " + exception.getCause() + ": " + exception.getMessage());
+                        LOGGER.error("Failed to invoke init method {} in {}, {}: {}", method.getName(), clazz.getName(), exception.getCause(), exception.getMessage());
                     }
                     continue;
                 }
@@ -208,7 +209,7 @@ public class LeavesProtocolManager {
         try {
             return codec.decode(ProtocolUtils.decorate(buf));
         } catch (Exception e) {
-            LOGGER.severe("Failed to decode payload " + location, e);
+            LOGGER.error("Failed to decode payload {}", location, e);
             throw e;
         }
     }
@@ -223,7 +224,7 @@ public class LeavesProtocolManager {
             buf.writeIdentifier(location);
             codec.encode(ProtocolUtils.decorate(buf), payload);
         } catch (Exception e) {
-            LOGGER.severe("Failed to encode payload " + location, e);
+            LOGGER.error("Failed to encode payload {}", location, e);
             throw e;
         }
     }
@@ -347,12 +348,12 @@ public class LeavesProtocolManager {
                         Enumeration<JarEntry> entries = jar.entries();
                         findClassesInPackageByJar(pack, entries, packageDirName, classes);
                     } catch (IOException exception) {
-                        LOGGER.warning("Failed to load jar file, " + exception.getCause() + ": " + exception.getMessage());
+                        LOGGER.warn("Failed to load jar file, {}: {}", exception.getCause(), exception.getMessage());
                     }
                 }
             }
         } catch (IOException exception) {
-            LOGGER.warning("Failed to load classes, " + exception.getCause() + ": " + exception.getMessage());
+            LOGGER.warn("Failed to load classes, {}: {}", exception.getCause(), exception.getMessage());
         }
         return classes;
     }
@@ -372,7 +373,7 @@ public class LeavesProtocolManager {
                     try {
                         classes.add(Class.forName(packageName + '.' + className));
                     } catch (ClassNotFoundException exception) {
-                        LOGGER.warning("Failed to load class " + className + ", " + exception.getCause() + ": " + exception.getMessage());
+                        LOGGER.warn("Failed to load class {}, {}: {}", className, exception.getCause(), exception.getMessage());
                     }
                 }
             }
@@ -396,7 +397,7 @@ public class LeavesProtocolManager {
                     try {
                         classes.add(Class.forName(packageName + '.' + className));
                     } catch (ClassNotFoundException exception) {
-                        LOGGER.warning("Failed to load class " + className + ", " + exception.getCause() + ": " + exception.getMessage());
+                        LOGGER.warn("Failed to load class {}, {}: {}", className, exception.getCause(), exception.getMessage());
                     }
                 }
             }

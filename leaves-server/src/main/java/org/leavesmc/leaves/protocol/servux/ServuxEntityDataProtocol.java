@@ -65,7 +65,7 @@ public class ServuxEntityDataProtocol implements LeavesProtocol {
 
                 if (fullPacket != null) {
                     readingSessionKeys.remove(uuid);
-                    LeavesLogger.LOGGER.warning("ServuxEntityDataProtocol,PACKET_C2S_NBT_RESPONSE_DATA NOT Implemented!");
+                    LeavesLogger.LOGGER.warn("ServuxEntityDataProtocol,PACKET_C2S_NBT_RESPONSE_DATA NOT Implemented!");
                 }
             }
         }

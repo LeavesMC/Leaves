@@ -5,17 +5,17 @@ import net.minecraft.server.network.ServerCommonPacketListenerImpl;
 import net.minecraft.util.Util;
 import org.leavesmc.leaves.LeavesConfig;
 import org.leavesmc.leaves.LeavesLogger;
+import org.slf4j.Logger;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
 
 public final class AsyncKeepaliveManager {
 
-    private static final LeavesLogger LOGGER = LeavesLogger.LOGGER;
+    private static final Logger LOGGER = LeavesLogger.LOGGER;
     private static final Map<Connection, ServerCommonPacketListenerImpl> ACTIVE_LISTENERS = new ConcurrentHashMap<>();
     private static final ScheduledExecutorService EXECUTOR = Executors.newSingleThreadScheduledExecutor(runnable -> {
         Thread thread = new Thread(runnable, "Leaves Async Keepalive");
@@ -36,7 +36,6 @@ public final class AsyncKeepaliveManager {
         if (!LeavesConfig.mics.asyncKeepalive.enable) {
             return;
         }
-
         ACTIVE_LISTENERS.put(listener.connection, listener);
     }
 
@@ -56,7 +55,7 @@ public final class AsyncKeepaliveManager {
                 }
             } catch (Throwable throwable) {
                 ACTIVE_LISTENERS.remove(listener.connection, listener);
-                LOGGER.log(Level.SEVERE, "Failed to run async keepalive for connection " + listener.connection.getRemoteAddress(), throwable);
+                LOGGER.error("Failed to run async keepalive for connection {}", listener.connection.getRemoteAddress(), throwable);
             }
         }
     }

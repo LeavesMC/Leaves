@@ -14,6 +14,7 @@ import net.minecraft.network.protocol.login.ServerboundHelloPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import org.leavesmc.leaves.LeavesConfig;
+import org.leavesmc.leaves.LeavesLogger;
 import org.leavesmc.leaves.bytebuf.Bytebuf;
 import org.leavesmc.leaves.bytebuf.PacketAudience;
 import org.leavesmc.leaves.bytebuf.PacketFlow;
@@ -34,13 +35,26 @@ public class InternalBytebufHandler {
     private static final UniversalCodec CODEC = new UniversalCodec();
 
     public static void init() {
+        if (!LeavesConfig.mics.leavesPacketEvent) {
+            return;
+        }
         ChannelInitializeListenerHolder.addListener(Key.key("leaves:bytebuf"), channel ->
             channel.pipeline().addBefore("packet_handler", PacketHandler.handlerName, new PacketHandler(channel)));
     }
 
     public static void updatePlayer(ServerPlayer player) {
-        PacketHandler handler = (PacketHandler) player.connection.connection.channel.pipeline().get(PacketHandler.handlerName);
-        handler.audienceHolder.setPlayer(player.getBukkitEntity());
+        if (!LeavesConfig.mics.leavesPacketEvent) {
+            return;
+        }
+        try {
+            PacketHandler handler = (PacketHandler) player.connection.connection.channel.pipeline().get(PacketHandler.handlerName);
+            if (handler == null) {
+                return;
+            }
+            handler.audienceHolder.setPlayer(player.getBukkitEntity());
+        } catch (Exception e) {
+            LeavesLogger.LOGGER.warn("Failed to inject player for bytebuf API", e);
+        }
     }
 
     public static SimpleBytebufAllocator allocator() {
@@ -74,12 +88,16 @@ public class InternalBytebufHandler {
 
     public static void sendPacket(PacketAudience audience, PacketType type, Bytebuf bytebuf) {
         Channel channel = (Channel) audience.getChannel();
-        Connection connection = (Connection) channel.pipeline().get("packet_handler");
+        Connection connection = (Connection) channel.pipeline().get(PacketHandler.vanillaHandlerName);
+        if (connection == null) {
+            return;
+        }
         connection.send(CODEC.decode(type, ((WrappedBytebuf) bytebuf).getRegistryBuf(), audience.getPlayer() == null));
     }
 
     private static class PacketHandler extends ChannelDuplexHandler {
 
+        private final static String vanillaHandlerName = "packet_handler";
         private final static String handlerName = "leaves-bytebuf-handler";
 
         private final AudienceHolder audienceHolder;

@@ -75,7 +75,6 @@ import org.leavesmc.leaves.util.MathUtils;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumSet;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -449,7 +448,7 @@ public class ServerBot extends ServerPlayer {
             for (CompoundTag configTag : configNbt) {
                 String key = configTag.getString("configName").orElseThrow();
                 if (!this.configs.containsKey(key)) {
-                    LeavesLogger.LOGGER.warning("Trying to load a unknown config \"" + key + "\", discard.");
+                    LeavesLogger.LOGGER.warn("Trying to load a unknown config \"{}\", discard.", key);
                     continue;
                 }
                 this.configs.get(key).load(configTag);
@@ -475,7 +474,7 @@ public class ServerBot extends ServerPlayer {
         ChunkMap.TrackedEntity entityTracker = this.level().getChunkSource().chunkMap.entityMap.get(this.getId());
 
         if (entityTracker == null) {
-            LeavesLogger.LOGGER.warning("Fakeplayer cant get entity tracker for " + this.getId());
+            LeavesLogger.LOGGER.warn("Fakeplayer cant get entity tracker for {}", this.getId());
             return;
         }
 

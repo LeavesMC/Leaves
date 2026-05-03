@@ -83,7 +83,7 @@ public class GlobalConfigManager {
             }
             traverseToNodeOrCreate(categoryPath.substring(CONFIG_START.length()));
         } catch (Exception e) {
-            LeavesLogger.LOGGER.severe("Failure to load leaves config" + upstreamPath, e);
+            LeavesLogger.LOGGER.error("Failure to load leaves config {}", upstreamPath, e);
         }
     }
 
@@ -112,13 +112,13 @@ public class GlobalConfigManager {
                 field.set(upstreamField, savedValue);
             } catch (IllegalArgumentException | ClassCastException e) {
                 LeavesConfig.config.set(path, defValue);
-                LeavesLogger.LOGGER.warning(e.getMessage() + ", reset to " + defValue);
+                LeavesLogger.LOGGER.warn("{}, reset to {}", e.getMessage(), defValue);
             }
 
             verifiedConfigs.put(path.substring(CONFIG_START.length()), verifiedConfig);
             traverseToNodeOrCreate(path.substring(CONFIG_START.length()));
         } catch (Exception e) {
-            LeavesLogger.LOGGER.severe("Failure to load leaves config", e);
+            LeavesLogger.LOGGER.error("Failure to load leaves config", e);
             throw new RuntimeException();
         }
     }

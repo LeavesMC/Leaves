@@ -1,0 +1,35 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: HyacinthHaru <122684177+HyacinthHaru@users.noreply.github.com>
+Date: Tue, 28 Apr 2026 18:50:00 +0800
+Subject: [PATCH] Fix stuck zombified piglin anger target
+
+Cleans up the running anger timer whenever neither target nor
+persistentAngerTarget points to a valid player.
+
+diff --git a/net/minecraft/world/entity/NeutralMob.java b/net/minecraft/world/entity/NeutralMob.java
+index 3425ac4f186f144527e612bc895457ba4cd3ff93..99e8df0004d58721c99fcb01a162c952fe3ebc07 100644
+--- a/net/minecraft/world/entity/NeutralMob.java
++++ b/net/minecraft/world/entity/NeutralMob.java
+@@ -85,6 +85,22 @@ public interface NeutralMob {
+                 this.stopBeingAngry();
+             }
+ 
++            // Leaves start - fix stuck zombified piglin anger target
++            if (org.leavesmc.leaves.LeavesConfig.modify.fixStuckZombifiedPiglinAngerTarget && this.isAngry()) {
++                boolean hasValidTargetPlayer = target != null && isValidPlayerTarget(target);
++                if (!hasValidTargetPlayer) {
++                    boolean hasValidPersistentPlayer = false;
++                    if (persistentAngerTarget != null) {
++                        LivingEntity resolved = EntityReference.getLivingEntity(persistentAngerTarget, level);
++                        hasValidPersistentPlayer = resolved instanceof Player && !isValidPlayerTarget(resolved);
++                    }
++                    if (!hasValidPersistentPlayer) {
++                        this.stopBeingAngry();
++                    }
++                }
++            }
++            // Leaves end - fix stuck zombified piglin anger target
++
+             if (EntityReference.getLivingEntity(persistentAngerTarget, level) instanceof Player player
+                 && (player.isCreative() || player.isSpectator() || level.getDifficulty() == Difficulty.PEACEFUL)) {
+                 this.stopBeingAngry();

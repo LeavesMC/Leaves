@@ -1,0 +1,64 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MC_XiaoHei <xor7xiaohei@gmail.com>
+Date: Fri, 4 Jul 2025 17:13:15 +0800
+Subject: [PATCH] Prevent loss of item drops due to update suppression when
+ breaking blocks
+
+
+diff --git a/net/minecraft/server/level/ServerPlayerGameMode.java b/net/minecraft/server/level/ServerPlayerGameMode.java
+index bf0d8da240f9c4ceb307c2b79c54bfe13db2cc1c..10ca2c2d601b5cf2e88049d1eb8ee1771c2a451e 100644
+--- a/net/minecraft/server/level/ServerPlayerGameMode.java
++++ b/net/minecraft/server/level/ServerPlayerGameMode.java
+@@ -407,11 +407,21 @@ public class ServerPlayerGameMode {
+         this.level.captureDrops = new java.util.ArrayList<>();
+         // CraftBukkit end
+         BlockState adjustedState = org.leavesmc.leaves.command.leaves.subcommands.BlockUpdateCommand.isNoBlockUpdate() ? state : block.playerWillDestroy(this.level, pos, state, this.player); // Leaves - no block update
+-        boolean changed = this.level.removeBlock(pos, false);
++                // Leaves start - Prevent loss of item drops due to update suppression when breaking blocks
++                boolean changed;
+         if (SharedConstants.DEBUG_BLOCK_BREAK) {
+             LOGGER.info("server broke {} {} -> {}", pos, adjustedState, this.level.getBlockState(pos));
+         }
+-
++                org.leavesmc.leaves.util.UpdateSuppressionException ex = null;
++                try {
++                    changed = this.level.removeBlock(pos, false);
++                } catch (org.leavesmc.leaves.util.UpdateSuppressionException e) {
++                    ex = e;
++                    ex.provideBlock(level, pos, block);
++                    ex.providePlayer(this.player);
++                    changed = false;
++                }
++                // Leaves end - Prevent loss of item drops due to update suppression when breaking blocks
+         if (changed) {
+             block.destroy(this.level, pos, adjustedState);
+         }
+@@ -435,6 +445,7 @@ public class ServerPlayerGameMode {
+         if (event.isDropItems()) {
+             org.bukkit.craftbukkit.event.CraftEventFactory.handleBlockDropItemEvent(bblock, bState, this.player, itemsToDrop); // Paper - capture all item additions to the world
+         }
++                if (ex != null) throw ex; // Leaves - Prevent loss of item drops due to update suppression when breaking blocks
+ 
+         // Drop event experience
+         if (changed) {
+diff --git a/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java b/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java
+index 97b69ca8025321d4ffbdca80e593348b014a73d6..b6f55df3e3f2752eae10cd0ee1e0c81fc57680c4 100644
+--- a/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java
++++ b/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java
+@@ -150,6 +150,16 @@ public abstract class AbstractFurnaceBlockEntity extends BaseContainerBlockEntit
+     }
+     // CraftBukkit end
+ 
++    // Leaves start - pca
++    @Override
++    public void setChanged() {
++        super.setChanged();
++        if (org.leavesmc.leaves.LeavesConfig.protocol.pca.enable) {
++            org.leavesmc.leaves.protocol.PcaSyncProtocol.syncBlockEntityToClient(this);
++        }
++    }
++    // Leaves end - pca
++
+     @Override
+     protected void loadAdditional(final ValueInput input) {
+         super.loadAdditional(input);

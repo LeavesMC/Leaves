@@ -11,6 +11,7 @@ import net.kyori.adventure.text.format.TextDecoration;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
@@ -282,13 +283,16 @@ public class HopperCounter {
         if (DEFAULTS.containsKey(item)) {
             return TextColor.color(appropriateColor(DEFAULTS.get(item).defaultMapColor().col));
         }
-        if (item instanceof DyeItem dye) {
-            return TextColor.color(appropriateColor(dye.getDyeColor().getMapColor().col));
+        if (item instanceof DyeItem) {
+            DyeColor dyeColor = item.components().get(DataComponents.DYE);
+            if (dyeColor != null) {
+                return TextColor.color(appropriateColor(dyeColor.getMapColor().col));
+            }
         }
 
         Block block = null;
-        final Registry<@NotNull Item> itemRegistry = registryAccess.lookupOrThrow(Registries.ITEM);
-        final Registry<@NotNull Block> blockRegistry = registryAccess.lookupOrThrow(Registries.BLOCK);
+        final Registry<Item> itemRegistry = registryAccess.lookupOrThrow(Registries.ITEM);
+        final Registry<Block> blockRegistry = registryAccess.lookupOrThrow(Registries.BLOCK);
         Identifier id = itemRegistry.getKey(item);
         if (item instanceof BlockItem blockItem) {
             block = blockItem.getBlock();

@@ -8,7 +8,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.SingleRecipeInput;
 import net.minecraft.world.item.crafting.StonecutterRecipe;
-import org.bukkit.craftbukkit.CraftRegistry;
 import org.jetbrains.annotations.NotNull;
 import org.leavesmc.leaves.protocol.rei.ingredient.EntryIngredient;
 
@@ -38,7 +37,7 @@ public class StoneCuttingDisplay extends Display {
     public StoneCuttingDisplay(RecipeHolder<StonecutterRecipe> recipeHolder) {
         this(
             List.of(EntryIngredient.ofIngredient(recipeHolder.value().input())),
-            List.of(EntryIngredient.of(recipeHolder.value().assemble(new SingleRecipeInput(ItemStack.EMPTY), CraftRegistry.getMinecraftRegistry()))),
+            List.of(EntryIngredient.of(recipeHolder.value().assemble(new SingleRecipeInput(ItemStack.EMPTY)))),
             recipeHolder.id().identifier()
         );
     }

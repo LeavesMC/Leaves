@@ -87,7 +87,7 @@ public class ItemRecipeFinder {
     }
 
     private ItemKey ofKey(ItemStack itemStack) {
-        return keys.intern(new ItemKey(itemStack.getItemHolder(), itemStack.getComponentsPatch()));
+        return keys.intern(new ItemKey(itemStack.typeHolder(), itemStack.getComponentsPatch()));
     }
 
     private Ingredient ofKeys(int index, List<ItemStack> itemStack) {

@@ -45,7 +45,7 @@ public class SchematicPlacingUtils {
         boolean notifyNeighbors
     ) {
         LitematicaSchematic schematic = schematicPlacement.getSchematic();
-        Set<String> regionsTouchingChunk = schematicPlacement.getRegionsTouchingChunk(chunkPos.x, chunkPos.z);
+        Set<String> regionsTouchingChunk = schematicPlacement.getRegionsTouchingChunk(chunkPos.x(), chunkPos.z());
         BlockPos origin = schematicPlacement.getOrigin();
 
         for (String regionName : regionsTouchingChunk) {
@@ -93,7 +93,7 @@ public class SchematicPlacingUtils {
         @Nullable Map<BlockPos, ScheduledTick<Fluid>> scheduledFluidTicks,
         ReplaceBehavior replace, boolean notifyNeighbors
     ) {
-        IntBoundingBox bounds = schematicPlacement.getBoxWithinChunkForRegion(regionName, chunkPos.x, chunkPos.z);
+        IntBoundingBox bounds = schematicPlacement.getBoxWithinChunkForRegion(regionName, chunkPos.x(), chunkPos.z());
         Vec3i regionSize = schematicPlacement.getSchematic().getSubRegion(regionName).size();
 
         if (bounds == null || container == null || blockEntityMap == null || regionSize == null) {
@@ -303,10 +303,10 @@ public class SchematicPlacingUtils {
         final int offX = regionPosRelTransformed.getX() + origin.getX();
         final int offY = regionPosRelTransformed.getY() + origin.getY();
         final int offZ = regionPosRelTransformed.getZ() + origin.getZ();
-        final double minX = (chunkPos.x << 4);
-        final double minZ = (chunkPos.z << 4);
-        final double maxX = (chunkPos.x << 4) + 16;
-        final double maxZ = (chunkPos.z << 4) + 16;
+        final double minX = (chunkPos.x() << 4);
+        final double minZ = (chunkPos.z() << 4);
+        final double maxX = (chunkPos.x() << 4) + 16;
+        final double maxZ = (chunkPos.z() << 4) + 16;
 
         final Rotation rotationCombined = schematicPlacement.getRotation().getRotated(placement.rotation());
         final Mirror mirrorMain = schematicPlacement.getMirror();

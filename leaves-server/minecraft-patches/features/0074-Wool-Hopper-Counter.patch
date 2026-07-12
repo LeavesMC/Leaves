@@ -1,0 +1,91 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: violetc <58360096+s-yh-china@users.noreply.github.com>
+Date: Tue, 4 Feb 2025 20:18:35 +0800
+Subject: [PATCH] Wool Hopper Counter
+
+This patch is Powered by fabric-carpet(https://github.com/gnembon/fabric-carpet)
+
+diff --git a/net/minecraft/world/level/block/entity/HopperBlockEntity.java b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
+index 326e25d1226ed1f719265e32b6e2d64eab6059a6..0eda2031d23eb0a9bc345d3848c4bba1a259a8a5 100644
+--- a/net/minecraft/world/level/block/entity/HopperBlockEntity.java
++++ b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
+@@ -197,8 +197,30 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+                 changed |= action.getAsBoolean();
+             }
+ 
++            // Leaves start - Wool hopper counter
++            if (org.leavesmc.leaves.LeavesConfig.modify.hopperCounter.unlimitedSpeed && org.leavesmc.leaves.util.HopperCounter.isEnabled()) {
++                net.minecraft.world.item.DyeColor woolColor = org.leavesmc.leaves.util.WoolUtils.getWoolColorAtPosition(level, entity.getBlockPos().relative(state.getValue(HopperBlock.FACING)));
++                if (woolColor != null) {
++                    for (int i = 0; i < Short.MAX_VALUE; i++) {
++                        changed |= suckInItems(level, entity);
++                        if (!changed) {
++                            break;
++                        } else {
++                            woolHopperCounter(level, pos, state, HopperBlockEntity.getContainerAt(level, pos));
++                        }
++                    }
++                }
++            }
++            // Leaves end - Wool hopper counter
++
+             if (changed) {
+                 entity.setCooldown(level.spigotConfig.hopperTransfer); // Spigot
++                // Leaves start - Wool hopper counter
++                if (org.leavesmc.leaves.LeavesConfig.modify.hopperCounter.unlimitedSpeed && org.leavesmc.leaves.util.HopperCounter.isEnabled() && woolHopperCounter(level, pos, state, HopperBlockEntity.getContainerAt(level, pos))) {
++                    entity.setCooldown(0);
++                    return true;
++                }
++                // Leaves end - Wool hopper counter
+                 setChanged(level, pos, state);
+                     // Leaves start - pca
+                     if (org.leavesmc.leaves.LeavesConfig.protocol.pca.enable) {
+@@ -423,6 +445,13 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+     // Paper end - Perf: Optimize Hoppers
+ 
+     private static boolean ejectItems(final Level level, final BlockPos blockPos, final HopperBlockEntity self) {
++        // Leaves start - hopper counter
++        if (org.leavesmc.leaves.util.HopperCounter.isEnabled()) {
++            if (woolHopperCounter(level, blockPos, level.getBlockState(blockPos), HopperBlockEntity.getContainerAt(level, blockPos))) {
++                return true;
++            }
++        }
++        // Leaves end - hopper counter
+         Container container = getAttachedContainer(level, blockPos, self);
+         if (container == null) {
+             return false;
+@@ -436,6 +465,26 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+         return hopperPush(level, container, direction, self); // Paper - Perf: Optimize Hoppers
+     }
+ 
++    // Leaves start - hopper counter
++    private static boolean woolHopperCounter(Level level, BlockPos blockPos, BlockState state, @Nullable Container container) {
++        if (container == null) {
++            return false;
++        }
++        net.minecraft.world.item.DyeColor woolColor = org.leavesmc.leaves.util.WoolUtils.getWoolColorAtPosition(level, blockPos.relative(state.getValue(HopperBlock.FACING)));
++        if (woolColor != null) {
++            for (int i = 0; i < container.getContainerSize(); ++i) {
++                if (!container.getItem(i).isEmpty()) {
++                    ItemStack itemstack = container.getItem(i);
++                    org.leavesmc.leaves.util.HopperCounter.getCounter(woolColor).add(level.getServer(), itemstack);
++                    container.setItem(i, ItemStack.EMPTY);
++                }
++            }
++            return true;
++        }
++        return false;
++    }
++    // Leaves end - hopper counter
++
+     private static int[] getSlots(final Container container, final Direction direction) {
+         if (container instanceof WorldlyContainer worldlyContainer) {
+             return worldlyContainer.getSlotsForFace(direction);
+@@ -521,6 +570,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+     }
+ 
+     public static boolean addItem(final Container container, final ItemEntity entity) {
++        if (org.leavesmc.leaves.LeavesConfig.modify.hopperCounter.unlimitedSpeed && org.leavesmc.leaves.util.HopperCounter.isEnabled() && entity.isRemoved()) return false; // Leaves - Wool hopper counter
+         boolean changed = false;
+         // CraftBukkit start
+         if (org.bukkit.event.inventory.InventoryPickupItemEvent.getHandlerList().getRegisteredListeners().length > 0) { // Paper - optimize hoppers

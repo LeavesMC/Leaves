@@ -95,7 +95,7 @@ public class LinearRegionFile implements IRegionFile {
         }, delay, delay, TimeUnit.MILLISECONDS);
 
         final int checkInterval = LeavesConfig.region.linear.regionUnloadCheckIntervalMs;
-        final long idleThresholdMs = TimeUnit.SECONDS.toMillis(LeavesConfig.region.linear.regionUnloadIdleMs);
+        final long idleThresholdMs = LeavesConfig.region.linear.regionUnloadIdleMs;
         REGION_UNLOAD_SCHEDULER.scheduleAtFixedRate(() -> {
             final long now = System.currentTimeMillis();
             // 异步卸载，不阻塞调度线程

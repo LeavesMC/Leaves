@@ -35,6 +35,7 @@ public class ElytraAeronauticsHelper {
             Vec3 handHoldingItemAngle;
             if (!firework.isAlive()) {
                 it.remove();
+                continue;
             }
             if (firework.attachedToEntity == null || firework.life > firework.lifetime) {
                 explodeNoClip(firework);

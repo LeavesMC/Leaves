@@ -306,7 +306,7 @@ public class BotList {
     }
 
     public void removeAllIn(String worldUuid) {
-        for (String fullName : this.botsNameByWorldUuid.getOrDefault(worldUuid, new HashSet<>())) {
+        for (String fullName : new HashSet<>(this.botsNameByWorldUuid.getOrDefault(worldUuid, new HashSet<>()))) {
             ServerBot bot = this.getBotByName(fullName);
             if (bot != null) {
                 this.removeBot(bot, BotRemoveEvent.RemoveReason.INTERNAL, null, LeavesConfig.modify.fakeplayer.canResident, LeavesConfig.modify.fakeplayer.canResident);

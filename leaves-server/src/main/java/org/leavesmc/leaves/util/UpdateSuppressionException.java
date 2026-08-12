@@ -47,7 +47,7 @@ public class UpdateSuppressionException extends RuntimeException {
     }
 
     public void provideLevel(@NotNull Level level) {
-        if (this.level != null) {
+        if (this.level == null) {
             this.level = level;
         }
     }
@@ -58,10 +58,10 @@ public class UpdateSuppressionException extends RuntimeException {
     }
 
     public void provideBlock(@NotNull BlockPos pos, @NotNull Block source) {
-        if (this.pos != null) {
+        if (this.pos == null) {
             this.pos = pos;
         }
-        if (this.source != null) {
+        if (this.source == null) {
             this.source = source;
         }
     }

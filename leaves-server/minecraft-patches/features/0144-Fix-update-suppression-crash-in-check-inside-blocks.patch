@@ -1,0 +1,36 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: LeavesMC Contributor <contributor@leavesmc.org>
+Date: Tue, 12 Aug 2026 15:00:00 +0800
+Subject: [PATCH] Fix update suppression crash in checkInsideBlocks
+
+When an entity steps on a pressure plate that triggers CCE update suppression
+via a redstone chain ending in a ShulkerBoxBlock, the UpdateSuppressionException
+propagates through checkInsideBlocks -> applyEffectsFromBlocks -> aiStep -> tick
+and gets wrapped in a ReportedException, causing the player to disconnect or the
+server to crash.
+
+This patch catches UpdateSuppressionException in the checkInsideBlocks method
+before it reaches the generic Throwable catch that wraps it in a ReportedException.
+
+Fixes #782
+
+
+diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
+index 0000000000000000000000000000000000000000..0000000000000000000000000000000000000000 100644
+--- a/net/minecraft/world/entity/Entity.java
++++ b/net/minecraft/world/entity/Entity.java
+@@ -1732,6 +1732,14 @@ public abstract class Entity implements SyncedDataHolder, DebugValueSource, Name
+                     BlockState blockState = this.level().getBlockState(mutableBlockPos);
+                     try {
+                         blockState.entityInside(this.level(), mutableBlockPos, this);
++                    // Leaves start - update suppression crash fix
++                    } catch (org.leavesmc.leaves.util.UpdateSuppressionException exception) {
++                        exception.provideBlock(level, mutableBlockPos, blockState.getBlock());
++                        if (this instanceof net.minecraft.server.level.ServerPlayer player) {
++                            exception.providePlayer(player);
++                        }
++                        exception.consume();
++                    // Leaves end - update suppression crash fix
+                     } catch (Throwable var12) {
+                         CrashReport crashReport = CrashReport.forThrowable(var12, "Colliding entity with block");
+                         CrashReportCategory crashReportCategory = crashReport.addCategory("Block being collided with");

@@ -1,0 +1,34 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: LeavesMC Contributor <contributor@leavesmc.org>
+Date: Tue, 12 Aug 2026 15:00:00 +0800
+Subject: [PATCH] Fix fakeplayer data not sent after same-dimension teleport
+
+When a player teleports a long distance within the same dimension, the bot
+entity tracker is removed from the player's tracking list because the bot
+is no longer in the player's load range. The sendFakeDataIfNeed method was
+only called on player login, respawn, and cross-dimension teleport, but not
+on same-dimension teleport.
+
+This patch adds the sendFakeDataIfNeed call in the same-dimension teleport
+branch of ServerPlayer.teleport, ensuring that fake player data is re-sent
+after any teleport.
+
+Fixes #775
+
+
+diff --git a/net/minecraft/server/level/ServerPlayer.java b/net/minecraft/server/level/ServerPlayer.java
+index 0000000000000000000000000000000000000000..0000000000000000000000000000000000000000 100644
+--- a/net/minecraft/server/level/ServerPlayer.java
++++ b/net/minecraft/server/level/ServerPlayer.java
+@@ -1560,6 +1560,11 @@ public class ServerPlayer extends Player {
+ 
+         if (toLevel.dimension() == fromLevel.dimension()) {
+             this.teleportSetPosition(PositionMoveRotation.of(teleportTransition), teleportTransition.relatives());
++            // Leaves start - bot support
++            if (org.leavesmc.leaves.LeavesConfig.modify.fakeplayer.enable) {
++                this.server.getBotList().bots.forEach(bot -> bot.sendFakeDataIfNeed(this, true));
++            }
++            // Leaves end - bot support
+             teleportTransition.postTeleportTransition().onTransition(this);
+             return this;
+         } else {

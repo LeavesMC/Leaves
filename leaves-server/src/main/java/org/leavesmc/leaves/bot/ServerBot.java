@@ -503,7 +503,13 @@ public class ServerBot extends ServerPlayer {
             return;
         }
 
-        this.gameEvent(GameEvent.ENTITY_DIE);
+        try {
+            this.gameEvent(GameEvent.ENTITY_DIE);
+        } catch (org.leavesmc.leaves.util.UpdateSuppressionException exception) {
+            exception.providePlayer(this);
+            exception.provideLevel(this.level());
+            exception.consume();
+        }
 
         net.kyori.adventure.text.Component deathMessage = event.deathMessage();
         if (event.isSendDeathMessage() && deathMessage != null && !deathMessage.equals(net.kyori.adventure.text.Component.empty())) {

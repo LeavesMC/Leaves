@@ -54,6 +54,7 @@ public class BotList {
     public static BotList INSTANCE;
 
     private static final Logger LOGGER = LogUtils.getLogger();
+    private static final int MAX_SAVE_PER_TICK = 20;
 
     private final MinecraftServer server;
 
@@ -76,11 +77,19 @@ public class BotList {
     public void saveAllResumeBots(final int interval) {
         MCUtil.ensureMain("Save Bots", () -> {
             final long now = MinecraftServer.currentTick;
+            int numSaved = 0;
             for (ServerBot bot : bots) {
                 if (interval == -1 || now - bot.lastSave >= interval) {
-                    this.resumeDataStorage.save(bot);
+                    this.resumeDataStorage.save(bot, false);
                     bot.lastSave = MinecraftServer.currentTick;
+                    numSaved++;
+                    if (interval != -1 && numSaved >= MAX_SAVE_PER_TICK) {
+                        break;
+                    }
                 }
+            }
+            if (numSaved > 0) {
+                this.resumeDataStorage.saveBotList();
             }
             return null;
         });

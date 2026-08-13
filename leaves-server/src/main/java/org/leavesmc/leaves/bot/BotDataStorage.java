@@ -51,6 +51,10 @@ public class BotDataStorage {
     }
 
     public void save(Player player) {
+        this.save(player, true);
+    }
+
+    public void save(Player player, boolean flush) {
         try {
             CompoundTag nbt = TagUtil.saveEntityWithoutId(player);
             File file = new File(this.botDir, player.getStringUUID() + ".dat");
@@ -75,7 +79,9 @@ public class BotDataStorage {
             nbt.store("uuid", UUIDUtil.CODEC, bot.getUUID());
             nbt.putBoolean("resume", bot.resume);
             this.savedBotList.put(bot.createState.fullName().toLowerCase(Locale.ROOT), nbt);
-            this.saveBotList();
+            if (flush) {
+                this.saveBotList();
+            }
         }
     }
 
@@ -123,7 +129,7 @@ public class BotDataStorage {
         return Optional.empty();
     }
 
-    private void saveBotList() {
+    void saveBotList() {
         try {
             if (this.botListFile.exists() && this.botListFile.isFile()) {
                 if (!this.botListFile.delete()) {

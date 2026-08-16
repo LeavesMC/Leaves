@@ -1,4 +1,4 @@
-﻿// LeavesMC - Protocol support for Xaero's Map mod
+// LeavesMC - Protocol support for Xaero's Map mod
 // Copyright (c) 2024 LeavesMC
 // This file is licensed under the GNU General Public License v3.0.
 

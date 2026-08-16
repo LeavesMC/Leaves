@@ -1,4 +1,4 @@
-﻿// LeavesMC - Protocol support for REI (Roughly Enough Items) mod
+// LeavesMC - Protocol support for REI (Roughly Enough Items) mod
 // Copyright (c) 2024 LeavesMC
 // Original source: https://github.com/shedaniel/RoughlyEnoughItems (MIT License)
 // This file is licensed under the GNU General Public License v3.0.

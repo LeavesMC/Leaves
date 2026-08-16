@@ -1,4 +1,4 @@
-﻿// LeavesMC - Protocol support for Litematica mod
+// LeavesMC - Protocol support for Litematica mod
 // Copyright (c) 2024 LeavesMC
 // This file is licensed under the GNU General Public License v3.0.
 

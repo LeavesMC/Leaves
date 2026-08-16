@@ -1,4 +1,4 @@
-﻿// LeavesMC - Protocol support for Servux mod
+// LeavesMC - Protocol support for Servux mod
 // Copyright (c) 2024 LeavesMC
 // Original source: https://github.com/RelativityMC/servux (LGPL-3.0 License)
 // This file is licensed under the GNU General Public License v3.0.

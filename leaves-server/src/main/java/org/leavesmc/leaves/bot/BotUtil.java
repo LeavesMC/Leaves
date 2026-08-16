@@ -103,8 +103,14 @@ public class BotUtil {
             return false;
         }
 
-        if (LeavesConfig.modify.fakeplayer.unableNames.contains(name)) {
-            return false;
+        if (LeavesConfig.modify.fakeplayer.nameMode == LeavesConfig.ModifyConfig.FakeplayerConfig.FakeplayerNameMode.BLACKLIST) {
+            if (LeavesConfig.modify.fakeplayer.unableNames.contains(name)) {
+                return false;
+            }
+        } else if (LeavesConfig.modify.fakeplayer.nameMode == LeavesConfig.ModifyConfig.FakeplayerConfig.FakeplayerNameMode.WHITELIST) {
+            if (!LeavesConfig.modify.fakeplayer.ableNames.contains(name)) {
+                return false;
+            }
         }
 
         return BotList.INSTANCE.bots.size() < LeavesConfig.modify.fakeplayer.limit;

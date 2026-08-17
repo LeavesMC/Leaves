@@ -1,3 +1,7 @@
+// LeavesMC - Protocol support for PCA Sync Protocol mod
+// Copyright (c) 2024 LeavesMC
+// This file is licensed under the GNU General Public License v3.0.
+
 package org.leavesmc.leaves.protocol;
 
 import net.minecraft.core.BlockPos;

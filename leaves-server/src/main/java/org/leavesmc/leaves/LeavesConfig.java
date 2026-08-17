@@ -45,6 +45,7 @@ import org.leavesmc.leaves.region.linear.LinearVersion;
 import org.leavesmc.leaves.util.LeavesUpdateHelper;
 import org.leavesmc.leaves.util.MathUtils;
 import org.leavesmc.leaves.util.McTechnicalModeHelper;
+import org.leavesmc.leaves.util.VanillaExperienceHelper;
 import org.leavesmc.leaves.util.ServerI18nUtil;
 import org.leavesmc.leaves.util.VillagerInfiniteDiscountHelper;
 
@@ -150,6 +151,16 @@ public final class LeavesConfig {
             @TransferConfig("fakeplayer.unable-fakeplayer-names")
             @GlobalConfig(value = "unable-fakeplayer-names")
             public List<String> unableNames = List.of("player-name");
+
+            @GlobalConfig(value = "name-mode")
+            public FakeplayerNameMode nameMode = FakeplayerNameMode.BLACKLIST;
+
+            @GlobalConfig(value = "able-fakeplayer-names")
+            public List<String> ableNames = List.of("player-name");
+
+            public enum FakeplayerNameMode {
+                BLACKLIST, WHITELIST
+            }
 
             @GlobalConfig(value = "limit")
             public int limit = 10;
@@ -576,6 +587,18 @@ public final class LeavesConfig {
             public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
                 if (value) {
                     McTechnicalModeHelper.doMcTechnicalMode();
+                }
+            }
+        }
+
+        @GlobalConfig(value = "vanilla-experience", validator = VanillaExperienceValidator.class, lock = true)
+        public boolean vanillaExperience = false;
+
+        private static class VanillaExperienceValidator extends BooleanConfigValidator {
+            @Override
+            public void verify(Boolean old, Boolean value) throws IllegalArgumentException {
+                if (value) {
+                    VanillaExperienceHelper.doVanillaExperience();
                 }
             }
         }
@@ -1071,6 +1094,9 @@ public final class LeavesConfig {
 
         @GlobalConfig("chat-image-protocol")
         public boolean chatImageProtocol = false;
+
+        @GlobalConfig("vanilla-recipe-sync")
+        public boolean vanillaRecipeSync = false;
     }
 
     public static MiscConfig mics = new MiscConfig();

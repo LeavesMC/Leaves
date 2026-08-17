@@ -1,3 +1,8 @@
+// LeavesMC - Protocol support for ChatImage mod
+// Copyright (c) 2024 LeavesMC
+// Original source: https://github.com/kitUIN/ChatImage (GPL-3.0 License)
+// This file is licensed under the GNU General Public License v3.0.
+
 package org.leavesmc.leaves.protocol.chatimage;
 
 import com.google.gson.Gson;

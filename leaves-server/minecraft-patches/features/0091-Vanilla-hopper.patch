@@ -6,25 +6,18 @@ Subject: [PATCH] Vanilla hopper
 This is a temporary solution designed to attempt to restore the vanilla behavior of the funnel while preserving optimizations as much as possible. It should ultimately be replaced by the optimization solution provided by lithium.
 
 diff --git a/net/minecraft/world/level/block/entity/HopperBlockEntity.java b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
-index e3e7d8c9e704d49d78472ac7b9239f93031d2fd1..47cff0e87dc9c6de280b1c59a7a2f83d5571a303 100644
+index 3302a9a9b4e45f070df13829a6487d3647628fd7..ba76d57bcb69118b9c9a7ac0c3d37105bdb154e0 100644
 --- a/net/minecraft/world/level/block/entity/HopperBlockEntity.java
 +++ b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
-@@ -308,36 +308,58 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+@@ -308,36 +308,69 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
          ItemStack movedItem = origItemStack;
          final int originalItemCount = origItemStack.getCount();
          final int movedItemCount = Math.min(level.spigotConfig.hopperAmount, originalItemCount);
 -        container.setChanged(); // original logic always marks source inv as changed even if no move happens.
 -        movedItem.setCount(movedItemCount);
--
--        if (!skipPullModeEventFire) {
--            movedItem = callPullMoveEvent(hopper, container, movedItem);
--            if (movedItem == null) { // cancelled
--                origItemStack.setCount(originalItemCount);
--                // Drastically improve performance by returning true.
--                // No plugin could have relied on the behavior of false as the other call
--                // site for IMIE did not exhibit the same behavior
 +        // Leaves start - fix vanilla
-+        if (org.leavesmc.leaves.LeavesConfig.fix.vanillaHopper && movedItem.getCount() <= movedItemCount) {
++        if (org.leavesmc.leaves.LeavesConfig.fix.vanillaHopper) {
++            movedItem.setCount(movedItemCount);
 +            if (!skipPullModeEventFire) {
 +                movedItem = callPullMoveEvent(hopper, container, movedItem);
 +                if (movedItem == null) { // cancelled
@@ -35,25 +28,42 @@ index e3e7d8c9e704d49d78472ac7b9239f93031d2fd1..47cff0e87dc9c6de280b1c59a7a2f83d
 +                    return true;
 +                }
 +            }
-+            movedItem = origItemStack.copy();
-+            final ItemStack remainingItem = addItem(container, hopper,  container.removeItem(i, movedItemCount), null);
-+            if (remainingItem.isEmpty()) {
++            final boolean removeOriginalItem = movedItem == origItemStack;
++            if (removeOriginalItem) {
++                movedItem = container.removeItem(i, movedItemCount);
++            }
+
+-        if (!skipPullModeEventFire) {
+-            movedItem = callPullMoveEvent(hopper, container, movedItem);
+-            if (movedItem == null) { // cancelled
+-                origItemStack.setCount(originalItemCount);
+-                // Drastically improve performance by returning true.
+-                // No plugin could have relied on the behavior of false as the other call
+-                // site for IMIE did not exhibit the same behavior
++            final int itemCountToMove = movedItem.getCount();
++            final ItemStack remainingItem = addItem(container, hopper, movedItem, null);
++
++            final int remainingItemCount = remainingItem.getCount();
++            if (remainingItemCount != itemCountToMove) {
++                origItemStack.setCount(removeOriginalItem ? originalItemCount - movedItemCount + remainingItemCount : originalItemCount);
++                container.setItem(i, origItemStack);
 +                container.setChanged();
                  return true;
              }
 -        }
-+            container.setItem(i, movedItem);
-+        } else {
-+            container.setChanged(); // original logic always marks source inv as changed even if no move happens.
-+            movedItem.setCount(movedItemCount);
- 
+-
 -        final ItemStack remainingItem = addItem(container, hopper, movedItem, null);
 -        final int remainingItemCount = remainingItem.getCount();
 -        if (remainingItemCount != movedItemCount) {
 -            origItemStack = origItemStack.copy(true);
--            origItemStack.setCount(originalItemCount);
+             origItemStack.setCount(originalItemCount);
 -            if (!origItemStack.isEmpty()) {
 -                origItemStack.setCount(originalItemCount - movedItemCount + remainingItemCount);
++            container.setItem(i, origItemStack);
++        } else {
++            container.setChanged(); // original logic always marks source inv as changed even if no move happens.
++            movedItem.setCount(movedItemCount);
++
 +            if (!skipPullModeEventFire) {
 +                movedItem = callPullMoveEvent(hopper, container, movedItem);
 +                if (movedItem == null) { // cancelled
@@ -64,7 +74,7 @@ index e3e7d8c9e704d49d78472ac7b9239f93031d2fd1..47cff0e87dc9c6de280b1c59a7a2f83d
 +                    return true;
 +                }
              }
- 
+
 -            ignoreBlockEntityUpdates = true;
 -            container.setItem(i, origItemStack);
 -            ignoreBlockEntityUpdates = false;

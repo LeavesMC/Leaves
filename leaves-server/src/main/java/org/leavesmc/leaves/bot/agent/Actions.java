@@ -44,7 +44,7 @@ public class Actions<T extends AbstractBotAction<T>> {
     public static <T extends AbstractBotAction<T>> boolean register(Class<? extends BotAction<?>> apiType, @NotNull Supplier<T> creator) {
         AbstractBotAction<T> action = creator.get();
         if (!actionsByName.containsKey(action.getName())) {
-            Actions<?> actions = new Actions<>(creator.get().getName(), apiType, creator);
+            Actions<?> actions = new Actions<>(action.getName(), apiType, creator);
             actionsByName.put(action.getName(), actions);
             actionsByClass.put(apiType, actions);
             return true;

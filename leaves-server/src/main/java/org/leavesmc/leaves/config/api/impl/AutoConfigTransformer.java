@@ -20,10 +20,10 @@ public class AutoConfigTransformer implements ConfigTransformer<Object, Object> 
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
-    @SuppressWarnings("ClassCanBeRecord")
+    @SuppressWarnings({"unchecked", "rawtypes", "ClassCanBeRecord"})
     public static class SimpleConfigTransformer implements ConfigTransformer<Object, Object> {
 
-        private final ConfigValidator<?> validator;
+        private final ConfigValidator validator;
 
         public SimpleConfigTransformer(ConfigValidator<?> validator) {
             this.validator = validator;
@@ -41,12 +41,7 @@ public class AutoConfigTransformer implements ConfigTransformer<Object, Object> 
 
         @Override
         public Object saveConvert(Object value) {
-            return saveConvert(validator, value);
-        }
-
-        @SuppressWarnings("unchecked")
-        private static <T> Object saveConvert(ConfigValidator<T> validator, Object value) {
-            return validator.saveConvert((T) value);
+            return validator.saveConvert(value);
         }
     }
 }

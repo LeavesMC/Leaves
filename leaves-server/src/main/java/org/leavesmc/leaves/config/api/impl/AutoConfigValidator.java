@@ -31,6 +31,7 @@ public final class AutoConfigValidator implements ConfigValidator<Object> {
         BASE_VALIDATOR.put(String.class, ConfigValidatorImpl.StringConfigValidator::new);
     }
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
     public static ConfigValidator<?> createValidator(@NotNull Field field) {
         Class<?> fieldType = field.getType();
 
@@ -46,7 +47,7 @@ public final class AutoConfigValidator implements ConfigValidator<Object> {
                     if (genericClass.equals(String.class)) {
                         return new ConfigValidatorImpl.ListConfigValidator.STRING();
                     } else if (genericClass.isEnum()) {
-                        return new ConfigValidatorImpl.ListConfigValidator.ENUM<>((asEnumClass(fieldType)));
+                        return new ConfigValidatorImpl.ListConfigValidator.ENUM<>((Class<Enum>) genericClass);
                     }
                     throw new IllegalArgumentException("List type " + genericClass.getTypeName() + " is not supported.");
                 }
@@ -55,15 +56,10 @@ public final class AutoConfigValidator implements ConfigValidator<Object> {
         }
 
         if (fieldType.isEnum()) {
-            return new ConfigValidatorImpl.EnumConfigValidator<>(asEnumClass(fieldType));
+            return new ConfigValidatorImpl.EnumConfigValidator<>((Class<Enum>) fieldType);
         }
 
         throw new IllegalArgumentException("Can't find validator for type " + fieldType.getName());
-    }
-
-    @SuppressWarnings("unchecked")
-    private static <E extends Enum<E>> Class<E> asEnumClass(Class<?> enumClass) {
-        return (Class<E>) enumClass;
     }
 
     @Override

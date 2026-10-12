@@ -50,7 +50,6 @@ import org.leavesmc.leaves.protocol.rei.transfer.slot.SlotAccessor;
 import org.leavesmc.leaves.protocol.rei.transfer.slot.VanillaSlotAccessor;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -130,19 +129,19 @@ public class REIServerProtocol implements LeavesProtocol {
         }
     }
 
-    @SuppressWarnings({"unchecked"})
+    @SuppressWarnings({"unchecked", "rawtypes"})
     private static void reloadRecipe(int reiRecipeVer) {
         ImmutableList.Builder<Display> builder = ImmutableList.builder();
         MinecraftServer server = MinecraftServer.getServer();
         RecipeMap recipeMap = server.getRecipeManager().recipes;
-        ((Collection<RecipeHolder<?>>) (Collection<?>) recipeMap.byType(RecipeType.CRAFTING)).forEach(holder -> {
+        recipeMap.byType(RecipeType.CRAFTING).forEach(holder -> {
             switch (holder.value()) {
-                case ShapedRecipe ignored -> builder.add(new ShapedDisplay((RecipeHolder<ShapedRecipe>) holder));
-                case ShapelessRecipe ignored -> builder.add(new ShapelessDisplay((RecipeHolder<ShapelessRecipe>) holder));
-                case TransmuteRecipe ignored -> builder.addAll(Display.ofTransmuteRecipe((RecipeHolder<TransmuteRecipe>) holder));
-                case TippedArrowRecipe ignored -> builder.addAll(Display.ofTippedArrowRecipe((RecipeHolder<TippedArrowRecipe>) holder));
-                case FireworkRocketRecipe ignored -> builder.addAll(Display.ofFireworkRocketRecipe((RecipeHolder<FireworkRocketRecipe>) holder));
-                case MapCloningRecipe ignored -> builder.addAll(Display.ofMapCloningRecipe((RecipeHolder<MapCloningRecipe>) holder));
+                case ShapedRecipe ignored -> builder.add(new ShapedDisplay((RecipeHolder) holder));
+                case ShapelessRecipe ignored -> builder.add(new ShapelessDisplay((RecipeHolder) holder));
+                case TransmuteRecipe ignored -> builder.addAll(Display.ofTransmuteRecipe((RecipeHolder) holder));
+                case TippedArrowRecipe ignored -> builder.addAll(Display.ofTippedArrowRecipe((RecipeHolder) holder));
+                case FireworkRocketRecipe ignored -> builder.addAll(Display.ofFireworkRocketRecipe((RecipeHolder) holder));
+                case MapCloningRecipe ignored -> builder.addAll(Display.ofMapCloningRecipe((RecipeHolder) holder));
                 // ignore ArmorDyeRecipe, BannerDuplicateRecipe, BookCloningRecipe, ShieldDecorationRecipe
                 default -> {
                 }

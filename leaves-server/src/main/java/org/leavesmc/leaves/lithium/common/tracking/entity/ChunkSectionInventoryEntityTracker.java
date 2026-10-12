@@ -3,7 +3,6 @@ package org.leavesmc.leaves.lithium.common.tracking.entity;
 import ca.spottedleaf.moonrise.common.util.CoordinateUtils;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Container;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySelector;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
@@ -32,9 +31,9 @@ public class ChunkSectionInventoryEntityTracker extends ChunkSectionEntityMoveme
         }
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "rawtypes"})
     public static @NotNull List<Container> getEntities(@NotNull Level level, AABB boundingBox) {
-        return (List<Container>) level.getEntitiesOfClass((Class<? extends Entity>) Container.class, boundingBox, EntitySelector.CONTAINER_ENTITY_SELECTOR);
+        return level.getEntitiesOfClass((Class) Container.class, boundingBox, EntitySelector.CONTAINER_ENTITY_SELECTOR);
     }
 
     public static @NotNull List<ChunkSectionInventoryEntityTracker> registerAt(ServerLevel world, AABB interactionArea) {

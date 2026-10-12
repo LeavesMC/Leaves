@@ -79,8 +79,7 @@ public class ConfigCommand extends BotSubcommand {
     private static class ConfigNode<T> extends LiteralNode {
         private final Configs<? extends AbstractBotConfig<T>> config;
 
-        @SuppressWarnings({"rawtypes", "unchecked"})
-        private ConfigNode(@NotNull Configs config) {
+        private <E extends AbstractBotConfig<T>> ConfigNode(@NotNull Configs<E> config) {
             super(config.getName());
             this.config = config;
         }

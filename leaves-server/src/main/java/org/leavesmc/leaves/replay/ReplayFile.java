@@ -7,6 +7,7 @@ import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import net.minecraft.SharedConstants;
 import net.minecraft.network.ConnectionProtocol;
+import net.minecraft.network.PacketListener;
 import net.minecraft.network.ProtocolInfo;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.protocol.Packet;
@@ -49,7 +50,7 @@ public class ReplayFile {
     private final File markerFile;
     private final File metaFile;
 
-    private final Map<ConnectionProtocol, ProtocolInfo<?>> protocols;
+    private final Map<ConnectionProtocol, ProtocolInfo<? extends PacketListener>> protocols;
     private final ExecutorService saveService;
 
     public ReplayFile(@NotNull File name, ExecutorService saveService) throws IOException {
@@ -79,9 +80,9 @@ public class ReplayFile {
         );
     }
 
-    @SuppressWarnings({"rawtypes", "unchecked"})
-    private byte @NotNull [] getPacketBytes(Packet packet, ConnectionProtocol state) {
-        ProtocolInfo<?> protocol = this.protocols.get(state);
+    @SuppressWarnings({"unchecked"})
+    private <T extends PacketListener> byte @NotNull [] getPacketBytes(Packet<T> packet, ConnectionProtocol state) {
+        ProtocolInfo<T> protocol = (ProtocolInfo<T>) this.protocols.get(state);
         if (protocol == null) {
             throw new IllegalArgumentException("Unknown protocol state " + state);
         }

@@ -22,18 +22,18 @@ import java.lang.reflect.ParameterizedType;
 import java.util.Map;
 import java.util.function.Supplier;
 
-@SuppressWarnings({"rawtypes", "unchecked"})
+@SuppressWarnings("unchecked")
 public class UniversalCodec {
 
     static final Map<net.minecraft.network.protocol.PacketType<?>, PacketType> TYPE_MAP;
     static final Supplier<RegistryFriendlyByteBuf> BUF_FACTORY = () -> new RegistryFriendlyByteBuf(Unpooled.buffer(), MinecraftServer.getServer().registryAccess());
-    private static final Map<PacketType, StreamCodec> CODEC_MAP;
+    private static final Map<PacketType, StreamCodec<? super RegistryFriendlyByteBuf, ? extends Packet<?>>> CODEC_MAP;
     private static final Map<String, PacketType> ID_MAP;
 
     static {
         ImmutableMap.Builder<String, PacketType> idBuilder = ImmutableMap.builder();
         ImmutableMap.Builder<net.minecraft.network.protocol.PacketType<?>, PacketType> typeBuilder = ImmutableMap.builder();
-        ImmutableMap.Builder<PacketType, StreamCodec> codecBuilder = ImmutableMap.builder();
+        ImmutableMap.Builder<PacketType, StreamCodec<? super RegistryFriendlyByteBuf, ? extends Packet<?>>> codecBuilder = ImmutableMap.builder();
         Class<?>[] classes = new Class<?>[]{
             CommonPacketTypes.class, ConfigurationPacketTypes.class,
             CookiePacketTypes.class, GamePacketTypes.class, HandshakePacketTypes.class,
@@ -57,7 +57,7 @@ public class UniversalCodec {
                     Class<? extends Packet<?>> packetClass = (Class<? extends Packet<?>>) type.getActualTypeArguments()[0];
                     Field codecField = packetClass.getDeclaredField("STREAM_CODEC");
                     codecField.setAccessible(true);
-                    StreamCodec codec = (StreamCodec) codecField.get(null);
+                    StreamCodec<? super RegistryFriendlyByteBuf, ? extends Packet<?>> codec = (StreamCodec<? super RegistryFriendlyByteBuf, ? extends Packet<?>>) codecField.get(null);
                     String id = packetType.flow().id() + "/" + packetType.id().getPath();
                     PacketType apiType = ID_MAP.get(id);
                     if (apiType == null) {
@@ -79,19 +79,19 @@ public class UniversalCodec {
     public RegistryFriendlyByteBuf encode(Packet<?> packet, boolean isConfigStage) {
         RegistryFriendlyByteBuf buf = BUF_FACTORY.get();
         if (packet instanceof ClientboundCustomPayloadPacket payloadPacket) {
-            StreamCodec codec = isConfigStage ? ClientboundCustomPayloadPacket.CONFIG_STREAM_CODEC : ClientboundCustomPayloadPacket.GAMEPLAY_STREAM_CODEC;
+            StreamCodec<? super RegistryFriendlyByteBuf, ClientboundCustomPayloadPacket> codec = isConfigStage ? ClientboundCustomPayloadPacket.CONFIG_STREAM_CODEC : ClientboundCustomPayloadPacket.GAMEPLAY_STREAM_CODEC;
             codec.encode(buf, payloadPacket);
             return buf;
         }
-        CODEC_MAP.get(TYPE_MAP.get(packet.type())).encode(buf, packet);
+        ((StreamCodec<RegistryFriendlyByteBuf, Packet<?>>) CODEC_MAP.get(TYPE_MAP.get(packet.type()))).encode(buf, packet);
         return buf;
     }
 
     public Packet<?> decode(PacketType type, RegistryFriendlyByteBuf buf, boolean isConfigStage) {
         if (type == PacketType.Clientbound.CUSTOM_PAYLOAD) {
-            StreamCodec codec = isConfigStage ? ClientboundCustomPayloadPacket.CONFIG_STREAM_CODEC : ClientboundCustomPayloadPacket.GAMEPLAY_STREAM_CODEC;
-            return (Packet<?>) codec.decode(buf);
+            StreamCodec<? super RegistryFriendlyByteBuf, ClientboundCustomPayloadPacket> codec = isConfigStage ? ClientboundCustomPayloadPacket.CONFIG_STREAM_CODEC : ClientboundCustomPayloadPacket.GAMEPLAY_STREAM_CODEC;
+            return codec.decode(buf);
         }
-        return (Packet<?>) CODEC_MAP.get(type).decode(buf);
+        return CODEC_MAP.get(type).decode(buf);
     }
 }

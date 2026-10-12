@@ -198,18 +198,17 @@ public class JadeProtocol implements LeavesProtocol {
     @ProtocolHandler.PayloadReceiver(payload = RequestBlockPayload.class)
     public static void requestBlockData(ServerPlayer player, RequestBlockPayload payload) {
         Bukkit.getGlobalRegionScheduler().run(MinecraftInternalPlugin.INSTANCE, (task) -> {
+            BlockPos pos = payload.data().hit().getBlockPos();
+            double maxDistance = Mth.square(player.blockInteractionRange() + 21);
+            if (pos.distSqr(player.blockPosition()) > maxDistance || !player.level().isLoaded(pos)) {
+                return;
+            }
             BlockAccessor accessor = payload.data().unpack(player);
             if (accessor == null) {
                 return;
             }
-
-            BlockPos pos = accessor.getPosition();
             Block block = accessor.getBlock();
             BlockEntity blockEntity = accessor.getBlockEntity();
-            double maxDistance = Mth.square(player.blockInteractionRange() + 21);
-            if (pos.distSqr(player.blockPosition()) > maxDistance || !accessor.getLevel().isLoaded(pos)) {
-                return;
-            }
 
             List<ServerDataProvider<BlockAccessor>> providers;
             if (blockEntity != null) {

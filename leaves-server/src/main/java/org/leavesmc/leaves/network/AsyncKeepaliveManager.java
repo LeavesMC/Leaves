@@ -47,6 +47,10 @@ public final class AsyncKeepaliveManager {
         ACTIVE_LISTENERS.remove(listener.connection, listener);
     }
 
+    public static void execute(Runnable runnable) {
+        EXECUTOR.execute(runnable);
+    }
+
     private static void tickAll() {
         long currentTimeNs = System.nanoTime();
         long currentTimeMs = Util.getMillis();

@@ -1,0 +1,312 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Lumine1909 <133463833+Lumine1909@users.noreply.github.com>
+Date: Sat, 25 Jul 2026 15:32:45 +0800
+Subject: [PATCH] Lithium optimized non poi block search
+
+This patch is Powered by Lithium(https://github.com/CaffeineMC/lithium)
+
+This patch is based on the following mixins:
+* "net/caffeinemc/mods/lithium/mixin/ai/non_poi_block_search/*.java"
+By: 2No2Name <2No2Name@web.de>
+As part of: Lithium (https://github.com/CaffeineMC/lithium)
+Licensed under: LGPL-3.0 (https://www.gnu.org/licenses/lgpl-3.0.html)
+
+diff --git a/net/minecraft/world/entity/ai/goal/MoveToBlockGoal.java b/net/minecraft/world/entity/ai/goal/MoveToBlockGoal.java
+index 7e70c7bee633c54497d1cd2854dd60f4fb5ff160..7d7682ed1863e8ec0bc7604c08151c9549bbdb2c 100644
+--- a/net/minecraft/world/entity/ai/goal/MoveToBlockGoal.java
++++ b/net/minecraft/world/entity/ai/goal/MoveToBlockGoal.java
+@@ -5,7 +5,7 @@ import net.minecraft.core.BlockPos;
+ import net.minecraft.world.entity.PathfinderMob;
+ import net.minecraft.world.level.LevelReader;
+ 
+-public abstract class MoveToBlockGoal extends Goal {
++public abstract class MoveToBlockGoal extends Goal implements org.leavesmc.leaves.lithium.common.ai.non_poi_block_search.LithiumMoveToBlockGoal { // Leaves - lithium optimized non poi block search
+     private static final int GIVE_UP_TICKS = 1200;
+     private static final int STAY_TICKS = 1200;
+     private static final int INTERVAL_TICKS = 200;
+@@ -133,4 +133,172 @@ public abstract class MoveToBlockGoal extends Goal {
+     }
+ 
+     protected abstract boolean isValidTarget(LevelReader level, BlockPos pos);
++
++    // Leaves start - lithium optimized non poi block search
++    @Override
++    public boolean lithium$findNearestBlock(
++        java.util.function.Predicate<net.minecraft.world.level.block.state.BlockState> requiredBlock,
++        java.util.function.BiPredicate<net.minecraft.world.level.chunk.ChunkAccess, net.minecraft.core.BlockPos.MutableBlockPos> lithium$isValidTarget,
++        final boolean shouldChunkLoad
++    ) {
++        //Center of the search starts 1 block below the mob's block position
++        BlockPos center = this.mob.blockPosition().offset(0, -1, 0);
++
++        //Range is +-(searchRange - 1), +-verticalSearchRange, +-(searchRange - 1)
++        //Cache ChunkAccesses - getting them is surprisingly expensive - and track whether subchunks have the block
++        final LevelReader levelReader = this.mob.level();
++        org.leavesmc.leaves.lithium.common.ai.non_poi_block_search.CheckAndCacheBlockChecker checker = new org.leavesmc.leaves.lithium.common.ai.non_poi_block_search.CheckAndCacheBlockChecker(center,
++            this.searchRange - 1, this.verticalSearchRange,
++            levelReader, requiredBlock, shouldChunkLoad);
++        it.unimi.dsi.fastutil.longs.LongArrayList sortedChunksMaybeWithBlock = new it.unimi.dsi.fastutil.longs.LongArrayList(checker.getChunkSize());
++        checker.initializeChunks(sortedChunksMaybeWithBlock::addLast);
++
++        if (checker.shouldStop()) {
++            return false; //No chunks with the target block - return early
++        }
++
++        final int minY = org.leavesmc.leaves.lithium.common.util.Pos.BlockCoord.getMinY(levelReader);
++        final int maxY = org.leavesmc.leaves.lithium.common.util.Pos.BlockCoord.getMaxYInclusive(levelReader);
++
++        // Prefer chunk aware search because it also cuts iterations inside "empty" chunk sections
++        if (!checker.hasUnloadedPossibleChunks()) {
++            return this.lithium$chunkAwareSearch(center, lithium$isValidTarget, checker, sortedChunksMaybeWithBlock, minY, maxY);
++        }
++
++        // Use vanilla search because unordered search may observably alter chunk-loading behavior
++        return this.lithium$vanillaOrderSearch(center, lithium$isValidTarget, checker, minY, maxY);
++    }
++
++    private boolean lithium$vanillaOrderSearch(
++        BlockPos center,
++        java.util.function.BiPredicate<net.minecraft.world.level.chunk.ChunkAccess, net.minecraft.core.BlockPos.MutableBlockPos> lithium$isValidTarget,
++        org.leavesmc.leaves.lithium.common.ai.non_poi_block_search.CheckAndCacheBlockChecker checker,
++        final int minY, final int maxY
++    ) {
++        BlockPos.MutableBlockPos currentPos = new BlockPos.MutableBlockPos();
++        final int centerY = center.getY();
++
++        for (int layer = this.verticalSearchStart; layer <= this.verticalSearchRange; layer = layer > 0 ? -layer : 1 - layer) {
++            final int y = centerY + layer;
++
++            // Layer outside of build limit - skip
++            // Note: this is likely to be hit because farms where this lags tend to be built at world floor
++            if (y < minY || y > maxY) {
++                continue;
++            }
++
++            for (int ring = 0; ring < this.searchRange; ring++) {
++                for (int dX = 0; dX <= ring; dX = dX > 0 ? -dX : 1 - dX) {
++                    for (int dZ = dX < ring && dX > -ring ? ring : 0; dZ <= ring; dZ = dZ > 0 ? -dZ : 1 - dZ) {
++                        currentPos.setWithOffset(center, dX, layer, dZ);
++                        if (this.mob.isWithinHome(currentPos) && checker.checkPosition(currentPos)) {
++                            // ChunkAccess is always loaded at this point
++                            net.minecraft.world.level.chunk.ChunkAccess chunkAccess = checker.getCachedChunkAccess(currentPos);
++                            if (lithium$isValidTarget.test(chunkAccess, currentPos)) {
++                                this.blockPos = currentPos;
++                                this.mob.movingTarget = currentPos == BlockPos.ZERO ? null : currentPos.immutable(); // Paper
++                                return true;
++                            }
++                        }
++                    }
++                }
++            }
++        }
++
++        return false;
++    }
++
++    private boolean lithium$chunkAwareSearch(
++        BlockPos center,
++        java.util.function.BiPredicate<net.minecraft.world.level.chunk.ChunkAccess, net.minecraft.core.BlockPos.MutableBlockPos> lithium$isValidTarget,
++        org.leavesmc.leaves.lithium.common.ai.non_poi_block_search.CheckAndCacheBlockChecker checker,
++        it.unimi.dsi.fastutil.longs.LongArrayList sortedChunksMaybeWithBlock,
++        final int minY, final int maxY
++    ) {
++        // Sort chunks by lowest sort order - has the earliest searched position
++        // Note: In this search order, the closest point normally is also the closest point in the search
++        sortedChunksMaybeWithBlock.sort((chunkLong0, chunkLong1) ->
++            org.leavesmc.leaves.lithium.common.ai.non_poi_block_search.NonPOISearchDistances.MoveToBlockGoalDistances.getMinimumSortOrderOfChunk(center, chunkLong0)
++                - org.leavesmc.leaves.lithium.common.ai.non_poi_block_search.NonPOISearchDistances.MoveToBlockGoalDistances.getMinimumSortOrderOfChunk(center, chunkLong1)
++        );
++
++        java.util.function.Predicate<net.minecraft.world.level.block.state.BlockState> requiredBlock = checker.blockStatePredicate;
++        final int minSectionY = checker.minSectionY;
++
++        BlockPos.MutableBlockPos foundPos = new BlockPos.MutableBlockPos();
++        BlockPos.MutableBlockPos currentPos = new BlockPos.MutableBlockPos();
++
++        // Same layer order as vanilla - saves iterations if targets are found in the first layer
++        for (int layer = this.verticalSearchStart; layer <= this.verticalSearchRange; layer = layer > 0 ? -layer : 1 - layer) {
++            final int y = center.getY() + layer;
++
++            // Layer outside of build limit - skip
++            // Note: this is likely to be hit because farms where this lags tend to be built at world floor
++            if (y < minY || y > maxY) {
++                continue;
++            }
++
++            final int chunkY = net.minecraft.core.SectionPos.blockToSectionCoord(y);
++            final int ySectionIndex = chunkY - minSectionY;
++
++            int closestFound = Integer.MAX_VALUE;
++            int ringMax = this.searchRange - 1;
++
++            // Iterate through slices of chunks that may have the target blockState
++            for (long chunkPos : sortedChunksMaybeWithBlock) {
++                final int chunkX = net.minecraft.world.level.ChunkPos.getX(chunkPos);
++                final int chunkZ = net.minecraft.world.level.ChunkPos.getZ(chunkPos);
++
++                // Break since no subsequent chunks can be closer
++                if (closestFound < org.leavesmc.leaves.lithium.common.ai.non_poi_block_search.NonPOISearchDistances.MoveToBlockGoalDistances.getMinimumSortOrderOfChunk(center, chunkX, chunkZ)) {
++                    break;
++                }
++
++                // Skip if the current subchunk does not have the block
++                if (!checker.checkCachedSection(chunkX, chunkY, chunkZ)) {
++                    continue;
++                }
++
++                net.minecraft.world.level.chunk.ChunkAccess chunkAccess = checker.getCachedChunkAccess(chunkPos);
++                // If ChunkSection may have close enough targets, iterate layer in Paletted Container (x then z) order
++                final int chunkBlockX = net.minecraft.core.SectionPos.sectionToBlockCoord(chunkX);
++                int xMin = Math.max(center.getX() - ringMax, chunkBlockX);
++                int xMax = Math.min(center.getX() + ringMax, chunkBlockX + 15);
++                final int chunkBlockZ = net.minecraft.core.SectionPos.sectionToBlockCoord(chunkZ);
++                int zMin = Math.max(center.getZ() - ringMax, chunkBlockZ);
++                int zMax = Math.min(center.getZ() + ringMax, chunkBlockZ + 15);
++                net.minecraft.world.level.chunk.LevelChunkSection levelChunkSection = chunkAccess.getSections()[ySectionIndex];
++                for (int z = zMin; z <= zMax; z++) {
++                    for (int x = xMin; x <= xMax; x++) {
++                        int dX = x - center.getX();
++                        int dZ = z - center.getZ();
++                        int ring = org.leavesmc.leaves.lithium.common.ai.non_poi_block_search.NonPOISearchDistances.MoveToBlockGoalDistances.getRing(dX, dZ);
++                        int currentDistance = org.leavesmc.leaves.lithium.common.ai.non_poi_block_search.NonPOISearchDistances.MoveToBlockGoalDistances.getVanillaSortOrderInt(ring, dX, dZ);
++                        if (currentDistance < closestFound
++                            && this.mob.isWithinHome(currentPos.set(x, y, z))
++                            && requiredBlock.test(levelChunkSection.getBlockState(x & 15, y & 15, z & 15))
++                            && lithium$isValidTarget.test(chunkAccess, currentPos)) {
++                            // Constrain search size when we find a valid target
++                            ringMax = ring;
++                            xMin = Math.max(center.getX() - ringMax, chunkBlockX);
++                            xMax = Math.min(center.getX() + ringMax, chunkBlockX + 15);
++                            zMax = Math.min(center.getZ() + ringMax, chunkBlockZ + 15);
++                            foundPos.set(x, y, z);
++                            closestFound = currentDistance;
++                        }
++                    }
++                }
++            }
++
++            if (closestFound < Integer.MAX_VALUE) {
++                // Vanilla uses the mutable pos, no need to create immutable copy
++                this.mob.movingTarget = foundPos == BlockPos.ZERO ? null : foundPos.immutable(); // Paper
++                this.blockPos = foundPos;
++                return true;
++            }
++        }
++
++        return false;
++    }
++    // Leaves end - lithium optimized non poi block search
+ }
+diff --git a/net/minecraft/world/entity/ai/goal/RemoveBlockGoal.java b/net/minecraft/world/entity/ai/goal/RemoveBlockGoal.java
+index 50cc4c462640a9d40abef6245439d71e8c593ae6..a8defeb2542d170a59e8afa2ede6cbe46ddb3db6 100644
+--- a/net/minecraft/world/entity/ai/goal/RemoveBlockGoal.java
++++ b/net/minecraft/world/entity/ai/goal/RemoveBlockGoal.java
+@@ -21,7 +21,7 @@ import net.minecraft.world.level.gamerules.GameRules;
+ import net.minecraft.world.phys.Vec3;
+ import org.jspecify.annotations.Nullable;
+ 
+-public class RemoveBlockGoal extends MoveToBlockGoal {
++public class RemoveBlockGoal extends MoveToBlockGoal implements org.leavesmc.leaves.lithium.common.ai.non_poi_block_search.LithiumMoveToBlockGoal { // Leaves - lithium optimized non poi block search
+     private final Block blockToRemove;
+     private final Mob removerMob;
+     private int ticksSinceReachedGoal;
+@@ -40,7 +40,7 @@ public class RemoveBlockGoal extends MoveToBlockGoal {
+         } else if (this.nextStartTick > 0) {
+             this.nextStartTick--;
+             return false;
+-        } else if (this.findNearestBlock()) {
++        } else if (lithium$findNearestBlock()) { // Leaves - lithium optimized non poi block search
+             this.nextStartTick = reducedTickDelay(20);
+             return true;
+         } else {
+@@ -154,4 +154,24 @@ public class RemoveBlockGoal extends MoveToBlockGoal {
+             && chunk.getBlockState(pos.above()).isAir()
+             && chunk.getBlockState(pos.above(2)).isAir();
+     }
++
++    // Leaves start - lithium optimized non poi block search
++    private static final java.util.function.BiPredicate<net.minecraft.world.level.chunk.ChunkAccess, net.minecraft.core.BlockPos.MutableBlockPos> IS_VALID_TARGET_ABOVE_BIPREDICATE =
++        RemoveBlockGoal::lithium$isValidTargetAbove;
++
++    private boolean lithium$findNearestBlock() {
++        return lithium$findNearestBlock(
++            this::lithium$isValidTargetBlock, IS_VALID_TARGET_ABOVE_BIPREDICATE, false
++        );
++    }
++
++    private boolean lithium$isValidTargetBlock(net.minecraft.world.level.block.state.BlockState blockState){
++        return blockState.is(this.blockToRemove);
++    }
++
++    private static boolean lithium$isValidTargetAbove(ChunkAccess chunkAccess, BlockPos.MutableBlockPos mutable) {
++        return chunkAccess.getBlockState(mutable.move(0, 1, 0)).isAir()
++            && chunkAccess.getBlockState(mutable.move(0, 1, 0)).isAir();
++    }
++    // Leaves end - lithium optimized non poi block search
+ }
+diff --git a/net/minecraft/world/entity/ai/sensing/HoglinSpecificSensor.java b/net/minecraft/world/entity/ai/sensing/HoglinSpecificSensor.java
+index 744e962fc401aa9f07295d12b068aa9e2ebb96d0..fbecfdb2a2f0bcde1ef52ad96de695251216c6d8 100644
+--- a/net/minecraft/world/entity/ai/sensing/HoglinSpecificSensor.java
++++ b/net/minecraft/world/entity/ai/sensing/HoglinSpecificSensor.java
+@@ -31,7 +31,7 @@ public class HoglinSpecificSensor extends Sensor<Hoglin> {
+     @Override
+     protected void doTick(ServerLevel level, Hoglin entity) {
+         Brain<?> brain = entity.getBrain();
+-        brain.setMemory(MemoryModuleType.NEAREST_REPELLENT, this.findNearestRepellent(level, entity));
++        brain.setMemory(MemoryModuleType.NEAREST_REPELLENT, lithium$findNearestRepellent(level, entity)); // Leaves - lithium optimized non poi block search
+         Optional<Piglin> optional = Optional.empty();
+         int i = 0;
+         List<Hoglin> list = Lists.newArrayList();
+@@ -62,4 +62,18 @@ public class HoglinSpecificSensor extends Sensor<Hoglin> {
+     private Optional<BlockPos> findNearestRepellent(ServerLevel level, Hoglin hoglin) {
+         return BlockPos.findClosestMatch(hoglin.blockPosition(), 8, 4, pos -> level.getBlockState(pos).is(BlockTags.HOGLIN_REPELLENTS));
+     }
++
++    // Leaves start - lithium optimized non poi block search
++    private static final java.util.function.Predicate<net.minecraft.world.level.block.state.BlockState> IS_VALID_REPELLENT_PREDICATE =
++        HoglinSpecificSensor::lithium$isValidRepellent;
++
++    private Optional<BlockPos> lithium$findNearestRepellent(ServerLevel serverLevel, Hoglin hoglin) {
++        return org.leavesmc.leaves.lithium.common.ai.non_poi_block_search.CommonBlockSearchesCheckAndCache.blockPosFindClosestMatch(serverLevel, hoglin, 8, 4,
++            IS_VALID_REPELLENT_PREDICATE, true);
++    }
++
++    private static boolean lithium$isValidRepellent(net.minecraft.world.level.block.state.BlockState blockState) {
++        return blockState.is(BlockTags.HOGLIN_REPELLENTS);
++    }
++    // Leaves end - lithium optimized non poi block search
+ }
+diff --git a/net/minecraft/world/entity/ai/sensing/PiglinSpecificSensor.java b/net/minecraft/world/entity/ai/sensing/PiglinSpecificSensor.java
+index 6d96e6a80f4bcf6b83671f089e13b826d21fd0ef..2a9f890c43e6ea28b34b6ede8b97aa979af28970 100644
+--- a/net/minecraft/world/entity/ai/sensing/PiglinSpecificSensor.java
++++ b/net/minecraft/world/entity/ai/sensing/PiglinSpecificSensor.java
+@@ -48,7 +48,7 @@ public class PiglinSpecificSensor extends Sensor<LivingEntity> {
+     @Override
+     protected void doTick(ServerLevel level, LivingEntity entity) {
+         Brain<?> brain = entity.getBrain();
+-        brain.setMemory(MemoryModuleType.NEAREST_REPELLENT, findNearestRepellent(level, entity));
++        brain.setMemory(MemoryModuleType.NEAREST_REPELLENT, lithium$FindNearestRepellent(level, entity)); // Leaves - lithium optimized non poi block search
+         Optional<Mob> optional = Optional.empty();
+         Optional<Hoglin> optional1 = Optional.empty();
+         Optional<Hoglin> optional2 = Optional.empty();
+@@ -124,4 +124,20 @@ public class PiglinSpecificSensor extends Sensor<LivingEntity> {
+         boolean isPiglinRepellents = blockState.is(BlockTags.PIGLIN_REPELLENTS);
+         return isPiglinRepellents && blockState.is(Blocks.SOUL_CAMPFIRE) ? CampfireBlock.isLitCampfire(blockState) : isPiglinRepellents;
+     }
++
++    // Leaves start - lithium optimized non poi block search
++    private static final java.util.function.Predicate<net.minecraft.world.level.block.state.BlockState> IS_VALID_REPELLENT_PREDICATE =
++        PiglinSpecificSensor::lithium$isValidRepellent;
++
++    public Optional<BlockPos> lithium$FindNearestRepellent(ServerLevel serverLevel, LivingEntity livingEntity) {
++        return org.leavesmc.leaves.lithium.common.ai.non_poi_block_search.CommonBlockSearchesCheckAndCache.blockPosFindClosestMatch(serverLevel, livingEntity, 8, 4,
++            IS_VALID_REPELLENT_PREDICATE, true);
++    }
++
++    private static boolean lithium$isValidRepellent(BlockState blockState) {
++        final boolean isPiglinRepellent = blockState.is(BlockTags.PIGLIN_REPELLENTS);
++        return isPiglinRepellent && blockState.is(Blocks.SOUL_CAMPFIRE) ?
++            CampfireBlock.isLitCampfire(blockState) : isPiglinRepellent;
++    }
++    // Leaves end - lithium optimized non poi block search
+ }

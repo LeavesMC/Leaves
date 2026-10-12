@@ -32,14 +32,15 @@ public class ElytraAeronauticsHelper {
         for (Iterator<FireworkRocketEntity> it = tickingFireworks.iterator(); it.hasNext(); ) {
             FireworkRocketEntity firework = it.next();
             firework.life++;
-            Vec3 handHoldingItemAngle;
             if (!firework.isAlive()) {
                 it.remove();
+                continue;
             }
             if (firework.attachedToEntity == null || firework.life > firework.lifetime) {
                 explodeNoClip(firework);
                 continue;
             }
+            Vec3 handHoldingItemAngle;
             if (firework.attachedToEntity.isFallFlying()) {
                 if (firework.attachedToEntity instanceof ServerPlayer player) {
                     player.connection.send(new ClientboundSetEntityMotionPacket(player));
@@ -67,9 +68,6 @@ public class ElytraAeronauticsHelper {
     }
 
     private static void explodeNoClip(FireworkRocketEntity firework) {
-        if (firework.life <= firework.lifetime) {
-            firework.discard();
-        }
         ServerLevel level = firework.level().getMinecraftWorld();
         List<FireworkExplosion> explosions = firework.getExplosions();
         if (!explosions.isEmpty() && firework.attachedToEntity != null &&
@@ -78,6 +76,8 @@ public class ElytraAeronauticsHelper {
             firework.gameEvent(GameEvent.EXPLODE, firework.getOwner());
             firework.attachedToEntity.hurtServer(level, firework.damageSources().fireworks(firework, firework.getOwner()), 5.0F + explosions.size() * 2);
             firework.discard(org.bukkit.event.entity.EntityRemoveEvent.Cause.EXPLODE);
+        } else {
+            firework.discard();
         }
     }
 

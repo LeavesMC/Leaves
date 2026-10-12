@@ -1,11 +1,33 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: HyacinthHaru <HyacinthHaru@foxmail.com>
 Date: Fri, 20 Mar 2026 11:43:05 +0800
-Subject: [PATCH] Async keepalive
+Subject: [PATCH] Async keepalive and fix keepalive
 
 
+diff --git a/io/papermc/paper/util/KeepAlive.java b/io/papermc/paper/util/KeepAlive.java
+index 4a2520f554c2ee74faf86d7c93baccf0f391a6b3..06897f497920630c875d75cde5d41f509b17f0db 100644
+--- a/io/papermc/paper/util/KeepAlive.java
++++ b/io/papermc/paper/util/KeepAlive.java
+@@ -10,7 +10,7 @@ public class KeepAlive {
+     }
+     public static final record PendingKeepAlive(long txTimeNS, long challengeId) {}
+ 
+-    public final ca.spottedleaf.concurrentutil.collection.MultiThreadedQueue<PendingKeepAlive> pendingKeepAlives = new ca.spottedleaf.concurrentutil.collection.MultiThreadedQueue<>();
++    public final ca.spottedleaf.concurrentutil1.collection.MultiThreadedQueue<PendingKeepAlive> pendingKeepAlives = new ca.spottedleaf.concurrentutil1.collection.MultiThreadedQueue<>();
+ 
+     public final PingCalculator pingCalculator1m = new PingCalculator(java.util.concurrent.TimeUnit.MINUTES.toNanos(1L));
+     public final PingCalculator pingCalculator5s = new PingCalculator(java.util.concurrent.TimeUnit.SECONDS.toNanos(5L));
+@@ -18,7 +18,7 @@ public class KeepAlive {
+     public static final class PingCalculator {
+ 
+         private final long intervalNS;
+-        private final ca.spottedleaf.concurrentutil.collection.MultiThreadedQueue<KeepAliveResponse> responses = new ca.spottedleaf.concurrentutil.collection.MultiThreadedQueue<>();
++        private final ca.spottedleaf.concurrentutil1.collection.MultiThreadedQueue<KeepAliveResponse> responses = new ca.spottedleaf.concurrentutil1.collection.MultiThreadedQueue<>();
+ 
+         private long timeSumNS;
+         private int timeSumCount;
 diff --git a/net/minecraft/server/network/ServerCommonPacketListenerImpl.java b/net/minecraft/server/network/ServerCommonPacketListenerImpl.java
-index cb9a4f669ae2ff772206bffde9255d239f47e1ea..87c2bbf6db1b041c96c886679862e6a4daaa7ca2 100644
+index cb9a4f669ae2ff772206bffde9255d239f47e1ea..7eb7dd782f60efef01093f6c1b3247dc5b62aad1 100644
 --- a/net/minecraft/server/network/ServerCommonPacketListenerImpl.java
 +++ b/net/minecraft/server/network/ServerCommonPacketListenerImpl.java
 @@ -46,6 +46,7 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
@@ -47,36 +69,46 @@ index cb9a4f669ae2ff772206bffde9255d239f47e1ea..87c2bbf6db1b041c96c886679862e6a4
          // Paper start - improve keepalives
          long now = System.nanoTime();
          io.papermc.paper.util.KeepAlive.PendingKeepAlive pending = this.keepAlive.pendingKeepAlives.peek();
-@@ -141,6 +152,28 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
+@@ -141,6 +152,38 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
          // Paper end - improve keepalives
      }
  
 +    // Leaves start - async keepalive
 +    private void handleAsyncKeepAlive(ServerboundKeepAlivePacket packet) {
 +        long now = System.nanoTime();
++        io.papermc.paper.util.KeepAlive.PendingKeepAlive pending = this.keepAlive.pendingKeepAlives.peek();
++        if (pending != null && pending.challengeId() == packet.getId()) {
++            this.keepAlive.pendingKeepAlives.remove(pending);
++            updatePing(new io.papermc.paper.util.KeepAlive.KeepAliveResponse(pending.txTimeNS(), now));
++            return;
++        }
++
 +        long timeoutNanos = java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(org.leavesmc.leaves.LeavesConfig.mics.asyncKeepalive.getTimeoutMillis());
 +        for (java.util.Iterator<io.papermc.paper.util.KeepAlive.PendingKeepAlive> itr = this.keepAlive.pendingKeepAlives.iterator(); itr.hasNext(); ) {
-+            io.papermc.paper.util.KeepAlive.PendingKeepAlive pending = itr.next();
-+            if (pending.challengeId() == packet.getId()) {
-+                if ((now - pending.txTimeNS()) > timeoutNanos) {
-+                    itr.remove();
-+                    return;
-+                }
-+                io.papermc.paper.util.KeepAlive.KeepAliveResponse response = new io.papermc.paper.util.KeepAlive.KeepAliveResponse(pending.txTimeNS(), now);
-+                this.keepAlive.pingCalculator1m.update(response);
-+                this.keepAlive.pingCalculator5s.update(response);
-+                this.latency = this.keepAlive.pingCalculator5s.getAvgLatencyMS();
-+                this.lastKeepAliveResponse = now;
-+                return;
++            io.papermc.paper.util.KeepAlive.PendingKeepAlive pendingKa = itr.next();
++            if (pendingKa.challengeId() != packet.getId()) {
++                continue;
 +            }
++            itr.remove();
++            if ((now - pendingKa.txTimeNS()) < timeoutNanos) {
++                updatePing(new io.papermc.paper.util.KeepAlive.KeepAliveResponse(pendingKa.txTimeNS(), now));
++            }
++            return;
 +        }
++    }
++
++    private void updatePing(io.papermc.paper.util.KeepAlive.KeepAliveResponse response) {
++        this.keepAlive.pingCalculator1m.update(response);
++        this.keepAlive.pingCalculator5s.update(response);
++        this.latency = this.keepAlive.pingCalculator5s.getAvgLatencyMS();
++        this.lastKeepAliveResponse = response.rxTimeNS();
 +    }
 +    // Leaves end - async keepalive
 +
      @Override
      public void handlePong(ServerboundPongPacket packet) {
      }
-@@ -278,6 +311,13 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
+@@ -278,6 +321,13 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
      protected void keepConnectionAlive() {
          Profiler.get().push("keepAlive");
          long millis = Util.getMillis();
@@ -90,7 +122,7 @@ index cb9a4f669ae2ff772206bffde9255d239f47e1ea..87c2bbf6db1b041c96c886679862e6a4
          // Paper start - improve keepalives
          if (this.checkIfClosed(millis) && !this.processedDisconnect) {
              long currTime = System.nanoTime();
-@@ -301,6 +341,29 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
+@@ -301,6 +351,29 @@ public abstract class ServerCommonPacketListenerImpl implements ServerCommonPack
          Profiler.get().pop();
      }
  

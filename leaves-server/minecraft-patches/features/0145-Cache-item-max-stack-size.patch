@@ -1,0 +1,113 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Lumine1909 <133463833+Lumine1909@users.noreply.github.com>
+Date: Sun, 26 Jul 2026 11:22:25 +0800
+Subject: [PATCH] Cache item max stack size
+
+
+diff --git a/net/minecraft/core/component/PatchedDataComponentMap.java b/net/minecraft/core/component/PatchedDataComponentMap.java
+index 56f0573bb74ea1e5f09851d421b83db23594441e..6cd89dd892b1e0c30105955db463016559db181d 100644
+--- a/net/minecraft/core/component/PatchedDataComponentMap.java
++++ b/net/minecraft/core/component/PatchedDataComponentMap.java
+@@ -27,6 +27,11 @@ public final class PatchedDataComponentMap implements DataComponentMap, org.leav
+         this.prototype = prototype;
+         this.patch = patch;
+         this.copyOnWrite = copyOnWrite;
++        // Leaves start - cache item max stack size
++        if (!prototype.isEmpty() || !patch.isEmpty()) {
++            recalculateMaxStackSize(null);
++        }
++        // Leaves end - cache item max stack size
+     }
+ 
+     public static PatchedDataComponentMap fromPatch(DataComponentMap prototype, DataComponentPatch patch) {
+@@ -74,7 +79,7 @@ public final class PatchedDataComponentMap implements DataComponentMap, org.leav
+         } else {
+             optional = (Optional<T>)this.patch.put(component, Optional.ofNullable(value));
+         }
+-
++        recalculateMaxStackSize(component); // Leaves - cache item max stack size
+         return optional != null ? optional.orElse(object) : object;
+     }
+ 
+@@ -91,7 +96,7 @@ public final class PatchedDataComponentMap implements DataComponentMap, org.leav
+         } else {
+             optional = (Optional<? extends T>)this.patch.remove(component);
+         }
+-
++        recalculateMaxStackSize(component); // Leaves - cache item max stack size
+         return (T)(optional != null ? optional.orElse(null) : object);
+     }
+ 
+@@ -101,6 +106,7 @@ public final class PatchedDataComponentMap implements DataComponentMap, org.leav
+         for (Entry<DataComponentType<?>, Optional<?>> entry : Reference2ObjectMaps.fastIterable(patch.map)) {
+             this.applyPatch(entry.getKey(), entry.getValue());
+         }
++        recalculateMaxStackSize(null); // Leaves - cache item max stack size
+     }
+ 
+     private void applyPatch(DataComponentType<?> component, Optional<?> value) {
+@@ -116,23 +122,27 @@ public final class PatchedDataComponentMap implements DataComponentMap, org.leav
+         } else {
+             this.patch.remove(component);
+         }
++        recalculateMaxStackSize(null); // Leaves - cache item max stack size
+     }
+ 
+     public void restorePatch(DataComponentPatch patch) {
+         this.ensureMapOwnership();
+         this.patch.clear();
+         this.patch.putAll(patch.map);
++        recalculateMaxStackSize(null); // Leaves - cache item max stack size
+     }
+ 
+     public void clearPatch() {
+         this.ensureMapOwnership();
+         this.patch.clear();
++        recalculateMaxStackSize(null); // Leaves - cache item max stack size
+     }
+ 
+     public void setAll(DataComponentMap map) {
+         for (TypedDataComponent<?> typedDataComponent : map) {
+             typedDataComponent.applyTo(this);
+         }
++        recalculateMaxStackSize(null); // Leaves - cache item max stack size
+     }
+ 
+     private void ensureMapOwnership() {
+@@ -258,4 +268,19 @@ public final class PatchedDataComponentMap implements DataComponentMap, org.leav
+         return 0;
+     }
+     // Leaves end - Lithium Sleeping Block Entity
++
++    // Leaves start - cache item max stack size
++    private int cachedMaxStackSize = 1;
++
++    public int getMaxStackSize() {
++        return cachedMaxStackSize;
++    }
++
++    private <T> void recalculateMaxStackSize(@Nullable DataComponentType<T> type) {
++        if (type != null && !type.equals(net.minecraft.core.component.DataComponents.MAX_STACK_SIZE)) {
++            return;
++        }
++        cachedMaxStackSize = getOrDefault(net.minecraft.core.component.DataComponents.MAX_STACK_SIZE, 1);
++    }
++    // Leaves end - cache item max stack size
+ }
+diff --git a/net/minecraft/world/item/ItemStack.java b/net/minecraft/world/item/ItemStack.java
+index 7cee8071c5f872c256ac1762bd22948fca1ccd30..b580579448f52aa851f053c9a4c2e6e99d76dae0 100644
+--- a/net/minecraft/world/item/ItemStack.java
++++ b/net/minecraft/world/item/ItemStack.java
+@@ -601,9 +601,11 @@ public final class ItemStack implements DataComponentHolder, ChangePublisher<net
+         return itemStack;
+     }
+ 
++    // Leaves start - cache item max stack size
+     public int getMaxStackSize() {
+-        return this.getOrDefault(DataComponents.MAX_STACK_SIZE, 1);
++        return components.getMaxStackSize();
+     }
++    // Leaves end - cache item max stack size
+ 
+     public boolean isStackable() {
+         return this.getMaxStackSize() > 1 && (!this.isDamageableItem() || !this.isDamaged());
